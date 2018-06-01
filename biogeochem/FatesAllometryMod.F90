@@ -93,6 +93,8 @@ module FatesAllometryMod
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
   use EDTypesMod       , only : nlevleaf, dinc_ed
+  use EDTypesMod       , only : nclmax
+
 
   implicit none
 
@@ -104,7 +106,7 @@ module FatesAllometryMod
   public :: bleaf         ! Generic actual leaf biomass wrapper
   public :: storage_fraction_of_target ! storage as fraction of leaf biomass
   public :: tree_lai      ! Calculate tree-level LAI from actual leaf biomass
-  public :: tree_sai      ! Calculate tree-level SAI from target leaf biomass
+  public :: tree_sai      ! Calculate tree-level SAI from tree-level LAI
   public :: bsap_allom    ! Generic sapwood wrapper
   public :: bbgw_allom    ! Generic coarse root wrapper
   public :: bfineroot     ! Generic actual fine root biomass wrapper
@@ -521,26 +523,24 @@ contains
   end subroutine storage_fraction_of_target
 
   ! =====================================================================================
-  
-  real(r8) function tree_lai( bl, status_coh, pft, c_area, n, currenPatch, currentCohort )
+
+  real(r8) function tree_lai( bl, status_coh, pft, c_area, n, cl, canopy_layer_tai )
 
     ! ============================================================================
     !  LAI of individual trees is a function of the total leaf area and the total canopy area.   
     ! ============================================================================
 	! !ARGUMENTS
-	type (ed_patch_type) , intent(in) :: currentPatch
-	type (ed_cohort_type), intent(in) :: currentCohort
-	
-	! !LOCAL VARIABLES:
     real(r8), intent(in) :: bl            ! plant leaf biomass [kg]     
     integer, intent(in)  :: status_coh    ! growth status of plant  (2 = leaves on , 1 = leaves off)
     integer, intent(in)  :: pft
     real(r8), intent(in) :: c_area        ! areal extent of canopy (m2)
     real(r8), intent(in) :: n             ! number of individuals in cohort per 'area' (10000m2 default)
+    integer, intent(in)  :: cl			  ! canopy layer index
+    real(r8), intent(in) :: canopy_layer_tai(nclmax)   ! total area index of each canopy layer
 
+	! !LOCAL VARIABLES:
     real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
     real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
-    integer  :: cl 				   ! canopy layer index
     real(r8) :: laican 			   ! lai + sai of canopy layer overlying this tree
     real(r8) :: tai_to_lai 		   ! ratio of total area index (ie. sai + lai) to lai for individual tree
     real(r8) :: kn 				   ! coefficient for exponential decay of 1/sla and vcmax with canopy depth
@@ -557,24 +557,25 @@ contains
     
     if(leafc_per_unitarea > 0.0_r8)then
     
-       ! Laican = LAI + SAI of overlying canopy layer
-       cl = currentCohort%canopy_layer
-       if (cl==1) then ! are we in the top canopy layer?
+       ! Calculate laican = LAI + SAI of overlying canopy layer
+       if (cl==1) then ! if in we are in the canopy (top) layer)
            laican = 0._r8
        else
-           laican = sum(currentPatch%canopy_layer_tai(1:cl-1))
+           laican = sum(canopy_layer_tai(1:cl-1))
        end if
        
-       ! Ratio of total area index (ie. lai + sai) to lai for individual tree        
-       tai_to_lai = 1.0_r8 + (EDPftvarcon_inst%allom_sai_scaler(pft) / EDPftvarcon_inst%slatop(pft))
-       ! Coefficient for 1/sla profile
+       ! Ratio of total area index (ie. lai + sai) to lai for individual tree
+       tai_to_lai = 1.0_r8 + EDPftvarcon_inst%allom_sai_scaler(pft)
+       ! Coefficient for exponential decay of 1/sla with canopy depth
        kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
        ! Tree_lai (kg/m2 * m2/kg) = unitless LAI
        ! Following equation derived by setting 
-       ! leafc_per_unitarea = integral of [e^(-kn(tai_to_lai * tree_lai(x) + laican)) / slatop]
+       ! leafc_per_unitarea = integral of e^(-kn(tai_to_lai * x + laican)) / slatop
        ! over x = 0 to tree_lai
        ! Then rearranging to solve for tree_lai.
-       tree_lai = (log(1.0_r8 - kn * tai_to_lai * slat * leafc_per_unitarea) + (kn * laican)) / (-1.0_r8 * kn * tai_to_lai)
+       tree_lai = (log(exp(-1.0_r8 * kn * laican) - &
+            kn * tai_to_lai * slat * leafc_per_unitarea) + &
+            (kn * laican)) / (-1.0_r8 * kn * tai_to_lai)
     else
        tree_lai = 0.0_r8
     endif
@@ -588,6 +589,16 @@ contains
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
+    
+    ! if leafc_per_unitarea becomes too large, tree_lai becomes an imaginary number 
+    ! (because in the tree_lai equation we must take natural log of something >0)
+    ! Thus, we include the following error message when leafc_per_unitarea becomes too large.
+    ! Under most parameterizations, this will only occur at very large tree_lai values (e.g. >30)
+    if(leafc_per_unitarea >= (exp(-1.0_r8 * kn * laican) / (kn * tai_to_lai * slat))then
+       write(fates_log(),*) 'too much leafc_per_unitarea' , leafc_per_unitarea , pft, kn, laican
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
 
     return
 
@@ -595,29 +606,16 @@ contains
 
   ! ============================================================================
 
-  real(r8) function tree_sai( dbh, pft, canopy_trim, c_area, n )
+  real(r8) function tree_sai( pft, treelai )
 
     ! ============================================================================
-    !  SAI of individual trees is a function of the target leaf biomass
+    !  SAI of individual trees is a function of the LAI of individual trees
     ! ============================================================================
 
-    real(r8),intent(in)  :: dbh
-    integer, intent(in)  :: pft
-    real(r8),intent(in)  :: canopy_trim
-    real(r8), intent(in) :: c_area        ! areal extent of canopy (m2)
-    real(r8), intent(in) :: n             ! number of individuals in cohort per 'area' (10000m2 default)
+    integer, intent(in)  :: pft			   ! PFT index
+    real(r8), intent(in) :: treelai        ! LAI of individual trees in this cohort (m2/m2)
 
-    real(r8) :: leafc_per_unitarea ! KgC of target leaf per m2 area of ground.
-    real(r8) :: sai_scaler     
-    real(r8) :: b_leaf
-
-    sai_scaler = g_per_kg * EDPftvarcon_inst%allom_sai_scaler(pft)  ! m2/g to m2/kg
-
-    call bleaf(dbh,pft,canopy_trim,b_leaf)
-
-    leafc_per_unitarea = b_leaf/(c_area/n) !KgC/m2
-
-    tree_sai = leafc_per_unitarea * sai_scaler !kg/m2 * m2/kg = unitless SAI 
+    tree_sai =  EDPftvarcon_inst%allom_sai_scaler(pft) * treelai ! fraction * m2/m2 = unitless SAI
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
     ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
