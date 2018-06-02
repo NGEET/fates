@@ -62,18 +62,8 @@ module FatesInterfaceMod
 
 
    integer, protected :: hlm_numlevgrnd   ! Number of ground layers
-   integer, protected :: hlm_numlevsoil   ! Number of soil layers
-
-   
-   integer, protected :: hlm_numlevdecomp_full ! Number of GROUND layers for the purposes
-                                               ! of biogeochemistry; can be either 1 
-                                               ! or the total number of soil layers
-                                               ! (includes bedrock)
-   
-   
-   integer, protected :: hlm_numlevdecomp ! Number of SOIL layers for the purposes of 
-                                          ! biogeochemistry; can be either 1 or the total
-                                          ! number of soil layers
+                                          ! NOTE! SOIL LAYERS ARE NOT A GLOBAL, THEY 
+                                          ! ARE VARIABLE BY SITE
 
    integer, protected :: hlm_is_restart   ! Is the HLM signalling that this is a restart
                                           ! type simulation?
@@ -198,6 +188,7 @@ module FatesInterfaceMod
    integer , allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
    integer , allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
    real(r8), allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
+   real(r8), allocatable :: fates_hdim_levheight(:)           ! height lower bound dimension
    integer , allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
    integer , allocatable :: fates_hdim_levfuel(:)          ! fire fuel class dimension
    integer , allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
@@ -209,6 +200,11 @@ module FatesInterfaceMod
    integer , allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dim
    integer , allocatable :: fates_hdim_scmap_levscag(:)    ! map of size-class into size-class x patch age dimension
    integer , allocatable :: fates_hdim_agmap_levscag(:)    ! map of patch-age into size-class x patch age dimension
+   integer , allocatable :: fates_hdim_scmap_levscagpft(:)     ! map of size-class into size-class x patch age x pft dimension
+   integer , allocatable :: fates_hdim_agmap_levscagpft(:)     ! map of patch-age into size-class x patch age x pft dimension
+   integer , allocatable :: fates_hdim_pftmap_levscagpft(:)    ! map of pft into size-class x patch age x pft dimension
+   integer , allocatable :: fates_hdim_agmap_levagepft(:)      ! map of patch-age into patch age x pft dimension
+   integer , allocatable :: fates_hdim_pftmap_levagepft(:)     ! map of pft into patch age x pft dimension
 
    ! ------------------------------------------------------------------------------------
    !                              DYNAMIC BOUNDARY CONDITIONS
@@ -240,9 +236,10 @@ module FatesInterfaceMod
    !
    ! -------------------------------------------------------------------------------------
 
-   integer, protected :: numpft          ! The total number of PFTs defined in the simulation
+   integer, protected :: numpft       ! The total number of PFTs defined in the simulation
    integer, protected :: nlevsclass   ! The total number of cohort size class bins output to history
    integer, protected :: nlevage      ! The total number of patch age bins output to history
+   integer, protected :: nlevheight   ! The total number of height bins output to history
    
 
    ! -------------------------------------------------------------------------------------
@@ -253,10 +250,11 @@ module FatesInterfaceMod
    ! or alias other variables, ALLOCATABLES cannnot.  According to S. Lionel 
    ! (Intel-Forum Post), ALLOCATABLES are better perfomance wise as long as they point 
    ! to contiguous memory spaces and do not alias other variables, the case here.
-   ! Naming conventions:   _gl  means ground layer dimensions
-   !                       _si  means site dimensions (scalar in that case)
+   ! Naming conventions:   _si  means site dimensions (scalar in that case)
    !                       _pa  means patch dimensions
    !                       _rb  means radiation band
+   !                       _sl  means soil layer
+   !                       _sisl means site x soil layer
    ! ------------------------------------------------------------------------------------
 
    type, public :: bc_in_type
@@ -266,10 +264,17 @@ module FatesInterfaceMod
 
 
       ! Soil layer structure
+
+      integer              :: nlevsoil           ! the number of soil layers in this column
+      integer              :: nlevdecomp         ! the number of soil layers in the column
+                                                 ! that are biogeochemically active
       real(r8),allocatable :: zi_sisl(:)         ! interface level below a "z" level (m)
                                                  ! this contains a zero index for surface.
       real(r8),allocatable :: dz_sisl(:)         ! layer thickness (m)
-      real(r8),allocatable :: z_sisl(:)          ! layer depth (m) (1:hlm_nlevsoil) 
+      real(r8),allocatable :: z_sisl(:)          ! layer depth (m)
+
+      
+
 
       ! Decomposition Layer Structure
       real(r8), allocatable :: dz_decomp_sisl(:)
@@ -348,7 +353,7 @@ module FatesInterfaceMod
       real(r8), allocatable :: tgcm_pa(:)
 
       ! soil temperature (Kelvin)
-      real(r8), allocatable :: t_soisno_gl(:)
+      real(r8), allocatable :: t_soisno_sl(:)
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
@@ -389,19 +394,19 @@ module FatesInterfaceMod
       ! ---------------------------------------------------------------------------------
 
       ! Soil suction potential of layers in each site, negative, [mm]
-      real(r8), allocatable :: smp_gl(:)
+      real(r8), allocatable :: smp_sl(:)
 
       ! Effective porosity = porosity - vol_ic, of layers in each site [-]
-      real(r8), allocatable :: eff_porosity_gl(:)
+      real(r8), allocatable :: eff_porosity_sl(:)
 
       ! volumetric soil water at saturation (porosity)
-      real(r8), allocatable :: watsat_gl(:)
+      real(r8), allocatable :: watsat_sl(:)
 
       ! Temperature of ground layers [K]
-      real(r8), allocatable :: tempk_gl(:)
+      real(r8), allocatable :: tempk_sl(:)
 
       ! Liquid volume in ground layer (m3/m3)
-      real(r8), allocatable :: h2o_liqvol_gl(:)
+      real(r8), allocatable :: h2o_liqvol_sl(:)
 
       ! Site level filter for uptake response functions
       logical               :: filter_btran
@@ -416,8 +421,8 @@ module FatesInterfaceMod
       real(r8),allocatable :: lwrad_net_pa(:)      ! Net absorbed longwave radiation (W/m2)
       real(r8),allocatable :: watsat_sisl(:)       ! volumetric soil water at saturation (porosity)
       real(r8),allocatable :: watres_sisl(:)       ! volumetric residual soil water
-      real(r8),allocatable :: sucsat_sisl(:)       ! minimum soil suction (mm) (hlm_nlevsoil) 
-      real(r8),allocatable :: bsw_sisl(:)          ! Clapp and Hornberger "b" (hlm_nlevsoil)
+      real(r8),allocatable :: sucsat_sisl(:)       ! minimum soil suction (mm) 
+      real(r8),allocatable :: bsw_sisl(:)          ! Clapp and Hornberger "b"
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
@@ -439,10 +444,10 @@ module FatesInterfaceMod
       ! Logical stating whether a ground layer can have water uptake by plants
       ! The only condition right now is that liquid water exists
       ! The name (suction) is used to indicate that soil suction should be calculated
-      logical, allocatable :: active_suction_gl(:)
+      logical, allocatable :: active_suction_sl(:)
 
       ! Effective fraction of roots in each soil layer 
-      real(r8), allocatable :: rootr_pagl(:,:)
+      real(r8), allocatable :: rootr_pasl(:,:)
 
       ! Integrated (vertically) transpiration wetness factor (0 to 1) 
       ! (diagnostic, should not be used by HLM)
@@ -614,7 +619,7 @@ contains
    ! ====================================================================================
    
 
-   subroutine allocate_bcin(bc_in)
+   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -622,13 +627,20 @@ contains
       
       implicit none
       type(bc_in_type), intent(inout) :: bc_in
+      integer,intent(in)              :: nlevsoil_in
+      integer,intent(in)              :: nlevdecomp_in
       
       ! Allocate input boundaries
-      allocate(bc_in%zi_sisl(0:hlm_numlevsoil))
-      allocate(bc_in%dz_sisl(hlm_numlevsoil))
-      allocate(bc_in%z_sisl(hlm_numlevsoil))
 
-      allocate(bc_in%dz_decomp_sisl(hlm_numlevdecomp_full))
+
+      bc_in%nlevsoil   = nlevsoil_in
+      bc_in%nlevdecomp = nlevdecomp_in
+
+      allocate(bc_in%zi_sisl(0:nlevsoil_in))
+      allocate(bc_in%dz_sisl(nlevsoil_in))
+      allocate(bc_in%z_sisl(nlevsoil_in))
+
+      allocate(bc_in%dz_decomp_sisl(nlevdecomp_in))
 
       ! Vegetation Dynamics
       allocate(bc_in%t_veg24_pa(maxPatchesPerSite))
@@ -642,11 +654,11 @@ contains
       allocate(bc_in%solai_parb(maxPatchesPerSite,hlm_numSWb))
       
       ! Hydrology
-      allocate(bc_in%smp_gl(hlm_numlevgrnd))
-      allocate(bc_in%eff_porosity_gl(hlm_numlevgrnd))
-      allocate(bc_in%watsat_gl(hlm_numlevgrnd))
-      allocate(bc_in%tempk_gl(hlm_numlevgrnd))
-      allocate(bc_in%h2o_liqvol_gl(hlm_numlevgrnd))
+      allocate(bc_in%smp_sl(nlevsoil_in))
+      allocate(bc_in%eff_porosity_sl(nlevsoil_in))
+      allocate(bc_in%watsat_sl(nlevsoil_in))
+      allocate(bc_in%tempk_sl(nlevsoil_in))
+      allocate(bc_in%h2o_liqvol_sl(nlevsoil_in))
 
       ! Photosynthesis
       allocate(bc_in%filter_photo_pa(maxPatchesPerSite))
@@ -658,7 +670,7 @@ contains
       allocate(bc_in%rb_pa(maxPatchesPerSite))
       allocate(bc_in%t_veg_pa(maxPatchesPerSite))
       allocate(bc_in%tgcm_pa(maxPatchesPerSite))
-      allocate(bc_in%t_soisno_gl(hlm_numlevgrnd))
+      allocate(bc_in%t_soisno_sl(nlevsoil_in))
 
       ! Canopy Radiation
       allocate(bc_in%filter_vegzen_pa(maxPatchesPerSite))
@@ -672,18 +684,18 @@ contains
          allocate(bc_in%qflx_transp_pa(maxPatchesPerSite))
          allocate(bc_in%swrad_net_pa(maxPatchesPerSite))
          allocate(bc_in%lwrad_net_pa(maxPatchesPerSite))
-         allocate(bc_in%watsat_sisl(hlm_numlevsoil))
-         allocate(bc_in%watres_sisl(hlm_numlevsoil))
-         allocate(bc_in%sucsat_sisl(hlm_numlevsoil))
-         allocate(bc_in%bsw_sisl(hlm_numlevsoil))
-         allocate(bc_in%hksat_sisl(hlm_numlevsoil))
-         allocate(bc_in%h2o_liq_sisl(hlm_numlevsoil)); bc_in%h2o_liq_sisl = nan
+         allocate(bc_in%watsat_sisl(nlevsoil_in))
+         allocate(bc_in%watres_sisl(nlevsoil_in))
+         allocate(bc_in%sucsat_sisl(nlevsoil_in))
+         allocate(bc_in%bsw_sisl(nlevsoil_in))
+         allocate(bc_in%hksat_sisl(nlevsoil_in))
+         allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
 
       return
    end subroutine allocate_bcin
    
-   subroutine allocate_bcout(bc_out)
+   subroutine allocate_bcout(bc_out, nlevsoil_in, nlevdecomp_in)
 
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -691,7 +703,8 @@ contains
       
       implicit none
       type(bc_out_type), intent(inout) :: bc_out
-      
+      integer,intent(in)               :: nlevsoil_in
+      integer,intent(in)               :: nlevdecomp_in
       
       ! Radiation
       allocate(bc_out%fsun_pa(maxPatchesPerSite))
@@ -699,8 +712,8 @@ contains
       allocate(bc_out%laisha_pa(maxPatchesPerSite))
       
       ! Hydrology
-      allocate(bc_out%active_suction_gl(hlm_numlevgrnd))
-      allocate(bc_out%rootr_pagl(maxPatchesPerSite,hlm_numlevgrnd))
+      allocate(bc_out%active_suction_sl(nlevsoil_in))
+      allocate(bc_out%rootr_pasl(maxPatchesPerSite,nlevsoil_in))
       allocate(bc_out%btran_pa(maxPatchesPerSite))
       
       ! Photosynthesis
@@ -718,9 +731,9 @@ contains
       allocate(bc_out%ftii_parb(maxPatchesPerSite,hlm_numSWb))
 
       ! biogeochemistry
-      allocate(bc_out%FATES_c_to_litr_lab_c_col(hlm_numlevdecomp_full))        
-      allocate(bc_out%FATES_c_to_litr_cel_c_col(hlm_numlevdecomp_full))
-      allocate(bc_out%FATES_c_to_litr_lig_c_col(hlm_numlevdecomp_full))
+      allocate(bc_out%FATES_c_to_litr_lab_c_col(nlevdecomp_in))
+      allocate(bc_out%FATES_c_to_litr_cel_c_col(nlevdecomp_in))
+      allocate(bc_out%FATES_c_to_litr_lig_c_col(nlevdecomp_in))
 
       ! Canopy Structure
       allocate(bc_out%elai_pa(maxPatchesPerSite))
@@ -739,7 +752,7 @@ contains
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
-         allocate(bc_out%qflx_soil2root_sisl(hlm_numlevsoil))
+         allocate(bc_out%qflx_soil2root_sisl(nlevsoil_in))
       end if
 
       return
@@ -754,6 +767,10 @@ contains
       integer, intent(in) :: s
 
       ! Input boundaries
+      ! Warning: these "z" type variables
+      ! are written only once at the beginning
+      ! so THIS ROUTINE SHOULD NOT BE CALLED AFTER
+      ! INITIALIZATION
       this%bc_in(s)%zi_sisl(:)     = 0.0_r8
       this%bc_in(s)%dz_sisl(:)     = 0.0_r8
       this%bc_in(s)%z_sisl(:)      = 0.0_r8
@@ -767,11 +784,11 @@ contains
 
       this%bc_in(s)%solad_parb(:,:)     = 0.0_r8
       this%bc_in(s)%solai_parb(:,:)     = 0.0_r8
-      this%bc_in(s)%smp_gl(:)           = 0.0_r8
-      this%bc_in(s)%eff_porosity_gl(:)  = 0.0_r8
-      this%bc_in(s)%watsat_gl(:)        = 0.0_r8
-      this%bc_in(s)%tempk_gl(:)         = 0.0_r8
-      this%bc_in(s)%h2o_liqvol_gl(:)    = 0.0_r8
+      this%bc_in(s)%smp_sl(:)           = 0.0_r8
+      this%bc_in(s)%eff_porosity_sl(:)  = 0.0_r8
+      this%bc_in(s)%watsat_sl(:)        = 0.0_r8
+      this%bc_in(s)%tempk_sl(:)         = 0.0_r8
+      this%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
       this%bc_in(s)%filter_vegzen_pa(:) = .false.
       this%bc_in(s)%coszen_pa(:)        = 0.0_r8
       this%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
@@ -797,11 +814,11 @@ contains
 
 
       ! Output boundaries
-      this%bc_out(s)%active_suction_gl(:) = .false.
+      this%bc_out(s)%active_suction_sl(:) = .false.
       this%bc_out(s)%fsun_pa(:)      = 0.0_r8
       this%bc_out(s)%laisun_pa(:)    = 0.0_r8
       this%bc_out(s)%laisha_pa(:)    = 0.0_r8
-      this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
+      this%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
 
       this%bc_out(s)%FATES_c_to_litr_lab_c_col(:) = 0.0_r8
@@ -862,6 +879,7 @@ contains
        ! --------------------------------------------------------------------------------
 
       use EDParamsMod, only : ED_val_history_sizeclass_bin_edges, ED_val_history_ageclass_bin_edges
+      use EDParamsMod, only : ED_val_history_height_bin_edges
       use CLMFatesParamInterfaceMod         , only : FatesReadParameters
       implicit none
       
@@ -907,15 +925,20 @@ contains
          ! assume these arrays are 1-indexed
          nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
+         nlevheight = size(ED_val_history_height_bin_edges,dim=1)
 
-         ! do some checks on the size and age bin arrays to make sure they make sense:
-         ! make sure that both start at zero, and that both are monotonically increasing
+         ! do some checks on the size, age, and height bin arrays to make sure they make sense:
+         ! make sure that all start at zero, and that both are monotonically increasing
          if ( ED_val_history_sizeclass_bin_edges(1) .ne. 0._r8 ) then
             write(fates_log(), *) 'size class bins specified in parameter file must start at zero'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
          if ( ED_val_history_ageclass_bin_edges(1) .ne. 0._r8 ) then
             write(fates_log(), *) 'age class bins specified in parameter file must start at zero'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         endif
+         if ( ED_val_history_height_bin_edges(1) .ne. 0._r8 ) then
+            write(fates_log(), *) 'height class bins specified in parameter file must start at zero'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
          do i = 2,nlevsclass
@@ -927,6 +950,12 @@ contains
          do i = 2,nlevage
             if ( (ED_val_history_ageclass_bin_edges(i) - ED_val_history_ageclass_bin_edges(i-1)) .le. 0._r8) then
                write(fates_log(), *) 'age class bins specified in parameter file must be monotonically increasing'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+         end do
+         do i = 2,nlevheight
+            if ( (ED_val_history_height_bin_edges(i) - ED_val_history_height_bin_edges(i-1)) .le. 0._r8) then
+               write(fates_log(), *) 'height class bins specified in parameter file must be monotonically increasing'
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
@@ -961,6 +990,7 @@ contains
        use EDTypesMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
+       use EDParamsMod, only : ED_val_history_height_bin_edges
 
        ! ------------------------------------------------------------------------------------------
        ! This subroutine allocates and populates the variables
@@ -978,6 +1008,7 @@ contains
        integer :: ican
        integer :: ileaf
        integer :: iage
+       integer :: iheight
 
        allocate( fates_hdim_levsclass(1:nlevsclass   ))
        allocate( fates_hdim_pfmap_levscpf(1:nlevsclass*numpft))
@@ -986,6 +1017,7 @@ contains
        allocate( fates_hdim_levfuel(1:NFSC   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
+       allocate( fates_hdim_levheight(1:nlevheight   ))
 
        allocate( fates_hdim_levcan(nclmax))
        allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
@@ -995,10 +1027,16 @@ contains
        allocate( fates_hdim_pftmap_levcnlfpf(nlevleaf*nclmax*numpft))
        allocate( fates_hdim_scmap_levscag(nlevsclass * nlevage ))
        allocate( fates_hdim_agmap_levscag(nlevsclass * nlevage ))
+       allocate( fates_hdim_scmap_levscagpft(nlevsclass * nlevage * numpft))
+       allocate( fates_hdim_agmap_levscagpft(nlevsclass * nlevage * numpft))
+       allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
+       allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
+       allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
 
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
+       fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
 
        ! make pft array
        do ipft=1,numpft
@@ -1059,6 +1097,28 @@ contains
              end do
           end do
        end do
+
+       i=0
+       do ipft=1,numpft
+          do iage=1,nlevage
+             do isc=1,nlevsclass
+                i=i+1
+                fates_hdim_scmap_levscagpft(i) = isc
+                fates_hdim_agmap_levscagpft(i) = iage
+                fates_hdim_pftmap_levscagpft(i) = ipft
+             end do
+          end do
+       end do
+
+       i=0
+       do ipft=1,numpft
+          do iage=1,nlevage
+             i=i+1
+             fates_hdim_agmap_levagepft(i) = iage
+             fates_hdim_pftmap_levagepft(i) = ipft
+          end do
+       end do
+
 
     end subroutine fates_history_maps
 
@@ -1144,10 +1204,7 @@ contains
          hlm_inir       = unset_int
          hlm_ivis       = unset_int
          hlm_is_restart = unset_int
-         hlm_numlevgrnd = unset_int
-         hlm_numlevsoil = unset_int
-         hlm_numlevdecomp_full = unset_int
-         hlm_numlevdecomp = unset_int
+         hlm_numlevgrnd   = unset_int
          hlm_name         = 'unset'
          hlm_hio_ignore_val   = unset_double
          hlm_masterproc   = unset_int
@@ -1279,27 +1336,6 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_numlevsoil .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground, exiting'
-            end if
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-         if(hlm_numlevdecomp_full .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp_full, exiting'
-            end if
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-         if(hlm_numlevdecomp .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp, exiting'
-            end if
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
          if(trim(hlm_name) .eq. 'unset') then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name, exiting'
@@ -1394,24 +1430,6 @@ contains
                hlm_numlevgrnd = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
-               end if
-
-            case('num_lev_soil')
-               hlm_numlevsoil = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
-               end if
-
-            case('num_levdecomp_full')
-               hlm_numlevdecomp_full = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering num_levdecomp_full = ',ival,' to FATES'
-               end if
-            
-            case('num_levdecomp')
-               hlm_numlevdecomp = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering num_levdecomp = ',ival,' to FATES'
                end if
 
             case('soilwater_ipedof')
