@@ -46,6 +46,7 @@ module EDParamsMod
    ! two special parameters whose size is defined in the parameter file
    real(r8),protected,allocatable :: ED_val_history_sizeclass_bin_edges(:)
    real(r8),protected,allocatable :: ED_val_history_ageclass_bin_edges(:)
+   real(r8),protected,allocatable :: ED_val_history_height_bin_edges(:)
 
    character(len=param_string_length),parameter :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
@@ -73,6 +74,7 @@ module EDParamsMod
    ! non-scalar parameter names
    character(len=param_string_length),parameter :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
    character(len=param_string_length),parameter :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
+   character(len=param_string_length),parameter :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -171,6 +173,7 @@ contains
 
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar1d, dimension_shape_1d
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
+    use FatesParametersInterface, only : dimension_name_history_height_bins
 
     implicit none
 
@@ -179,6 +182,7 @@ contains
     character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_scalar1d/)
     character(len=param_string_length), parameter :: dim_names_sizeclass(1) = (/dimension_name_history_size_bins/)
     character(len=param_string_length), parameter :: dim_names_ageclass(1) = (/dimension_name_history_age_bins/)
+    character(len=param_string_length), parameter :: dim_names_height(1) = (/dimension_name_history_height_bins/)
 
     call FatesParamsInit()
 
@@ -284,6 +288,9 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_history_ageclass_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_ageclass)
+
+    call fates_params%RegisterParameter(name=ED_name_history_height_bin_edges, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_height)
 
   end subroutine FatesRegisterParams
 
@@ -399,6 +406,9 @@ contains
 
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_ageclass_bin_edges, &
           data=ED_val_history_ageclass_bin_edges)
+
+    call fates_params%RetreiveParameterAllocate(name=ED_name_history_height_bin_edges, &
+          data=ED_val_history_height_bin_edges)
 
 
   end subroutine FatesReceiveParams

@@ -427,7 +427,6 @@ contains
                         if( currentCohort%excl_weight < (currentCohort%c_area-nearzero) ) then
                            sumweights = sumweights + currentCohort%excl_weight
                         end if
-                        
                      end if
                   end if
                   currentCohort => currentCohort%shorter 
