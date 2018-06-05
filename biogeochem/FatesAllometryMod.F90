@@ -560,10 +560,10 @@ contains
 	! !LOCAL VARIABLES:
     real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
     real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
-    real(r8) :: laican 			   ! lai + sai of canopy layer overlying this tree
-    real(r8) :: tai_to_lai 		   ! ratio of total area index (ie. sai + lai) to lai for individual tree
-    real(r8) :: kn 				   ! coefficient for exponential decay of 1/sla and vcmax with canopy depth
-
+    real(r8) :: laican             ! lai + sai of canopy layer overlying this tree
+    real(r8) :: tai_to_lai         ! ratio of total area index (ie. sai + lai) to lai for individual tree
+    real(r8) :: kn                 ! coefficient for exponential decay of 1/sla and vcmax with canopy depth
+    real(r8) :: clim               !Upper limit for leaf_per_unitarea when using log in the tree_lai function
     !----------------------------------------------------------------------
 
 
@@ -613,8 +613,9 @@ contains
     ! (because in the tree_lai equation we must take natural log of something >0)
     ! Thus, we include the following error message when leafc_per_unitarea becomes too large.
     ! Under most parameterizations, this will only occur at very large tree_lai values (e.g. >30)
-    if(leafc_per_unitarea >= (exp(-1.0_r8 * kn * laican) / (kn * tai_to_lai * slat)))then
-       write(fates_log(),*) 'too much leafc_per_unitarea' , leafc_per_unitarea , pft, kn, laican
+    clim = (exp(-1.0_r8 * kn * laican)) / (kn * tai_to_lai * slat)
+    if(leafc_per_unitarea >= clim)then
+       write(fates_log(),*) 'too much leafc_per_unitarea' , leafc_per_unitarea , clim, pft, kn, laican, tree_lai
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
