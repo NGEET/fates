@@ -952,12 +952,6 @@ contains
     ! II. Calculate target size of living biomass compartment for a given dbh.   
     ! -----------------------------------------------------------------------------------
 
-    ! Target leaf biomass according to allometry and trimming
-    call bleaf(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
-
-    ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-    call bfineroot(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
-
     ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
 
@@ -971,19 +965,41 @@ contains
     call bdead_allom( bt_agw, bt_bgw, bt_sap, ipft, bt_dead, &
                       dbt_agw_dd, dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd )
 
-    ! Target storage carbon [kgC,kgC/cm]
-    call bstore_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
-
     ! ------------------------------------------------------------------------------------
     ! If structure is larger than target, then we need to correct some integration errors
     ! by slightly increasing dbh to match it.
-    ! For grasses, if leaf biomass is larger than target, then we reset dbh to match
     ! -----------------------------------------------------------------------------------
     if( ((currentCohort%bdead-bt_dead) > calloc_abs_error) .and. &
           (EDPftvarcon_inst%woody(ipft) == itrue) ) then
        call StructureResetOfDH( currentCohort%bdead, ipft, &
              currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+
+       ! Re-calculate the sapwood and structural wood targets based on the new dbh
+       ! ------------------------------------------------------------------------------------------
+       
+       ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
+       call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
+       
+       ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
+       call bagw_allom(currentCohort%dbh,ipft,bt_agw,dbt_agw_dd)
+       
+       ! Target total below ground deriv. biomass in woody/fibrous tissues [kgC, kgC/cm] 
+       call bbgw_allom(currentCohort%dbh,ipft,bt_bgw,dbt_bgw_dd)
+       
+       ! Target total dead (structrual) biomass and deriv. [kgC, kgC/cm]
+       call bdead_allom( bt_agw, bt_bgw, bt_sap, ipft, bt_dead, &
+                         dbt_agw_dd, dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd )
+
     end if
+
+    ! Target leaf biomass according to allometry and trimming
+    call bleaf(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
+
+    ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
+    call bfineroot(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
+
+    ! Target storage carbon [kgC,kgC/cm]
+    call bstore_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
 
 
     ! -----------------------------------------------------------------------------------
@@ -1188,8 +1204,6 @@ contains
        currentCohort%npp_dead = currentCohort%npp_dead + bdead_flux / hlm_freq_day
 
     end if
-
-
 
     ! -----------------------------------------------------------------------------------
     ! X.  If carbon is yet still available ...
