@@ -613,7 +613,7 @@ contains
     ! (because in the tree_lai equation we must take natural log of something >0)
     ! Thus, we include the following error message when leafc_per_unitarea becomes too large.
     ! Under most parameterizations, this will only occur at very large tree_lai values (e.g. >30)
-    if(leafc_per_unitarea >= (exp(-1.0_r8 * kn * laican) / (kn * tai_to_lai * slat))then
+    if(leafc_per_unitarea >= (exp(-1.0_r8 * kn * laican) / (kn * tai_to_lai * slat)))then
        write(fates_log(),*) 'too much leafc_per_unitarea' , leafc_per_unitarea , pft, kn, laican
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
