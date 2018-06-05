@@ -18,8 +18,6 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
   use FatesInterfaceMod    , only : hlm_use_planthydro
-  use FatesInterfaceMod    , only : hlm_numlevgrnd
-  use FatesInterfaceMod    , only : hlm_numlevsoil
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_days_per_year
@@ -57,7 +55,6 @@ module EDPatchDynamicsMod
   public :: disturbance_rates
   public :: check_patch_area
   public :: set_patchno
-  public :: set_root_fraction
   private:: fuse_2_patches
 
   character(len=*), parameter, private :: sourcefile = &
@@ -346,7 +343,7 @@ contains
        allocate(new_patch)
        call create_patch(currentSite, new_patch, age, site_areadis, &
             cwd_ag_local, cwd_bg_local, leaf_litter_local, &
-            root_litter_local)
+            root_litter_local, bc_in%nlevsoil)
 
        new_patch%tallest  => null()
        new_patch%shortest => null()
@@ -381,7 +378,7 @@ contains
           do while(associated(currentCohort))       
 
              allocate(nc)             
-             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(nc)
+             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
              call zero_cohort(nc)
 
              ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
@@ -1104,14 +1101,17 @@ contains
           
           new_patch%cwd_ag(c)    = new_patch%cwd_ag(c)    + EDPftvarcon_inst%allom_agb_frac(p) * cwd_litter_density * np_mult
           currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + EDPftvarcon_inst%allom_agb_frac(p) * cwd_litter_density
-          new_patch%cwd_bg(c)    = new_patch%cwd_bg(c)    + (1._r8-EDPftvarcon_inst%allom_agb_frac(p)) * cwd_litter_density * np_mult 
+          new_patch%cwd_bg(c)    = new_patch%cwd_bg(c)    + (1._r8-EDPftvarcon_inst%allom_agb_frac(p)) * cwd_litter_density &
+                                                            * np_mult 
           currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + (1._r8-EDPftvarcon_inst%allom_agb_frac(p)) * cwd_litter_density 
           
           ! track as diagnostic fluxes
           currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
-                SF_val_CWD_frac(c) * canopy_mortality_woody_litter(p) * hlm_days_per_year * EDPftvarcon_inst%allom_agb_frac(p)/ AREA 
+                SF_val_CWD_frac(c) * canopy_mortality_woody_litter(p) * hlm_days_per_year * EDPftvarcon_inst%allom_agb_frac(p) &
+                / AREA 
           currentSite%CWD_BG_diagnostic_input_carbonflux(c) = currentSite%CWD_BG_diagnostic_input_carbonflux(c) + &
-                SF_val_CWD_frac(c) * canopy_mortality_woody_litter(p) * hlm_days_per_year * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p)) / AREA
+                SF_val_CWD_frac(c) * canopy_mortality_woody_litter(p) * hlm_days_per_year * (1.0_r8 &
+                - EDPftvarcon_inst%allom_agb_frac(p)) / AREA
        enddo
 
        new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + canopy_mortality_leaf_litter(p) / litter_area * np_mult
@@ -1132,7 +1132,7 @@ contains
 
   ! ============================================================================
   subroutine create_patch(currentSite, new_patch, age, areap,cwd_ag_local,cwd_bg_local, &
-       leaf_litter_local,root_litter_local)
+       leaf_litter_local,root_litter_local,nlevsoil)
     !
     ! !DESCRIPTION:
     !  Set default values for creating a new patch
@@ -1142,12 +1142,13 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: currentSite
     type(ed_patch_type), intent(inout), target :: new_patch
-    real(r8), intent(in) :: age                 ! notional age of this patch in years
-    real(r8), intent(in) :: areap               ! initial area of this patch in m2. 
-    real(r8), intent(in) :: cwd_ag_local(:)     ! initial value of above ground coarse woody debris. KgC/m2
-    real(r8), intent(in) :: cwd_bg_local(:)     ! initial value of below ground coarse woody debris. KgC/m2
-    real(r8), intent(in) :: root_litter_local(:)! initial value of root litter. KgC/m2
-    real(r8), intent(in) :: leaf_litter_local(:)! initial value of leaf litter. KgC/m2
+    real(r8), intent(in) :: age                  ! notional age of this patch in years
+    real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
+    real(r8), intent(in) :: cwd_ag_local(:)      ! initial value of above ground coarse woody debris. KgC/m2
+    real(r8), intent(in) :: cwd_bg_local(:)      ! initial value of below ground coarse woody debris. KgC/m2
+    real(r8), intent(in) :: root_litter_local(:) ! initial value of root litter. KgC/m2
+    real(r8), intent(in) :: leaf_litter_local(:) ! initial value of leaf litter. KgC/m2
+    integer, intent(in)  :: nlevsoil             ! number of soil layers
     !
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -1160,8 +1161,8 @@ contains
     allocate(new_patch%fabi(hlm_numSWb))
     allocate(new_patch%sabs_dir(hlm_numSWb))
     allocate(new_patch%sabs_dif(hlm_numSWb))
-    allocate(new_patch%rootfr_ft(numpft,hlm_numlevgrnd))
-    allocate(new_patch%rootr_ft(numpft,hlm_numlevgrnd)) 
+    allocate(new_patch%rootfr_ft(numpft,nlevsoil))
+    allocate(new_patch%rootr_ft(numpft,nlevsoil))
     
     call zero_patch(new_patch) !The nan value in here is not working??
 
@@ -1905,39 +1906,5 @@ contains
     enddo
 
    end function countPatches
-
-   ! ====================================================================================
-
-  subroutine set_root_fraction( cpatch , zi )
-    !
-    ! !DESCRIPTION:
-    !  Calculates the fractions of the root biomass in each layer for each pft. 
-    !
-    ! !USES:
-
-    !
-    ! !ARGUMENTS
-    type(ed_patch_type),intent(inout), target :: cpatch
-    real(r8),intent(in)  :: zi(0:hlm_numlevsoil)
-    !
-    ! !LOCAL VARIABLES:
-    integer :: lev,p,c,ft
-    !----------------------------------------------------------------------
-    
-    do ft = 1,numpft
-       do lev = 1, hlm_numlevgrnd
-          cpatch%rootfr_ft(ft,lev) = 0._r8
-       enddo
-
-       do lev = 1, hlm_numlevsoil-1
-          cpatch%rootfr_ft(ft,lev) = .5_r8*( &
-                 exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev-1))  &
-               + exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev-1))  &
-               - exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev))    &
-               - exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev)))
-       end do
-    end do
-
-  end subroutine set_root_fraction
 
  end module EDPatchDynamicsMod
