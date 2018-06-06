@@ -888,7 +888,7 @@ contains
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
                                                       ! non-integrator part
     integer , parameter :: max_substeps = 300
-    real(r8), parameter :: max_trunc_error = 1000.0_r8  ! Effectively turned off right now (RGK  05-2018)
+    real(r8), parameter :: max_trunc_error = 1.0_r8   
     integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
 
     ipft = currentCohort%pft
