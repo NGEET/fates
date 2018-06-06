@@ -43,8 +43,8 @@
 ! The following parameters (traits) are used
 !
 ! wood_density, mean stem wood specific gravity (heart,sap,bark)
-! allom_latosa_int, leaf area to sap area ratio, intercept [cm2/m2]
-! allom_latosa_slp, leaf area to sap area ratio, slope on diameter [cm2/m2/cm]
+! allom_latosa_int, sapwood area per leaf area, intercept [cm2/m2]
+! allom_latosa_slp, sapwood area per leaf area, slope on diameter [cm2/m2/cm]
 ! c2b, real, carbon to biomass multiplier (~2.0)
 ! allom_l2fr, fine root biomass per leaf biomass ratio [kgC/kgC]
 ! allom_agb_frac, the fraction of stem above ground [-]
