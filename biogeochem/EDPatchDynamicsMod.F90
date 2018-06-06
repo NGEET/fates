@@ -706,25 +706,39 @@ contains
     ! !LOCAL VARIABLES:
     real(r8) :: areatot
     type(ed_patch_type), pointer :: currentPatch 
+    type(ed_patch_type), pointer :: largestPatch
+    real(r8) :: largest_area
+    real(r8), parameter :: area_error_fail = 1.0e-6_r8
     !---------------------------------------------------------------------
 
     areatot = 0._r8
+    largest_area = 0._r8
+    largestPatch => null()
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
        areatot = areatot + currentPatch%area
+       
+       if(currentPatch%area>largest_area) then
+          largestPatch => currentPatch
+          largest_area = currentPatch%area
+       end if
+       
        currentPatch => currentPatch%younger
-       if (( areatot - area ) > 0._r8 ) then 
-          write(fates_log(),*) 'trimming patch area - is too big' , areatot-area
-          currentSite%oldest_patch%area = currentSite%oldest_patch%area - (areatot - area)
+    end do
+    
+    if ( abs( areatot - area ) > nearzero ) then 
+       
+       if ( abs(areatot-area) > area_error_fail ) then
+          write(fates_log(),*) 'Patch areas do not sum to 10000 within tolerance'
+          write(fates_log(),*) 'Total area: ': areatot,'absolute error: ',areatot-area
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       
+       largestPatch%area = largestPatch%area + (area-areatot)
+       
+    endif
 
-          if(currentSite%oldest_patch%area<0.0) then
-             write(fates_log(),*) 'patch area correction produced negative area' , areatot,areatot-area,currentSite%oldest_patch%area
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-
-       endif
-    enddo
-
+    return
   end subroutine check_patch_area
 
   ! ============================================================================
