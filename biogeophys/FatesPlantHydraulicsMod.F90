@@ -410,13 +410,9 @@ contains
      ccohort_hydr%v_troot(:)            = v_troot / n_hypool_troot    !! BOC not sure if/how we should multiply this by the sapwood fraction
 
      ! ABSORBING ROOT DEPTH, LENGTH & VOLUME
+     ccohort_hydr%z_node_aroot(1:nlevsoi_hyd) = -bc_in%z_sisl(1:nlevsoi_hyd)
 
-     if ( nlevsoi_hyd == 1) then
-        ccohort_hydr%z_node_aroot(nlevsoi_hyd)   = -bc_in%z_sisl(nlevsoi_hyd)
-     else
-        ccohort_hydr%z_node_aroot(1:nlevsoi_hyd) = -bc_in%z_sisl(1:nlevsoi_hyd)
-     end if
-
+     
      ccohort_hydr%l_aroot_tot        = cCohort%br*C2B*EDPftvarcon_inst%hydr_srl(FT)
      !ccohort_hydr%v_aroot_tot       = cCohort%br/EDecophyscon%ccontent(FT)/EDecophyscon%rootdens(FT)
      ccohort_hydr%v_aroot_tot        = pi_const*(EDPftvarcon_inst%hydr_rs2(FT)**2._r8)*ccohort_hydr%l_aroot_tot
@@ -731,8 +727,15 @@ contains
        do s=1,nsites
           allocate(csite_hydr)
           sites(s)%si_hydr => csite_hydr
-          sites(s)%si_hydr%nlevsoi_hyd = min(bc_in(s)%nlevsoil,nlevsoi_hyd_max)
-
+          if ( bc_in(s)%nlevsoil > nlevsoi_hyd_max ) then
+             write(fates_log(),*) 'The host land model has defined soil with'
+             write(fates_log(),*) bc_in(s)%nlevsoil,' layers, for one of its columns.'
+             write(fates_log(),*) 'Fates-hydro temporary array spaces with size'
+             write(fates_log(),*) 'nlevsoi_hyd_max = ',nlevsoi_hyd_max,' must be larger'
+             write(fates_log(),*) 'see main/FatesHydraulicsMemMod.F90'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          sites(s)%si_hydr%nlevsoi_hyd = bc_in(s)%nlevsoil
           call sites(s)%si_hydr%InitHydrSite()
        end do
 
