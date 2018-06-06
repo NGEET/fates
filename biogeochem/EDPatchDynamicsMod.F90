@@ -36,6 +36,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : ha_per_m2
   use FatesConstantsMod    , only : days_per_sec
   use FatesConstantsMod    , only : years_per_day
+  use FatesConstantsMod    , only : nearzero
 
 
   ! CIME globals
@@ -730,8 +731,13 @@ contains
        
        if ( abs(areatot-area) > area_error_fail ) then
           write(fates_log(),*) 'Patch areas do not sum to 10000 within tolerance'
-          write(fates_log(),*) 'Total area: ': areatot,'absolute error: ',areatot-area
+          write(fates_log(),*) 'Total area: ',areatot,'absolute error: ',areatot-area
           call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+       if(debug) then
+          write(fates_log(),*) 'Total patch area precision being fixed, adjusting'
+          write(fates_log(),*) 'largest patch. This may have slight impacts on carbon balance.'
        end if
        
        largestPatch%area = largestPatch%area + (area-areatot)

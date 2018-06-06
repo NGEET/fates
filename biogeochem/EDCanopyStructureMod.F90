@@ -318,7 +318,7 @@ contains
       ! !LOCAL VARIABLES:
       type(ed_cohort_type), pointer :: currentCohort,copyc
       integer  :: i_cwd                  ! Index for CWD pool
-      real(r8) :: cc_loss
+      real(r8) :: cc_loss                ! cohort crown area loss in demotion (m2)
       real(r8) :: lossarea
       real(r8) :: newarea
       real(r8) :: demote_area
@@ -638,7 +638,7 @@ contains
       integer  :: exceedance_counter
       real(r8) :: remainder_area
       real(r8) :: remainder_area_hold    
-      real(r8) :: cc_gain
+      real(r8) :: cc_gain                ! cohort crown area gain in promotion (m2)
       real(r8) :: arealayer_current      ! area (m2) of the current canopy layer
       real(r8) :: arealayer_below        ! area (m2) of the layer below the current layer
 
@@ -1628,9 +1628,11 @@ contains
            ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
            ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
            
-           bc_out(s)%canopy_fraction_pa(ifp) = currentPatch%total_canopy_area/AREA
+           bc_out(s)%canopy_fraction_pa(ifp) = &
+                min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
 
-           bare_frac_area = (1.0_r8-currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
+           bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
+                (currentPatch%area/AREA)
            
            total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
    
@@ -1674,8 +1676,10 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
            
-           write(fates_log(),*) 'imprecise patch areas in update_hlm_dynamics',total_patch_area
-
+           if(DEBUG) then
+              write(fates_log(),*) 'imprecise patch areas in update_hlm_dynamics',total_patch_area
+           end if
+           
            currentPatch => sites(s)%oldest_patch
            ifp = 0
            do while(associated(currentPatch))
