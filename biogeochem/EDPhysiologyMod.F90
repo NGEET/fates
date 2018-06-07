@@ -887,9 +887,11 @@ contains
     ! Woody turnover timescale [years]
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
                                                       ! non-integrator part
-    integer , parameter :: max_substeps = 300
-    real(r8), parameter :: max_trunc_error = 1.0_r8   
-    integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
+    integer , parameter :: max_substeps = 300         ! Number of step attempts before
+                                                      ! giving up
+    real(r8), parameter :: max_trunc_error = 1.0_r8   ! allowable numerical truncation error
+    integer,  parameter :: ODESolve = 2               ! 1=RKF45,  2=Euler
+
 
     ipft = currentCohort%pft
 
@@ -1217,10 +1219,20 @@ contains
     if( carbon_balance<cbal_prec) return
 
 
-    ! This routine checks that actual carbon is not below that targets. It does
+    ! This routine checks that actual carbon is not below the targets. It does
     ! allow actual pools to be above the target, and in these cases, it sends
     ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
-    ! It also checks to make sure that structural biomass is not above the target.
+    ! Again this is possible due to erors in numerical integration and/or the fusion
+    ! process.
+    ! It also checks to make sure that structural biomass is not below the target.
+    ! Note that we assume structural biomass is always on allometry.
+    ! For non-woody plants, we do not perform this partial growth logic (ie 
+    ! allowing only some pools to grow), we let all pools at or above allometry to 
+    ! grow. This is because we can't force any single pool to be on-allometry, and
+    ! thus a condition could potentially occur where all pools, either from fusion or 
+    ! numerical errors, are above allometry and would be flagged to not grow, in which
+    ! case the plant would be frozen in time
+
     if ( EDPftvarcon_inst%woody(ipft) == itrue ) then
        call TargetAllometryCheck(currentCohort%bl,currentCohort%br,currentCohort%bsw, &
                               currentCohort%bstore,currentCohort%bdead, &
