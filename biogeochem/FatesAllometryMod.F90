@@ -671,7 +671,7 @@ contains
        bsap_cap = max_frac*(bagw+bbgw)
 
        if(bsap>bsap_cap) then
-          bsap     = min( bsap_cap,bsap)
+          bsap     = bsap_cap
           if(present(dbsapdd))then
              dbsapdd = max_frac*(dbagwdd+dbbgwdd)
           end if
