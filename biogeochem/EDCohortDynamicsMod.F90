@@ -29,6 +29,7 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : initTreeHydStates
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
+  use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesAllometryMod  , only : bsap_allom
   use FatesAllometryMod  , only : bleaf
@@ -64,8 +65,10 @@ module EDCohortDynamicsMod
 contains
 
   !-------------------------------------------------------------------------------------!
-  subroutine create_cohort(patchptr, pft, nn, hite, dbh, bleaf, bfineroot, bsap, &
-                           bdead, bstore, laimemory, status, ctrim, clayer, spread, bc_in)
+
+  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh, bleaf, bfineroot, bsap, &
+                           bdead, bstore, laimemory, status, recruitstatus,ctrim, clayer, spread, bc_in)
+
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -73,10 +76,12 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout),   target :: currentSite
     type(ed_patch_type), intent(inout), pointer :: patchptr
     integer,  intent(in)   :: pft       ! Cohort Plant Functional Type
     integer,  intent(in)   :: clayer    ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
     integer,  intent(in)   :: status    ! growth status of plant  (2 = leaves on , 1 = leaves off)
+    integer,  intent(in)   :: recruitstatus    ! recruit status of plant  (1 = recruitment , 0 = other)
     real(r8), intent(in)   :: nn        ! number of individuals in cohort per 'area' (10000m2 default)
     real(r8), intent(in)   :: hite      ! height: meters
     real(r8), intent(in)   :: dbh       ! dbh: cm
@@ -89,6 +94,7 @@ contains
     real(r8), intent(in)   :: ctrim     ! What is the fraction of the maximum leaf biomass that we are targeting? :-
     real(r8), intent(in)   :: spread    ! The community assembly effects how spread crowns are in horizontal space
     type(bc_in_type), intent(in) :: bc_in ! External boundary conditions
+     
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
@@ -178,9 +184,12 @@ contains
     new_cohort%isnew = .true.
 
     if( hlm_use_planthydro.eq.itrue ) then
-       call InitHydrCohort(new_cohort)
-       call updateSizeDepTreeHydProps(new_cohort, bc_in) 
-       call initTreeHydStates(new_cohort, bc_in) 
+       call InitHydrCohort(CurrentSite,new_cohort)
+       call updateSizeDepTreeHydProps(CurrentSite,new_cohort, bc_in) 
+       call initTreeHydStates(CurrentSite,new_cohort, bc_in)
+       if(recruitstatus==1)then
+          new_cohort%co_hydr%is_newly_recuited = .true.
+       endif
     endif
     
     call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
@@ -241,7 +250,7 @@ contains
     currentCohort%br                 = nan ! fine root biomass: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2      
     currentCohort%sai                = nan ! stem area index of cohort   m2/m2
-    currentCohort%gscan              = nan ! Stomatal resistance of cohort. 
+    currentCohort%g_sb_laweight      = nan ! Total leaf conductance of cohort (stomata+blayer) weighted by leaf-area [m/s]*[m2]
     currentCohort%canopy_trim        = nan ! What is the fraction of the maximum leaf biomass that we are targeting? :-
     currentCohort%leaf_cost          = nan ! How much does it cost to maintain leaves: kgC/m2/year-1
     currentCohort%excl_weight        = nan ! How much of this cohort is demoted each year, as a proportion of all cohorts:-
@@ -362,7 +371,7 @@ contains
     currentcohort%npp_acc_hold       = 0._r8 
     currentcohort%gpp_acc_hold       = 0._r8  
     currentcohort%dmort              = 0._r8 
-    currentcohort%gscan              = 0._r8 
+    currentcohort%g_sb_laweight      = 0._r8 
     currentcohort%treesai            = 0._r8  
     currentCohort%lmort_direct       = 0._r8
     currentCohort%lmort_infra        = 0._r8
@@ -535,6 +544,7 @@ contains
              if(associated(shorterCohort)) shorterCohort%taller => null()
           else 
              tallerCohort%shorter => shorterCohort
+
           endif
           
           if (.not. associated(shorterCohort)) then
@@ -557,7 +567,7 @@ contains
 
   !-------------------------------------------------------------------------------------!
 
-  subroutine fuse_cohorts(currentPatch, bc_in)  
+  subroutine fuse_cohorts(currentSite, currentPatch, bc_in)  
 
      !
      ! !DESCRIPTION:
@@ -567,7 +577,8 @@ contains
      use EDParamsMod , only :  ED_val_cohort_fusion_tol
      use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
      !
-     ! !ARGUMENTS    
+     ! !ARGUMENTS   
+     type (ed_site_type), intent(inout),  target :: currentSite 
      type (ed_patch_type), intent(inout), target :: currentPatch
      type (bc_in_type), intent(in)               :: bc_in
      !
@@ -711,7 +722,7 @@ contains
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
 
-                                if(hlm_use_planthydro.eq.itrue) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
+                                if(hlm_use_planthydro.eq.itrue) call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)
 
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
@@ -1112,7 +1123,7 @@ contains
     n%br              = o%br
     n%lai             = o%lai                         
     n%sai             = o%sai  
-    n%gscan           = o%gscan
+    n%g_sb_laweight   = o%g_sb_laweight
     n%leaf_cost       = o%leaf_cost
     n%canopy_layer    = o%canopy_layer
     n%canopy_layer_yesterday    = o%canopy_layer_yesterday
@@ -1209,7 +1220,9 @@ contains
 
     ! Plant Hydraulics
     
-    if( hlm_use_planthydro.eq.itrue ) call CopyCohortHydraulics(n,o)
+    if( hlm_use_planthydro.eq.itrue ) then
+      call CopyCohortHydraulics(n,o)
+    endif
 
     ! indices for binning
     n%size_class      = o%size_class

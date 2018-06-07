@@ -9,9 +9,9 @@ module FatesParameterDerivedMod
   !
   ! -------------------------------------------------------------------------------------
 
-  use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : umolC_to_kgC
-  use FatesConstantsMod, only : g_per_kg
+  use FatesConstantsMod,     only : r8 => fates_r8
+  use FatesConstantsMod,     only : umolC_to_kgC
+  use FatesConstantsMod,     only : g_per_kg
   
   type param_derived_type
 
@@ -105,6 +105,7 @@ contains
          this%lmr25top(ft) = this%lmr25top(ft) * lnc / (umolC_to_kgC * g_per_kg)
          
       end do !ft 
+
     end associate
     return
   end subroutine Init

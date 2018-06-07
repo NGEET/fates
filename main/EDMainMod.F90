@@ -166,7 +166,7 @@ contains
           call terminate_cohorts(currentSite, currentPatch, 1)
 
           ! fuses similar cohorts
-          call fuse_cohorts(currentPatch, bc_in )
+          call fuse_cohorts(currentSite,currentPatch, bc_in )
           
           ! kills cohorts for various other reasons
           call terminate_cohorts(currentSite, currentPatch, 2)
@@ -283,8 +283,8 @@ contains
           ! (size --> heights of elements --> hydraulic path lengths --> 
           ! maximum node-to-node conductances)
           if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-             call updateSizeDepTreeHydProps(currentCohort, bc_in)
-             call updateSizeDepTreeHydStates(currentCohort)
+             call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)
+             call updateSizeDepTreeHydStates(currentSite,currentCohort)
           end if
   
           currentCohort => currentCohort%taller
@@ -590,6 +590,12 @@ contains
           currentCohort%cmort = 0.0_r8
           currentCohort%fmort = 0.0_r8
           currentCohort%frmort = 0.0_r8
+
+          currentCohort%dndt      = 0.0_r8
+	  currentCohort%dhdt      = 0.0_r8
+	  currentCohort%ddbhdt    = 0.0_r8
+	  currentCohort%dbdeaddt  = 0.0_r8
+	  currentCohort%dbstoredt = 0.0_r8
 
           currentCohort => currentCohort%taller
        enddo

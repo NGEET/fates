@@ -1426,6 +1426,9 @@ contains
      real(r8)                          :: b_sapwood     ! sapwood dummy var (kgC)
      real(r8)                          :: site_spread   ! site sprea dummy var (0-1)
      integer                           :: fto
+     integer                           :: ft
+     integer, parameter                :: recruitstatus = 0
+
 
      ! Dummy arguments used for calling create patch, these will be overwritten before
      ! run-time.  Just used now for allocation.
@@ -1482,11 +1485,11 @@ contains
              ! make new patch
              call create_patch(sites(s), newp, patch_age, area, &
                   cwd_ag_local, cwd_bg_local,  &
-                  leaf_litter_local, root_litter_local) 
+                  leaf_litter_local, root_litter_local,bc_in(s)%nlevsoil ) 
              
              ! give this patch a unique patch number
              newp%patchno = idx_pa
-
+	     
              do fto = 1, rio_ncohort_pa( io_idx_co_1st )
 
                 allocate(temp_cohort)
@@ -1515,10 +1518,9 @@ contains
                 b_fineroot = 0.0_r8
                 b_sapwood  = 0.0_r8
                 site_spread = 0.5_r8
-                
-                call create_cohort(newp, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+                call create_cohort(sites(s),newp, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                      b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
-                     temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, newp%NCL_p, &
+                     temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, newp%NCL_p, &
                      site_spread, bc_in(s))
                 
                 deallocate(temp_cohort)

@@ -6,6 +6,7 @@ module EDCanopyStructureMod
   ! =====================================================================================
 
   use FatesConstantsMod     , only : r8 => fates_r8
+  use FatesConstantsMod     , only : itrue, ifalse
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : carea_allom
@@ -18,8 +19,9 @@ module EDCanopyStructureMod
   use EDtypesMod            , only : AREA
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceMod     , only : hlm_days_per_year
+  use FatesInterfaceMod     , only : hlm_use_planthydro
   use FatesInterfaceMod     , only : numpft
-
+  use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -172,7 +174,7 @@ contains
             ! Remove cohorts that are incredibly sparse
             call terminate_cohorts(currentSite, currentPatch, 1)
             
-            call fuse_cohorts(currentPatch, bc_in)
+            call fuse_cohorts(currentSite, currentPatch, bc_in)
             
             ! Remove cohorts for various other reasons
             call terminate_cohorts(currentSite, currentPatch, 2)
@@ -196,7 +198,7 @@ contains
                ! Remove cohorts that are incredibly sparse
                call terminate_cohorts(currentSite, currentPatch, 1)
                
-               call fuse_cohorts(currentPatch, bc_in)
+               call fuse_cohorts(currentSite, currentPatch, bc_in)
                
                ! Remove cohorts for various other reasons
                call terminate_cohorts(currentSite, currentPatch, 2)
@@ -390,6 +392,9 @@ contains
                      ! otherwise currentPatch%spread(i_lyr+1) will be higher and the area will change...!!! 
 
                      allocate(copyc)
+		     if( hlm_use_planthydro.eq.itrue ) then
+                         call InitHydrCohort(currentSite,copyc)
+                     endif
                      call copy_cohort(currentCohort, copyc) !
 
                      newarea = currentCohort%c_area - cc_loss
@@ -460,7 +465,7 @@ contains
                         call carea_allom(currentCohort%dbh,currentCohort%n, &
                               currentSite%spread,currentCohort%pft,currentCohort%c_area)
                      endif
-                     
+
                      call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,copyc%c_area)
 
 
@@ -535,7 +540,8 @@ contains
                         currentCohort%c_area = 0._r8
 
                      else  
-                        call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
+                        call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                                         currentCohort%pft,currentCohort%c_area)
                      endif
 
                   endif ! matches: if (cc_loss < currentCohort%c_area)then
@@ -715,6 +721,9 @@ contains
                   !-----------Split and copy boundary cohort-----------------!
                   if(cc_gain < currentCohort%c_area)then
                      allocate(copyc)
+		     if( hlm_use_planthydro.eq.itrue ) then
+                         call InitHydrCohort(CurrentSite,copyc)
+                     endif
                      
                      call copy_cohort(currentCohort, copyc) !makes an identical copy...
                      ! n.b this needs to happen BEFORE the cohort goes into the new layer, otherwise currentPatch
@@ -882,10 +891,11 @@ contains
 
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
-    use EDPatchDynamicsMod   , only : set_root_fraction
+    use FatesAllometryMod    , only : set_root_fraction
+    use FatesAllometryMod    , only : i_hydro_rootprof_context
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use EDtypesMod           , only : area
-    use EDPftvarcon            , only : EDPftvarcon_inst
+    use EDPftvarcon          , only : EDPftvarcon_inst
 
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
@@ -920,8 +930,18 @@ contains
 
        do while(associated(currentPatch))
           
-          call set_root_fraction(currentPatch,bc_in(s)%zi_sisl)
+          ! Calculate rooting depth fractions for the patch x pft
+          ! Note that we are calling for the root fractions in the hydrologic context.
+          ! See explanation in FatesAllometryMod.  In other locations, this
+          ! function is called to return the profile of biomass as used for litter
 
+          do ft = 1, numpft
+             call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
+                  bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
+                  icontext=i_hydro_rootprof_context)
+          end do
+          
+          
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
@@ -933,6 +953,7 @@ contains
              
              ft = currentCohort%pft
 
+             
              
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
@@ -1588,9 +1609,13 @@ contains
         if(abs(total_patch_area-1.0_r8)>1e-9)then
            write(fates_log(),*) 'total area is wrong in update_hlm_dynamics',total_patch_area
         endif
-        
 
      end do
+
+     ! If hydraulics is turned on, update the amount of water bound in vegetation
+     if (hlm_use_planthydro.eq.itrue) then
+        call UpdateH2OVeg(nsites,sites,bc_out)
+     end if
 
 
   end subroutine update_hlm_dynamics
