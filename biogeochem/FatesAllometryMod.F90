@@ -43,8 +43,8 @@
 ! The following parameters (traits) are used
 !
 ! wood_density, mean stem wood specific gravity (heart,sap,bark)
-! allom_latosa_int, leaf area to sap area ratio, intercept [m2/cm2]
-! allom_latosa_slp, leaf area to sap area ratio, slope on diameter [m2/cm2/cm]
+! allom_latosa_int, sapwood area per leaf area, intercept [cm2/m2]
+! allom_latosa_slp, sapwood area per leaf area, slope on diameter [cm2/m2/cm]
 ! c2b, real, carbon to biomass multiplier (~2.0)
 ! allom_l2fr, fine root biomass per leaf biomass ratio [kgC/kgC]
 ! allom_agb_frac, the fraction of stem above ground [-]
@@ -956,12 +956,6 @@ contains
                 c2b          => EDPftvarcon_inst%c2b(ipft), & 
                 agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft) )
 
-      ! notes:
-      ! latosa_int units of [/m]
-      ! (1/latosa)* slatop*    gtokg    *   cm2tom2     / c2b   * mg2kg  * dens
-      ! density (g/cm3 == Mg/m3 b/c  1e6 = 100^3)
-      ! [cm2/m2] * [m2/gC]*[1000gC/1kgC]*[1m2/10000cm2] /[kg/kgC]*[kg/Mg]*[Mg/m3] = [/m]
-      !          0.012 * 1000 * (1/10000) / 2 * 1000 * 0.7
 
       bsap = bleaf * latosa_int * h
       
