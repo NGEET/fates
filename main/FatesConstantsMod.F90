@@ -33,6 +33,24 @@ module FatesConstantsMod
   ! error tolerance of 1 microgram.
   real(fates_r8), parameter :: calloc_abs_error = 1.0e-9_fates_r8
 
+  ! Rounding errors seem to hover around 1e-15 for the gnu compiler
+  ! when not applying compiler directives for safe math.  An example
+  ! of this is taking a vector of numbers, dividing through by their sum,
+  ! multiplying each by their original sum, and then seeing if their addition
+  ! matches the original sum.  Other simple examples of rounding errors
+  ! are simply changing the orders:  a*b*c .ne. a*c*b
+  ! This value here is used as an error expectation comparison 
+  ! for multiplication/division procedures, also allowing for 3 orders
+  ! of magnitude of buffer error (ie instead of 1e-15)
+  real(fates_r8), parameter :: rsnbl_math_prec = 1.0e-12_fates_r8
+
+  ! This is the precision of 8byte reals (~1e-308)
+  real(fates_r8), parameter :: tinyr8 = tiny(1.0_fates_r8)
+
+  ! We mostly use this in place of logical comparisons
+  ! between reals with zero, as the chances are their 
+  ! precisions are preventing perfect zero in comparison
+  real(fates_r8), parameter :: nearzero = 1.0e-30_fates_r8
 
   ! Unit conversion constants:
 
