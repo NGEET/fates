@@ -2358,18 +2358,6 @@ contains
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
                        currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_flig(ft) * &
                        currentpatch%area/AREA * froot_prof(s,ft,j)
-                  !
-                  !! and seed_decay too.  for now, use the same lability fractions as for leaf litter
-                  bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + &
-                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_flab(ft) * &
-                       currentpatch%area/AREA * leaf_prof(s,j)
-                  bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_fcel(ft) * &
-                       currentpatch%area/AREA * leaf_prof(s,j)
-                  bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_flig(ft) * &
-                       currentpatch%area/AREA * leaf_prof(s,j)
-                  !
                enddo
             end do
               
