@@ -669,10 +669,10 @@ contains
        ! Force sapwood to be less than a maximum fraction of total biomass
        ! (this comes into play typically in very small plants)
        bsap_cap = max_frac*(bagw+bbgw)
-       bsap     = min( bsap_cap,bsap)
 
-       if(present(dbsapdd))then
-          if ( bsap  >= bsap_cap ) then
+       if(bsap>bsap_cap) then
+          bsap     = bsap_cap
+          if(present(dbsapdd))then
              dbsapdd = max_frac*(dbagwdd+dbbgwdd)
           end if
        end if
