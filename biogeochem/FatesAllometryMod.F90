@@ -591,7 +591,7 @@ contains
        
        ! Observational constraint for maximum sla value (m2/kgC):
        ! m2/kgC = g/kg* m2/gBiomass *kgC/kgBiomass 
-       sla_max = g_per_kg * sla_max_drymass * EDPftvarcon_inst%c2b(ipft) 
+       sla_max = g_per_kg * sla_max_drymass * EDPftvarcon_inst%c2b(pft) 
        ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
        leafc_slamax = (slat - sla_max * exp(-1.0_r8 * kn * laican)) / &
             (-1.0_r8 * kn * tai_to_lai * slat * sla_max)
