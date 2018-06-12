@@ -895,7 +895,7 @@ contains
               !---------------------------------------------------------------------!        
               dynamic_fusion_tolerance = dynamic_fusion_tolerance * 1.1_r8
 
-              write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
+              !write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
            else
 

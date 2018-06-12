@@ -932,9 +932,11 @@ contains
     ! Woody turnover timescale [years]
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
                                                       ! non-integrator part
-    integer , parameter :: max_substeps = 300
-    real(r8), parameter :: max_trunc_error = 1.0_r8
-    integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
+    integer , parameter :: max_substeps = 300         ! Number of step attempts before
+                                                      ! giving up
+    real(r8), parameter :: max_trunc_error = 1.0_r8   ! allowable numerical truncation error
+    integer,  parameter :: ODESolve = 2               ! 1=RKF45,  2=Euler
+
 
     ipft = currentCohort%pft
 
@@ -997,12 +999,6 @@ contains
     ! II. Calculate target size of living biomass compartment for a given dbh.   
     ! -----------------------------------------------------------------------------------
 
-    ! Target leaf biomass according to allometry and trimming
-    call bleaf(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
-
-    ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-    call bfineroot(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
-
     ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
 
@@ -1016,19 +1012,41 @@ contains
     call bdead_allom( bt_agw, bt_bgw, bt_sap, ipft, bt_dead, &
                       dbt_agw_dd, dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd )
 
-    ! Target storage carbon [kgC,kgC/cm]
-    call bstore_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
-
     ! ------------------------------------------------------------------------------------
     ! If structure is larger than target, then we need to correct some integration errors
     ! by slightly increasing dbh to match it.
-    ! For grasses, if leaf biomass is larger than target, then we reset dbh to match
     ! -----------------------------------------------------------------------------------
     if( ((currentCohort%bdead-bt_dead) > calloc_abs_error) .and. &
           (EDPftvarcon_inst%woody(ipft) == itrue) ) then
        call StructureResetOfDH( currentCohort%bdead, ipft, &
              currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+
+       ! Re-calculate the sapwood and structural wood targets based on the new dbh
+       ! ------------------------------------------------------------------------------------------
+       
+       ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
+       call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
+       
+       ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
+       call bagw_allom(currentCohort%dbh,ipft,bt_agw,dbt_agw_dd)
+       
+       ! Target total below ground deriv. biomass in woody/fibrous tissues [kgC, kgC/cm] 
+       call bbgw_allom(currentCohort%dbh,ipft,bt_bgw,dbt_bgw_dd)
+       
+       ! Target total dead (structrual) biomass and deriv. [kgC, kgC/cm]
+       call bdead_allom( bt_agw, bt_bgw, bt_sap, ipft, bt_dead, &
+                         dbt_agw_dd, dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd )
+
     end if
+
+    ! Target leaf biomass according to allometry and trimming
+    call bleaf(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
+
+    ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
+    call bfineroot(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
+
+    ! Target storage carbon [kgC,kgC/cm]
+    call bstore_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
 
 
     ! -----------------------------------------------------------------------------------
@@ -1234,8 +1252,6 @@ contains
 
     end if
 
-
-
     ! -----------------------------------------------------------------------------------
     ! X.  If carbon is yet still available ...
     !        Our pools are now either on allometry or above (from fusion).
@@ -1248,10 +1264,20 @@ contains
     if( carbon_balance<cbal_prec) return
 
 
-    ! This routine checks that actual carbon is not below that targets. It does
+    ! This routine checks that actual carbon is not below the targets. It does
     ! allow actual pools to be above the target, and in these cases, it sends
     ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
-    ! It also checks to make sure that structural biomass is not above the target.
+    ! Again this is possible due to erors in numerical integration and/or the fusion
+    ! process.
+    ! It also checks to make sure that structural biomass is not below the target.
+    ! Note that we assume structural biomass is always on allometry.
+    ! For non-woody plants, we do not perform this partial growth logic (ie 
+    ! allowing only some pools to grow), we let all pools at or above allometry to 
+    ! grow. This is because we can't force any single pool to be on-allometry, and
+    ! thus a condition could potentially occur where all pools, either from fusion or 
+    ! numerical errors, are above allometry and would be flagged to not grow, in which
+    ! case the plant would be frozen in time
+
     if ( EDPftvarcon_inst%woody(ipft) == itrue ) then
        call TargetAllometryCheck(currentCohort%bl,currentCohort%br,currentCohort%bsw, &
                               currentCohort%bstore,currentCohort%bdead, &
@@ -1328,11 +1354,11 @@ contains
           write(fates_log(),*) 'carbon_balance',carbon_balance
           write(fates_log(),*) 'deltaC',deltaC
           write(fates_log(),*) 'totalC',totalC
-          write(fates_log(),*) 'leaf:',grow_leaf,bt_leaf,bt_leaf-currentCohort%bl
-          write(fates_log(),*) 'froot:',grow_froot,bt_fineroot,bt_fineroot-currentCohort%br
-          write(fates_log(),*) 'sap:',grow_sap,bt_sap,bt_sap-currentCohort%bsw
-          write(fates_log(),*) 'store:',grow_store,bt_store,bt_store-currentCohort%bstore
-          write(fates_log(),*) 'dead:',bt_dead,bt_dead-currentCohort%bdead
+          write(fates_log(),*) 'leaf:',grow_leaf,c_pool_out(i_cleaf),bt_leaf,bt_leaf-currentCohort%bl
+          write(fates_log(),*) 'froot:',grow_froot,c_pool_out(i_cfroot),bt_fineroot,currentCohort%br
+          write(fates_log(),*) 'sap:',grow_sap,c_pool_out(i_csap),bt_sap,currentCohort%bsw
+          write(fates_log(),*) 'store:',grow_store, c_pool_out(i_cstore),bt_store,currentCohort%bstore
+          write(fates_log(),*) 'dead:',c_pool_out(i_cdead),bt_dead,currentCohort%bdead
           call dump_cohort(currentCohort)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
@@ -2403,18 +2429,6 @@ contains
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
                        currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_flig(ft) * &
                        currentpatch%area/AREA * froot_prof(s,ft,j)
-                  !
-                  !! and seed_decay too.  for now, use the same lability fractions as for leaf litter
-                  bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + &
-                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_flab(ft) * &
-                       currentpatch%area/AREA * leaf_prof(s,j)
-                  bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_fcel(ft) * &
-                       currentpatch%area/AREA * leaf_prof(s,j)
-                  bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_flig(ft) * &
-                       currentpatch%area/AREA * leaf_prof(s,j)
-                  !
                enddo
             end do
               
