@@ -163,8 +163,9 @@ contains
     ! Canopy trimming / leaf optimisation. Removes leaves in negative annual carbon balance. 
     !
     ! !USES:
-    !
-    !
+    use FatesAllometryMod  , only : sla_max_drymass
+    use FatesConstantsMod  , only : g_per_kg 
+
     ! !ARGUMENTS    
     type (ed_site_type),intent(inout), target :: currentSite
     !
@@ -184,6 +185,7 @@ contains
     real(r8) :: laican      ! canopy sum of lai_z
     real(r8) :: vai			! leaf and stem area in this layer
     real(r8) :: kn			! nitrogen decay coefficient
+    real(r8) :: sla_max     ! Observational constraint on how large sla (m2/gC) can become
 
     !----------------------------------------------------------------------
 
@@ -222,6 +224,9 @@ contains
                laican = sum(currentPatch%canopy_layer_tai(1:cl-1)) 
           end if
 
+          ! Observational constraint for maximum sla value (m2/gC):
+          ! m2/gC = m2/gBiomass *kgC/kgBiomass 
+          sla_max = sla_max_drymass * EDPftvarcon_inst%c2b(ipft) 
 
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1,nlevleaf
@@ -241,15 +246,19 @@ contains
                 kn = decay_coeff_kn(ipft)
                 ! Nscaler value at leaf level z
                 nscaler_levleaf = exp(-kn * laican)
-                ! Sla value at leaf level z after nitrogen profile scaling
-                sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf                                
+                ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
+                sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf
+                
+                if(sla_levleaf > sla_max)then
+                     sla_levleaf = sla_max
+                end if                                
               
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
                 if (EDPftvarcon_inst%season_decid(ipft) == 1.or. &
                      EDPftvarcon_inst%stress_decid(ipft) == 1)then 
 
-				   ! Leaf cost at leaf level z accounting for sla profile
+				   ! Leaf cost at leaf level z accounting for sla profile (kgC/m2)
                    currentCohort%leaf_cost =  1._r8/(sla_levleaf*1000.0_r8)
 
                    if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
