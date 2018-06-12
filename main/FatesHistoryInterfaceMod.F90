@@ -75,6 +75,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_bsapwood_pa
   integer, private :: ih_bfineroot_pa
   integer, private :: ih_btotal_pa
+  integer, private :: ih_agb_pa
   integer, private :: ih_npp_pa
   integer, private :: ih_gpp_pa
   integer, private :: ih_aresp_pa
@@ -134,6 +135,16 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_canopy_mortality_carbonflux_si
   integer, private :: ih_understory_mortality_carbonflux_si
   integer, private :: ih_canopy_spread_si
+  integer, private :: ih_npp_leaf_si
+  integer, private :: ih_npp_seed_si
+  integer, private :: ih_npp_stem_si
+  integer, private :: ih_npp_froot_si
+  integer, private :: ih_npp_croot_si
+  integer, private :: ih_npp_stor_si
+  integer, private :: ih_leaf_mr_si
+  integer, private :: ih_froot_mr_si
+  integer, private :: ih_livestem_mr_si
+  integer, private :: ih_livecroot_mr_si
   
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
@@ -1339,6 +1350,7 @@ end subroutine flush_hvars
                hio_bsapwood_pa         => this%hvars(ih_bsapwood_pa)%r81d, &
                hio_bfineroot_pa        => this%hvars(ih_bfineroot_pa)%r81d, &
                hio_btotal_pa           => this%hvars(ih_btotal_pa)%r81d, &
+               hio_agb_pa              => this%hvars(ih_agb_pa)%r81d, &
                hio_canopy_biomass_pa   => this%hvars(ih_canopy_biomass_pa)%r81d, &
                hio_understory_biomass_pa   => this%hvars(ih_understory_biomass_pa)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
@@ -1351,6 +1363,12 @@ end subroutine flush_hvars
                hio_npp_agsw_si_scpf    => this%hvars(ih_npp_agsw_si_scpf)%r82d, &
                hio_npp_agdw_si_scpf    => this%hvars(ih_npp_agdw_si_scpf)%r82d, &
                hio_npp_stor_si_scpf    => this%hvars(ih_npp_stor_si_scpf)%r82d, &
+               hio_npp_leaf_si         => this%hvars(ih_npp_leaf_si)%r81d, &
+               hio_npp_seed_si         => this%hvars(ih_npp_seed_si)%r81d, &
+               hio_npp_stem_si         => this%hvars(ih_npp_stem_si)%r81d, &
+               hio_npp_froot_si        => this%hvars(ih_npp_froot_si)%r81d, &
+               hio_npp_croot_si        => this%hvars(ih_npp_croot_si)%r81d, &
+               hio_npp_stor_si         => this%hvars(ih_npp_stor_si)%r81d, &
 
                hio_bstor_canopy_si_scpf      => this%hvars(ih_bstor_canopy_si_scpf)%r82d, &
                hio_bstor_understory_si_scpf  => this%hvars(ih_bstor_understory_si_scpf)%r82d, &
@@ -1615,6 +1633,8 @@ end subroutine flush_hvars
                hio_bsapwood_pa(io_pa)  = hio_bsapwood_pa(io_pa)   + n_density * ccohort%bsw  * g_per_kg
                hio_bfineroot_pa(io_pa) = hio_bfineroot_pa(io_pa) + n_density * ccohort%br    * g_per_kg
                hio_btotal_pa(io_pa)    = hio_btotal_pa(io_pa) + n_density * ccohort%b_total() * g_per_kg
+               hio_agb_pa(io_pa)       = hio_agb_pa(io_pa) + n_density * g_per_kg * &
+                    ( ccohort%bl + (ccohort%bsw + ccohort%bdead) * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) )
 
                ! Update PFT partitioned biomass components
                hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
@@ -1637,6 +1657,16 @@ end subroutine flush_hvars
                hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
                     + ccohort%b_total() * ccohort%n * AREA_INV
 
+
+               ! ecosystem-level, organ-partitioned NPP/allocation fluxes
+               hio_npp_leaf_si(io_si) = hio_npp_leaf_si(io_si) + ccohort%npp_leaf * n_perm2
+               hio_npp_seed_si(io_si) = hio_npp_seed_si(io_si) + ccohort%npp_seed * n_perm2
+               hio_npp_stem_si(io_si) = hio_npp_stem_si(io_si) + (ccohort%npp_sapw + ccohort%npp_dead) * n_perm2 * &
+                    (EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
+               hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) + ccohort%npp_fnrt * n_perm2
+               hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) + (ccohort%npp_sapw + ccohort%npp_dead) * n_perm2 * &
+                    (1.-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
+               hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) + ccohort%npp_stor * n_perm2
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -2231,6 +2261,10 @@ end subroutine flush_hvars
                hio_froot_mr_understory_si_scls      => this%hvars(ih_froot_mr_understory_si_scls)%r82d, &
                hio_resp_g_understory_si_scls        => this%hvars(ih_resp_g_understory_si_scls)%r82d, &
                hio_resp_m_understory_si_scls        => this%hvars(ih_resp_m_understory_si_scls)%r82d, &
+               hio_leaf_mr_si         => this%hvars(ih_leaf_mr_si)%r81d, &
+               hio_froot_mr_si        => this%hvars(ih_froot_mr_si)%r81d, &
+               hio_livecroot_mr_si    => this%hvars(ih_livecroot_mr_si)%r81d, &
+               hio_livestem_mr_si     => this%hvars(ih_livestem_mr_si)%r81d, &
                hio_gpp_si_age         => this%hvars(ih_gpp_si_age)%r82d, &
                hio_npp_si_age         => this%hvars(ih_npp_si_age)%r82d, &
                hio_c_stomata_si_age   => this%hvars(ih_c_stomata_si_age)%r82d, &
@@ -2343,6 +2377,15 @@ end subroutine flush_hvars
                   ! map ed cohort-level npp fluxes to clm column fluxes
                   hio_npp_si(io_si) = hio_npp_si(io_si) + ccohort%npp_tstep * n_perm2 * g_per_kg * per_dt_tstep
 
+                  ! aggregate MR fluxes to the site level
+                  hio_leaf_mr_si(io_si) = hio_leaf_mr_si(io_si) + ccohort%rdark &
+                       * n_perm2 *  sec_per_day * days_per_year
+                  hio_froot_mr_si(io_si) = hio_froot_mr_si(io_si) + ccohort%froot_mr &
+                       * n_perm2 *  sec_per_day * days_per_year
+                  hio_livecroot_mr_si(io_si) = hio_livecroot_mr_si(io_si) + ccohort%livecroot_mr &
+                       * n_perm2 *  sec_per_day * days_per_year
+                  hio_livestem_mr_si(io_si) = hio_livestem_mr_si(io_si) + ccohort%livestem_mr &
+                       * n_perm2 *  sec_per_day * days_per_year
 
                   ! Total AR (kgC/m2/yr) = (kgC/plant/step) / (s/step) * (plant/m2) * (s/yr)
                   hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
@@ -3254,6 +3297,11 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_btotal_pa )
 
+    call this%set_history_var(vname='AGB', units='gC m-2',                  &
+         long='Aboveground biomass',  use_default='active',                           &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_agb_pa )
+
     call this%set_history_var(vname='BIOMASS_CANOPY', units='gC m-2',                   &
          long='Biomass of canopy plants',  use_default='active',                            &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
@@ -4109,7 +4157,26 @@ end subroutine flush_hvars
          long='NPP_STORE for canopy plants by size class', use_default='inactive',   &
          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_canopy_si_scls )
-
+    
+    call this%set_history_var(vname='LEAF_MR', units = 'kg C / m2 / yr',               &
+          long='RDARK (leaf maintenance respiration)', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_leaf_mr_si )
+    
+    call this%set_history_var(vname='FROOT_MR', units = 'kg C / m2 / yr',               &
+          long='fine root maintenance respiration)', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_froot_mr_si )
+    
+    call this%set_history_var(vname='LIVECROOT_MR', units = 'kg C / m2 / yr',               &
+          long='live coarse root maintenance respiration)', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livecroot_mr_si )
+    
+    call this%set_history_var(vname='LIVESTEM_MR', units = 'kg C / m2 / yr',               &
+          long='live stem maintenance respiration)', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livestem_mr_si )
     
     call this%set_history_var(vname='RDARK_CANOPY_SCLS', units = 'kg C / ha / yr',               &
           long='RDARK for canopy plants by size class', use_default='inactive',   &
@@ -4298,7 +4365,38 @@ end subroutine flush_hvars
           long='total CWD carbon at the column level', use_default='active', &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cwd_stock_si )
-   
+
+    ! organ-partitioned NPP / allocation fluxes
+    call this%set_history_var(vname='NPP_LEAF', units='kgC/m2/yr',       &
+          long='NPP flux into leaves', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_si )
+
+    call this%set_history_var(vname='NPP_SEED', units='kgC/m2/yr',       &
+          long='NPP flux into seeds', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_si )
+
+    call this%set_history_var(vname='NPP_STEM', units='kgC/m2/yr',       &
+          long='NPP flux into stem', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stem_si )
+
+    call this%set_history_var(vname='NPP_FROOT', units='kgC/m2/yr',       &
+          long='NPP flux into fine roots', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_froot_si )
+
+    call this%set_history_var(vname='NPP_CROOT', units='kgC/m2/yr',       &
+          long='NPP flux into coarse roots', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_croot_si )
+
+    call this%set_history_var(vname='NPP_STOR', units='kgC/m2/yr',       &
+          long='NPP flux into storage tissues', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_si )
+
 
     ! PLANT HYDRAULICS
 
