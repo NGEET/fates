@@ -1665,7 +1665,7 @@ end subroutine flush_hvars
                     (EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) + ccohort%npp_fnrt * n_perm2
                hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) + (ccohort%npp_sapw + ccohort%npp_dead) * n_perm2 * &
-                    (1.-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
+                    (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) + ccohort%npp_stor * n_perm2
 
                ! Site by Size-Class x PFT (SCPF) 
