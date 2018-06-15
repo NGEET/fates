@@ -136,7 +136,7 @@ module FatesAllometryMod
 
   integer, parameter, public :: i_hydro_rootprof_context  = 1
   integer, parameter, public :: i_biomass_rootprof_context = 2
-  real, parameter, public :: sla_max_drymass = 0.0477 ! Max sla (m2/g dry mass) obs for all plants (Kattge et al. 2011) 
+  real, parameter, public :: sla_max_drymass = 0.0477_r8 ! Max sla (m2/g dry mass) obs for all plants (Kattge et al. 2011) 
 
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
