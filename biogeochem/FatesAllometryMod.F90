@@ -595,6 +595,9 @@ contains
        ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
        leafc_slamax = (slat - sla_max * exp(-1.0_r8 * kn * laican)) / &
             (-1.0_r8 * kn * tai_to_lai * slat * sla_max)
+       if(leafc_slamax < 0.0_r8)then
+            leafc_slamax = 0.0_r8
+       endif
        
        ! Calculate tree_lai (m2 leaf area /m2 ground) = unitless LAI
        !----------------------------------------------------------------------
