@@ -36,6 +36,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : ha_per_m2
   use FatesConstantsMod    , only : days_per_sec
   use FatesConstantsMod    , only : years_per_day
+  use FatesConstantsMod    , only : nearzero
 
 
   ! CIME globals
@@ -328,7 +329,12 @@ contains
     do while(associated(currentPatch))
 
        !FIX(RF,032414) Does using the max(fire,mort) actually make sense here?
-       site_areadis = site_areadis + currentPatch%area * min(1.0_r8,currentPatch%disturbance_rate) 
+       if(currentPatch%disturbance_rate>1.0_r8) then
+          write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
+          call endrun(msg=errMsg(sourcefile, __LINE__))          
+       end if
+
+       site_areadis = site_areadis + currentPatch%area * currentPatch%disturbance_rate
        currentPatch => currentPatch%older     
 
     enddo ! end loop over patches. sum area disturbed for all patches. 
@@ -670,7 +676,7 @@ contains
        new_patch%younger          => NULL()
        currentPatch%younger       => new_patch
        currentSite%youngest_patch => new_patch
-
+       
        ! sort out the cohorts, since some of them may be so small as to need removing. 
        ! the first call to terminate cohorts removes sparse number densities,
        ! the second call removes for all other reasons (sparse culling must happen
@@ -701,19 +707,44 @@ contains
     ! !LOCAL VARIABLES:
     real(r8) :: areatot
     type(ed_patch_type), pointer :: currentPatch 
+    type(ed_patch_type), pointer :: largestPatch
+    real(r8) :: largest_area
+    real(r8), parameter :: area_error_fail = 1.0e-6_r8
     !---------------------------------------------------------------------
 
     areatot = 0._r8
+    largest_area = 0._r8
+    largestPatch => null()
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
        areatot = areatot + currentPatch%area
+       
+       if(currentPatch%area>largest_area) then
+          largestPatch => currentPatch
+          largest_area = currentPatch%area
+       end if
+       
        currentPatch => currentPatch%younger
-       if (( areatot - area ) > 0._r8 ) then 
-          write(fates_log(),*) 'trimming patch area - is too big' , areatot-area
-          currentSite%oldest_patch%area = currentSite%oldest_patch%area - (areatot - area)
-       endif
-    enddo
+    end do
+    
+    if ( abs( areatot - area ) > nearzero ) then 
+       
+       if ( abs(areatot-area) > area_error_fail ) then
+          write(fates_log(),*) 'Patch areas do not sum to 10000 within tolerance'
+          write(fates_log(),*) 'Total area: ',areatot,'absolute error: ',areatot-area
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
 
+       if(debug) then
+          write(fates_log(),*) 'Total patch area precision being fixed, adjusting'
+          write(fates_log(),*) 'largest patch. This may have slight impacts on carbon balance.'
+       end if
+       
+       largestPatch%area = largestPatch%area + (area-areatot)
+       
+    endif
+
+    return
   end subroutine check_patch_area
 
   ! ============================================================================
@@ -1238,7 +1269,6 @@ contains
     currentPatch%area                       = nan                                           
     currentPatch%canopy_layer_tai(:)        = nan               
     currentPatch%total_canopy_area          = nan
-    currentPatch%bare_frac_area             = nan                             
 
     currentPatch%tlai_profile(:,:,:)        = nan 
     currentPatch%elai_profile(:,:,:)        = 0._r8 

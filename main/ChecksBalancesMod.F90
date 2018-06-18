@@ -122,7 +122,7 @@ contains
                !
                sites(s)%fates_to_bgc_this_ts = sites(s)%fates_to_bgc_this_ts + &
                      (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
-                     sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + &
+                     sum(currentPatch%leaf_litter_out) + &
                      sum(currentPatch%root_litter_out)) * &
                      ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
                !
