@@ -692,7 +692,7 @@ data:
 
  fates_allom_l2fr = 1, 1 ;
 
- fates_allom_latosa_int = 0.5, 0.5 ;
+ fates_allom_latosa_int = 0.001, 0.001 ;
 
  fates_allom_latosa_slp = 0, 0 ;
 
