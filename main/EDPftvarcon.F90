@@ -119,9 +119,10 @@ module EDPftvarcon
      real(r8), allocatable :: allom_smode(:)        ! sapwood allometry function type
      real(r8), allocatable :: allom_stmode(:)       ! storage allometry functional type 
                                                     ! (HARD-CODED FOR TIME BEING, RGK 11-2017)
-     real(r8), allocatable :: allom_latosa_int(:)   ! Leaf area to sap area ratio, intercept [m2/cm2]
-     real(r8), allocatable :: allom_latosa_slp(:)   ! Leaf area to sap area ratio, slope on diameter
-                                                    ! [m2/cm2/cm]
+     real(r8), allocatable :: allom_latosa_int(:)   ! Leaf area to sap area conversion, intercept 
+                                                    ! (sapwood area / leaf area) [cm2/m2]
+     real(r8), allocatable :: allom_latosa_slp(:)   ! Leaf area to sap area conversion, slope 
+                                                    ! (sapwood area / leaf area / diameter) [cm2/m2/cm]
      real(r8), allocatable :: allom_l2fr(:)         ! Fine root biomass per leaf biomass ratio [kgC/kgC]
      real(r8), allocatable :: allom_agb_frac(:)     ! Fraction of stem above ground [-]
      real(r8), allocatable :: allom_d2h1(:)         ! Parameter 1 for d2h allometry (intercept, or "c")

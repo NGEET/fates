@@ -183,11 +183,11 @@ variables:
 		fates_allom_l2fr:units = "gC/gC" ;
 		fates_allom_l2fr:long_name = "Allocation parameter: fine root C per leaf C" ;
 	float fates_allom_latosa_int(fates_pft) ;
-		fates_allom_latosa_int:units = "ratio" ;
-		fates_allom_latosa_int:long_name = "Leaf area to sap area ratio, intercept [m2/cm2]" ;
+		fates_allom_latosa_int:units = "cm2/m2" ;
+		fates_allom_latosa_int:long_name = "Leaf area to sap area conversion, intercept (sapwood area/leaf area)" ;
 	float fates_allom_latosa_slp(fates_pft) ;
-		fates_allom_latosa_slp:units = "unitless" ;
-		fates_allom_latosa_slp:long_name = "Leaf area to sap area ratio, slope (optional)" ;
+		fates_allom_latosa_slp:units = "cm2/m2/cm" ;
+		fates_allom_latosa_slp:long_name = "Leaf area to sap area conversion, slope (sapwood area/ leaf area / diameter) (optional)" ;
 	float fates_allom_lmode(fates_pft) ;
 		fates_allom_lmode:units = "index" ;
 		fates_allom_lmode:long_name = "leaf biomass allometry function index" ;

@@ -70,7 +70,6 @@ contains
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
-    use FatesInterfaceMod , only : hlm_numlevsoil
     use FatesInterfaceMod , only : bc_in_type
     use FatesInterfaceMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
@@ -80,10 +79,11 @@ contains
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
-    use EDPatchDynamicsMod, only: set_root_fraction
     use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
-    use FatesAllometryMod, only : bleaf, storage_fraction_of_target
-
+    use FatesAllometryMod, only : bleaf
+    use FatesAllometryMod, only : storage_fraction_of_target
+    use FatesAllometryMod, only : set_root_fraction
+    use FatesAllometryMod, only : i_hydro_rootprof_context
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -301,10 +301,19 @@ contains
                   else
                      kn(ft) = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(ft) - 2.43_r8)
                   end if
+
+                  ! This is probably unnecessary and already calculated
+                  ! ALSO, THIS ROOTING PROFILE IS USED TO CALCULATE RESPIRATION
+                  ! YET IT USES THE PROFILE THAT IS CONSISTENT WITH WATER UPTAKE
+                  ! AND NOT THE PROFILE WE USE FOR DECOMPOSITION
+                  ! SEEMS LIKE THE LATTER WOULD BE MORE APPROPRIATE, RIGHT? (RGK 05-2018)
+                  call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
+                       bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
+                       icontext = i_hydro_rootprof_context)
                   
                end do !ft 
 
-               call set_root_fraction(currentPatch,bc_in(s)%zi_sisl)
+               
 
                ! ------------------------------------------------------------------------
                ! Part VI: Loop over all leaf layers.
@@ -550,8 +559,8 @@ contains
                      ! Fine Root MR  (kgC/plant/s)
                      ! ------------------------------------------------------------------
                      currentCohort%froot_mr = 0._r8
-                     do j = 1,hlm_numlevsoil
-                        tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
+                     do j = 1,bc_in(s)%nlevsoil
+                        tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
                               froot_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
                      enddo
@@ -560,9 +569,9 @@ contains
                      ! ------------------------------------------------------------------
                      if (woody(ft) == 1) then
                         currentCohort%livecroot_mr = 0._r8
-                        do j = 1,hlm_numlevsoil
+                        do j = 1,bc_in(s)%nlevsoil
                            ! Soil temperature used to adjust base rate of MR
-                           tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
+                           tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
                                  live_croot_n * ED_val_base_mr_20 * tcsoi * &
                                  currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
@@ -800,8 +809,8 @@ contains
    real(r8) :: qabs              ! PAR absorbed by PS II (umol photons/m**2/s)
    real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
    real(r8) :: r1,r2             ! roots of quadratic equation
-   real(r8) :: co2_intra_c       ! intracellular leaf CO2 (Pa)
-   real(r8) :: co2_intra_c_old   ! intracellular leaf CO2 (Pa) (previous iteration)
+   real(r8) :: co2_inter_c       ! intercellular leaf CO2 (Pa)
+   real(r8) :: co2_inter_c_old   ! intercellular leaf CO2 (Pa) (previous iteration)
    logical  :: loop_continue     ! Loop control variable
    integer  :: niter             ! iteration loop index
    real(r8) :: gs_mol            ! leaf stomatal conductance (umol H2O/m**2/s)
@@ -814,7 +823,7 @@ contains
                                  ! (C4) gross photosynthesis (umol CO2/m**2/s)
    real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
    real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
-   real(r8) :: init_co2_intra_c  ! First guess intracellular co2 specific to C path
+   real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
    ! Parameters
    ! ------------------------------------------------------------------------
    ! Fraction of light absorbed by non-photosynthetic pigments
@@ -823,7 +832,7 @@ contains
    ! empirical curvature parameter for electron transport rate
    real(r8),parameter :: theta_psii = 0.7_r8   
    
-   ! First guess on ratio between intracellular co2 and the atmosphere
+   ! First guess on ratio between intercellular co2 and the atmosphere
    ! an iterator converges on actual
    real(r8),parameter :: init_a2l_co2_c3 = 0.7_r8
    real(r8),parameter :: init_a2l_co2_c4 = 0.4_r8
@@ -843,9 +852,9 @@ contains
      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
      
      if (c3c4_path_index == 1) then
-        init_co2_intra_c = init_a2l_co2_c3 * can_co2_ppress
+        init_co2_inter_c = init_a2l_co2_c3 * can_co2_ppress
      else
-        init_co2_intra_c = init_a2l_co2_c4 * can_co2_ppress
+        init_co2_inter_c = init_a2l_co2_c4 * can_co2_ppress
      end if
 
      ! Part III: Photosynthesis and Conductance
@@ -903,8 +912,8 @@ contains
               call quadratic_f (aquad, bquad, cquad, r1, r2)
               je = min(r1,r2)
 
-              ! Initialize intracellular co2
-              co2_intra_c = init_co2_intra_c
+              ! Initialize intercellular co2
+              co2_inter_c = init_co2_inter_c
 
               niter = 0
               loop_continue = .true.
@@ -912,19 +921,19 @@ contains
                  ! Increment iteration counter. Stop if too many iterations
                  niter = niter + 1
                  
-                 ! Save old co2_intra_c
-                 co2_intra_c_old = co2_intra_c
+                 ! Save old co2_inter_c
+                 co2_inter_c_old = co2_inter_c
                  
                  ! Photosynthesis limitation rate calculations 
                  if (c3c4_path_index == 1)then    
 
                     ! C3: Rubisco-limited photosynthesis
-                    ac = vcmax * max(co2_intra_c-co2_cpoint, 0._r8) / &
-                          (co2_intra_c+mm_kco2 * (1._r8+can_o2_ppress / mm_ko2 ))
+                    ac = vcmax * max(co2_inter_c-co2_cpoint, 0._r8) / &
+                          (co2_inter_c+mm_kco2 * (1._r8+can_o2_ppress / mm_ko2 ))
 
                     ! C3: RuBP-limited photosynthesis
-                    aj = je * max(co2_intra_c-co2_cpoint, 0._r8) / &
-                          (4._r8*co2_intra_c+8._r8*co2_cpoint)
+                    aj = je * max(co2_inter_c-co2_cpoint, 0._r8) / &
+                          (4._r8*co2_inter_c+8._r8*co2_cpoint)
                  
                     ! C3: Product-limited photosynthesis 
                     ap = 3._r8 * tpu
@@ -950,7 +959,7 @@ contains
                     end if
 
                     ! C4: PEP carboxylase-limited (CO2-limited)
-                    ap = co2_rcurve_islope * max(co2_intra_c, 0._r8) / can_press  
+                    ap = co2_rcurve_islope * max(co2_inter_c, 0._r8) / can_press  
                     
                  end if
 
@@ -986,31 +995,31 @@ contains
                  call quadratic_f (aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
                  
-                 ! Derive new estimate for co2_intra_c
-                 co2_intra_c = can_co2_ppress - anet * can_press * &
+                 ! Derive new estimate for co2_inter_c
+                 co2_inter_c = can_co2_ppress - anet * can_press * &
                        (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
 
-                 ! Check for co2_intra_c convergence. Delta co2_intra_c/pair = mol/mol. 
+                 ! Check for co2_inter_c convergence. Delta co2_inter_c/pair = mol/mol. 
                  ! Multiply by 10**6 to convert to umol/mol (ppm). Exit iteration if 
                  ! convergence criteria of +/- 1 x 10**-6 ppm is met OR if at least ten 
                  ! iterations (niter=10) are completed
                  
-                 if ((abs(co2_intra_c-co2_intra_c_old)/can_press*1.e06_r8 <=  2.e-06_r8) &
+                 if ((abs(co2_inter_c-co2_inter_c_old)/can_press*1.e06_r8 <=  2.e-06_r8) &
                        .or. niter == 5) then
                     loop_continue = .false.
                  end if
               end do !iteration loop
               
-              ! End of co2_intra_c iteration.  Check for an < 0, in which case gs_mol = bbb
+              ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol = bbb
               if (anet < 0._r8) then
                  gs_mol = bbb
               end if
               
-              ! Final estimates for leaf_co2_ppress and co2_intra_c 
-              ! (needed for early exit of co2_intra_c iteration when an < 0)
+              ! Final estimates for leaf_co2_ppress and co2_inter_c 
+              ! (needed for early exit of co2_inter_c iteration when an < 0)
               leaf_co2_ppress = can_co2_ppress - 1.4_r8/gb_mol * anet * can_press
               leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
-              co2_intra_c = can_co2_ppress - anet * can_press * &
+              co2_inter_c = can_co2_ppress - anet * can_press * &
                             (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
               
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
