@@ -186,7 +186,7 @@ contains
     real(r8) :: vai			! leaf and stem area in this layer
     real(r8) :: kn			! nitrogen decay coefficient
     real(r8) :: sla_max     ! Observational constraint on how large sla (m2/gC) can become
-    real(r8) :: tai_to_lai ! ratio of total area index (ie. sai + lai) to lai for individual tree
+    real(r8) :: vai_to_lai ! ratio of vegetation area index (ie. lai+sai) : lai for individual tree
 
     !----------------------------------------------------------------------
 
@@ -229,24 +229,25 @@ contains
           ! m2/gC = m2/gBiomass *kgC/kgBiomass 
           sla_max = sla_max_drymass * EDPftvarcon_inst%c2b(ipft)
 	  ! Ratio of total area index (ie. lai + sai) to lai for individual tree:
-          tai_to_lai = 1.0_r8 + EDPftvarcon_inst%allom_sai_scaler(ipft)
+          vai_to_lai = 1.0_r8 + EDPftvarcon_inst%allom_sai_scaler(ipft)
 
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1,nlevleaf
 
-             ! Vegetation area index
-             vai = (currentPatch%elai_profile(cl,ipft,z)+currentPatch%esai_profile(cl,ipft,z))
-	     if (vai > 0.0_r8) then
-             ! If there is vai in this leaf layer, add to laican
+             ! Vegetation area index as a function of tree_lai+tree_sai
+	     if(currentCohort%treelai >= (z-1)*dinc_ed)then
+	     ! if tree_lai in this layer is greater than 0
 	        if (z == 1) then
-		   ! If in first layer, add laican equal to laican value halfway through the layer
-                   laican = laican + 0.5_r8 * tai_to_lai * dinc_ed
+		   ! If in first layer, add value equal to vai halfway through the layer
+		   ! Here, vai = layer z's tree_lai + tree_sai = vai_to_lai *dinc_ed
+                   laican = laican + 0.5_r8 * vai_to_lai * dinc_ed
                 else
 		   ! Since starting from halfway through first layer when z=1, 
-		   ! can add an entire dinc_ed to remain at halfway value for subsequent layers 
-                   laican = laican + tai_to_lai * dinc_ed
+		   ! we can add vai for an entire layer 
+		   ! to remain at halfway value for subsequent layers. 
+                   laican = laican + vai_to_lai * dinc_ed
                 end if
-	     else ! If vai = 0, do not add to laican
+	     else ! If tree_lai does not extend into this layer, do not add to laican
 	     end if 
              
              if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer.
