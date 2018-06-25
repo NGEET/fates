@@ -29,6 +29,7 @@ module FATESPlantRespPhotosynthMod
    use EDTypesMod, only        : maxpft
    use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
+   use EDTypesMod, only        : dinc_ed
    
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -175,7 +176,7 @@ contains
     real(r8) :: check_elai         ! This is a check on the effective LAI that is calculated
                                    ! over each cohort x layer.
     real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each cohort
-    real(r8) :: evai_to_elai       ! Ratio of exposed vegetation area index (ie. lai+sai) : lai for patch
+    real(r8) :: vai_to_lai       ! Ratio of exposed vegetation area index (ie. lai+sai) : lai for patch
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -392,24 +393,25 @@ contains
                                  btran_eff = currentPatch%btran_ft(ft)
                               end if
                               
+                              ! Ratio of vegetation area index (ie. lai + sai) to lai:
+                              vai_to_lai = 1.0_r8 + EDPftvarcon_inst%allom_sai_scaler(ft)
+                              
                               ! Add this leaf layer's vegetation area index to laican
                               ! For consistency between the vcmax profile (based on elai+esai)
                               ! and the sla profile (based on tree_lai+tree_sai),
                               ! we add the vai value halfway through the layer.
-                              evai_to_elai = (currentPatch%elai_profile(cl,ft,iv) + &
-                                   currentPatch%esai_profile(cl,ft,iv)) / currentPatch%elai_profile(cl,ft,iv)
                               if(currentPatch%elai_profile(cl,ft,iv) > 0.0_r8)then
                               ! if elai in this layer is greater than 0                             
                                  if (iv == 1) then
                                     ! If in first layer, 
                                     ! add value equal to exposed vai halfway through the layer
-                                    ! here a full layer's exposed vai = ratio of elai+esai : elai * dinc_ed
-                                    laican = laican + 0.5_r8 * evai_to_elai * dinc_ed
+                                    ! here a full layer's exposed vai = ratio of lai+sai : lai * dinc_ed
+                                    laican = laican + 0.5_r8 * vai_to_lai * dinc_ed
                                  else
                                     ! Since starting from halfway through first layer when iv=1,
                                     ! We can add vai for an entire layer
                                     ! to remain at halway value for subsequent layers
-                                    laican = laican + evai_to_elai * dinc_ed
+                                    laican = laican + vai_to_lai * dinc_ed
                                  end if
                               else ! if elai does not extend into this layer, do not add to laican
                               end if
