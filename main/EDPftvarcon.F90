@@ -68,6 +68,7 @@ module EDPftvarcon
      real(r8), allocatable :: vcmax25top(:)
      real(r8), allocatable :: leafcn(:)
      real(r8), allocatable :: frootcn(:)
+     real(r8), allocatable :: woodcn(:)
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) 
@@ -419,6 +420,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_froot_cn_ratio'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_wood_cn_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -845,6 +850,10 @@ contains
     name = 'fates_froot_cn_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%frootcn)
+
+    name = 'fates_wood_cn_ratio'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%woodcn)
 
     name = 'fates_smpso'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1503,6 +1512,7 @@ contains
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
         write(fates_log(),fmt0) 'leafcn = ',EDPftvarcon_inst%leafcn
         write(fates_log(),fmt0) 'frootcn = ',EDPftvarcon_inst%frootcn
+        write(fates_log(),fmt0) 'woodcn = ',EDPftvarcon_inst%woodcn
         write(fates_log(),fmt0) 'smpso = ',EDPftvarcon_inst%smpso
         write(fates_log(),fmt0) 'smpsc = ',EDPftvarcon_inst%smpsc
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc
