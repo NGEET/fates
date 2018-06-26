@@ -647,7 +647,7 @@ data:
   0.976, 0.976,
   _, _ ;
 
- fates_alloc_storage_cushion = 2, 2 ;
+ fates_alloc_storage_cushion = 10, 10 ;
 
  fates_allom_agb1 = 0.001928, 0.001928;
 
@@ -675,9 +675,9 @@ data:
 
  fates_allom_d2ca_coefficient_min = 0.3381119, 0.3381119 ;
 
- fates_allom_d2h1 = 0.64, 0.64 ;
+ fates_allom_d2h1 = 1.0, 1.0 ;
 
- fates_allom_d2h2 = 0.37, 0.37 ;
+ fates_allom_d2h2 = 1.0, 1.0 ;
 
  fates_allom_d2h3 = -999.9, -999.9 ;
 
@@ -817,7 +817,7 @@ data:
 
  fates_recruit_hgt_min = 0.01, 0.01 ;
 
- fates_recruit_initd = 0.2, 0.2 ;
+ fates_recruit_initd = 10000000, 0 ;
 
  fates_rholnir = 0.45, 0.45 ;
 
