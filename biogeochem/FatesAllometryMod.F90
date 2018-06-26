@@ -585,7 +585,8 @@ contains
        end if
        
        ! Ratio of vegetation area index (ie. lai+sai) to lai for individual tree:
-       vai_to_lai = 1.0_r8 + EDPftvarcon_inst%allom_sai_scaler(pft)
+       vai_to_lai = 1.0_r8 + (EDPftvarcon_inst%allom_sai_scaler(pft)/ &
+          EDPftvarcon_inst%slatop(pft))
        ! Coefficient for exponential decay of 1/sla with canopy depth:
        kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
        
@@ -680,7 +681,8 @@ contains
     integer, intent(in)  :: pft			   ! PFT index
     real(r8), intent(in) :: treelai        ! LAI of individual trees in this cohort (m2/m2)
 
-    tree_sai =  EDPftvarcon_inst%allom_sai_scaler(pft) * treelai ! fraction * m2/m2 = unitless SAI
+    tree_sai =  (EDPftvarcon_inst%allom_sai_scaler(pft) / EDPftvarcon_inst%slatop(pft)) * treelai 
+    ! fraction * m2/m2 = unitless SAI
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
     ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
