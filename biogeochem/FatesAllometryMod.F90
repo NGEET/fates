@@ -561,7 +561,7 @@ contains
     real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
     real(r8) :: slat           ! the sla of the top leaf layer. m2/kgC
     real(r8) :: laican         ! lai + sai of canopy layer overlying this tree
-    real(r8) :: tai_to_lai     ! ratio of total area index (ie. sai + lai) to lai for individual tree
+    real(r8) :: vai_to_lai     ! ratio of vegetation area index (ie. sai+lai) to lai for individual tree
     real(r8) :: kn             ! coefficient for exponential decay of 1/sla and vcmax with canopy depth
     real(r8) :: sla_max        ! Observational constraint on how large sla (m2/gC) can become
     real(r8) :: leafc_slamax   ! Leafc_per_unitarea at which sla_max is reached
@@ -584,8 +584,8 @@ contains
            laican = sum(canopy_layer_tai(1:cl-1))
        end if
        
-       ! Ratio of total area index (ie. lai + sai) to lai for individual tree:
-       tai_to_lai = 1.0_r8 + EDPftvarcon_inst%allom_sai_scaler(pft)
+       ! Ratio of vegetation area index (ie. lai+sai) to lai for individual tree:
+       vai_to_lai = 1.0_r8 + EDPftvarcon_inst%allom_sai_scaler(pft)
        ! Coefficient for exponential decay of 1/sla with canopy depth:
        kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
        
@@ -594,7 +594,7 @@ contains
        sla_max = g_per_kg * sla_max_drymass * EDPftvarcon_inst%c2b(pft) 
        ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
        leafc_slamax = (slat - sla_max * exp(-1.0_r8 * kn * laican)) / &
-            (-1.0_r8 * kn * tai_to_lai * slat * sla_max)
+            (-1.0_r8 * kn * vai_to_lai * slat * sla_max)
        if(leafc_slamax < 0.0_r8)then
             leafc_slamax = 0.0_r8
        endif
@@ -605,21 +605,21 @@ contains
        ! sla with depth in the canopy will not exceed sla_max.
        ! In this case, we can use an exponential profile for sla throughout the entire canopy.
        ! The exponential profile for sla is given by:
-       ! sla(at a given canopy depth) = slat / exp(-kn (laican + tai_to_lai * tree_lai)
-       ! where tai_to_lai * tree_lai = tree_lai + tree_sai 
+       ! sla(at a given canopy depth) = slat / exp(-kn (laican + vai_to_lai * tree_lai)
+       ! where vai_to_lai * tree_lai = tree_lai + tree_sai 
        ! We can solve for tree_lai using the above function for the sla profile and first setting 
-       ! leafc_per_unitarea = integral of e^(-kn(tai_to_lai * x + laican)) / slatop
+       ! leafc_per_unitarea = integral of e^(-kn(vai_to_lai * x + laican)) / slatop
        ! over x = 0 to tree_lai
        ! Then, rearranging the equation to solve for tree_lai.
        if (leafc_per_unitarea <= leafc_slamax)then
             tree_lai = (log(exp(-1.0_r8 * kn * laican) - &
-                 kn * tai_to_lai * slat * leafc_per_unitarea) + &
-                 (kn * laican)) / (-1.0_r8 * kn * tai_to_lai)
+                 kn * vai_to_lai * slat * leafc_per_unitarea) + &
+                 (kn * laican)) / (-1.0_r8 * kn * vai_to_lai)
                      
             ! If leafc_per_unitarea becomes too large, tree_lai becomes an imaginary number 
             ! (because the tree_lai equation requires us to take the natural log of something >0)
             ! Thus, we include the following error message in case leafc_per_unitarea becomes too large.
-            clim = (exp(-1.0_r8 * kn * laican)) / (kn * tai_to_lai * slat)
+            clim = (exp(-1.0_r8 * kn * laican)) / (kn * vai_to_lai * slat)
             if(leafc_per_unitarea >= clim)then
                  write(fates_log(),*) 'too much leafc_per_unitarea' , leafc_per_unitarea, clim, pft, laican
                  write(fates_log(),*) 'Aborting'
@@ -636,14 +636,14 @@ contains
             ! Exponential term for leafc = leafc_slamax; 
             ! Linear term (static sla = sla_max) for portion of leafc > leafc_slamax
             tree_lai = ((log(exp(-1.0_r8 * kn * laican) - &
-                 kn * tai_to_lai * slat * leafc_slamax) + &
-                 (kn * laican)) / (-1.0_r8 * kn * tai_to_lai)) + &
+                 kn * vai_to_lai * slat * leafc_slamax) + &
+                 (kn * laican)) / (-1.0_r8 * kn * vai_to_lai)) + &
                  (leafc_per_unitarea - leafc_slamax) * sla_max
             
             ! if leafc_slamax becomes too large, tree_lai_exp becomes an imaginary number 
             ! (because the tree_lai equation requires us to take the natural log of something >0)
             ! Thus, we include the following error message in case leafc_slamax becomes too large.
-            clim = (exp(-1.0_r8 * kn * laican)) / (kn * tai_to_lai * slat)
+            clim = (exp(-1.0_r8 * kn * laican)) / (kn * vai_to_lai * slat)
             if(leafc_slamax >= clim)then
                  write(fates_log(),*) 'too much leafc_slamax' , leafc_per_unitarea, leafc_slamax, clim, pft, laican
                  write(fates_log(),*) 'Aborting'
