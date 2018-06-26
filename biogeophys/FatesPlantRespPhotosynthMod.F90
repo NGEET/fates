@@ -394,7 +394,8 @@ contains
                               end if
                               
                               ! Ratio of vegetation area index (ie. lai + sai) to lai:
-                              vai_to_lai = 1.0_r8 + EDPftvarcon_inst%allom_sai_scaler(ft)
+                              vai_to_lai = 1.0_r8 + (EDPftvarcon_inst%allom_sai_scaler(ft)/ &
+                                  EDPftvarcon_inst%slatop(ft))
                               
                               ! Add this leaf layer's vegetation area index to laican
                               ! For consistency between the vcmax profile (based on elai+esai)
