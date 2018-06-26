@@ -229,7 +229,8 @@ contains
           ! m2/gC = m2/gBiomass *kgC/kgBiomass 
           sla_max = sla_max_drymass * EDPftvarcon_inst%c2b(ipft)
 	  ! Ratio of vegetation area index (ie. lai+sai) to lai for individual tree:
-          vai_to_lai = 1.0_r8 + EDPftvarcon_inst%allom_sai_scaler(ipft)
+          vai_to_lai = 1.0_r8 + (EDPftvarcon_inst%allom_sai_scaler(ipft)/ &
+	     EDPftvarcon_inst%slatop(ipft))
 
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1,nlevleaf
