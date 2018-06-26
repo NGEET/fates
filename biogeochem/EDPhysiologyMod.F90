@@ -181,11 +181,11 @@ contains
     real(r8) :: bfr_per_bleaf ! ratio of fine root per leaf biomass
     real(r8) :: sla_levleaf ! sla at leaf level z
     real(r8) :: nscaler_levleaf ! nscaler value at leaf level z
-    integer  :: cl			! canopy layer index
-    real(r8) :: laican      ! canopy sum of lai_z
-    real(r8) :: vai			! leaf and stem area in this layer
-    real(r8) :: kn			! nitrogen decay coefficient
-    real(r8) :: sla_max     ! Observational constraint on how large sla (m2/gC) can become
+    integer  :: cl         ! canopy layer index
+    real(r8) :: laican     ! canopy sum of lai_z
+    real(r8) :: vai        ! leaf and stem area in this layer
+    real(r8) :: kn         ! nitrogen decay coefficient
+    real(r8) :: sla_max    ! Observational constraint on how large sla (m2/gC) can become
     real(r8) :: vai_to_lai ! ratio of vegetation area index (ie. lai+sai) : lai for individual tree
 
     !----------------------------------------------------------------------
@@ -228,7 +228,7 @@ contains
           ! Observational constraint for maximum sla value (m2/gC):
           ! m2/gC = m2/gBiomass *kgC/kgBiomass 
           sla_max = sla_max_drymass * EDPftvarcon_inst%c2b(ipft)
-	  ! Ratio of total area index (ie. lai + sai) to lai for individual tree:
+	  ! Ratio of vegetation area index (ie. lai+sai) to lai for individual tree:
           vai_to_lai = 1.0_r8 + EDPftvarcon_inst%allom_sai_scaler(ipft)
 
           !Leaf cost vs netuptake for each leaf layer. 
@@ -268,7 +268,7 @@ contains
                 if (EDPftvarcon_inst%season_decid(ipft) == 1.or. &
                      EDPftvarcon_inst%stress_decid(ipft) == 1)then 
 
-				   ! Leaf cost at leaf level z accounting for sla profile (kgC/m2)
+                   ! Leaf cost at leaf level z accounting for sla profile (kgC/m2)
                    currentCohort%leaf_cost =  1._r8/(sla_levleaf*1000.0_r8)
 
                    if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
