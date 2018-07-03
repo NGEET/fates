@@ -480,11 +480,11 @@ contains
                   ! remains in the upper-story.  The original is the one
                   ! demoted to the understory
                   
-                  allocate(copyc)
-                  call copy_cohort(currentCohort, copyc)
+                  allocate(copyc)                  
                   if( hlm_use_planthydro.eq.itrue ) then
                      call InitHydrCohort(currentSite,copyc)
                   endif
+		  call copy_cohort(currentCohort, copyc)
                   
                   newarea = currentCohort%c_area - cc_loss
                   copyc%n = currentCohort%n*newarea/currentCohort%c_area 
@@ -807,11 +807,11 @@ contains
                   elseif ( cc_gain > nearzero .and. cc_gain < currentCohort%c_area) then
                      
                      allocate(copyc)
-                     call copy_cohort(currentCohort, copyc) !makes an identical copy...
                      if( hlm_use_planthydro.eq.itrue ) then
                         call InitHydrCohort(CurrentSite,copyc)
                      endif
-                                          
+                     call copy_cohort(currentCohort, copyc) !makes an identical copy...
+		                          
                      newarea = currentCohort%c_area - cc_gain !new area of existing cohort
 
                      call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
