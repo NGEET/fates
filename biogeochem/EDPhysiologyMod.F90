@@ -173,29 +173,30 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     type (ed_patch_type)  , pointer :: currentPatch
 
-    integer  :: z          ! leaf layer
-    integer  :: ipft       ! pft index
-    integer  :: trimmed    ! was this layer trimmed in this year? If not expand the canopy. 
-    real(r8) :: tar_bl     ! target leaf biomass       (leaves flushed, trimmed)
-    real(r8) :: tar_bfr    ! target fine-root biomass  (leaves flushed, trimmed)
-    real(r8) :: bfr_per_bleaf ! ratio of fine root per leaf biomass
-    real(r8) :: sla_levleaf ! sla at leaf level z
+    integer  :: z               ! leaf layer
+    integer  :: ipft            ! pft index
+    logical  :: trimmed         ! was this layer trimmed in this year? If not expand the canopy. 
+    real(r8) :: tar_bl          ! target leaf biomass       (leaves flushed, trimmed)
+    real(r8) :: tar_bfr         ! target fine-root biomass  (leaves flushed, trimmed)
+    real(r8) :: bfr_per_bleaf   ! ratio of fine root per leaf biomass
+    real(r8) :: sla_levleaf     ! sla at leaf level z
     real(r8) :: nscaler_levleaf ! nscaler value at leaf level z
-    integer  :: cl         ! canopy layer index
-    real(r8) :: laican     ! canopy sum of lai_z
-    real(r8) :: vai        ! leaf and stem area in this layer
-    real(r8) :: kn         ! nitrogen decay coefficient
-    real(r8) :: sla_max    ! Observational constraint on how large sla (m2/gC) can become
-    real(r8) :: vai_to_lai ! ratio of vegetation area index (ie. lai+sai) : lai for individual tree
+    integer  :: cl              ! canopy layer index
+    real(r8) :: laican          ! canopy sum of lai_z
+    real(r8) :: vai             ! leaf and stem area in this layer
+    real(r8) :: kn              ! nitrogen decay coefficient
+    real(r8) :: sla_max         ! Observational constraint on how large sla (m2/gC) can become
+    real(r8) :: vai_to_lai      ! ratio of vegetation area index (ie. lai+sai) : lai for individual tree
 
     !----------------------------------------------------------------------
 
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))
+       
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort)) 
-          trimmed = 0    
+          trimmed = .false.
           ipft = currentCohort%pft
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
@@ -312,7 +313,7 @@ contains
                             currentCohort%laimemory = currentCohort%laimemory * &
                                   (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
-                         trimmed = 1
+                         trimmed = .true.
                       endif
                    endif
                 endif
@@ -320,7 +321,7 @@ contains
           enddo !z
 
           currentCohort%year_net_uptake(:) = 999.0_r8
-          if (trimmed == 0.and.currentCohort%canopy_trim < 1.0_r8)then
+          if ( (.not.trimmed) .and.currentCohort%canopy_trim < 1.0_r8)then
              currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)
           endif 
 
@@ -2472,12 +2473,14 @@ contains
 
     end subroutine flux_into_litter_pools
 
-    
+    ! ===================================================================================
+
+
     real(r8) function decay_coeff_kn(pft)
     
-      ! ============================================================================
+      ! ---------------------------------------------------------------------------------
       ! Decay coefficient (kn) is a function of vcmax25top for each pft.
-      ! ============================================================================
+      ! ---------------------------------------------------------------------------------
 
       !ARGUMENTS
       integer, intent(in) :: pft

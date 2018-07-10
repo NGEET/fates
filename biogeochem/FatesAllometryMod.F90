@@ -136,7 +136,12 @@ module FatesAllometryMod
 
   integer, parameter, public :: i_hydro_rootprof_context  = 1
   integer, parameter, public :: i_biomass_rootprof_context = 2
-  real, parameter, public :: sla_max_drymass = 0.0477_r8 ! Max sla (m2/g dry mass) obs for all plants (Kattge et al. 2011) 
+
+
+  ! Max sla (m2/g dry mass) obs for all plants (Kattge et al. 2011) 
+
+  real, parameter, public :: sla_max_drymass = 0.0477_r8 
+
 
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
@@ -545,27 +550,34 @@ contains
 
   real(r8) function tree_lai( bl, status_coh, pft, c_area, n, cl, canopy_layer_tai )
 
-    ! ============================================================================
-    !  LAI of individual trees is a function of the total leaf area and the total canopy area.   
-    ! ============================================================================
-	! !ARGUMENTS
-    real(r8), intent(in) :: bl     ! plant leaf biomass [kg]     
-    integer, intent(in)  :: status_coh   ! growth status of plant (2 = leaves on , 1 = leaves off)
-    integer, intent(in)  :: pft
-    real(r8), intent(in) :: c_area ! areal extent of canopy (m2)
-    real(r8), intent(in) :: n      ! number of individuals in cohort per 'area'(10000m2 default)
-    integer, intent(in)  :: cl     ! canopy layer index
-    real(r8), intent(in) :: canopy_layer_tai(nclmax)   ! total area index of each canopy layer
+    ! -----------------------------------------------------------------------------------
+    ! LAI of individual trees is a function of the total leaf area and the total 
+    ! canopy area.   
+    ! ----------------------------------------------------------------------------------
 
-	! !LOCAL VARIABLES:
+    ! !ARGUMENTS
+    real(r8), intent(in) :: bl                       ! plant leaf biomass [kg]     
+    integer, intent(in)  :: status_coh               ! growth status of plant 
+                                                     ! (2 = leaves on , 1 = leaves off)
+    integer, intent(in)  :: pft
+    real(r8), intent(in) :: c_area                   ! areal extent of canopy (m2)
+    real(r8), intent(in) :: n                        ! number of individuals in cohort per ha
+    integer, intent(in)  :: cl                       ! canopy layer index
+    real(r8), intent(in) :: canopy_layer_tai(nclmax) ! total area index of each canopy layer
+
+    ! !LOCAL VARIABLES:
     real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
-    real(r8) :: slat           ! the sla of the top leaf layer. m2/kgC
-    real(r8) :: laican         ! lai + sai of canopy layer overlying this tree
-    real(r8) :: vai_to_lai     ! ratio of vegetation area index (ie. sai+lai) to lai for individual tree
-    real(r8) :: kn             ! coefficient for exponential decay of 1/sla and vcmax with canopy depth
-    real(r8) :: sla_max        ! Observational constraint on how large sla (m2/gC) can become
-    real(r8) :: leafc_slamax   ! Leafc_per_unitarea at which sla_max is reached
-    real(r8) :: clim           ! Upper limit for leafc_per_unitarea in exponential tree_lai function
+    real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
+    real(r8) :: laican             ! lai + sai of canopy layer overlying this tree
+    real(r8) :: vai_to_lai         ! ratio of vegetation area index (ie. sai+lai) 
+                                   ! to lai for individual tree
+    real(r8) :: kn                 ! coefficient for exponential decay of 1/sla and 
+                                   ! vcmax with canopy depth
+    real(r8) :: sla_max            ! Observational constraint on how large sla 
+                                   ! (m2/gC) can become
+    real(r8) :: leafc_slamax       ! Leafc_per_unitarea at which sla_max is reached
+    real(r8) :: clim               ! Upper limit for leafc_per_unitarea in exponential 
+                                   ! tree_lai function
     !----------------------------------------------------------------------
 
     if( bl  <  0._r8 .or. pft  ==  0 ) then
@@ -646,7 +658,8 @@ contains
             ! Thus, we include the following error message in case leafc_slamax becomes too large.
             clim = (exp(-1.0_r8 * kn * laican)) / (kn * vai_to_lai * slat)
             if(leafc_slamax >= clim)then
-                 write(fates_log(),*) 'too much leafc_slamax' , leafc_per_unitarea, leafc_slamax, clim, pft, laican
+                 write(fates_log(),*) 'too much leafc_slamax' , &
+                       leafc_per_unitarea, leafc_slamax, clim, pft, laican
                  write(fates_log(),*) 'Aborting'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
             endif              
