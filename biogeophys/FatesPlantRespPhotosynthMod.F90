@@ -29,7 +29,6 @@ module FATESPlantRespPhotosynthMod
    use EDTypesMod, only        : maxpft
    use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
-   use EDTypesMod, only        : dinc_ed
    
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -85,6 +84,8 @@ contains
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
     use FatesAllometryMod, only : i_hydro_rootprof_context
+    use FatesAllometryMod, only : CumulativeLayerTVAI
+    use FatesAllometryMod, only : decay_coeff_kn
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -149,7 +150,7 @@ contains
     real(r8) :: ceair              ! vapor pressure of air, constrained (Pa)
     real(r8) :: nscaler            ! leaf nitrogen scaling coefficient
     real(r8) :: leaf_frac          ! ratio of to leaf biomass to total alive biomass
-    real(r8) :: laican             ! canopy sum of lai_z
+    real(r8) :: cum_tvai           ! cumulative total vegetation area index of descrete leaf layers
     real(r8) :: tcsoi              ! Temperature response function for root respiration. 
     real(r8) :: tcwood             ! Temperature response function for wood
     
@@ -295,13 +296,9 @@ contains
                   ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
                   ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
                   ! (2010) Biogeosciences, 7, 1833-1859
-                  ! Remove daylength factor from vcmax25 so that kn is based on maximum vcmax25
                   
-                  if (bc_in(s)%dayl_factor_pa(ifp)  ==  0._r8) then
-                     kn(ft) =  0._r8
-                  else
-                     kn(ft) = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(ft) - 2.43_r8)
-                  end if
+                  kn(ft) = decay_coeff_kn(ft)
+                  
 
                   ! This is probably unnecessary and already calculated
                   ! ALSO, THIS ROOTING PROFILE IS USED TO CALCULATE RESPIRATION
@@ -337,6 +334,8 @@ contains
                ! ------------------------------------------------------------------------
                rate_mask_z(:,1:numpft,:) = .false.
 
+               write(fates_log(),*) 'photo'
+
                if(currentPatch%countcohorts > 0.0)then   ! Ignore empty patches
 
                   currentCohort => currentPatch%tallest
@@ -354,14 +353,6 @@ contains
 
                      ! are there any leaves of this pft in this layer?
                      if(currentPatch%canopy_mask(cl,ft) == 1)then 
-                        
-                        if(cl==1)then !are we in the top canopy layer or a shaded layer?
-                           laican = 0._r8
-                        else
-
-                           laican = sum(currentPatch%canopy_layer_tai(1:cl-1)) 
-
-                        end if
                         
                         ! Loop over leaf-layers
                         do iv = 1,currentCohort%nv
@@ -392,33 +383,17 @@ contains
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
                                  btran_eff = currentPatch%btran_ft(ft)
                               end if
+
                               
-                              ! Ratio of vegetation area index (ie. lai + sai) to lai:
-                              vai_to_lai = 1.0_r8 + (EDPftvarcon_inst%allom_sai_scaler(ft)/ &
-                                  EDPftvarcon_inst%slatop(ft))
+                              cum_tvai = CumulativeLayerTVAI(cl,                                          &
+                                                             iv,                                          &
+                                                             ft,                                          &
+                                                             currentCohort%treelai+currentCohort%treesai, &
+                                                             currentPatch%canopy_layer_tvai(:))
                               
-                              ! Add this leaf layer's vegetation area index to laican
-                              ! For consistency between the vcmax profile (based on elai+esai)
-                              ! and the sla profile (based on tree_lai+tree_sai),
-                              ! we add the vai value halfway through the layer.
-                              if(currentPatch%elai_profile(cl,ft,iv) > 0.0_r8)then
-                              ! if elai in this layer is greater than 0                             
-                                 if (iv == 1) then
-                                    ! If in first layer, 
-                                    ! add value equal to exposed vai halfway through the layer
-                                    ! here a full layer's exposed vai = ratio of lai+sai : lai * dinc_ed
-                                    laican = laican + 0.5_r8 * vai_to_lai * dinc_ed
-                                 else
-                                    ! Since starting from halfway through first layer when iv=1,
-                                    ! We can add vai for an entire layer
-                                    ! to remain at halway value for subsequent layers
-                                    laican = laican + vai_to_lai * dinc_ed
-                                 end if
-                              else ! if elai does not extend into this layer, do not add to laican
-                              end if
                               
                               ! Scale for leaf nitrogen profile
-                              nscaler = exp(-kn(ft) * laican)
+                              nscaler = exp(-kn(ft) * cum_tvai)
 
                               ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
                               call LeafLayerMaintenanceRespiration( param_derived%lmr25top(ft),&  ! in
@@ -1122,7 +1097,6 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use FatesConstantsMod, only : umolC_to_kgC
-    use EDTypesMod, only : dinc_ed
     
     ! Arguments
     integer, intent(in)  :: nv               ! number of active leaf layers

@@ -81,7 +81,8 @@ module EDTypesMod
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter :: external_recruitment = 0          ! external recruitment flag 1=yes  
   integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
-  real(r8), parameter :: DINC_ED              = 1.0_r8     ! size of LAI bins. 
+  real(r8), parameter :: dinc_ed              = 1.0_r8     ! size of VAI bins (LAI+SAI)  [CHANGE THIS NAME WITH NEXT INTERFACE
+                                                           ! UPDATE]
   integer , parameter :: N_DIST_TYPES         = 3          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
   integer , parameter :: dtype_ifall          = 1          ! index for naturally occuring tree-fall generated event
   integer , parameter :: dtype_ifire          = 2          ! index for fire generated disturbance event
@@ -312,7 +313,7 @@ module EDTypesMod
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
-     real(r8) ::  canopy_layer_tai(nclmax)                      ! total area index of each canopy layer
+     real(r8) ::  canopy_layer_tvai(nclmax)                     ! total vegetation area index of each canopy layer
                                                                 ! used to determine attenuation of parameters during
                                                                 ! photosynthesis m2 veg / m2 of canopy area (patch without bare ground)
      real(r8) ::  total_canopy_area                                ! area that is covered by vegetation : m2

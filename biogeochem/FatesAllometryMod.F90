@@ -113,6 +113,8 @@ module FatesAllometryMod
   public :: bdead_allom   ! Generic bdead wrapper
   public :: carea_allom   ! Generic crown area wrapper
   public :: bstore_allom  ! Generic maximum storage carbon wrapper
+  public :: CumulativeLayerTVAI
+  public :: decay_coeff_kn
   public :: StructureResetOfDH ! Method to set DBH to sync with structure biomass
   public :: CheckIntegratedAllometries
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
@@ -599,8 +601,9 @@ contains
        ! Ratio of vegetation area index (ie. lai+sai) to lai for individual tree:
        vai_to_lai = 1.0_r8 + (EDPftvarcon_inst%allom_sai_scaler(pft)/ &
           EDPftvarcon_inst%slatop(pft))
+
        ! Coefficient for exponential decay of 1/sla with canopy depth:
-       kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
+       kn = decay_coeff_kn(pft)
        
        ! Observational constraint for maximum sla value (m2/kgC):
        ! m2/kgC = g/kg* m2/gBiomass *kgC/kgBiomass 
@@ -2064,6 +2067,97 @@ contains
     return
   end subroutine jackson_beta_root_profile
 
+  ! =====================================================================================
+
+  
+  real(r8) function decay_coeff_kn(pft)
+    
+    ! ---------------------------------------------------------------------------------
+    ! This function estimates the decay coefficient used to estimate vertical
+    ! attenuation of properties in the canopy.
+    !
+    ! Decay coefficient (kn) is a function of vcmax25top for each pft.
+    !
+    ! Currently, this decay is applied to vcmax attenuation, and SLA (optionally)
+    !
+    ! ---------------------------------------------------------------------------------
+    
+    !ARGUMENTS
+    integer, intent(in) :: pft
+    
+    !LOCAL VARIABLES
+    ! -----------------------------------------------------------------------------------
+    
+    ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
+    ! kn = 0.11. Here, we derive kn from vcmax25 as in Lloyd et al 
+    ! (2010) Biogeosciences, 7, 1833-1859
+    
+    decay_coeff_kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
+    
+    return
+  end function decay_coeff_kn
+
+  ! =====================================================================================
+
+  function CumulativeLayerTVAI(icanlayer,     &
+                               ileaflayer,    &
+                               ipft,          &
+                               current_tvai,  &
+                               canopy_layer_tvai) result(cum_tvai)
+
+    ! -----------------------------------------------------------------------------------
+    ! This function calculates the cumulative (top-down) vegetation area index 
+    ! for a given leaf layer in a canopy layer.
+    ! 
+    ! A top canopy layer (icanlayer==1) has now leaf+stem area above it.
+    ! 
+    ! Important note:  This subroutine operates on total area indices, and not effective.
+    !                  This is done to promote consistency with calculations of tree_tai
+    !                  which is an optional method of calculating the SLA decay in 
+    !                  the profile.
+    ! -----------------------------------------------------------------------------------
+
+    integer, intent(in) :: icanlayer             ! Layer index for the current canopy
+    integer, intent(in) :: ileaflayer            ! Layer index for the current leaf layer
+    integer, intent(in) :: ipft                  ! PFT index
+    real(r8), intent(in) :: current_tvai         ! This is the total vegetation area index
+                                                 ! for the current canopy layer, for the 
+                                                 ! entity of interest.  Note
+                                                 ! depending on where this routine
+                                                 ! is called, this entity may be for the current
+                                                 ! cohort, or for all pfts in this layer
+    real(r8), intent(in) :: canopy_layer_tvai(:) ! The total vegetation index of 
+                                                 ! each canopy layer
+
+    real(r8) :: cum_tvai                         ! Resulting cumulative vegetation 
+                                                 ! area index
+
+    real(r8) :: tvai0                            ! tvai of leaf-layers up to current
+    real(r8) :: tvai                             ! tvai of current layer
+
+    
+    ! Calculate the tvai of canopy layers above the current
+
+    if (icanlayer==1) then
+       cum_tvai = 0._r8
+    else
+       cum_tvai = sum(canopy_layer_tvai(1:icanlayer-1)) 
+    end if
+
+    tvai0 = dble(ileaflayer-1)*dinc_ed
+    
+    tvai  = min(dinc_ed, current_tvai-tvai0)
+
+    if (tvai<0.0_r8) then
+       write(fates_log(),*) 'A leaf layer greater than max for this cohort was specified'
+       write(fates_log(),*) tvai,tvai0,current_tvai,cum_tvai,icanlayer,ileaflayer
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+    cum_tvai = cum_tvai + tvai0 + tvai
+    
+    return
+  end function CumulativeLayerTVAI
   
   ! =====================================================================================
 
