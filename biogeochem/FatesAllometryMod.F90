@@ -2155,7 +2155,8 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    cum_tvai = cum_tvai + tvai0 + tvai
+    ! Apply the cumulative TVAI at the current layer mid-point (ie 0.5*)
+    cum_tvai = cum_tvai + tvai0 + 0.5*tvai
     
     return
   end function CumulativeLayerTVAI
