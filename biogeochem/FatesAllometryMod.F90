@@ -2156,7 +2156,7 @@ contains
     end if
 
     ! Apply the cumulative TVAI at the current layer mid-point (ie 0.5*)
-    cum_tvai = cum_tvai + tvai0 + 0.5*tvai
+    cum_tvai = cum_tvai + tvai0 + 0.5_r8*tvai
     
     return
   end function CumulativeLayerTVAI
