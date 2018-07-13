@@ -164,7 +164,7 @@ contains
     ! Canopy trimming / leaf optimisation. Removes leaves in negative annual carbon balance. 
     !
     ! !USES:
-    use FatesAllometryMod  , only : sla_max_drymass
+    use FatesAllometryMod  , only : sla_max_drymass, use_slaprofile
     use FatesConstantsMod  , only : g_per_kg 
 
     ! !ARGUMENTS    
@@ -239,16 +239,26 @@ contains
              
              if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer.
              
-                ! Scale for leaf nitrogen profile
-                kn = decay_coeff_kn(ipft)
-                ! Nscaler value at leaf level z
-                nscaler_levleaf = exp(-kn * cum_tvai)
-                ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
-                sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf
+                if(use_slaprofile == 0)then
                 
-                if(sla_levleaf > sla_max)then
-                     sla_levleaf = sla_max
-                end if                                
+                   ! Use slatop for sla value at all leaf levels 
+                   sla_levleaf = EDPftvarcon_inst%slatop(ipft)
+                
+                elseif(if(use_slaprofile == 1)then
+                   
+                   ! Calculate sla_levleaf following the sla profile with overlying leaf area
+                   ! Scale for leaf nitrogen profile
+                   kn = decay_coeff_kn(ipft)
+                   ! Nscaler value at leaf level z
+                   nscaler_levleaf = exp(-kn * cum_tvai)
+                   ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
+                   sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf
+                
+                   if(sla_levleaf > sla_max)then
+                        sla_levleaf = sla_max
+                   end if
+                   
+                end if
               
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
