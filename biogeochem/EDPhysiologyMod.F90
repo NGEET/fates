@@ -20,6 +20,8 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
+  use FatesAllometryMod   , only : decay_coeff_kn
+  use FatesAllometryMod   , only : CumulativeLayerTVAI
 
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
@@ -73,7 +75,6 @@ module EDPhysiologyMod
   private :: seed_decay
   private :: seed_germination
   public :: flux_into_litter_pools
-  public :: decay_coeff_kn
 
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
@@ -173,33 +174,35 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     type (ed_patch_type)  , pointer :: currentPatch
 
-    integer  :: z          ! leaf layer
-    integer  :: ipft       ! pft index
-    integer  :: trimmed    ! was this layer trimmed in this year? If not expand the canopy. 
-    real(r8) :: tar_bl     ! target leaf biomass       (leaves flushed, trimmed)
-    real(r8) :: tar_bfr    ! target fine-root biomass  (leaves flushed, trimmed)
-    real(r8) :: bfr_per_bleaf ! ratio of fine root per leaf biomass
-    real(r8) :: sla_levleaf ! sla at leaf level z
+    integer  :: z               ! leaf layer
+    integer  :: ipft            ! pft index
+    logical  :: trimmed         ! was this layer trimmed in this year? If not expand the canopy. 
+    real(r8) :: tar_bl          ! target leaf biomass       (leaves flushed, trimmed)
+    real(r8) :: tar_bfr         ! target fine-root biomass  (leaves flushed, trimmed)
+    real(r8) :: bfr_per_bleaf   ! ratio of fine root per leaf biomass
+    real(r8) :: sla_levleaf     ! sla at leaf level z
     real(r8) :: nscaler_levleaf ! nscaler value at leaf level z
-    integer  :: cl         ! canopy layer index
-    real(r8) :: laican     ! canopy sum of lai_z
-    real(r8) :: vai        ! leaf and stem area in this layer
-    real(r8) :: kn         ! nitrogen decay coefficient
-    real(r8) :: sla_max    ! Observational constraint on how large sla (m2/gC) can become
-    real(r8) :: vai_to_lai ! ratio of vegetation area index (ie. lai+sai) : lai for individual tree
+    integer  :: cl              ! canopy layer index
+    real(r8) :: cum_tvai        ! cumulative total vegetation area index at arbitrary leaf layers
+    real(r8) :: vai             ! leaf and stem area in this layer
+    real(r8) :: kn              ! nitrogen decay coefficient
+    real(r8) :: sla_max         ! Observational constraint on how large sla (m2/gC) can become
 
     !----------------------------------------------------------------------
 
+    write(fates_log(),*) 'trimming'
+    
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))
+       
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort)) 
-          trimmed = 0    
+          trimmed = .false.
           ipft = currentCohort%pft
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
-               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, currentPatch%canopy_layer_tai )    
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, currentPatch%canopy_layer_tvai )    
           currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%treelai)        
           currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
           if (currentCohort%nv > nlevleaf)then
@@ -218,45 +221,28 @@ contains
           ! Identify current canopy layer (cl)
           cl = currentCohort%canopy_layer
           
-          ! Calculate the lai+sai of overlying canopy layers (laican)
-          if (cl==1) then !are we in the top canopy layer or a shaded layer?
-               laican = 0._r8
-          else
-               laican = sum(currentPatch%canopy_layer_tai(1:cl-1)) 
-          end if
-
           ! Observational constraint for maximum sla value (m2/gC):
-          ! m2/gC = m2/gBiomass *kgC/kgBiomass 
+          ! m2/gC = m2/gBiomass * kgBiomass/kgC
           sla_max = sla_max_drymass * EDPftvarcon_inst%c2b(ipft)
-	  ! Ratio of vegetation area index (ie. lai+sai) to lai for individual tree:
-          vai_to_lai = 1.0_r8 + (EDPftvarcon_inst%allom_sai_scaler(ipft)/ &
-	     EDPftvarcon_inst%slatop(ipft))
 
           !Leaf cost vs netuptake for each leaf layer. 
-          do z = 1,nlevleaf
+          do z = 1, currentCohort%nv
 
-             ! Vegetation area index as a function of tree_lai+tree_sai
-	     if(currentCohort%treelai >= (z-1)*dinc_ed)then
-	     ! if tree_lai in this layer is greater than 0
-	        if (z == 1) then
-		   ! If in first layer, add value equal to vai halfway through the layer
-		   ! Here, vai = layer z's tree_lai + tree_sai = vai_to_lai *dinc_ed
-                   laican = laican + 0.5_r8 * vai_to_lai * dinc_ed
-                else
-		   ! Since starting from halfway through first layer when z=1, 
-		   ! we can add vai for an entire layer 
-		   ! to remain at halfway value for subsequent layers. 
-                   laican = laican + vai_to_lai * dinc_ed
-                end if
-	     else ! If tree_lai does not extend into this layer, do not add to laican
-	     end if 
+             ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
+             cum_tvai = CumulativeLayerTVAI(cl,                                          &
+                                            z,                                           &
+                                            ipft,                                        &
+                                            currentCohort%treelai+currentCohort%treesai, &
+                                            currentPatch%canopy_layer_tvai(:))
+
+
              
              if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer.
              
                 ! Scale for leaf nitrogen profile
                 kn = decay_coeff_kn(ipft)
                 ! Nscaler value at leaf level z
-                nscaler_levleaf = exp(-kn * laican)
+                nscaler_levleaf = exp(-kn * cum_tvai)
                 ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
                 sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf
                 
@@ -312,7 +298,7 @@ contains
                             currentCohort%laimemory = currentCohort%laimemory * &
                                   (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
-                         trimmed = 1
+                         trimmed = .true.
                       endif
                    endif
                 endif
@@ -320,7 +306,7 @@ contains
           enddo !z
 
           currentCohort%year_net_uptake(:) = 999.0_r8
-          if (trimmed == 0.and.currentCohort%canopy_trim < 1.0_r8)then
+          if ( (.not.trimmed) .and.currentCohort%canopy_trim < 1.0_r8)then
              currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)
           endif 
 
@@ -2472,27 +2458,9 @@ contains
 
     end subroutine flux_into_litter_pools
 
-    
-    real(r8) function decay_coeff_kn(pft)
-    
-      ! ============================================================================
-      ! Decay coefficient (kn) is a function of vcmax25top for each pft.
-      ! ============================================================================
+    ! ===================================================================================
 
-      !ARGUMENTS
-      integer, intent(in) :: pft
 
-      !LOCAL VARIABLES
-      ! -----------------------------------------------------------------------------------
 
-      ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
-      ! kn = 0.11. Here, we derive kn from vcmax25 as in Lloyd et al 
-      ! (2010) Biogeosciences, 7, 1833-1859
-	
-      decay_coeff_kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
-
-      return
-
-    end function decay_coeff_kn    
 
 end module EDPhysiologyMod

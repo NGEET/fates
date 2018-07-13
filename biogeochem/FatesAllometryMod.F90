@@ -113,6 +113,8 @@ module FatesAllometryMod
   public :: bdead_allom   ! Generic bdead wrapper
   public :: carea_allom   ! Generic crown area wrapper
   public :: bstore_allom  ! Generic maximum storage carbon wrapper
+  public :: CumulativeLayerTVAI
+  public :: decay_coeff_kn
   public :: StructureResetOfDH ! Method to set DBH to sync with structure biomass
   public :: CheckIntegratedAllometries
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
@@ -136,7 +138,12 @@ module FatesAllometryMod
 
   integer, parameter, public :: i_hydro_rootprof_context  = 1
   integer, parameter, public :: i_biomass_rootprof_context = 2
-  real, parameter, public :: sla_max_drymass = 0.0477_r8 ! Max sla (m2/g dry mass) obs for all plants (Kattge et al. 2011) 
+
+
+  ! Max sla (m2/g dry mass) obs for all plants (Kattge et al. 2011) 
+
+  real, parameter, public :: sla_max_drymass = 0.0477_r8 
+
 
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
@@ -543,29 +550,37 @@ contains
 
   ! =====================================================================================
 
-  real(r8) function tree_lai( bl, status_coh, pft, c_area, n, cl, canopy_layer_tai )
+  real(r8) function tree_lai( bl, status_coh, pft, c_area, n, cl, canopy_layer_tvai )
 
-    ! ============================================================================
-    !  LAI of individual trees is a function of the total leaf area and the total canopy area.   
-    ! ============================================================================
-	! !ARGUMENTS
-    real(r8), intent(in) :: bl     ! plant leaf biomass [kg]     
-    integer, intent(in)  :: status_coh   ! growth status of plant (2 = leaves on , 1 = leaves off)
+    ! -----------------------------------------------------------------------------------
+    ! LAI of individual trees is a function of the total leaf area and the total 
+    ! canopy area.   
+    ! ----------------------------------------------------------------------------------
+
+    ! !ARGUMENTS
+    real(r8), intent(in) :: bl                        ! plant leaf biomass [kg]     
+    integer, intent(in)  :: status_coh                ! growth status of plant 
+                                                      ! (2 = leaves on , 1 = leaves off)
     integer, intent(in)  :: pft
-    real(r8), intent(in) :: c_area ! areal extent of canopy (m2)
-    real(r8), intent(in) :: n      ! number of individuals in cohort per 'area'(10000m2 default)
-    integer, intent(in)  :: cl     ! canopy layer index
-    real(r8), intent(in) :: canopy_layer_tai(nclmax)   ! total area index of each canopy layer
+    real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
+    real(r8), intent(in) :: n                         ! number of individuals in cohort per ha
+    integer, intent(in)  :: cl                        ! canopy layer index
+    real(r8), intent(in) :: canopy_layer_tvai(nclmax) ! total vegetated area index of 
+                                                      ! each canopy layer
 
-	! !LOCAL VARIABLES:
+    ! !LOCAL VARIABLES:
     real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
-    real(r8) :: slat           ! the sla of the top leaf layer. m2/kgC
-    real(r8) :: laican         ! lai + sai of canopy layer overlying this tree
-    real(r8) :: vai_to_lai     ! ratio of vegetation area index (ie. sai+lai) to lai for individual tree
-    real(r8) :: kn             ! coefficient for exponential decay of 1/sla and vcmax with canopy depth
-    real(r8) :: sla_max        ! Observational constraint on how large sla (m2/gC) can become
-    real(r8) :: leafc_slamax   ! Leafc_per_unitarea at which sla_max is reached
-    real(r8) :: clim           ! Upper limit for leafc_per_unitarea in exponential tree_lai function
+    real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
+    real(r8) :: can_tvai           ! total lai + sai (vai) of canopy layer overlying this tree
+    real(r8) :: vai_to_lai         ! ratio of vegetation area index (ie. sai+lai) 
+                                   ! to lai for individual tree
+    real(r8) :: kn                 ! coefficient for exponential decay of 1/sla and 
+                                   ! vcmax with canopy depth
+    real(r8) :: sla_max            ! Observational constraint on how large sla 
+                                   ! (m2/gC) can become
+    real(r8) :: leafc_slamax       ! Leafc_per_unitarea at which sla_max is reached
+    real(r8) :: clim               ! Upper limit for leafc_per_unitarea in exponential 
+                                   ! tree_lai function
     !----------------------------------------------------------------------
 
     if( bl  <  0._r8 .or. pft  ==  0 ) then
@@ -577,24 +592,25 @@ contains
     
     if(leafc_per_unitarea > 0.0_r8)then
     
-       ! Calculate laican = LAI + SAI of overlying canopy layer
+       ! Calculate can_tvai = LAI + SAI of overlying canopy layer
        if (cl==1) then ! if in we are in the canopy (top) layer)
-           laican = 0._r8
+           can_tvai = 0._r8
        else
-           laican = sum(canopy_layer_tai(1:cl-1))
+           can_tvai = sum(canopy_layer_tvai(1:cl-1))
        end if
        
        ! Ratio of vegetation area index (ie. lai+sai) to lai for individual tree:
        vai_to_lai = 1.0_r8 + (EDPftvarcon_inst%allom_sai_scaler(pft)/ &
           EDPftvarcon_inst%slatop(pft))
+
        ! Coefficient for exponential decay of 1/sla with canopy depth:
-       kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
+       kn = decay_coeff_kn(pft)
        
        ! Observational constraint for maximum sla value (m2/kgC):
-       ! m2/kgC = g/kg* m2/gBiomass *kgC/kgBiomass 
+       ! m2/kgC = g/kg* m2/gBiomass * kgBiomass/kgC
        sla_max = g_per_kg * sla_max_drymass * EDPftvarcon_inst%c2b(pft) 
        ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
-       leafc_slamax = (slat - sla_max * exp(-1.0_r8 * kn * laican)) / &
+       leafc_slamax = (slat - sla_max * exp(-1.0_r8 * kn * can_tvai)) / &
             (-1.0_r8 * kn * vai_to_lai * slat * sla_max)
        if(leafc_slamax < 0.0_r8)then
             leafc_slamax = 0.0_r8
@@ -606,23 +622,23 @@ contains
        ! sla with depth in the canopy will not exceed sla_max.
        ! In this case, we can use an exponential profile for sla throughout the entire canopy.
        ! The exponential profile for sla is given by:
-       ! sla(at a given canopy depth) = slat / exp(-kn (laican + vai_to_lai * tree_lai)
+       ! sla(at a given canopy depth) = slat / exp(-kn (can_tvai + vai_to_lai * tree_lai)
        ! where vai_to_lai * tree_lai = tree_lai + tree_sai 
        ! We can solve for tree_lai using the above function for the sla profile and first setting 
-       ! leafc_per_unitarea = integral of e^(-kn(vai_to_lai * x + laican)) / slatop
+       ! leafc_per_unitarea = integral of e^(-kn(vai_to_lai * x + can_tvai)) / slatop
        ! over x = 0 to tree_lai
        ! Then, rearranging the equation to solve for tree_lai.
        if (leafc_per_unitarea <= leafc_slamax)then
-            tree_lai = (log(exp(-1.0_r8 * kn * laican) - &
+            tree_lai = (log(exp(-1.0_r8 * kn * can_tvai) - &
                  kn * vai_to_lai * slat * leafc_per_unitarea) + &
-                 (kn * laican)) / (-1.0_r8 * kn * vai_to_lai)
+                 (kn * can_tvai)) / (-1.0_r8 * kn * vai_to_lai)
                      
             ! If leafc_per_unitarea becomes too large, tree_lai becomes an imaginary number 
             ! (because the tree_lai equation requires us to take the natural log of something >0)
             ! Thus, we include the following error message in case leafc_per_unitarea becomes too large.
-            clim = (exp(-1.0_r8 * kn * laican)) / (kn * vai_to_lai * slat)
+            clim = (exp(-1.0_r8 * kn * can_tvai)) / (kn * vai_to_lai * slat)
             if(leafc_per_unitarea >= clim)then
-                 write(fates_log(),*) 'too much leafc_per_unitarea' , leafc_per_unitarea, clim, pft, laican
+                 write(fates_log(),*) 'too much leafc_per_unitarea' , leafc_per_unitarea, clim, pft, can_tvai
                  write(fates_log(),*) 'Aborting'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
             endif
@@ -636,17 +652,18 @@ contains
             ! Add exponential and linear portions of tree_lai
             ! Exponential term for leafc = leafc_slamax; 
             ! Linear term (static sla = sla_max) for portion of leafc > leafc_slamax
-            tree_lai = ((log(exp(-1.0_r8 * kn * laican) - &
+            tree_lai = ((log(exp(-1.0_r8 * kn * can_tvai) - &
                  kn * vai_to_lai * slat * leafc_slamax) + &
-                 (kn * laican)) / (-1.0_r8 * kn * vai_to_lai)) + &
+                 (kn * can_tvai)) / (-1.0_r8 * kn * vai_to_lai)) + &
                  (leafc_per_unitarea - leafc_slamax) * sla_max
             
             ! if leafc_slamax becomes too large, tree_lai_exp becomes an imaginary number 
             ! (because the tree_lai equation requires us to take the natural log of something >0)
             ! Thus, we include the following error message in case leafc_slamax becomes too large.
-            clim = (exp(-1.0_r8 * kn * laican)) / (kn * vai_to_lai * slat)
+            clim = (exp(-1.0_r8 * kn * can_tvai)) / (kn * vai_to_lai * slat)
             if(leafc_slamax >= clim)then
-                 write(fates_log(),*) 'too much leafc_slamax' , leafc_per_unitarea, leafc_slamax, clim, pft, laican
+                 write(fates_log(),*) 'too much leafc_slamax' , &
+                       leafc_per_unitarea, leafc_slamax, clim, pft, can_tvai
                  write(fates_log(),*) 'Aborting'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
             endif              
@@ -2051,6 +2068,98 @@ contains
     return
   end subroutine jackson_beta_root_profile
 
+  ! =====================================================================================
+
+  
+  real(r8) function decay_coeff_kn(pft)
+    
+    ! ---------------------------------------------------------------------------------
+    ! This function estimates the decay coefficient used to estimate vertical
+    ! attenuation of properties in the canopy.
+    !
+    ! Decay coefficient (kn) is a function of vcmax25top for each pft.
+    !
+    ! Currently, this decay is applied to vcmax attenuation, and SLA (optionally)
+    !
+    ! ---------------------------------------------------------------------------------
+    
+    !ARGUMENTS
+    integer, intent(in) :: pft
+    
+    !LOCAL VARIABLES
+    ! -----------------------------------------------------------------------------------
+    
+    ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
+    ! kn = 0.11. Here, we derive kn from vcmax25 as in Lloyd et al 
+    ! (2010) Biogeosciences, 7, 1833-1859
+    
+    decay_coeff_kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
+    
+    return
+  end function decay_coeff_kn
+
+  ! =====================================================================================
+
+  function CumulativeLayerTVAI(icanlayer,     &
+                               ileaflayer,    &
+                               ipft,          &
+                               current_tvai,  &
+                               canopy_layer_tvai) result(cum_tvai)
+
+    ! -----------------------------------------------------------------------------------
+    ! This function calculates the cumulative (top-down) vegetation area index 
+    ! for a given leaf layer in a canopy layer.
+    ! 
+    ! A top canopy layer (icanlayer==1) has now leaf+stem area above it.
+    ! 
+    ! Important note:  This subroutine operates on total area indices, and not effective.
+    !                  This is done to promote consistency with calculations of tree_tai
+    !                  which is an optional method of calculating the SLA decay in 
+    !                  the profile.
+    ! -----------------------------------------------------------------------------------
+
+    integer, intent(in) :: icanlayer             ! Layer index for the current canopy
+    integer, intent(in) :: ileaflayer            ! Layer index for the current leaf layer
+    integer, intent(in) :: ipft                  ! PFT index
+    real(r8), intent(in) :: current_tvai         ! This is the total vegetation area index
+                                                 ! for the current canopy layer, for the 
+                                                 ! entity of interest.  Note
+                                                 ! depending on where this routine
+                                                 ! is called, this entity may be for the current
+                                                 ! cohort, or for all pfts in this layer
+    real(r8), intent(in) :: canopy_layer_tvai(:) ! The total vegetation index of 
+                                                 ! each canopy layer
+
+    real(r8) :: cum_tvai                         ! Resulting cumulative vegetation 
+                                                 ! area index
+
+    real(r8) :: tvai0                            ! tvai of leaf-layers up to current
+    real(r8) :: tvai                             ! tvai of current layer
+
+    
+    ! Calculate the tvai of canopy layers above the current
+
+    if (icanlayer==1) then
+       cum_tvai = 0._r8
+    else
+       cum_tvai = sum(canopy_layer_tvai(1:icanlayer-1)) 
+    end if
+
+    tvai0 = dble(ileaflayer-1)*dinc_ed
+    
+    tvai  = min(dinc_ed, current_tvai-tvai0)
+
+    if (tvai<0.0_r8) then
+       write(fates_log(),*) 'A leaf layer greater than max for this cohort was specified'
+       write(fates_log(),*) tvai,tvai0,current_tvai,cum_tvai,icanlayer,ileaflayer
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+    ! Apply the cumulative TVAI at the current layer mid-point (ie 0.5*)
+    cum_tvai = cum_tvai + tvai0 + 0.5_r8*tvai
+    
+    return
+  end function CumulativeLayerTVAI
   
   ! =====================================================================================
 

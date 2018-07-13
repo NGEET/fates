@@ -1018,7 +1018,7 @@ contains
                   currentCohort%pft,currentCohort%c_area)
              currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, &
                   currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                  currentCohort%canopy_layer, currentPatch%canopy_layer_tai )
+                  currentCohort%canopy_layer, currentPatch%canopy_layer_tvai )
 
              canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
                   
@@ -1088,7 +1088,7 @@ contains
     !
     ! The following patch level diagnostics are updated here:
     ! 
-    ! currentPatch%canopy_layer_tai(cl)    ! TAI of each canopy layer
+    ! currentPatch%canopy_layer_tvai(cl)   ! total vegetated area index of layer
     ! currentPatch%ncan(cl,ft)             ! number of vegetation layers needed
     !                                      ! in this patch's pft/canopy-layer 
     ! currentPatch%nrad(cl,ft)             ! same as ncan, but does not include
@@ -1158,7 +1158,7 @@ contains
        ! calculate tree lai and sai.
        ! --------------------------------------------------------------------------------
 
-       currentPatch%canopy_layer_tai(:)         = 0._r8
+       currentPatch%canopy_layer_tvai(:)        = 0._r8
        currentPatch%ncan(:,:)                   = 0 
        currentPatch%nrad(:,:)                   = 0 
        patch_lai                                = 0._r8
@@ -1184,25 +1184,25 @@ contains
           cl = currentCohort%canopy_layer
 
           currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
-               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, currentPatch%canopy_layer_tai )
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, currentPatch%canopy_layer_tvai )
           currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%treelai)
 
           currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area 
           currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  
 
           ! Number of actual vegetation layers in this cohort's crown
-          currentCohort%NV =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)  
+          currentCohort%nv =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)  
 
           currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
 
           patch_lai = patch_lai + currentCohort%lai
 
-!          currentPatch%canopy_layer_tai(cl) = currentPatch%canopy_layer_tai(cl) + &
+!          currentPatch%canopy_layer_tvai(cl) = currentPatch%canopy_layer_tvai(cl) + &
 !                currentCohort%lai + currentCohort%sai
 
           do cl = 1,nclmax-1
              if(currentCohort%canopy_layer == cl)then
-                currentPatch%canopy_layer_tai(cl) = currentPatch%canopy_layer_tai(cl) + &
+                currentPatch%canopy_layer_tvai(cl) = currentPatch%canopy_layer_tvai(cl) + &
                      currentCohort%lai + currentCohort%sai
              endif
           enddo
@@ -1384,7 +1384,7 @@ contains
                    
                    if(iv==currentCohort%NV) then
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
-                            (dinc_ed*dble(currentCohort%NV-1.0_r8))
+                            (dinc_ed*dble(currentCohort%nv-1.0_r8))
                       if(remainder > dinc_ed )then
                          write(fates_log(), *)'ED: issue with remainder', &
                                currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
