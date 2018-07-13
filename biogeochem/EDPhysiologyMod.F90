@@ -244,7 +244,7 @@ contains
                    ! Use slatop for sla value at all leaf levels 
                    sla_levleaf = EDPftvarcon_inst%slatop(ipft)
                 
-                elseif(if(use_slaprofile == 1)then
+                elseif(use_slaprofile == 1)then
                    
                    ! Calculate sla_levleaf following the sla profile with overlying leaf area
                    ! Scale for leaf nitrogen profile
