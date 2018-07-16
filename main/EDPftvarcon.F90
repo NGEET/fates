@@ -51,6 +51,7 @@ module EDPftvarcon
      real(r8), allocatable :: stress_decid(:)
      real(r8), allocatable :: season_decid(:)
      real(r8), allocatable :: evergreen(:)
+     real(r8), allocatable :: slamax(:)
      real(r8), allocatable :: slatop(:)
      real(r8), allocatable :: leaf_long(:)
      real(r8), allocatable :: roota_par(:)
@@ -355,6 +356,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_allom_l2fr'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leaf_slamax'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -786,6 +791,10 @@ contains
     name = 'fates_phen_evergreen'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%evergreen)
+
+    name = 'fates_leaf_slamax'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%slamax)
 
     name = 'fates_leaf_slatop'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1496,7 +1505,8 @@ contains
         write(fates_log(),fmt0) 'stress_decid = ',EDPftvarcon_inst%stress_decid
         write(fates_log(),fmt0) 'season_decid = ',EDPftvarcon_inst%season_decid
         write(fates_log(),fmt0) 'evergreen = ',EDPftvarcon_inst%evergreen
-        write(fates_log(),fmt0) 'slatop = ',EDPftvarcon_inst%slatop
+        write(fates_log(),fmt0) 'slamax = ',EDPftvarcon_inst%slamax
+        write(fates_log(),fmt0) 'slatop = ',EDPftvarcon_inst%slatop        
         write(fates_log(),fmt0) 'leaf_long = ',EDPftvarcon_inst%leaf_long
         write(fates_log(),fmt0) 'roota_par = ',EDPftvarcon_inst%roota_par
         write(fates_log(),fmt0) 'rootb_par = ',EDPftvarcon_inst%rootb_par
