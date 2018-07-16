@@ -603,7 +603,7 @@ contains
 
        ! take PFT-level maximum SLA value, even if under a thick canopy (which has units of m2/gC),
        ! and put into units of m2/kgC
-       sla_max = g_per_kg *EDPftvarcon_inst%slamax(ipft)
+       sla_max = g_per_kg *EDPftvarcon_inst%slamax(pft)
        ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
        leafc_slamax = (slat - sla_max * exp(-1.0_r8 * kn * can_tvai)) / &
             (-1.0_r8 * kn * vai_to_lai * slat * sla_max)
