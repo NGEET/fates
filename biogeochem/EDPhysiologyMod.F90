@@ -164,8 +164,6 @@ contains
     ! Canopy trimming / leaf optimisation. Removes leaves in negative annual carbon balance. 
     !
     ! !USES:
-    use FatesAllometryMod  , only : sla_max_drymass, use_slaprofile
-    use FatesConstantsMod  , only : g_per_kg 
 
     ! !ARGUMENTS    
     type (ed_site_type),intent(inout), target :: currentSite
@@ -221,9 +219,8 @@ contains
           ! Identify current canopy layer (cl)
           cl = currentCohort%canopy_layer
           
-          ! Observational constraint for maximum sla value (m2/gC):
-          ! m2/gC = m2/gBiomass * kgBiomass/kgC
-          sla_max = sla_max_drymass * EDPftvarcon_inst%c2b(ipft)
+          ! PFT-level maximum SLA value, even if under a thick canopy (same units as slatop)
+          sla_max = EDPftvarcon_inst%slamax(ipft)
 
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1, currentCohort%nv
@@ -239,27 +236,19 @@ contains
              
              if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer.
              
-                if(use_slaprofile == 0)then
-                
-                   ! Use slatop for sla value at all leaf levels 
-                   sla_levleaf = EDPftvarcon_inst%slatop(ipft)
-                
-                elseif(use_slaprofile == 1)then
                    
-                   ! Calculate sla_levleaf following the sla profile with overlying leaf area
-                   ! Scale for leaf nitrogen profile
-                   kn = decay_coeff_kn(ipft)
-                   ! Nscaler value at leaf level z
-                   nscaler_levleaf = exp(-kn * cum_tvai)
-                   ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
-                   sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf
-                
-                   if(sla_levleaf > sla_max)then
-                        sla_levleaf = sla_max
-                   end if
-                   
+                ! Calculate sla_levleaf following the sla profile with overlying leaf area
+                ! Scale for leaf nitrogen profile
+                kn = decay_coeff_kn(ipft)
+                ! Nscaler value at leaf level z
+                nscaler_levleaf = exp(-kn * cum_tvai)
+                ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
+                sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf
+
+                if(sla_levleaf > sla_max)then
+                   sla_levleaf = sla_max
                 end if
-              
+                   
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
                 if (EDPftvarcon_inst%season_decid(ipft) == 1.or. &

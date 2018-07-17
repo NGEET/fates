@@ -308,6 +308,9 @@ variables:
 	float fates_leaf_long(fates_pft) ;
 		fates_leaf_long:units = "yr" ;
 		fates_leaf_long:long_name = "Leaf longevity (ie turnover timescale)" ;
+	float fates_leaf_slamax(fates_pft) ;
+		fates_leaf_slamax:units = "m^2/gC" ;
+		fates_leaf_slamax:long_name = "Maximum Specific Leaf Area (SLA), even if under a dense canopy" ;
 	float fates_leaf_slatop(fates_pft) ;
 		fates_leaf_slatop:units = "m^2/gC" ;
 		fates_leaf_slatop:long_name = "Specific Leaf Area (SLA) at top of canopy, projected area basis" ;
@@ -869,6 +872,9 @@ data:
     495, 495, 495 ;
 
  fates_leaf_long = 1.5, 4, 6, 1, 1.5, 1, 1, 1, 1.5, 1, 1, 1, 1, 1 ;
+
+ fates_leaf_slamax = 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 
+    0.012, 0.03, 0.03, 0.03, 0.03, 0.03 ;
 
  fates_leaf_slatop = 0.012, 0.01, 0.008, 0.024, 0.012, 0.03, 0.03, 0.03, 
     0.012, 0.03, 0.03, 0.03, 0.03, 0.03 ;
