@@ -379,19 +379,23 @@ contains
 
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
                                  btran_eff = currentCohort%co_hydr%btran(1) 
+                                 cum_tvai = CumulativeLayerTVAI(cl,                                          &
+                                                                iv,                                          &
+                                                                ft,                                          &
+                                                                currentCohort%tree_elai+currentCohort%tree_sai, &
+                                                                currentPatch%canopy_layer_tvai(:))
+
                               else
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
                                  btran_eff = currentPatch%btran_ft(ft)
+                                 cum_tvai = CumulativeLayerTVAI(cl,                                          &
+                                                                iv,                                          &
+                                                                ft,                                          &
+                                                                currentPatch%elai_profile(cl,ft,iv) +        &
+                                                                currentPatch%esai_profile(cl,ft,iv),         &
+                                                                currentPatch%canopy_layer_tvai(:))
                               end if
-
-                              
-                              cum_tvai = CumulativeLayerTVAI(cl,                                          &
-                                                             iv,                                          &
-                                                             ft,                                          &
-                                                             currentPatch%elai_profile(cl,ft,iv) +        &
-                                                             currentPatch%esai_profile(cl,ft,iv),         &
-                                                             currentPatch%canopy_layer_tvai(:))
-                              
+                           
                               
                               ! Scale for leaf nitrogen profile
                               nscaler = exp(-kn(ft) * cum_tvai)
