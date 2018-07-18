@@ -388,7 +388,8 @@ contains
                               cum_tvai = CumulativeLayerTVAI(cl,                                          &
                                                              iv,                                          &
                                                              ft,                                          &
-                                                             currentCohort%treelai+currentCohort%treesai, &
+                                                             currentPatch%elai_profile(cl,ft,iv) +        &
+                                                             currentPatch%esai_profile(cl,ft,iv),         &
                                                              currentPatch%canopy_layer_tvai(:))
                               
                               
