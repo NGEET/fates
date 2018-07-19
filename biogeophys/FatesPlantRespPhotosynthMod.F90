@@ -386,25 +386,12 @@ contains
                                  ! if the plant is under-snow, it will be effectively dormant for 
                                  ! the purposes of nscaler
 
-                                 print*,"---------------------"
-                                 print*,"cl: ",cl
-                                 print*,"iv: ",iv
-                                 print*,"ft: ",ft
-                                 print*,"nv:",currentCohort%nv
-                                 print*,"ncan:",currentPatch%ncan(cl,ft)
-                                 print*,"tlai_profile:",currentPatch%tlai_profile(cl,ft,1:iv)
-                                 print*,"tsai_profile:",currentPatch%tsai_profile(cl,ft,1:iv)
-                                 print*,"canopy_area_profile:",currentPatch%canopy_area_profile(cl,ft,1:iv)
-                                 print*,"sum tlai_profile:",sum(currentPatch%tlai_profile(cl,ft,1:iv))
-                                 print*,"sum tsai_profile:",sum(currentPatch%tsai_profile(cl,ft,1:iv))
-                                 
+                                 cum_tvai = sum(currentPatch%canopy_layer_tvai(1:cl-1))  + &
+                                            sum(currentPatch%tlai_profile(cl,ft,1:iv-1)) + &
+                                            sum(currentPatch%tsai_profile(cl,ft,1:iv-1)) + &
+                                            0.5*currentPatch%tlai_profile(cl,ft,iv)      + &
+                                            0.5*currentPatch%tsai_profile(cl,ft,iv)
 
-                                 cum_tvai = CumulativeLayerTVAI(cl,                                                &
-                                                                iv,                                                &
-                                                                ft,                                                &
-                                                                sum(currentPatch%tlai_profile(cl,ft,1:iv)) + &
-                                                                sum(currentPatch%tsai_profile(cl,ft,1:iv)),  &
-                                                                currentPatch%canopy_layer_tvai(:))
                               end if
                            
                               
