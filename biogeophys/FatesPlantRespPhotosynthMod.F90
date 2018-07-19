@@ -334,8 +334,6 @@ contains
                ! ------------------------------------------------------------------------
                rate_mask_z(:,1:numpft,:) = .false.
 
-               write(fates_log(),*) 'photo'
-
                if(currentPatch%countcohorts > 0.0)then   ! Ignore empty patches
 
                   currentCohort => currentPatch%tallest
@@ -370,29 +368,42 @@ contains
                            if ( .not.rate_mask_z(iv,ft,cl) .or. (hlm_use_planthydro.eq.itrue) ) then
                               
                               if (hlm_use_planthydro.eq.itrue) then
-!                                 write(fates_log(),*) 'hlm_use_planthydro'
-!                                 write(fates_log(),*) 'has been set to true.  You have inadvertently'
-!                                 write(fates_log(),*) 'turned on a future feature that is not in the'
-!                                 write(fates_log(),*) 'FATES codeset yet. Please set this to'
-!                                 write(fates_log(),*) 'false and re-compile.'
-!                                 call endrun(msg=errMsg(sourcefile, __LINE__))
+
 
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
                                  btran_eff = currentCohort%co_hydr%btran(1) 
                                  cum_tvai = CumulativeLayerTVAI(cl,                                          &
                                                                 iv,                                          &
                                                                 ft,                                          &
-                                                                currentCohort%tree_elai+currentCohort%tree_sai, &
+                                                                currentCohort%treelai+currentCohort%treesai, &
                                                                 currentPatch%canopy_layer_tvai(:))
 
                               else
+                                 
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
                                  btran_eff = currentPatch%btran_ft(ft)
-                                 cum_tvai = CumulativeLayerTVAI(cl,                                          &
-                                                                iv,                                          &
-                                                                ft,                                          &
-                                                                currentPatch%elai_profile(cl,ft,iv) +        &
-                                                                currentPatch%esai_profile(cl,ft,iv),         &
+                                 ! For consistency sake, we use total LAI here, and not exposed
+                                 ! if the plant is under-snow, it will be effectively dormant for 
+                                 ! the purposes of nscaler
+
+                                 print*,"---------------------"
+                                 print*,"cl: ",cl
+                                 print*,"iv: ",iv
+                                 print*,"ft: ",ft
+                                 print*,"nv:",currentCohort%nv
+                                 print*,"ncan:",currentPatch%ncan(cl,ft)
+                                 print*,"tlai_profile:",currentPatch%tlai_profile(cl,ft,1:iv)
+                                 print*,"tsai_profile:",currentPatch%tsai_profile(cl,ft,1:iv)
+                                 print*,"canopy_area_profile:",currentPatch%canopy_area_profile(cl,ft,1:iv)
+                                 print*,"sum tlai_profile:",sum(currentPatch%tlai_profile(cl,ft,1:iv))
+                                 print*,"sum tsai_profile:",sum(currentPatch%tsai_profile(cl,ft,1:iv))
+                                 
+
+                                 cum_tvai = CumulativeLayerTVAI(cl,                                                &
+                                                                iv,                                                &
+                                                                ft,                                                &
+                                                                sum(currentPatch%tlai_profile(cl,ft,1:iv)) + &
+                                                                sum(currentPatch%tsai_profile(cl,ft,1:iv)),  &
                                                                 currentPatch%canopy_layer_tvai(:))
                               end if
                            

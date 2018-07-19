@@ -1484,7 +1484,7 @@ contains
                        enddo !currentCohort
                        call endrun(msg=errMsg(sourcefile, __LINE__))
                     end if
-                end do
+                 end do
                    
                 do ft = 1,numpft
                    do iv = 1,currentPatch%ncan(cl,ft)
