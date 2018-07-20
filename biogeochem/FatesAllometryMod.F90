@@ -544,7 +544,7 @@ contains
 
   ! =====================================================================================
 
-  real(r8) function tree_lai( bl, status_coh, pft, c_area, n, cl, canopy_lai)
+  real(r8) function tree_lai( bl, pft, c_area, nplant, cl, canopy_lai)
 
     ! -----------------------------------------------------------------------------------
     ! LAI of individual trees is a function of the total leaf area and the total 
@@ -553,11 +553,9 @@ contains
 
     ! !ARGUMENTS
     real(r8), intent(in) :: bl                        ! plant leaf biomass [kg]     
-    integer, intent(in)  :: status_coh                ! growth status of plant 
-                                                      ! (2 = leaves on , 1 = leaves off)
     integer, intent(in)  :: pft
     real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
-    real(r8), intent(in) :: n                         ! number of individuals in cohort per ha
+    real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
     integer, intent(in)  :: cl                        ! canopy layer index
     real(r8), intent(in) :: canopy_lai(nclmax)        ! total leaf area index of 
                                                       ! each canopy layer
@@ -582,7 +580,7 @@ contains
     endif
 
     slat = g_per_kg * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg
-    leafc_per_unitarea = bl/(c_area/n) !KgC/m2
+    leafc_per_unitarea = bl/(c_area/nplant) !KgC/m2
     
     if(leafc_per_unitarea > 0.0_r8)then
 
@@ -681,29 +679,32 @@ contains
 
   ! ============================================================================
 
-  real(r8) function tree_sai( pft, treelai )
+  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, canopy_lai )
 
     ! ============================================================================
     !  SAI of individual trees is a function of the LAI of individual trees
     ! ============================================================================
 
-    integer, intent(in)  :: pft			   ! PFT index
-    real(r8), intent(in) :: treelai        ! LAI of individual trees in this cohort (m2/m2)
+    integer, intent(in)  :: pft
+    real(r8), intent(in) :: dbh
+    real(r8), intent(in) :: canopy_trim
+    real(r8), intent(in) :: c_area
+    real(r8), intent(in) :: nplant
+    integer, intent(in)  :: cl                        ! canopy layer index
+    real(r8), intent(in) :: canopy_lai(nclmax)        ! total leaf area index of 
+                                                      ! each canopy layer
 
-    tree_sai =  (EDPftvarcon_inst%allom_sai_scaler(pft) / EDPftvarcon_inst%slatop(pft)) * treelai 
-    ! fraction * m2/m2 = unitless SAI
+    real(r8)             :: target_bleaf
+    real(r8)             :: target_lai
 
-    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
-    ! huge error 
-    if(tree_sai > nlevleaf*dinc_ed)then
-       write(fates_log(),*) 'too much sai' , tree_sai , pft , nlevleaf * dinc_ed
-       write(fates_log(),*) 'Aborting'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
+    call bleaf(dbh,pft,canopy_trim,target_bleaf)
+
+    target_lai = tree_lai( target_bleaf, pft, c_area, nplant, cl, canopy_lai) 
+
+    tree_sai   =  EDPftvarcon_inst%allom_sai_scaler(pft) * target_lai
+
 
     return
-
   end function tree_sai
   
   ! ============================================================================

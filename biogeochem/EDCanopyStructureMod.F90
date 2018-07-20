@@ -1016,7 +1016,8 @@ contains
 
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                   currentCohort%pft,currentCohort%c_area)
-             currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, &
+
+             currentCohort%treelai = tree_lai(currentCohort%bl,             &
                   currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                   currentCohort%canopy_layer, currentPatch%canopy_layer_tlai )
 
@@ -1188,10 +1189,13 @@ contains
           ! Note that the canopy_layer_lai is also calculated in this loop
           ! but since we go top down in terms of plant size, we should be okay
 
-          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
-               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, currentPatch%canopy_layer_tlai )
+          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%pft, currentCohort%c_area, &
+                                           currentCohort%n, currentCohort%canopy_layer,               &
+                                           currentPatch%canopy_layer_tlai )    
 
-          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%treelai)
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+                                           currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                                           currentPatch%canopy_layer_tlai )  
 
           currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area 
           currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  
