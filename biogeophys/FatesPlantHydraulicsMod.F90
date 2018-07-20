@@ -237,6 +237,12 @@ contains
     ccohort_hydr%flc_min_aroot(:) =  1.0_r8
     ccohort_hydr%refill_thresh    = -0.01_r8
     ccohort_hydr%refill_days      =  3.0_r8
+    ccohort_hydr%errh2o_growturn_ag(:)    = 0.0_r8
+    ccohort_hydr%errh2o_growturn_troot(:) = 0.0_r8
+    ccohort_hydr%errh2o_growturn_aroot(:) = 0.0_r8
+    ccohort_hydr%errh2o_pheno_ag(:)       = 0.0_r8
+    ccohort_hydr%errh2o_pheno_troot(:)    = 0.0_r8
+    ccohort_hydr%errh2o_pheno_aroot(:)    = 0.0_r8
     
     !initialize cohort-level btran
     call flc_gs_from_psi(cCohort, ccohort_hydr%psi_ag(1))
@@ -269,6 +275,7 @@ contains
     real(r8) :: b_tot_carb                   ! total individual biomass in carbon units                              [kgC/indiv]
     real(r8) :: b_bg_carb                    ! belowground biomass (coarse + fine roots) in carbon units             [kgC/indiv]
     real(r8) :: roota, rootb                 ! parameters for root distribution                                      [m-1]
+    real(r8) :: latosa                       ! leaf:sapwood area ratio                                               [m2/cm2]
     ! TRANSPORTING ROOT QUANTITIES
     real(r8) :: dcumul_rf                    ! cumulative root distribution discretization                           [-]
     real(r8) :: cumul_rf                     ! cumulative root distribution where depth is determined                [-]
@@ -375,7 +382,10 @@ contains
      b_stem_biom  = b_stem_carb * C2B                               ! kg DM
      v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8) !BOC...may be needed for testing/comparison w/ v_sapwood
      a_leaf_tot   = b_canopy_carb * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
-     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8            ! m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
+     !a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8            ! m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
+     !a_sapwood    = a_leaf_tot * ( EDPftvarcon_inst%allom_latosa_int(FT) + cCohort%dbh* EDPftvarcon_inst%allom_latosa_slp(FT) ) *1.e-4_r8
+     ! applying Calvo-Alvarado allometry here since using realistic sapwood area in the rest of the model causes trees to die
+     a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * cCohort%hite ) * 1.e-4_r8 
      v_sapwood    = a_sapwood * z_stem
      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
@@ -521,6 +531,10 @@ contains
     type(ed_cohort_type), pointer :: cCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     integer  :: j,k,FT                       ! indices
+    real(r8) :: th_ag_uncorr(      n_hypool_ag) ! 
+    real(r8) :: th_troot_uncorr(n_hypool_troot) ! 
+    real(r8) :: th_aroot_uncorr(currentSite%si_hydr%nlevsoi_hyd)    ! 
+    real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
     !-----------------------------------------------------------------------
 
     cCohort => cc_p
@@ -533,22 +547,58 @@ contains
 
     ! UPDATE WATER CONTENTS (assume water for growth comes from within tissue itself -- apply water mass conservation)
     do k=1,n_hypool_ag
-       ccohort_hydr%th_ag(k)    = ccohort_hydr%th_ag(k)   * &
-                                  ccohort_hydr%v_ag_init(k) /ccohort_hydr%v_ag(k)
+       th_ag_uncorr(k)    = ccohort_hydr%th_ag(k)   * &
+                            ccohort_hydr%v_ag_init(k) /ccohort_hydr%v_ag(k)
+       ccohort_hydr%th_ag(k) = constrain_water_contents(th_ag_uncorr(k), small_theta_num, ft, k)
     enddo
     do k=1,n_hypool_troot
-       ccohort_hydr%th_troot(k)    = ccohort_hydr%th_troot(k)   * &
+       th_troot_uncorr(k) = ccohort_hydr%th_troot(k)  	 * &
                                   ccohort_hydr%v_troot_init(k) /ccohort_hydr%v_troot(k)
+       ccohort_hydr%th_troot(k) = constrain_water_contents(th_troot_uncorr(k), small_theta_num, ft, 3)
     enddo
     do j=1,currentSite%si_hydr%nlevsoi_hyd
-       ccohort_hydr%th_aroot(j) = ccohort_hydr%th_aroot(j) * &
+       th_aroot_uncorr(j) = ccohort_hydr%th_aroot(j) * &
                                   ccohort_hydr%v_aroot_layer_init(j)/ccohort_hydr%v_aroot_layer(j)
+       ccohort_hydr%th_aroot(j) = constrain_water_contents(th_aroot_uncorr(j), small_theta_num, ft, 4)
     enddo
+    
+    ! Storing mass balance error
+    ! + means water created; - means water destroyed
+    ccohort_hydr%errh2o_growturn_ag(:)    = ccohort_hydr%th_ag(:)    - th_ag_uncorr(:)
+    ccohort_hydr%errh2o_growturn_troot(:) = ccohort_hydr%th_troot(:) - th_troot_uncorr(:)
+    ccohort_hydr%errh2o_growturn_aroot(:) = ccohort_hydr%th_aroot(:) - th_aroot_uncorr(:)
+
     
     ! UPDATES OF WATER POTENTIALS ARE DONE PRIOR TO RICHARDS' SOLUTION WITHIN FATESPLANTHYDRAULICSMOD.F90
     
 
   end subroutine updateSizeDepTreeHydStates
+
+! =====================================================================================
+  
+  function constrain_water_contents(th_uncorr, delta, ft, k) result(th_corr)
+
+    ! !ARGUMENTS:
+    real(r8) , intent(in) :: th_uncorr ! uncorrected water content (m3 m-3)
+    real(r8) , intent(in) :: delta
+    integer , intent(in)  :: ft
+    integer , intent(in)  :: k
+    !
+    ! !Local:
+    real(r8) :: thr                    ! residual water content (m3 m-3)
+    real(r8) :: ths                    ! saturated water content (m3 m-3)
+    !
+    ! !RESULT
+    real(r8) :: th_corr                ! corrected water content
+    !
+    !------------------------------------------------------------------------
+    ths     = EDPftvarcon_inst%hydr_thetas_node(ft,porous_media(k))
+    thr     = ths * EDPftvarcon_inst%hydr_resid_node(ft,porous_media(k))
+    th_corr = max((thr+delta),min((ths-delta),th_uncorr))
+
+    return
+
+  end function constrain_water_contents
 
   ! =====================================================================================
     subroutine CopyCohortHydraulics(newCohort, oldCohort)
@@ -888,17 +938,25 @@ contains
                     sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:)) + &
                     sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
                     denh2o*currentCohort%n
-              
+              csite_hydr%h2oveg_growturn_err = &
+                    (sum(ccohort_hydr%errh2o_growturn_ag(:)*ccohort_hydr%v_ag(:))      + &
+                     sum(ccohort_hydr%errh2o_growturn_troot(:)*ccohort_hydr%v_troot(:))   + &
+                     sum(ccohort_hydr%errh2o_growturn_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
+                     denh2o*currentCohort%n
+
               currentCohort => currentCohort%shorter
            enddo !cohort
            currentPatch => currentPatch%younger
         enddo !end patch loop
         
-        csite_hydr%h2oveg = csite_hydr%h2oveg / AREA
+        csite_hydr%h2oveg              = csite_hydr%h2oveg              / AREA
+        csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err / AREA
 
         ! Note that h2oveg_dead is incremented wherever we have litter fluxes
         ! and it will be reduced via an evaporation term
-        bc_out(s)%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead
+        bc_out(s)%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
+                                        csite_hydr%h2oveg_growturn_err - &
+                                        csite_hydr%h2oveg_pheno_err
 
      end do
      
@@ -1718,16 +1776,16 @@ end subroutine updateSizeDepRhizHydStates
                   do j=1,site_hydr%nlevsoi_hyd
                     if(j == 1) then
                        rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j))
-                     else
+                    else
                        rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j)) - &
                           zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j-1))
-                      end if
-		      site_hydr%recruit_w_uptake(j) = site_hydr%recruit_w_uptake(j) + &
+                    end if
+		    site_hydr%recruit_w_uptake(j) = site_hydr%recruit_w_uptake(j) + &
 		                                    recruitw*rootfr
-                   end do
-                 end if
-		 ccohort_hydr%is_newly_recuited = .false.
-	       endif	      
+                  end do
+                end if
+		ccohort_hydr%is_newly_recuited = .false.
+	      endif	      
               
               ! Relative transpiration of this cohort from the whole patch
 !!              qflx_rel_tran_coh = ccohort%g_sb_laweight/gscan_patch
@@ -2341,7 +2399,9 @@ end subroutine updateSizeDepRhizHydStates
            total_e = bc_out(s)%plant_stored_h2o_si - site_hydr%h2oveg - &
 	       site_hydr%h2oveg_dead + totalrootuptake - totalqtop_dt
 	   
-           bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead       
+           bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead - &
+                                           site_hydr%h2oveg_growturn_err - &
+                                           site_hydr%h2oveg_pheno_err
 
            
         enddo !site

@@ -13,7 +13,7 @@ module EDCanopyStructureMod
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : carea_allom
-  use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
+  use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts, zero_cohort
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
@@ -481,10 +481,12 @@ contains
                   ! demoted to the understory
                   
                   allocate(copyc)
+                  if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,copyc)
+                  call zero_cohort(copyc)
                   call copy_cohort(currentCohort, copyc)
-                  if( hlm_use_planthydro.eq.itrue ) then
-                     call InitHydrCohort(currentSite,copyc)
-                  endif
+                  !if( hlm_use_planthydro.eq.itrue ) then
+                  !   call InitHydrCohort(currentSite,copyc)
+                  !endif
                   
                   newarea = currentCohort%c_area - cc_loss
                   copyc%n = currentCohort%n*newarea/currentCohort%c_area 
@@ -807,10 +809,12 @@ contains
                   elseif ( cc_gain > nearzero .and. cc_gain < currentCohort%c_area) then
                      
                      allocate(copyc)
+                     if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,copyc)
+                     call zero_cohort(copyc)
                      call copy_cohort(currentCohort, copyc) !makes an identical copy...
-                     if( hlm_use_planthydro.eq.itrue ) then
-                        call InitHydrCohort(CurrentSite,copyc)
-                     endif
+                     !if( hlm_use_planthydro.eq.itrue ) then
+                     !   call InitHydrCohort(CurrentSite,copyc)
+                     !endif
                                           
                      newarea = currentCohort%c_area - cc_gain !new area of existing cohort
 

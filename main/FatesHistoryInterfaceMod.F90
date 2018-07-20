@@ -1504,7 +1504,7 @@ end subroutine flush_hvars
 
 
       ! If we don't have dynamics turned on, we just abort these diagnostics
-      if (hlm_use_ed_st3.eq.itrue) return
+      !if (hlm_use_ed_st3.eq.itrue) return
 
       ! ---------------------------------------------------------------------------------
       ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -1709,14 +1709,14 @@ end subroutine flush_hvars
                           ccohort%npp_sapw+ccohort%npp_dead+ &
                           ccohort%npp_seed+ccohort%npp_stor))
                     if( npp_partition_error > 100.0_r8*calloc_abs_error )  then
-                       write(fates_log(),*) 'NPP Partitions are not balancing'
-                       write(fates_log(),*) 'Absolute Error [kgC/day]: ',npp_partition_error
-                       write(fates_log(),*) 'Fractional Error: ', abs(npp_partition_error/ccohort%npp_acc_hold)
-                       write(fates_log(),*) 'Terms: ',ccohort%npp_acc_hold,ccohort%npp_leaf,ccohort%npp_fnrt, &
-                             ccohort%npp_sapw,ccohort%npp_dead, &
-                             ccohort%npp_seed,ccohort%npp_stor
-                       write(fates_log(),*) ' NPP components during FATES-HLM linking does not balance '
-                       call endrun(msg=errMsg(__FILE__, __LINE__))
+                       !write(fates_log(),*) 'NPP Partitions are not balancing'
+                       !write(fates_log(),*) 'Absolute Error [kgC/day]: ',npp_partition_error
+                       !write(fates_log(),*) 'Fractional Error: ', abs(npp_partition_error/ccohort%npp_acc_hold)
+                       !write(fates_log(),*) 'Terms: ',ccohort%npp_acc_hold,ccohort%npp_leaf,ccohort%npp_fnrt, &
+                       !      ccohort%npp_sapw,ccohort%npp_dead, &
+                       !      ccohort%npp_seed,ccohort%npp_stor
+                       !write(fates_log(),*) ' NPP components during FATES-HLM linking does not balance '
+                       !call endrun(msg=errMsg(__FILE__, __LINE__))
                     end if
 
                     ! Woody State Variables (basal area and number density and mortality)

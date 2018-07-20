@@ -69,7 +69,7 @@ module EDTypesMod
   ! TO-DO: THESE SHOULD BE PARAMETERS IN THE FILE OR NAMELIST - ADDING THESE
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
-  logical, parameter :: do_ed_phenology = .true.
+  logical, parameter :: do_ed_phenology = .false.
 
 
   ! MODEL PARAMETERS

@@ -139,6 +139,17 @@ module FatesHydraulicsMemMod
      real(r8) :: h2oveg                             ! stored water in vegetation (kg/m2)
 
      real(r8) :: h2oveg_dead                        ! stored water in dead vegetation (kg/m2)
+     real(r8) :: h2oveg_growturn_err                ! error water pool for increase (growth) or
+                                                    !  contraction (turnover) of tissue volumes.
+                                                    !  Draw from or add to this pool when
+                                                    !  insufficient water available to increase
+                                                    !  tissue volume or too much water is
+                                                    !  available when tissue volume decreases,
+                                                    !  respectively.
+     real(r8) :: h2oveg_pheno_err                   ! error water pool for leaf-on
+                                                    !  Draw from or add to this pool when
+                                                    !  insufficient plant water available to 
+                                                    !  support production of new leaves.
 
      
      !     Hold Until Van Genuchten is implemented
@@ -216,6 +227,21 @@ module FatesHydraulicsMemMod
      real(r8) ::  iterh1                          ! number of iterations required to achieve tolerable water balance error
      real(r8) ::  iterh2                          ! number of inner iterations
      real(r8) ::  errh2o                          ! total water balance error per unit crown area                     [kgh2o/m2]
+     real(r8) ::  errh2o_growturn_ag(n_hypool_ag) ! error water pool for increase (growth) or
+                                                  !  contraction (turnover) of tissue volumes.
+                                                  !  Draw from or add to this pool when
+                                                  !  insufficient water available to increase
+                                                  !  tissue volume or too much water is
+                                                  !  available when tissue volume decreases,
+                                                  !  respectively.
+     real(r8) ::  errh2o_pheno_ag(n_hypool_ag)    ! error water pool for for leaf-on
+                                                  !  Draw from or add to this pool when
+                                                  !  insufficient plant water available to 
+                                                  !  support production of new leaves.
+     real(r8) ::  errh2o_growturn_troot(n_hypool_troot) ! same as errh2o_growturn_ag but for troot pool
+     real(r8) ::  errh2o_pheno_troot(n_hypool_troot)    ! same as errh2o_pheno_ag but for troot pool
+     real(r8),allocatable ::  errh2o_growturn_aroot(:)  ! same as errh2o_growturn_ag but for aroot pools
+     real(r8),allocatable ::  errh2o_pheno_aroot(:)     ! same as errh2o_pheno_ag but for aroot pools
 
      real(r8),allocatable ::  th_aroot(:)         ! water in absorbing roots                                          [kgh2o/indiv]
      real(r8),allocatable ::  psi_aroot(:)        ! water potential in absorbing roots                                [MPa]
@@ -266,6 +292,8 @@ module FatesHydraulicsMemMod
        allocate(this%psi_aroot(1:nlevsoil_hydr))
        allocate(this%flc_aroot(1:nlevsoil_hydr))
        allocate(this%flc_min_aroot(1:nlevsoil_hydr))
+       allocate(this%errh2o_growturn_aroot(1:nlevsoil_hydr))
+       allocate(this%errh2o_pheno_aroot(1:nlevsoil_hydr))
        
        return
     end subroutine AllocateHydrCohortArrays
@@ -284,6 +312,8 @@ module FatesHydraulicsMemMod
        deallocate(this%psi_aroot)
        deallocate(this%flc_aroot)
        deallocate(this%flc_min_aroot)
+       deallocate(this%errh2o_growturn_aroot)
+       deallocate(this%errh2o_pheno_aroot)
 
        return
     end subroutine DeallocateHydrCohortArrays
@@ -325,6 +355,8 @@ module FatesHydraulicsMemMod
          this%dwat_veg       = nan
          this%h2oveg         = nan
          this%h2oveg_dead    = 0.0_r8
+	 this%h2oveg_growturn_err = 0.0_r8
+         this%h2oveg_pheno_err    = 0.0_r8
          
        end associate
 
