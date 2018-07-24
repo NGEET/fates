@@ -243,6 +243,8 @@ contains
     ccohort_hydr%errh2o_pheno_ag(:)       = 0.0_r8
     ccohort_hydr%errh2o_pheno_troot(:)    = 0.0_r8
     ccohort_hydr%errh2o_pheno_aroot(:)    = 0.0_r8
+    !ccohort_hydr%th_aroot_prev(:)     =  0.0_r8
+    !ccohort_hydr%th_aroot_prev_ucnorr(:)=  0.0_r8
     
     !initialize cohort-level btran
     call flc_gs_from_psi(cCohort, ccohort_hydr%psi_ag(1))
@@ -523,6 +525,9 @@ contains
     ! !DESCRIPTION: 
     !
     ! !USES:
+    use FatesUtilsMod  , only : check_var_real
+    use EDTypesMod     , only : dump_cohort
+    
     ! !ARGUMENTS:
      type(ed_site_type)    , intent(in)             :: currentSite ! Site stuff
     type(ed_cohort_type)   , intent(inout), target  :: cc_p ! current cohort pointer
@@ -531,10 +536,12 @@ contains
     type(ed_cohort_type), pointer :: cCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     integer  :: j,k,FT                       ! indices
+    integer  :: err_code = 0
     real(r8) :: th_ag_uncorr(      n_hypool_ag) ! 
     real(r8) :: th_troot_uncorr(n_hypool_troot) ! 
     real(r8) :: th_aroot_uncorr(currentSite%si_hydr%nlevsoi_hyd)    ! 
     real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
+     integer :: nstep !number of time steps
     !-----------------------------------------------------------------------
 
     cCohort => cc_p
@@ -560,13 +567,29 @@ contains
        th_aroot_uncorr(j) = ccohort_hydr%th_aroot(j) * &
                                   ccohort_hydr%v_aroot_layer_init(j)/ccohort_hydr%v_aroot_layer(j)
        ccohort_hydr%th_aroot(j) = constrain_water_contents(th_aroot_uncorr(j), small_theta_num, ft, 4)
+       ccohort_hydr%errh2o_growturn_aroot(j) = ccohort_hydr%th_aroot(j) - th_aroot_uncorr(j)
+       !call check_var_real(ccohort_hydr%errh2o_growturn_aroot(j),'ccohort_hydr%errh2o_growturn_aroot(j)',err_code)
+       !if ((abs(ccohort_hydr%errh2o_growturn_aroot(j)) > 1.0_r8) .or. &
+       !     err_code == 1 .or. err_code == 10) then
+       !  call dump_cohort(cCohort)
+       !end if
     enddo
     
     ! Storing mass balance error
     ! + means water created; - means water destroyed
     ccohort_hydr%errh2o_growturn_ag(:)    = ccohort_hydr%th_ag(:)    - th_ag_uncorr(:)
     ccohort_hydr%errh2o_growturn_troot(:) = ccohort_hydr%th_troot(:) - th_troot_uncorr(:)
-    ccohort_hydr%errh2o_growturn_aroot(:) = ccohort_hydr%th_aroot(:) - th_aroot_uncorr(:)
+     !for debug only
+     !nstep = get_nstep()
+     !if(nstep == 49) then
+       !write(fates_log(),*)'ccohort_hydr%errh2o_growturn_aroot(:) = ', ccohort_hydr%errh2o_growturn_aroot(:)
+       !write(fates_log(),*)'ccohort_hydr%th_aroot(:) = ', ccohort_hydr%th_aroot(:)
+       !write(fates_log(),*)'th_aroot_uncorr(:) = ', th_aroot_uncorr(:)
+       !write(fates_log(),*)'ccohort_hydr%v_aroot_layer_init(:) = ', ccohort_hydr%v_aroot_layer_init(:)
+       !write(fates_log(),*)'ccohort_hydr%v_aroot_layer(:) = ', ccohort_hydr%v_aroot_layer(:)
+       !call dump_cohort(cCohort)
+       !call endrun(msg=errMsg(sourcefile, __LINE__))
+     !end if
 
     
     ! UPDATES OF WATER POTENTIALS ARE DONE PRIOR TO RICHARDS' SOLUTION WITHIN FATESPLANTHYDRAULICSMOD.F90
@@ -620,45 +643,94 @@ contains
      ! Heights are referenced to soil surface (+ = above; - = below)
      ncohort_hydr%z_node_ag          = ocohort_hydr%z_node_ag
      ncohort_hydr%z_node_troot       = ocohort_hydr%z_node_troot
-     ncohort_hydr%z_node_aroot       = ocohort_hydr%z_node_aroot
      ncohort_hydr%z_upper_ag         = ocohort_hydr%z_upper_ag
      ncohort_hydr%z_upper_troot      = ocohort_hydr%z_upper_troot
      ncohort_hydr%z_lower_ag         = ocohort_hydr%z_lower_ag
      ncohort_hydr%z_lower_troot      = ocohort_hydr%z_lower_troot
+     ncohort_hydr%kmax_upper         = ocohort_hydr%kmax_upper
+     ncohort_hydr%kmax_lower         = ocohort_hydr%kmax_lower
+     ncohort_hydr%kmax_upper_troot   = ocohort_hydr%kmax_upper_troot
      ncohort_hydr%kmax_bound         = ocohort_hydr%kmax_bound
      ncohort_hydr%kmax_treebg_tot    = ocohort_hydr%kmax_treebg_tot
-     ncohort_hydr%kmax_treebg_layer  = ocohort_hydr%kmax_treebg_layer
      ncohort_hydr%v_ag_init          = ocohort_hydr%v_ag_init
      ncohort_hydr%v_ag               = ocohort_hydr%v_ag
      ncohort_hydr%v_troot_init       = ocohort_hydr%v_troot_init
      ncohort_hydr%v_troot            = ocohort_hydr%v_troot
      ncohort_hydr%v_aroot_tot        = ocohort_hydr%v_aroot_tot
+     ncohort_hydr%l_aroot_tot        = ocohort_hydr%l_aroot_tot
+     ! quantities indexed by soil layer
+     ncohort_hydr%z_node_aroot       = ocohort_hydr%z_node_aroot
+     ncohort_hydr%kmax_treebg_layer  = ocohort_hydr%kmax_treebg_layer
      ncohort_hydr%v_aroot_layer_init = ocohort_hydr%v_aroot_layer_init
      ncohort_hydr%v_aroot_layer      = ocohort_hydr%v_aroot_layer
-     ncohort_hydr%l_aroot_tot        = ocohort_hydr%l_aroot_tot
      ncohort_hydr%l_aroot_layer      = ocohort_hydr%l_aroot_layer
      
      ! BC PLANT HYDRAULICS - state variables
      ncohort_hydr%th_ag              = ocohort_hydr%th_ag
      ncohort_hydr%th_troot           = ocohort_hydr%th_troot
-     ncohort_hydr%th_aroot           = ocohort_hydr%th_aroot
      ncohort_hydr%psi_ag             = ocohort_hydr%psi_ag
      ncohort_hydr%psi_troot          = ocohort_hydr%psi_troot
-     ncohort_hydr%psi_aroot          = ocohort_hydr%psi_aroot
+     ncohort_hydr%flc_ag             = ocohort_hydr%flc_ag
+     ncohort_hydr%flc_troot          = ocohort_hydr%flc_troot
+     ncohort_hydr%flc_min_ag         = ocohort_hydr%flc_min_ag
+
+     ncohort_hydr%flc_min_troot      = ocohort_hydr%flc_min_troot
+
+     !refilling status--these are constants are should be moved the fates parameter file(Chonggang XU)
+     ncohort_hydr%refill_thresh      = ocohort_hydr%refill_thresh
+     ncohort_hydr%refill_days        = ocohort_hydr%refill_days
      ncohort_hydr%btran              = ocohort_hydr%btran
+
+     ncohort_hydr%lwp_mem            = ocohort_hydr%lwp_mem
+     ncohort_hydr%lwp_stable         = ocohort_hydr%lwp_stable
+     ncohort_hydr%lwp_is_unstable    = ocohort_hydr%lwp_is_unstable
      ncohort_hydr%supsub_flag        = ocohort_hydr%supsub_flag
+
      ncohort_hydr%iterh1             = ocohort_hydr%iterh1
      ncohort_hydr%iterh2             = ocohort_hydr%iterh2
+     ncohort_hydr%errh2o             = ocohort_hydr%errh2o
+     ncohort_hydr%errh2o_growturn_ag = ocohort_hydr%errh2o_growturn_ag
+
+
+
+
+
+
+     ncohort_hydr%errh2o_pheno_ag    = ocohort_hydr%errh2o_pheno_ag
+
+
+
+     ncohort_hydr%errh2o_growturn_troot = ocohort_hydr%errh2o_growturn_troot
+     ncohort_hydr%errh2o_pheno_troot    = ocohort_hydr%errh2o_pheno_troot
+     ! quantities indexed by soil layer
+     ncohort_hydr%th_aroot              = ocohort_hydr%th_aroot
+     !ncohort_hydr%th_aroot_prev        = ocohort_hydr%th_aroot_prev
+     !ncohort_hydr%th_aroot_prev_uncorr = ocohort_hydr%th_aroot_prev_uncorr
+     ncohort_hydr%psi_aroot             = ocohort_hydr%psi_aroot
+     ncohort_hydr%flc_aroot             = ocohort_hydr%flc_aroot
+     ncohort_hydr%flc_min_aroot         = ocohort_hydr%flc_min_aroot
+     
+     ncohort_hydr%errh2o_growturn_aroot = ocohort_hydr%errh2o_growturn_aroot
+     ncohort_hydr%errh2o_pheno_aroot    = ocohort_hydr%errh2o_pheno_aroot
      
      ! BC PLANT HYDRAULICS - flux terms
      ncohort_hydr%qtop_dt            = ocohort_hydr%qtop_dt
      ncohort_hydr%dqtopdth_dthdt     = ocohort_hydr%dqtopdth_dthdt
+
      ncohort_hydr%sapflow            = ocohort_hydr%sapflow
      ncohort_hydr%rootuptake         = ocohort_hydr%rootuptake
+     ncohort_hydr%rootuptake01       = ocohort_hydr%rootuptake01
+     ncohort_hydr%rootuptake02       = ocohort_hydr%rootuptake02
+     ncohort_hydr%rootuptake03       = ocohort_hydr%rootuptake03
+     ncohort_hydr%rootuptake04       = ocohort_hydr%rootuptake04
+     ncohort_hydr%rootuptake05       = ocohort_hydr%rootuptake05
+     ncohort_hydr%rootuptake06       = ocohort_hydr%rootuptake06
+     ncohort_hydr%rootuptake07       = ocohort_hydr%rootuptake07
+     ncohort_hydr%rootuptake08       = ocohort_hydr%rootuptake08
+     ncohort_hydr%rootuptake09       = ocohort_hydr%rootuptake09
+     ncohort_hydr%rootuptake10       = ocohort_hydr%rootuptake10
      
-     !refilling status--these are constants are should be moved the fates parameter file(Chonggang XU)
-     ncohort_hydr%refill_thresh    = ocohort_hydr%refill_thresh
-     ncohort_hydr%refill_days      = ocohort_hydr%refill_days
+     ncohort_hydr%is_newly_recuited  = ocohort_hydr%is_newly_recuited
 
   end subroutine CopyCohortHydraulics
   
@@ -697,14 +769,20 @@ contains
      do k=1,n_hypool_ag
         call psi_from_th(currentCohort%pft, porous_media(k), ccohort_hydr%th_ag(k), &
                          ccohort_hydr%psi_ag(k), site_hydr, bc_in)
+        call flc_from_psi(currentCohort%pft, porous_media(k), ccohort_hydr%psi_ag(k), &
+                         ccohort_hydr%flc_ag(k), site_hydr, bc_in) 
      end do
      do k=n_hypool_ag+1,n_hypool_ag+n_hypool_troot
         call psi_from_th(currentCohort%pft, 3, ccohort_hydr%th_troot(k-n_hypool_ag), &
                          ccohort_hydr%psi_troot(k-n_hypool_ag), site_hydr, bc_in)
+        call flc_from_psi(currentCohort%pft, 3, ccohort_hydr%psi_troot(k-n_hypool_ag), &
+                         ccohort_hydr%flc_troot(k-n_hypool_ag), site_hydr, bc_in)
      end do
      do j=1,site_hydr%nlevsoi_hyd
         call psi_from_th(currentCohort%pft, 4, ccohort_hydr%th_aroot(j), &
                          ccohort_hydr%psi_aroot(j), site_hydr, bc_in)
+        call flc_from_psi(currentCohort%pft, 4, ccohort_hydr%psi_aroot(j), &
+                          ccohort_hydr%flc_aroot(j), site_hydr, bc_in)
      end do
      call flc_gs_from_psi(currentCohort, ccohort_hydr%psi_ag(1))
      call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)      !hydraulics quantities that are functions of hite & biomasses
@@ -716,7 +794,60 @@ contains
                                     nextCohort%n*ncohort_hydr%sapflow)/newn
      ccohort_hydr%rootuptake     = (currentCohort%n*ccohort_hydr%rootuptake     + &
                                     nextCohort%n*ncohort_hydr%rootuptake)/newn
+     ccohort_hydr%rootuptake01   = (currentCohort%n*ccohort_hydr%rootuptake01   + &
+                                    nextCohort%n*ncohort_hydr%rootuptake01)/newn
+     ccohort_hydr%rootuptake02   = (currentCohort%n*ccohort_hydr%rootuptake02   + &
+                                    nextCohort%n*ncohort_hydr%rootuptake02)/newn
+     ccohort_hydr%rootuptake03   = (currentCohort%n*ccohort_hydr%rootuptake03   + &
+                                    nextCohort%n*ncohort_hydr%rootuptake03)/newn
+     ccohort_hydr%rootuptake04   = (currentCohort%n*ccohort_hydr%rootuptake04   + &
+                                    nextCohort%n*ncohort_hydr%rootuptake04)/newn
+     ccohort_hydr%rootuptake05   = (currentCohort%n*ccohort_hydr%rootuptake05   + &
+                                    nextCohort%n*ncohort_hydr%rootuptake05)/newn
+     ccohort_hydr%rootuptake06   = (currentCohort%n*ccohort_hydr%rootuptake06   + &
+                                    nextCohort%n*ncohort_hydr%rootuptake06)/newn
+     ccohort_hydr%rootuptake07   = (currentCohort%n*ccohort_hydr%rootuptake07   + &
+                                    nextCohort%n*ncohort_hydr%rootuptake07)/newn
+     ccohort_hydr%rootuptake08   = (currentCohort%n*ccohort_hydr%rootuptake08   + &
+                                    nextCohort%n*ncohort_hydr%rootuptake08)/newn
+     ccohort_hydr%rootuptake09   = (currentCohort%n*ccohort_hydr%rootuptake09   + &
+                                    nextCohort%n*ncohort_hydr%rootuptake09)/newn
+     ccohort_hydr%rootuptake10   = (currentCohort%n*ccohort_hydr%rootuptake10   + &
+                                    nextCohort%n*ncohort_hydr%rootuptake10)/newn
+
+     ccohort_hydr%lwp_mem(:)       = ccohort_hydr%psi_ag(1)
+     ccohort_hydr%lwp_stable       = ccohort_hydr%psi_ag(1)
+     ccohort_hydr%lwp_is_unstable  = .false.
+     ccohort_hydr%flc_min_ag(:)    = (currentCohort%n*ccohort_hydr%flc_min_ag(:)    + &
+                                      nextCohort%n*ncohort_hydr%flc_min_ag(:))/newn
+     ccohort_hydr%flc_min_troot(:) = (currentCohort%n*ccohort_hydr%flc_min_troot(:) + &
+                                      nextCohort%n*ncohort_hydr%flc_min_troot(:))/newn
+     ccohort_hydr%flc_min_aroot(:) = (currentCohort%n*ccohort_hydr%flc_min_aroot(:) + &
+                                      nextCohort%n*ncohort_hydr%flc_min_aroot(:))/newn
      
+     ! need to be migrated to parmeter file (BOC 07/24/2018)
+     ccohort_hydr%refill_thresh            = -0.01_r8
+     ccohort_hydr%refill_days              =  3.0_r8
+     
+     ccohort_hydr%errh2o                   = (currentCohort%n*ccohort_hydr%errh2o                   + &
+                                              nextCohort%n*ncohort_hydr%errh2o)/newn
+     ccohort_hydr%errh2o_growturn_ag(:)    = (currentCohort%n*ccohort_hydr%errh2o_growturn_ag(:)    + &
+                                              nextCohort%n*ncohort_hydr%errh2o_growturn_ag(:))/newn
+     ccohort_hydr%errh2o_pheno_ag(:)       = (currentCohort%n*ccohort_hydr%errh2o_pheno_ag(:)       + &
+                                              nextCohort%n*ncohort_hydr%errh2o_pheno_ag(:))/newn
+     ccohort_hydr%errh2o_growturn_troot(:) = (currentCohort%n*ccohort_hydr%errh2o_growturn_troot(:) + &
+                                              nextCohort%n*ncohort_hydr%errh2o_growturn_troot(:))/newn
+     ccohort_hydr%errh2o_pheno_troot(:)    = (currentCohort%n*ccohort_hydr%errh2o_pheno_troot(:)    + &
+                                              nextCohort%n*ncohort_hydr%errh2o_pheno_troot(:))/newn
+     ccohort_hydr%errh2o_growturn_aroot(:) = (currentCohort%n*ccohort_hydr%errh2o_growturn_aroot(:) + &
+                                              nextCohort%n*ncohort_hydr%errh2o_growturn_aroot(:))/newn
+     ccohort_hydr%errh2o_pheno_aroot(:)    = (currentCohort%n*ccohort_hydr%errh2o_pheno_aroot(:)    + &
+                                              nextCohort%n*ncohort_hydr%errh2o_pheno_aroot(:))/newn
+     
+     !ccohort_hydr%th_aroot_prev(:)
+     !ccohort_hydr%th_aroot_prev_uncorr(:)
+
+     ccohort_hydr%is_newly_recuited        = .false.
 
   end subroutine FuseCohortHydraulics
 
@@ -895,6 +1026,7 @@ contains
      ! ----------------------------------------------------------------------------------
 
      use EDTypesMod, only : AREA
+    use EDTypesMod     , only : dump_cohort
 
      ! Arguments
      integer, intent(in)                       :: nsites
@@ -908,6 +1040,10 @@ contains
      type(ed_site_hydr_type), pointer :: csite_hydr
      integer :: s
      real(r8) :: balive_patch
+     integer :: nstep !number of time steps
+
+     !for debug only
+     nstep = get_nstep()
 
      do s = 1,nsites
         bc_out(s)%plant_stored_h2o_si = 0.0_r8
@@ -938,6 +1074,14 @@ contains
                     sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:)) + &
                     sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
                     denh2o*currentCohort%n
+
+     !if(nstep == 49) then ! .and. &
+       !(maxval(ccohort_hydr%errh2o_growturn_aroot(:)) > 1.0_r8 .or. &
+       !  minval(ccohort_hydr%errh2o_growturn_aroot(:)) < -1.0_r8)) then
+       !write(fates_log(),*)'ccohort_hydr%errh2o_growturn_aroot(:)', ccohort_hydr%errh2o_growturn_aroot(:)
+       !write(fates_log(),*)'ccohort_hydr%v_aroot_layer(:)', ccohort_hydr%v_aroot_layer(:)
+       !call dump_cohort(currentCohort)
+     !endif
               csite_hydr%h2oveg_growturn_err = &
                     (sum(ccohort_hydr%errh2o_growturn_ag(:)*ccohort_hydr%v_ag(:))      + &
                      sum(ccohort_hydr%errh2o_growturn_troot(:)*ccohort_hydr%v_troot(:))   + &
@@ -959,6 +1103,13 @@ contains
                                         csite_hydr%h2oveg_pheno_err
 
      end do
+
+     !if(nstep == 49) then
+       !write(fates_log(),*)'csite_hydr%h2oveg', csite_hydr%h2oveg
+       !write(fates_log(),*)'csite_hydr%h2oveg_dead', csite_hydr%h2oveg_dead
+       !write(fates_log(),*)'csite_hydr%h2oveg_growturn_err', csite_hydr%h2oveg_growturn_err
+       !write(fates_log(),*)'csite_hydr%h2oveg_pheno_err', csite_hydr%h2oveg_pheno_err
+     !endif
      
     return
   end subroutine UpdateH2OVeg
@@ -1533,6 +1684,8 @@ end subroutine updateSizeDepRhizHydStates
      !s
      ! !USES:
      use EDTypesMod        , only : AREA
+    use FatesUtilsMod  , only : check_var_real
+    use EDTypesMod     , only : dump_cohort
 
      ! ARGUMENTS:
      ! -----------------------------------------------------------------------------------
@@ -1667,6 +1820,7 @@ end subroutine updateSizeDepRhizHydStates
      real(r8) :: rootfr                        ! root fraction at different soil layers
      type(ed_site_hydr_type), pointer :: site_hydr
      type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+    integer  :: err_code = 0
 
      ! ----------------------------------------------------------------------------------
      ! Important note: We are interested in calculating the total fluxes in and out of the
@@ -1680,11 +1834,11 @@ end subroutine updateSizeDepRhizHydStates
      ! Input:  [real(r8) (:,:,:)] soil matric potential (MPa) by layer and rhizosphere shell
      
      !for debug only
-     !nstep = get_nstep()
+     nstep = get_nstep()
      
-     !if(nstep == 837)then
-     !   write(fates_log(),*) 'debug'
-     !endif
+     if(nstep == 98)then
+        write(fates_log(),*) 'debug'
+     endif
 	     
      do s = 1, nsites
           
@@ -2284,6 +2438,18 @@ end subroutine updateSizeDepRhizHydStates
                       end if
                    end do
                    do j=1,site_hydr%nlevsoi_hyd
+     if(nstep == 98)then
+       !call check_var_real(ccohort_hydr%flc_min_aroot(j),'ccohort_hydr%flc_min_aroot(j)',err_code)
+       !if (err_code == 1 .or. err_code == 10 .or. err_code == 100) then
+       !write(fates_log(),*)'ccohort_hydr%flc_min_aroot(j)', ccohort_hydr%flc_min_aroot(j)
+       !  call dump_cohort(ccohort)
+       !end if
+       !call check_var_real(ccohort_hydr%flc_aroot(j),'ccohort_hydr%flc_aroot(j)',err_code)
+       !if (err_code == 1 .or. err_code == 10 .or. err_code == 100) then
+       !write(fates_log(),*)'ccohort_hydr%flc_aroot(j)', ccohort_hydr%flc_aroot(j)
+       !  call dump_cohort(ccohort)
+       !end if
+     endif
                       ccohort_hydr%flc_min_aroot(j) = min(ccohort_hydr%flc_min_aroot(j), ccohort_hydr%flc_aroot(j))
                       if(ccohort_hydr%psi_aroot(j) >= ccohort_hydr%refill_thresh .and. &
                             ccohort_hydr%flc_aroot(j) > ccohort_hydr%flc_min_aroot(j)) then   ! then refilling
