@@ -197,8 +197,7 @@ module FatesHydraulicsMemMod
      real(r8) ::  v_troot(n_hypool_troot)         ! volume of belowground water storage compartments                  [m3]
      real(r8) ::  v_aroot_tot                     ! total volume of absorbing roots                                   [m3]
      real(r8) ::  l_aroot_tot                     ! total length of absorbing roots                                   [m]
-    
-
+     ! quantities indexed by soil layer
      real(r8),allocatable :: z_node_aroot(:)       ! nodal height of absorbing root water storage compartments [m]   
      real(r8),allocatable :: kmax_treebg_layer(:)  ! total belowground tree kmax partitioned by soil layer     [kg s-1 MPa-1]
      real(r8),allocatable :: v_aroot_layer_init(:) ! previous day's volume of absorbing roots by soil layer    [m3]
@@ -208,9 +207,6 @@ module FatesHydraulicsMemMod
                                                   ! BC PLANT HYDRAULICS - state variables
      real(r8) ::  th_ag(n_hypool_ag)              ! water in aboveground compartments                                 [kgh2o/indiv]
      real(r8) ::  th_troot(n_hypool_troot)        ! water in belowground compartments                                 [kgh2o/indiv]
-     real(r8) ::  lwp_mem(numLWPmem)              ! leaf water potential over the previous numLWPmem timesteps        [MPa]
-     real(r8) ::  lwp_stable                      ! leaf water potential just before it became unstable               [MPa]
-     logical  ::  lwp_is_unstable                 ! flag for instability of leaf water potential over previous timesteps
      real(r8) ::  psi_ag(n_hypool_ag)             ! water potential in aboveground compartments                       [MPa]
      real(r8) ::  psi_troot(n_hypool_troot)       ! water potential in belowground compartments                       [MPa]
      real(r8) ::  flc_ag(n_hypool_ag)             ! fractional loss of conductivity in aboveground compartments       [-]
@@ -219,9 +215,14 @@ module FatesHydraulicsMemMod
                                                   ! aboveground compartments (for tracking xylem refilling dynamics) [-]
      real(r8) ::  flc_min_troot(n_hypool_troot)   ! min attained fractional loss of conductivity in 
                                                   ! belowground compartments (for tracking xylem refilling dynamics) [-]
+     !refilling status--these are constants are should be moved the fates parameter file(Chonggang XU)
      real(r8) ::  refill_thresh                   ! water potential threshold for xylem refilling to occur            [MPa]
      real(r8) ::  refill_days                     ! number of days required for 50% of xylem refilling to occur       [days]
      real(r8) ::  btran(nlevcan_hyd)              ! leaf water potential limitation on gs                             [0-1]
+
+     real(r8) ::  lwp_mem(numLWPmem)              ! leaf water potential over the previous numLWPmem timesteps        [MPa]
+     real(r8) ::  lwp_stable                      ! leaf water potential just before it became unstable               [MPa]
+     logical  ::  lwp_is_unstable                 ! flag for instability of leaf water potential over previous timesteps
      real(r8) ::  supsub_flag                     ! k index of last node to encounter supersaturation or 
                                                   ! sub-residual water content  (+ supersaturation; - subsaturation)
      real(r8) ::  iterh1                          ! number of iterations required to achieve tolerable water balance error
@@ -240,14 +241,16 @@ module FatesHydraulicsMemMod
                                                   !  support production of new leaves.
      real(r8) ::  errh2o_growturn_troot(n_hypool_troot) ! same as errh2o_growturn_ag but for troot pool
      real(r8) ::  errh2o_pheno_troot(n_hypool_troot)    ! same as errh2o_pheno_ag but for troot pool
-     real(r8),allocatable ::  errh2o_growturn_aroot(:)  ! same as errh2o_growturn_ag but for aroot pools
-     real(r8),allocatable ::  errh2o_pheno_aroot(:)     ! same as errh2o_pheno_ag but for aroot pools
-
+     ! quantities indexed by soil layer
      real(r8),allocatable ::  th_aroot(:)         ! water in absorbing roots                                          [kgh2o/indiv]
+     !real(r8),allocatable ::  th_aroot_prev(:)    ! water in absorbing roots, prev timestep (debug)                   [kgh2o/indiv]
+     !real(r8),allocatable ::  th_aroot_prev_uncorr(:) ! water in absorbing roots, prev timestep, initial guess (debug)  [kgh2o/indiv]
      real(r8),allocatable ::  psi_aroot(:)        ! water potential in absorbing roots                                [MPa]
      real(r8),allocatable ::  flc_aroot(:)        ! fractional loss of conductivity in absorbing roots                [-]
      real(r8),allocatable ::  flc_min_aroot(:)    ! min attained fractional loss of conductivity in absorbing roots 
                                                   ! (for tracking xylem refilling dynamics)          [-]
+     real(r8),allocatable ::  errh2o_growturn_aroot(:)  ! same as errh2o_growturn_ag but for aroot pools
+     real(r8),allocatable ::  errh2o_pheno_aroot(:)     ! same as errh2o_pheno_ag but for aroot pools
 
                                                   ! BC PLANT HYDRAULICS - fluxes
      real(r8) ::  qtop_dt                         ! transpiration boundary condition (+ to atm)                       [kg/indiv/timestep]
@@ -289,6 +292,8 @@ module FatesHydraulicsMemMod
        allocate(this%v_aroot_layer(1:nlevsoil_hydr))
        allocate(this%l_aroot_layer(1:nlevsoil_hydr))
        allocate(this%th_aroot(1:nlevsoil_hydr))
+       !allocate(this%th_aroot_prev(1:nlevsoil_hydr))
+       !allocate(this%th_aroot_prev_uncorr(1:nlevsoil_hydr))
        allocate(this%psi_aroot(1:nlevsoil_hydr))
        allocate(this%flc_aroot(1:nlevsoil_hydr))
        allocate(this%flc_min_aroot(1:nlevsoil_hydr))
@@ -309,6 +314,8 @@ module FatesHydraulicsMemMod
        deallocate(this%v_aroot_layer)
        deallocate(this%l_aroot_layer)
        deallocate(this%th_aroot)
+       !deallocate(this%th_aroot_prev)
+       !deallocate(this%th_aroot_prev_uncorr)
        deallocate(this%psi_aroot)
        deallocate(this%flc_aroot)
        deallocate(this%flc_min_aroot)
