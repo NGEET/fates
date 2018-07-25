@@ -157,7 +157,7 @@ contains
 
     new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, new_cohort%canopy_trim,   &
                                   new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
-                                  patchptr%canopy_layer_tlai )  
+                                  patchptr%canopy_layer_tlai, new_cohort%treelai )  
 
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
 

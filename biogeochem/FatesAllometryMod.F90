@@ -663,36 +663,26 @@ contains
        tree_lai = 0.0_r8
     endif ! (leafc_per_unitarea > 0.0_r8)
 
-    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
-    ! huge error 
-    if(tree_lai > nlevleaf*dinc_ed)then
-       write(fates_log(),*) 'too much lai' , tree_lai , pft , nlevleaf * dinc_ed
-       write(fates_log(),*) 'Aborting'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-
-
     return
-
   end function tree_lai
 
   ! ============================================================================
 
-  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, canopy_lai )
+  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, canopy_lai, treelai )
 
     ! ============================================================================
     !  SAI of individual trees is a function of the LAI of individual trees
     ! ============================================================================
 
-    integer, intent(in)  :: pft
-    real(r8), intent(in) :: dbh
-    real(r8), intent(in) :: canopy_trim
-    real(r8), intent(in) :: c_area
-    real(r8), intent(in) :: nplant
-    integer, intent(in)  :: cl                        ! canopy layer index
-    real(r8), intent(in) :: canopy_lai(nclmax)        ! total leaf area index of 
-                                                      ! each canopy layer
+    integer, intent(in)  :: pft                
+    real(r8), intent(in) :: dbh                
+    real(r8), intent(in) :: canopy_trim        ! trimming function (0-1)
+    real(r8), intent(in) :: c_area             ! crown area (m2)
+    real(r8), intent(in) :: nplant             ! number of plants
+    integer, intent(in)  :: cl                 ! canopy layer index
+    real(r8), intent(in) :: canopy_lai(nclmax) ! total leaf area index of 
+                                               ! each canopy layer
+    real(r8), intent(in) :: treelai            ! tree LAI for checking purposes only
 
     real(r8)             :: target_bleaf
     real(r8)             :: target_lai
@@ -702,6 +692,17 @@ contains
     target_lai = tree_lai( target_bleaf, pft, c_area, nplant, cl, canopy_lai) 
 
     tree_sai   =  EDPftvarcon_inst%allom_sai_scaler(pft) * target_lai
+
+
+    if( (treelai + tree_sai) > (nlevleaf*dinc_ed) )then
+       write(fates_log(),*) 'The leaf and stem are predicted for a cohort, maxed out the array size'
+       write(fates_log(),*) 'lai: ',treelai
+       write(fates_log(),*) 'sai: ',tree_sai
+       write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
+       write(fates_log(),*) 'nlevleaf,dinc_ed,nlevleaf*dinc_ed :',nlevleaf,dinc_ed,nlevleaf*dinc_ed
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    
 
 
     return

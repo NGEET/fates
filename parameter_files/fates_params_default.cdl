@@ -701,7 +701,7 @@ data:
 
  fates_allom_lmode = 1, 1 ;
 
- fates_allom_sai_scaler = 0.05, 0.05 ;
+ fates_allom_sai_scaler = 0.10, 0.10 ;
 
  fates_allom_smode = 1, 1 ;
 
