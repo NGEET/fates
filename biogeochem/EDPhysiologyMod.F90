@@ -21,7 +21,6 @@ module EDPhysiologyMod
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : decay_coeff_kn
-  use FatesAllometryMod   , only : CumulativeLayerTVAI
 
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
@@ -181,31 +180,42 @@ contains
     real(r8) :: sla_levleaf     ! sla at leaf level z
     real(r8) :: nscaler_levleaf ! nscaler value at leaf level z
     integer  :: cl              ! canopy layer index
-    real(r8) :: cum_tvai        ! cumulative total vegetation area index at arbitrary leaf layers
-    real(r8) :: vai             ! leaf and stem area in this layer
     real(r8) :: kn              ! nitrogen decay coefficient
     real(r8) :: sla_max         ! Observational constraint on how large sla (m2/gC) can become
 
+    real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_ed
+    real(r8) :: lai_canopy_above   ! the LAI in the canopy layers above the layer of interest
+    real(r8) :: lai_layers_above   ! the LAI in the leaf layers, within the current canopy, 
+                                   ! above the leaf layer of interest
+    real(r8) :: lai_current        ! the LAI in the current leaf layer
+    real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
+
     !----------------------------------------------------------------------
 
-    write(fates_log(),*) 'trimming'
-    
     currentPatch => currentSite%youngest_patch
-
     do while(associated(currentPatch))
        
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort)) 
+
           trimmed = .false.
           ipft = currentCohort%pft
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
-          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
-               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, currentPatch%canopy_layer_tvai )    
-          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%treelai)        
-          currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
+          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%pft, currentCohort%c_area, &
+                                           currentCohort%n, currentCohort%canopy_layer,               &
+                                           currentPatch%canopy_layer_tlai )    
+
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+                                           currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                                           currentPatch%canopy_layer_tlai, currentCohort%treelai )  
+
+          currentCohort%nv      = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
+
           if (currentCohort%nv > nlevleaf)then
-             write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
-                  currentCohort%c_area,currentCohort%n,currentCohort%bl
+             write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv, &
+                   currentCohort%treelai,currentCohort%treesai, &
+                   currentCohort%c_area,currentCohort%n,currentCohort%bl
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
           call bleaf(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bl)
@@ -226,13 +236,15 @@ contains
           do z = 1, currentCohort%nv
 
              ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
-             cum_tvai = CumulativeLayerTVAI(cl,                                          &
-                                            z,                                           &
-                                            ipft,                                        &
-                                            currentCohort%treelai+currentCohort%treesai, &
-                                            currentPatch%canopy_layer_tvai(:))
 
-
+             leaf_inc    = dinc_ed * &
+                   currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
+             
+             ! Now calculate the cumulative top-down lai of the current layer's midpoint
+             lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
+             lai_layers_above  = leaf_inc * (z-1)
+             lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
+             cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current
              
              if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer.
              
@@ -241,7 +253,7 @@ contains
                 ! Scale for leaf nitrogen profile
                 kn = decay_coeff_kn(ipft)
                 ! Nscaler value at leaf level z
-                nscaler_levleaf = exp(-kn * cum_tvai)
+                nscaler_levleaf = exp(-kn * cumulative_lai)
                 ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
                 sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf
 

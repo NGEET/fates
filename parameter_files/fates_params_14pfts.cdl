@@ -192,8 +192,8 @@ variables:
 		fates_allom_lmode:units = "index" ;
 		fates_allom_lmode:long_name = "leaf biomass allometry function index" ;
 	float fates_allom_sai_scaler(fates_pft) ;
-		fates_allom_sai_scaler:units = "m2/gC" ;
-		fates_allom_sai_scaler:long_name = "allometric ratio of SAI to target bleaf" ;
+		fates_allom_sai_scaler:units = "m2/m2" ;
+		fates_allom_sai_scaler:long_name = "allometric ratio of SAI per LAI" ;
 	float fates_allom_smode(fates_pft) ;
 		fates_allom_smode:units = "index" ;
 		fates_allom_smode:long_name = "sapwood allometry function index" ;
@@ -714,8 +714,8 @@ data:
 
  fates_allom_lmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_allom_sai_scaler = 0.0012, 0.0012, 0.0012, 0.0012, 0.0012, 0.0012, 
-    0.0012, 0.0012, 0.0012, 0.0012, 0.0012, 0.0012, 0.0012, 0.0012 ;
+ fates_allom_sai_scaler = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
+    0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
 
  fates_allom_smode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 

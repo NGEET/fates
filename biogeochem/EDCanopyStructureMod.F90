@@ -1016,9 +1016,10 @@ contains
 
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                   currentCohort%pft,currentCohort%c_area)
-             currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, &
+
+             currentCohort%treelai = tree_lai(currentCohort%bl,             &
                   currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                  currentCohort%canopy_layer, currentPatch%canopy_layer_tvai )
+                  currentCohort%canopy_layer, currentPatch%canopy_layer_tlai )
 
              canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
                   
@@ -1088,7 +1089,7 @@ contains
     !
     ! The following patch level diagnostics are updated here:
     ! 
-    ! currentPatch%canopy_layer_tvai(cl)   ! total vegetated area index of layer
+    ! currentPatch%canopy_layer_tlai(cl)   ! total leaf area index of canopy layer
     ! currentPatch%ncan(cl,ft)             ! number of vegetation layers needed
     !                                      ! in this patch's pft/canopy-layer 
     ! currentPatch%nrad(cl,ft)             ! same as ncan, but does not include
@@ -1158,7 +1159,7 @@ contains
        ! calculate tree lai and sai.
        ! --------------------------------------------------------------------------------
 
-       currentPatch%canopy_layer_tvai(:)        = 0._r8
+       currentPatch%canopy_layer_tlai(:)        = 0._r8
        currentPatch%ncan(:,:)                   = 0 
        currentPatch%nrad(:,:)                   = 0 
        patch_lai                                = 0._r8
@@ -1177,15 +1178,24 @@ contains
        
        if (currentPatch%total_canopy_area > nearzero ) then
 
-       currentCohort => currentPatch%shortest
+
+       currentCohort => currentPatch%tallest
        do while(associated(currentCohort)) 
 
           ft = currentCohort%pft
           cl = currentCohort%canopy_layer
 
-          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
-               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, currentPatch%canopy_layer_tvai )
-          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%treelai)
+          ! Calculate LAI of layers above
+          ! Note that the canopy_layer_lai is also calculated in this loop
+          ! but since we go top down in terms of plant size, we should be okay
+
+          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%pft, currentCohort%c_area, &
+                                           currentCohort%n, currentCohort%canopy_layer,               &
+                                           currentPatch%canopy_layer_tlai )    
+
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+                                           currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                                           currentPatch%canopy_layer_tlai, currentCohort%treelai )  
 
           currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area 
           currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  
@@ -1197,17 +1207,9 @@ contains
 
           patch_lai = patch_lai + currentCohort%lai
 
-!          currentPatch%canopy_layer_tvai(cl) = currentPatch%canopy_layer_tvai(cl) + &
-!                currentCohort%lai + currentCohort%sai
+          currentPatch%canopy_layer_tlai(cl) = currentPatch%canopy_layer_tlai(cl) + currentCohort%lai
 
-          do cl = 1,nclmax-1
-             if(currentCohort%canopy_layer == cl)then
-                currentPatch%canopy_layer_tvai(cl) = currentPatch%canopy_layer_tvai(cl) + &
-                     currentCohort%lai + currentCohort%sai
-             endif
-          enddo
-
-          currentCohort => currentCohort%taller 
+          currentCohort => currentCohort%shorter 
           
        enddo !currentCohort
 
@@ -1484,7 +1486,7 @@ contains
                        enddo !currentCohort
                        call endrun(msg=errMsg(sourcefile, __LINE__))
                     end if
-                end do
+                 end do
                    
                 do ft = 1,numpft
                    do iv = 1,currentPatch%ncan(cl,ft)
