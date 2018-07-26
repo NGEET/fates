@@ -159,8 +159,8 @@ variables:
 		fates_allom_lmode:units = "index" ;
 		fates_allom_lmode:long_name = "leaf biomass allometry function index" ;
 	float fates_allom_sai_scaler(fates_pft) ;
-		fates_allom_sai_scaler:units = "m2/gC" ;
-		fates_allom_sai_scaler:long_name = "allometric ratio of SAI to target bleaf" ;
+		fates_allom_sai_scaler:units = "m2/m2" ;
+		fates_allom_sai_scaler:long_name = "allometric ratio of SAI per LAI" ;
 	float fates_allom_smode(fates_pft) ;
 		fates_allom_smode:units = "index" ;
 		fates_allom_smode:long_name = "sapwood allometry function index" ;
@@ -248,6 +248,9 @@ variables:
 	float fates_leaf_long(fates_pft) ;
 		fates_leaf_long:units = "yr" ;
 		fates_leaf_long:long_name = "Leaf longevity (ie turnover timescale)" ;
+	float fates_leaf_slamax(fates_pft) ;
+		fates_leaf_slamax:units = "m^2/gC" ;
+		fates_leaf_slamax:long_name = "Maximum Specific Leaf Area (SLA), even if under a dense canopy" ;
 	float fates_leaf_slatop(fates_pft) ;
 		fates_leaf_slatop:units = "m^2/gC" ;
 		fates_leaf_slatop:long_name = "Specific Leaf Area (SLA) at top of canopy, projected area basis" ;
@@ -407,6 +410,9 @@ variables:
 	float fates_trim_limit(fates_pft) ;
 		fates_trim_limit:units = "m2/m2" ;
 		fates_trim_limit:long_name = "Arbitrary limit to reductions in leaf area with stress" ;
+	float fates_wood_cn_ratio(fates_pft) ;
+		fates_wood_cn_ratio:units = "gC/gN" ;
+		fates_wood_cn_ratio:long_name = "Wood C:N" ;
 	float fates_wood_density(fates_pft) ;
 		fates_wood_density:units = "g/cm3" ;
 		fates_wood_density:long_name = "mean density of woody tissue in plant" ;
@@ -695,7 +701,7 @@ data:
 
  fates_allom_lmode = 1, 1 ;
 
- fates_allom_sai_scaler = 0.0012, 0.0012 ;
+ fates_allom_sai_scaler = 0.10, 0.10 ;
 
  fates_allom_smode = 1, 1 ;
 
@@ -754,6 +760,8 @@ data:
  fates_leaf_jmaxse = 495, 495 ;
 
  fates_leaf_long = 1.5, 1.5 ;
+
+ fates_leaf_slamax = 0.0954, 0.0954 ;
 
  fates_leaf_slatop = 0.012, 0.012 ;
 
@@ -860,6 +868,8 @@ data:
  fates_trim_inc = 0.03, 0.03 ;
 
  fates_trim_limit = 0.3, 0.3 ;
+
+ fates_wood_cn_ratio = 210, 210 ;
 
  fates_wood_density = 0.7, 0.7 ;
 

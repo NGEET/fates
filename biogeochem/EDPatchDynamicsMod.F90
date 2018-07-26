@@ -1267,7 +1267,7 @@ contains
     currentPatch%age                        = nan                          
     currentPatch%age_class                  = 1
     currentPatch%area                       = nan                                           
-    currentPatch%canopy_layer_tai(:)        = nan               
+    currentPatch%canopy_layer_tlai(:)       = nan               
     currentPatch%total_canopy_area          = nan
 
     currentPatch%tlai_profile(:,:,:)        = nan 
@@ -1347,7 +1347,7 @@ contains
     currentPatch%burnt_frac_litter(:)       = 0.0_r8 
     currentPatch%btran_ft(:)                = 0.0_r8
 
-    currentPatch%canopy_layer_tai(:)        = 0.0_r8
+    currentPatch%canopy_layer_tlai(:)       = 0.0_r8
 
     currentPatch%seeds_in(:)                = 0.0_r8
     currentPatch%seed_decay(:)              = 0.0_r8

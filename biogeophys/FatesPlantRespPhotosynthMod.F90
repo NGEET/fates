@@ -70,6 +70,7 @@ contains
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
+    use EDTypesMod        , only : dinc_ed
     use FatesInterfaceMod , only : bc_in_type
     use FatesInterfaceMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
@@ -84,6 +85,7 @@ contains
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
     use FatesAllometryMod, only : i_hydro_rootprof_context
+    use FatesAllometryMod, only : decay_coeff_kn
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -148,8 +150,6 @@ contains
     real(r8) :: ceair              ! vapor pressure of air, constrained (Pa)
     real(r8) :: nscaler            ! leaf nitrogen scaling coefficient
     real(r8) :: leaf_frac          ! ratio of to leaf biomass to total alive biomass
-    real(r8) :: laican             ! canopy sum of lai_z
-    real(r8) :: vai                ! leaf and steam area in ths layer. 
     real(r8) :: tcsoi              ! Temperature response function for root respiration. 
     real(r8) :: tcwood             ! Temperature response function for wood
     
@@ -169,12 +169,21 @@ contains
     real(r8) :: r_stomata          ! Mean stomatal resistance across all leaves in the patch [s/m]
 
 
-    real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration when storage pools are low
+    real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance 
+                                            ! respiration when storage pools are low
     real(r8) :: b_leaf             ! leaf biomass kgC
     real(r8) :: frac               ! storage pool as a fraction of target leaf biomass
     real(r8) :: check_elai         ! This is a check on the effective LAI that is calculated
                                    ! over each cohort x layer.
     real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each cohort
+
+    real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_ed
+    real(r8) :: lai_canopy_above   ! the LAI in the canopy layers above the layer of interest
+    real(r8) :: lai_layers_above   ! the LAI in the leaf layers, within the current canopy, 
+                                   ! above the leaf layer of interest
+    real(r8) :: lai_current        ! the LAI in the current leaf layer
+    real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
+
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -215,7 +224,8 @@ contains
                                                   ! projected area basis [m^2/gC]
          woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
          leafcn    => EDPftvarcon_inst%leafcn , & ! leaf C:N (gC/gN)
-         frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
+         frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)
+         woodcn    => EDPftvarcon_inst%woodcn,  & ! wood C:N (gc/gN)
          q10       => FatesSynchronizedParamsInst%Q10 )
 
       bbbopt(0) = ED_val_bbopt_c4
@@ -241,9 +251,6 @@ contains
 
             g_sb_leaves = 0._r8
             check_elai  = 0._r8
-
-            !psncanopy_pa = 0._r8
-            !lmrcanopy_pa = 0._r8
 
             ! Part II. Filter out patches 
             ! Patch level filter flag for photosynthesis calculations
@@ -293,13 +300,9 @@ contains
                   ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
                   ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
                   ! (2010) Biogeosciences, 7, 1833-1859
-                  ! Remove daylength factor from vcmax25 so that kn is based on maximum vcmax25
                   
-                  if (bc_in(s)%dayl_factor_pa(ifp)  ==  0._r8) then
-                     kn(ft) =  0._r8
-                  else
-                     kn(ft) = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(ft) - 2.43_r8)
-                  end if
+                  kn(ft) = decay_coeff_kn(ft)
+                  
 
                   ! This is probably unnecessary and already calculated
                   ! ALSO, THIS ROOTING PROFILE IS USED TO CALCULATE RESPIRATION
@@ -353,14 +356,6 @@ contains
                      ! are there any leaves of this pft in this layer?
                      if(currentPatch%canopy_mask(cl,ft) == 1)then 
                         
-                        if(cl==1)then !are we in the top canopy layer or a shaded layer?
-                           laican = 0._r8
-                        else
-
-                           laican = sum(currentPatch%canopy_layer_tai(1:cl-1)) 
-
-                        end if
-                        
                         ! Loop over leaf-layers
                         do iv = 1,currentCohort%nv
                            
@@ -377,31 +372,41 @@ contains
                            if ( .not.rate_mask_z(iv,ft,cl) .or. (hlm_use_planthydro.eq.itrue) ) then
                               
                               if (hlm_use_planthydro.eq.itrue) then
-!                                 write(fates_log(),*) 'hlm_use_planthydro'
-!                                 write(fates_log(),*) 'has been set to true.  You have inadvertently'
-!                                 write(fates_log(),*) 'turned on a future feature that is not in the'
-!                                 write(fates_log(),*) 'FATES codeset yet. Please set this to'
-!                                 write(fates_log(),*) 'false and re-compile.'
-!                                 call endrun(msg=errMsg(sourcefile, __LINE__))
 
-                                 bbb   = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
+
+                                 bbb       = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
                                  btran_eff = currentCohort%co_hydr%btran(1) 
+                                 
+                                 ! dinc_ed is the total vegetation area index of each "leaf" layer
+                                 ! we convert to the leaf only portion of the increment
+                                 ! ------------------------------------------------------
+                                 leaf_inc    = dinc_ed * &
+                                               currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
+                                 
+                                 ! Now calculate the cumulative top-down lai of the current layer's midpoint
+                                 lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
+                                 lai_layers_above  = leaf_inc * (iv-1)
+                                 lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
+                                 cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current 
+
                               else
+                                 
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
                                  btran_eff = currentPatch%btran_ft(ft)
+                                 ! For consistency sake, we use total LAI here, and not exposed
+                                 ! if the plant is under-snow, it will be effectively dormant for 
+                                 ! the purposes of nscaler
+
+                                 cumulative_lai = sum(currentPatch%canopy_layer_tlai(1:cl-1))  + &
+                                                  sum(currentPatch%tlai_profile(cl,ft,1:iv-1)) + &
+                                                  0.5*currentPatch%tlai_profile(cl,ft,iv)
+                                           
+
                               end if
-                              
-                              ! Vegetation area index
-                              vai = (currentPatch%elai_profile(cl,ft,iv)+currentPatch%esai_profile(cl,ft,iv)) 
-                              if (iv == 1) then
-                                 laican = laican + 0.5_r8 * vai
-                              else
-                                 laican = laican + 0.5_r8 * (currentPatch%elai_profile(cl,ft,iv-1)+ &
-                                       currentPatch%esai_profile(cl,ft,iv-1)+vai)
-                              end if
+                           
                               
                               ! Scale for leaf nitrogen profile
-                              nscaler = exp(-kn(ft) * laican)
+                              nscaler = exp(-kn(ft) * cumulative_lai)
 
                               ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
                               call LeafLayerMaintenanceRespiration( param_derived%lmr25top(ft),&  ! in
@@ -529,9 +534,9 @@ contains
                      ! Units are in (kgN/plant)
                      ! ------------------------------------------------------------------
                      live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * currentCohort%bsw / &
-                           frootcn(currentCohort%pft)
+                           woodcn(currentCohort%pft)
                      live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * currentCohort%bsw  / &
-                           frootcn(currentCohort%pft)
+                           woodcn(currentCohort%pft)
                      froot_n       = currentCohort%br / frootcn(currentCohort%pft) 
                      
                      
@@ -1105,7 +1110,6 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use FatesConstantsMod, only : umolC_to_kgC
-    use EDTypesMod, only : dinc_ed
     
     ! Arguments
     integer, intent(in)  :: nv               ! number of active leaf layers
