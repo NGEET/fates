@@ -11,9 +11,9 @@ For more information on the FATES model, see our wiki:  https://github.com/NGEET
 
 **Most users should not need to directly clone this repository.  FATES needs to be run through a host model, and all supported host-models are in charge of cloning and loading the fates software.**
 
-FATES has support to be run via the Accelerated Climate Model for Energy (ACME) and the Community Terrestrial Systems Model (CTSM).
+FATES has support to be run via the Energy Exascale Earth System Model (E3SM) and the Community Terrestrial Systems Model (CTSM).
 
-https://climatemodeling.science.energy.gov/projects/accelerated-climate-modeling-energy
+https://e3sm.org/
 
 https://github.com/ESCOMP/ctsm
 
