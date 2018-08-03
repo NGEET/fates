@@ -127,6 +127,7 @@ module FatesPlantHydraulicsMod
    public :: updateSizeDepTreeHydStates
    public :: initTreeHydStates
    public :: updateSizeDepRhizHydProps
+   public :: updateSizeDepRhizHydStates
 
    !------------------------------------------------------------------------------
    ! 01/18/16: Created by Brad Christoffersen
@@ -887,11 +888,12 @@ contains
 
   ! =====================================================================================
 
-  subroutine InitHydrSites(sites,bc_in)
+  subroutine InitHydrSites(sites,bc_in,numpft)
 
        ! Arguments
        type(ed_site_type),intent(inout),target :: sites(:)
        type(bc_in_type),intent(in)             :: bc_in(:)
+       integer,intent(in)                      :: numpft
 
        ! Locals
        integer :: nsites
@@ -902,7 +904,7 @@ contains
        if ( hlm_use_planthydro.eq.ifalse ) return
        
        ! Initialize any derived hydraulics parameters
-       call InitHydraulicsDerived()
+       call InitHydraulicsDerived(numpft)
        
        nsites = ubound(sites,1)
        do s=1,nsites
@@ -1189,7 +1191,7 @@ contains
        
        hksat_s = bc_in%hksat_sisl(j) * 1.e-3_r8 * 1/grav * 1.e6_r8
 
-       ! proceed only if l_aroot_coh has changed
+       ! proceed only if the total absorbing root length (site-level) has changed in this layer
        if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
 
           do k = 1,nshell
@@ -1197,33 +1199,51 @@ contains
 	        kmax_root_surf_total = kmax_root_surf*2._r8*pi_const *csite_hydr%rs1(j)* &
 		                       csite_hydr%l_aroot_layer(j)
                 if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
-                   csite_hydr%kmax_upper_shell(j,k)  = kmax_root_surf_total
-                   csite_hydr%kmax_bound_shell(j,k)  = kmax_root_surf_total
-                   csite_hydr%kmax_lower_shell(j,k)  = kmax_root_surf_total
+                   !csite_hydr%kmax_upper_shell(j,k)  = kmax_root_surf_total
+                   !csite_hydr%kmax_bound_shell(j,k)  = kmax_root_surf_total
+                   !csite_hydr%kmax_lower_shell(j,k)  = kmax_root_surf_total
+                   csite_hydr%kmax_upper_shell(j,k)  = large_kmax_bound
+                   csite_hydr%kmax_bound_shell(j,k)  = large_kmax_bound
+                   csite_hydr%kmax_lower_shell(j,k)  = large_kmax_bound
                 else
 		   kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                          log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
-                   csite_hydr%kmax_upper_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8    
-                   csite_hydr%kmax_bound_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8 
-                   csite_hydr%kmax_lower_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8 
+                   !csite_hydr%kmax_upper_shell(j,k)  = (1._r8/kmax_root_surf_total + &
+		   !                                     1._r8/kmax_soil_total)**-1._r8    
+                   !csite_hydr%kmax_bound_shell(j,k)  = (1._r8/kmax_root_surf_total + &
+		   !                                     1._r8/kmax_soil_total)**-1._r8 
+                   !csite_hydr%kmax_lower_shell(j,k)  = (1._r8/kmax_root_surf_total + &
+		   !                                     1._r8/kmax_soil_total)**-1._r8 
+                   csite_hydr%kmax_upper_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
+		         log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
+                   csite_hydr%kmax_bound_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
+		         log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
+                   csite_hydr%kmax_lower_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
+		         log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
                 end if
 		if(j == 1) then
                    if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
                      csite_hydr%kmax_upper_shell_1D(k)  = kmax_root_surf_total
                      csite_hydr%kmax_bound_shell_1D(k)  = kmax_root_surf_total
                      csite_hydr%kmax_lower_shell_1D(k)  = kmax_root_surf_total
+                     csite_hydr%kmax_upper_shell_1D(k)  = large_kmax_bound
+                     csite_hydr%kmax_bound_shell_1D(k)  = large_kmax_bound
+                     csite_hydr%kmax_lower_shell_1D(k)  = large_kmax_bound
                    else
 		      kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
                             log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
                       csite_hydr%kmax_upper_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                                           1._r8/kmax_soil_total)**-1._r8
                       csite_hydr%kmax_bound_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                                           1._r8/kmax_soil_total)**-1._r8
                       csite_hydr%kmax_lower_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                                           1._r8/kmax_soil_total)**-1._r8
+                      !csite_hydr%kmax_upper_shell_1D(k) = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
+		      !      log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
+                      !csite_hydr%kmax_bound_shell_1D(k) = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
+		      !      log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
+                      !csite_hydr%kmax_lower_shell_1D(k) = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
+		      !      log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
                    end if
                 end if
              else
@@ -1240,13 +1260,13 @@ contains
                          log(csite_hydr%r_node_shell_1D(k)/csite_hydr%r_node_shell_1D(k-1))*hksat_s
                    csite_hydr%kmax_lower_shell_1D(k)    = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
                          log(csite_hydr%r_out_shell_1D( k)/csite_hydr%r_node_shell_1D(k  ))*hksat_s
-		end if
-               end if
-               enddo
-            end if !has l_aroot_layer changed?
-         enddo
+                end if
+             end if
+          enddo ! loop over rhizosphere shells
+       end if !has l_aroot_layer changed?
+    enddo ! loop over soil layers
 
-      end subroutine updateSizeDepRhizHydProps
+  end subroutine updateSizeDepRhizHydProps
   
   ! =================================================================================
 
@@ -2947,11 +2967,11 @@ end subroutine updateSizeDepRhizHydStates
       !dump the error water to the bin with largest water storage
       max_l  = maxloc(th_node(:)*v_node(:),dim=1)
       th_node(max_l) = th_node(max_l)-  &
-	               we_tot_outer/(v_node(max_l)*denh2o)
+                        we_tot_outer/(v_node(max_l)*denh2o)
       th_node(max_l) = min (th_node(max_l),&
-	                   ths_node(max_l)-small_theta_num) 
+                         ths_node(max_l)-small_theta_num) 
       th_node(max_l) = max(th_node(max_l),&
-	                   thr_node(max_l)+small_theta_num)	  
+                         thr_node(max_l)+small_theta_num)	  
       w_tot_end_outer   = sum(th_node(:)*v_node(:))*denh2o                            ! kg
       dw_tot_outer      = w_tot_end_outer - w_tot_beg_outer                           ! kg/timestep
       we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
