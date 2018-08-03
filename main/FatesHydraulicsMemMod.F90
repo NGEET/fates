@@ -372,9 +372,14 @@ module FatesHydraulicsMemMod
     
     ! ===================================================================================
     
-    subroutine InitHydraulicsDerived()
+    subroutine InitHydraulicsDerived(numpft)
+    
+    !use EDPftvarcon,       only : EDPftvarcon_inst
+       ! Arguments
+       integer,intent(in)                      :: numpft
     
        integer :: k   ! Pool counting index
+       integer :: ft
 
        do k = 1,n_porous_media
           
@@ -387,6 +392,14 @@ module FatesHydraulicsMemMod
              cap_int(k)    = -cap_slp(k) + hydr_psi0    
              cap_corr(k)   = -cap_int(k)/cap_slp(k)
           end if
+       end do
+       
+       do ft=1,numpft
+          ! this needs a -999 check (BOC)
+          !EDPftvarcon_inst%hydr_pinot_node(ft,:) = EDPftvarcon_inst%hydr_pitlp_node(ft,:) * &
+          !                                         EDPftvarcon_inst%hydr_epsil_node(ft,:) / &
+          !                                        (EDPftvarcon_inst%hydr_epsil_node(ft,:) - &
+          !                                         EDPftvarcon_inst%hydr_pitlp_node(ft,:))
        end do
 
        return
