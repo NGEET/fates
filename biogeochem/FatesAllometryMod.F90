@@ -429,9 +429,9 @@ contains
       case(1) !"salda")
          call d2blmax_salda(d,p1,p2,p3,rho,dbh_maxh,c2b,blmax,dblmaxdd)
       case(2) !"2par_pwr")
-         call d2blmax_2pwr(d,p1,p2,c2b,blmax,dblmaxdd)
+         call d2blmax_2pwr(d,p1,p2,p3,c2b,blmax,dblmaxdd)
       case(3) ! dh2blmax_2pwr
-         call dh2blmax_2pwr(d,p1,p2,dbh_maxh,c2b,blmax,dblmaxdd)
+         call dh2blmax_2pwr(d,p1,p2,p3,dbh_maxh,c2b,blmax,dblmaxdd)
       case DEFAULT
          write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
               allom_lmode
@@ -459,16 +459,20 @@ contains
      associate( dbh_maxh    => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
                 allom_lmode => EDPftvarcon_inst%allom_lmode(ipft),  &
                 d2bl_p2     => EDPftvarcon_inst%allom_d2bl2(ipft),  &
+                d2bl_p3     => EDPftvarcon_inst%allom_d2bl3(ipft),  &
                 d2bl_ediff  => EDPftvarcon_inst%allom_blca_expnt_diff(ipft), &
                 d2ca_min    => EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft), &
                 d2ca_max    => EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft))
        
        select case(int(allom_lmode))
-       case(1,3) ! "salda" and "height capped generic two power"
+       case(1)
           d_eff = min(d,dbh_maxh)
           call carea_2pwr(d_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
        case(2)   ! "2par_pwr")
-          call carea_2pwr(d,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+          call carea_2pwr(d,site_spread,d2bl_p3,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+       case(3)
+          d_eff = min(d,dbh_maxh)
+          call carea_2pwr(d_eff,site_spread,d2bl_p3,d2bl_ediff,d2ca_min,d2ca_max,c_area)
        case DEFAULT
          write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
                allom_lmode
@@ -1185,7 +1189,7 @@ contains
   
   ! ===========================================================================
   
-  subroutine d2blmax_2pwr(d,p1,p2,c2b,blmax,dblmaxdd)
+  subroutine d2blmax_2pwr(d,p1,p2,p3,c2b,blmax,dblmaxdd)
     
     ! ======================================================================
     ! This is a power function for leaf biomass from plant diameter.
@@ -1196,17 +1200,18 @@ contains
     
     
     real(r8),intent(in)  :: d         ! plant diameter [cm]
-    real(r8),intent(in)  :: p1        ! parameter 1
-    real(r8),intent(in)  :: p2        ! parameter 2
+    real(r8),intent(in)  :: p1        ! parameter 1  (intercept)
+    real(r8),intent(in)  :: p2        ! parameter 2  (slope)
+    real(r8),intent(in)  :: p3        ! parameter 3  (curvature, exponent)
     real(r8),intent(in)  :: c2b       ! carbon to biomass multiplier
     
     real(r8),intent(out) :: blmax     ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
     
-    blmax    = p1*d**p2 / c2b
+    blmax    = (p1 + p2*d**p3) / c2b
     
     if(present(dblmaxdd))then
-       dblmaxdd = p1*p2 *d**(p2-1.0_r8) / c2b
+       dblmaxdd = p2*p3 *d**(p3-1.0_r8) / c2b
     end if
     
     return
@@ -1214,7 +1219,7 @@ contains
 
   ! ===========================================================================
   
-  subroutine dh2blmax_2pwr(d,p1,p2,dbh_maxh,c2b,blmax,dblmaxdd)
+  subroutine dh2blmax_2pwr(d,p1,p2,p3,dbh_maxh,c2b,blmax,dblmaxdd)
     
     ! -------------------------------------------------------------------------
     ! This formulation is very similar to d2blmax_2pwr
@@ -1223,15 +1228,16 @@ contains
     ! --------------------------------------------------------------------------
     
     real(r8),intent(in)  :: d         ! plant diameter [cm]
-    real(r8),intent(in)  :: p1        ! parameter 1
-    real(r8),intent(in)  :: p2        ! parameter 2
+    real(r8),intent(in)  :: p1        ! parameter 1 (intercept)
+    real(r8),intent(in)  :: p2        ! parameter 2 (slope)
+    real(r8),intent(in)  :: p3        ! parameter 3 (curvature, exponent)
     real(r8),intent(in)  :: c2b       ! carbon 2 biomass multiplier
     real(r8),intent(in)  :: dbh_maxh  ! dbh at maximum height
     
     real(r8),intent(out) :: blmax     ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
     
-    blmax    = p1*min(d,dbh_maxh)**p2/c2b
+    blmax    = (p1 + p2*min(d,dbh_maxh)**p3)/c2b
     
     ! If this plant has reached its height cap, then it is not
     ! adding leaf mass.  In this case, dhdd = 0
@@ -1239,7 +1245,7 @@ contains
        if(d>=dbh_maxh)then
           dblmaxdd = 0.0_r8
        else
-          dblmaxdd = p1*p2*d**(p2-1.0_r8) / c2b
+          dblmaxdd = p2*p3*d**(p3-1.0_r8) / c2b
        end if
     end if
     
