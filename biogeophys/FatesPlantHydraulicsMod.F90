@@ -114,6 +114,7 @@ module FatesPlantHydraulicsMod
    !
    ! !PUBLIC MEMBER FUNCTIONS:
    public :: AccumulateMortalityWaterStorage
+   public :: RecruitWaterStorage
    public :: hydraulics_drive
    public :: InitHydrSites
    public :: HydrSiteColdStart
@@ -1084,7 +1085,7 @@ contains
        !write(fates_log(),*)'ccohort_hydr%v_aroot_layer(:)', ccohort_hydr%v_aroot_layer(:)
        !call dump_cohort(currentCohort)
      !endif
-              csite_hydr%h2oveg_growturn_err = &
+              csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
                     (sum(ccohort_hydr%errh2o_growturn_ag(:)*ccohort_hydr%v_ag(:))      + &
                      sum(ccohort_hydr%errh2o_growturn_troot(:)*ccohort_hydr%v_troot(:))   + &
                      sum(ccohort_hydr%errh2o_growturn_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
@@ -1101,6 +1102,7 @@ contains
         ! Note that h2oveg_dead is incremented wherever we have litter fluxes
         ! and it will be reduced via an evaporation term
         bc_out(s)%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
+                                        csite_hydr%h2oveg_recruit - &
                                         csite_hydr%h2oveg_growturn_err - &
                                         csite_hydr%h2oveg_pheno_err
 
@@ -1542,8 +1544,8 @@ end subroutine updateSizeDepRhizHydStates
     ! The approach used is heuristic, but based on the principle that water
     ! fluxing out of a layer will preferentially come from rhizosphere
     ! shells with higher water contents/potentials within that layer, and
-    ! alternatively, that water fluxing into a layer will preferentially come
-    ! from shells with lower water contents/potentials.
+    ! alternatively, that water fluxing into a layer will preferentially go
+    ! into shells with lower water contents/potentials.
     !
     ! This principle is implemented by filling (draining) the rhizosphere
     ! shells in order from the driest (wettest) shell to the wettest (driest).
@@ -2635,9 +2637,65 @@ end subroutine updateSizeDepRhizHydStates
      return
   end subroutine AccumulateMortalityWaterStorage
 
+  !-------------------------------------------------------------------------------!
   
+  subroutine RecruitWaterStorage(nsites,sites,bc_out)
 
+     ! ---------------------------------------------------------------------------
+     ! This subroutine accounts for the water bound in plants that have
+     ! just recruited. This water is accumulated at the site level for all plants
+     ! that recruit.
+     ! Because this water is taken from the soil in hydraulics_bc, which will not 
+     ! be called until the next timestep, this water is subtracted out of
+     ! plant_stored_h2o_si to ensure HLM water balance at the beg_curr_day timestep.
+     ! plant_stored_h2o_si will include this water when calculated in hydraulics_bc
+     ! at the next timestep, when it gets pulled from the soil water.
+     ! ---------------------------------------------------------------------------
+     use EDTypesMod, only : AREA
 
+     ! Arguments
+     integer, intent(in)                       :: nsites
+     type(ed_site_type), intent(inout), target :: sites(nsites)
+     type(bc_out_type), intent(inout)          :: bc_out(nsites)
+
+     ! Locals
+     type(ed_cohort_type), pointer :: currentCohort
+     type(ed_patch_type), pointer :: currentPatch
+     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+     type(ed_site_hydr_type), pointer :: csite_hydr
+     integer :: s
+
+     if( hlm_use_planthydro.eq.ifalse ) return
+
+     do s = 1,nsites
+
+        csite_hydr => sites(s)%si_hydr
+        csite_hydr%h2oveg_recruit = 0.0_r8
+        currentPatch => sites(s)%oldest_patch 
+        do while(associated(currentPatch))
+           currentCohort=>currentPatch%tallest
+           do while(associated(currentCohort))
+              ccohort_hydr => currentCohort%co_hydr
+              if(ccohort_hydr%is_newly_recuited) then
+                 csite_hydr%h2oveg_recruit = csite_hydr%h2oveg_recruit + &
+                       (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:)) + &
+                       sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:)) + &
+                       sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
+                       denh2o*currentCohort%n
+              end if
+              currentCohort => currentCohort%shorter
+           enddo !cohort
+           currentPatch => currentPatch%younger
+        enddo !end patch loop
+        
+        csite_hydr%h2oveg_recruit      = csite_hydr%h2oveg_recruit      / AREA
+
+     end do
+     
+     return
+  end subroutine RecruitWaterStorage
+
+  
   !-------------------------------------------------------------------------------!
   
   subroutine Hydraulics_1DSolve(cc_p, ft, z_node, v_node, ths_node, thr_node, kmax_bound, &
