@@ -138,15 +138,16 @@ module FatesHydraulicsMemMod
                                                     ! column level (kg)
      real(r8) :: h2oveg                             ! stored water in vegetation (kg/m2)
 
+     real(r8) :: h2oveg_recruit                     ! stored water in recruits (kg/m2)
      real(r8) :: h2oveg_dead                        ! stored water in dead vegetation (kg/m2)
-     real(r8) :: h2oveg_growturn_err                ! error water pool for increase (growth) or
+     real(r8) :: h2oveg_growturn_err                ! error water pool (kg/m2) for increase (growth) or
                                                     !  contraction (turnover) of tissue volumes.
                                                     !  Draw from or add to this pool when
                                                     !  insufficient water available to increase
                                                     !  tissue volume or too much water is
                                                     !  available when tissue volume decreases,
                                                     !  respectively.
-     real(r8) :: h2oveg_pheno_err                   ! error water pool for leaf-on
+     real(r8) :: h2oveg_pheno_err                   ! error water pool (kg/m2) for leaf-on
                                                     !  Draw from or add to this pool when
                                                     !  insufficient plant water available to 
                                                     !  support production of new leaves.
@@ -361,6 +362,7 @@ module FatesHydraulicsMemMod
          this%errh2o_hyd     = nan
          this%dwat_veg       = nan
          this%h2oveg         = nan
+         this%h2oveg_recruit = 0.0_r8
          this%h2oveg_dead    = 0.0_r8
 	 this%h2oveg_growturn_err = 0.0_r8
          this%h2oveg_pheno_err    = 0.0_r8
