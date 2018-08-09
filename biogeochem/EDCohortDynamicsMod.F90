@@ -461,8 +461,8 @@ contains
          endif
 
          ! live biomass pools are terminally depleted
-         if ( (currentCohort%bsw+currentCohort%bl+currentCohort%br) < 1e-20_r8  .or.  &
-               currentCohort%bstore < 1e-20_r8) then 
+         if ( (currentCohort%bsw+currentCohort%bl+currentCohort%br) < 1e-10_r8  .or.  &
+               currentCohort%bstore < 1e-10_r8) then 
             terminate = 1  
             if ( DEBUG ) then
               write(fates_log(),*) 'terminating cohorts 3', &
