@@ -787,7 +787,14 @@ contains
 
     do p = 1,numpft
        currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * &
-             EDPftvarcon_inst%germination_timescale(p),max_germination)
+             EDPftvarcon_inst%germination_timescale(p),max_germination)     
+       !set the germination only under the growing season...c.xu
+       if (EDPftvarcon_inst%season_decid(p) == 1.and.currentSite%status == 1)then 
+             currentPatch%seed_germination(p) = 0.0_r8
+       endif
+       if (EDPftvarcon_inst%stress_decid(p) == 1.and.currentSite%dstatus == 1)then
+             currentPatch%seed_germination(p) = 0.0_r8
+       endif
     enddo
 
   end subroutine seed_germination
@@ -1471,6 +1478,11 @@ contains
         else
            repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%seed_alloc_mature(ipft)
         end if
+	
+	!for grasses, if  dbh of maximum hight is reached, all carbon goes to reproduction
+	if(dbh >= EDPftvarcon_inst%allom_dbh_maxheight(ipft).and.EDPftvarcon_inst%woody(ipft)==ifalse)then
+	  repro_fraction=1.0_r8
+	endif
 
         dCdx = 0.0_r8
 
@@ -1496,7 +1508,7 @@ contains
            dCdx(i_cstore) = 0.0_r8
            dCdx(i_crepro) = 1.0_r8
 
-        else
+        else	
 
            dCdx(i_cdead) = (ct_ddeaddd/ct_dtotaldd)*(1.0_r8-repro_fraction)   
            dCdx(i_dbh)   = (1.0_r8/ct_dtotaldd)*(1.0_r8-repro_fraction)
