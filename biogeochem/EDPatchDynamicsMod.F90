@@ -503,6 +503,17 @@ contains
                 ! loss of individuals from source patch due to area shrinking
                 currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area) 
 
+                ! before changing number densities, keep track of the total rate of trees that died due to fire, as well as from each fire mortality term
+                currentSite%fmort_rate(currentCohort%size_class, currentCohort%pft) = &
+                     currentSite%fmort_rate(currentCohort%size_class, currentCohort%pft) + &
+                     nc%n * currentCohort%fire_mort / hlm_freq_day
+                currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) = &
+                     currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) + &
+                     nc%n * currentCohort%crownfire_mort / hlm_freq_day
+                currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) = &
+                     currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) + &
+                     nc%n * currentCohort%cambial_mort / hlm_freq_day
+
                 ! loss of individual from fire in new patch.
                 nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
 
@@ -516,7 +527,8 @@ contains
                 nc%lmort_direct     = currentCohort%lmort_direct
                 nc%lmort_collateral = currentCohort%lmort_collateral
                 nc%lmort_infra      = currentCohort%lmort_infra
-                
+
+
              ! Logging is the dominant disturbance  
              elseif (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
                      currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire)) then  ! Logging 

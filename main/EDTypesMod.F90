@@ -596,6 +596,9 @@ module EDTypesMod
      real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
      real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
      real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
+     real(r8), allocatable :: fmort_rate(:,:)                    ! rate of individuals killed due to fire mortality per year.  on size x pft array
+     real(r8), allocatable :: fmort_rate_cambial(:,:)            ! rate of individuals killed due to fire mortality from cambial damage per year.  on size x pft array
+     real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality from crown damage per year.  on size x pft array
 
      ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
      real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
