@@ -241,7 +241,6 @@ module EDTypesMod
      real(r8) ::  bmort                                  ! background mortality rate        n/year
      real(r8) ::  cmort                                  ! carbon starvation mortality rate n/year
      real(r8) ::  hmort                                  ! hydraulic failure mortality rate n/year
-     real(r8) ::  fmort                                  ! fire mortality                   n/year
      real(r8) ::  frmort                                 ! freezing mortality               n/year
 
       ! Logging Mortality Rate 
@@ -266,9 +265,9 @@ module EDTypesMod
 
      ! FIRE
      real(r8) ::  cfa                                    ! proportion of crown affected by fire:-
-     real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char:-
-     real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch:-
-     real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
+     real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char (conditional on the tree being subjected to the fire)
+     real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch (conditional on the tree being subjected to the fire)
+     real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:- 
 
      ! Integration
      real(r8) :: ode_opt_step                            ! What is the current optimum step size
@@ -596,7 +595,8 @@ module EDTypesMod
      real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
      real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
      real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
-     real(r8), allocatable :: fmort_rate(:,:)                    ! rate of individuals killed due to fire mortality per year.  on size x pft array
+     real(r8), allocatable :: fmort_rate(:,:,:)                  ! rate of individuals killed due to fire mortality per year.  on size x pft array
+     real(r8) :: fmort_carbonflux(2)                             ! biomass of individuals killed due to fire mortality per year. [gC/m2/sec]
      real(r8), allocatable :: fmort_rate_cambial(:,:)            ! rate of individuals killed due to fire mortality from cambial damage per year.  on size x pft array
      real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality from crown damage per year.  on size x pft array
 
@@ -809,7 +809,6 @@ contains
      write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area
      write(fates_log(),*) 'co%cmort                  = ', ccohort%cmort
      write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
-     write(fates_log(),*) 'co%fmort                  = ', ccohort%fmort
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew

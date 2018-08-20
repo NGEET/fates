@@ -784,7 +784,6 @@ contains
                                    currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
                                    currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
                                    currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
-                                   currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
                                    currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                    ! logging mortality, Yi Xu
@@ -1191,7 +1190,6 @@ contains
     ! Mortality diagnostics
     n%cmort = o%cmort
     n%bmort = o%bmort
-    n%fmort = o%fmort
     n%hmort = o%hmort
     n%frmort = o%frmort
 
