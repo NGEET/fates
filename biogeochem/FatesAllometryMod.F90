@@ -2023,7 +2023,7 @@ contains
      ! of the diameter increment
      counter = 0
      step_frac = step_frac0
-     do while( (bdead-bt_dead) > calloc_abs_error )
+     do while( (bdead-bt_dead) > calloc_abs_error .and. dbt_dead_dd>0.0_r8)
 
         ! vulnerable to div0
         dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
