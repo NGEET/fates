@@ -134,7 +134,7 @@ contains
     ! update fragmenting pool fluxes
     call cwd_input( currentSite, currentPatch)
     call cwd_out( currentSite, currentPatch, bc_in)
-
+  
     do p = 1,numpft
        currentSite%dseed_dt(p) = currentSite%dseed_dt(p) + &
             (currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - &
@@ -698,8 +698,14 @@ contains
        do while (associated(currentCohort))
           do p = 1, numpft
              if (pft_present(p)) then
-                currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  currentCohort%seed_prod * currentCohort%n / &
+	        if(EDPftvarcon_inst%woody(p)==itrue)then
+                  currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  currentCohort%seed_prod * currentCohort%n / &
                      (currentPatch%area * npfts_present)
+		else
+		  !for grasses, the bstore goes to the reproduction through colonial reproduction when grass dies
+                  currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + (currentCohort%seed_prod * currentCohort%n - &
+                            1.0_r8 * currentCohort%dndt*currentCohort%bstore)/(currentPatch%area * npfts_present)		  
+		endif
              endif
           end do
           currentCohort => currentCohort%shorter
@@ -710,8 +716,15 @@ contains
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
        p = currentCohort%pft
-       currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
+       if(EDPftvarcon_inst%woody(p)==itrue)then
+         currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
              currentCohort%seed_prod * currentCohort%n/currentPatch%area
+       else
+         !for grasses, the bstore goes to the reproduction through colonial reproduction when grass dies
+         currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
+           (currentCohort%seed_prod * currentCohort%n- &
+	   1.0_r8 * currentCohort%dndt*currentCohort%bstore)/currentPatch%area
+       endif
        currentCohort => currentCohort%shorter
     enddo !cohort loop
 
@@ -1804,9 +1817,15 @@ contains
                 ! the litter flux has already been counted since it captured
                 ! the losses of live trees and those flagged for death
                 !(currentCohort%bl+currentCohort%leaf_litter/hlm_freq_day)* dead_n
-
-          currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
+	
+	  !for grasses, the bstore goes to the reproduction through colonial reproduction when grass dies	
+	  if(EDPftvarcon_inst%woody(pft)==itrue) then
+            currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
                (currentCohort%br+currentCohort%bstore)     * dead_n
+	  else
+	    currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
+               (currentCohort%br)     * dead_n    
+	  endif
 
           ! Update diagnostics that track resource management
           currentSite%resources_management%delta_litter_stock  = &
