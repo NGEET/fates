@@ -29,6 +29,7 @@ module FATESPlantRespPhotosynthMod
    use EDTypesMod, only        : maxpft
    use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
+   use EDTypesMod, only        : use_leaf_age   
    
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -434,6 +435,15 @@ contains
                                                              nscaler,                            &  ! in
                                                              bc_in(s)%t_veg_pa(ifp),             &  ! in
                                                              btran_eff,                          &  ! in
+							     use_leaf_age,                       &  ! in
+						             currentCohort%fracExpLeaves,        &  ! in
+							     currentCohort%fracYoungLeaves,      &  ! in
+							     currentCohort%fracOldLeaves,        &  ! in
+							     currentCohort%fracSenLeaves,        &  ! in							     							     
+							     EDPftvarcon_inst%vcmax25top_fexp(ft), &  ! in
+							     EDPftvarcon_inst%vcmax25top_fyoung(ft), &  ! in
+							     EDPftvarcon_inst%vcmax25top_fold(ft), &  ! in
+							     EDPftvarcon_inst%vcmax25top_fsen(ft), &  ! in
                                                              vcmax_z,                            &  ! out
                                                              jmax_z,                             &  ! out
                                                              tpu_z,                              &  ! out
@@ -1632,6 +1642,15 @@ contains
                                          nscaler,    &
                                          veg_tempk,      &
                                          btran, &
+					 use_leaf_age_flag, &
+					 fracExpLeaves, &
+					 fracYoungLeaves, &
+					 fracOldLeaves, &
+					 fracSenLeaves,	&
+					 ft_fexp,&
+					 ft_fyoung,&
+					 ft_fold,&
+					 ft_fsen,&					 				 
                                          vcmax, &
                                          jmax, &
                                          tpu, &
@@ -1670,7 +1689,15 @@ contains
                                               ! (C4 plants) at 25C, canopy top, this pft
       real(r8), intent(in) :: veg_tempk           ! vegetation temperature
       real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1) 
-                                                    
+      integer,  intent(in) :: use_leaf_age_flag   ! whether to use the leaf age different in photosynthesis
+      real(r8), intent(in) :: fracExpLeaves   ! fraction of expanding leaves
+      real(r8), intent(in) :: fracYoungLeaves ! fraction of young leaves
+      real(r8), intent(in) :: fracOldLeaves   ! fraction of old leaves
+      real(r8), intent(in) :: fracSenLeaves   ! fraction of senescent leaves
+      real(r8), intent(in) :: ft_fexp         ! adjusting factor of expanding leaves
+      real(r8), intent(in) :: ft_fyoung       ! adjusting factor of young leaves
+      real(r8), intent(in) :: ft_fold          ! adjusting factor of old leaves
+      real(r8), intent(in) :: ft_fsen          ! adjusting factor of senescent leaves                                                        
       real(r8), intent(out) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
       real(r8), intent(out) :: jmax              ! maximum electron transport rate 
                                                  ! (umol electrons/m**2/s)
@@ -1730,6 +1757,14 @@ contains
          vcmax25 = vcmax25top_ft * nscaler
          jmax25  = jmax25top_ft * nscaler
          tpu25   = tpu25top_ft * nscaler
+	 if(use_leaf_age_flag==itrue)then
+             vcmax25 = vcmax25top_ft * nscaler * (fracExpLeaves*ft_fexp +  &
+	              fracYoungLeaves*ft_fyoung +  fracOldLeaves*ft_fold + fracSenLeaves*ft_fsen)
+             jmax25  = jmax25top_ft * nscaler * (fracExpLeaves*ft_fexp +  &
+	              fracYoungLeaves*ft_fyoung +  fracOldLeaves*ft_fold + fracSenLeaves*ft_fsen)
+             tpu25   = tpu25top_ft * nscaler* (fracExpLeaves*ft_fexp +  &
+	              fracYoungLeaves*ft_fyoung +  fracOldLeaves*ft_fold + fracSenLeaves*ft_fsen)	 
+	 endif
          co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
          
          ! Adjust for temperature
