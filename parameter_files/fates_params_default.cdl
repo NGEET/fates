@@ -248,6 +248,18 @@ variables:
 	float fates_leaf_long(fates_pft) ;
 		fates_leaf_long:units = "yr" ;
 		fates_leaf_long:long_name = "Leaf longevity (ie turnover timescale)" ;
+	float fates_expleaf_long(fates_pft) ;
+		fates_leaf_long:units = "yr" ;
+		fates_leaf_long:long_name = "Leaf longevity for expanding leaves(ie turnover timescale)" ;		
+	float fates_youngleaf_long(fates_pft) ;
+		fates_leaf_long:units = "yr" ;
+		fates_leaf_long:long_name = "Leaf longevity for young leaves(ie turnover timescale)" ;		
+	float fates_oldleaf_long(fates_pft) ;
+		fates_leaf_long:units = "yr" ;
+		fates_leaf_long:long_name = "Leaf longevity for old leaves(ie turnover timescale)" ;	
+	float fates_senleaf_long(fates_pft) ;
+		fates_leaf_long:units = "yr" ;
+		fates_leaf_long:long_name = "Leaf longevity for senescent leaves(ie turnover timescale)" ;				
 	float fates_leaf_slamax(fates_pft) ;
 		fates_leaf_slamax:units = "m^2/gC" ;
 		fates_leaf_slamax:long_name = "Maximum Specific Leaf Area (SLA), even if under a dense canopy" ;
@@ -269,6 +281,18 @@ variables:
 	float fates_leaf_vcmax25top(fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
+	float fates_leaf_vcmax25top_fexp(fates_pft) ;
+		fates_leaf_vcmax25top:units = "unitless" ;
+		fates_leaf_vcmax25top:long_name = "factor of vcmax25 for expanding leaves" ;			
+	float fates_leaf_vcmax25top_fyoung(fates_pft) ;
+		fates_leaf_vcmax25top:units = "unitless" ;
+		fates_leaf_vcmax25top:long_name = "factor of vcmax25 for young leaves" ;
+	float fates_leaf_vcmax25top_fold(fates_pft) ;
+		fates_leaf_vcmax25top:units = "unitless" ;
+		fates_leaf_vcmax25top:long_name = "factor of vcmax25 for old leaves" ;	
+	float fates_leaf_vcmax25top_fsen(fates_pft) ;
+		fates_leaf_vcmax25top:units = "unitless" ;
+		fates_leaf_vcmax25top:long_name = "factor of vcmax25 for senescentleaves" ;					
 	float fates_leaf_vcmaxha(fates_pft) ;
 		fates_leaf_vcmaxha:units = "J/mol" ;
 		fates_leaf_vcmaxha:long_name = "activation energy for vcmax" ;
@@ -620,11 +644,11 @@ data:
   -2.25, -2.25 ;
 
  fates_hydr_pinot_node =
-  -999, -999,
-  -999, -999,
-  -999, -999,
-  -999, -999 ;
-
+  -1.465984, -1.465984,
+  -1.228070, -1.228070,
+  -1.228070, -1.228070,
+  -1.043478, -1.043478 ;
+  
  fates_hydr_pitlp_node =
   -1.67, -1.67,
   -1.4, -1.4,
@@ -760,7 +784,15 @@ data:
  fates_leaf_jmaxse = 495, 495 ;
 
  fates_leaf_long = 1.5, 1.5 ;
-
+ 
+ fates_expleaf_long = 0.1, 0.1 ;
+ 
+ fates_youngleaf_long = 0.3, 0.3 ;
+ 
+ fates_oldleaf_long = 0.3, 0.3 ;
+ 
+ fates_senleaf_long = 0.2, 0.2 ;
+ 
  fates_leaf_slamax = 0.0954, 0.0954 ;
 
  fates_leaf_slatop = 0.012, 0.012 ;
@@ -774,7 +806,15 @@ data:
  fates_leaf_tpuse = 490, 490 ;
 
  fates_leaf_vcmax25top = 50, 50 ;
-
+ 
+ fates_leaf_vcmax25top_fexp = 1.0, 1.0;
+  
+ fates_leaf_vcmax25top_fyoung = 1.9, 1.9;
+   
+ fates_leaf_vcmax25top_fold = 1.0, 1.0 ;
+    
+ fates_leaf_vcmax25top_fsen = 0.3, 0.3 ;
+     
  fates_leaf_vcmaxha = 65330, 65330 ;
 
  fates_leaf_vcmaxhd = 149250, 149250 ;
