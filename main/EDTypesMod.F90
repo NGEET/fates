@@ -170,6 +170,9 @@ module EDTypesMod
                                                          ! type classification. We also maintain this in the main cohort memory
                                                          ! because we don't want to continually re-calculate the cohort's position when
                                                          ! performing size diagnostics at high-frequency calls
+     real(r8) ::  size_class_lasttimestep                ! size class of the cohort at the end of the previous timestep (used for calculating growth flux)
+                                                         ! represented as a real so as to accomodate the case where merging leads to a cohort that was 
+                                                         ! fractionally in one size class and fractionally in the other
 
 
      ! CARBON FLUXES 

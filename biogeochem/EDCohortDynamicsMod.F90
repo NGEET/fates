@@ -241,6 +241,7 @@ contains
     currentCohort%NV                 = fates_unset_int  ! Number of leaf layers: -
     currentCohort%status_coh         = fates_unset_int  ! growth status of plant  (2 = leaves on , 1 = leaves off)
     currentCohort%size_class         = fates_unset_int  ! size class index
+    currentCohort%size_class_lasttimestep = nan  ! size class index (represented as float to accomodate fusion)
     currentCohort%size_by_pft_class  = fates_unset_int  ! size by pft classification index
 
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
@@ -391,7 +392,8 @@ contains
     currentCohort%npp_dead = 0._r8
     currentCohort%npp_seed = 0._r8
     currentCohort%npp_stor = 0._r8
-    
+    currentCohort%size_class = 1
+    currentCohort%size_class_lasttimestep = 0._r8
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
@@ -732,6 +734,10 @@ contains
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
                                       nextc%n*nextc%canopy_layer_yesterday)/newn
                                 
+                                ! size class the prior timestep, tracked as a real to accomodate fusion
+                                currentCohort%size_class_lasttimestep = (currentCohort%n*currentCohort%size_class_lasttimestep + &
+                                     nextc%n*nextc%size_class_lasttimestep)/newn
+
                                 ! Flux and biophysics variables have not been calculated for recruits we just default to 
                                 ! their initization values, which should be the same for eahc
                                 
@@ -1137,6 +1143,7 @@ contains
     n%excl_weight     = o%excl_weight               
     n%prom_weight     = o%prom_weight               
     n%size_class      = o%size_class
+    n%size_class_lasttimestep      = o%size_class_lasttimestep
     n%size_by_pft_class = o%size_by_pft_class
 
     ! CARBON FLUXES
@@ -1230,6 +1237,7 @@ contains
 
     ! indices for binning
     n%size_class      = o%size_class
+    n%size_class_lasttimestep      = o%size_class_lasttimestep
     n%size_by_pft_class   = o%size_by_pft_class
 
     !Pointers
