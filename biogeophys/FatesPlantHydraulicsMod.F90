@@ -375,7 +375,9 @@ contains
      b_stem_biom  = b_stem_carb * C2B                               ! kg DM
      v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8) !BOC...may be needed for testing/comparison w/ v_sapwood
      a_leaf_tot   = b_canopy_carb * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
-     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8            ! m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
+     !a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8            ! m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
+     ! applying Calvo-Alvarado allometry here since using realistic sapwood area in the rest of the model causes trees to die
+     a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * cCohort%hite ) * 1.e-4_r8      
      v_sapwood    = a_sapwood * z_stem
      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
