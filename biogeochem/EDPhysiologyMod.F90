@@ -31,6 +31,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod          , only : dump_cohort
+  use EDTypesMod          , only : use_leaf_age
 
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
@@ -281,8 +282,17 @@ contains
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
                    ! Leaf cost at leaf level z accounting for sla profile
-                   currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
+		   if(use_leaf_age==itrue)then
+                      currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
+                        (currentCohort%fracExpLeaves*EDPftvarcon_inst%expleaf_long(ipft)+ &
+			 currentCohort%fracYoungLeaves*EDPftvarcon_inst%youngleaf_long(ipft) + &
+			 currentCohort%fracOldLeaves*EDPftvarcon_inst%oldleaf_long(ipft) + &
+			 currentCohort%fracSenLeaves*EDPftvarcon_inst%senleaf_long(ipft) ) & 
+			 *1000.0_r8) !convert from sla in m2g-1 to m2kg-1		   
+		   else
+                      currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
                         EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
+		   endif
                    if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
@@ -935,7 +945,13 @@ contains
     real(r8) :: bstore_sub ! substep storage biomass
     real(r8) :: bdead_sub  ! substep structural biomass
     real(r8) :: brepro_sub ! substep reproductive biomass 
-
+    
+    !leaf age
+    real(r8) :: previous_bl      !previous time step bleaf
+    real(r8) :: dExpLeaves_dt    !change of amount of expanding leavese due to aging
+    real(r8) :: dYoungLeaves_dt  !change of amount of youngleavese due to aging
+    real(r8) :: dOldLeaves_dt  !change of amount of old leavese due to aging
+    real(r8) :: dSenLeaves_dt  !change of amount of senescent leavese due to aging
 
     ! Woody turnover timescale [years]
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
@@ -1078,7 +1094,12 @@ contains
     end if
     
     if (EDPftvarcon_inst%evergreen(ipft) == 1)then
-       currentCohort%leaf_md = currentCohort%bl / EDPftvarcon_inst%leaf_long(ipft)
+       if(use_leaf_age==itrue)then
+          currentCohort%leaf_md = currentCohort%bl*currentCohort%fracSenLeaves&
+	        / EDPftvarcon_inst%senleaf_long(ipft) 	 
+       else
+         currentCohort%leaf_md = currentCohort%bl / EDPftvarcon_inst%leaf_long(ipft)
+       endif
        currentCohort%root_md = currentCohort%br / EDPftvarcon_inst%root_long(ipft)
     endif
 
@@ -1095,14 +1116,33 @@ contains
     !
     ! Units: kgC/year * (year/days_per_year) = kgC/day -> (day elapsed) -> kgC
     ! -----------------------------------------------------------------------------------
+    previous_bl = currentCohort%bl
 
     currentCohort%bl     = currentCohort%bl - currentCohort%leaf_md*hlm_freq_day
     currentcohort%br     = currentcohort%br - currentCohort%root_md*hlm_freq_day
     currentcohort%bsw    = currentcohort%bsw - currentCohort%bsw_md*hlm_freq_day
     currentCohort%bdead  = currentCohort%bdead - currentCohort%bdead_md*hlm_freq_day
     currentCohort%bstore = currentCohort%bstore - currentCohort%bstore_md*hlm_freq_day
-
     
+    if(use_leaf_age)then
+    	  !advance the leaf ages	  
+	  dExpLeaves_dt=previous_bl *currentCohort%fracExpLeaves &
+	                 / EDPftvarcon_inst%expleaf_long(ipft)*hlm_freq_day
+	  dYoungLeaves_dt=previous_bl *currentCohort%fracYoungLeaves &
+	                 / EDPftvarcon_inst%youngleaf_long(ipft)*hlm_freq_day	
+	  dOldLeaves_dt=previous_bl *currentCohort%fracOldLeaves &
+	                 / EDPftvarcon_inst%oldleaf_long(ipft)*hlm_freq_day			 			 
+	  dSenLeaves_dt=previous_bl *currentCohort%fracSenLeaves &
+	                 / EDPftvarcon_inst%senleaf_long(ipft)*hlm_freq_day	
+	  currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves-dExpLeaves_dt)&
+	                /currentCohort%bl
+	  currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves+dExpLeaves_dt- &
+	               dYoungLeaves_dt)/currentCohort%bl
+	  currentCohort%fracOldLeaves = (previous_bl *currentCohort%fracOldLeaves+dYoungLeaves_dt- &
+	               dOldLeaves_dt)/currentCohort%bl
+	  currentCohort%fracSenLeaves = (previous_bl *currentCohort%fracSenLeaves+dOldLeaves_dt- &
+	               dSenLeaves_dt)/currentCohort%bl	
+    endif
     ! -----------------------------------------------------------------------------------
     ! V.  Prioritize some amount of carbon to replace leaf/root turnover
     !         Make sure it isnt a negative payment, and either pay what is available
@@ -1114,6 +1154,7 @@ contains
     total_turnover_demand = leaf_turnover_demand + root_turnover_demand
     
     if(total_turnover_demand>0.0_r8)then
+       previous_bl = currentCohort%bl
 
        ! If we are testing b4b, then we pay this even if we don't have the carbon
        ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
@@ -1133,6 +1174,14 @@ contains
        carbon_balance              = carbon_balance - br_flux
        currentCohort%br            = currentCohort%br +  br_flux
        currentCohort%npp_fnrt      = currentCohort%npp_fnrt + br_flux / hlm_freq_day
+       
+       if(use_leaf_age==itrue) then
+	  currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves +  bl_flux)&
+	                /currentCohort%bl
+	  currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves)/currentCohort%bl
+	  currentCohort%fracOldLeaves = (previous_bl *currentCohort%fracOldLeaves)/currentCohort%bl
+	  currentCohort%fracSenLeaves = (previous_bl *currentCohort%fracSenLeaves)/currentCohort%bl	       
+       endif
 
     end if
 
@@ -1180,7 +1229,8 @@ contains
     total_turnover_demand = leaf_turnover_demand + root_turnover_demand
     
     if(total_turnover_demand>0.0_r8)then
-
+    
+       previous_bl = currentCohort%bl
        bl_flux = min(leaf_turnover_demand, carbon_balance*(leaf_turnover_demand/total_turnover_demand))
        carbon_balance         = carbon_balance - bl_flux
        currentCohort%bl       = currentCohort%bl +  bl_flux
@@ -1190,6 +1240,14 @@ contains
        carbon_balance         = carbon_balance - br_flux
        currentCohort%br       = currentCohort%br +  br_flux
        currentCohort%npp_fnrt = currentCohort%npp_fnrt + br_flux / hlm_freq_day
+       if(use_leaf_age==itrue) then
+	  currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves +  bl_flux)&
+	                /currentCohort%bl
+	  currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves)/currentCohort%bl
+	  currentCohort%fracOldLeaves = (previous_bl *currentCohort%fracOldLeaves)/currentCohort%bl
+	  currentCohort%fracSenLeaves = (previous_bl *currentCohort%fracSenLeaves)/currentCohort%bl	       
+       endif
+    
 
     end if
 
@@ -1223,6 +1281,7 @@ contains
           bsw_flux    = sap_below_target
           bstore_flux = store_below_target
        end if
+       previous_bl = currentCohort%bl
 
        carbon_balance               = carbon_balance - bl_flux
        currentCohort%bl             = currentCohort%bl + bl_flux
@@ -1239,6 +1298,12 @@ contains
        carbon_balance               = carbon_balance - bstore_flux
        currentCohort%bstore         = currentCohort%bstore +  bstore_flux
        currentCohort%npp_stor       = currentCohort%npp_stor + bstore_flux / hlm_freq_day
+       if(use_leaf_age==itrue) then
+	  currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves + bl_flux)/currentCohort%bl
+	  currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves)/currentCohort%bl
+	  currentCohort%fracOldLeaves = (previous_bl *currentCohort%fracOldLeaves)/currentCohort%bl
+	  currentCohort%fracSenLeaves = (previous_bl *currentCohort%fracSenLeaves)/currentCohort%bl	       
+       endif    
 
     end if
     
@@ -1394,10 +1459,18 @@ contains
           bstore_flux             = bstore_flux*flux_adj
           bdead_flux              = bdead_flux*flux_adj
           brepro_flux             = brepro_flux*flux_adj
- 
+	  
+          previous_bl             = currentCohort%bl
           carbon_balance          = carbon_balance - bl_flux
           currentCohort%bl        = currentCohort%bl + bl_flux
           currentCohort%npp_leaf  = currentCohort%npp_leaf + bl_flux / hlm_freq_day
+          if(use_leaf_age==itrue) then
+	     currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves + bl_flux)&
+	                                   /currentCohort%bl
+	     currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves)/currentCohort%bl
+	     currentCohort%fracOldLeaves = (previous_bl *currentCohort%fracOldLeaves)/currentCohort%bl
+	     currentCohort%fracSenLeaves = (previous_bl *currentCohort%fracSenLeaves)/currentCohort%bl	       
+          endif  	  
           
           carbon_balance          = carbon_balance - br_flux
           currentCohort%br        = currentCohort%br +  br_flux
