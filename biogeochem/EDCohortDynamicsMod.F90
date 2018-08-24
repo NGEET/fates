@@ -21,6 +21,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
+  use EDTypesMod            , only : use_leaf_age
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
@@ -709,6 +710,17 @@ contains
                                 
                                 currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                       + nextc%n*nextc%canopy_trim)/newn
+				      
+				if(use_leaf_age) then
+				  currentCohort%fracExpLeaves = (currentCohort%n*currentCohort%fracExpLeaves*currentCohort%bl &
+                                      + nextc%n*nextc%fracExpLeaves*nextc%bl)/newn
+				  currentCohort%fracYoungLeaves = (currentCohort%n*currentCohort%fracYoungLeaves*currentCohort%bl   &
+                                      + nextc%n*nextc%fracYoungLeaves*nextc%bl)/newn
+				  currentCohort%fracOldLeaves = (currentCohort%n*currentCohort%fracOldLeaves*currentCohort%bl   &
+                                      + nextc%n*nextc%fracOldLeaves*nextc%bl)/newn
+				  currentCohort%fracSenLeaves = (currentCohort%n*currentCohort%fracSenLeaves*currentCohort%bl   &
+                                      + nextc%n*nextc%fracSenLeaves*nextc%bl)/newn				      				      				      
+				endif
 
                                 ! -----------------------------------------------------------------
                                 ! If fusion pushed structural biomass to be larger than
@@ -831,7 +843,19 @@ contains
                                                nextc%n*nextc%year_net_uptake(i))/newn                
                                       endif
                                    enddo
-                                   
+				   
+				   !leaf age
+				   if(use_leaf_age) then
+				    currentCohort%fracExpLeaves = (currentCohort%n*currentCohort%fracExpLeaves*currentCohort%bl &
+                                      + nextc%n*nextc%fracExpLeaves*nextc%bl)/newn
+				    currentCohort%fracYoungLeaves = (currentCohort%n*currentCohort%fracYoungLeaves*currentCohort%bl   &
+                                      + nextc%n*nextc%fracYoungLeaves*nextc%bl)/newn
+				    currentCohort%fracOldLeaves = (currentCohort%n*currentCohort%fracOldLeaves*currentCohort%bl   &
+                                      + nextc%n*nextc%fracOldLeaves*nextc%bl)/newn
+				    currentCohort%fracSenLeaves = (currentCohort%n*currentCohort%fracSenLeaves*currentCohort%bl   &
+                                      + nextc%n*nextc%fracSenLeaves*nextc%bl)/newn				      				      				      
+				   endif
+                                     
                                 end if !(currentCohort%isnew)
 
                                 currentCohort%n = newn     
@@ -1200,6 +1224,14 @@ contains
     n%lmort_direct=o%lmort_direct
     n%lmort_collateral =o%lmort_collateral
     n%lmort_infra =o%lmort_infra
+    
+    if(use_leaf_age==itrue) then
+          n%fracExpLeaves = o%fracExpLeaves
+	  n%fracYoungLeaves = o%fracYoungLeaves
+	  n%fracOldLeaves = o%fracOldLeaves
+	  n%fracSenLeaves = o%fracSenLeaves
+    endif
+
 
     ! Flags
     n%isnew = o%isnew
