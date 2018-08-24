@@ -8,7 +8,7 @@ module EDInitMod
   use FatesConstantsMod         , only : ifalse
   use FatesConstantsMod         , only : itrue
   use FatesGlobals              , only : endrun => fates_endrun
-  use EDTypesMod                , only : nclmax
+  use EDTypesMod                , only : nclmax,use_leaf_age
   use FatesGlobals              , only : fates_log
   use FatesInterfaceMod         , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
@@ -375,6 +375,12 @@ contains
        call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
 
        temp_cohort%canopy_trim = 1.0_r8
+       if(use_leaf_age==itrue) then
+          temp_cohort%fracExpLeaves = 1.0_r8
+	  temp_cohort%fracYoungLeaves = 0.0_r8
+	  temp_cohort%fracOldLeaves = 0.0_r8
+	  temp_cohort%fracSenLeaves = 0.0_r8
+       endif
 
        ! Calculate total above-ground biomass from allometry
        call bagw_allom(temp_cohort%dbh,pft,b_agw)
