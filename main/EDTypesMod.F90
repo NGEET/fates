@@ -170,9 +170,7 @@ module EDTypesMod
                                                          ! type classification. We also maintain this in the main cohort memory
                                                          ! because we don't want to continually re-calculate the cohort's position when
                                                          ! performing size diagnostics at high-frequency calls
-     real(r8) ::  size_class_lasttimestep                ! size class of the cohort at the end of the previous timestep (used for calculating growth flux)
-                                                         ! represented as a real so as to accomodate the case where merging leads to a cohort that was 
-                                                         ! fractionally in one size class and fractionally in the other
+     integer ::  size_class_lasttimestep                 ! size class of the cohort at the end of the previous timestep (used for calculating growth flux)
 
 
      ! CARBON FLUXES 
@@ -599,6 +597,7 @@ module EDTypesMod
      real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
      real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
      real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
+     real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin due to fusion in a given day. on size x pft array 
 
      ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
      real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]

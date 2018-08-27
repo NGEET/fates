@@ -241,7 +241,7 @@ contains
     currentCohort%NV                 = fates_unset_int  ! Number of leaf layers: -
     currentCohort%status_coh         = fates_unset_int  ! growth status of plant  (2 = leaves on , 1 = leaves off)
     currentCohort%size_class         = fates_unset_int  ! size class index
-    currentCohort%size_class_lasttimestep = nan  ! size class index (represented as float to accomodate fusion)
+    currentCohort%size_class_lasttimestep = fates_unset_int  ! size class index
     currentCohort%size_by_pft_class  = fates_unset_int  ! size by pft classification index
 
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
@@ -393,7 +393,7 @@ contains
     currentCohort%npp_seed = 0._r8
     currentCohort%npp_stor = 0._r8
     currentCohort%size_class = 1
-    currentCohort%size_class_lasttimestep = 0._r8
+    currentCohort%size_class_lasttimestep = 0
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
@@ -605,6 +605,9 @@ contains
      real(r8) :: diff
      real(r8) :: dynamic_fusion_tolerance
 
+     integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
+     real(r8) :: larger_n, smaller_n
+
      logical, parameter :: FUSE_DEBUG = .false.   ! This debug is over-verbose
                                                  ! and gets its own flag
 
@@ -734,10 +737,42 @@ contains
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
                                       nextc%n*nextc%canopy_layer_yesterday)/newn
                                 
-                                ! size class the prior timestep, tracked as a real to accomodate fusion
-                                currentCohort%size_class_lasttimestep = (currentCohort%n*currentCohort%size_class_lasttimestep + &
-                                     nextc%n*nextc%size_class_lasttimestep)/newn
-
+                                ! keep track of the size class bins so that we can monitor growth fluxes
+                                ! compare the values.  if they are the same, then nothing needs to be done. if not, track the diagnostic flux
+                                if (currentCohort%size_class_lasttimestep .ne. nextc%size_class_lasttimestep ) then
+                                   !
+                                   ! keep track of which was which, irresespective of which cohort they were in
+                                   if (currentCohort%size_class_lasttimestep .gt. nextc%size_class_lasttimestep) then
+                                      largersc = currentCohort%size_class_lasttimestep
+                                      smallersc = nextc%size_class_lasttimestep
+                                      larger_n = currentCohort%n
+                                      smaller_n = nextc%n
+                                   else
+                                      largersc = nextc%size_class_lasttimestep
+                                      smallersc = currentCohort%size_class_lasttimestep
+                                      larger_n = nextc%n
+                                      smaller_n = currentCohort%n
+                                   endif
+                                   !
+                                   ! it is possible that fusion has caused cohorts separated by at least two size bin deltas to join.  
+                                   ! so slightly complicated to keep track of because the resulting cohort could be in one of the old bins or in between
+                                   ! structure as a loop to handle the general case
+                                   !
+                                   ! first the positive growth case
+                                   do sc_i = smallersc + 1, currentCohort%size_class
+                                      currentSite%growthflux_fusion(sc_i, currentCohort%pft) = &
+                                           currentSite%growthflux_fusion(sc_i, currentCohort%pft) + smaller_n
+                                   end do
+                                   !
+                                   ! next the negative growth case
+                                   do sc_i = currentCohort%size_class + 1, largersc
+                                      currentSite%growthflux_fusion(sc_i, currentCohort%pft) = &
+                                           currentSite%growthflux_fusion(sc_i, currentCohort%pft) - larger_n
+                                   end do
+                                   ! now that we've tracked the change flux.  reset the memory of the prior timestep
+                                   currentCohort%size_class_lasttimestep = currentCohort%size_class
+                                endif
+                                   
                                 ! Flux and biophysics variables have not been calculated for recruits we just default to 
                                 ! their initization values, which should be the same for eahc
                                 

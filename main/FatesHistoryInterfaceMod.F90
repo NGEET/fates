@@ -176,6 +176,7 @@ module FatesHistoryInterfaceMod
 
   integer, private :: ih_ddbh_si_scpf
   integer, private :: ih_growthflux_si_scpf
+  integer, private :: ih_growthflux_fusion_si_scpf
   integer, private :: ih_ba_si_scpf
   integer, private :: ih_m1_si_scpf
   integer, private :: ih_m2_si_scpf
@@ -1392,6 +1393,7 @@ end subroutine flush_hvars
                hio_ar_understory_si_scpf     => this%hvars(ih_ar_understory_si_scpf)%r82d, &
                hio_ddbh_si_scpf        => this%hvars(ih_ddbh_si_scpf)%r82d, &
                hio_growthflux_si_scpf        => this%hvars(ih_growthflux_si_scpf)%r82d, &
+               hio_growthflux_fusion_si_scpf        => this%hvars(ih_growthflux_fusion_si_scpf)%r82d, &
                hio_ba_si_scpf          => this%hvars(ih_ba_si_scpf)%r82d, &
                hio_nplant_si_scpf      => this%hvars(ih_nplant_si_scpf)%r82d, &
 
@@ -1984,23 +1986,23 @@ end subroutine flush_hvars
                     ccohort%canopy_layer_yesterday = real(ccohort%canopy_layer, r8)
                     !
                     ! growth flux of individuals into a given bin
-                    if ( real(scls, r8) .gt. ccohort%size_class_lasttimestep ) then  ! increment the size class counter of this size class bin
-                       hio_growthflux_si_scpf(io_si,scpf) = hio_growthflux_si_scpf(io_si,scpf) + &
-                            (real(scls, r8) - ccohort%size_class_lasttimestep) * ccohort%n * days_per_year
-                       ccohort%size_class_lasttimestep = real(scls, r8)
-                    else if ( real(scls, r8) .lt. ccohort%size_class_lasttimestep ) then  ! decrement the counter of the larger size class bin
-                       hio_growthflux_si_scpf(io_si,scpf+1) = hio_growthflux_si_scpf(io_si,scpf+1) + &
-                            (real(scls, r8) - ccohort%size_class_lasttimestep) * ccohort%n * days_per_year
-                       ccohort%size_class_lasttimestep = real(scls, r8)
-                    endif
-                    
+                    ! track the actual growth here, the virtual growth from fusion lower down
+                    if ( (scls - ccohort%size_class_lasttimestep ) .gt. 0) then
+                       do i_scls = ccohort%size_class_lasttimestep + 1, scls
+                          i_scpf = (ccohort%pft-1)*nlevsclass+i_scls
+                          hio_growthflux_si_scpf(io_si,i_scpf) = hio_growthflux_si_scpf(io_si,i_scpf) + &
+                               ccohort%n * days_per_year
+                       end do
+                    end if
+                    ccohort%size_class_lasttimestep = scls
+                    !
                   end associate
                else  ! i.e. cohort%isnew
                   !
                   ! if cohort is new, track its growth flux into the first size bin
                   i_scpf = (ccohort%pft-1)*nlevsclass+1
                   hio_growthflux_si_scpf(io_si,i_scpf) = hio_growthflux_si_scpf(io_si,i_scpf) + ccohort%n * days_per_year
-                  ccohort%size_class_lasttimestep = 1._r8
+                  ccohort%size_class_lasttimestep = 1
                   !
                end if
 
@@ -2134,6 +2136,10 @@ end subroutine flush_hvars
                iscag = i_scls ! since imort is by definition something that only happens in newly disturbed patches, treat as such
                hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
                     sites(s)%imort_rate(i_scls, i_pft)
+               !
+               ! while in this loop, pass the fusion-induced growth rate flux to history
+               hio_growthflux_fusion_si_scpf(io_si,i_scpf) = hio_growthflux_fusion_si_scpf(io_si,i_scpf) + &
+                    sites(s)%growthflux_fusion(i_scls, i_pft) * days_per_year
             end do
          end do
          !
@@ -2144,6 +2150,8 @@ end subroutine flush_hvars
          sites(s)%terminated_nindivs(:,:,:) = 0._r8
          sites(s)%imort_carbonflux = 0._r8
          sites(s)%imort_rate(:,:) = 0._r8
+         !
+         sites(s)%growthflux_fusion(:,:) = 0._r8
 
          ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
          do i_pft = 1, numpft
@@ -3774,6 +3782,11 @@ end subroutine flush_hvars
           long='flux of individuals into a given size class bin via growth and recruitment',use_default='inactive',          &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,   &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_growthflux_si_scpf )
+
+    call this%set_history_var(vname='GROWTHFLUX_FUSION_SCPF', units = 'n/yr/ha',         &
+          long='flux of individuals into a given size class bin via fusion',use_default='inactive',          &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,   &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_growthflux_fusion_si_scpf )
 
     call this%set_history_var(vname='DDBH_CANOPY_SCPF', units = 'cm/yr/ha',         &
           long='diameter growth increment by pft/size',use_default='inactive', &
