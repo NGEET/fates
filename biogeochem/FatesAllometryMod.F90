@@ -43,8 +43,8 @@
 ! The following parameters (traits) are used
 !
 ! wood_density, mean stem wood specific gravity (heart,sap,bark)
-! allom_latosa_int, sapwood area per leaf area, intercept [cm2/m2]
-! allom_latosa_slp, sapwood area per leaf area, slope on diameter [cm2/m2/cm]
+! allom_la_per_sa_int, leaf area per sapwood area, intercept [m2/cm2]
+! allom_la_per_sa_slp, leaf area per sapwood area, slope on diameter [m2/cm2/cm]
 ! c2b, real, carbon to biomass multiplier (~2.0)
 ! allom_l2fr, fine root biomass per leaf biomass ratio [kgC/kgC]
 ! allom_agb_frac, the fraction of stem above ground [-]
@@ -1035,23 +1035,23 @@ contains
     real(r8),intent(out)   :: bsap      ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per diameter [kgC/cm]
     
-    real(r8)               :: latosa    ! applied leaf area to sap area 
+    real(r8)               :: la_per_sa    ! applied leaf area to sap area 
                                         ! may or may not contain diameter correction
     real(r8)               :: hbl2bsap  ! sapwood biomass per lineal height and kg of leaf
     
     
-    associate ( latosa_int => EDPftvarcon_inst%allom_latosa_int(ipft), &
-                latosa_slp => EDPftvarcon_inst%allom_latosa_slp(ipft), &
+    associate ( la_per_sa_int => EDPftvarcon_inst%allom_la_per_sa_int(ipft), &
+                la_per_sa_slp => EDPftvarcon_inst%allom_la_per_sa_slp(ipft), &
                 sla        => EDPftvarcon_inst%slatop(ipft), &
                 wood_density => EDPftvarcon_inst%wood_density(ipft), &
                 c2b          => EDPftvarcon_inst%c2b(ipft), & 
                 agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft) )
 
 
-      bsap = bleaf * latosa_int * h
+      bsap = bleaf * la_per_sa_int * h
       
       if(present(dbsapdd))then
-         dbsapdd = latosa_int*(h*dbleafdd + bleaf*dhdd)
+         dbsapdd = la_per_sa_int*(h*dbleafdd + bleaf*dhdd)
       end if
 
     end associate
@@ -1063,42 +1063,51 @@ contains
   subroutine bsap_dlinear(d,h,dhdd,bleaf,dbleafdd,ipft,bsap,dbsapdd)
     
     ! -------------------------------------------------------------------------
-    ! Calculate sapwood biomass based on leaf area to sapwood area
-    ! proportionality.  In this function, the leaftosapwood area is a function
-    ! of plant size, see Calvo-Alvarado and Bradley Christoferson
-    ! In this case: parameter latosa (from constant proportionality)
-    !   is the intercept of the diameter function.
+    ! Calculate sapwood carbon based on leaf area per sapwood area
+    ! proportionality.  In this function, the mass is a function of 
+    ! of plant size, see Calvo-Alvarado and Bradley Christoferson.
     ! 
-    ! Important note: this is above and below-ground sapwood
+    ! Important note 1: This is above and below-ground sapwood
+    ! Important note 2: Since we need continuous calculation of
+    !                   sapwood dependent on plant size, we cannot
+    !                   use actual leaf area (which is canopy dependent).
+    !                   So, this method estimates a leaf area that is
+    !                   based only on the specific leaf area (SLA) of 
+    !                   the canopy top.
     !
     ! -------------------------------------------------------------------------
     
     real(r8),intent(in)    :: d         ! plant diameter [cm]
     real(r8),intent(in)    :: h         ! plant height [m]
     real(r8),intent(in)    :: dhdd      ! change in height per diameter [m/cm]
-    real(r8),intent(in)    :: bleaf     ! plant leaf biomass [kgC]
+    real(r8),intent(in)    :: bleaf     ! plant leaf target biomass [kgC]
     real(r8),intent(in)    :: dbleafdd  ! change in blmax per diam [kgC/cm]
     integer(i4),intent(in) :: ipft      ! PFT index
     real(r8),intent(out)   :: bsap      ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per diameter [kgC/cm]
     
-    real(r8)               :: latosa    ! applied leaf area to sap area 
-                                        ! may or may not contain diameter correction
-    real(r8)               :: hbl2bsap  ! sapwood biomass per lineal height and kg of leaf
+    real(r8)               :: la_per_sa  ! applied leaf area to sap area 
+                                         ! may or may not contain diameter correction
+    real(r8)               :: hbl2bsap   ! sapwood biomass per lineal height and kg of leaf
     
     
-    associate ( latosa_int => EDPftvarcon_inst%allom_latosa_int(ipft), &
-                latosa_slp => EDPftvarcon_inst%allom_latosa_slp(ipft), &
-                sla        => EDPftvarcon_inst%slatop(ipft), &
-                wood_density => EDPftvarcon_inst%wood_density(ipft), &
-                c2b          => EDPftvarcon_inst%c2b(ipft), & 
-                agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft) )
+    associate ( la_per_sa_int => EDPftvarcon_inst%allom_la_per_sa_int(ipft), &
+                la_per_sa_slp => EDPftvarcon_inst%allom_la_per_sa_slp(ipft), &
+                slatop        => EDPftvarcon_inst%slatop(ipft), &
+                wood_density  => EDPftvarcon_inst%wood_density(ipft), &
+                c2b           => EDPftvarcon_inst%c2b(ipft), & 
+                agb_fraction  => EDPftvarcon_inst%allom_agb_frac(ipft) )
 
-      ! ------------------------------------------------------------------------
+
+
+      la_per_sa  = la_per_sa_int + d*la_per_sa_slp
+
       ! Calculate sapwood biomass per linear height and kgC of leaf [m-1]
       ! Units: 
-      ! latosa * slatop*    gtokg    *   cm2tom2     / c2b     * mg2kg  * dens
-      ! [cm2/m2]*[m2/gC]*[1000gC/1kgC]*[1m2/10000cm2] /[kg/kgC]*[kg/Mg]*[Mg/m3]
+      ! Note: wood_density is in units of specific gravity, which is also 
+      !       Mg / m3  (megagrams, ie 1000 kg / m3)
+      ! 1 /la_per_sa * slatop*     gtokg    *   cm2tom2     / c2b     * mg2kg  * dens
+      ! [cm2/m2]     * [m2/gC]*[1000gC/1kgC]*[1m2/10000cm2] /[kg/kgC]*[kg/Mg]*[Mg/m3]
       !        ->[cm2/gC]
       !                  ->[cm2/kgC]
       !                                ->[m2/kgC]
@@ -1107,12 +1116,23 @@ contains
       !                                                                  ->[/m]
       ! ------------------------------------------------------------------------
 
-      latosa   = latosa_int + d*latosa_slp
-      hbl2bsap = latosa*sla*g_per_kg*wood_density*kg_per_Megag/(c2b*cm2_per_m2 )
-      
+      hbl2bsap   = slatop * g_per_kg * wood_density * kg_per_Megag / &
+           (la_per_sa*c2b*cm2_per_m2 )
+
+      ! Note the total depth of the plant is approximated by the 
+      ! above ground fraction. This fraction is actually associated
+      ! with biomass, but we use it here as well to help us assess
+      ! how much sapwood is above and below ground.
+      ! total_depth * agb_fraction = height 
+
+
+      ! Integrate the mass per leaf biomass per depth of the plant
+      ! Include above and below ground components
+      ! [kgC] = [kgC/kgC/m]   * [kgC]     * [m]
+      ! ------------------------------------------------------------------------
+
       bsap =  hbl2bsap * (h/agb_fraction) * bleaf
 
-      ! Derivative
       ! dbldmaxdd is deriv of blmax wrt dbh (use directives to check oop)
       ! dhdd is deriv of height wrt dbh (use directives to check oop)
       if(present(dbsapdd))then
@@ -1838,7 +1858,7 @@ contains
   ! =============================================================================
 
   
-  subroutine carea_2pwr(d,spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+  subroutine carea_2pwr(d,spread,d2bl_p3,d2bl_ediff,d2ca_min,d2ca_max,c_area)
 
      ! ============================================================================
      ! Calculate area of ground covered by entire cohort. (m2)
@@ -1847,7 +1867,7 @@ contains
 
      real(r8),intent(in) :: d           ! diameter [cm]
      real(r8),intent(in) :: spread      ! site level relative spread score [0-1]
-     real(r8),intent(in) :: d2bl_p2     ! parameter 2 in the diameter->bleaf allometry (exponent)
+     real(r8),intent(in) :: d2bl_p3     ! parameter 3 in the diameter->bleaf allometry (exponent)
      real(r8),intent(in) :: d2bl_ediff  ! area difference factor in the diameter-bleaf allometry (exponent)
      real(r8),intent(in) :: d2ca_min    ! minimum diameter to crown area scaling factor
      real(r8),intent(in) :: d2ca_max    ! maximum diameter to crown area scaling factor
@@ -1859,7 +1879,7 @@ contains
      ! default is to use the same exponent as the dbh to bleaf exponent so that per-plant 
      ! canopy depth remains invariant during growth, but allowed to vary via the 
      ! allom_blca_expnt_diff term (which has default value of zero)
-     crown_area_to_dbh_exponent = d2bl_p2 + d2bl_ediff
+     crown_area_to_dbh_exponent = d2bl_p3 + d2bl_ediff
      
      ! ----------------------------------------------------------------------------------
      ! The function c_area is called during the process of canopy position demotion
