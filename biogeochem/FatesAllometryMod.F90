@@ -1047,8 +1047,8 @@ contains
     real(r8),intent(out)   :: bsap      ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per diameter [kgC/cm]
     
-    real(r8)               :: la_per_sa  ! applied leaf area to sap area 
-                                         ! may or may not contain diameter correction
+    real(r8)               :: la_per_sa  ! effective leaf area per sapwood area
+                                         ! [m2/cm]
     real(r8)               :: term1      ! complex term for solving derivative
     real(r8)               :: dterm1_dh  ! deriv of term1 wrt height
     real(r8)               :: dterm1_dd  ! deriv of term1 wrt diameter
@@ -1077,6 +1077,11 @@ contains
       !                                                                  ->[/m]
       ! ------------------------------------------------------------------------
 
+      ! This is a term that combines unit conversion and specific leaf
+      ! area.  This term does not contain the proportionality
+      ! between leaf area and sapwood cross-section. This is
+      ! because their may be height dependency their, which is a state
+      ! variable and will effect the derivative wrt diameter.
       hbl2bsap   = slatop * g_per_kg * wood_density * kg_per_Megag / (c2b*cm2_per_m2 )
 
       ! Calculate area. Note that no c2b conversion here, because it is
@@ -1098,6 +1103,11 @@ contains
       ! ------------------------------------------------------------------------
 
 !      bsap =  hbl2bsap/(la_per_sa_int + h*la_per_sa_slp) * (h/agb_fraction) * bleaf
+
+      ! "term1" combines two height dependent functions. The numerator is
+      ! how sapwood volume scales in the vertical direction.  The denominator
+      ! is the leaf_area per sapwood area ratio [m2/cm2], which is height dependent
+      ! (for non-zero slope parameters)
 
       term1 = h/(la_per_sa_int + h*la_per_sa_slp)
       bsap  = (hbl2bsap/agb_fraction) * term1 * bleaf 
