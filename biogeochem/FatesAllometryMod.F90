@@ -199,6 +199,7 @@ contains
      real(r8) :: bl_diag           ! diagnosed leaf biomass [kgC]
      real(r8) :: bfr_diag          ! diagnosed fine-root biomass [kgC]
      real(r8) :: bsap_diag         ! diagnosed sapwood biomass [kgC]
+     real(r8) :: asap_diag         ! sapwood area (dummy) [m2]
      real(r8) :: bdead_diag        ! diagnosed structural biomass [kgC]
      real(r8) :: bstore_diag       ! diagnosed storage biomass [kgC]
      real(r8) :: bagw_diag         ! diagnosed agbw [kgC]
@@ -237,7 +238,7 @@ contains
      end if
 
      if (grow_sap) then
-        call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)
+        call bsap_allom(dbh,ipft,canopy_trim,asap_diag,bsap_diag)
         if( abs(bsap_diag-bsap) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
@@ -265,7 +266,7 @@ contains
      end if
 
      if (grow_dead) then
-        call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)
+        call bsap_allom(dbh,ipft,canopy_trim,asap_diag,bsap_diag)
         call bagw_allom(dbh,ipft,bagw_diag)
         call bbgw_allom(dbh,ipft,bbgw_diag)
         call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )        
@@ -716,13 +717,15 @@ contains
   ! Generic sapwood biomass interface
   ! ============================================================================
 
-  subroutine bsap_allom(d,ipft,canopy_trim,bsap,dbsapdd)
+  subroutine bsap_allom(d,ipft,canopy_trim,sapw_area,bsap,dbsapdd)
     
-    real(r8),intent(in)           :: d         ! plant diameter [cm]
-    integer(i4),intent(in)        :: ipft      ! PFT index
+    real(r8),intent(in)           :: d           ! plant diameter [cm]
+    integer(i4),intent(in)        :: ipft        ! PFT index
     real(r8),intent(in)           :: canopy_trim
-    real(r8),intent(out)          :: bsap      ! plant leaf biomass [kgC]
-    real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per d [kgC/cm]
+    real(r8),intent(out)          :: sapw_area   ! cross section are of
+                                                 ! plant sapwood at reference [m2]
+    real(r8),intent(out)          :: bsap        ! plant leaf biomass [kgC]
+    real(r8),intent(out),optional :: dbsapdd     ! change leaf bio per d [kgC/cm]
 
     real(r8) :: h         ! Plant height [m]
     real(r8) :: dhdd
@@ -747,17 +750,19 @@ contains
        ! checking at the beginning.  For constant proportionality, the slope
        ! of the la:sa to diameter line is zero.
        ! ---------------------------------------------------------------------
-    case(1,2) !"constant","dlinear") 
+    case(1) ! linearly related to leaf area based on target leaf biomass
+            ! and slatop (no provisions for slamax)
 
        call h_allom(d,ipft,h,dhdd)
        call bleaf(d,ipft,canopy_trim,bl,dbldd)
-       call bsap_dlinear(d,h,dhdd,bl,dbldd,ipft,bsap,dbsapdd)
+       call bsap_ltarg_slatop(d,h,dhdd,bl,dbldd,ipft,sapw_area,bsap,dbsapdd)
 
        ! Perform a capping/check on total woody biomass
        call bagw_allom(d,ipft,bagw,dbagwdd)
        call bbgw_allom(d,ipft,bbgw,dbbgwdd)
        
        ! Force sapwood to be less than a maximum fraction of total biomass
+       ! We omit the sapwood area from this calculation
        ! (this comes into play typically in very small plants)
        bsap_cap = max_frac*(bagw+bbgw)
 
@@ -767,12 +772,6 @@ contains
              dbsapdd = max_frac*(dbagwdd+dbbgwdd)
           end if
        end if
-
-    case(9) ! deprecated (9)
-
-       call h_allom(d,ipft,h,dhdd)
-       call bleaf(d,ipft,canopy_trim,bl,dbldd)
-       call bsap_deprecated(d,h,dhdd,bl,dbldd,ipft,bsap,dbsapdd)
 
     case DEFAULT
        write(fates_log(),*) 'An undefined sapwood allometry was specified: ', &
@@ -1018,53 +1017,13 @@ contains
  ! ============================================================================
  ! Specific d2bsap relationships
  ! ============================================================================
-  
- subroutine bsap_deprecated(d,h,dhdd,bleaf,dbleafdd,ipft,bsap,dbsapdd)
-    
 
+  subroutine bsap_ltarg_slatop(d,h,dhdd,bleaf,dbleafdd,ipft, &
+        sapw_area,bsap,dbsapdd)
     
     ! -------------------------------------------------------------------------
-    ! -------------------------------------------------------------------------
-    
-    real(r8),intent(in)    :: d         ! plant diameter [cm]
-    real(r8),intent(in)    :: h         ! plant height [m]
-    real(r8),intent(in)    :: dhdd      ! change in height per diameter [m/cm]
-    real(r8),intent(in)    :: bleaf     ! plant leaf biomass [kgC]
-    real(r8),intent(in)    :: dbleafdd  ! change in blmax per diam [kgC/cm]
-    integer(i4),intent(in) :: ipft      ! PFT index
-    real(r8),intent(out)   :: bsap      ! plant leaf biomass [kgC]
-    real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per diameter [kgC/cm]
-    
-    real(r8)               :: la_per_sa    ! applied leaf area to sap area 
-                                        ! may or may not contain diameter correction
-    real(r8)               :: hbl2bsap  ! sapwood biomass per lineal height and kg of leaf
-    
-    
-    associate ( la_per_sa_int => EDPftvarcon_inst%allom_la_per_sa_int(ipft), &
-                la_per_sa_slp => EDPftvarcon_inst%allom_la_per_sa_slp(ipft), &
-                sla        => EDPftvarcon_inst%slatop(ipft), &
-                wood_density => EDPftvarcon_inst%wood_density(ipft), &
-                c2b          => EDPftvarcon_inst%c2b(ipft), & 
-                agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft) )
-
-
-      bsap = bleaf * la_per_sa_int * h
-      
-      if(present(dbsapdd))then
-         dbsapdd = la_per_sa_int*(h*dbleafdd + bleaf*dhdd)
-      end if
-
-    end associate
-    return
-  end subroutine bsap_deprecated
-
-  ! ========================================================================
-
-  subroutine bsap_dlinear(d,h,dhdd,bleaf,dbleafdd,ipft,bsap,dbsapdd)
-    
-    ! -------------------------------------------------------------------------
-    ! Calculate sapwood carbon based on leaf area per sapwood area
-    ! proportionality.  In this function, the mass is a function of 
+    ! Calculate sapwood carbon based on its leaf area per sapwood area
+    ! proportionality with the plant's target leaf area.
     ! of plant size, see Calvo-Alvarado and Bradley Christoferson.
     ! 
     ! Important note 1: This is above and below-ground sapwood
@@ -1083,6 +1042,8 @@ contains
     real(r8),intent(in)    :: bleaf     ! plant leaf target biomass [kgC]
     real(r8),intent(in)    :: dbleafdd  ! change in blmax per diam [kgC/cm]
     integer(i4),intent(in) :: ipft      ! PFT index
+    real(r8),intent(out)   :: sapw_area ! area of sapwood crosssection at 
+                                        ! refernce height [m2]
     real(r8),intent(out)   :: bsap      ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per diameter [kgC/cm]
     
@@ -1119,12 +1080,17 @@ contains
       hbl2bsap   = slatop * g_per_kg * wood_density * kg_per_Megag / &
            (la_per_sa*c2b*cm2_per_m2 )
 
+      ! Calculate area. Note that no c2b conversion here, because it is
+      ! wood density that is in biomass units, SLA is in units [m2/gC.
+      ! [m2]    = [m2/gC] * [kgC] * [gC/kgC] / ( [m2/cm2] * [cm2/m2])
+
+      sapw_area = slatop * bleaf * g_per_kg / (la_per_sa*cm2_per_m2 )
+
       ! Note the total depth of the plant is approximated by the 
       ! above ground fraction. This fraction is actually associated
       ! with biomass, but we use it here as well to help us assess
       ! how much sapwood is above and below ground.
       ! total_depth * agb_fraction = height 
-
 
       ! Integrate the mass per leaf biomass per depth of the plant
       ! Include above and below ground components
@@ -1141,7 +1107,7 @@ contains
       
     end associate
     return
-  end subroutine bsap_dlinear
+  end subroutine bsap_ltarg_slatop
 
   ! ============================================================================
   ! Specific storage relationships
@@ -1257,6 +1223,12 @@ contains
     real(r8),intent(out) :: blmax     ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
     
+    ! reproduce Saldarriaga:
+    ! blmax = p1 * dbh_maxh**p2 * rho**p3
+    !       = 0.07 * dbh_maxh**p2 * 0.7*0.55 = (p1 + p2* dbh**p3) / c2b
+    !       p1 = 0
+    !       p2 = (0.07 * 0.7^0.55)*2 = 0.11506201034678605
+
     blmax    = (p1 + p2*min(d,dbh_maxh)**p3)/c2b
     
     ! If this plant has reached its height cap, then it is not
@@ -2145,6 +2117,7 @@ contains
      real(r8)  :: bt_agw,dbt_agw_dd  ! target AG wood at current d
      real(r8)  :: bt_bgw,dbt_bgw_dd  ! target BG wood at current d
      real(r8)  :: bt_dead,dbt_dead_dd ! target struct wood at current d
+     real(r8)  :: at_sap              ! sapwood area (dummy) m2
      real(r8)  :: dd                  ! diameter increment for each step
      real(r8)  :: d_try               ! trial diameter
      real(r8)  :: bt_dead_try         ! trial structure biomasss
@@ -2154,7 +2127,7 @@ contains
      real(r8), parameter :: step_frac0  = 0.9_r8
      integer, parameter  :: max_counter = 200
 
-     call bsap_allom(d,ipft,canopy_trim,bt_sap,dbt_sap_dd)
+     call bsap_allom(d,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
      call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
      call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
      call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
@@ -2171,7 +2144,7 @@ contains
         dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
         d_try = d + dd
         
-        call bsap_allom(d_try,ipft,canopy_trim,bt_sap,dbt_sap_dd)
+        call bsap_allom(d_try,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
         call bagw_allom(d_try,ipft,bt_agw,dbt_agw_dd)
         call bbgw_allom(d_try,ipft,bt_bgw,dbt_bgw_dd)
         call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead_try, dbt_agw_dd, &
