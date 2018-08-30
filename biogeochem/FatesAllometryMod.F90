@@ -1049,7 +1049,10 @@ contains
     
     real(r8)               :: la_per_sa  ! applied leaf area to sap area 
                                          ! may or may not contain diameter correction
-    real(r8)               :: hbl2bsap   ! sapwood biomass per lineal height and kg of leaf
+    real(r8)               :: term1      ! complex term for solving derivative
+    real(r8)               :: dterm1_dh  ! deriv of term1 wrt height
+    real(r8)               :: dterm1_dd  ! deriv of term1 wrt diameter
+    real(r8)               :: hbl2bsap   ! sapwood biomass per lineal height
     
     
     associate ( la_per_sa_int => EDPftvarcon_inst%allom_la_per_sa_int(ipft), &
@@ -1059,9 +1062,6 @@ contains
                 c2b           => EDPftvarcon_inst%c2b(ipft), & 
                 agb_fraction  => EDPftvarcon_inst%allom_agb_frac(ipft) )
 
-
-
-      la_per_sa  = la_per_sa_int + d*la_per_sa_slp
 
       ! Calculate sapwood biomass per linear height and kgC of leaf [m-1]
       ! Units: 
@@ -1077,14 +1077,14 @@ contains
       !                                                                  ->[/m]
       ! ------------------------------------------------------------------------
 
-      hbl2bsap   = slatop * g_per_kg * wood_density * kg_per_Megag / &
-           (la_per_sa*c2b*cm2_per_m2 )
+      hbl2bsap   = slatop * g_per_kg * wood_density * kg_per_Megag / (c2b*cm2_per_m2 )
 
       ! Calculate area. Note that no c2b conversion here, because it is
       ! wood density that is in biomass units, SLA is in units [m2/gC.
       ! [m2]    = [m2/gC] * [kgC] * [gC/kgC] / ( [m2/cm2] * [cm2/m2])
-
+      la_per_sa = la_per_sa_int + h*la_per_sa_slp
       sapw_area = slatop * bleaf * g_per_kg / (la_per_sa*cm2_per_m2 )
+      
 
       ! Note the total depth of the plant is approximated by the 
       ! above ground fraction. This fraction is actually associated
@@ -1097,12 +1097,18 @@ contains
       ! [kgC] = [kgC/kgC/m]   * [kgC]     * [m]
       ! ------------------------------------------------------------------------
 
-      bsap =  hbl2bsap * (h/agb_fraction) * bleaf
+!      bsap =  hbl2bsap/(la_per_sa_int + h*la_per_sa_slp) * (h/agb_fraction) * bleaf
+
+      term1 = h/(la_per_sa_int + h*la_per_sa_slp)
+      bsap  = (hbl2bsap/agb_fraction) * term1 * bleaf 
+
 
       ! dbldmaxdd is deriv of blmax wrt dbh (use directives to check oop)
       ! dhdd is deriv of height wrt dbh (use directives to check oop)
       if(present(dbsapdd))then
-         dbsapdd = hbl2bsap*(h*dbleafdd + bleaf*dhdd)/agb_fraction
+         dterm1_dh = la_per_sa_int  / (la_per_sa_int + la_per_sa_slp*h)**2.0_r8
+         dterm1_dd = dterm1_dh * dhdd
+         dbsapdd  = hbl2bsap/agb_fraction * (bleaf*dterm1_dd + term1 *dbleafdd)
       end if
       
     end associate

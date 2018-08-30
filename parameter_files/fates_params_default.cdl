@@ -696,9 +696,9 @@ data:
 
  fates_allom_l2fr = 1, 1 ;
 
- fates_allom_la_per_sa_int = 10000.0, 10000.0 ;
+ fates_allom_la_per_sa_int = 10.0, 10.0 ;
 
- fates_allom_la_per_sa_slp = 0, 0 ;
+ fates_allom_la_per_sa_slp = 0.0, 0.0 ;
 
  fates_allom_lmode = 3, 3 ;
 
