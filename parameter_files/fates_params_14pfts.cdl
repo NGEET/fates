@@ -186,8 +186,8 @@ variables:
 		fates_allom_la_per_sa_int:units = "m2/cm2" ;
 		fates_allom_la_per_sa_int:long_name = "Leaf area per sapwood area, intercept" ;
 	float fates_allom_la_per_sa_slp(fates_pft) ;
-		fates_allom_la_per_sa_slp:units = "m2/cm2/cm" ;
-		fates_allom_la_per_sa_slp:long_name = "Leaf area per sapwood area rate of change with diameter, slope (optional)" ;
+		fates_allom_la_per_sa_slp:units = "m2/cm2/m" ;
+		fates_allom_la_per_sa_slp:long_name = "Leaf area per sapwood area rate of change with height, slope (optional)" ;
 	float fates_allom_lmode(fates_pft) ;
 		fates_allom_lmode:units = "index" ;
 		fates_allom_lmode:long_name = "leaf biomass allometry function index" ;
