@@ -22,12 +22,6 @@ Examples of unacceptable behavior by participants include:
 * Publishing others’ private information, such as a physical or electronic address, without explicit permission
 * Other conduct which could reasonably be considered inappropriate in a professional setting
 
-## Our Responsibilities
-
-Project maintainers are responsible for clarifying the standards of acceptable behavior and are expected to take appropriate and fair corrective action in response to any instances of unacceptable behavior.
-
-Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned to this Code of Conduct, or to ban temporarily or permanently any contributor for other behaviors that they deem inappropriate, threatening, offensive, or harmful.
-
 ## Scientific Use and Publication Ethics
 
 We aim to create an open development environment for FATES where scientists can be confident that all members of the community are conducting research in an ethical manner. In particular, writing scientific code is a form of intellectual contribution, and one should expect that all such intellectual contributions are respected and given credit in any resulting published scientific work. To support the FATES community and avoid issues of scientific misconduct related to the above principle, please respect the following rules:
@@ -36,6 +30,12 @@ We aim to create an open development environment for FATES where scientists can 
 * Do not use code from anywhere other than the central FATES development repository (the “master” branch of the “NGEET/fates“ github repository) without discussing with the author(s) of the modified code your intentions for using the code and receiving their permission to do so.
 * When using model features that have recently been integrated into the central FATES development repository, be mindful of the contributions of others and, where the novel features qualitatively affect the results of a given simulation, involve the author(s) of these features in any resulting manuscripts.  Be particularly aware of the concerns of early career researchers, and ensure they have sufficient opportunities to lead publications using their developments.
 * When discussing results arising from older model features that have been described in the literature, accurately cite the publications describing those features or releases. A list of some relevant publications can be found at [https://github.com/NGEET/fates/wiki/Relevant-References][wiki_ref_page]
+
+## Our Responsibilities
+
+Project maintainers are responsible for clarifying the standards of acceptable behavior and are expected to take appropriate and fair corrective action in response to any instances of unacceptable behavior.
+
+Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned to this Code of Conduct, or to ban temporarily or permanently any contributor for other behaviors that they deem inappropriate, threatening, offensive, or harmful.
 
 ## Scope
 
