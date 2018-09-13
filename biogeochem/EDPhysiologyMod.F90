@@ -875,6 +875,7 @@ contains
     real(r8) :: dbt_leaf_dd        ! change in leaf biomass wrt diameter (kgC/cm)
     real(r8) :: bt_fineroot        ! fine root biomass (kgC)
     real(r8) :: dbt_fineroot_dd    ! change in fine root biomass wrt diameter (kgC/cm)
+    real(r8) :: at_sap             ! sapwood cross-section area at referenc (m2)
     real(r8) :: bt_sap             ! sapwood biomass (kgC)
     real(r8) :: dbt_sap_dd         ! change in sapwood biomass wrt diameter (kgC/cm)
     real(r8) :: bt_agw             ! above ground biomass (kgC/cm)
@@ -1008,7 +1009,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
+    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,at_sap,bt_sap,dbt_sap_dd)
 
     ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
     call bagw_allom(currentCohort%dbh,ipft,bt_agw,dbt_agw_dd)
@@ -1033,7 +1034,7 @@ contains
        ! ------------------------------------------------------------------------------------------
        
        ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-       call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
+       call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,at_sap,bt_sap,dbt_sap_dd)
        
        ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
        call bagw_allom(currentCohort%dbh,ipft,bt_agw,dbt_agw_dd)
@@ -1474,6 +1475,7 @@ contains
       integer  :: ipft       ! pft index
       real(r8) :: ct_leaf    ! target leaf biomass, dummy var (kgC)
       real(r8) :: ct_froot   ! target fine-root biomass, dummy var (kgC)
+      real(r8) :: at_sap     ! target sapwood cross section, dummy var (m2)
       real(r8) :: ct_sap     ! target sapwood biomass, dummy var (kgC)
       real(r8) :: ct_agw     ! target aboveground wood, dummy var (kgC)
       real(r8) :: ct_bgw     ! target belowground wood, dummy var (kgC)
@@ -1511,7 +1513,7 @@ contains
 
         call bleaf(dbh,ipft,currentCohort%canopy_trim,ct_leaf,ct_dleafdd)
         call bfineroot(dbh,ipft,currentCohort%canopy_trim,ct_froot,ct_dfrootdd)
-        call bsap_allom(dbh,ipft,currentCohort%canopy_trim,ct_sap,ct_dsapdd)
+        call bsap_allom(dbh,ipft,currentCohort%canopy_trim,at_sap,ct_sap,ct_dsapdd)
         call bagw_allom(dbh,ipft,ct_agw,ct_dagwdd)
         call bbgw_allom(dbh,ipft,ct_bgw,ct_dbgwdd)
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &
@@ -1680,6 +1682,7 @@ contains
     real(r8) :: b_leaf
     real(r8) :: b_fineroot    ! fine root biomass [kgC]
     real(r8) :: b_sapwood     ! sapwood biomass [kgC]
+    real(r8) :: a_sapwood     ! sapwood cross section are [m2] (dummy)
     real(r8) :: b_agw         ! Above ground biomass [kgC]
     real(r8) :: b_bgw         ! Below ground biomass [kgC]
 
@@ -1698,7 +1701,7 @@ contains
        ! Initialize live pools
        call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_leaf)
        call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_fineroot)
-       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_sapwood)
+       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapwood, b_sapwood)
        call bagw_allom(temp_cohort%dbh,ft,b_agw)
        call bbgw_allom(temp_cohort%dbh,ft,b_bgw)
        call bdead_allom(b_agw,b_bgw,b_sapwood,ft,temp_cohort%bdead)
