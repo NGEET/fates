@@ -21,7 +21,7 @@ For more information on the FATES model, see our [wiki](https://github.com/NGEET
 
 **Most users should not need to directly clone this repository.  FATES needs to be run through a host model, and all supported host-models are in charge of cloning and loading the fates software.**
 
-FATES has support to be run via the Energy Exascale Earth System Model (E3SM), the Community Earth Systems Model (CESM), or its land component, the Community Terrestrial Systems Model (CTSM).
+FATES has support to be run via the Energy Exascale Earth System Model (E3SM), the Community Earth System Model (CESM), or its land component, the Community Terrestrial Systems Model (CTSM).
 
 https://github.com/E3SM-Project/E3SM
 
