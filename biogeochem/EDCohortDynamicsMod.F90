@@ -180,6 +180,20 @@ contains
        snull = 1
        patchptr%shortest => new_cohort 
     endif
+    
+    if(use_leaf_age==itrue) then
+       if(recruitstatus==1)then
+          new_cohort%fracExpLeaves = 1.0_r8
+	  new_cohort%fracYoungLeaves = 0.0_r8
+	  new_cohort%fracOldLeaves = 0.0_r8
+	  new_cohort%fracSenLeaves = 0.0_r8
+       else
+          new_cohort%fracExpLeaves = 0.25_r8
+	  new_cohort%fracYoungLeaves = 0.25_r8
+	  new_cohort%fracOldLeaves = 0.25_r8
+	  new_cohort%fracSenLeaves = 0.25_r8       
+       endif
+    endif
 
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics
@@ -718,8 +732,8 @@ contains
                                       + nextc%n*nextc%fracYoungLeaves*nextc%bl)/newn
 				  currentCohort%fracOldLeaves = (currentCohort%n*currentCohort%fracOldLeaves*currentCohort%bl   &
                                       + nextc%n*nextc%fracOldLeaves*nextc%bl)/newn
-				  currentCohort%fracSenLeaves = (currentCohort%n*currentCohort%fracSenLeaves*currentCohort%bl   &
-                                      + nextc%n*nextc%fracSenLeaves*nextc%bl)/newn				      				      				      
+				  currentCohort%fracSenLeaves = 1.0_r8-currentCohort%fracExpLeaves-currentCohort%fracYoungLeaves -&
+				      currentCohort%fracOldLeaves   				      				      				      
 				endif
 
                                 ! -----------------------------------------------------------------
@@ -852,8 +866,8 @@ contains
                                       + nextc%n*nextc%fracYoungLeaves*nextc%bl)/newn
 				    currentCohort%fracOldLeaves = (currentCohort%n*currentCohort%fracOldLeaves*currentCohort%bl   &
                                       + nextc%n*nextc%fracOldLeaves*nextc%bl)/newn
-				    currentCohort%fracSenLeaves = (currentCohort%n*currentCohort%fracSenLeaves*currentCohort%bl   &
-                                      + nextc%n*nextc%fracSenLeaves*nextc%bl)/newn				      				      				      
+				    currentCohort%fracSenLeaves = 1.0_r8-currentCohort%fracExpLeaves-currentCohort%fracYoungLeaves -&
+				      currentCohort%fracOldLeaves				      				      				      
 				   endif
                                      
                                 end if !(currentCohort%isnew)
