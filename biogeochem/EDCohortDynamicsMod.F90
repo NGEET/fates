@@ -188,10 +188,17 @@ contains
 	  new_cohort%fracOldLeaves = 0.0_r8
 	  new_cohort%fracSenLeaves = 0.0_r8
        else
+         if(status == 2) then !leaf on
           new_cohort%fracExpLeaves = 0.25_r8
 	  new_cohort%fracYoungLeaves = 0.25_r8
 	  new_cohort%fracOldLeaves = 0.25_r8
-	  new_cohort%fracSenLeaves = 0.25_r8       
+	  new_cohort%fracSenLeaves = 0.25_r8
+	 else
+          new_cohort%fracExpLeaves = 1.0_r8
+	  new_cohort%fracYoungLeaves = 0.0_r8
+	  new_cohort%fracOldLeaves = 0.0_r8
+	  new_cohort%fracSenLeaves = 0.0_r8	   
+	 endif       
        endif
     endif
 
@@ -726,14 +733,21 @@ contains
                                       + nextc%n*nextc%canopy_trim)/newn
 				      
 				if(use_leaf_age) then
-				  currentCohort%fracExpLeaves = (currentCohort%n*currentCohort%fracExpLeaves*currentCohort%bl &
-                                      + nextc%n*nextc%fracExpLeaves*nextc%bl)/newn
-				  currentCohort%fracYoungLeaves = (currentCohort%n*currentCohort%fracYoungLeaves*currentCohort%bl   &
-                                      + nextc%n*nextc%fracYoungLeaves*nextc%bl)/newn
-				  currentCohort%fracOldLeaves = (currentCohort%n*currentCohort%fracOldLeaves*currentCohort%bl   &
-                                      + nextc%n*nextc%fracOldLeaves*nextc%bl)/newn
-				  currentCohort%fracSenLeaves = 1.0_r8-currentCohort%fracExpLeaves-currentCohort%fracYoungLeaves -&
-				      currentCohort%fracOldLeaves   				      				      				      
+				  if(currentCohort%bl>0)then
+				    currentCohort%fracExpLeaves = (currentCohort%n*currentCohort%fracExpLeaves*currentCohort%bl &
+                                      + nextc%n*nextc%fracExpLeaves*nextc%bl)/(newn*currentCohort%bl)
+				    currentCohort%fracYoungLeaves = (currentCohort%n*currentCohort%fracYoungLeaves*currentCohort%bl   &
+                                      + nextc%n*nextc%fracYoungLeaves*nextc%bl)/(newn*currentCohort%bl)
+				    currentCohort%fracOldLeaves = (currentCohort%n*currentCohort%fracOldLeaves*currentCohort%bl   &
+                                      + nextc%n*nextc%fracOldLeaves*nextc%bl)/(newn*currentCohort%bl)
+				    currentCohort%fracSenLeaves = 1.0_r8-currentCohort%fracExpLeaves-currentCohort%fracYoungLeaves -&
+				      currentCohort%fracOldLeaves 
+	                          else
+				     currentCohort%fracExpLeaves = 1.0_r8
+	                             currentCohort%fracYoungLeaves = 0.0_r8
+	                             currentCohort%fracOldLeaves = 0.0_r8
+	                             currentCohort%fracSenLeaves = 0.0_r8			       
+				  endif 				      				      				      
 				endif
 
                                 ! -----------------------------------------------------------------
@@ -860,14 +874,21 @@ contains
 				   
 				   !leaf age
 				   if(use_leaf_age) then
-				    currentCohort%fracExpLeaves = (currentCohort%n*currentCohort%fracExpLeaves*currentCohort%bl &
-                                      + nextc%n*nextc%fracExpLeaves*nextc%bl)/newn
-				    currentCohort%fracYoungLeaves = (currentCohort%n*currentCohort%fracYoungLeaves*currentCohort%bl   &
-                                      + nextc%n*nextc%fracYoungLeaves*nextc%bl)/newn
-				    currentCohort%fracOldLeaves = (currentCohort%n*currentCohort%fracOldLeaves*currentCohort%bl   &
-                                      + nextc%n*nextc%fracOldLeaves*nextc%bl)/newn
-				    currentCohort%fracSenLeaves = 1.0_r8-currentCohort%fracExpLeaves-currentCohort%fracYoungLeaves -&
-				      currentCohort%fracOldLeaves				      				      				      
+				    if(currentCohort%bl>0)then
+				      currentCohort%fracExpLeaves = (currentCohort%n*currentCohort%fracExpLeaves*currentCohort%bl &
+                                       + nextc%n*nextc%fracExpLeaves*nextc%bl)/(newn*currentCohort%bl)
+				      currentCohort%fracYoungLeaves = (currentCohort%n*currentCohort%fracYoungLeaves*currentCohort%bl&
+                                       + nextc%n*nextc%fracYoungLeaves*nextc%bl)/(newn*currentCohort%bl)
+				      currentCohort%fracOldLeaves = (currentCohort%n*currentCohort%fracOldLeaves*currentCohort%bl   &
+                                       + nextc%n*nextc%fracOldLeaves*nextc%bl)/(newn*currentCohort%bl)
+				      currentCohort%fracSenLeaves = 1.0_r8-currentCohort%fracExpLeaves-currentCohort%fracYoungLeaves -&
+				       currentCohort%fracOldLeaves
+				    else
+				       currentCohort%fracExpLeaves = 1.0_r8  
+				       currentCohort%fracYoungLeaves = 0.0_r8
+				       currentCohort%fracOldLeaves = 0.0_r8
+				       currentCohort%fracSenLeaves = 0.0_r8
+				    endif 				      				      				      
 				   endif
                                      
                                 end if !(currentCohort%isnew)
