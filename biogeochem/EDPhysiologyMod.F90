@@ -1195,7 +1195,7 @@ contains
        currentCohort%br            = currentCohort%br +  br_flux
        currentCohort%npp_fnrt      = currentCohort%npp_fnrt + br_flux / hlm_freq_day
        
-       if(use_leaf_age==itrue) then
+       if(use_leaf_age==itrue.and.currentCohort%bl > 0.0_r8) then
 	  currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves +  bl_flux)&
 	                /currentCohort%bl
 	  currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves)/currentCohort%bl
@@ -1318,7 +1318,7 @@ contains
        carbon_balance               = carbon_balance - bstore_flux
        currentCohort%bstore         = currentCohort%bstore +  bstore_flux
        currentCohort%npp_stor       = currentCohort%npp_stor + bstore_flux / hlm_freq_day
-       if(use_leaf_age==itrue) then
+       if(use_leaf_age==itrue .and. currentCohort%bl> 0.0_r8) then
 	  currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves + bl_flux)/currentCohort%bl
 	  currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves)/currentCohort%bl
 	  currentCohort%fracOldLeaves = (previous_bl *currentCohort%fracOldLeaves)/currentCohort%bl
