@@ -633,7 +633,12 @@ contains
                       ! The tendency for this could be parameterized
                       currentCohort%bl = currentCohort%bstore * store_output
                    endif
-
+		   if(use_leaf_age==itrue)then
+	               currentCohort%fracExpLeaves = 1.0_r8
+	               currentCohort%fracYoungLeaves = 0.0_r8
+	               currentCohort%fracOldLeaves = 0.0_r8
+	               currentCohort%fracSenLeaves = 0.0_r8		     
+		   endif
 
                    if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 1 ',currentCohort%bstore
 
@@ -657,7 +662,12 @@ contains
                    ! add lost carbon to litter
                    currentCohort%leaf_litter = currentCohort%bl 
                    currentCohort%bl          = 0.0_r8   
-               
+		   if(use_leaf_age==itrue)then
+	               currentCohort%fracExpLeaves = 0.0_r8
+	               currentCohort%fracYoungLeaves = 0.0_r8
+	               currentCohort%fracOldLeaves = 0.0_r8
+	               currentCohort%fracSenLeaves = 0.0_r8		     
+		   endif               
                 endif !leaf status
              endif !currentSite status
           endif  !season_decid
@@ -673,8 +683,13 @@ contains
 
                     !we can only put on as much carbon as there is in the store.
                     currentCohort%bl = currentCohort%bstore * store_output
-                    endif
-
+                   endif
+		   if(use_leaf_age==itrue)then
+	               currentCohort%fracExpLeaves = 1.0_r8
+	               currentCohort%fracYoungLeaves = 0.0_r8
+	               currentCohort%fracOldLeaves = 0.0_r8
+	               currentCohort%fracSenLeaves = 0.0_r8		     
+		   endif
                    if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 3 ',currentCohort%bstore
 
                    currentCohort%bstore = currentCohort%bstore - currentCohort%bl ! empty store
@@ -696,7 +711,12 @@ contains
                    ! add falling leaves to litter pools . convert to KgC/m2                    
                    currentCohort%leaf_litter = currentCohort%bl  
                    currentCohort%bl          = 0.0_r8                                        
-
+		   if(use_leaf_age==itrue)then
+	               currentCohort%fracExpLeaves = 0.0_r8
+	               currentCohort%fracYoungLeaves = 0.0_r8
+	               currentCohort%fracOldLeaves = 0.0_r8
+	               currentCohort%fracSenLeaves = 0.0_r8		     
+		   endif
                 endif
              endif !status
           endif !drought dec.
@@ -1124,7 +1144,7 @@ contains
     currentCohort%bdead  = currentCohort%bdead - currentCohort%bdead_md*hlm_freq_day
     currentCohort%bstore = currentCohort%bstore - currentCohort%bstore_md*hlm_freq_day
     
-    if(use_leaf_age)then
+    if(use_leaf_age.and. currentCohort%bl>0.0_r8)then
     	  !advance the leaf ages	  
 	  dExpLeaves_dt=previous_bl *currentCohort%fracExpLeaves &
 	                 / EDPftvarcon_inst%expleaf_long(ipft)*hlm_freq_day
@@ -1240,7 +1260,7 @@ contains
        carbon_balance         = carbon_balance - br_flux
        currentCohort%br       = currentCohort%br +  br_flux
        currentCohort%npp_fnrt = currentCohort%npp_fnrt + br_flux / hlm_freq_day
-       if(use_leaf_age==itrue) then
+       if(use_leaf_age==itrue .and. currentCohort%bl>0.0_r8) then
 	  currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves +  bl_flux)&
 	                /currentCohort%bl
 	  currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves)/currentCohort%bl
@@ -1464,7 +1484,7 @@ contains
           carbon_balance          = carbon_balance - bl_flux
           currentCohort%bl        = currentCohort%bl + bl_flux
           currentCohort%npp_leaf  = currentCohort%npp_leaf + bl_flux / hlm_freq_day
-          if(use_leaf_age==itrue) then
+          if(use_leaf_age==itrue.and.currentCohort%bl>0.0_r8) then
 	     currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves + bl_flux)&
 	                                   /currentCohort%bl
 	     currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves)/currentCohort%bl
