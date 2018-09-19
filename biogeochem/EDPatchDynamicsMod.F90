@@ -987,6 +987,7 @@ contains
 
        !************************************/     
        ! PART 3) Burn parts of trees that did *not* die in the fire.
+       !         currently we only remove leaves. branch and assocaited sapwood consumption coming soon.
        ! PART 4) Burn parts of grass that are consumed by the fire. 
        ! grasses are not killed directly by fire. They die by losing all of their leaves and starving. 
        !************************************/ 
@@ -995,9 +996,9 @@ contains
 
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-             burned_leaves = min(currentCohort%bl, (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa)
+             burned_leaves = currentCohort%bl * currentCohort%cfa)
           else
-             burned_leaves = min(currentCohort%bl, (currentCohort%bl+currentCohort%bsw) * currentPatch%burnt_frac_litter(6))
+             burned_leaves = currentCohort%bl * currentPatch%burnt_frac_litter(6))
           endif
           if (burned_leaves > 0.0_r8) then
 
