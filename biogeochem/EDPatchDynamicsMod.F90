@@ -996,9 +996,9 @@ contains
 
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-             burned_leaves = currentCohort%bl * currentCohort%cfa)
+             burned_leaves = currentCohort%bl * currentCohort%cfa
           else
-             burned_leaves = currentCohort%bl * currentPatch%burnt_frac_litter(6))
+             burned_leaves = currentCohort%bl * currentPatch%burnt_frac_litter(6)
           endif
           if (burned_leaves > 0.0_r8) then
 
