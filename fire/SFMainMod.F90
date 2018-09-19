@@ -862,8 +862,8 @@ contains
   subroutine  crown_damage ( currentSite )
     !*****************************************************************
 
-    !returns the updated currentCohort%cfa value for each tree cohort within each patch.
-    !currentCohort%cfa  proportion of crown affected by fire
+    !returns the updated currentCohort%fraction_crown_burned for each tree cohort within each patch.
+    !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -878,12 +878,12 @@ contains
           currentCohort=>currentPatch%tallest
 
           do while(associated(currentCohort))  
-             currentCohort%cfa = 0.0_r8
+             currentCohort%fraction_crown_burned = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
                 if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft))) then 
-                   currentCohort%cfa = 0.0_r8
+                   currentCohort%fraction_crown_burned = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
@@ -891,21 +891,21 @@ contains
                    if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH >=  &
                         (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)))) then 
 
-                           currentCohort%cfa =  (currentPatch%SH-currentCohort%hite*(1- &
+                           currentCohort%fraction_crown_burned =  (currentPatch%SH-currentCohort%hite*(1- &
                                 EDPftvarcon_inst%crown(currentCohort%pft)))/(currentCohort%hite* &
                                 EDPftvarcon_inst%crown(currentCohort%pft)) 
 
                    else 
                       ! Flames over top of canopy. 
-                      currentCohort%cfa =  1.0_r8 
+                      currentCohort%fraction_crown_burned =  1.0_r8 
                    endif
 
                 endif
                 ! Check for strange values. 
-                currentCohort%cfa = min(1.0_r8, max(0.0_r8,currentCohort%cfa))              
+                currentCohort%fraction_crown_burned = min(1.0_r8, max(0.0_r8,currentCohort%fraction_crown_burned))              
              endif !trees only
              !shrink canopy to account for burnt section.     
-             !currentCohort%canopy_trim = min(currentCohort%canopy_trim,(1.0_r8-currentCohort%cfa)) 
+             !currentCohort%canopy_trim = min(currentCohort%canopy_trim,(1.0_r8-currentCohort%fraction_crown_burned)) 
 
              currentCohort => currentCohort%shorter;
 
@@ -973,7 +973,7 @@ contains
   !*****************************************************************
 
     !  returns the updated currentCohort%fire_mort value for each tree cohort within each patch.
-    !  currentCohort%cfa  proportion of crown affected by fire
+    !  currentCohort%fraction_crown_burned is proportion of crown affected by fire
     !  currentCohort%crownfire_mort  probability of tree post-fire mortality due to crown scorch
     !  currentCohort%cambial_mort  probability of tree post-fire mortality due to cambial char
     !  currentCohort%fire_mort  post-fire mortality from cambial and crown damage assuming two are independent.
@@ -994,7 +994,7 @@ contains
              currentCohort%crownfire_mort = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then
                 ! Equation 22 in Thonicke et al. 2010. 
-                currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%cfa**3.0_r8
+                currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 
                 currentCohort%fire_mort = currentCohort%crownfire_mort+currentCohort%cambial_mort- &
                      (currentCohort%crownfire_mort*currentCohort%cambial_mort)  !joint prob.   
