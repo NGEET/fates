@@ -13,6 +13,23 @@ module FatesRestartInterfaceMod
   use FatesInterfaceMod, only : bc_in_type 
   use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
 
+  use FatesInterfaceMod      , only : hlm_parteh_model
+
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : all_carbon_species
+  use PRTGenericMod,          only : carbon12_species
+  use PRTGenericMod,          only : nitrogen_species
+  use PRTGenericMod,          only : phosphorous_species
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : fnrt_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : store_organ
+  use PRTGenericMod,          only : repro_organ
+  use PRTGenericMod,          only : struct_organ
+  use PRTGenericMod,          only : carbon12_species
+  use PRTGenericMod,          only : SetState
+  use PRTGenericMod,          only : GetState
+
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
 
@@ -1189,11 +1206,21 @@ contains
                    write(fates_log(),*) 'CLTV upperbound  ', ubound(rio_npp_acc_co,1)
                 endif
              
-                rio_bsw_co(io_idx_co)          = ccohort%bsw
-                rio_bdead_co(io_idx_co)        = ccohort%bdead
-                rio_bleaf_co(io_idx_co)        = ccohort%bl
-                rio_broot_co(io_idx_co)        = ccohort%br
-                rio_bstore_co(io_idx_co)       = ccohort%bstore
+                select case(hlm_parteh_model)
+                case (1)
+
+                   rio_bsw_co(io_idx_co)    = ccohort%prt%GetState(sapw_organ, carbon12_species )
+                   rio_bdead_co(io_idx_co)  = ccohort%prt%GetState(struct_organ, carbon12_species )
+                   rio_bleaf_co(io_idx_co)  = ccohort%prt%GetState(leaf_organ, carbon12_species )
+                   rio_broot_co(io_idx_co)  = ccohort%prt%GetState(fnrt_organ, carbon12_species )
+                   rio_bstore_co(io_idx_co) = ccohort%prt%GetState(store_organ, carbon12_species )
+
+                case DEFAULT
+                   write(fates_log(),*) 'You specified an unknown PRT module'
+                   write(fates_log(),*) 'Aborting'
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end select
+    
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
@@ -1421,6 +1448,8 @@ contains
      integer                           :: idx_pa        ! local patch index
      integer                           :: io_idx_si     ! global site index in IO vector
      integer                           :: io_idx_co_1st ! global cohort index in IO vector
+     real(r8)                          :: b_dead        ! dummy structural biomass (kgC)
+     real(r8)                          :: b_store       ! dummy storage carbon (kgC)
      real(r8)                          :: b_leaf        ! leaf biomass dummy var (kgC)
      real(r8)                          :: b_fineroot    ! fineroot dummy var (kgC)
      real(r8)                          :: b_sapwood     ! sapwood dummy var (kgC)
@@ -1495,8 +1524,7 @@ contains
                 allocate(temp_cohort)
                 
                 temp_cohort%n = 700.0_r8
-                temp_cohort%bdead = 0.0_r8
-                temp_cohort%bstore = 0.0_r8
+                
                 temp_cohort%laimemory = 0.0_r8
                 temp_cohort%canopy_trim = 1.0_r8
                 temp_cohort%canopy_layer = 1.0_r8
@@ -1514,14 +1542,16 @@ contains
                    write(fates_log(),*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
                 end if
 
+                b_dead     = 0.0_r8
+                b_store    = 0.0_r8
                 b_leaf     = 0.0_r8
                 b_fineroot = 0.0_r8
                 b_sapwood  = 0.0_r8
                 site_spread = 0.5_r8
                 call create_cohort(sites(s),newp, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-                     b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
-                     temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, newp%NCL_p, &
-                     site_spread, bc_in(s))
+                      b_leaf, b_fineroot, b_sapwood, b_dead, b_store,  &
+                      temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, newp%NCL_p, &
+                      site_spread, bc_in(s))
                 
                 deallocate(temp_cohort)
                 
@@ -1761,11 +1791,25 @@ contains
                    write(fates_log(),*) 'CVTL io_idx_co ',io_idx_co
                 endif
 
-                ccohort%bsw          = rio_bsw_co(io_idx_co)
-                ccohort%bdead        = rio_bdead_co(io_idx_co)
-                ccohort%bl           = rio_bleaf_co(io_idx_co)
-                ccohort%br           = rio_broot_co(io_idx_co)
-                ccohort%bstore       = rio_bstore_co(io_idx_co)
+                select case(hlm_parteh_model)
+                case (1)
+                   
+                   call SetState(new_cohort%prt,leaf_organ, carbon12_species, rio_bleaf_co(io_idx_co))
+                   call SetState(new_cohort%prt,fnrt_organ, carbon12_species, rio_broot_co(io_idx_co))
+                   call SetState(new_cohort%prt,sapw_organ, carbon12_species, rio_bsw_co(io_idx_co))
+                   call SetState(new_cohort%prt,store_organ, carbon12_species, rio_bstore_co(io_idx_co))
+                   call SetState(new_cohort%prt,struct_organ , carbon12_species, rio_bdead_co(io_idx_co))
+                   call SetState(new_cohort%prt,repro_organ , carbon12_species, 0.0_r8)
+
+                case DEFAULT
+                   write(fates_log(),*) 'You specified an unknown PRT module'
+                   write(fates_log(),*) 'Aborting'
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end select
+
+
+                end  select
+
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)

@@ -609,6 +609,10 @@ contains
     integer             :: n_vars
     integer             :: i_var
     
+    ! Check to see if there is any value in these pools?
+    ! SHould not deallocate if there is any carbon left
+
+
     n_vars = size(this%variables,1)
     
     do i_var = 1, n_vars
@@ -1027,59 +1031,20 @@ contains
          
          organ_id = this%prt_instance%state_descriptor(i_var)%organ_id
          spec_id = this%prt_instance%state_descriptor(i_var)%spec_id
-         
-         select case(organ_id)
-         case(leaf_organ)
 
-            base_turnover = leaf_turnover
-            if ( any(spec_id == carbon_species) ) then
-               retrans = 0.0_r8
-            else if( spec_id == nitrogen_species ) then
-               retrans = EDPftvarcon_inst%turnover_retrans_leaf_n_p1(ipft)
-            else if( spec_id == phosphorous_species ) then
-               retrans = EDPftvarcon_inst%turnover_retrans_leaf_p_p1(ipft)
-            else
-               write(fates_log(),*) 'Please add a new re-translocation clause to your '
-               write(fates_log(),*) ' organ x species combination'
-               write(fates_log(),*) ' organ: ',leaf_organ,' species: ',spec_id
-               write(fates_log(),*) 'Exiting'
-               call endrun(msg=errMsg(__FILE__, __LINE__))
-            end if
-
-         case(fnrt_organ)
-            
-            base_turnover = fnrt_turnover
-            if ( any(spec_id == carbon_species) ) then
-               retrans = 0.0_r8
-            else if( spec_id == nitrogen_species ) then
-               retrans = EDPftvarcon_inst%turnover_retrans_fnrt_n_p1(ipft)
-            else if( spec_id == phosphorous_species ) then
-               retrans = EDPftvarcon_inst%turnover_retrans_fnrt_p_p1(ipft)
-            else 
-               write(fates_log(),*) 'Please add a new re-translocation clause to your '
-               write(fates_log(),*) ' organ x species combination'
-               write(fates_log(),*) ' organ: ',leaf_organ,' species: ',spec_id
-               write(fates_log(),*) 'Exiting'
-               call endrun(msg=errMsg(__FILE__, __LINE__))
-            end if
-
-         case(sapw_organ)
-            base_turnover = sapw_turnover
-            retrans       = 0.0_r8
-         case(store_organ)
-            base_turnover = store_turnover
-            retrans       = 0.0_r8
-         case(struct_organ)
-            base_turnover = struct_turnover
-            retrans       = 0.0_r8
-         case(repro_organ)
-            base_turnover = repro_turnover 
-            retrans       = 0.0_r8
-         case default
-            write(fates_log(),*) 'Strange organ issued during turnover'
+         if ( any(spec_id == carbon_species) ) then
+            retrans = 0.0_r8
+         else if( spec_id == nitrogen_species ) then
+            retrans = EDPftvarcon_inst%turnover_n_retrans_p1(ipft,organ_id)
+         else if( spec_id == phosphorous_species ) then
+            retrans = EDPftvarcon_inst%turnover_p_retrans_p1(ipft,organ_id)
+         else
+            write(fates_log(),*) 'Please add a new re-translocation clause to your '
+            write(fates_log(),*) ' organ x species combination'
+            write(fates_log(),*) ' organ: ',leaf_organ,' species: ',spec_id
             write(fates_log(),*) 'Exiting'
             call endrun(msg=errMsg(__FILE__, __LINE__))
-         end select
+         end if
 
          ! Loop over all of the coordinate ids
 

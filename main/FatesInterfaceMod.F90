@@ -104,6 +104,10 @@ module FatesInterfaceMod
                                                 ! compare it to our maxpatchpersite,
                                                 ! and gracefully halt if we are over-allocating
 
+   integer, protected :: hlm_parteh_model  ! This flag signals which Plant Allocation and Reactive
+                                           ! Transport (exensible) Hypothesis (PARTEH) to use
+
+
    integer, protected :: hlm_use_vertsoilc ! This flag signals whether or not the 
                                            ! host model is using vertically discretized
                                            ! soil carbon
@@ -1211,6 +1215,7 @@ contains
          hlm_ipedof       = unset_int
          hlm_max_patch_per_site = unset_int
          hlm_use_vertsoilc = unset_int
+         hlm_parteh_model  = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_logging   = unset_int
@@ -1372,6 +1377,13 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_parteh_model .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch deciding which plant reactive transport model to use'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_vertsoilc .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc, exiting'
@@ -1448,6 +1460,12 @@ contains
                hlm_use_vertsoilc = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_vertsoilc= ',ival,' to FATES'
+               end if
+               
+            case('parteh_model')
+               hlm_parteh_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_parteh_model= ',ival,' to FATES'
                end if
 
             case('use_spitfire')

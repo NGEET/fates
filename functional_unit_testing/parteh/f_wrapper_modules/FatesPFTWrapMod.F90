@@ -98,10 +98,8 @@ module EDPftvarcon
      
      ! THese are new, but not necessarily PARTEH labeled
      real(r8), pointer :: turnover_retrans_mode(:)
-     real(r8), pointer :: turnover_retrans_leaf_n_p1(:)
-     real(r8), pointer :: turnover_retrans_leaf_p_p1(:)
-     real(r8), pointer :: turnover_retrans_fnrt_n_p1(:)
-     real(r8), pointer :: turnover_retrans_fnrt_p_p1(:)
+     real(r8), pointer :: turnover_n_retrans_p1(:,:)
+     real(r8), pointer :: turnover_p_retrans_p1(:,:)
 
 
   end type EDPftvarcon_inst_type
@@ -542,29 +540,17 @@ contains
     EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_retrans_mode"
     EDPftvarcon_ptr%var(iv)%rp_1d => EDPftvarcon_inst%turnover_retrans_mode
 
-    allocate( EDPftvarcon_inst%turnover_retrans_leaf_n_p1(1:num_pft) )
-    EDPftvarcon_inst%turnover_retrans_leaf_n_p1(:) = nana
+    allocate( EDPftvarcon_inst%turnover_n_retrans_p1(1:num_pft,1:num_organs) )
+    EDPftvarcon_inst%turnover_n_retrans_p1(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_retrans_leaf_n_p1"
-    EDPftvarcon_ptr%var(iv)%rp_1d => EDPftvarcon_inst%turnover_retrans_leaf_n_p1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_n_retrans_p1"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_n_retrans_p1
     
-    allocate( EDPftvarcon_inst%turnover_retrans_leaf_p_p1(1:num_pft) )
-    EDPftvarcon_inst%turnover_retrans_leaf_p_p1(:) = nana
+    allocate( EDPftvarcon_inst%turnover_p_retrans_p1(1:num_pft,1:num_organs) )
+    EDPftvarcon_inst%turnover_p_retrans_p1(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_retrans_leaf_p_p1"
-    EDPftvarcon_ptr%var(iv)%rp_1d => EDPftvarcon_inst%turnover_retrans_leaf_p_p1
-
-    allocate( EDPftvarcon_inst%turnover_retrans_fnrt_n_p1(1:num_pft) )
-    EDPftvarcon_inst%turnover_retrans_fnrt_n_p1(:) = nana
-    iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_retrans_fnrt_n_p1"
-    EDPftvarcon_ptr%var(iv)%rp_1d => EDPftvarcon_inst%turnover_retrans_fnrt_n_p1
-
-    allocate( EDPftvarcon_inst%turnover_retrans_fnrt_p_p1(1:num_pft) )
-    EDPftvarcon_inst%turnover_retrans_fnrt_p_p1(:) = nana
-    iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_retrans_fnrt_p_p1"
-    EDPftvarcon_ptr%var(iv)%rp_1d => EDPftvarcon_inst%turnover_retrans_fnrt_p_p1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_p_retrans_p1"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_p_retrans_p1
 
 
     ! We should gracefully fail if rootprof_beta is requested

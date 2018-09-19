@@ -5,6 +5,7 @@ dimensions:
 	fates_history_height_bins = 6 ;
 	fates_history_size_bins = 13 ;
 	fates_hydr_organs = 4 ;
+	fates_prt_organs  = 6 ;
 	fates_litterclass = 6 ;
 	fates_pft = 2 ;
 	fates_scalar = 1 ;
@@ -170,6 +171,43 @@ variables:
 	float fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr-1" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
+
+	float fates_prt_unit_gr_resp(fates_prt_organs,fates_pft) ;
+		fates_prt_unit_gr_resp:units = "kgC/kgC" ;
+		fates_prt_unit_gr_resp:long_name = "Unit growth respiration rate per organ" ;
+
+	float fates_prt_nitr_stoich_p1(fates_prt_organs,fates_pft) ;
+		fates_prt_nitr_stoich_p1:units = "na" ;
+		fates_prt_nitr_stoich_p1:long_name = "nitrogen stoichiometry, parameter 1 (hypothesis dependant meaning)" ;
+
+	float fates_prt_nitr_stoich_p2(fates_prt_organs,fates_pft) ;
+		fates_prt_nitr_stoich_p2:units = "na" ;
+		fates_prt_nitr_stoich_p2:long_name = "nitrogen stoichiometry, parameter 2 (hypothesis dependant meaning)" ;
+
+	float fates_prt_phos_stoich_p1(fates_prt_organs,fates_pft) ;
+		fates_prt_phos_stoich_p1:units = "na" ;
+		fates_prt_phos_stoich_p1:long_name = "phosphorous stoichiometry, parameter 1 (hypothesis dependant meaning)" ;
+
+	float fates_prt_phos_stoich_p2(fates_prt_organs,fates_pft) ;
+		fates_prt_phos_stoich_p2:units = "na" ;
+		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2 (hypothesis dependant meaning)" ;
+
+	float fates_prt_alloc_priority(fates_prt_organs,fates_pft) ;
+		fates_prt_alloc_priority:units = "index (0-fates_prt_organs)" ;
+		fates_prt_alloc_priority:long_name = "Priority order for allocation" ;
+
+	float fates_turnover_retrans_mode(fates_pft) ;
+		fates_turnover_retrans_mode:units = "index" ;
+		fates_turnover_retrans_mode:long_name = "retranslocation method for leaf/fineroot turnover" ;
+
+	float fates_turnover_nitr_retrans_p1(fates_prt_organs,fates_pft) ;
+		fates_turnover_nitr_retrans_p1:units = "na" ;
+		fates_turnover_nitr_retrans_p1:long_name = "retranslocation of nitrogen in turnover, parameter 1 (hypothesis dependant meaning)" ;
+
+	float fates_turnover_phos_retrans_p1(fates_prt_organs,fates_pft) ;
+		fates_turnover_phos_retrans_p1:units = "na" ;
+		fates_turnover_phos_retrans_p1:long_name = "retranslocation of phosphorous in turnover, parameter 1 (hypothesis dependant meaning)" ;
+
 	float fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
 		fates_c2b:long_name = "Carbon to biomass multiplier of bulk structural tissues" ;
@@ -708,6 +746,73 @@ data:
  fates_allom_stmode = 1, 1 ;
 
  fates_branch_turnover = 50, 50 ;
+
+ fates_prt_unit_gr_resp = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_nitr_stoich_p1 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_nitr_stoich_p2 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_phos_stoich_p1 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_phos_stoich_p2 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_alloc_priority = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_turnover_retrans_mode = 
+  1, 1;
+
+ fates_turnover_nitr_retrans_p1 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_turnover_phos_retrans_p1 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
 
  fates_c2b = 2, 2 ;
 

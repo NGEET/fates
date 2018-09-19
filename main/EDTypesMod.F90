@@ -5,6 +5,7 @@ module EDTypesMod
   use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
+  use PRTGenericMod,         only : prt_vartypes
 
   implicit none
   save
@@ -132,22 +133,23 @@ module EDTypesMod
      type (ed_patch_type)  , pointer :: patchptr => null()       ! pointer to patch that cohort is in
 
 
+     
+     ! Multi-species, multi-organ Plant Reactive Transport (PRT)
+     ! Contains carbon and nutrient state variables for various plant organs
+
+     class(prt_vartypes), pointer :: prt
+
      ! VEGETATION STRUCTURE
      integer  ::  pft                                    ! pft number
      real(r8) ::  n                                      ! number of individuals in cohort per 'area' (10000m2 default)
      real(r8) ::  dbh                                    ! dbh: cm
      real(r8) ::  hite                                   ! height: meters
      integer  ::  indexnumber                            ! unique number for each cohort. (within clump?)
-     real(r8) ::  bdead                                  ! dead biomass:  kGC per indiv
-     real(r8) ::  bstore                                 ! stored carbon: kGC per indiv
      real(r8) ::  laimemory                              ! target leaf biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
      real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort
                                                          ! (1 = canopy, 2 = understorey, etc.)  
                                                          ! real to be conservative during fusion
-     real(r8) ::  bsw                                    ! sapwood in stem and roots: kGC per indiv
-     real(r8) ::  bl                                     ! leaf biomass: kGC per indiv
-     real(r8) ::  br                                     ! fine root biomass: kGC per indiv
      real(r8) ::  lai                                    ! leaf area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
      real(r8) ::  sai                                    ! stem area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
      real(r8) ::  g_sb_laweight                          ! Total conductance (stomata+boundary layer) of the cohort, weighted by its leaf area [m/s]*[m2]
@@ -608,19 +610,8 @@ module EDTypesMod
      
   end type ed_site_type
 
-contains
 
-   function b_total(this)
 
-      ! Calculate total plant biomass
-
-      implicit none
-      class(ed_cohort_type), intent(inout) :: this
-      real(r8)  :: b_total
-
-      b_total = this%bl + this%br + this%bsw + this%bdead + this%bstore
-      
-   end function b_total
    
   ! =====================================================================================
 
@@ -750,13 +741,16 @@ contains
      write(fates_log(),*) 'co%pft                    = ', ccohort%pft
      write(fates_log(),*) 'co%n                      = ', ccohort%n                         
      write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh                                        
-     write(fates_log(),*) 'co%hite                   = ', ccohort%hite                                
-     write(fates_log(),*) 'co%bdead                  = ', ccohort%bdead                          
-     write(fates_log(),*) 'co%bstore                 = ', ccohort%bstore
+     write(fates_log(),*) 'co%hite                   = ', ccohort%hite
      write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
-     write(fates_log(),*) 'co%bsw                    = ', ccohort%bsw                  
-     write(fates_log(),*) 'co%bl                     = ', ccohort%bl
-     write(fates_log(),*) 'co%br                     = ', ccohort%br
+     
+     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_species) 
+     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,all_carbon_species) 
+     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,all_carbon_species) 
+     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,all_carbon_species) 
+     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,all_carbon_species) 
+     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,all_carbon_species) 
+
      write(fates_log(),*) 'co%lai                    = ', ccohort%lai                         
      write(fates_log(),*) 'co%sai                    = ', ccohort%sai  
      write(fates_log(),*) 'co%g_sb_laweight          = ', ccohort%g_sb_laweight

@@ -43,7 +43,7 @@ module EDPftvarcon
      real(r8), allocatable :: initd              (:) ! initial seedling density 
      real(r8), allocatable :: seed_rain          (:) ! seeds that come from outside the gridbox.
      real(r8), allocatable :: BB_slope           (:) ! ball berry slope parameter
-     real(r8), allocatable :: root_long          (:) ! root longevity (yrs)
+     
      real(r8), allocatable :: seed_alloc_mature  (:) ! fraction of carbon balance allocated to clonal reproduction.
      real(r8), allocatable :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds.
      real(r8), allocatable :: c2b                (:) ! Carbon to biomass multiplier [kg/kgC]
@@ -53,7 +53,7 @@ module EDPftvarcon
      real(r8), allocatable :: evergreen(:)
      real(r8), allocatable :: slamax(:)
      real(r8), allocatable :: slatop(:)
-     real(r8), allocatable :: leaf_long(:)
+     
      real(r8), allocatable :: roota_par(:)
      real(r8), allocatable :: rootb_par(:)
      real(r8), allocatable :: lf_flab(:)
@@ -93,7 +93,7 @@ module EDPftvarcon
      real(r8), allocatable :: tpuse(:)
      real(r8), allocatable :: germination_timescale(:)
      real(r8), allocatable :: seed_decay_turnover(:)
-     real(r8), allocatable :: branch_turnover(:)         ! Turnover time for branchfall on live trees [yr-1]
+     
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
      real(r8), allocatable :: rhol(:, :)
@@ -155,6 +155,25 @@ module EDPftvarcon
                                                                  ! prescribed_physiology_mode
      real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the special 
                                                                  ! prescribed_physiology_mode
+
+     
+     ! Plant Reactive Transport (allocation)
+
+     real(r8), allocatable :: prt_unit_gr_resp(:,:)    ! Unit growth respiration (pft x organ) [kgC/kgC]
+     real(r8), allocatable :: prt_nitr_stoich_p1(:,:)     ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_nitr_stoich_p2(:,:)     ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_phos_stoich_p1(:,:)     ! Parameter 1 for phosphorous stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_phos_stoich_p2(:,:)     ! Parameter 2 for phosphorous stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_alloc_priority(:,:)  ! Allocation priority for each organ (pft x organ) [integer 0-6]
+
+     ! Turnover related things
+
+     real(r8), allocatable :: leaf_long(:)                ! Leaf turnover time (longevity) (pft)             [yr]
+     real(r8), allocatable :: root_long(:)                ! root turnover time (longevity) (pft)             [yr]
+     real(r8), allocatable :: branch_turnover(:)          ! Turnover time for branchfall on live trees (pft) [yr]
+     real(r8), allocatable :: turnover_retrans_mode(:)    ! Retranslocation method (pft)
+     real(r8), allocatable :: turnover_nitr_retrans_p1(:,:)  ! Parameter 1 for nitrogen re-translocation (pft x organ)
+     real(r8), allocatable :: turnover_phos_retrans_p1(:,:)  ! Parameter 2 for phosphorous re-translocation (pft x organ)
 
      
      ! Plant Hydraulic Parameters
@@ -370,6 +389,8 @@ contains
     name = 'fates_leaf_long'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+
 
     name = 'fates_roota_par'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -663,6 +684,10 @@ contains
     name = 'fates_seed_decay_turnover'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_turnover_retrans_mode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_branch_turnover'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -1103,6 +1128,10 @@ contains
     name = 'fates_branch_turnover'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%branch_turnover)
+    
+    name = 'fates_turnover_retrans_mode'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%turnover_retrans_mode)
 
     name = 'fates_trim_limit'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1346,6 +1375,115 @@ contains
 
   ! -----------------------------------------------------------------------
   
+  subroutine Register_PFT_prt_organs(this, fates_params)
+
+    use FatesParametersInterface, only : fates_parameters_type, param_string_length
+    use FatesParametersInterface, only : max_dimensions, dimension_name_prt_organs
+    use FatesParametersInterface, only : dimension_name_pft, dimension_shape_2d
+
+    implicit none
+
+    class(EDPftvarcon_type), intent(inout) :: this
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    integer, parameter :: dim_lower_bound(2) = (/ lower_bound_pft, lower_bound_general /)
+    character(len=param_string_length) :: dim_names(2)
+    character(len=param_string_length) :: name
+
+    ! NOTE(bja, 2017-01) initialization doesn't seem to work correctly
+    ! if dim_names has a parameter qualifier.
+    dim_names(1) = dimension_name_pft
+    dim_names(2) = dimension_name_prt_organs
+
+    name = 'fates_prt_unit_gr_resp'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prt_nitr_stoich_p1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prt_nitr_stoich_p2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prt_phos_stoich_p1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prt_phos_stoich_p2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prt_alloc_priority'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    
+    
+    name = 'fates_turnover_nitr_retrans_p1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_turnover_phos_retrans_p1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    
+  end subroutine Register_PFT_prt_organs
+
+  ! =====================================================================================
+
+  subroutine Receive_PFT_prt_organs(this, fates_params)
+     
+     use FatesParametersInterface, only : fates_parameters_type
+     use FatesParametersInterface, only : param_string_length
+     
+     implicit none
+     
+     class(EDPftvarcon_type), intent(inout) :: this
+     class(fates_parameters_type), intent(inout) :: fates_params
+     
+     character(len=param_string_length) :: name
+
+     name = 'fates_prt_unit_gr_resp'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%prt_unit_gr_resp)
+
+     name = 'fates_prt_nitr_stoich_p1'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%prt_nitr_stoich_p1)
+
+     name = 'fates_prt_nitr_stoich_p2'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%prt_nitr_stoich_p2)
+     
+     name = 'fates_prt_phos_stoich_p1'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%prt_phos_stoich_p1)
+
+     name = 'fates_prt_phos_stoich_p2'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%prt_phos_stoich_p2)
+    
+     name = 'fates_prt_alloc_priority'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%prt_alloc_priority)
+
+     
+
+     name = 'fates_turnover_nitr_retrans_p1'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%turnover_nitr_retrans_p1)
+
+     name = 'fates_turnover_phos_retrans_p1'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%turnover_phos_retrans_p1)
+
+  end subroutine Receive_PFT_hydr_organs
+
+  ! -----------------------------------------------------------------------
+  
   subroutine Register_PFT_hydr_organs(this, fates_params)
 
     use FatesParametersInterface, only : fates_parameters_type, param_string_length
@@ -1576,6 +1714,7 @@ contains
         write(fates_log(),fmt0) 'allom_agb2 = ',EDPftvarcon_inst%allom_agb2
         write(fates_log(),fmt0) 'allom_agb3 = ',EDPftvarcon_inst%allom_agb3
         write(fates_log(),fmt0) 'allom_agb4 = ',EDPftvarcon_inst%allom_agb4
+
         write(fates_log(),fmt0) 'hydr_p_taper = ',EDPftvarcon_inst%hydr_p_taper
         write(fates_log(),fmt0) 'hydr_rs2 = ',EDPftvarcon_inst%hydr_rs2
         write(fates_log(),fmt0) 'hydr_srl = ',EDPftvarcon_inst%hydr_srl
@@ -1591,6 +1730,18 @@ contains
         write(fates_log(),fmt0) 'hydr_fcap_node = ',EDPftvarcon_inst%hydr_fcap_node
         write(fates_log(),fmt0) 'hydr_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
         write(fates_log(),fmt0) 'hydr_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
+        
+        
+        write(fates_log(),fmt0) 'prt_nitr_stoich_p1 = ',EDPftvarcon_inst%prt_nitr_stoich_p1
+        write(fates_log(),fmt0) 'prt_nitr_stoich_p2 = ',EDPftvarcon_inst%prt_nitr_stoich_p2
+        write(fates_log(),fmt0) 'prt_phos_stoich_p1 = ',EDPftvarcon_inst%prt_phos_stoich_p1
+        write(fates_log(),fmt0) 'prt_phos_stoich_p2 = ',EDPftvarcon_inst%prt_phos_stoich_p2
+        write(fates_log(),fmt0) 'prt_unit_gr_resp = ',EDPftvarcon_inst%prt_unit_gr_resp
+        write(fates_log(),fmt0) 'prt_alloc_priority = ',EDPftvarcon_inst%prt_alloc_priority
+
+        write(fates_log(),fmt0) 'turnover_nitr_retrans_p1 = ',EDPftvarcon_inst%turnover_nitr_retrans_p1
+        write(fates_log(),fmt0) 'turnover_phos_retrans_p1 = ',EDPftvarcon_inst%turnover_phos_retrans_p1
+
         write(fates_log(),*) '-------------------------------------------------'
 
      end if

@@ -1682,7 +1682,8 @@ contains
     real(r8) :: b_sapwood     ! sapwood biomass [kgC]
     real(r8) :: b_agw         ! Above ground biomass [kgC]
     real(r8) :: b_bgw         ! Below ground biomass [kgC]
-
+    real(r8) :: b_dead
+    real(r8) :: b_store
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
@@ -1701,8 +1702,8 @@ contains
        call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_sapwood)
        call bagw_allom(temp_cohort%dbh,ft,b_agw)
        call bbgw_allom(temp_cohort%dbh,ft,b_bgw)
-       call bdead_allom(b_agw,b_bgw,b_sapwood,ft,temp_cohort%bdead)
-       call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,temp_cohort%bstore)
+       call bdead_allom(b_agw,b_bgw,b_sapwood,ft,b_dead)
+       call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_store)
 
        temp_cohort%laimemory = 0.0_r8     
        if (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
@@ -1726,7 +1727,7 @@ contains
 
        if (hlm_use_ed_prescribed_phys .eq. ifalse .or. EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0. ) then
           temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
-               / (temp_cohort%bdead+b_leaf+b_fineroot+b_sapwood+temp_cohort%bstore)
+               / (b_dead+b_leaf+b_fineroot+b_sapwood+b_store)
        else
           ! prescribed recruitment rates. number per sq. meter per year
           temp_cohort%n        = currentPatch%area * EDPftvarcon_inst%prescribed_recruitment(ft) * hlm_freq_day
@@ -1734,14 +1735,14 @@ contains
           ! add prescribed rates as an input C flux, and the recruitment that would have otherwise occured as an output flux
           ! (since the carbon associated with them effectively vanishes)
           currentSite%flux_in = currentSite%flux_in + temp_cohort%n * &
-                (temp_cohort%bstore + b_leaf + b_fineroot + b_sapwood + temp_cohort%bdead)
+                (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
           currentSite%flux_out = currentSite%flux_out + currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day
        endif
 
        if (temp_cohort%n > 0.0_r8 )then
           if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
           call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-                b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
+                b_leaf, b_fineroot, b_sapwood, b_dead, b_store, 
                 temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
                 currentSite%spread, bc_in)
 
