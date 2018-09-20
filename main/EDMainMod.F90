@@ -32,6 +32,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : phenology
   use EDPhysiologyMod          , only : recruitment
   use EDPhysiologyMod          , only : trim_canopy
+  use EDPhysiologyMod          , only : ZeroAllocationRates
   use SFMainMod                , only : fire_model 
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use EDtypesMod               , only : ncwd
@@ -108,6 +109,10 @@ contains
     
     !FIX(SPM,032414) take this out.  On startup these values are all zero and on restart it
     !zeros out values read in the restart file
+
+    ! Zero turnover rates and growth diagnostics
+    call ZeroAllocationRates(currentSite)
+
    
     call ed_total_balance_check(currentSite, 0)
     
@@ -239,6 +244,8 @@ contains
     integer  :: ft                    ! Counter for PFT
     real(r8) :: small_no              ! to circumvent numerical errors that cause negative values of things that can't be negative
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
+    real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
+    real(r8) :: hite_old              ! height of plant before daily PRT [m]
     !-----------------------------------------------------------------------
 
     small_no = 0.0000000000_r8  ! Obviously, this is arbitrary.  RF - changed to zero
@@ -268,9 +275,59 @@ contains
           ! Calculate the mortality derivatives
           call Mortality_Derivative( currentSite, currentCohort, bc_in )
 
+          ! -----------------------------------------------------------------------------
+          ! Apply Plant Allocation and Reactive Transport
+          ! -----------------------------------------------------------------------------
 
-          ! Apply growth to potentially all carbon pools
-          call PlantGrowth( currentSite, currentCohort, bc_in )
+          hite_old = currentCohort%hite
+          dbh_old  = currentCohort%dbh
+
+          ! -----------------------------------------------------------------------------
+          !  Identify the net carbon gain for this dynamics interval
+          !    Set the available carbon pool, identify allocation portions, and 
+          !    decrement the available carbon pool to zero.
+          ! -----------------------------------------------------------------------------
+          !
+          ! convert from kgC/indiv/day into kgC/indiv/year
+          ! <x>_acc_hold is remembered until the next dynamics step (used for I/O)
+          ! <x>_acc will be reset soon and will be accumulated on the next leaf 
+          !         photosynthesis step
+          ! -----------------------------------------------------------------------------
+          
+          if (hlm_use_ed_prescribed_phys .eq. itrue) then
+             if (currentCohort%canopy_layer .eq. 1) then
+                currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ipft) &
+                     * currentCohort%c_area / currentCohort%n
+                ! add these for balance checking purposes
+                currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year 
+             else
+                currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ipft) &
+                     * currentCohort%c_area / currentCohort%n
+                ! add these for balance checking purposes
+                currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year
+             endif
+          else
+             currentCohort%npp_acc_hold  = currentCohort%npp_acc  * dble(hlm_days_per_year)
+             currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * dble(hlm_days_per_year)
+             currentCohort%resp_acc_hold = currentCohort%resp_acc * dble(hlm_days_per_year)
+          endif
+          
+          currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
+
+          call currentCohort%prt%DailyPRT()
+
+          ! Transfer all reproductive tissues into seed production
+          currentCohort%seed_prod = currentCohort%prt%GetState(repro_organ,all_carbon_species) / hlm_freq_day
+          call SetState(currentCohort%prt,repro_organ,carbon12_species,0.0_r8)
+
+          ! This cohort has grown, it is no longer "new"
+          currentCohort%is_new = .false.
+          
+          ! Update the plant height (if it has grown)
+          call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+          
+          currentCohort%dhdt      = (currentCohort%hite-hite_old)/hlm_freq_day
+          currentCohort%ddbhdt    = (currentCohort%dbh-dbh_old)/hlm_freq_day
 
           ! Carbon assimilate has been spent at this point
           ! and can now be safely zero'd
@@ -522,15 +579,17 @@ contains
              write(fates_log(),*)'---'
              currentCohort => currentPatch%tallest
              do while(associated(currentCohort))
-                write(fates_log(),*) currentCohort%bdead,currentCohort%bstore,currentCohort%n
+                write(fates_log(),*) 'structure: ',currentCohort%prt%GetState(struct_organ,all_carbon_species)
+                write(fates_log(),*) 'storage: ',currentCohort%prt%GetState(storage_organ,all_carbon_species)
+                write(fates_log(),*) 'N plant: ',currentCohort%n
                 currentCohort => currentCohort%shorter;
              enddo !end cohort loop 
              currentPatch => currentPatch%younger
           enddo !end patch loop
        end if
-
+       
        write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
-
+       
        ! If this is the first day of simulation, carbon balance reports but does not end the run
        if( int(hlm_current_year*10000 + hlm_current_month*100 + hlm_current_day).ne.hlm_reference_date ) then
           write(fates_log(),*) 'aborting on date:',hlm_current_year,hlm_current_month,hlm_current_day

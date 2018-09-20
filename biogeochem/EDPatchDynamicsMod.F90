@@ -38,6 +38,24 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : years_per_day
   use FatesConstantsMod    , only : nearzero
 
+  use EDCohortDynamicsMod  , only : InitPRTCohort
+
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : all_carbon_species
+  use PRTGenericMod,          only : carbon12_species
+  use PRTGenericMod,          only : nitrogen_species
+  use PRTGenericMod,          only : phosphorous_species
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : fnrt_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : store_organ
+  use PRTGenericMod,          only : repro_organ
+  use PRTGenericMod,          only : struct_organ
+  use PRTGenericMod,          only : carbon12_species
+  use PRTGenericMod,          only : SetState
+
+
+
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -312,6 +330,12 @@ contains
     real(r8) :: leaf_litter_local(maxpft)    ! initial value of leaf litter. KgC/m2
     real(r8) :: cwd_ag_local(ncwd)           ! initial value of above ground coarse woody debris. KgC/m2
     real(r8) :: cwd_bg_local(ncwd)           ! initial value of below ground coarse woody debris. KgC/m2
+    real(r8) :: leaf_c                       ! leaf carbon [kg]
+    real(r8) :: fnrt_c               ! fineroot carbon [kg]
+    real(r8) :: sapw_c               ! sapwood carbon [kg]
+    real(r8) :: store_c              ! storage carbon [kg]
+    real(r8) :: struct_c             ! structure carbon [kg]
+    real(r8) :: total_c              ! total carbon of plant [kg]
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -385,6 +409,7 @@ contains
 
              allocate(nc)             
              if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
+             call InitPRTCohort(nc)
              call zero_cohort(nc)
 
              ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
@@ -395,6 +420,15 @@ contains
              ! even if it does, that will be sorted out in canopy_structure. 
              nc%canopy_layer = 1 
              nc%canopy_layer_yesterday = 1._r8 
+
+             sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
+             struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
+             leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
+             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
+             store_c  = currentCohort%prt%GetState(store_organ, all_carbon_species)
+             
+             total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
+
 
              ! treefall mortality is the dominant disturbance
              if(currentPatch%disturbance_rates(dtype_ifall) > currentPatch%disturbance_rates(dtype_ifire) .and. &
@@ -439,9 +473,12 @@ contains
                       currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) = &
                            currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) + &
                            nc%n * ED_val_understorey_death / hlm_freq_day
+
+                     
+                      
                       currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
                            (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                           currentCohort%b_total() * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                           total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
                       
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
                       ! remaining of understory plants of those that are knocked over by the overstorey trees dying...  
@@ -565,7 +602,7 @@ contains
                            nc%n * logging_coll_under_frac / hlm_freq_day
                       currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
                            (nc%n * logging_coll_under_frac/ hlm_freq_day ) * &
-                           currentCohort%b_total() * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                           total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
                       
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
@@ -605,7 +642,7 @@ contains
                       nc%bmort            = currentCohort%bmort
                       nc%frmort           = currentCohort%frmort
                       nc%dmort            = currentCohort%dmort
-                      nc%lmort_direct    = currentCohort%lmort_direct
+                      nc%lmort_direct     = currentCohort%lmort_direct
                       nc%lmort_collateral = currentCohort%lmort_collateral
                       nc%lmort_infra      = currentCohort%lmort_infra
                       
@@ -639,8 +676,13 @@ contains
                 new_patch%tallest  => storebigcohort 
                 new_patch%shortest => storesmallcohort   
              else
+
+                ! Get rid of the new temporary cohort
                 if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nc)
-                deallocate(nc) !get rid of the new memory.
+                call nc%prt%DeallocatePRTVartypes()
+                deallocate(nc%prt)
+                deallocate(nc)
+
              endif
 
              currentCohort => currentCohort%taller      
@@ -845,6 +887,11 @@ contains
     real(r8) :: dead_tree_density    ! no trees killed by fire per m2
     reaL(r8) :: burned_litter        ! amount of each litter pool burned by fire.  kgC/m2/day
     real(r8) :: burned_leaves        ! amount of tissue consumed by fire for grass. KgC/individual/day
+    real(r8) :: leaf_c               ! leaf carbon [kg]
+    real(r8) :: fnrt_c               ! fineroot carbon [kg]
+    real(r8) :: sapw_c               ! sapwood carbon [kg]
+    real(r8) :: store_c              ! storage carbon [kg]
+    real(r8) :: struct_c             ! structure carbon [kg]
     integer  :: c, p 
     !---------------------------------------------------------------------
 
@@ -884,15 +931,23 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
           p = currentCohort%pft
+
           if(EDPftvarcon_inst%woody(p) == 1)then !DEAD (FROM FIRE) TREES
              !************************************/ 
              ! Number of trees that died because of the fire, per m2 of ground. 
              ! Divide their litter into the four litter streams, and spread evenly across ground surface. 
              !************************************/  
+
+             sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
+             struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
+             leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
+             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
+             store_c  = currentCohort%prt%GetState(store_organ, all_carbon_species)
+             
              ! stem biomass per tree
-             bstem  = (currentCohort%bsw + currentCohort%bdead) * EDPftvarcon_inst%allom_agb_frac(p)
+             bstem  = (sapw_c + struct_c) * EDPftvarcon_inst%allom_agb_frac(p)
              ! coarse root biomass per tree
-             bcroot = (currentCohort%bsw + currentCohort%bdead) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p) )
+             bcroot = (sapw_c + struct_c) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p) )
              ! density of dead trees per m2. 
              dead_tree_density  = (currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area) / AREA  
              
@@ -903,20 +958,21 @@ contains
              ! Unburned parts of dead tree pool. 
              ! Unburned leaves and roots    
              
-             new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + dead_tree_density * (currentCohort%bl) &
-             * (1.0_r8-currentCohort%cfa)
-             new_patch%root_litter(p) = new_patch%root_litter(p) + dead_tree_density * (currentCohort%br+currentCohort%bstore)
+             new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + dead_tree_density * leaf_c * (1.0_r8-currentCohort%cfa)
+
+             new_patch%root_litter(p) = new_patch%root_litter(p) + dead_tree_density * (fnrt_c+store_c)
+
              currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + dead_tree_density * &
-                  (currentCohort%bl) * (1.0_r8-currentCohort%cfa)
+                  leaf_c * (1.0_r8-currentCohort%cfa)
              currentPatch%root_litter(p) = currentPatch%root_litter(p) + dead_tree_density * &
-                  (currentCohort%br+currentCohort%bstore)
+                  (fnrt_c + store_c)
 
              ! track as diagnostic fluxes
              currentSite%leaf_litter_diagnostic_input_carbonflux(p) = currentSite%leaf_litter_diagnostic_input_carbonflux(p) + &
-                  (currentCohort%bl) * (1.0_r8-currentCohort%cfa) * currentCohort%fire_mort * currentCohort%n * &
+                  leaf_c * (1.0_r8-currentCohort%cfa) * currentCohort%fire_mort * currentCohort%n * &
                   hlm_days_per_year / AREA
              currentSite%root_litter_diagnostic_input_carbonflux(p) = currentSite%root_litter_diagnostic_input_carbonflux(p) + &
-                  (currentCohort%br+currentCohort%bstore) * (1.0_r8-currentCohort%cfa) * currentCohort%fire_mort * &
+                  (fnrt_c + store_c) * (1.0_r8-currentCohort%cfa) * currentCohort%fire_mort * &
                   currentCohort%n * hlm_days_per_year / AREA
       
              ! below ground coarse woody debris from burned trees
@@ -971,11 +1027,13 @@ contains
              do p = 1,numpft                  
 
                 currentSite%leaf_litter_burned(p) = currentSite%leaf_litter_burned(p) + &
-                     dead_tree_density * currentCohort%bl * currentCohort%cfa
+                     dead_tree_density * leaf_c * currentCohort%cfa
+
                 currentSite%flux_out  = currentSite%flux_out + &
-                     dead_tree_density * AREA * currentCohort%bl * currentCohort%cfa
+                     dead_tree_density * AREA * leaf_c * currentCohort%cfa
+
                 currentSite%total_burn_flux_to_atm  = currentSite%total_burn_flux_to_atm + &
-                     dead_tree_density * AREA * currentCohort%bl * currentCohort%cfa
+                     dead_tree_density * AREA * leaf_c * currentCohort%cfa
 
              enddo
 
@@ -993,19 +1051,24 @@ contains
        currentCohort => new_patch%shortest
        do while(associated(currentCohort))
 
+          sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
+          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
+
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-             burned_leaves = min(currentCohort%bl, (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa)
+             burned_leaves = min(leaf_c, (leaf_c + sapw_c) * currentCohort%cfa)
           else
-             burned_leaves = min(currentCohort%bl, (currentCohort%bl+currentCohort%bsw) * currentPatch%burnt_frac_litter(6))
+             burned_leaves = min(leaf_c, (leaf_c + sapw_c) * currentPatch%burnt_frac_litter(6))
           endif
           if (burned_leaves > 0.0_r8) then
 
-             currentCohort%bl     = currentCohort%bl - burned_leaves
+             ! Remove burned leaves from the pool
+             call SetState(currentCohort%prt,leaf_organ, carbon12_species, leaf_c - burned_leaves )
 
              !KgC/gridcell/day
              currentSite%flux_out = currentSite%flux_out + burned_leaves * currentCohort%n * &
                   patch_site_areadis/currentPatch%area * AREA 
+
              currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm+ burned_leaves * currentCohort%n * &
                   patch_site_areadis/currentPatch%area * AREA 
 
@@ -1045,6 +1108,11 @@ contains
     real(r8) :: understorey_dead  !Number of individual dead from the canopy layer /day
     real(r8) :: canopy_dead       !Number of individual dead from the understorey layer /day
     real(r8) :: np_mult           !Fraction of the new patch which came from the current patch (and so needs the same litter) 
+    real(r8) :: leaf_c               ! leaf carbon [kg]
+    real(r8) :: fnrt_c               ! fineroot carbon [kg]
+    real(r8) :: sapw_c               ! sapwood carbon [kg]
+    real(r8) :: store_c              ! storage carbon [kg]
+    real(r8) :: struct_c             ! structure carbon [kg]
     integer :: p,c
     real(r8) :: canopy_mortality_woody_litter(maxpft)    ! flux of wood litter in to litter pool: KgC/m2/day
     real(r8) :: canopy_mortality_leaf_litter(maxpft)     ! flux in to  leaf litter from tree death: KgC/m2/day
@@ -1060,6 +1128,12 @@ contains
     currentCohort => currentPatch%shortest
     do while(associated(currentCohort))       
        p = currentCohort%pft
+       
+       sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
+       struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
+       leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
+       fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
+       store_c  = currentCohort%prt%GetState(store_organ, all_carbon_species)
 
           if(currentCohort%canopy_layer == 1)then         
              !currentCohort%dmort = mortality_rates(currentCohort) 
@@ -1067,12 +1141,14 @@ contains
              !not right to recalcualte dmort here.
              canopy_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * hlm_freq_day * fates_mortality_disturbance_fraction)
 
+
+
              canopy_mortality_woody_litter(p)= canopy_mortality_woody_litter(p) + &
-                  canopy_dead*(currentCohort%bdead+currentCohort%bsw)
+                  canopy_dead*(struct_c + sapw_c)
              canopy_mortality_leaf_litter(p) = canopy_mortality_leaf_litter(p) + &
-                  canopy_dead*(currentCohort%bl)
+                  canopy_dead*leaf_c
              canopy_mortality_root_litter(p) = canopy_mortality_root_litter(p) + &
-                  canopy_dead*(currentCohort%br+currentCohort%bstore)
+                  canopy_dead*(fnrt_c + store_c)
 
              if( hlm_use_planthydro == itrue ) then
                 call AccumulateMortalityWaterStorage(currentSite,currentCohort, canopy_dead)
@@ -1083,11 +1159,11 @@ contains
 
                 understorey_dead = ED_val_understorey_death * currentCohort%n * (patch_site_areadis/currentPatch%area)  !kgC/site/day
                 canopy_mortality_woody_litter(p) = canopy_mortality_woody_litter(p)  + &
-                     understorey_dead*(currentCohort%bdead+currentCohort%bsw)  
+                     understorey_dead*(struct_c + sapw_c)  
                 canopy_mortality_leaf_litter(p)= canopy_mortality_leaf_litter(p)+ &
-                     understorey_dead* currentCohort%bl 
+                     understorey_dead*leaf_c
                 canopy_mortality_root_litter(p)= canopy_mortality_root_litter(p)+ &
-                      understorey_dead*(currentCohort%br+currentCohort%bstore)
+                      understorey_dead*(fnrt_c + store_c)
                 
                 if( hlm_use_planthydro == itrue ) then
                    call AccumulateMortalityWaterStorage(currentSite,currentCohort, understorey_dead)
@@ -1895,7 +1971,8 @@ contains
 
              currentPatch%pft_agb_profile(currentCohort%pft,j) = &
                   currentPatch%pft_agb_profile(currentCohort%pft,j) + &
-                  currentCohort%bdead*currentCohort%n/currentPatch%area
+                  currentCohort%prt%GetState(struct_organ, all_carbon_species) * &
+                  currentCohort%n/currentPatch%area
 
           endif
        enddo ! dbh bins

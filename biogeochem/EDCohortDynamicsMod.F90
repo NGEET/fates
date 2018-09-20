@@ -22,7 +22,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
   use FatesInterfaceMod      , only : hlm_use_planthydro
-  use FatesInterfaceMod      , only : parteh_model
+  use FatesInterfaceMod      , only : hlm_parteh_model
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
   use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
@@ -156,24 +156,7 @@ contains
     ! Initialize the Plant allocative Reactive Transport (PaRT) module
     ! Choose from one of the extensible hypotheses (EH)
 
-    select case(parteh_model)
-    case (1)
-       
-       allocate(callom_prt)
-       new_cohort%prt => callom_prt
-
-!    case(2)
-       
-!       allocate(cnpallom_prt)
-!       new_cohort%prt => cnpallom_prt
-       
-    case DEFAULT
-       write(fates_log(),*) 'You specified an unknown PRT module'
-       write(fates_log(),*) 'Aborting'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end select
-
-    call ccohort%prt%InitPRTVartype()
+    call InitPRTCohort(new_cohort)
 
     select case(new_cohort%parteh_model)
     case (1)
@@ -269,6 +252,36 @@ contains
 
   end subroutine create_cohort
 
+  ! -------------------------------------------------------------------------------------
+
+  subroutine InitPRTCohort(ccohort)
+
+   ! This subroutine simply allocates and attaches the correct PRT object.
+   ! No meaningful values to are set here.
+   
+   select case(parteh_model)
+    case (1)
+       
+       allocate(callom_prt)
+       new_cohort%prt => callom_prt
+
+!    case(2)
+       
+!       allocate(cnpallom_prt)
+!       new_cohort%prt => cnpallom_prt
+       
+    case DEFAULT
+       write(fates_log(),*) 'You specified an unknown PRT module'
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
+
+    
+    call ccohort%prt%InitPRTVartype()
+
+
+  end subroutine InitPRTCohort
+
   !-------------------------------------------------------------------------------------!
 
   subroutine nan_cohort(cc_p)
@@ -311,12 +324,7 @@ contains
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm                            
     currentCohort%hite               = nan ! height: meters                   
-    currentCohort%bdead              = nan ! dead biomass:  kGC per indiv          
-    currentCohort%bstore             = nan ! stored carbon: kGC per indiv
     currentCohort%laimemory          = nan ! target leaf biomass- set from previous year: kGC per indiv
-    currentCohort%bsw                = nan ! sapwood in stem and roots: kGC per indiv
-    currentCohort%bl                 = nan ! leaf biomass: kGC per indiv       
-    currentCohort%br                 = nan ! fine root biomass: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2      
     currentCohort%sai                = nan ! stem area index of cohort   m2/m2
     currentCohort%g_sb_laweight      = nan ! Total leaf conductance of cohort (stomata+blayer) weighted by leaf-area [m/s]*[m2]
@@ -357,12 +365,6 @@ contains
     currentCohort%froot_mr           = nan ! Fine root maintenance respiration. kgC/indiv/s-1 
 
     ! ALLOCATION
-    currentCohort%md                 = nan ! plant maintenance demand: kgC/indiv/year
-    currentCohort%leaf_md            = nan ! leaf  maintenance demand: kgC/indiv/year
-    currentCohort%root_md            = nan ! root  maintenance demand: kgC/indiv/year
-    currentCohort%bsw_md             = nan
-    currentCohort%bdead_md           = nan
-    currentCohort%bstore_md          = nan
     currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
     currentCohort%lmort_direct       = nan
     currentCohort%lmort_infra        = nan
@@ -393,6 +395,7 @@ contains
   end subroutine nan_cohort
 
   !-------------------------------------------------------------------------------------!
+
   subroutine zero_cohort(cc_p)
     !
     ! !DESCRIPTION:
@@ -431,12 +434,6 @@ contains
     currentcohort%ts_net_uptake(:)   = 0._r8
     currentcohort%seed_prod          = 0._r8
     currentcohort%cfa                = 0._r8 
-    currentcohort%md                 = 0._r8
-    currentcohort%root_md            = 0._r8
-    currentcohort%leaf_md            = 0._r8
-    currentcohort%bstore_md          = 0._r8
-    currentcohort%bsw_md             = 0._r8
-    currentcohort%bdead_md           = 0._r8
     currentcohort%npp_acc_hold       = 0._r8 
     currentcohort%gpp_acc_hold       = 0._r8  
     currentcohort%dmort              = 0._r8 
@@ -764,12 +761,7 @@ contains
                                    write(fates_log(),*) 'Cohort I, Cohort II' 
                                    write(fates_log(),*) 'n:',currentCohort%n,nextc%n
                                    write(fates_log(),*) 'isnew:',currentCohort%isnew,nextc%isnew
-                                   write(fates_log(),*) 'bdead:',currentCohort%bdead,nextc%bdead
-                                   write(fates_log(),*) 'bstore:',currentCohort%bstore,nextc%bstore
                                    write(fates_log(),*) 'laimemory:',currentCohort%laimemory,nextc%laimemory
-                                   write(fates_log(),*) 'bsw:',currentCohort%bsw,nextc%bsw
-                                   write(fates_log(),*) 'bl:',currentCohort%bl ,nextc%bl
-                                   write(fates_log(),*) 'br:',currentCohort%br,nextc%br
                                    write(fates_log(),*) 'hite:',currentCohort%hite,nextc%hite
                                    write(fates_log(),*) 'dbh:',currentCohort%dbh,nextc%dbh
                                    write(fates_log(),*) 'pft:',currentCohort%pft,nextc%pft
@@ -781,19 +773,14 @@ contains
                                             currentCohort%year_net_uptake(i),nextc%year_net_uptake(i)
                                    end do
                                 end if
-                                
-                                currentCohort%bdead       = (currentCohort%n*currentCohort%bdead       &
-                                      + nextc%n*nextc%bdead)/newn
-                                currentCohort%bstore      = (currentCohort%n*currentCohort%bstore      &
-                                      + nextc%n*nextc%bstore)/newn   
+
+
+                                ! Fuse all mass pools
+                                call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, nextc%n/newn )
+
                                 currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                       + nextc%n*nextc%laimemory)/newn
-                                currentCohort%bsw         = (currentCohort%n*currentCohort%bsw         &
-                                      + nextc%n*nextc%bsw)/newn
-                                currentCohort%bl          = (currentCohort%n*currentCohort%bl          &
-                                      + nextc%n*nextc%bl)/newn
-                                currentCohort%br          = (currentCohort%n*currentCohort%br          &
-                                      + nextc%n*nextc%br)/newn
+
                                 currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
                                       + nextc%n*nextc%dbh)/newn
 
@@ -811,7 +798,7 @@ contains
                                 ! -----------------------------------------------------------------
                                 
                                 if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
-                                   call StructureResetOfDH( currentCohort%bdead, currentCohort%pft, &
+                                   call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,carbon12_species), currentCohort%pft, &
                                          currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
                                 end if
 
@@ -829,20 +816,8 @@ contains
                                 
                                 if ( .not.currentCohort%isnew) then
 
-                                   currentCohort%md             = (currentCohort%n*currentCohort%md        + &
-                                         nextc%n*nextc%md)/newn
                                    currentCohort%seed_prod      = (currentCohort%n*currentCohort%seed_prod + &
                                          nextc%n*nextc%seed_prod)/newn
-                                   currentCohort%root_md        = (currentCohort%n*currentCohort%root_md   + &
-                                         nextc%n*nextc%root_md)/newn
-                                   currentCohort%leaf_md        = (currentCohort%n*currentCohort%leaf_md   + &
-                                         nextc%n*nextc%leaf_md)/newn
-                                   currentCohort%bstore_md        = (currentCohort%n*currentCohort%bstore_md   + &
-                                         nextc%n*nextc%bstore_md)/newn
-                                   currentCohort%bsw_md        = (currentCohort%n*currentCohort%bsw_md   + &
-                                         nextc%n*nextc%bsw_md)/newn
-                                   currentCohort%bdead_md        = (currentCohort%n*currentCohort%bdead_md   + &
-                                         nextc%n*nextc%bdead_md)/newn
                                    currentCohort%gpp_acc        = (currentCohort%n*currentCohort%gpp_acc     + &
                                          nextc%n*nextc%gpp_acc)/newn
                                    currentCohort%npp_acc        = (currentCohort%n*currentCohort%npp_acc     + &
@@ -949,6 +924,11 @@ contains
                                 
                                 ! At this point, nothing should be pointing to current Cohort
                                 if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
+
+                                ! Deallocate the cohort's PRT structure
+                                call nextc%prt%DeallocatePRTVartypes()
+                                deallocate(nextc%prt)
+
                                 deallocate(nextc)
                                 nullify(nextc)
 
@@ -1211,12 +1191,7 @@ contains
     n%n               = o%n                         
     n%dbh             = o%dbh                                        
     n%hite            = o%hite
-    n%bdead           = o%bdead                          
-    n%bstore          = o%bstore
     n%laimemory       = o%laimemory
-    n%bsw             = o%bsw
-    n%bl              = o%bl
-    n%br              = o%br
     n%lai             = o%lai                         
     n%sai             = o%sai  
     n%g_sb_laweight   = o%g_sb_laweight
@@ -1230,6 +1205,10 @@ contains
     n%prom_weight     = o%prom_weight               
     n%size_class      = o%size_class
     n%size_by_pft_class = o%size_by_pft_class
+
+    ! This transfers the PRT objects over.
+    call n%prt%CopyPRTVartypes(o%prt)
+    
 
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
@@ -1265,12 +1244,6 @@ contains
     n%froot_mr        = o%froot_mr
  
     ! ALLOCATION
-    n%md              = o%md
-    n%leaf_md         = o%leaf_md
-    n%root_md         = o%root_md
-    n%bsw_md          = o%bsw_md
-    n%bdead_md        = o%bdead_md
-    n%bstore_md       = o%bstore_md
     n%dmort           = o%dmort
     n%lmort_direct    = o%lmort_direct
     n%lmort_infra     = o%lmort_infra

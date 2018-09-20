@@ -226,12 +226,6 @@ module EDTypesMod
      real(r8) ::  froot_mr                               ! Live fine root   maintenance respiration: kgC/indiv/s
 
      ! ALLOCATION
-     real(r8) ::  md                                     ! plant maintenance demand: kgC/indiv/year
-     real(r8) ::  leaf_md                                ! leaf  maintenance demand: kgC/indiv/year
-     real(r8) ::  root_md                                ! root  maintenance demand: kgC/indiv/year
-     real(r8) ::  bsw_md                                 ! sawpwood maintenance demand:  kgC/indiv/year
-     real(r8) ::  bstore_md                              ! storage maintenance demand:  kgC/indiv/year
-     real(r8) ::  bdead_md                               ! structural (branch) maintenance demand:  kgC/indiv/year
 
      real(r8) ::  seed_prod                              ! reproduction seed and clonal: KgC/indiv/year
      real(r8) ::  leaf_litter                            ! leaf litter from phenology: KgC/m2

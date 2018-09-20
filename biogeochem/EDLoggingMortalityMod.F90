@@ -260,6 +260,11 @@ contains
       real(r8) :: leaf_litter         ! Leafy biomass transferred through mortality [kgC/site]
       real(r8) :: root_litter         ! Rooty + storage biomass transferred through mort [kgC/site]
       real(r8) :: agb_frac            ! local copy of the above ground biomass fraction [fraction]
+      real(r8) :: leaf_c              ! leaf carbon [kg]
+      real(r8) :: fnrt_c              ! fineroot carbon [kg]
+      real(r8) :: sapw_c              ! sapwood carbon [kg]
+      real(r8) :: store_c             ! storage carbon [kg]
+      real(r8) :: struct_c            ! structure carbon [kg]
       integer  :: p                   ! pft index
       integer  :: c                   ! cwd index
 
@@ -274,8 +279,13 @@ contains
       currentCohort => currentPatch%shortest
       do while(associated(currentCohort))       
          p = currentCohort%pft
+
+         sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
+         struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
+         leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
+         fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
+         store_c  = currentCohort%prt%GetState(store_organ, all_carbon_species)
          
-        
          if(currentCohort%canopy_layer == 1)then         
             direct_dead   = currentCohort%n * currentCohort%lmort_direct
             indirect_dead = currentCohort%n * &
@@ -315,7 +325,7 @@ contains
          
          do c = 1,ncwd-1
             woody_litter = (direct_dead+indirect_dead) * &
-                  (currentCohort%bdead+currentCohort%bsw)
+                  (struct_c + sapw_c ) 
             cwd_litter_density = SF_val_CWD_frac(c) * woody_litter / litter_area
             
             newPatch%cwd_ag(c)     = newPatch%cwd_ag(c)     + agb_frac * cwd_litter_density * np_mult
@@ -344,7 +354,7 @@ contains
          ! collateral damange and infrastructure logging is applied to bole litter
          ! ----------------------------------------------------------------------------------------
 
-         woody_litter =  indirect_dead * (currentCohort%bdead+currentCohort%bsw)
+         woody_litter =  indirect_dead * (struct_c + sapw_c)
          
          cwd_litter_density = SF_val_CWD_frac(ncwd) * woody_litter / litter_area
          
@@ -368,7 +378,7 @@ contains
          ! Handle litter flux for the belowground portion of directly logged boles
          ! ----------------------------------------------------------------------------------------
 
-         woody_litter =  direct_dead * (currentCohort%bdead+currentCohort%bsw)
+         woody_litter =  direct_dead * (struct_c + sapw_c)
          cwd_litter_density = SF_val_CWD_frac(ncwd) * woody_litter / litter_area
          
          newPatch%cwd_bg(ncwd)     = newPatch%cwd_bg(ncwd)     + &
@@ -393,7 +403,7 @@ contains
          ! ----------------------------------------------------------------------------------------
          
          trunk_product_site = trunk_product_site + &
-               SF_val_CWD_frac(ncwd) * agb_frac * direct_dead * (currentCohort%bdead+currentCohort%bsw)
+               SF_val_CWD_frac(ncwd) * agb_frac * direct_dead * (struct_c + sapw_c)
 
 
          ! ----------------------------------------------------------------------------------------
@@ -401,8 +411,8 @@ contains
          !  (none of these are exported)
          ! ----------------------------------------------------------------------------------------
 
-         leaf_litter = (direct_dead+indirect_dead)*currentCohort%bl
-         root_litter = (direct_dead+indirect_dead)*(currentCohort%br+currentCohort%bstore)
+         leaf_litter = (direct_dead+indirect_dead) * leaf_c
+         root_litter = (direct_dead+indirect_dead) * (fnrt_c + store_c)
 
          newPatch%leaf_litter(p) = newPatch%leaf_litter(p) + leaf_litter / litter_area * np_mult
          newPatch%root_litter(p) = newPatch%root_litter(p) + root_litter / litter_area * np_mult 
@@ -431,7 +441,7 @@ contains
          delta_biomass_stock = delta_biomass_stock + &
                                leaf_litter         + &
                                root_litter         + &
-                               (direct_dead+indirect_dead) * (currentCohort%bdead+currentCohort%bsw)
+                               (direct_dead+indirect_dead) * (struct_c + sapw_c)
 
          delta_individual    = delta_individual    + &
                                direct_dead         + &

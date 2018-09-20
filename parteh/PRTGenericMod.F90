@@ -135,11 +135,17 @@ module PRTGenericMod
 
   type prt_vartype
      
-     real(r8),allocatable :: val(:)       ! Instantaneous state variable          [kg]
+     real(r8),allocatable :: val(:)       ! Instantaneous state variable           [kg]
      real(r8),allocatable :: val0(:)      ! State variable at the beginning 
-                                          ! of allocation step                    [kg]
-     real(r8),allocatable :: dvaldt(:)    ! Net rate of non-turnover change       [kg/day]
-     real(r8),allocatable :: turnover(:)  ! Loss rate due to turnover             [kg/day]
+                                          ! of the control period                  [kg]
+     real(r8),allocatable :: net_art(:)   ! Net change due to allocation/transport [kg]
+                                          ! over the control period                [kg]
+     real(r8),allocatable :: turnover(:)  ! Losses rate due to turnover            [kg]
+                                          ! or, any mass destined for litter
+                                          ! over the control period
+
+!     real(r8),allocatable :: burned(:)    ! Losses due to burn                     [kg]
+!     real(r8),allocatable :: herbiv(:)    ! Losses due to herbivory                [kg]
 
      ! Placeholder
      ! To save on memory, keep this commented out, or simply
@@ -357,7 +363,7 @@ contains
        this%variables(i_var)%val(:)      = un_initialized
        this%variables(i_var)%val0(:)     = un_initialized
        this%variables(i_var)%turnover(:) = un_initialized
-       this%variables(i_var)%dvaldt(:)   = un_initialized
+       this%variables(i_var)%net_art(:)  = un_initialized
     end do
 
     
@@ -515,7 +521,8 @@ contains
 
     do i_var = 1, n_vars
        this%variables(i_var)%val(:)         = donor_prt_obj%variables(i_var)%val(:)
-       this%variables(i_var)%dvaldt(:)      = donor_prt_obj%variables(i_var)%dvaldt(:)
+       this%variables(i_var)%val0(:)        = donor_prt_obj%variables(i_var)%val0(:)
+       this%variables(i_var)%net_art(:)      = donor_prt_obj%variables(i_var)%net_art(:)
        this%variables(i_var)%turnover(:)    = donor_prt_obj%variables(i_var)%turnover(:)
     end do
 
@@ -586,8 +593,8 @@ contains
        this%variables(i_var)%val0(pos_id)  = recipient_fuse_weight * this%variables(i_var)%val0(pos_id) + &
             (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%val0(pos_id)
 
-       this%variables(i_var)%dvaldt(pos_id)      = recipient_fuse_weight * this%variables(i_var)%dvaldt(pos_id) + &
-            (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%dvaldt(pos_id)
+       this%variables(i_var)%net_art(pos_id)      = recipient_fuse_weight * this%variables(i_var)%net_art(pos_id) + &
+            (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%net_art(pos_id)
        
        this%variables(i_var)%turnover(pos_id)    = recipient_fuse_weight * this%variables(i_var)%turnover(pos_id) + &
             (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%turnover(pos_id)
@@ -618,7 +625,7 @@ contains
     do i_var = 1, n_vars
        deallocate(this%variables(i_var)%val)
        deallocate(this%variables(i_var)%val0)
-       deallocate(this%variables(i_var)%dvaldt)
+       deallocate(this%variables(i_var)%net_art)
        deallocate(this%variables(i_var)%turnover)
     end do
 
@@ -692,6 +699,13 @@ contains
 
   subroutine ZeroRates(this)
       
+      ! ---------------------------------------------------------------------------------
+      ! This subroutine zeros all of the rates of change for our variables.
+      ! It also sets the initial value to the current state.
+      ! This allows us to make mass conservation checks, where
+      ! val - val0 = net_art + turnover
+      ! ---------------------------------------------------------------------------------
+
       class(prt_vartypes) :: this
 
       integer :: n_vars
@@ -699,11 +713,56 @@ contains
 
       n_vars = size(this%variables,1)
       do ivar = 1,n_vars
-         this%variables(ivar)%dvaldt(:)      = 0.0_r8
+         this%variables(ivar)%val0(:)        = this%variables(ivar)%val(:)
+         this%variables(ivar)%net_art(:)     = 0.0_r8
          this%variables(ivar)%turnover(:)    = 0.0_r8
       end do
       
     end subroutine ZeroRates
+
+   ! ====================================================================================
+
+   subroutine CheckMassConservation(this)
+
+     class(prt_vartypes) :: this
+
+     integer :: n_vars
+     integer :: ivar
+
+     real(r8) :: err
+
+
+     n_vars = size(this%variables,1)
+     do ivar = 1,n_vars
+
+        do pos_id = 1, this%variables(ivar)%num_pos
+           
+           err = (this%variables(ivar)%val(pos_id) - this%variables(ivar)%val0(pos_id)) - &
+                  (this%variables(ivar)%net_art(pos_id) &
+                   -this%variables(ivar)%turnover(pos_id))
+           
+           if( abs(err) > calloc_abs_error ) then
+              write(fates_log(),*) 'PARTEH mass conservation check failed'
+              write(fates_log(),*) ' Change in mass over control period should'
+              write(fates_log(),*) ' always equal the integrated fluxes.'
+              write(fates_log(),*) ' organ id: ',this%prt_instance%state_descriptor(i_var)%organ_id
+              write(fates_log(),*) ' species_id: ',this%prt_instance%state_descriptor(i_var)%spec_id
+              write(fates_log(),*) ' position id: ',pos_id
+              write(fates_log(),*) ' symbol: ',trim(this%prt_instance%state_descriptor(i_var)%symbol)
+              write(fates_log(),*) ' longname: ',trim(this%prt_instance%state_descriptor(i_var)%longname)
+              write(fates_log(),*) ' err: ',err,' max error: ',calloc_abs_error
+              write(fates_log(),*) ' terms: ', this%variables(ivar)%val(pos_id), &
+                                               this%variables(ivar)%val0(pos_id), &
+                                               this%variables(ivar)%net_art(pos_id), &
+                                               this%variables(ivar)%turnover(pos_id)
+              write(fates_log(),*) ' Exiting.'
+              call endrun(msg=errMsg(__FILE__, __LINE__))
+           end if
+
+     end do
+
+     return
+   end subroutine CheckMassConservation
 
    ! ====================================================================================
    
@@ -929,6 +988,35 @@ contains
      return
    end subroutine SetState
 
+
+   ! ====================================================================================
+
+
+   subroutine EventTurnover(this, ipft, event_type)
+
+     class(prt_vartypes) :: this
+     integer,intent(in) :: ipft
+     integer,intent(in) :: event_type
+
+     if( event_type .eq. deciduous_event ) then
+
+
+
+
+     elseif( event_type .eq. storm_event ) then
+
+
+     else
+        write(fates_log(),*) 'An event based turnover event was specified'
+        write(fates_log(),*) ' that does not match pre-defined types'
+        write(fates_log(),*) ' deciduous_event: ',deciduous_event
+        write(fates_log(),*) ' trauma_event: ',trauma_event
+        write(fates_log(),*) ' event_type: ',event_type
+        write(fates_log(),*) 'Exiting'
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+     end if
+
+   end subroutine EventTurnover
 
 
 
