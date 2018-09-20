@@ -173,11 +173,15 @@ module PRTGenericMod
 
 
   ! -------------------------------------------------------------------------------------
-  ! This generic type defines the whole set of a plants species and organs
-  ! It also has arrays which are used to organize the species and organs into
-  ! commonly used groups so that the variables can be presented to other
-  ! routines in the model efficienty (such as history output, or assessing cohort
-  ! indices like LAI, lai-memory, etc, etc)
+  ! This generic type defines the object that attaches to the instance of any plant.
+  ! ie this is the parent object.
+  ! It contains the state variable object: variables
+  ! as well as the boundary condition pointers bc_inout, bc_in and bc_out
+  !
+  ! This object also contains the bulk of the PRT routines, including 
+  ! extended (hypothesis specific routines) and generic routines (eg   
+  ! routines that can operate on any hypothesis) 
+  !
   ! There are procedures that are specialized for each module. And then
   ! there are procedures that are supposed to be generic and should support
   ! all the different modules.
@@ -185,7 +189,7 @@ module PRTGenericMod
 
   type prt_vartypes
      
-     type(prt_vartype),allocatable :: variables(:)
+     type(prt_vartype),allocatable :: variables(:)    ! The state variables
      type(prt_bctype), allocatable :: bc_inout(:)     ! These boundaries may be changed
      type(prt_bctype), allocatable :: bc_in(:)        ! These are protected
      type(prt_bctype), allocatable :: bc_out(:)       ! These are overwritten
