@@ -128,9 +128,12 @@ module PRTGenericMod
   ! -------------------------------------------------------------------------------------
   ! This is a generic variable type that can be used to describe all
   ! species x organ variable combinations.
-  ! Note that dvaldt does NOT subsume turnover. tunover happens outside the main
-  ! allocation modules.  dvaldt only contains transport, translocation (cross-organ only)
-  ! growth and reactions.
+  ! 
+  ! It is assumed that over the control period (probably 1 day) that
+  ! changes in the current state (val) relative to the value at the start of the
+  ! control period (val0), are equal to the time integrated flux terms 
+  ! (net_art, turnover, etc)
+  !
   ! -------------------------------------------------------------------------------------
 
   type prt_vartype
@@ -150,10 +153,9 @@ module PRTGenericMod
      ! Placeholder
      ! To save on memory, keep this commented out, or simply
      ! add this only in the extension ... ?
-     ! real(r8),dimension(3)           :: coordinate    ! NOTE FOR QUERYING, INTEGERS ARE BETTER
+     ! real(r8),allocatable           :: coordinate(:,:)
 
      integer              :: num_pos      ! Number of pools with own position per species x organ
-
      
   end type prt_vartype
 
