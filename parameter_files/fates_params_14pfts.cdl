@@ -148,13 +148,13 @@ variables:
 		fates_allom_cmode:long_name = "coarse root biomass allometry function index" ;
 	float fates_allom_d2bl1(fates_pft) ;
 		fates_allom_d2bl1:units = "variable" ;
-		fates_allom_d2bl1:long_name = "Parameter 1 for d2bl allometry (intercept)" ;
+		fates_allom_d2bl1:long_name = "Parameter 1 for d2bl allometry" ;
 	float fates_allom_d2bl2(fates_pft) ;
 		fates_allom_d2bl2:units = "variable" ;
-		fates_allom_d2bl2:long_name = "Parameter 2 for d2bl allometry (slope)" ;
+		fates_allom_d2bl2:long_name = "Parameter 2 for d2bl allometry" ;
 	float fates_allom_d2bl3(fates_pft) ;
 		fates_allom_d2bl3:units = "unitless" ;
-		fates_allom_d2bl3:long_name = "Parameter 3 for d2bl allometry (optional)" ;
+		fates_allom_d2bl3:long_name = "Parameter 3 for d2bl allometry" ;
 	float fates_allom_d2ca_coefficient_max(fates_pft) ;
 		fates_allom_d2ca_coefficient_max:units = "m2 cm^(-1/beta)" ;
 		fates_allom_d2ca_coefficient_max:long_name = "max (savanna) dbh to area multiplier factor where: area = n*d2ca_coeff*dbh^beta" ;
