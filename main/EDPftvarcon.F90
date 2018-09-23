@@ -67,9 +67,6 @@ module EDPftvarcon
                                                 ! of leaf scattering elements decreases light interception
      real(r8), allocatable :: c3psn(:)          ! index defining the photosynthetic pathway C4 = 0,  C3 = 1
      real(r8), allocatable :: vcmax25top(:)
-     real(r8), allocatable :: leafcn(:)
-     real(r8), allocatable :: frootcn(:)
-     real(r8), allocatable :: woodcn(:)
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) 
@@ -877,18 +874,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%vcmax25top)
 
-    name = 'fates_leaf_cn_ratio'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%leafcn)
-
-    name = 'fates_froot_cn_ratio'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%frootcn)
-
-    name = 'fates_wood_cn_ratio'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%woodcn)
-
     name = 'fates_smpso'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%smpso)
@@ -1658,9 +1643,6 @@ contains
         write(fates_log(),fmt0) 'clumping_index = ',EDPftvarcon_inst%clumping_index
         write(fates_log(),fmt0) 'c3psn = ',EDPftvarcon_inst%c3psn
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
-        write(fates_log(),fmt0) 'leafcn = ',EDPftvarcon_inst%leafcn
-        write(fates_log(),fmt0) 'frootcn = ',EDPftvarcon_inst%frootcn
-        write(fates_log(),fmt0) 'woodcn = ',EDPftvarcon_inst%woodcn
         write(fates_log(),fmt0) 'smpso = ',EDPftvarcon_inst%smpso
         write(fates_log(),fmt0) 'smpsc = ',EDPftvarcon_inst%smpsc
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc

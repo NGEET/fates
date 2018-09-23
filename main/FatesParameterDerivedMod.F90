@@ -60,18 +60,11 @@ contains
     integer  :: ft                 ! pft index
     real(r8) :: lnc                ! leaf N concentration (gN leaf/m^2)
     
-    associate( &
-
-         vcmax25top => EDPftvarcon_inst%vcmax25top, & ! 
-         slatop     => EDPftvarcon_inst%slatop    , & ! specific leaf area at top of canopy, 
-                                                      ! projected area basis [m^2/gC]
-         leafcn     => EDPftvarcon_inst%leafcn )      ! leaf C:N (gC/gN)
+    associate( vcmax25top => EDPftvarcon_inst%vcmax25top ) 
     
       call this%InitAllocate(numpft)
       
       do ft = 1,numpft
-
-         
          
          ! Parameters derived from vcmax25top. 
          ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
