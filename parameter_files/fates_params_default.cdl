@@ -173,23 +173,23 @@ variables:
 		fates_branch_turnover:long_name = "turnover time of branches" ;
 
 	float fates_prt_unit_gr_resp(fates_prt_organs,fates_pft) ;
-		fates_prt_unit_gr_resp:units = "kgC/kgC" ;
+		fates_prt_unit_gr_resp:units = "gC/gC" ;
 		fates_prt_unit_gr_resp:long_name = "Unit growth respiration rate per organ" ;
 
 	float fates_prt_nitr_stoich_p1(fates_prt_organs,fates_pft) ;
-		fates_prt_nitr_stoich_p1:units = "na" ;
+		fates_prt_nitr_stoich_p1:units = "(gC/gN)" ;
 		fates_prt_nitr_stoich_p1:long_name = "nitrogen stoichiometry, parameter 1 (hypothesis dependant meaning)" ;
 
 	float fates_prt_nitr_stoich_p2(fates_prt_organs,fates_pft) ;
-		fates_prt_nitr_stoich_p2:units = "na" ;
+		fates_prt_nitr_stoich_p2:units = "(gC/cN)" ;
 		fates_prt_nitr_stoich_p2:long_name = "nitrogen stoichiometry, parameter 2 (hypothesis dependant meaning)" ;
 
 	float fates_prt_phos_stoich_p1(fates_prt_organs,fates_pft) ;
-		fates_prt_phos_stoich_p1:units = "na" ;
+		fates_prt_phos_stoich_p1:units = "(gC/gP)" ;
 		fates_prt_phos_stoich_p1:long_name = "phosphorous stoichiometry, parameter 1 (hypothesis dependant meaning)" ;
 
 	float fates_prt_phos_stoich_p2(fates_prt_organs,fates_pft) ;
-		fates_prt_phos_stoich_p2:units = "na" ;
+		fates_prt_phos_stoich_p2:units = "(gC/gP)" ;
 		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2 (hypothesis dependant meaning)" ;
 
 	float fates_prt_alloc_priority(fates_prt_organs,fates_pft) ;

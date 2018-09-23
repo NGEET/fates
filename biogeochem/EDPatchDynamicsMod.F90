@@ -40,7 +40,6 @@ module EDPatchDynamicsMod
 
   use EDCohortDynamicsMod  , only : InitPRTCohort
 
-  use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_species
   use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : nitrogen_species
@@ -1906,6 +1905,8 @@ contains
        
        ncohort => ccohort%taller
        if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(ccohort)
+       call ccohort%prt%DeallocatePRTVartypes()
+       deallocate(ccohort%prt)
        deallocate(ccohort)
        ccohort => ncohort
 

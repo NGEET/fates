@@ -70,6 +70,19 @@ module FatesPlantHydraulicsMod
    use FatesHydraulicsMemMod, only: InitHydraulicsDerived
    use FatesHydraulicsMemMod, only: nlevsoi_hyd_max
 
+   use PRTGenericMod,          only : all_carbon_species
+   use PRTGenericMod,          only : carbon12_species
+   use PRTGenericMod,          only : nitrogen_species
+   use PRTGenericMod,          only : phosphorous_species
+   use PRTGenericMod,          only : leaf_organ
+   use PRTGenericMod,          only : fnrt_organ
+   use PRTGenericMod,          only : sapw_organ
+   use PRTGenericMod,          only : store_organ
+   use PRTGenericMod,          only : repro_organ
+   use PRTGenericMod,          only : struct_organ
+   use PRTGenericMod,          only : carbon12_species
+   use PRTGenericMod,          only : SetState
+   
    use clm_time_manager  , only : get_step_size, get_nstep
 
    use FatesConstantsMod,     only: cm2_per_m2
@@ -309,6 +322,10 @@ contains
     real(r8) :: kmax_tot                     ! total tree (leaf to root tip) hydraulic conductance                   [kg s-1 MPa-1]
     real(r8) :: dz_node1_nodekplus1          ! cumulative distance between canopy node and node k + 1                [m]
     real(r8) :: dz_node1_lowerk              ! cumulative distance between canopy node and upper boundary of node k  [m]
+    real(r8) :: leaf_c
+    real(r8) :: fnrt_c
+    real(r8) :: sapw_c
+    real(r8) :: struct_c
     integer  :: nlevsoi_hyd                  ! Number of soil hydraulic layers
     integer  :: nlevsoil                     ! Number of total soil layers
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
@@ -323,16 +340,22 @@ contains
     FT                         =  cCohort%pft
     roota                      =  EDPftvarcon_inst%roota_par(FT)
     rootb                      =  EDPftvarcon_inst%rootb_par(FT)
+
+    leaf_c   = cCohort%prt%GetState(leaf_organ, all_carbon_species)
+    sapw_c   = cCohort%prt%GetState(sapw_organ, all_carbon_species)
+    fnrt_c   = cCohort%prt%GetState(fnrt_organ, all_carbon_species)
+    struct_c = cCohort%prt%GetState(struct_organ, all_carbon_species)
+
     !roota                      =  4.372_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
     !rootb                      =  0.978_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
     !roota                      =  8.992_r8                          ! TESTING: shallow (see Zeng 2001 Table 1)
     !rootb                      =  8.992_r8                          ! TESTING: shallow (see Zeng 2001 Table 1)
-    if(cCohort%bl>0.0) then !only update when bleaf >0
-     b_woody_carb               = cCohort%bsw + cCohort%bdead
+    if(leaf_c>0.0) then !only update when bleaf >0
+     b_woody_carb               = sapw_c + struct_c
      b_woody_bg_carb            = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(FT)) * b_woody_carb
 
-     b_tot_carb                 = cCohort%bsw + cCohort%bdead + cCohort%bl + cCohort%br
-     b_canopy_carb              = cCohort%bl
+     b_tot_carb                 = sapw_c + struct_c + leaf_c + fnrt_c
+     b_canopy_carb              = leaf_c
      b_bg_carb                  = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(FT)) * b_tot_carb
 
      ! SAVE INITIAL VOLUMES
@@ -403,7 +426,7 @@ contains
 
      !Determine belowground biomass as a function of total (sapwood, heartwood, leaf, fine root) biomass
      !then subtract out the fine root biomass to get coarse (transporting) root biomass
-     !b_troot_carb               = b_bg_carb - cCohort%br   ! this can give negative values
+
      b_troot_carb               = b_woody_bg_carb   
      b_troot_biom               = b_troot_carb * C2B 
      v_troot                    = b_troot_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8)

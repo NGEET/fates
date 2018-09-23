@@ -78,6 +78,7 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
+  public :: InitPRTCohort
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
 
@@ -155,10 +156,17 @@ contains
 
     ! Initialize the Plant allocative Reactive Transport (PaRT) module
     ! Choose from one of the extensible hypotheses (EH)
+    ! -----------------------------------------------------------------------------------
 
     call InitPRTCohort(new_cohort)
 
-    select case(new_cohort%parteh_model)
+    ! The initialization allocates memory, but the boundary and initial
+    ! contitions must be set. All new cohorts go through create_cohort()
+    ! so this should be the only place this is called.  Alternatively
+    ! cohorts can be copied and fused, but special routines handle that.
+    ! -----------------------------------------------------------------------------------
+
+    select case(hlm_parteh_model)
     case (1)
 
        call SetState(new_cohort%prt,leaf_organ, carbon12_species, bleaf)
@@ -176,9 +184,15 @@ contains
 
     end select
     
+
+    ! This call cycles through the initial conditions, and makes sure that they
+    ! are all initialized.
+    ! -----------------------------------------------------------------------------------
+
     call ccohort%prt%CheckInitialConditions()
 
-    new_cohort%ode_opt_step = 1.0e6_r8   ! Initialize the integrator step size as super-huge
+
+
 
     call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
                               new_cohort%size_class,new_cohort%size_by_pft_class)
@@ -264,11 +278,6 @@ contains
        
        allocate(callom_prt)
        new_cohort%prt => callom_prt
-
-!    case(2)
-       
-!       allocate(cnpallom_prt)
-!       new_cohort%prt => cnpallom_prt
        
     case DEFAULT
        write(fates_log(),*) 'You specified an unknown PRT module'
