@@ -28,6 +28,8 @@ module FatesInterfaceMod
    use EDPftvarcon         , only : EDPftvarcon_inst
    use EDParamsMod         , only : FatesReportParams
 
+   use PRTAllometricCarbonMod, only : InitPRTInstanceAC
+   !   use PRTAllometricCNPMod, only    : InitPRTInstanceACNP
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -40,6 +42,7 @@ module FatesInterfaceMod
    public :: SetFatesTime
    public :: set_fates_global_elements
    public :: FatesReportParameters
+   public :: InitPARTEHGlobals
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -596,7 +599,7 @@ contains
     logical, intent(in) :: global_verbose
 
     call FatesGlobalsInit(log_unit,global_verbose)
-
+    
   end subroutine FatesInterfaceInit
 
    ! ====================================================================================
@@ -1573,5 +1576,34 @@ contains
       
       return
    end subroutine FatesReportParameters
+
+   ! ====================================================================================
+
+   subroutine InitPARTEHGlobals()
+   
+     ! Initialize the Plant Allocation and Reactive Transport
+     ! global functions and mapping tables
+     
+     select case(int(hlm_parteh_mode))
+     case (1)
+        call InitPRTInstanceAC()
+     case(2)
+        
+        !call InitPRTInstanceACNP()
+        write(fates_log(),*) 'You specified the allometric CNP mode'
+        write(fates_log(),*) 'with relaxed target stoichiometry.'
+        write(fates_log(),*) 'This mode is not available yet.'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        
+     case DEFAULT
+        write(fates_log(),*) 'You specified an unknown PRT module'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+    end select
+
+
+
+   end subroutine InitPARTEHGlobals
 
 end module FatesInterfaceMod

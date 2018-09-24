@@ -8,6 +8,9 @@ module PRTAllometricCarbonMod
    ! 
    ! Ryan Knox Apr 2018
    !
+   ! TO-DO: THE MAPPING TABLES SHOULD BE PROTECTED STATUS. TEST ADDING THIS AFTER 1ST
+   ! SUCCESFULL RUN
+   !
    ! ------------------------------------------------------------------------------------
 
   use PRTGenericMod , only  : prt_instance_type

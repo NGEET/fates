@@ -13,18 +13,22 @@ module PRTGenericMod
   !
   ! ------------------------------------------------------------------------------------
 
+  ! ------------------------------------------------------------------------------------
   ! TO-DO: Impose a parameter check function
-  ! 1 item: reproduction must be priority 0 in CNP
-
+  !        reproduction must be priority 0 in CNP
+  !
+  ! TO-DO: Create a generic mapping table that will list all species
+  !        of a specific organ of interest.
+  ! ------------------------------------------------------------------------------------
 
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : i4 => fates_int
   use FatesConstantsMod, only : nearzero
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log 
-  use EDPftvarcon      , only : EDPftvarcon_inst
+ 
   use shr_log_mod      , only : errMsg => shr_log_errMsg
-  use FatesInterfaceMod, only : hlm_freq_day
+ 
   
   implicit none
 
@@ -147,7 +151,7 @@ module PRTGenericMod
                                           ! or, any mass destined for litter
                                           ! over the control period
 
-!     real(r8),allocatable :: burned(:)    ! Losses due to burn                     [kg]
+     real(r8),allocatable :: burned(:)    ! Losses due to burn                     [kg]
 !     real(r8),allocatable :: herbiv(:)    ! Losses due to herbivory                [kg]
 
      ! Placeholder
@@ -269,12 +273,27 @@ module PRTGenericMod
   !     
   ! -------------------------------------------------------------------------------------
   
+  ! This type will help us loop through all the different variables associated
+  ! with a specific organ type. Since variables are a combination of organ and
+  ! species, the number of unique variables is capped at the number of species
+  ! per each organ.
+  
+  type organ_map_type
+     integer, dimension(1,num_species_types) :: var_id
+     integer                                 :: num_vars
+  end type organ_map_type
+
+
   type prt_instance_type
      
      ! Note that index 0 is reserved for "all" or "irrelevant"
-     character(len=maxlen_varname)                         :: hyp_name
+     character(len=maxlen_varname)                             :: hyp_name
+
+     ! This will list the specific variable ids associated with
+     ! each organ
      integer, dimension(0:num_organ_types,0:num_species_types) :: sp_organ_map
-     type(state_descriptor_type), allocatable              :: state_descriptor(:)
+     type(state_descriptor_type), allocatable                  :: state_descriptor(:)
+     type(organ_map_type), dimension(1:num_organ_types)        :: organ_map
 
   contains
         
@@ -294,14 +313,16 @@ contains
       
      class(prt_instance_type)    :: this
      
-     integer :: ip ! Organ loop counter
+     integer :: io ! Organ loop counter
      integer :: is ! Species loop counter
      
      ! First zero out the array
-     do ip = 1,num_organ_types
+     do io = 1,num_organ_types
         do is = 1,num_species_types
-           this%sp_organ_map(ip,is) = 0
+           this%sp_organ_map(io,is)      = 0
+           this%organ_map(io)%var_id(is) = 0
         end do
+        this%organ_map(io)%num_vars      = 0
      end do
         
      return
@@ -329,6 +350,12 @@ contains
      ! Set the mapping tables for the external model
 
      this%sp_organ_map(organ_id,spec_id) = var_id
+
+     ! Set another map that helps to locate all the relevant pools associated
+     ! with an organ
+
+     this%organ_map(organ_id)%num_vars = this%organ_map(organ_id)%num_vars + 1
+     this%organ_map(organ_id)%var_id(this%organ_map(organ_id)%num_vars) = var_id
 
         
      return
@@ -998,163 +1025,6 @@ contains
    ! ====================================================================================
 
 
-   subroutine EventTurnover(this, ipft, event_type)
-
-     class(prt_vartypes) :: this
-     integer,intent(in) :: ipft
-     integer,intent(in) :: event_type
-
-     if( event_type .eq. deciduous_event ) then
-
-
-
-
-     elseif( event_type .eq. storm_event ) then
-
-
-     else
-        write(fates_log(),*) 'An event based turnover event was specified'
-        write(fates_log(),*) ' that does not match pre-defined types'
-        write(fates_log(),*) ' deciduous_event: ',deciduous_event
-        write(fates_log(),*) ' trauma_event: ',trauma_event
-        write(fates_log(),*) ' event_type: ',event_type
-        write(fates_log(),*) 'Exiting'
-        call endrun(msg=errMsg(__FILE__, __LINE__))
-     end if
-
-   end subroutine EventTurnover
-
-
-
-   ! ====================================================================================
-   
-   
-   subroutine MaintTurnover(this,ipft)
-      
-      ! ---------------------------------------------------------------------------------
-      ! Generic subroutine (wrapper) calling specialized routines handling
-      ! the turnover of tissues in living plants (non-mortal)
-      ! ---------------------------------------------------------------------------------
-      class(prt_vartypes) :: this
-      integer,intent(in) :: ipft
-      
-      if ( int(EDPftvarcon_inst%turnover_retrans_mode(ipft)) == 1 ) then
-         call this%MaintTurnoverSimpleRetranslocation(ipft)
-      else
-         write(fates_log(),*) 'A maintenance/retranslocation mode was specified'
-         write(fates_log(),*) 'that is unknown.'
-         write(fates_log(),*) 'turnover_retrans_mode= ',EDPftvarcon_inst%turnover_retrans_mode(ipft)
-         write(fates_log(),*) 'pft = ',ipft
-         call endrun(msg=errMsg(__FILE__, __LINE__))
-      end if
-      
-      return
-   end subroutine MaintTurnover
-
-   ! ===================================================================================
-   
-   subroutine MaintTurnoverSimpleRetranslocation(this,ipft)
-
-      ! ---------------------------------------------------------------------------------
-      ! This subroutine removes biomass from all applicable pools due to 
-      ! "maintenance turnover".  Maintenance turnover, in this context
-      ! is the loss of biomass on living plants, due to continuous turnover. 
-      !
-      ! Notes:
-      ! 1) It is assumed that this is called daily.
-      ! 2) This is a completely different thing compared to deciduous leaf drop,
-      !    or loss of biomass from the death of the plant.
-      ! 3) Since this is maintenance turnover, and not a complete drop of leaves for
-      !    deciduous trees, we just re-translocate nutrients (if necessary) from the
-      !    leaves and roots that leave (no pun intended), into the leaves and roots that
-      !    are still rooted to the plant (pun intended). For deciduous, event-based
-      !    phenology, we will re-translocate to the storage pool.
-      ! ---------------------------------------------------------------------------------
-      
-      class(prt_vartypes) :: this
-      integer,intent(in) :: ipft
-
-      
-      integer :: i_var
-      integer :: spec_id
-      integer :: organ_id
-      integer :: num_sp_vars
-      integer :: pos_id
-
-      real(r8) :: base_turnover
-      real(r8) :: leaf_turnover
-      real(r8) :: fnrt_turnover
-      real(r8) :: sapw_turnover
-      real(r8) :: store_turnover
-      real(r8) :: struct_turnover
-      real(r8) :: repro_turnover
-      real(r8) :: turnover   ! A temp for the actual turnover removed from pool
-      real(r8) :: retrans    ! A temp for the actual re-translocated mass
-      
-      num_sp_vars = size(this%variables,1)
-
-      ! -----------------------------------------------------------------------------------
-      ! Calculate the turnover rates
-      ! -----------------------------------------------------------------------------------
-      
-      if ( EDPftvarcon_inst%branch_turnover(ipft) > nearzero ) then
-         sapw_turnover   = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
-         struct_turnover = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
-         store_turnover  = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
-      else
-         sapw_turnover   = 0.0_r8
-         struct_turnover = 0.0_r8
-         store_turnover  = 0.0_r8
-         
-      end if
-      if ( EDPftvarcon_inst%root_long(ipft) > nearzero ) then
-         fnrt_turnover = hlm_freq_day / EDPftvarcon_inst%root_long(ipft)
-      else
-         fnrt_turnover = 0.0_r8
-      end if
-      if ( (EDPftvarcon_inst%leaf_long(ipft) > nearzero ) .and. &
-           (EDPftvarcon_inst%evergreen(ipft) == 1) ) then
-         leaf_turnover = hlm_freq_day / EDPftvarcon_inst%leaf_long(ipft)
-      else
-         leaf_turnover = 0.0_r8
-      endif
-
-      repro_turnover  = 0.0_r8
-
-      do i_var = 1, num_sp_vars
-         
-         organ_id = this%prt_instance%state_descriptor(i_var)%organ_id
-         spec_id = this%prt_instance%state_descriptor(i_var)%spec_id
-
-         if ( any(spec_id == carbon_species) ) then
-            retrans = 0.0_r8
-         else if( spec_id == nitrogen_species ) then
-            retrans = EDPftvarcon_inst%turnover_n_retrans_p1(ipft,organ_id)
-         else if( spec_id == phosphorous_species ) then
-            retrans = EDPftvarcon_inst%turnover_p_retrans_p1(ipft,organ_id)
-         else
-            write(fates_log(),*) 'Please add a new re-translocation clause to your '
-            write(fates_log(),*) ' organ x species combination'
-            write(fates_log(),*) ' organ: ',leaf_organ,' species: ',spec_id
-            write(fates_log(),*) 'Exiting'
-            call endrun(msg=errMsg(__FILE__, __LINE__))
-         end if
-
-         ! Loop over all of the coordinate ids
-
-         do pos_id = 1,this%variables(i_var)%num_pos
-            
-            turnover = (1.0_r8 - retrans) * base_turnover * this%variables(i_var)%val(pos_id)
-            
-            this%variables(i_var)%turnover(pos_id) = this%variables(i_var)%turnover(pos_id) + turnover
-            
-            this%variables(i_var)%val(pos_id) = this%variables(i_var)%val(pos_id)           - turnover
-
-         end do
-
-      end do
-      
-      return
-   end subroutine MaintTurnoverSimpleRetranslocation
+ 
 
 end module PRTGenericMod
