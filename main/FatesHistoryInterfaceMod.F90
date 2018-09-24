@@ -93,6 +93,12 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_frac_young_leaf_pa
   integer, private :: ih_frac_old_leaf_pa
   integer, private :: ih_frac_sen_leaf_pa
+  
+  integer, private :: ih_total_exp_leaf_pa
+  integer, private :: ih_total_young_leaf_pa
+  integer, private :: ih_total_old_leaf_pa
+  integer, private :: ih_total_sen_leaf_pa
+
 
   ! Indices to site by size-class by age variables
   integer, private :: ih_nplant_si_scag
@@ -1363,6 +1369,10 @@ end subroutine flush_hvars
 	       hio_frac_young_leaf_pa   => this%hvars(ih_frac_young_leaf_pa)%r81d, &
 	       hio_frac_old_leaf_pa   => this%hvars(ih_frac_old_leaf_pa)%r81d, &
 	       hio_frac_sen_leaf_pa   => this%hvars(ih_frac_sen_leaf_pa)%r81d, &
+	       hio_total_exp_leaf_pa   => this%hvars(ih_total_exp_leaf_pa)%r81d, &
+	       hio_total_young_leaf_pa   => this%hvars(ih_total_young_leaf_pa)%r81d, &
+	       hio_total_old_leaf_pa   => this%hvars(ih_total_old_leaf_pa)%r81d, &
+	       hio_total_sen_leaf_pa   => this%hvars(ih_total_sen_leaf_pa)%r81d, &	       
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
                hio_npp_totl_si_scpf    => this%hvars(ih_npp_totl_si_scpf)%r82d, &
                hio_npp_leaf_si_scpf    => this%hvars(ih_npp_leaf_si_scpf)%r82d, &
@@ -1795,13 +1805,13 @@ end subroutine flush_hvars
                          ccohort%b_total() * ccohort%n * AREA_INV
 		    
 		    if(use_leaf_age==itrue)then	 
-		      hio_frac_exp_leaf_pa(io_pa) = hio_frac_exp_leaf_pa(io_pa) + n_density * ccohort%fracExpLeaves &
+		      hio_total_exp_leaf_pa(io_pa) = hio_total_exp_leaf_pa(io_pa) + n_density * ccohort%fracExpLeaves &
 		                                        *ccohort%bl* g_per_kg
-		      hio_frac_young_leaf_pa(io_pa) = hio_frac_young_leaf_pa(io_pa) + n_density * ccohort%fracYoungLeaves &
+		      hio_total_young_leaf_pa(io_pa) = hio_total_young_leaf_pa(io_pa) + n_density * ccohort%fracYoungLeaves &
 		                                         *ccohort%bl* g_per_kg
-		      hio_frac_old_leaf_pa(io_pa) = hio_frac_old_leaf_pa(io_pa) + n_density * ccohort%fracOldLeaves&
+		      hio_total_old_leaf_pa(io_pa) = hio_total_old_leaf_pa(io_pa) + n_density * ccohort%fracOldLeaves&
 		                                        *ccohort%bl* g_per_kg
-		      hio_frac_sen_leaf_pa(io_pa) = hio_frac_sen_leaf_pa(io_pa) + n_density * ccohort%fracSenLeaves &
+		      hio_total_sen_leaf_pa(io_pa) = hio_total_sen_leaf_pa(io_pa) + n_density * ccohort%fracSenLeaves &
 		                                       *ccohort%bl* g_per_kg	
 		    endif 
 
@@ -2079,10 +2089,10 @@ end subroutine flush_hvars
 	    !normalize leaf ages
 	    if(use_leaf_age==itrue)then
 	      if(hio_bleaf_pa(io_pa)>0.0_r8)then
-	        hio_frac_exp_leaf_pa(io_pa) = hio_frac_exp_leaf_pa(io_pa)/ hio_bleaf_pa(io_pa)
-                hio_frac_young_leaf_pa(io_pa) = hio_frac_young_leaf_pa(io_pa)/hio_bleaf_pa(io_pa)
-	        hio_frac_old_leaf_pa(io_pa) = hio_frac_old_leaf_pa(io_pa) / hio_bleaf_pa(io_pa)
-	        hio_frac_sen_leaf_pa(io_pa) = hio_frac_sen_leaf_pa(io_pa)/hio_bleaf_pa(io_pa)
+	        hio_frac_exp_leaf_pa(io_pa) = hio_total_exp_leaf_pa(io_pa)/ hio_bleaf_pa(io_pa)
+                hio_frac_young_leaf_pa(io_pa) = hio_total_young_leaf_pa(io_pa)/hio_bleaf_pa(io_pa)
+	        hio_frac_old_leaf_pa(io_pa) = hio_total_old_leaf_pa(io_pa) / hio_bleaf_pa(io_pa)
+	        hio_frac_sen_leaf_pa(io_pa) = hio_total_sen_leaf_pa(io_pa)/hio_bleaf_pa(io_pa)
 	      endif
 	    endif
 
@@ -3361,7 +3371,27 @@ end subroutine flush_hvars
     call this%set_history_var(vname='Frac_SenLeaf', units='fraction',                   &
          long='Fraction of senescent leaf',  use_default='inactive',                            &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_frac_sen_leaf_pa )	 	 
+         ivar=ivar, initialize=initialize_variables, index = ih_frac_sen_leaf_pa )	
+	 
+    call this%set_history_var(vname='Total_ExpLeaf', units='gC/m2',                   &
+         long='Total Expanding leaf biomass',  use_default='inactive',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_total_exp_leaf_pa )
+	 
+    call this%set_history_var(vname='Toal_YoungLeaf', units='gC/m2',                   &
+         long='Total young leaf biomass',  use_default='inactive',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_total_young_leaf_pa )
+	 
+    call this%set_history_var(vname='Toal_OldLeaf', units='gC/m2',                   &
+         long='Total old leaf biomass',  use_default='inactive',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_total_old_leaf_pa )
+
+    call this%set_history_var(vname='Total_SenLeaf', units='gC/m2',                   &
+         long='Total senescent leaf biomass',  use_default='inactive',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_total_sen_leaf_pa )	 		  	 
 	 	 
     ! Canopy Resistance 
 
