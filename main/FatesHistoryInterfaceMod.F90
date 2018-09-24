@@ -19,6 +19,7 @@ module FatesHistoryInterfaceMod
   use EDParamsMod              , only : ED_val_comp_excln
   use FatesInterfaceMod        , only : nlevsclass, nlevage
   use FatesInterfaceMod        , only : nlevheight
+  use EDTypesMod               , only : use_leaf_age
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -88,6 +89,11 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_canopy_biomass_pa
   integer, private :: ih_understory_biomass_pa
   
+  integer, private :: ih_frac_exp_leaf_pa
+  integer, private :: ih_frac_young_leaf_pa
+  integer, private :: ih_frac_old_leaf_pa
+  integer, private :: ih_frac_sens_leaf_pa
+
   ! Indices to site by size-class by age variables
   integer, private :: ih_nplant_si_scag
   integer, private :: ih_nplant_canopy_si_scag
@@ -1353,6 +1359,10 @@ end subroutine flush_hvars
                hio_agb_pa              => this%hvars(ih_agb_pa)%r81d, &
                hio_canopy_biomass_pa   => this%hvars(ih_canopy_biomass_pa)%r81d, &
                hio_understory_biomass_pa   => this%hvars(ih_understory_biomass_pa)%r81d, &
+	       hio_frac_exp_leaf_pa   => this%hvars(ih_frac_exp_leaf_pa)%r81d, &
+	       hio_frac_young_leaf_pa   => this%hvars(ih_frac_young_leaf_pa)%r81d, &
+	       hio_frac_old_leaf_pa   => this%hvars(ih_frac_old_leaf_pa)%r81d, &
+	       hio_frac_sens_leaf_pa   => this%hvars(ih_frac_sens_leaf_pa)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
                hio_npp_totl_si_scpf    => this%hvars(ih_npp_totl_si_scpf)%r82d, &
                hio_npp_leaf_si_scpf    => this%hvars(ih_npp_leaf_si_scpf)%r82d, &
@@ -1783,6 +1793,17 @@ end subroutine flush_hvars
 
                     hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
                          ccohort%b_total() * ccohort%n * AREA_INV
+		    
+		    if(use_leaf_age==itrue)then	 
+		      hio_frac_exp_leaf_pa(io_pa) = hio_frac_exp_leaf_pa(io_pa) + n_density * ccohort%fracExpLeaves &
+		                                        *ccohort%bl* g_per_kg
+		      hio_frac_young_leaf_pa(io_pa) = hio_frac_young_leaf_pa(io_pa) + n_density * ccohort%fracYoungLeaves &
+		                                         *ccohort%bl* g_per_kg
+		      hio_frac_old_leaf_pa(io_pa) = hio_frac_old_leaf_pa(io_pa) + n_density * ccohort%fracOldLeaves&
+		                                        *ccohort%bl* g_per_kg
+		      hio_frac_sens_leaf_pa(io_pa) = hio_frac_sens_leaf_pa(io_pa) + n_density * ccohort%fracSensLeaves &
+		                                       *ccohort%bl* g_per_kg	
+		    endif 
 
                     ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
                     if (ccohort%canopy_layer .eq. 1) then
@@ -2054,6 +2075,16 @@ end subroutine flush_hvars
                hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) + &
                     cpatch%CWD_BG_OUT(i_cwd)*cpatch%area * AREA_INV * g_per_kg
             end do
+	    
+	    !normalize leaf ages
+	    if(use_leaf_age==itrue)then
+	      if(hio_bleaf_pa(io_pa)>0.0_r8)then
+	        hio_frac_exp_leaf_pa(io_pa) = hio_frac_exp_leaf_pa(io_pa)/ hio_bleaf_pa(io_pa)
+                hio_frac_young_leaf_pa(io_pa) = hio_frac_young_leaf_pa(io_pa)/hio_bleaf_pa(io_pa)
+	        hio_frac_old_leaf_pa(io_pa) = hio_frac_old_leaf_pa(io_pa) / hio_bleaf_pa(io_pa)
+	        hio_frac_sens_leaf_pa(io_pa) = hio_frac_sens_leaf_pa(io_pa)/hio_bleaf_pa(io_pa)
+	      endif
+	    endif
 
             ipa = ipa + 1
             cpatch => cpatch%younger
@@ -3310,8 +3341,28 @@ end subroutine flush_hvars
     call this%set_history_var(vname='BIOMASS_UNDERSTORY', units='gC m-2',                   &
          long='Biomass of understory plants',  use_default='active',                            &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_understory_biomass_pa )
+         ivar=ivar, initialize=initialize_variables, index = ih_understory_biomass_pa )	 
 
+    call this%set_history_var(vname='Frac_ExpLeaf', units='fraction',                   &
+         long='Fraction of Expanding leaf',  use_default='inactive',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_frac_exp_leaf_pa )
+	 
+    call this%set_history_var(vname='Frac_YoungLeaf', units='fraction',                   &
+         long='Fraction of young leaf',  use_default='inactive',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_frac_young_leaf_pa )
+	 
+    call this%set_history_var(vname='Frac_OldLeaf', units='fraction',                   &
+         long='Fraction of old leaf',  use_default='inactive',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_frac_old_leaf_pa )
+
+    call this%set_history_var(vname='Frac_SensLeaf', units='fraction',                   &
+         long='Fraction of senscent leaf',  use_default='inactive',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_frac_sens_leaf_pa )	 	 
+	 	 
     ! Canopy Resistance 
 
     call this%set_history_var(vname='C_STOMATA', units='umol m-2 s-1',                   &
