@@ -92,7 +92,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_frac_exp_leaf_pa
   integer, private :: ih_frac_young_leaf_pa
   integer, private :: ih_frac_old_leaf_pa
-  integer, private :: ih_frac_sens_leaf_pa
+  integer, private :: ih_frac_sen_leaf_pa
 
   ! Indices to site by size-class by age variables
   integer, private :: ih_nplant_si_scag
@@ -1362,7 +1362,7 @@ end subroutine flush_hvars
 	       hio_frac_exp_leaf_pa   => this%hvars(ih_frac_exp_leaf_pa)%r81d, &
 	       hio_frac_young_leaf_pa   => this%hvars(ih_frac_young_leaf_pa)%r81d, &
 	       hio_frac_old_leaf_pa   => this%hvars(ih_frac_old_leaf_pa)%r81d, &
-	       hio_frac_sens_leaf_pa   => this%hvars(ih_frac_sens_leaf_pa)%r81d, &
+	       hio_frac_sen_leaf_pa   => this%hvars(ih_frac_sen_leaf_pa)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
                hio_npp_totl_si_scpf    => this%hvars(ih_npp_totl_si_scpf)%r82d, &
                hio_npp_leaf_si_scpf    => this%hvars(ih_npp_leaf_si_scpf)%r82d, &
@@ -1801,7 +1801,7 @@ end subroutine flush_hvars
 		                                         *ccohort%bl* g_per_kg
 		      hio_frac_old_leaf_pa(io_pa) = hio_frac_old_leaf_pa(io_pa) + n_density * ccohort%fracOldLeaves&
 		                                        *ccohort%bl* g_per_kg
-		      hio_frac_sens_leaf_pa(io_pa) = hio_frac_sens_leaf_pa(io_pa) + n_density * ccohort%fracSensLeaves &
+		      hio_frac_sen_leaf_pa(io_pa) = hio_frac_sen_leaf_pa(io_pa) + n_density * ccohort%fracSenLeaves &
 		                                       *ccohort%bl* g_per_kg	
 		    endif 
 
@@ -2082,7 +2082,7 @@ end subroutine flush_hvars
 	        hio_frac_exp_leaf_pa(io_pa) = hio_frac_exp_leaf_pa(io_pa)/ hio_bleaf_pa(io_pa)
                 hio_frac_young_leaf_pa(io_pa) = hio_frac_young_leaf_pa(io_pa)/hio_bleaf_pa(io_pa)
 	        hio_frac_old_leaf_pa(io_pa) = hio_frac_old_leaf_pa(io_pa) / hio_bleaf_pa(io_pa)
-	        hio_frac_sens_leaf_pa(io_pa) = hio_frac_sens_leaf_pa(io_pa)/hio_bleaf_pa(io_pa)
+	        hio_frac_sen_leaf_pa(io_pa) = hio_frac_sen_leaf_pa(io_pa)/hio_bleaf_pa(io_pa)
 	      endif
 	    endif
 
@@ -3358,10 +3358,10 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_frac_old_leaf_pa )
 
-    call this%set_history_var(vname='Frac_SensLeaf', units='fraction',                   &
-         long='Fraction of senscent leaf',  use_default='inactive',                            &
+    call this%set_history_var(vname='Frac_SenLeaf', units='fraction',                   &
+         long='Fraction of senescent leaf',  use_default='inactive',                            &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_frac_sens_leaf_pa )	 	 
+         ivar=ivar, initialize=initialize_variables, index = ih_frac_sen_leaf_pa )	 	 
 	 	 
     ! Canopy Resistance 
 
