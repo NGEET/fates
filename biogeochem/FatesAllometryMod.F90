@@ -721,10 +721,11 @@ contains
     real(r8),intent(in)           :: d           ! plant diameter [cm]
     integer(i4),intent(in)        :: ipft        ! PFT index
     real(r8),intent(in)           :: canopy_trim
-    real(r8),intent(out)          :: sapw_area   ! cross section are of
+    real(r8),intent(out)          :: sapw_area   ! cross section area of
                                                  ! plant sapwood at reference [m2]
     real(r8),intent(out)          :: bsap        ! plant leaf biomass [kgC]
-    real(r8),intent(out),optional :: dbsapdd     ! change leaf bio per d [kgC/cm]
+    real(r8),intent(out),optional :: dbsapdd     ! change leaf biomass
+                                                 !  per d [kgC/cm]
 
     real(r8) :: h         ! Plant height [m]
     real(r8) :: dhdd
@@ -1042,7 +1043,7 @@ contains
     real(r8),intent(in)    :: dbleafdd  ! change in blmax per diam [kgC/cm]
     integer(i4),intent(in) :: ipft      ! PFT index
     real(r8),intent(out)   :: sapw_area ! area of sapwood crosssection at 
-                                        ! refernce height [m2]
+                                        ! reference height [m2]
     real(r8),intent(out)   :: bsap      ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per diameter [kgC/cm]
     
@@ -1079,8 +1080,8 @@ contains
       ! This is a term that combines unit conversion and specific leaf
       ! area.  This term does not contain the proportionality
       ! between leaf area and sapwood cross-section. This is
-      ! because their may be height dependency their, which is a state
-      ! variable and will effect the derivative wrt diameter.
+      ! because their may be a height dependency, and will effect the 
+      ! derivative wrt diameter.
       hbl2bsap   = slatop * g_per_kg * wood_density * kg_per_Megag / (c2b*cm2_per_m2 )
 
       ! Calculate area. Note that no c2b conversion here, because it is
