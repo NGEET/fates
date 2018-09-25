@@ -434,8 +434,8 @@ contains
                               ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
                               select case(new_cohort%parteh_model)
                               case (1)
-                                 lnc  = 1._r8 / &
-                                       (slatop(ft) * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ))
+
+                                 lnc  = EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ)/slatop(ft)
                                  
 !                              case (2)
 !                                 
@@ -582,12 +582,12 @@ contains
                         fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
 
                         live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                              sapw_c / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
+                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
                         
                         live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
-                              sapw_c / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
+                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
 
-                        fnrt_n = fnrt_c   / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ)
+                        fnrt_n = fnrt_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ)
                      
                      end select
 

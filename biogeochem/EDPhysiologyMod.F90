@@ -66,6 +66,8 @@ module EDPhysiologyMod
   use PRTGenericMod, only : repro_organ
   use PRTGenericMod, only : struct_organ
   use PRTGenericMod, only : SetState
+  use PRTLossFluxesMod, only : PRTPhenologyFlush
+  use PRTLossFluxesMod, only : PRTDeciduousTurnover
 
   implicit none
   private
@@ -643,13 +645,11 @@ contains
     type(ed_patch_type) , pointer :: currentPatch     
     type(ed_cohort_type), pointer :: currentCohort  
 
-    real(r8) :: leaf_c               ! leaf carbon [kg]
-    real(r8) :: store_c              ! storage carbon [kg]
-    real(r8) :: transferred_c        ! carbon transferred from storage to leaf [kg]
-
-    real(r8)           :: store_output ! the amount of the store to put into leaves -
+    real(r8) :: leaf_c                 ! leaf carbon [kg]
+    real(r8) :: store_c                ! storage carbon [kg]
+    real(r8) :: store_output           ! the amount of the store to put into leaves -
                                        ! is a barrier against negative storage and C starvation. 
-
+    real(r8) :: store_c_transfer_frac  ! Fraction of storage carbon used to flush leaves
     !------------------------------------------------------------------------
 
     currentPatch => CurrentSite%oldest_patch   
@@ -660,73 +660,81 @@ contains
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))        
 
-          currentCohort%leaf_litter = 0.0_r8 !zero leaf litter for today.  
-
           ! Retrieve existing leaf and storage carbon
 
           store_c = currentCohort%prt%GetState(store_organ, carbon12_species)
           leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_species)
-          
 
           !COLD LEAF ON
           if (EDPftvarcon_inst%season_decid(currentCohort%pft) == 1)then
              if (currentSite%status == 2)then !we have just moved to leaves being on . 
                 if (currentCohort%status_coh == 1)then !Are the leaves currently off?        
-                   currentCohort%status_coh = 2    !Leaves are on, so change status to stop flow of carbon out of bstore. 
-
-                   transferred_c = min(currentCohort%laimemory, store_c*store_output)
+                   currentCohort%status_coh = 2    ! Leaves are on, so change status to 
+                                                   ! stop flow of carbon out of bstore. 
                    
-                   ! Transfer into leaves
-                   call SetState(currentCohort%prt,leaf_organ, carbon12_species, transferred_c )
+                   if(store_c>nearzero) then
+                      store_c_transfer_frac = &
+                            min(currentCohort%laimemory, store_c*store_output)/store_c
+                   else
+                      store_c_transfer_frac = 0.0_r8
+                   end if
+                   
+                   call PRTPhenologyFlush(currentCohort%prt, currentCohort%pft, &
+                         leaf_organ, store_c_transfer_frac)
 
-                   ! Reduce storage
-                   call SetState(currentCohort%prt,store_organ, carbon12_species, store_c - transferred_c )
-
-                   store_c                 = store_c - transferred_c
                    currentCohort%laimemory = 0.0_r8
 
                 endif !pft phenology
              endif ! growing season 
 
              !COLD LEAF OFF
-!             currentCohort%leaf_litter = 0.0_r8 !zero leaf litter for today. 
-
              if (currentSite%status == 1)then !past leaf drop day? Leaves still on tree?  
                 if (currentCohort%status_coh == 2)then ! leaves have not dropped
-                   currentCohort%status_coh  = 1                  
-                   !remember what the lai was this year to put the same amount back on in the spring... 
+                   
+                   ! This sets the cohort to the "leaves off" flag
+                   currentCohort%status_coh  = 1
+
+                   ! Remember what the lai was (leaf mass actually) was for next year
+                   ! the same amount back on in the spring...
+
                    currentCohort%laimemory   = leaf_c
 
-                   ! add lost carbon to litter
-                   currentCohort%leaf_litter = leaf_c
+                   ! Drop Leaves (this routine will update the leaf state variables,
+                   ! for carbon and any other species that are prognostic. It will
+                   ! also track the turnover masses that will be sent to litter later on)
 
-                   ! Drop Leaves 
-                   ! (THIS NEEDS TO MIGRATED TO A PRT PHENOLOGY SCHEME THAT HANDLES
-                   !  ARBITRARY SPECIES (EG N+P) )
-                   call SetState(currentCohort%prt,leaf_organ, carbon12_species, 0.0_r8 )
-                   leaf_c = 0.0_r8
+                   call PRTDeciduousTurnover(currentCohort%prt,currentCohort%pft, &
+                         leaf_organ, 1.0_r8)
                
                 endif !leaf status
              endif !currentSite status
           endif  !season_decid
 
           !DROUGHT LEAF ON
-
-
           if (EDPftvarcon_inst%stress_decid(currentCohort%pft) == 1)then
-             if (currentSite%dstatus == 2)then !we have just moved to leaves being on . 
-                if (currentCohort%status_coh == 1)then !is it the leaf-on day? Are the leaves currently off?       
-                   currentCohort%status_coh = 2    !Leaves are on, so change status to stop flow of carbon out of bstore. 
 
-                   transferred_c = min(currentCohort%laimemory, store_c*store_output)
-                    
-                   ! Transfer into leaves
-                   call SetState(currentCohort%prt,leaf_organ, carbon12_species, transferred_c )
+             
+             if (currentSite%dstatus == 2)then 
 
-                   ! Reduce storage
-                   call SetState(currentCohort%prt,store_organ, carbon12_species, store_c - transferred_c )
+                ! we have just moved to leaves being on . 
 
-                   store_c                 = store_c - transferred_c
+                if (currentCohort%status_coh == 1)then    
+
+                   !is it the leaf-on day? Are the leaves currently off?    
+
+                   currentCohort%status_coh = 2    ! Leaves are on, so change status to 
+                                                   ! stop flow of carbon out of bstore. 
+
+                   if(store_c>nearzero) then
+                      store_c_transfer_frac = &
+                            min(currentCohort%laimemory, store_c*store_output)/store_c
+                   else
+                      store_c_transfer_frac = 0.0_r8
+                   end if
+                   
+                   call PRTPhenologyFlush(currentCohort%prt, currentCohort%pft, &
+                         leaf_organ, store_c_transfer_frac)
+
                    currentCohort%laimemory = 0.0_r8
 
                 endif !currentCohort status again?
@@ -735,15 +743,15 @@ contains
              !DROUGHT LEAF OFF
              if (currentSite%dstatus == 1)then        
                 if (currentCohort%status_coh == 2)then ! leaves have not dropped
-                   currentCohort%status_coh      = 1   
 
+                   ! This sets the cohort to the "leaves off" flag
+                   currentCohort%status_coh      = 1   
+                   
+                   ! Remember what the lai (leaf mass actually) was for next year
                    currentCohort%laimemory   = leaf_c
 
-                   ! add falling leaves to litter pools . convert to KgC/m2                    
-                   currentCohort%leaf_litter = leaf_c
-
-                   call SetState(currentCohort%prt,leaf_organ, carbon12_species, 0.0_r8 )
-                   leaf_c = 0.0_r8                                        
+                   call PRTDeciduousTurnover(currentCohort%prt,currentCohort%pft, &
+                         leaf_organ, 1.0_r8)
 
                 endif
              endif !status
@@ -1071,8 +1079,6 @@ contains
       currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
            (fnrt_c_turnover + store_c_turnover ) * currentCohort%n/currentPatch%area
       
-      currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
-           currentCohort%leaf_litter * currentCohort%n/currentPatch%area/hlm_freq_day
       
       !daily leaf loss needs to be scaled up to the annual scale here. 
 

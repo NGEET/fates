@@ -53,7 +53,7 @@ module EDPatchDynamicsMod
   use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : SetState
 
-
+  use PRTLossFluxesMod,       only : PRTBurnLosses
 
 
   ! CIME globals
@@ -1062,8 +1062,8 @@ contains
           if (burned_leaves > 0.0_r8) then
 
              ! Remove burned leaves from the pool
-             call SetState(currentCohort%prt,leaf_organ, carbon12_species, leaf_c - burned_leaves )
-
+             call PRTBurnLosses(currentCohort%prt, leaf_organ, burned_leaves/leaf_c)
+             
              !KgC/gridcell/day
              currentSite%flux_out = currentSite%flux_out + burned_leaves * currentCohort%n * &
                   patch_site_areadis/currentPatch%area * AREA 

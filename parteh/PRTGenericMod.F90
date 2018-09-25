@@ -396,6 +396,7 @@ contains
        this%variables(i_var)%val(:)      = un_initialized
        this%variables(i_var)%val0(:)     = un_initialized
        this%variables(i_var)%turnover(:) = un_initialized
+       this%variables(i_var)%burned(:)   = un_initialized
        this%variables(i_var)%net_art(:)  = un_initialized
     end do
 
@@ -553,10 +554,11 @@ contains
     n_vars = size(donor_prt_obj%variables,1)
 
     do i_var = 1, n_vars
-       this%variables(i_var)%val(:)         = donor_prt_obj%variables(i_var)%val(:)
-       this%variables(i_var)%val0(:)        = donor_prt_obj%variables(i_var)%val0(:)
-       this%variables(i_var)%net_art(:)      = donor_prt_obj%variables(i_var)%net_art(:)
-       this%variables(i_var)%turnover(:)    = donor_prt_obj%variables(i_var)%turnover(:)
+       this%variables(i_var)%val(:)       = donor_prt_obj%variables(i_var)%val(:)
+       this%variables(i_var)%val0(:)      = donor_prt_obj%variables(i_var)%val0(:)
+       this%variables(i_var)%net_art(:)   = donor_prt_obj%variables(i_var)%net_art(:)
+       this%variables(i_var)%turnover(:)  = donor_prt_obj%variables(i_var)%turnover(:)
+       this%variables(i_var)%burned(:)    = donor_prt_obj%variables(i_var)%burned(:)
     end do
 
     if(allocated(this%bc_in))then
@@ -631,6 +633,10 @@ contains
        
        this%variables(i_var)%turnover(pos_id)    = recipient_fuse_weight * this%variables(i_var)%turnover(pos_id) + &
             (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%turnover(pos_id)
+
+       this%variables(i_var)%burned(pos_id)    = recipient_fuse_weight * this%variables(i_var)%burned(pos_id) + &
+            (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%burned(pos_id)
+
     end do
 
     this%ode_opt_step = recipient_fuse_weight * this%ode_opt_step + &
@@ -749,6 +755,7 @@ contains
          this%variables(ivar)%val0(:)        = this%variables(ivar)%val(:)
          this%variables(ivar)%net_art(:)     = 0.0_r8
          this%variables(ivar)%turnover(:)    = 0.0_r8
+         this%variables(ivar)%burned(:)      = 0.0_r8
       end do
       
     end subroutine ZeroRates
@@ -772,7 +779,8 @@ contains
            
            err = (this%variables(ivar)%val(pos_id) - this%variables(ivar)%val0(pos_id)) - &
                   (this%variables(ivar)%net_art(pos_id) &
-                   -this%variables(ivar)%turnover(pos_id))
+                   -this%variables(ivar)%turnover(pos_id) & 
+                   -this%variables(ivar)%burned(pos_id) )
            
            if( abs(err) > calloc_abs_error ) then
               write(fates_log(),*) 'PARTEH mass conservation check failed'
@@ -912,6 +920,59 @@ contains
       return
     end function GetTurnover
 
+    ! =========================================================================
+    
+    function GetBurned(this, organ_id, species_id, position_id) result(sp_organ_burned)
+      
+
+      class(prt_vartypes)         :: this
+      integer,intent(in)          :: organ_id
+      integer,intent(in)          :: species_id
+      integer,intent(in),optional :: position_id
+      real(r8)                    :: sp_organ_burned
+
+      integer :: pos_id
+      integer :: ispec
+      integer :: num_species
+      integer,dimension(max_spec_per_group) :: spec_ids 
+      integer :: index
+      
+      sp_organ_burned = 0.0_r8
+      
+      if(species_id == all_carbon_species) then
+         spec_ids(1:3) = carbon_species(1:3)
+         num_species  = 3
+      else
+         num_species  = 1
+         spec_ids(1) = species_id
+      end if
+
+      if(present(position_id)) then
+         pos_id = position_id
+      
+         do ispec = 1,num_species
+            index = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            if(index>0) sp_organ_burned = sp_organ_burned + &
+                  this%variables(index)%burned(pos_id)
+         end do
+
+      else
+         
+         do ispec = 1,num_species
+            index = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            if(index>0) then
+               do pos_id = 1, this%variables(index)%num_pos
+                  sp_organ_burned = sp_organ_burned + this%variables(index)%burned(pos_id)
+               end do
+            end if
+            
+         end do
+
+      end if
+      
+      return
+   end function GetBurned
+
    ! =====================================================================================
 
    function GetCoordVal(this, organ_id, species_id ) result(prt_val)
@@ -1020,7 +1081,6 @@ contains
 
      return
    end subroutine SetState
-
 
    ! ====================================================================================
 

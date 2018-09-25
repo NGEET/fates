@@ -24,6 +24,8 @@ module PRTAllometricCarbonMod
   use PRTGenericMod , only  : repro_organ
   use PRTGenericMod , only  : struct_organ
 
+  use PRTLossFluxesMod    , only : PRTMaintTurnover
+
   use FatesInterfaceMod   , only : hlm_freq_day
   use FatesAllometryMod   , only : bleaf
   use FatesAllometryMod   , only : bsap_allom
@@ -426,7 +428,7 @@ contains
     ! This will increment %turnover and decrease %val
     ! ----------------------------------------------------------------------------------
 
-    call this%MaintTurnover(ipft)
+    call PRTMaintTurnover(this,ipft)
 
     ! -----------------------------------------------------------------------------------
     ! III.  Prioritize some amount of carbon to replace leaf/root turnover

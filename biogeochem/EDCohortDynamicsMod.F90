@@ -384,7 +384,7 @@ contains
     currentCohort%c_area             = nan ! areal extent of canopy (m2)
     currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
     currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
-    currentCohort%leaf_litter        = nan ! leaf litter from phenology: KgC/m2
+
 
     ! VARIABLES NEEDED FOR INTEGRATION 
     currentCohort%dndt               = nan ! time derivative of cohort size 
@@ -438,7 +438,7 @@ contains
     currentcohort%gpp_tstep          = 0._r8
     currentcohort%resp_tstep         = 0._r8
     currentcohort%resp_acc_hold      = 0._r8
-    currentcohort%leaf_litter        = 0._r8
+
     currentcohort%year_net_uptake(:) = 999._r8 ! this needs to be 999, or trimming of new cohorts will break. 
     currentcohort%ts_net_uptake(:)   = 0._r8
     currentcohort%seed_prod          = 0._r8
@@ -598,12 +598,8 @@ contains
                      * SF_val_CWD_frac(c) * (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) 
              enddo
 
-             currentPatch%leaf_litter(currentCohort%pft) = currentPatch%leaf_litter(currentCohort%pft) + currentCohort%n* &
-                  (leaf_c)/currentPatch%area
              currentPatch%root_litter(currentCohort%pft) = currentPatch%root_litter(currentCohort%pft) + currentCohort%n* &
                   (fnrt_c+store_c)/currentPatch%area 
-
-             
 
 
              ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
@@ -854,8 +850,6 @@ contains
 
                                    currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
                                          nextc%n*nextc%fire_mort)/newn
-                                   currentCohort%leaf_litter    = (currentCohort%n*currentCohort%leaf_litter + &
-                                         nextc%n*nextc%leaf_litter)/newn
 
                                    ! mortality diagnostics
                                    currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
@@ -1260,7 +1254,6 @@ contains
     n%seed_prod       = o%seed_prod
     n%treelai         = o%treelai
     n%treesai         = o%treesai
-    n%leaf_litter     = o%leaf_litter
     n%c_area          = o%c_area
 
     ! Mortality diagnostics

@@ -20,11 +20,6 @@ module PRTLossFluxesMod
   implicit none
   private
 
-  integer, public, parameter :: deciduous_drop_event = 1
-  integer, public, parameter :: storm_event          = 2
-  integer, public, parameter :: fire_event           = 3
-  integer, public, parameter :: herbivory_event      = 4
-
   ! -------------------------------------------------------------------------------------
   ! This module hosts two public functions that handle all things
   ! related to loss fluxes.  They broadly cover the two types of turnover;
@@ -45,20 +40,163 @@ module PRTLossFluxesMod
   !
   ! THIS ROUTINE ONLY DEALS WITH LOSSES OF BIOMASS FROM PLANTS THAT ARE SURVIVING
   ! AN EVENT.  IF A PLANT DIES, THEN THIS ROUTINE DOES NOT HANDLE ITS FLUXES. It
-  ! is however likely that an event like fire will kill a portion of a populatoin,
+  ! is however likely that an event like fire will kill a portion of a population,
   ! and damage the remaining population, these routines will assist in the latter.
   !
   ! EDPftvarcon_inst%turnover_retrans_mode
   ! -------------------------------------------------------------------------------------
 
-  public :: DeciduousTurnover
-  public :: MaintTurnover
-  public :: PlantBurnLosses
+  public :: PRTDeciduousTurnover
+  public :: PRTMaintTurnover
+  public :: PRTBurnLosses
+  public :: PRTPhenologyFlush
 
 contains
 
+
+  subroutine PRTPhenologyFlush(prt, ipft, organ_id, c_store_transfer_frac)
+     
+     ! This subroutine is used to flush (leaves) from storage upon bud-burst.
+     ! Leaves are somewhat implied here, but the function does allow for other
+     ! pools (fine-roots) to be flushed from storage as well.
+     
+     class(prt_vartypes) :: prt
+     integer,intent(in)  :: ipft
+     integer,intent(in)  :: organ_id
+     real(r8),intent(in) :: c_store_transfer_frac  ! carbon mass fraction 
+                                                   ! transferred from storage
+   
+     integer             :: i_var                  ! variable index
+     integer             :: i_cvar                 ! carbon variable index
+     integer             :: i_pos                  ! spatial position index
+     integer             :: i_store                ! storage variable index
+     integer             :: spec_id                ! global species identifier
+     integer             :: num_sp_vars            ! number of species for this organ
+     integer             :: i_store                ! variable index of storage
+     real(r8)            :: mass_transfer          ! The actual mass
+                                                   ! removed from storage
+                                                   ! for each pool
+     real(r8)            :: target_stoich          ! stoichiometry of species of interest
+     real(r8)            :: sp_target              ! target nutrient mass for species
+     real(r8)            :: sp_demand              ! nutrient demand for species
+
+
+     associate(organ_map => prt%prt_instance%organ_map)
+
+       ! This is the total number of state variables associated
+       ! with this particular organ (ie carbon, nitrogen, phosphorous, ...)
+       
+       num_sp_vars = organ_map(organ_id)%num_vars
+
+       
+       ! First transfer in carbon
+       ! --------------------------------------------------------------------------------
+       
+       i_cvar = prt%prt_instance%sp_organ_map(organ_id,carbon12_species)
+
+       ! Get the variable id of the storage pool for this species (carbon12)
+       i_store = prt%prt_instance%sp_organ_map(store_organ,carbon12_species)
+
+       ! Loop over all of the coordinate ids
+       do i_pos = 1,prt%variables(i_cvar)%num_pos
+          
+          ! Calculate the mass transferred out of storage into the pool of interest
+          mass_transfer = prt%variables(i_store)%val(i_pos) * c_store_transfer_frac
+          
+          ! Increment the c pool of interest
+          prt%variables(i_cvar)%net_art(i_pos)   = &
+                prt%variables(i_cvar)%net_art(i_pos) + mass_transfer
+          
+          ! Update the c pool
+          prt%variables(i_cvar)%val(i_pos)       = &
+                prt%variables(i_cvar)%val(i_pos) + mass_transfer
+          
+          ! Increment the c pool of interest
+          prt%variables(i_store)%net_art(i_pos) = &
+                prt%variables(i_store)%net_art(i_pos) - mass_transfer
+          
+          ! Update the c pool
+          prt%variables(i_store)%val(i_pos)     = &
+                prt%variables(i_store)%val(i_pos) - mass_transfer
+          
+          
+       end do
+
+
+       ! Transfer in other species
+       ! --------------------------------------------------------------------------------
+
+       do i_sp_var = 1, num_sp_vars
+          
+          i_var  = organ_map(organ_id)%var_id(i_sp_var)
+          
+          ! Variable index for the species of interest
+          spec_id = prt%prt_instance%state_descriptor(i_var)%spec_id
+          
+          if ( spec_id .ne. carbon12_species ) then
+
+             ! Get the variable id of the storage pool for this species
+             i_store = prt%prt_instance%sp_organ_map(store_organ,spec_id)
+             
+             ! Calculate the stoichiometry with C for this species
+             
+             if( spec_id == nitrogen_species ) then
+                target_stoich = EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
+             else if( spec_id == phosphorous_species ) then
+                target_stoich = EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
+             else
+                write(fates_log(),*) ' Trying to calculate nutrient flushing target'
+                write(fates_log(),*) ' for species that DNE'
+                write(fates_log(),*) ' organ: ',organ_id,' species: ',spec_id
+                write(fates_log(),*) 'Exiting'
+                call endrun(msg=errMsg(__FILE__, __LINE__))
+             end if
+
+
+             ! Loop over all of the coordinate ids
+             do i_pos = 1,prt%variables(i_var)%num_pos
+                
+                ! The target quanitity for this species is based on the amount
+                ! of carbon
+                sp_target = prt%variables(i_cvar)%val(i_pos) * target_stoich
+
+                sp_demand = max(0.0_r8,sp_target - prt%variables(i_var)%val(i_pos))
+
+                ! Assume that all of the storage is transferrable
+                mass_transfer = min(sp_demand, prt%variables(i_store)%val(i_pos))
+
+                ! Increment the pool of interest
+                prt%variables(i_var)%net_art(i_pos)   = &
+                      prt%variables(i_var)%net_art(i_pos) + mass_transfer
+                
+                ! Update the c pool
+                prt%variables(i_var)%val(i_pos)       = &
+                      prt%variables(i_var)%val(i_pos) + mass_transfer
+
+                ! Increment the c pool of interest
+                prt%variables(i_store)%net_art(i_pos) = &
+                      prt%variables(i_store)%net_art(i_pos) - mass_transfer
+                
+                ! Update the c pool
+                prt%variables(i_store)%val(i_pos)     = &
+                      prt%variables(i_store)%val(i_pos) - mass_transfer
+
+             
+             end do
+          
+          end if
+
+       end do
+       
+
+       
+     end associate
+     return
+  end subroutine PRTPhenologyFlush
   
-  subroutine PlantBurnLosses(prt, ipft, organ_id, mass_fraction)
+  ! =====================================================================================
+
+  subroutine PRTBurnLosses(prt, organ_id, mass_fraction)
 
     ! This subroutine assumes that there is no re-translocation associated
     ! with burn. There is only one destiny for burned mass within
@@ -68,7 +206,6 @@ contains
     ! pool or send to atmosphere, or.. other?)
 
     class(prt_vartypes) :: prt
-    integer,intent(in)  :: ipft
     integer,intent(in)  :: organ_id
     real(r8),intent(in) :: mass_fraction
 
@@ -112,13 +249,12 @@ contains
        end do
        
      end associate
-    
-    end subroutine PlantBurnLosses
+    end subroutine PRTBurnLosses
     
     ! ===================================================================================
 
 
-    subroutine DeciduousTurnover(prt,ipft,organ_id,mass_fraction)
+    subroutine PRTDeciduousTurnover(prt,ipft,organ_id,mass_fraction)
      
      ! ---------------------------------------------------------------------------------
      ! Generic subroutine (wrapper) calling specialized routines handling
@@ -140,7 +276,7 @@ contains
      end if
      
      return
-   end subroutine DeciduousTurnover
+   end subroutine PRTDeciduousTurnover
    
 
    ! ====================================================================================
@@ -259,7 +395,7 @@ contains
 
    ! ====================================================================================
    
-   subroutine MaintTurnover(prt,ipft)
+   subroutine PRTMaintTurnover(prt,ipft)
       
       ! ---------------------------------------------------------------------------------
       ! Generic subroutine (wrapper) calling specialized routines handling
@@ -279,7 +415,7 @@ contains
       end if
       
       return
-   end subroutine MaintTurnover
+   end subroutine PRTMaintTurnover
 
    ! ===================================================================================
    

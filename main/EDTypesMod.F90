@@ -228,7 +228,7 @@ module EDTypesMod
      ! ALLOCATION
 
      real(r8) ::  seed_prod                              ! reproduction seed and clonal: KgC/indiv/year
-     real(r8) ::  leaf_litter                            ! leaf litter from phenology: KgC/m2
+
 
      !MORTALITY
      real(r8) ::  dmort                                  ! proportional mortality rate. (year-1)
@@ -790,7 +790,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%seed_prod              = ', ccohort%seed_prod
      write(fates_log(),*) 'co%treelai                = ', ccohort%treelai
      write(fates_log(),*) 'co%treesai                = ', ccohort%treesai
-     write(fates_log(),*) 'co%leaf_litter            = ', ccohort%leaf_litter
      write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area
      write(fates_log(),*) 'co%cmort                  = ', ccohort%cmort
      write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort

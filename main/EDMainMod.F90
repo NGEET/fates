@@ -53,6 +53,20 @@ module EDMainMod
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteCarbonStock
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
+
+  use PRTGenericMod,          only : all_carbon_species
+  use PRTGenericMod,          only : carbon12_species
+  use PRTGenericMod,          only : nitrogen_species
+  use PRTGenericMod,          only : phosphorous_species
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : fnrt_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : store_organ
+  use PRTGenericMod,          only : repro_organ
+  use PRTGenericMod,          only : struct_organ
+  use PRTGenericMod,          only : carbon12_species
+  use PRTGenericMod,          only : SetState
+
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)

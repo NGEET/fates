@@ -4,6 +4,19 @@ module ChecksBalancesMod
    use shr_const_mod, only: SHR_CONST_CDAY
    use EDtypesMod   , only : ed_site_type,ed_patch_type,ed_cohort_type
    use EDTypesMod   , only : AREA
+   use FatesConstants, only : g_per_kg
+
+   use PRTGenericMod,          only : all_carbon_species
+   use PRTGenericMod,          only : carbon12_species
+   use PRTGenericMod,          only : nitrogen_species
+   use PRTGenericMod,          only : phosphorous_species
+   use PRTGenericMod,          only : leaf_organ
+   use PRTGenericMod,          only : fnrt_organ
+   use PRTGenericMod,          only : sapw_organ
+   use PRTGenericMod,          only : store_organ
+   use PRTGenericMod,          only : repro_organ
+   use PRTGenericMod,          only : struct_organ
+   use PRTGenericMod,          only : carbon12_species
 
    implicit none
    
@@ -78,11 +91,13 @@ contains
                
                ! map biomass pools to column level
                sites(s)%biomass_stock = sites(s)%biomass_stock + &
-                     (currentCohort%bdead + &
-                      currentCohort%bsw   + &
-                      currentCohort%bl    + &
-                      currentCohort%br    + &
-                      currentCohort%bstore) * n_perm2 * 1.e3_r8
+                     ( currentCohort%prt%GetState(struct_organ,all_carbon_species) + &
+                       currentCohort%prt%GetState(sapw_organ,all_carbon_species) + &
+                       currentCohort%prt%GetState(leaf_organ,all_carbon_species) + &
+                       currentCohort%prt%GetState(fnrt_organ,all_carbon_species) + &
+                       currentCohort%prt%GetState(store_organ,all_carbon_species) + &
+                       currentCohort%prt%GetState(repro_organ,all_carbon_species) ) &
+                       * n_perm2 * g_per_kg
                
                currentCohort => currentCohort%shorter
             enddo !currentCohort
@@ -268,11 +283,13 @@ contains
         currentCohort => currentPatch%tallest
         do while(associated(currentCohort))
            biomass_stock =  biomass_stock + &
-                 (currentCohort%bdead     + &
-                  currentCohort%bsw       + &
-                  currentCohort%br        + &
-                  currentCohort%bl        + &
-                  currentCohort%bstore) * currentCohort%n
+                 (currentCohort%prt%GetState(struct_organ,all_carbon_species) + &
+                 currentCohort%prt%GetState(sapw_organ,all_carbon_species) + &
+                 currentCohort%prt%GetState(leaf_organ,all_carbon_species) + &
+                 currentCohort%prt%GetState(fnrt_organ,all_carbon_species) + &
+                 currentCohort%prt%GetState(store_organ,all_carbon_species) + &
+                 currentCohort%prt%GetState(repro_organ,all_carbon_species) ) &
+                 * currentCohort%n
            currentCohort => currentCohort%shorter
         enddo !end cohort loop 
         currentPatch => currentPatch%younger
