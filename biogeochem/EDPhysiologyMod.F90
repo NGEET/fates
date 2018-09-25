@@ -1115,8 +1115,13 @@ contains
     
     if (EDPftvarcon_inst%evergreen(ipft) == 1)then
        if(use_leaf_age==itrue)then
-          currentCohort%leaf_md = currentCohort%bl*currentCohort%fracSenLeaves&
-	        / EDPftvarcon_inst%senleaf_long(ipft) 	 
+          if(currentSite%dstatus==1)then
+            currentCohort%leaf_md = currentCohort%bl*currentCohort%fracSenLeaves &
+	        / (EDPftvarcon_inst%senleaf_long(ipft)* EDPftvarcon_inst%senleaf_long_fdrought(ipft))
+          else
+	    currentCohort%leaf_md = currentCohort%bl*currentCohort%fracSenLeaves&
+	        / EDPftvarcon_inst%senleaf_long(ipft)
+	  endif			 
        else
          currentCohort%leaf_md = currentCohort%bl / EDPftvarcon_inst%leaf_long(ipft)
        endif
@@ -1153,7 +1158,11 @@ contains
 	  dOldLeaves_dt=previous_bl *currentCohort%fracOldLeaves &
 	                 / EDPftvarcon_inst%oldleaf_long(ipft)*hlm_freq_day			 			 
 	  dSenLeaves_dt=previous_bl *currentCohort%fracSenLeaves &
-	                 / EDPftvarcon_inst%senleaf_long(ipft)*hlm_freq_day	
+	                 / EDPftvarcon_inst%senleaf_long(ipft)*hlm_freq_day
+	  if(currentSite%dstatus==1)  then !drought periods
+	       dSenLeaves_dt=previous_bl *currentCohort%fracSenLeaves &
+	       /(EDPftvarcon_inst%senleaf_long(ipft)*EDPftvarcon_inst%senleaf_long_fdrought(ipft))*hlm_freq_day	  
+	  endif	
 	  currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves-dExpLeaves_dt)&
 	                /currentCohort%bl
 	  currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves+dExpLeaves_dt- &
@@ -1485,7 +1494,7 @@ contains
           currentCohort%bl        = currentCohort%bl + bl_flux
           currentCohort%npp_leaf  = currentCohort%npp_leaf + bl_flux / hlm_freq_day
           if(use_leaf_age==itrue.and.currentCohort%bl>0.0_r8) then
-	     currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves + bl_flux)&
+	     currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves + bl_flux) &
 	                                   /currentCohort%bl
 	     currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves)/currentCohort%bl
 	     currentCohort%fracOldLeaves = (previous_bl *currentCohort%fracOldLeaves)/currentCohort%bl
