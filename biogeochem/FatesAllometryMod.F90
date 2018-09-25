@@ -43,8 +43,8 @@
 ! The following parameters (traits) are used
 !
 ! wood_density, mean stem wood specific gravity (heart,sap,bark)
-! allom_latosa_int, sapwood area per leaf area, intercept [cm2/m2]
-! allom_latosa_slp, sapwood area per leaf area, slope on diameter [cm2/m2/cm]
+! allom_la_per_sa_int, leaf area per sapwood area, intercept [m2/cm2]
+! allom_la_per_sa_slp, leaf area per sapwood area, slope on diameter [m2/cm2/cm]
 ! c2b, real, carbon to biomass multiplier (~2.0)
 ! allom_l2fr, fine root biomass per leaf biomass ratio [kgC/kgC]
 ! allom_agb_frac, the fraction of stem above ground [-]
@@ -93,6 +93,8 @@ module FatesAllometryMod
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
   use EDTypesMod       , only : nlevleaf, dinc_ed
+  use EDTypesMod       , only : nclmax
+
 
   implicit none
 
@@ -104,13 +106,14 @@ module FatesAllometryMod
   public :: bleaf         ! Generic actual leaf biomass wrapper
   public :: storage_fraction_of_target ! storage as fraction of leaf biomass
   public :: tree_lai      ! Calculate tree-level LAI from actual leaf biomass
-  public :: tree_sai      ! Calculate tree-level SAI from target leaf biomass
+  public :: tree_sai      ! Calculate tree-level SAI from tree-level LAI
   public :: bsap_allom    ! Generic sapwood wrapper
   public :: bbgw_allom    ! Generic coarse root wrapper
   public :: bfineroot     ! Generic actual fine root biomass wrapper
   public :: bdead_allom   ! Generic bdead wrapper
   public :: carea_allom   ! Generic crown area wrapper
   public :: bstore_allom  ! Generic maximum storage carbon wrapper
+  public :: decay_coeff_kn
   public :: StructureResetOfDH ! Method to set DBH to sync with structure biomass
   public :: CheckIntegratedAllometries
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
@@ -196,6 +199,7 @@ contains
      real(r8) :: bl_diag           ! diagnosed leaf biomass [kgC]
      real(r8) :: bfr_diag          ! diagnosed fine-root biomass [kgC]
      real(r8) :: bsap_diag         ! diagnosed sapwood biomass [kgC]
+     real(r8) :: asap_diag         ! sapwood area (dummy) [m2]
      real(r8) :: bdead_diag        ! diagnosed structural biomass [kgC]
      real(r8) :: bstore_diag       ! diagnosed storage biomass [kgC]
      real(r8) :: bagw_diag         ! diagnosed agbw [kgC]
@@ -234,7 +238,7 @@ contains
      end if
 
      if (grow_sap) then
-        call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)
+        call bsap_allom(dbh,ipft,canopy_trim,asap_diag,bsap_diag)
         if( abs(bsap_diag-bsap) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
@@ -262,7 +266,7 @@ contains
      end if
 
      if (grow_dead) then
-        call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)
+        call bsap_allom(dbh,ipft,canopy_trim,asap_diag,bsap_diag)
         call bagw_allom(dbh,ipft,bagw_diag)
         call bbgw_allom(dbh,ipft,bbgw_diag)
         call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )        
@@ -461,11 +465,14 @@ contains
                 d2ca_max    => EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft))
        
        select case(int(allom_lmode))
-       case(1,3) ! "salda" and "height capped generic two power"
+       case(1)
           d_eff = min(d,dbh_maxh)
           call carea_2pwr(d_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
        case(2)   ! "2par_pwr")
           call carea_2pwr(d,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+       case(3)
+          d_eff = min(d,dbh_maxh)
+          call carea_2pwr(d_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
        case DEFAULT
          write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
                allom_lmode
@@ -540,98 +547,185 @@ contains
   end subroutine storage_fraction_of_target
 
   ! =====================================================================================
-  
-  real(r8) function tree_lai( bl, status_coh, pft, c_area, n )
 
-    ! ============================================================================
-    !  LAI of individual trees is a function of the total leaf area and the total canopy area.   
-    ! ============================================================================
+  real(r8) function tree_lai( bl, pft, c_area, nplant, cl, canopy_lai)
 
-    real(r8), intent(in) :: bl            ! plant leaf biomass [kg]     
-    integer, intent(in)  :: status_coh    ! growth status of plant  (2 = leaves on , 1 = leaves off)
+    ! -----------------------------------------------------------------------------------
+    ! LAI of individual trees is a function of the total leaf area and the total 
+    ! canopy area.   
+    ! ----------------------------------------------------------------------------------
+
+    ! !ARGUMENTS
+    real(r8), intent(in) :: bl                        ! plant leaf biomass [kg]     
     integer, intent(in)  :: pft
-    real(r8), intent(in) :: c_area        ! areal extent of canopy (m2)
-    real(r8), intent(in) :: n             ! number of individuals in cohort per 'area' (10000m2 default)
+    real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
+    real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
+    integer, intent(in)  :: cl                        ! canopy layer index
+    real(r8), intent(in) :: canopy_lai(nclmax)        ! total leaf area index of 
+                                                      ! each canopy layer
 
+    ! !LOCAL VARIABLES:
     real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
     real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
+    real(r8) :: canopy_lai_above   ! total LAI of canopy layer overlying this tree
+    real(r8) :: vai_per_lai        ! ratio of vegetation area index (ie. sai+lai) 
+                                   ! to lai for individual tree
+    real(r8) :: kn                 ! coefficient for exponential decay of 1/sla and 
+                                   ! vcmax with canopy depth
+    real(r8) :: sla_max            ! Observational constraint on how large sla 
+                                   ! (m2/gC) can become
+    real(r8) :: leafc_slamax       ! Leafc_per_unitarea at which sla_max is reached
+    real(r8) :: clim               ! Upper limit for leafc_per_unitarea in exponential 
+                                   ! tree_lai function
+    !----------------------------------------------------------------------
 
     if( bl  <  0._r8 .or. pft  ==  0 ) then
        write(fates_log(),*) 'problem in treelai',bl,pft
     endif
 
     slat = g_per_kg * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg
-    leafc_per_unitarea = bl/(c_area/n) !KgC/m2
+    leafc_per_unitarea = bl/(c_area/nplant) !KgC/m2
+    
     if(leafc_per_unitarea > 0.0_r8)then
-       tree_lai = leafc_per_unitarea * slat  !kg/m2 * m2/kg = unitless LAI 
+
+
+       if (cl==1) then ! if in we are in the canopy (top) layer)
+          canopy_lai_above = 0._r8
+       else
+          canopy_lai_above = sum(canopy_lai(1:cl-1))
+       end if
+
+       ! Coefficient for exponential decay of 1/sla with canopy depth:
+       kn = decay_coeff_kn(pft)
+
+       ! take PFT-level maximum SLA value, even if under a thick canopy (which has units of m2/gC),
+       ! and put into units of m2/kgC
+       sla_max = g_per_kg *EDPftvarcon_inst%slamax(pft)
+       ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
+       leafc_slamax = (slat - sla_max * exp(-1.0_r8 * kn * canopy_lai_above)) / &
+            (-1.0_r8 * kn * slat * sla_max)
+       if(leafc_slamax < 0.0_r8)then
+          leafc_slamax = 0.0_r8
+       endif
+
+       ! Calculate tree_lai (m2 leaf area /m2 ground) = unitless LAI
+       !----------------------------------------------------------------------
+       ! If leafc_per_unitarea is less than leafc_slamax,
+       ! sla with depth in the canopy will not exceed sla_max.
+       ! In this case, we can use an exponential profile for sla throughout the entire canopy.
+       ! The exponential profile for sla is given by:
+       ! sla(at a given canopy depth) = slat / exp(-kn (canopy_lai_above + tree_lai)
+       ! 
+       ! We can solve for tree_lai using the above function for the sla profile and first setting 
+       ! leafc_per_unitarea = integral of e^(-kn(x + canopy_lai_above)) / slatop
+       ! over x = 0 to tree_lai
+       ! Then, rearranging the equation to solve for tree_lai.
+
+       if (leafc_per_unitarea <= leafc_slamax)then
+          tree_lai = (log(exp(-1.0_r8 * kn * canopy_lai_above) - &
+               kn * slat * leafc_per_unitarea) + &
+               (kn * canopy_lai_above)) / (-1.0_r8 * kn)
+
+          ! If leafc_per_unitarea becomes too large, tree_lai becomes an imaginary number 
+          ! (because the tree_lai equation requires us to take the natural log of something >0)
+          ! Thus, we include the following error message in case leafc_per_unitarea becomes too large.
+          clim = (exp(-1.0_r8 * kn * canopy_lai_above)) / (kn * slat)
+          if (leafc_per_unitarea >= clim) then
+             write(fates_log(),*) 'too much leafc_per_unitarea' , leafc_per_unitarea, clim, pft, canopy_lai_above
+             write(fates_log(),*) 'Aborting'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          endif
+
+          ! When leafc_per_unitarea is greater than leafc_slamax, 
+          ! tree_lai could become so great that the sla profile surpasses sla_max at depth.
+          ! In this case, we use the exponential profile to calculate tree_lai until
+          ! we reach the maximum allowed value for sla (sla_max).
+          ! Then, calculate the remaining tree_lai using a linear function of sla_max and the remaining leafc.
+       
+       else if(leafc_per_unitarea > leafc_slamax)then
+          
+          ! Add exponential and linear portions of tree_lai
+          ! Exponential term for leafc = leafc_slamax; 
+          ! Linear term (static sla = sla_max) for portion of leafc > leafc_slamax
+          tree_lai = ((log(exp(-1.0_r8 * kn * canopy_lai_above) - &
+               kn * slat * leafc_slamax) + &
+               (kn * canopy_lai_above)) / (-1.0_r8 * kn)) + &
+               (leafc_per_unitarea - leafc_slamax) * sla_max
+
+          ! if leafc_slamax becomes too large, tree_lai_exp becomes an imaginary number 
+          ! (because the tree_lai equation requires us to take the natural log of something >0)
+          ! Thus, we include the following error message in case leafc_slamax becomes too large.
+          clim = (exp(-1.0_r8 * kn * canopy_lai_above)) / (kn * slat)
+          if(leafc_slamax >= clim)then
+             write(fates_log(),*) 'too much leafc_slamax' , &
+                  leafc_per_unitarea, leafc_slamax, clim, pft, canopy_lai_above
+             write(fates_log(),*) 'Aborting'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          endif
+       end if ! (leafc_per_unitarea  > leafc_slamax)
     else
        tree_lai = 0.0_r8
-    endif
-
-
-    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
-    ! huge error 
-    if(tree_lai > nlevleaf*dinc_ed)then
-       write(fates_log(),*) 'too much lai' , tree_lai , pft , nlevleaf * dinc_ed
-       write(fates_log(),*) 'Aborting'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
+    endif ! (leafc_per_unitarea > 0.0_r8)
 
     return
-
   end function tree_lai
 
   ! ============================================================================
 
-  real(r8) function tree_sai( dbh, pft, canopy_trim, c_area, n )
+  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, canopy_lai, treelai )
 
     ! ============================================================================
-    !  SAI of individual trees is a function of the target leaf biomass
+    !  SAI of individual trees is a function of the LAI of individual trees
     ! ============================================================================
 
-    real(r8),intent(in)  :: dbh
-    integer, intent(in)  :: pft
-    real(r8),intent(in)  :: canopy_trim
-    real(r8), intent(in) :: c_area        ! areal extent of canopy (m2)
-    real(r8), intent(in) :: n             ! number of individuals in cohort per 'area' (10000m2 default)
+    integer, intent(in)  :: pft                
+    real(r8), intent(in) :: dbh                
+    real(r8), intent(in) :: canopy_trim        ! trimming function (0-1)
+    real(r8), intent(in) :: c_area             ! crown area (m2)
+    real(r8), intent(in) :: nplant             ! number of plants
+    integer, intent(in)  :: cl                 ! canopy layer index
+    real(r8), intent(in) :: canopy_lai(nclmax) ! total leaf area index of 
+                                               ! each canopy layer
+    real(r8), intent(in) :: treelai            ! tree LAI for checking purposes only
 
-    real(r8) :: leafc_per_unitarea ! KgC of target leaf per m2 area of ground.
-    real(r8) :: sai_scaler     
-    real(r8) :: b_leaf
+    real(r8)             :: target_bleaf
+    real(r8)             :: target_lai
 
-    sai_scaler = g_per_kg * EDPftvarcon_inst%allom_sai_scaler(pft)  ! m2/g to m2/kg
+    call bleaf(dbh,pft,canopy_trim,target_bleaf)
 
-    call bleaf(dbh,pft,canopy_trim,b_leaf)
+    target_lai = tree_lai( target_bleaf, pft, c_area, nplant, cl, canopy_lai) 
 
-    leafc_per_unitarea = b_leaf/(c_area/n) !KgC/m2
+    tree_sai   =  EDPftvarcon_inst%allom_sai_scaler(pft) * target_lai
 
-    tree_sai = leafc_per_unitarea * sai_scaler !kg/m2 * m2/kg = unitless SAI 
 
-    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
-    ! huge error 
-    if(tree_sai > nlevleaf*dinc_ed)then
-       write(fates_log(),*) 'too much sai' , tree_sai , pft , nlevleaf * dinc_ed
-       write(fates_log(),*) 'Aborting'
+    if( (treelai + tree_sai) > (nlevleaf*dinc_ed) )then
+       write(fates_log(),*) 'The leaf and stem are predicted for a cohort, maxed out the array size'
+       write(fates_log(),*) 'lai: ',treelai
+       write(fates_log(),*) 'sai: ',tree_sai
+       write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
+       write(fates_log(),*) 'nlevleaf,dinc_ed,nlevleaf*dinc_ed :',nlevleaf,dinc_ed,nlevleaf*dinc_ed
        call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
+    end if
+    
+
 
     return
-
   end function tree_sai
   
   ! ============================================================================
   ! Generic sapwood biomass interface
   ! ============================================================================
 
-  subroutine bsap_allom(d,ipft,canopy_trim,bsap,dbsapdd)
+  subroutine bsap_allom(d,ipft,canopy_trim,sapw_area,bsap,dbsapdd)
     
-    real(r8),intent(in)           :: d         ! plant diameter [cm]
-    integer(i4),intent(in)        :: ipft      ! PFT index
+    real(r8),intent(in)           :: d           ! plant diameter [cm]
+    integer(i4),intent(in)        :: ipft        ! PFT index
     real(r8),intent(in)           :: canopy_trim
-    real(r8),intent(out)          :: bsap      ! plant leaf biomass [kgC]
-    real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per d [kgC/cm]
+    real(r8),intent(out)          :: sapw_area   ! cross section area of
+                                                 ! plant sapwood at reference [m2]
+    real(r8),intent(out)          :: bsap        ! plant leaf biomass [kgC]
+    real(r8),intent(out),optional :: dbsapdd     ! change leaf biomass
+                                                 !  per d [kgC/cm]
 
     real(r8) :: h         ! Plant height [m]
     real(r8) :: dhdd
@@ -656,17 +750,19 @@ contains
        ! checking at the beginning.  For constant proportionality, the slope
        ! of the la:sa to diameter line is zero.
        ! ---------------------------------------------------------------------
-    case(1,2) !"constant","dlinear") 
+    case(1) ! linearly related to leaf area based on target leaf biomass
+            ! and slatop (no provisions for slamax)
 
        call h_allom(d,ipft,h,dhdd)
        call bleaf(d,ipft,canopy_trim,bl,dbldd)
-       call bsap_dlinear(d,h,dhdd,bl,dbldd,ipft,bsap,dbsapdd)
+       call bsap_ltarg_slatop(d,h,dhdd,bl,dbldd,ipft,sapw_area,bsap,dbsapdd)
 
        ! Perform a capping/check on total woody biomass
        call bagw_allom(d,ipft,bagw,dbagwdd)
        call bbgw_allom(d,ipft,bbgw,dbbgwdd)
        
        ! Force sapwood to be less than a maximum fraction of total biomass
+       ! We omit the sapwood area from this calculation
        ! (this comes into play typically in very small plants)
        bsap_cap = max_frac*(bagw+bbgw)
 
@@ -676,12 +772,6 @@ contains
              dbsapdd = max_frac*(dbagwdd+dbbgwdd)
           end if
        end if
-
-    case(9) ! deprecated (9)
-
-       call h_allom(d,ipft,h,dhdd)
-       call bleaf(d,ipft,canopy_trim,bl,dbldd)
-       call bsap_deprecated(d,h,dhdd,bl,dbldd,ipft,bsap,dbsapdd)
 
     case DEFAULT
        write(fates_log(),*) 'An undefined sapwood allometry was specified: ', &
@@ -927,87 +1017,58 @@ contains
  ! ============================================================================
  ! Specific d2bsap relationships
  ! ============================================================================
-  
- subroutine bsap_deprecated(d,h,dhdd,bleaf,dbleafdd,ipft,bsap,dbsapdd)
-    
 
+  subroutine bsap_ltarg_slatop(d,h,dhdd,bleaf,dbleafdd,ipft, &
+        sapw_area,bsap,dbsapdd)
     
     ! -------------------------------------------------------------------------
-    ! -------------------------------------------------------------------------
-    
-    real(r8),intent(in)    :: d         ! plant diameter [cm]
-    real(r8),intent(in)    :: h         ! plant height [m]
-    real(r8),intent(in)    :: dhdd      ! change in height per diameter [m/cm]
-    real(r8),intent(in)    :: bleaf     ! plant leaf biomass [kgC]
-    real(r8),intent(in)    :: dbleafdd  ! change in blmax per diam [kgC/cm]
-    integer(i4),intent(in) :: ipft      ! PFT index
-    real(r8),intent(out)   :: bsap      ! plant leaf biomass [kgC]
-    real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per diameter [kgC/cm]
-    
-    real(r8)               :: latosa    ! applied leaf area to sap area 
-                                        ! may or may not contain diameter correction
-    real(r8)               :: hbl2bsap  ! sapwood biomass per lineal height and kg of leaf
-    
-    
-    associate ( latosa_int => EDPftvarcon_inst%allom_latosa_int(ipft), &
-                latosa_slp => EDPftvarcon_inst%allom_latosa_slp(ipft), &
-                sla        => EDPftvarcon_inst%slatop(ipft), &
-                wood_density => EDPftvarcon_inst%wood_density(ipft), &
-                c2b          => EDPftvarcon_inst%c2b(ipft), & 
-                agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft) )
-
-
-      bsap = bleaf * latosa_int * h
-      
-      if(present(dbsapdd))then
-         dbsapdd = latosa_int*(h*dbleafdd + bleaf*dhdd)
-      end if
-
-    end associate
-    return
-  end subroutine bsap_deprecated
-
-  ! ========================================================================
-
-  subroutine bsap_dlinear(d,h,dhdd,bleaf,dbleafdd,ipft,bsap,dbsapdd)
-    
-    ! -------------------------------------------------------------------------
-    ! Calculate sapwood biomass based on leaf area to sapwood area
-    ! proportionality.  In this function, the leaftosapwood area is a function
-    ! of plant size, see Calvo-Alvarado and Bradley Christoferson
-    ! In this case: parameter latosa (from constant proportionality)
-    !   is the intercept of the diameter function.
+    ! Calculate sapwood carbon based on its leaf area per sapwood area
+    ! proportionality with the plant's target leaf area.
+    ! of plant size, see Calvo-Alvarado and Bradley Christoferson.
     ! 
-    ! Important note: this is above and below-ground sapwood
+    ! Important note 1: This is above and below-ground sapwood
+    ! Important note 2: Since we need continuous calculation of
+    !                   sapwood dependent on plant size, we cannot
+    !                   use actual leaf area (which is canopy dependent).
+    !                   So, this method estimates a leaf area that is
+    !                   based only on the specific leaf area (SLA) of 
+    !                   the canopy top.
     !
     ! -------------------------------------------------------------------------
     
     real(r8),intent(in)    :: d         ! plant diameter [cm]
     real(r8),intent(in)    :: h         ! plant height [m]
     real(r8),intent(in)    :: dhdd      ! change in height per diameter [m/cm]
-    real(r8),intent(in)    :: bleaf     ! plant leaf biomass [kgC]
+    real(r8),intent(in)    :: bleaf     ! plant leaf target biomass [kgC]
     real(r8),intent(in)    :: dbleafdd  ! change in blmax per diam [kgC/cm]
     integer(i4),intent(in) :: ipft      ! PFT index
+    real(r8),intent(out)   :: sapw_area ! area of sapwood crosssection at 
+                                        ! reference height [m2]
     real(r8),intent(out)   :: bsap      ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per diameter [kgC/cm]
     
-    real(r8)               :: latosa    ! applied leaf area to sap area 
-                                        ! may or may not contain diameter correction
-    real(r8)               :: hbl2bsap  ! sapwood biomass per lineal height and kg of leaf
+    real(r8)               :: la_per_sa  ! effective leaf area per sapwood area
+                                         ! [m2/cm]
+    real(r8)               :: term1      ! complex term for solving derivative
+    real(r8)               :: dterm1_dh  ! deriv of term1 wrt height
+    real(r8)               :: dterm1_dd  ! deriv of term1 wrt diameter
+    real(r8)               :: hbl2bsap   ! sapwood biomass per lineal height
     
     
-    associate ( latosa_int => EDPftvarcon_inst%allom_latosa_int(ipft), &
-                latosa_slp => EDPftvarcon_inst%allom_latosa_slp(ipft), &
-                sla        => EDPftvarcon_inst%slatop(ipft), &
-                wood_density => EDPftvarcon_inst%wood_density(ipft), &
-                c2b          => EDPftvarcon_inst%c2b(ipft), & 
-                agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft) )
+    associate ( la_per_sa_int => EDPftvarcon_inst%allom_la_per_sa_int(ipft), &
+                la_per_sa_slp => EDPftvarcon_inst%allom_la_per_sa_slp(ipft), &
+                slatop        => EDPftvarcon_inst%slatop(ipft), &
+                wood_density  => EDPftvarcon_inst%wood_density(ipft), &
+                c2b           => EDPftvarcon_inst%c2b(ipft), & 
+                agb_fraction  => EDPftvarcon_inst%allom_agb_frac(ipft) )
 
-      ! ------------------------------------------------------------------------
+
       ! Calculate sapwood biomass per linear height and kgC of leaf [m-1]
       ! Units: 
-      ! latosa * slatop*    gtokg    *   cm2tom2     / c2b     * mg2kg  * dens
-      ! [cm2/m2]*[m2/gC]*[1000gC/1kgC]*[1m2/10000cm2] /[kg/kgC]*[kg/Mg]*[Mg/m3]
+      ! Note: wood_density is in units of specific gravity, which is also 
+      !       Mg / m3  (megagrams, ie 1000 kg / m3)
+      ! 1 /la_per_sa * slatop*     gtokg    *   cm2tom2     / c2b     * mg2kg  * dens
+      ! [cm2/m2]     * [m2/gC]*[1000gC/1kgC]*[1m2/10000cm2] /[kg/kgC]*[kg/Mg]*[Mg/m3]
       !        ->[cm2/gC]
       !                  ->[cm2/kgC]
       !                                ->[m2/kgC]
@@ -1016,21 +1077,53 @@ contains
       !                                                                  ->[/m]
       ! ------------------------------------------------------------------------
 
-      latosa   = latosa_int + d*latosa_slp
-      hbl2bsap = latosa*sla*g_per_kg*wood_density*kg_per_Megag/(c2b*cm2_per_m2 )
-      
-      bsap =  hbl2bsap * (h/agb_fraction) * bleaf
+      ! This is a term that combines unit conversion and specific leaf
+      ! area.  This term does not contain the proportionality
+      ! between leaf area and sapwood cross-section. This is
+      ! because their may be a height dependency, and will effect the 
+      ! derivative wrt diameter.
+      hbl2bsap   = slatop * g_per_kg * wood_density * kg_per_Megag / (c2b*cm2_per_m2 )
 
-      ! Derivative
+      ! Calculate area. Note that no c2b conversion here, because it is
+      ! wood density that is in biomass units, SLA is in units [m2/gC.
+      ! [m2]    = [m2/gC] * [kgC] * [gC/kgC] / ( [m2/cm2] * [cm2/m2])
+      la_per_sa = la_per_sa_int + h*la_per_sa_slp
+      sapw_area = slatop * bleaf * g_per_kg / (la_per_sa*cm2_per_m2 )
+      
+
+      ! Note the total depth of the plant is approximated by the 
+      ! above ground fraction. This fraction is actually associated
+      ! with biomass, but we use it here as well to help us assess
+      ! how much sapwood is above and below ground.
+      ! total_depth * agb_fraction = height 
+
+      ! Integrate the mass per leaf biomass per depth of the plant
+      ! Include above and below ground components
+      ! [kgC] = [kgC/kgC/m]   * [kgC]     * [m]
+      ! ------------------------------------------------------------------------
+
+!      bsap =  hbl2bsap/(la_per_sa_int + h*la_per_sa_slp) * (h/agb_fraction) * bleaf
+
+      ! "term1" combines two height dependent functions. The numerator is
+      ! how sapwood volume scales in the vertical direction.  The denominator
+      ! is the leaf_area per sapwood area ratio [m2/cm2], which is height dependent
+      ! (for non-zero slope parameters)
+
+      term1 = h/(la_per_sa_int + h*la_per_sa_slp)
+      bsap  = (hbl2bsap/agb_fraction) * term1 * bleaf 
+
+
       ! dbldmaxdd is deriv of blmax wrt dbh (use directives to check oop)
       ! dhdd is deriv of height wrt dbh (use directives to check oop)
       if(present(dbsapdd))then
-         dbsapdd = hbl2bsap*(h*dbleafdd + bleaf*dhdd)/agb_fraction
+         dterm1_dh = la_per_sa_int  / (la_per_sa_int + la_per_sa_slp*h)**2.0_r8
+         dterm1_dd = dterm1_dh * dhdd
+         dbsapdd  = hbl2bsap/agb_fraction * (bleaf*dterm1_dd + term1 *dbleafdd)
       end if
       
     end associate
     return
-  end subroutine bsap_dlinear
+  end subroutine bsap_ltarg_slatop
 
   ! ============================================================================
   ! Specific storage relationships
@@ -1109,14 +1202,14 @@ contains
     
     
     real(r8),intent(in)  :: d         ! plant diameter [cm]
-    real(r8),intent(in)  :: p1        ! parameter 1
-    real(r8),intent(in)  :: p2        ! parameter 2
+    real(r8),intent(in)  :: p1        ! parameter 1  (slope)
+    real(r8),intent(in)  :: p2        ! parameter 2  (curvature, exponent)
     real(r8),intent(in)  :: c2b       ! carbon to biomass multiplier
     
     real(r8),intent(out) :: blmax     ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
     
-    blmax    = p1*d**p2 / c2b
+    blmax    = (p1*d**p2) / c2b
     
     if(present(dblmaxdd))then
        dblmaxdd = p1*p2 *d**(p2-1.0_r8) / c2b
@@ -1136,15 +1229,21 @@ contains
     ! --------------------------------------------------------------------------
     
     real(r8),intent(in)  :: d         ! plant diameter [cm]
-    real(r8),intent(in)  :: p1        ! parameter 1
-    real(r8),intent(in)  :: p2        ! parameter 2
+    real(r8),intent(in)  :: p1        ! parameter 1 (slope)
+    real(r8),intent(in)  :: p2        ! parameter 2 (curvature, exponent)
     real(r8),intent(in)  :: c2b       ! carbon 2 biomass multiplier
     real(r8),intent(in)  :: dbh_maxh  ! dbh at maximum height
     
     real(r8),intent(out) :: blmax     ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
     
-    blmax    = p1*min(d,dbh_maxh)**p2/c2b
+    ! reproduce Saldarriaga:
+    ! blmax = p1 * dbh_maxh**p2 * rho**p3
+    !       = 0.07 * dbh_maxh**p2 * 0.7*0.55 = (p1 + p2* dbh**p3) / c2b
+    !       p1 = 0
+    !       p2 = (0.07 * 0.7^0.55)*2 = 0.11506201034678605
+
+    blmax    = (p1*min(d,dbh_maxh)**p2)/c2b
     
     ! If this plant has reached its height cap, then it is not
     ! adding leaf mass.  In this case, dhdd = 0
@@ -1975,7 +2074,36 @@ contains
     return
   end subroutine jackson_beta_root_profile
 
+  ! =====================================================================================
+
   
+  real(r8) function decay_coeff_kn(pft)
+    
+    ! ---------------------------------------------------------------------------------
+    ! This function estimates the decay coefficient used to estimate vertical
+    ! attenuation of properties in the canopy.
+    !
+    ! Decay coefficient (kn) is a function of vcmax25top for each pft.
+    !
+    ! Currently, this decay is applied to vcmax attenuation, and SLA (optionally)
+    !
+    ! ---------------------------------------------------------------------------------
+    
+    !ARGUMENTS
+    integer, intent(in) :: pft
+    
+    !LOCAL VARIABLES
+    ! -----------------------------------------------------------------------------------
+    
+    ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
+    ! kn = 0.11. Here, we derive kn from vcmax25 as in Lloyd et al 
+    ! (2010) Biogeosciences, 7, 1833-1859
+    
+    decay_coeff_kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
+    
+    return
+  end function decay_coeff_kn
+
   ! =====================================================================================
 
   subroutine StructureResetOfDH( bdead, ipft, canopy_trim, d, h )
@@ -2003,6 +2131,7 @@ contains
      real(r8)  :: bt_agw,dbt_agw_dd  ! target AG wood at current d
      real(r8)  :: bt_bgw,dbt_bgw_dd  ! target BG wood at current d
      real(r8)  :: bt_dead,dbt_dead_dd ! target struct wood at current d
+     real(r8)  :: at_sap              ! sapwood area (dummy) m2
      real(r8)  :: dd                  ! diameter increment for each step
      real(r8)  :: d_try               ! trial diameter
      real(r8)  :: bt_dead_try         ! trial structure biomasss
@@ -2012,7 +2141,7 @@ contains
      real(r8), parameter :: step_frac0  = 0.9_r8
      integer, parameter  :: max_counter = 200
 
-     call bsap_allom(d,ipft,canopy_trim,bt_sap,dbt_sap_dd)
+     call bsap_allom(d,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
      call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
      call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
      call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
@@ -2029,7 +2158,7 @@ contains
         dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
         d_try = d + dd
         
-        call bsap_allom(d_try,ipft,canopy_trim,bt_sap,dbt_sap_dd)
+        call bsap_allom(d_try,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
         call bagw_allom(d_try,ipft,bt_agw,dbt_agw_dd)
         call bbgw_allom(d_try,ipft,bt_bgw,dbt_bgw_dd)
         call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead_try, dbt_agw_dd, &

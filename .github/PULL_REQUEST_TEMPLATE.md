@@ -19,8 +19,8 @@
 <!--- Go over all the following points, and put an `x` in all the boxes that apply. -->
 <!--- If you're unsure about any of these, don't hesitate to ask. We're here to help! -->
 - [ ] My change requires a change to the documentation.
-- [ ] I have updated the in-code documentation AND wiki accordingly.
-- [ ] I have read the [**CONTRIBUTING**](https://github.com/rgknox/fates/blob/rgknox-new-PR-template/CONTRIBUTING.md) document.
+- [ ] I have updated the in-code documentation .AND. (the [technical note](https://github.com/NGEET/fates-docs) .OR. the wiki) accordingly.
+- [ ] I have read the [**CONTRIBUTING**](https://github.com/NGEET/fates/blob/master/CONTRIBUTING.md) document.
 - [ ] FATES PASS/FAIL regression tests were run
 - [ ] If answers were expected to change, evaluation was performed and provided
 
@@ -30,9 +30,9 @@
 <!--- If changes to code are NOT expected to change answers, tests must -->
 <!--- be run against a baseline. -->
 
-FATES-CLM (or) HLM test hash-tag:
+CTSM (or) E3SM (specify which) test hash-tag:
 
-FATES-CLM (or) HLM baseline hash-tag:
+CTSM (or) E3SM (specify which) baseline hash-tag:
 
 FATES baseline hash-tag:
 
@@ -42,3 +42,4 @@ Test Output:
 
 
 <!--this template is from https://www.talater.com/open-source-templates/#/page/99--> 
+

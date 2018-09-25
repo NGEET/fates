@@ -21,7 +21,6 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
-  use EDTypesMod            , only : dinc_ed
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
@@ -31,7 +30,6 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
-  use FatesAllometryMod  , only : bsap_allom
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
   use FatesAllometryMod  , only : h_allom
@@ -152,11 +150,16 @@ contains
     ! Assign canopy extent and depth
     call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft,new_cohort%c_area)
 
-    new_cohort%treelai = tree_lai(new_cohort%bl, new_cohort%status_coh, new_cohort%pft, &
-         new_cohort%c_area, new_cohort%n)
+    new_cohort%treelai = tree_lai(new_cohort%bl, new_cohort%pft, new_cohort%c_area,    &
+                                  new_cohort%n, new_cohort%canopy_layer,               &
+                                  patchptr%canopy_layer_tlai )    
+
+    new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, new_cohort%canopy_trim,   &
+                                  new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
+                                  patchptr%canopy_layer_tlai, new_cohort%treelai )  
+
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
-    new_cohort%treesai = tree_sai(new_cohort%dbh, new_cohort%pft, new_cohort%canopy_trim, &
-         new_cohort%c_area, new_cohort%n)
+
 
     ! Put cohort at the right place in the linked list
     storebigcohort   => patchptr%tallest

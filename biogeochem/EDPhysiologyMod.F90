@@ -20,6 +20,7 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
+  use FatesAllometryMod   , only : decay_coeff_kn
 
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
@@ -162,8 +163,7 @@ contains
     ! Canopy trimming / leaf optimisation. Removes leaves in negative annual carbon balance. 
     !
     ! !USES:
-    !
-    !
+
     ! !ARGUMENTS    
     type (ed_site_type),intent(inout), target :: currentSite
     !
@@ -171,31 +171,51 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     type (ed_patch_type)  , pointer :: currentPatch
 
-    integer  :: z          ! leaf layer
-    integer  :: ipft       ! pft index
-    integer  :: trimmed    ! was this layer trimmed in this year? If not expand the canopy. 
-    real(r8) :: tar_bl     ! target leaf biomass       (leaves flushed, trimmed)
-    real(r8) :: tar_bfr    ! target fine-root biomass  (leaves flushed, trimmed)
-    real(r8) :: bfr_per_bleaf ! ratio of fine root per leaf biomass
+    integer  :: z               ! leaf layer
+    integer  :: ipft            ! pft index
+    logical  :: trimmed         ! was this layer trimmed in this year? If not expand the canopy. 
+    real(r8) :: tar_bl          ! target leaf biomass       (leaves flushed, trimmed)
+    real(r8) :: tar_bfr         ! target fine-root biomass  (leaves flushed, trimmed)
+    real(r8) :: bfr_per_bleaf   ! ratio of fine root per leaf biomass
+    real(r8) :: sla_levleaf     ! sla at leaf level z
+    real(r8) :: nscaler_levleaf ! nscaler value at leaf level z
+    integer  :: cl              ! canopy layer index
+    real(r8) :: kn              ! nitrogen decay coefficient
+    real(r8) :: sla_max         ! Observational constraint on how large sla (m2/gC) can become
+
+    real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_ed
+    real(r8) :: lai_canopy_above   ! the LAI in the canopy layers above the layer of interest
+    real(r8) :: lai_layers_above   ! the LAI in the leaf layers, within the current canopy, 
+                                   ! above the leaf layer of interest
+    real(r8) :: lai_current        ! the LAI in the current leaf layer
+    real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
 
     !----------------------------------------------------------------------
 
     currentPatch => currentSite%youngest_patch
-
     do while(associated(currentPatch))
+       
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort)) 
-          trimmed = 0    
+
+          trimmed = .false.
           ipft = currentCohort%pft
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
-          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
-               currentCohort%c_area, currentCohort%n )    
-          currentCohort%treesai = tree_sai(currentCohort%dbh, currentCohort%pft, currentCohort%canopy_trim, &
-               currentCohort%c_area, currentCohort%n)    
-          currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
+          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%pft, currentCohort%c_area, &
+                                           currentCohort%n, currentCohort%canopy_layer,               &
+                                           currentPatch%canopy_layer_tlai )    
+
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+                                           currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                                           currentPatch%canopy_layer_tlai, currentCohort%treelai )  
+
+          currentCohort%nv      = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
+
           if (currentCohort%nv > nlevleaf)then
-             write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
-                  currentCohort%c_area,currentCohort%n,currentCohort%bl
+             write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv, &
+                   currentCohort%treelai,currentCohort%treesai, &
+                   currentCohort%c_area,currentCohort%n,currentCohort%bl
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
           call bleaf(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bl)
@@ -206,35 +226,68 @@ contains
              bfr_per_bleaf = tar_bfr/tar_bl
           endif
 
+          ! Identify current canopy layer (cl)
+          cl = currentCohort%canopy_layer
+          
+          ! PFT-level maximum SLA value, even if under a thick canopy (same units as slatop)
+          sla_max = EDPftvarcon_inst%slamax(ipft)
+
           !Leaf cost vs netuptake for each leaf layer. 
-          do z = 1,nlevleaf
-             if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer. 
+          do z = 1, currentCohort%nv
+
+             ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
+
+             leaf_inc    = dinc_ed * &
+                   currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
+             
+             ! Now calculate the cumulative top-down lai of the current layer's midpoint
+             lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
+             lai_layers_above  = leaf_inc * (z-1)
+             lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
+             cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current
+             
+             if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer.
+             
+                   
+                ! Calculate sla_levleaf following the sla profile with overlying leaf area
+                ! Scale for leaf nitrogen profile
+                kn = decay_coeff_kn(ipft)
+                ! Nscaler value at leaf level z
+                nscaler_levleaf = exp(-kn * cumulative_lai)
+                ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
+                sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf
+
+                if(sla_levleaf > sla_max)then
+                   sla_levleaf = sla_max
+                end if
+                   
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
                 if (EDPftvarcon_inst%season_decid(ipft) == 1.or. &
                      EDPftvarcon_inst%stress_decid(ipft) == 1)then 
 
-
-                   currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8)
+                   ! Leaf cost at leaf level z accounting for sla profile (kgC/m2)
+                   currentCohort%leaf_cost =  1._r8/(sla_levleaf*1000.0_r8)
 
                    if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
                       currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                           1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                           1.0_r8/(sla_levleaf*1000.0_r8) * &
                            bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
                    endif
 
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
-                   currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(ipft)* &
+                   ! Leaf cost at leaf level z accounting for sla profile
+                   currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
                         EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
                       currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                           1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                           1.0_r8/(sla_levleaf*1000.0_r8) * &
                            bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
                    endif
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
@@ -256,7 +309,7 @@ contains
                             currentCohort%laimemory = currentCohort%laimemory * &
                                   (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
-                         trimmed = 1
+                         trimmed = .true.
                       endif
                    endif
                 endif
@@ -264,7 +317,7 @@ contains
           enddo !z
 
           currentCohort%year_net_uptake(:) = 999.0_r8
-          if (trimmed == 0.and.currentCohort%canopy_trim < 1.0_r8)then
+          if ( (.not.trimmed) .and.currentCohort%canopy_trim < 1.0_r8)then
              currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)
           endif 
 
@@ -822,6 +875,7 @@ contains
     real(r8) :: dbt_leaf_dd        ! change in leaf biomass wrt diameter (kgC/cm)
     real(r8) :: bt_fineroot        ! fine root biomass (kgC)
     real(r8) :: dbt_fineroot_dd    ! change in fine root biomass wrt diameter (kgC/cm)
+    real(r8) :: at_sap             ! sapwood cross-section area at referenc (m2)
     real(r8) :: bt_sap             ! sapwood biomass (kgC)
     real(r8) :: dbt_sap_dd         ! change in sapwood biomass wrt diameter (kgC/cm)
     real(r8) :: bt_agw             ! above ground biomass (kgC/cm)
@@ -955,7 +1009,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
+    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,at_sap,bt_sap,dbt_sap_dd)
 
     ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
     call bagw_allom(currentCohort%dbh,ipft,bt_agw,dbt_agw_dd)
@@ -980,7 +1034,7 @@ contains
        ! ------------------------------------------------------------------------------------------
        
        ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-       call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
+       call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,at_sap,bt_sap,dbt_sap_dd)
        
        ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
        call bagw_allom(currentCohort%dbh,ipft,bt_agw,dbt_agw_dd)
@@ -1421,6 +1475,7 @@ contains
       integer  :: ipft       ! pft index
       real(r8) :: ct_leaf    ! target leaf biomass, dummy var (kgC)
       real(r8) :: ct_froot   ! target fine-root biomass, dummy var (kgC)
+      real(r8) :: at_sap     ! target sapwood cross section, dummy var (m2)
       real(r8) :: ct_sap     ! target sapwood biomass, dummy var (kgC)
       real(r8) :: ct_agw     ! target aboveground wood, dummy var (kgC)
       real(r8) :: ct_bgw     ! target belowground wood, dummy var (kgC)
@@ -1458,7 +1513,7 @@ contains
 
         call bleaf(dbh,ipft,currentCohort%canopy_trim,ct_leaf,ct_dleafdd)
         call bfineroot(dbh,ipft,currentCohort%canopy_trim,ct_froot,ct_dfrootdd)
-        call bsap_allom(dbh,ipft,currentCohort%canopy_trim,ct_sap,ct_dsapdd)
+        call bsap_allom(dbh,ipft,currentCohort%canopy_trim,at_sap,ct_sap,ct_dsapdd)
         call bagw_allom(dbh,ipft,ct_agw,ct_dagwdd)
         call bbgw_allom(dbh,ipft,ct_bgw,ct_dbgwdd)
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &
@@ -1627,6 +1682,7 @@ contains
     real(r8) :: b_leaf
     real(r8) :: b_fineroot    ! fine root biomass [kgC]
     real(r8) :: b_sapwood     ! sapwood biomass [kgC]
+    real(r8) :: a_sapwood     ! sapwood cross section are [m2] (dummy)
     real(r8) :: b_agw         ! Above ground biomass [kgC]
     real(r8) :: b_bgw         ! Below ground biomass [kgC]
 
@@ -1645,7 +1701,7 @@ contains
        ! Initialize live pools
        call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_leaf)
        call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_fineroot)
-       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_sapwood)
+       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapwood, b_sapwood)
        call bagw_allom(temp_cohort%dbh,ft,b_agw)
        call bbgw_allom(temp_cohort%dbh,ft,b_bgw)
        call bdead_allom(b_agw,b_bgw,b_sapwood,ft,temp_cohort%bdead)
@@ -2415,5 +2471,10 @@ contains
         ! write(fates_log(),*)'cdk croot_prof: ', croot_prof
 
     end subroutine flux_into_litter_pools
+
+    ! ===================================================================================
+
+
+
 
 end module EDPhysiologyMod
