@@ -58,6 +58,7 @@ module EDPftvarcon
      real(r8), allocatable :: youngleaf_long(:)
      real(r8), allocatable :: oldleaf_long(:)
      real(r8), allocatable :: senleaf_long(:)
+     real(r8), allocatable :: senleaf_long_fdrought(:)
      real(r8), allocatable :: roota_par(:)
      real(r8), allocatable :: rootb_par(:)
      real(r8), allocatable :: lf_flab(:)
@@ -393,7 +394,11 @@ contains
 	 	
     name = 'fates_senleaf_long'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)	 	
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_senleaf_long_fdrought'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)	 	 	
 	  
     name = 'fates_roota_par'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -858,8 +863,12 @@ contains
 	 
     name = 'fates_senleaf_long'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%senleaf_long)	 	 	 
+         data=this%senleaf_long)	 	 	 	 
 
+    name = 'fates_senleaf_long_fdrought'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%senleaf_long_fdrought)
+	 
     name = 'fates_roota_par'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%roota_par)
@@ -1584,6 +1593,7 @@ contains
 	write(fates_log(),fmt0) 'youngleaf_long = ',EDPftvarcon_inst%youngleaf_long
 	write(fates_log(),fmt0) 'oldleaf_long = ',EDPftvarcon_inst%oldleaf_long
 	write(fates_log(),fmt0) 'senleaf_long = ',EDPftvarcon_inst%senleaf_long
+	write(fates_log(),fmt0) 'senleaf_long_fdrought = ',EDPftvarcon_inst%senleaf_long_fdrought
         write(fates_log(),fmt0) 'roota_par = ',EDPftvarcon_inst%roota_par
         write(fates_log(),fmt0) 'rootb_par = ',EDPftvarcon_inst%rootb_par
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
