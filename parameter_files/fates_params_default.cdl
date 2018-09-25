@@ -259,7 +259,10 @@ variables:
 		fates_leaf_long:long_name = "Leaf longevity for old leaves(ie turnover timescale)" ;	
 	float fates_senleaf_long(fates_pft) ;
 		fates_leaf_long:units = "yr" ;
-		fates_leaf_long:long_name = "Leaf longevity for senescent leaves(ie turnover timescale)" ;				
+		fates_leaf_long:long_name = "Leaf longevity for senescent leaves(ie turnover timescale)" ;	
+	float fates_senleaf_long_fdrought(fates_pft) ;
+		fates_leaf_long:units = "yr" ;
+		fates_leaf_long:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;					
 	float fates_leaf_slamax(fates_pft) ;
 		fates_leaf_slamax:units = "m^2/gC" ;
 		fates_leaf_slamax:long_name = "Maximum Specific Leaf Area (SLA), even if under a dense canopy" ;
@@ -792,6 +795,8 @@ data:
  fates_oldleaf_long = 0.3, 0.3 ;
  
  fates_senleaf_long = 0.2, 0.2 ;
+ 
+ fates_senleaf_long_fdrought = 1.0, 1.0 ;
  
  fates_leaf_slamax = 0.0954, 0.0954 ;
 
