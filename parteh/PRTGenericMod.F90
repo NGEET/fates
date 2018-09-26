@@ -33,6 +33,8 @@ module PRTGenericMod
   
   implicit none
 
+  logical, parameter :: debug = .true.
+
   integer, parameter :: maxlen_varname   = 128
   integer, parameter :: maxlen_varsymbol = 16
   integer, parameter :: maxlen_varunits  = 32
@@ -761,15 +763,17 @@ contains
 
    ! ====================================================================================
 
-   subroutine CheckMassConservation(this)
+   subroutine CheckMassConservation(this,ipft)
 
      class(prt_vartypes) :: this
+     integer, intent(in) :: ipft
 
      integer :: n_vars      ! Number of variables
      integer :: i_var       ! Variable index
      integer :: i_pos       ! Position (coordinate) index
 
      real(r8) :: err
+     real(r8) :: rel_err
 
 
      n_vars = size(this%variables,1)
@@ -777,15 +781,22 @@ contains
         
         do i_pos = 1, this%variables(i_var)%num_pos
            
-           err = (this%variables(i_var)%val(i_pos) - this%variables(i_var)%val0(i_pos)) - &
+           err = abs((this%variables(i_var)%val(i_pos) - this%variables(i_var)%val0(i_pos)) - &
                   (this%variables(i_var)%net_art(i_pos) &
                    -this%variables(i_var)%turnover(i_pos) & 
-                   -this%variables(i_var)%burned(i_pos) )
+                   -this%variables(i_var)%burned(i_pos) ))
            
+           if(this%variables(i_var)%val(i_pos) > nearzero) then
+              rel_err = err / this%variables(i_var)%val(i_pos)
+           else
+              rel_err = 0.0_r8
+           end if
+
            if( abs(err) > calloc_abs_error ) then
               write(fates_log(),*) 'PARTEH mass conservation check failed'
               write(fates_log(),*) ' Change in mass over control period should'
               write(fates_log(),*) ' always equal the integrated fluxes.'
+              write(fates_log(),*) ' pft id: ',ipft
               write(fates_log(),*) ' organ id: ',this%prt_instance%state_descriptor(i_var)%organ_id
               write(fates_log(),*) ' species_id: ',this%prt_instance%state_descriptor(i_var)%spec_id
               write(fates_log(),*) ' position id: ',i_pos
@@ -795,7 +806,8 @@ contains
               write(fates_log(),*) ' terms: ', this%variables(i_var)%val(i_pos), &
                                                this%variables(i_var)%val0(i_pos), &
                                                this%variables(i_var)%net_art(i_pos), &
-                                               this%variables(i_var)%turnover(i_pos)
+                                               this%variables(i_var)%turnover(i_pos), &
+                                               this%variables(i_var)%burned(i_pos)
               write(fates_log(),*) ' Exiting.'
               call endrun(msg=errMsg(__FILE__, __LINE__))
            end if

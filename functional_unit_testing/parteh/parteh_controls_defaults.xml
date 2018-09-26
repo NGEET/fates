@@ -81,8 +81,8 @@
       <pft_par name="fates_cushion			"> 2.0		, 2.0	 </pft_par>
       <pft_par name="fates_wood_density			"> 0.7		, 0.7	 </pft_par>
       <pft_par name="fates_c2b				"> 2.0		, 2.0	 </pft_par>
-      <pft_par name="fates_allom_latosa_int		"> 1.00 	, 1.00	 </pft_par>
-      <pft_par name="fates_allom_latosa_slp		"> 0.0		, 0.0	 </pft_par>
+      <pft_par name="fates_allom_la_per_sa_int		"> 1.00 	, 1.00	 </pft_par>
+      <pft_par name="fates_allom_la_per_sa_slp		"> 0.0		, 0.0	 </pft_par>
       <pft_par name="fates_slatop			"> 0.012	, 0.012	 </pft_par>
       <pft_par name="fates_slamax			"> 0.012	, 0.012	 </pft_par>
       <pft_par name="fates_allom_l2fr			"> 1.0		, 1.0	 </pft_par>
@@ -99,13 +99,13 @@
 
       <pft_par name="fates_turnover_retrans_mode"      >  1,1 </pft_par>
 
-      <pft_organ_par name="fates_turnover_carb_retrans_p1"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
+      <pft_organ_par name="fates_turnover_carb_retrans_p1"> 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025 </pft_organ_par>
       <pft_organ_par name="fates_turnover_nitr_retrans_p1"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
       <pft_organ_par name="fates_turnover_phos_retrans_p1"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
-      <pft_organ_par name="fates_parteh_nitr_stoich_p1"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
-      <pft_organ_par name="fates_parteh_nitr_stoich_p2"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
-      <pft_organ_par name="fates_parteh_phos_stoich_p1"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
-      <pft_organ_par name="fates_parteh_phos_stoich_p2"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
+      <pft_organ_par name="fates_prt_nitr_stoich_p1"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
+      <pft_organ_par name="fates_prt_nitr_stoich_p2"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
+      <pft_organ_par name="fates_prt_phos_stoich_p1"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
+      <pft_organ_par name="fates_prt_phos_stoich_p2"> -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9 </pft_organ_par>
 
     </parteh_parameters>
       

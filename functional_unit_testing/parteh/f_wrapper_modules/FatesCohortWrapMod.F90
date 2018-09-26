@@ -46,20 +46,18 @@ module FatesCohortWrapMod
 
   use PRTLossFluxesMod, only : PRTMaintTurnover
 
-!  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
-!  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_dbh
-!  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdc
-!  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def
-!  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn
-!  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdp
-
-!  use PRTAllometricCNPMod,    only : acnp_bc_in_id_ctrim
-!  use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft
-
-!  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootcexude
-!  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootnexude
-!  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootpexude
-!  use PRTAllometricCNPMod,    only : acnp_bc_out_id_growresp
+  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_dbh
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdc
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdp
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_ctrim
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootcexude
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootnexude
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootpexude
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_growresp
 
 
   use FatesConstantsMod   , only : nearzero
@@ -186,7 +184,7 @@ contains
 
 
     class(callom_prt_vartypes), pointer :: callom_prt
-!    class(cnp_allom_prt_vartypes), pointer :: cnpallom_prt
+    class(cnp_allom_prt_vartypes), pointer :: cnpallom_prt
 
     
     ccohort => cohort_array(ipft)
@@ -231,10 +229,10 @@ contains
        allocate(callom_prt)
        ccohort%prt => callom_prt
 
-!    case(2)
+    case(2)
        
-!       allocate(cnpallom_prt)
-!       ccohort%prt => cnpallom_prt
+       allocate(cnpallom_prt)
+       ccohort%prt => cnpallom_prt
        
     case DEFAULT
        write(fates_log(),*) 'You specified an unknown PRT module'
@@ -260,63 +258,63 @@ contains
        call ccohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = ccohort%pft)
        call ccohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = ccohort%canopy_trim)
 
-!    case (2)
+    case (2)
 
        ! Initializing with the target stoichiometric ratios
        ! (OR you can initialize with the minimum ratios too.... p2)
-       !leaf_n = leaf_c * EDPftvarcon_inst%parteh_n_stoich_p1(ipft,leaf_organ)
-       !fnrt_n = fnrt_c * EDPftvarcon_inst%parteh_n_stoich_p1(ipft,fnrt_organ)
-       !sapw_n = sapw_c * EDPftvarcon_inst%parteh_n_stoich_p1(ipft,sapw_organ)
-       !store_n = store_c * EDPftvarcon_inst%parteh_n_stoich_p1(ipft,store_organ)
-       !struct_n = struct_c * EDPftvarcon_inst%parteh_n_stoich_p1(ipft,struct_organ)
-       !repro_n = repro_c * EDPftvarcon_inst%parteh_n_stoich_p1(ipft,repro_organ)
+       leaf_n = leaf_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ)
+       fnrt_n = fnrt_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ)
+       sapw_n = sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
+       store_n = store_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,store_organ)
+       struct_n = struct_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,struct_organ)
+       repro_n = repro_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ)
        
-       !leaf_p = leaf_c * EDPftvarcon_inst%parteh_p_stoich_p1(ipft,leaf_organ)
-       !fnrt_p = fnrt_c * EDPftvarcon_inst%parteh_p_stoich_p1(ipft,fnrt_organ)
-       !sapw_p = sapw_c * EDPftvarcon_inst%parteh_p_stoich_p1(ipft,sapw_organ)
-       !store_p = store_c * EDPftvarcon_inst%parteh_p_stoich_p1(ipft,store_organ)
-       !struct_p = struct_c * EDPftvarcon_inst%parteh_p_stoich_p1(ipft,struct_organ)
-       !repro_p = repro_c * EDPftvarcon_inst%parteh_p_stoich_p1(ipft,repro_organ)
+       leaf_p = leaf_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,leaf_organ)
+       fnrt_p = fnrt_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,fnrt_organ)
+       sapw_p = sapw_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,sapw_organ)
+       store_p = store_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,store_organ)
+       struct_p = struct_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,struct_organ)
+       repro_p = repro_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ)
 
-       !ccohort%accum_r_maint_deficit = 0.0_r8
+       ccohort%accum_r_maint_deficit = 0.0_r8
        
-       !call SetState(ccohort%prt,leaf_organ, carbon12_species, leaf_c)
-       !call SetState(ccohort%prt,fnrt_organ, carbon12_species, fnrt_c)
-       !call SetState(ccohort%prt,sapw_organ, carbon12_species, sapw_c)
-       !call SetState(ccohort%prt,store_organ, carbon12_species, store_c)
-       !call SetState(ccohort%prt,struct_organ , carbon12_species, struct_c)
-       !call SetState(ccohort%prt,repro_organ , carbon12_species, repro_c)
+       call SetState(ccohort%prt,leaf_organ, carbon12_species, leaf_c)
+       call SetState(ccohort%prt,fnrt_organ, carbon12_species, fnrt_c)
+       call SetState(ccohort%prt,sapw_organ, carbon12_species, sapw_c)
+       call SetState(ccohort%prt,store_organ, carbon12_species, store_c)
+       call SetState(ccohort%prt,struct_organ , carbon12_species, struct_c)
+       call SetState(ccohort%prt,repro_organ , carbon12_species, repro_c)
 
-       !call SetState(ccohort%prt,leaf_organ, nitrogen_species, leaf_n)
-       !call SetState(ccohort%prt,fnrt_organ, nitrogen_species, fnrt_n)
-       !call SetState(ccohort%prt,sapw_organ, nitrogen_species, sapw_n)
-       !call SetState(ccohort%prt,store_organ, nitrogen_species, store_n)
-       !call SetState(ccohort%prt,struct_organ , nitrogen_species, struct_n)
-       !call SetState(ccohort%prt,repro_organ , nitrogen_species, repro_n)
+       call SetState(ccohort%prt,leaf_organ, nitrogen_species, leaf_n)
+       call SetState(ccohort%prt,fnrt_organ, nitrogen_species, fnrt_n)
+       call SetState(ccohort%prt,sapw_organ, nitrogen_species, sapw_n)
+       call SetState(ccohort%prt,store_organ, nitrogen_species, store_n)
+       call SetState(ccohort%prt,struct_organ , nitrogen_species, struct_n)
+       call SetState(ccohort%prt,repro_organ , nitrogen_species, repro_n)
 
-       !call SetState(ccohort%prt,leaf_organ, phosphorous_species, leaf_p)
-       !call SetState(ccohort%prt,fnrt_organ, phosphorous_species, fnrt_p)
-       !call SetState(ccohort%prt,sapw_organ, phosphorous_species, sapw_p)
-       !call SetState(ccohort%prt,store_organ, phosphorous_species, store_p)
-       !call SetState(ccohort%prt,struct_organ , phosphorous_species, struct_p)
-       !call SetState(ccohort%prt,repro_organ , phosphorous_species, repro_p)
+       call SetState(ccohort%prt,leaf_organ, phosphorous_species, leaf_p)
+       call SetState(ccohort%prt,fnrt_organ, phosphorous_species, fnrt_p)
+       call SetState(ccohort%prt,sapw_organ, phosphorous_species, sapw_p)
+       call SetState(ccohort%prt,store_organ, phosphorous_species, store_p)
+       call SetState(ccohort%prt,struct_organ , phosphorous_species, struct_p)
+       call SetState(ccohort%prt,repro_organ , phosphorous_species, repro_p)
        
        ! Register In/Out Boundary Conditions
-       !call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval   = ccohort%dbh)
-       !call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdc,bc_rval = ccohort%daily_carbon_gain)
-       !call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn,bc_rval = ccohort%daily_nitrogen_gain)
-       !call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp,bc_rval = ccohort%daily_phosphorous_gain)
-       !call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def, bc_rval = ccohort%accum_r_maint_deficit) 
+       call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval   = ccohort%dbh)
+       call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdc,bc_rval = ccohort%daily_carbon_gain)
+       call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn,bc_rval = ccohort%daily_nitrogen_gain)
+       call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp,bc_rval = ccohort%daily_phosphorous_gain)
+       call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def, bc_rval = ccohort%accum_r_maint_deficit) 
 
        ! Register Input only BC's
-       !call ccohort%prt%RegisterBCIn(acnp_bc_in_id_pft,bc_ival   = ccohort%pft)
-       !call ccohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = ccohort%canopy_trim)
+       call ccohort%prt%RegisterBCIn(acnp_bc_in_id_pft,bc_ival   = ccohort%pft)
+       call ccohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = ccohort%canopy_trim)
 
        ! Register Output Boundary Conditions
-       !call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootcexude,bc_rval = ccohort%carbon_root_exudate)
-       !call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootnexude,bc_rval = ccohort%nitrogen_root_exudate)
-       !call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootpexude,bc_rval = ccohort%phosphorous_root_exudate)
-       !call ccohort%prt%RegisterBCOut(acnp_bc_out_id_growresp,bc_rval = ccohort%daily_r_grow )
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootcexude,bc_rval = ccohort%carbon_root_exudate)
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootnexude,bc_rval = ccohort%nitrogen_root_exudate)
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootpexude,bc_rval = ccohort%phosphorous_root_exudate)
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_growresp,bc_rval = ccohort%daily_r_grow )
 
     
     end select
@@ -377,7 +375,9 @@ contains
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
-    
+ 
+
+    call ccohort%prt%CheckMassConservation(ipft)
 
     
     

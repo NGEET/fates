@@ -13,7 +13,7 @@
 module FatesPARTEHWrapMod
 
   use PRTAllometricCarbonMod, only : InitPRTInstanceAC
-  !! use PRTAllometricCNPMod, only    : InitPRTInstanceACNP
+  use PRTAllometricCNPMod, only    : InitPRTInstanceACNP
   use FatesGlobals        , only : endrun => fates_endrun
   use FatesGlobals        , only : fates_log
   use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -42,7 +42,7 @@ contains
 
 !    case(2)
 
-!!    call InitPRTInstanceACNP()
+    call InitPRTInstanceACNP()
        
 !    case DEFAULT
 !       write(fates_log(),*) 'You specified an unknown PRT module'

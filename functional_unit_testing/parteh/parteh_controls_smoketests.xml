@@ -118,35 +118,35 @@
                                                              0.25,0,0,0,0,
                                                              0.25,0,0,0,0 </pft_organ_par>
 
-      <pft_organ_par name="fates_parteh_nitr_stoich_p1	        "> -9,-9,-9,-9,-9,-9,
+      <pft_organ_par name="fates_prt_nitr_stoich_p1	        "> -9,-9,-9,-9,-9,-9,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05, 
 								   0,0,0,0,0,0,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05  </pft_organ_par>
 
-      <pft_organ_par name="fates_parteh_nitr_stoich_p2	        "> -9,-9,-9,-9,-9,-9,
+      <pft_organ_par name="fates_prt_nitr_stoich_p2	        "> -9,-9,-9,-9,-9,-9,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05,
 								   0,0,0,0,0,0,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05  </pft_organ_par>
-      <pft_organ_par name="fates_parteh_phos_stoich_p1	        "> -9,-9,-9,-9,-9,-9, 
+      <pft_organ_par name="fates_prt_phos_stoich_p1	        "> -9,-9,-9,-9,-9,-9, 
                                                                    0.05,0.05,0.05,0.05,0.05,0.05,
                                                                    0,0,0,0,0,0,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05  </pft_organ_par>
-      <pft_organ_par name="fates_parteh_phos_stoich_p2	        "> -9,-9,-9,-9,-9,-9, 
+      <pft_organ_par name="fates_prt_phos_stoich_p2	        "> -9,-9,-9,-9,-9,-9, 
                                                                    0.05,0.05,0.05,0.05,0.05,0.05, 
                                                                    0,0,0,0,0,0,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05  </pft_organ_par>
 
-      <pft_organ_par name="fates_parteh_c_alloc_priority "> -9,-9,-9,-9,-9,-9,
+      <pft_organ_par name="fates_prt_alloc_priority "> -9,-9,-9,-9,-9,-9,
                                                              1,1,2,2,0,3,
                                                              1,1,2,2,0,3,
 							     1,1,2,2,0,3,
                                                              1,1,2,2,0,3 </pft_organ_par>
 
-      <pft_organ_par name="fates_parteh_unit_gr_resp" > -9,-9,-9,-9,-9,-9, 
+      <pft_organ_par name="fates_prt_unit_gr_resp" > -9,-9,-9,-9,-9,-9, 
                                                         0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
                                                         0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
 							0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 

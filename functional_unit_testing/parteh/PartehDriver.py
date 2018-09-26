@@ -48,10 +48,11 @@ from PartehInterpretParameters import load_xml
 f90_fates_wrap_obj_name = 'bld/FatesWrapMod.o'
 f90_fates_integrators_obj_name = 'bld/FatesIntegratorsMod.o'
 f90_fates_partehwrap_obj_name  = 'bld/FatesPARTEHWrapMod.o'
+f90_fates_lossfluxes_obj_name  = 'bld/PRTLossFluxesMod.o'
 f90_fates_parteh_generic_obj_name = 'bld/PRTGenericMod.o'
 f90_fates_pftwrap_obj_name = 'bld/FatesPFTWrapMod.o'
 f90_fates_parteh_callom_obj_name = 'bld/PRTAllometricCarbonMod.o'
-#f90_fates_parteh_cnpallom_obj_name = 'bld/PRTAllometricCNPMod.o'
+f90_fates_parteh_cnpallom_obj_name = 'bld/PRTAllometricCNPMod.o'
 f90_fates_cohortwrap_obj_name = 'bld/FatesCohortWrapMod.o'
 f90_fates_allom_obj_name = 'bld/FatesAllometryMod.o'
 
@@ -110,13 +111,14 @@ def main(argv):
     # Define the F90 objects
     # These must be loaded according to the module dependency order
     # Note that these calls instantiate the modules
-    f90_fates_wrap_obj       = ctypes.CDLL(f90_fates_wrap_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_integrators_obj = ctypes.CDLL(f90_fates_integrators_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_pftwrap_obj    = ctypes.CDLL(f90_fates_pftwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
+    f90_fates_wrap_obj           = ctypes.CDLL(f90_fates_wrap_obj_name,mode=ctypes.RTLD_GLOBAL)
+    f90_fates_integrators_obj    = ctypes.CDLL(f90_fates_integrators_obj_name,mode=ctypes.RTLD_GLOBAL)
+    f90_fates_pftwrap_obj        = ctypes.CDLL(f90_fates_pftwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
     f90_fates_parteh_generic_obj = ctypes.CDLL(f90_fates_parteh_generic_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_allom_obj      = ctypes.CDLL(f90_fates_allom_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_parteh_callom_obj = ctypes.CDLL(f90_fates_parteh_callom_obj_name,mode=ctypes.RTLD_GLOBAL)
-    #f90_fates_parteh_cnpallom_obj = ctypes.CDLL(f90_fates_parteh_cnpallom_obj_name,mode=ctypes.RTLD_GLOBAL)
+    f90_fates_allom_obj          = ctypes.CDLL(f90_fates_allom_obj_name,mode=ctypes.RTLD_GLOBAL)
+    f90_fates_parteh_callom_obj  = ctypes.CDLL(f90_fates_parteh_callom_obj_name,mode=ctypes.RTLD_GLOBAL)
+    f90_fates_lossfluxes_obj     = ctypes.CDLL(f90_fates_lossfluxes_obj_name,mode=ctypes.RTLD_GLOBAL)
+    f90_fates_parteh_cnpallom_obj = ctypes.CDLL(f90_fates_parteh_cnpallom_obj_name,mode=ctypes.RTLD_GLOBAL)
     f90_fates_partehwrap_obj = ctypes.CDLL(f90_fates_partehwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
     f90_fates_cohortwrap_obj = ctypes.CDLL(f90_fates_cohortwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
     

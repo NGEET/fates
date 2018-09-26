@@ -13,6 +13,9 @@ module PRTLossFluxesMod
   use PRTGenericMod, only : carbon12_species
   use PRTGenericMod, only : nitrogen_species
   use PRTGenericMod, only : phosphorous_species
+  use PRTGenericMod, only : un_initialized
+  use PRTGenericMod, only : check_initialized
+  use PRTGenericMod, only : num_organ_types
   use FatesInterfaceMod, only : hlm_freq_day
 
   use FatesConstantsMod, only : r8 => fates_r8
@@ -457,45 +460,50 @@ contains
       integer :: num_sp_vars
       integer :: i_pos
 
-      real(r8) :: base_turnover
+      real(r8) :: turnover
       real(r8) :: leaf_turnover
       real(r8) :: fnrt_turnover
       real(r8) :: sapw_turnover
       real(r8) :: store_turnover
       real(r8) :: struct_turnover
       real(r8) :: repro_turnover
-      real(r8) :: turnover   ! A temp for the actual turnover removed from pool
+      real(r8), dimension(num_organ_types) :: base_turnover   ! A temp for the actual turnover removed from pool
       real(r8) :: retrans    ! A temp for the actual re-translocated mass
+
       
       num_sp_vars = size(prt%variables,1)
 
       ! -----------------------------------------------------------------------------------
-      ! Calculate the turnover rates
+      ! Calculate the turnover rates (maybe this should be done once in the parameter
+      ! check routine. Perhaps generate a rate in parameters derived?
       ! -----------------------------------------------------------------------------------
+
+      base_turnover(:) = un_initialized
       
       if ( EDPftvarcon_inst%branch_turnover(ipft) > nearzero ) then
-         sapw_turnover   = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
-         struct_turnover = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
-         store_turnover  = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
+         base_turnover(sapw_organ)   = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
+         base_turnover(struct_organ) = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
+         base_turnover(store_organ)  = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
       else
-         sapw_turnover   = 0.0_r8
-         struct_turnover = 0.0_r8
-         store_turnover  = 0.0_r8
-         
+         base_turnover(sapw_organ)   = 0.0_r8
+         base_turnover(struct_organ) = 0.0_r8
+         base_turnover(store_organ)  = 0.0_r8
       end if
+
       if ( EDPftvarcon_inst%root_long(ipft) > nearzero ) then
-         fnrt_turnover = hlm_freq_day / EDPftvarcon_inst%root_long(ipft)
+         base_turnover(fnrt_organ) = hlm_freq_day / EDPftvarcon_inst%root_long(ipft)
       else
-         fnrt_turnover = 0.0_r8
+         base_turnover(fnrt_organ) = 0.0_r8
       end if
+
       if ( (EDPftvarcon_inst%leaf_long(ipft) > nearzero ) .and. &
            (EDPftvarcon_inst%evergreen(ipft) == 1) ) then
-         leaf_turnover = hlm_freq_day / EDPftvarcon_inst%leaf_long(ipft)
+         base_turnover(leaf_organ) = hlm_freq_day / EDPftvarcon_inst%leaf_long(ipft)
       else
-         leaf_turnover = 0.0_r8
+         base_turnover(leaf_organ) = 0.0_r8
       endif
 
-      repro_turnover  = 0.0_r8
+      base_turnover(repro_organ)  = 0.0_r8
 
       do i_var = 1, num_sp_vars
          
@@ -511,17 +519,33 @@ contains
          else
             write(fates_log(),*) 'Please add a new re-translocation clause to your '
             write(fates_log(),*) ' organ x species combination'
-            write(fates_log(),*) ' organ: ',leaf_organ,' species: ',spec_id
+            write(fates_log(),*) ' organ: ',organ_id,' species: ',spec_id
             write(fates_log(),*) 'Exiting'
             call endrun(msg=errMsg(__FILE__, __LINE__))
          end if
 
+         if(base_turnover(organ_id) < check_initialized) then
+            write(fates_log(),*) 'A maintenance turnover rate for the organ'
+            write(fates_log(),*) ' was not specified....'
+            write(fates_log(),*) ' organ: ',organ_id,' species: ',spec_id
+            write(fates_log(),*) ' base turnover rate: ',base_turnover(organ_id)
+            write(fates_log(),*) 'Exiting'
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+         end if
          ! Loop over all of the coordinate ids
+
+         if(retrans<0.0 .or. retrans>1.0) then
+            write(fates_log(),*) 'Unacceptable retranslocation calculated'
+            write(fates_log(),*) ' organ: ',organ_id,' species: ',spec_id
+            write(fates_log(),*) ' retranslocation fraction: ',retrans
+            write(fates_log(),*) 'Exiting'
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+         end if
 
          do i_pos = 1,prt%variables(i_var)%num_pos
             
-            turnover = (1.0_r8 - retrans) * base_turnover * prt%variables(i_var)%val(i_pos)
-            
+            turnover = (1.0_r8 - retrans) * base_turnover(organ_id) * prt%variables(i_var)%val(i_pos)
+      
             prt%variables(i_var)%turnover(i_pos) = prt%variables(i_var)%turnover(i_pos) + turnover
             
             prt%variables(i_var)%val(i_pos) = prt%variables(i_var)%val(i_pos)           - turnover

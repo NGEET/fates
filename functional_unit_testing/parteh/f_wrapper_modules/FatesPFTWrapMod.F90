@@ -48,10 +48,8 @@ module EDPftvarcon
      real(r8), pointer :: cushion(:)
      real(r8), pointer :: c2b(:)
      real(r8), pointer :: vcmax25top(:)
-     !real(r8), pointer :: allom_la_per_sa_int(:)
-     !real(r8), pointer :: allom_la_per_sa_slp(:)
-     real(r8), pointer :: allom_latosa_int(:)
-     real(r8), pointer :: allom_latosa_slp(:)
+     real(r8), pointer :: allom_la_per_sa_int(:)
+     real(r8), pointer :: allom_la_per_sa_slp(:)
      real(r8), pointer :: slatop(:)
      real(r8), pointer :: slamax(:)
      real(r8), pointer :: allom_l2fr(:)
@@ -385,29 +383,17 @@ contains
     EDPftvarcon_ptr%var(iv)%var_name = "fates_vcmax25top"
     EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%vcmax25top
 
-!    allocate( EDPftvarcon_inst%allom_la_per_sa_int(1:num_pft)); 
-!    EDPftvarcon_inst%allom_la_per_sa_int(:) = nan
-!    iv = iv + 1
-!    EDPftvarcon_ptr%var(iv)%var_name = "fates_allom_la_per_sa_int"
-!    EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%allom_la_per_sa_int
-
-!    allocate( EDPftvarcon_inst%allom_la_per_sa_slp(1:num_pft)); 
-!    EDPftvarcon_inst%allom_la_per_sa_slp(:) = nan
-!    iv = iv + 1
-!    EDPftvarcon_ptr%var(iv)%var_name = "fates_allom_la_per_sa_slp"
-!    EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%allom_la_per_sa_slp
-
-    allocate( EDPftvarcon_inst%allom_latosa_int(1:num_pft)); 
-    EDPftvarcon_inst%allom_latosa_int(:) = nan
+    allocate( EDPftvarcon_inst%allom_la_per_sa_int(1:num_pft)); 
+    EDPftvarcon_inst%allom_la_per_sa_int(:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_allom_latosa_int"
-    EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%allom_latosa_int
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_allom_la_per_sa_int"
+    EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%allom_la_per_sa_int
 
-    allocate( EDPftvarcon_inst%allom_latosa_slp(1:num_pft)); 
-    EDPftvarcon_inst%allom_latosa_slp(:) = nan
+    allocate( EDPftvarcon_inst%allom_la_per_sa_slp(1:num_pft)); 
+    EDPftvarcon_inst%allom_la_per_sa_slp(:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_allom_latosa_slp"
-    EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%allom_latosa_slp
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_allom_la_per_sa_slp"
+    EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%allom_la_per_sa_slp
 
     allocate( EDPftvarcon_inst%slatop(1:num_pft)); 
     EDPftvarcon_inst%slatop(:) = nan

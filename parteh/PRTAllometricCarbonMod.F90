@@ -263,6 +263,8 @@ contains
     real(r8) :: target_bgw_c      ! target below ground carbon in woody tissues [kgC]
     real(r8) :: target_struct_c   ! target structural carbon [kgC]
 
+    real(r8) :: sapw_area             ! dummy var, x-section area of sapwood [m2]
+
     real(r8) :: leaf_below_target     ! fineroot biomass below target amount [kgC]
     real(r8) :: fnrt_below_target     ! fineroot biomass below target amount [kgC]
     real(r8) :: sapw_below_target      ! sapwood biomass below target amount [kgC]
@@ -277,7 +279,6 @@ contains
     real(r8) :: fnrt_c_demand  ! fineroot carbon that is demanded to replace 
                                       ! maintenance turnover [kgC]
     real(r8) :: total_c_demand ! total carbon that is demanded to replace maintenance turnover [kgC]
-    real(r8) :: sapw_area             ! dummy sapwood area
     logical  :: step_pass             ! Did the integration step pass?
 
     real(r8) :: leaf_c_flux
@@ -372,9 +373,7 @@ contains
 
     
     ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-    !call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-    call bsap_allom(dbh,ipft,canopy_trim,target_sapw_c)
-    
+    call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
 
     ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
     call bagw_allom(dbh,ipft,target_agw_c)
@@ -398,8 +397,7 @@ contains
              canopy_trim, dbh, hite_out )
 
        ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-       !call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-       call bsap_allom(dbh,ipft,canopy_trim,target_sapw_c)
+       call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
 
        ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
        call bagw_allom(dbh,ipft,target_agw_c)
@@ -803,9 +801,9 @@ contains
       real(r8) :: ct_bgw     ! target belowground wood, dummy var (kgC)
       real(r8) :: ct_store   ! target storage, dummy var (kgC)
       real(r8) :: ct_dead    ! target structural biomas, dummy var (kgC)
-      real(r8) :: sapw_area             ! dummy sapwood area
+      real(r8) :: sapw_area      ! dummy sapwood area
       real(r8) :: ct_dleafdd     ! target leaf biomass derivative wrt d, (kgC/cm)
-      real(r8) :: ct_dfnrtdd    ! target fine-root biomass derivative wrt d, (kgC/cm)
+      real(r8) :: ct_dfnrtdd     ! target fine-root biomass derivative wrt d, (kgC/cm)
       real(r8) :: ct_dsapdd      ! target sapwood biomass derivative wrt d, (kgC/cm)
       real(r8) :: ct_dagwdd      ! target AG wood biomass derivative wrt d, (kgC/cm)
       real(r8) :: ct_dbgwdd      ! target BG wood biomass derivative wrt d, (kgC/cm)
@@ -840,8 +838,7 @@ contains
 
         call bleaf(dbh,ipft,canopy_trim,ct_leaf,ct_dleafdd)
         call bfineroot(dbh,ipft,canopy_trim,ct_fnrt,ct_dfnrtdd)
-        !call bsap_allom(dbh,ipft,canopy_trim,sapw_area,ct_sap,ct_dsapdd)
-        call bsap_allom(dbh,ipft,canopy_trim,ct_sap,ct_dsapdd)
+        call bsap_allom(dbh,ipft,canopy_trim,sapw_area,ct_sap,ct_dsapdd)
         call bagw_allom(dbh,ipft,ct_agw,ct_dagwdd)
         call bbgw_allom(dbh,ipft,ct_bgw,ct_dbgwdd)
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &
