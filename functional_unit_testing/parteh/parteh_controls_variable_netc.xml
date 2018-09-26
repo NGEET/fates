@@ -99,17 +99,21 @@
       <pft_par name="fates_vcmax25top                   "> 50.0         , 50.0  , 50.0   </pft_par>
 
       <pft_par name="fates_turnover_retrans_mode"      >  1,1,1 </pft_par>
-      <pft_par name="fates_turnover_retrans_leaf_n_p1" > -9,0.25, 0.25 </pft_par>
-      <pft_par name="fates_turnover_retrans_leaf_p_p1" > -9,0.25, 0.25 </pft_par>
-      <pft_par name="fates_turnover_retrans_fnrt_n_p1" > -9,0.25, 0.25 </pft_par>
-      <pft_par name="fates_turnover_retrans_fnrt_p_p1" > -9,0.25, 0.25 </pft_par>
+      <pft_organ_par name="fates_turnover_carb_retrans_p1" >  0.05,0,0,0,0,0,
+                                                              0.05,0,0,0,0,0,
+                                                              0.05,0,0,0,0,0 </pft_organ_par>
+      <pft_organ_par name="fates_turnover_nitr_retrans_p1" > -9,0,0,0,0,0,
+                                                              0.25,0,0,0,0,0,
+                                                              0.25,0,0,0,0,0 </pft_organ_par>
+      <pft_organ_par name="fates_turnover_phos_retrans_p1" > -9,0,0,0,0,0,
+                                                              0.25,0,0,0,0,0,
+                                                              0.25,0,0,0,0,0 </pft_organ_par>
 
+      <pft_organ_par name="fates_parteh_nitr_stoich_p1	        "> 0,0,0,0,0,0,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05 </pft_organ_par>
+      <pft_organ_par name="fates_parteh_nitr_stoich_p2	        "> 0,0,0,0,0,0,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05 </pft_organ_par>
 
-      <pft_organ_par name="fates_parteh_n_stoich_p1	        "> 0,0,0,0,0,0,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05 </pft_organ_par>
-      <pft_organ_par name="fates_parteh_n_stoich_p2	        "> 0,0,0,0,0,0,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05 </pft_organ_par>
-
-      <pft_organ_par name="fates_parteh_p_stoich_p1	        "> 0,0,0,0,0,0,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05 </pft_organ_par>
-      <pft_organ_par name="fates_parteh_p_stoich_p2	        "> 0,0,0,0,0,0,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05 </pft_organ_par>
+      <pft_organ_par name="fates_parteh_phos_stoich_p1	        "> 0,0,0,0,0,0,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05 </pft_organ_par>
+      <pft_organ_par name="fates_parteh_phos_stoich_p2	        "> 0,0,0,0,0,0,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05 </pft_organ_par>
 
       <pft_organ_par name="fates_parteh_c_alloc_priority "> 1,1,2,2,0,3,1,1,2,2,0,3,1,1,2,2,0,3 </pft_organ_par>
 

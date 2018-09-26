@@ -28,6 +28,9 @@ gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ -o bld/FatesAllometryMod.o ${FATES_SRC}/
 # The Generic (parent) PARTEH module
 gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ -o bld/PRTGenericMod.o ${FATES_SRC}/parteh/PRTGenericMod.F90
 
+# Loss Fluxes and phenology
+gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ -o bld/PRTLossFluxesMod.o ${FATES_SRC}/parteh/PRTLossFluxesMod.F90
+
 # The carbon-only PARTEH module
 gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ -o bld/PRTAllometricCarbonMod.o ${FATES_SRC}/parteh/PRTAllometricCarbonMod.F90
 

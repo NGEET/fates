@@ -216,7 +216,8 @@ contains
         allocate(this%variables(ivar)%val(icd))
         allocate(this%variables(ivar)%val0(icd))
         allocate(this%variables(ivar)%turnover(icd))
-        allocate(this%variables(ivar)%dvaldt(icd))
+        allocate(this%variables(ivar)%net_art(icd))
+        allocate(this%variables(ivar)%burned(icd))
 
      end do
 
@@ -285,6 +286,14 @@ contains
     real(r8) :: store_c_flux
     real(r8) :: repro_c_flux
     real(r8) :: struct_c_flux
+
+    real(r8) :: leaf_c0               ! Initial value of carbon used to determine net flux
+    real(r8) :: fnrt_c0               ! during this routine
+    real(r8) :: sapw_c0
+    real(r8) :: store_c0
+    real(r8) :: repro_c0
+    real(r8) :: struct_c0
+
 
     logical  :: grow_leaf             ! Are leaves at allometric target and should be grown?
     logical  :: grow_fnrt             ! Are fine-roots at allometric target and should be grown?
@@ -376,8 +385,6 @@ contains
     ! Target total dead (structrual) biomass and deriv. [kgC, kgC/cm]
     call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
 
-    
-
 
     ! ------------------------------------------------------------------------------------
     ! If structure is larger than target, then we need to correct some integration errors
@@ -415,20 +422,12 @@ contains
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
 
     
-    ! -----------------------------------------------------------------------------------
-    !  Set memory of the old state variables for comparison
-    ! -----------------------------------------------------------------------------------
-
-    do i_var = 1,ac_num_vars
-       this%variables(i_var)%val0(icd) = this%variables(i_var)%val(icd)
-    end do
-
-    ! -----------------------------------------------------------------------------------
-    ! II. Call maintenance turnover
-    ! This will increment %turnover and decrease %val
-    ! ----------------------------------------------------------------------------------
-
-    call PRTMaintTurnover(this,ipft)
+    leaf_c0 = leaf_c
+    fnrt_c0 = fnrt_c
+    sapw_c0 = sapw_c
+    store_c0 = store_c
+    repro_c0 = repro_c
+    struct_c0 = struct_c
 
     ! -----------------------------------------------------------------------------------
     ! III.  Prioritize some amount of carbon to replace leaf/root turnover
@@ -741,6 +740,27 @@ contains
           end if
        end do
     end if
+
+    ! Track the net allocations and transport from this routine
+
+    this%variables(leaf_c_id)%net_art(icd) = &
+         this%variables(leaf_c_id)%net_art(icd) + (leaf_c - leaf_c0)
+
+    this%variables(fnrt_c_id)%net_art(icd) = &
+         this%variables(fnrt_c_id)%net_art(icd) + (fnrt_c - fnrt_c0)
+    
+    this%variables(sapw_c_id)%net_art(icd) = &
+         this%variables(sapw_c_id)%net_art(icd) + (sapw_c - sapw_c0)
+    
+    this%variables(store_c_id)%net_art(icd) = &
+         this%variables(store_c_id)%net_art(icd) + (store_c - store_c0)
+    
+    this%variables(repro_c_id)%net_art(icd) = &
+         this%variables(repro_c_id)%net_art(icd) + (repro_c - repro_c0)
+    
+    this%variables(struct_c_id)%net_art(icd) = &
+         this%variables(struct_c_id)%net_art(icd) + (struct_c - struct_c0)
+
 
   end associate
   

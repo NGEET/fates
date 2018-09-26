@@ -44,6 +44,8 @@ module FatesCohortWrapMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
 
+  use PRTLossFluxesMod, only : PRTMaintTurnover
+
 !  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
 !  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_dbh
 !  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdc
@@ -347,6 +349,7 @@ contains
 
     call ccohort%prt%ZeroRates()
 
+    call PRTMaintTurnover(ccohort%prt, ipft)
 
     select case(int(ccohort%parteh_model))
     case (1)

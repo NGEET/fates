@@ -89,17 +89,19 @@ module EDPftvarcon
      ! Hypothesis 1: Unused                        [na]
 
 
-     real(r8), pointer :: parteh_unit_gr_resp(:,:)
-     real(r8), pointer :: parteh_n_stoich_p1(:,:)
-     real(r8), pointer :: parteh_n_stoich_p2(:,:)
-     real(r8), pointer :: parteh_p_stoich_p1(:,:)
-     real(r8), pointer :: parteh_p_stoich_p2(:,:)
-     real(r8), pointer :: parteh_c_alloc_priority(:,:)
+     real(r8), pointer :: prt_unit_gr_resp(:,:)
+     real(r8), pointer :: prt_nitr_stoich_p1(:,:)
+     real(r8), pointer :: prt_nitr_stoich_p2(:,:)
+     real(r8), pointer :: prt_phos_stoich_p1(:,:)
+     real(r8), pointer :: prt_phos_stoich_p2(:,:)
+     real(r8), pointer :: prt_alloc_priority(:,:)
      
      ! THese are new, but not necessarily PARTEH labeled
      real(r8), pointer :: turnover_retrans_mode(:)
-     real(r8), pointer :: turnover_n_retrans_p1(:,:)
-     real(r8), pointer :: turnover_p_retrans_p1(:,:)
+     
+     real(r8), pointer :: turnover_carb_retrans_p1(:,:)
+     real(r8), pointer :: turnover_nitr_retrans_p1(:,:)
+     real(r8), pointer :: turnover_phos_retrans_p1(:,:)
 
 
   end type EDPftvarcon_inst_type
@@ -493,46 +495,46 @@ contains
     EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%rootb_par
 
 
-    allocate( EDPftvarcon_inst%parteh_n_stoich_p1(1:num_pft,1:num_organs)); 
-    EDPftvarcon_inst%parteh_n_stoich_p1(:,:) = nan
+    allocate( EDPftvarcon_inst%prt_nitr_stoich_p1(1:num_pft,1:num_organs)); 
+    EDPftvarcon_inst%prt_nitr_stoich_p1(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_parteh_n_stoich_p1"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%parteh_n_stoich_p1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_prt_nitr_stoich_p1"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%prt_nitr_stoich_p1
 
     
-    allocate( EDPftvarcon_inst%parteh_p_stoich_p1(1:num_pft,1:num_organs)); 
-    EDPftvarcon_inst%parteh_p_stoich_p1(:,:) = nan
+    allocate( EDPftvarcon_inst%prt_phos_stoich_p1(1:num_pft,1:num_organs)); 
+    EDPftvarcon_inst%prt_phos_stoich_p1(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_parteh_p_stoich_p1"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%parteh_p_stoich_p1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_prt_phos_stoich_p1"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%prt_phos_stoich_p1
 
 
-    allocate( EDPftvarcon_inst%parteh_n_stoich_p2(1:num_pft,1:num_organs)); 
-    EDPftvarcon_inst%parteh_n_stoich_p2(:,:) = nan
+    allocate( EDPftvarcon_inst%prt_nitr_stoich_p2(1:num_pft,1:num_organs)); 
+    EDPftvarcon_inst%prt_nitr_stoich_p2(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_parteh_n_stoich_p2"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%parteh_n_stoich_p2
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_prt_nitr_stoich_p2"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%prt_nitr_stoich_p2
 
     
-    allocate( EDPftvarcon_inst%parteh_p_stoich_p2(1:num_pft,1:num_organs)); 
-    EDPftvarcon_inst%parteh_p_stoich_p2(:,:) = nan
+    allocate( EDPftvarcon_inst%prt_phos_stoich_p2(1:num_pft,1:num_organs)); 
+    EDPftvarcon_inst%prt_phos_stoich_p2(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_parteh_p_stoich_p2"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%parteh_p_stoich_p2
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_prt_phos_stoich_p2"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%prt_phos_stoich_p2
 
 
-    allocate( EDPftvarcon_inst%parteh_unit_gr_resp(1:num_pft,1:num_organs));
-    EDPftvarcon_inst%parteh_unit_gr_resp(:,:) = nan
+    allocate( EDPftvarcon_inst%prt_unit_gr_resp(1:num_pft,1:num_organs));
+    EDPftvarcon_inst%prt_unit_gr_resp(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_parteh_unit_gr_resp"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%parteh_unit_gr_resp
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_prt_unit_gr_resp"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%prt_unit_gr_resp
 
 
-    allocate( EDPftvarcon_inst%parteh_c_alloc_priority(1:num_pft,1:num_organs));
-    EDPftvarcon_inst%parteh_c_alloc_priority(:,:) = nan
+    allocate( EDPftvarcon_inst%prt_alloc_priority(1:num_pft,1:num_organs));
+    EDPftvarcon_inst%prt_alloc_priority(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_parteh_c_alloc_priority"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%parteh_c_alloc_priority
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_prt_alloc_priority"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%prt_alloc_priority
     
     allocate( EDPftvarcon_inst%turnover_retrans_mode(1:num_pft) )
     EDPftvarcon_inst%turnover_retrans_mode(:) = nan
@@ -540,17 +542,23 @@ contains
     EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_retrans_mode"
     EDPftvarcon_ptr%var(iv)%rp_1d => EDPftvarcon_inst%turnover_retrans_mode
 
-    allocate( EDPftvarcon_inst%turnover_n_retrans_p1(1:num_pft,1:num_organs) )
-    EDPftvarcon_inst%turnover_n_retrans_p1(:,:) = nan
+    allocate( EDPftvarcon_inst%turnover_carb_retrans_p1(1:num_pft,1:num_organs) )
+    EDPftvarcon_inst%turnover_carb_retrans_p1(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_n_retrans_p1"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_n_retrans_p1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_carb_retrans_p1"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_carb_retrans_p1
+
+    allocate( EDPftvarcon_inst%turnover_nitr_retrans_p1(1:num_pft,1:num_organs) )
+    EDPftvarcon_inst%turnover_nitr_retrans_p1(:,:) = nan
+    iv = iv + 1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_nitr_retrans_p1"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_nitr_retrans_p1
     
-    allocate( EDPftvarcon_inst%turnover_p_retrans_p1(1:num_pft,1:num_organs) )
-    EDPftvarcon_inst%turnover_p_retrans_p1(:,:) = nan
+    allocate( EDPftvarcon_inst%turnover_phos_retrans_p1(1:num_pft,1:num_organs) )
+    EDPftvarcon_inst%turnover_phos_retrans_p1(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_p_retrans_p1"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_p_retrans_p1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_phos_retrans_p1"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_phos_retrans_p1
 
 
     ! We should gracefully fail if rootprof_beta is requested

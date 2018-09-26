@@ -1,21 +1,28 @@
 module PRTLossFluxesMod
 
   use EDPftvarcon, only : EDPftvarcon_inst
-  use PRTGeneric, only : prt_vartypes
-  use PRTGeneric, only : leaf_organ
-  use PRTGeneric, only : fnrt_organ
-  use PRTGeneric, only : sapw_organ
-  use PRTGeneric, only : store_organ
-  use PRTGeneric, only : repro_organ
-  use PRTGeneric, only : truct_organ
-  use PRTGeneric, only : all_carbon_species
-  use PRTGeneric, only : carbon12_species
-  use PRTGeneric, only : nitrogen_species
-  use PRTGeneric, only : phosphorous_species
+  use PRTGenericMod, only : prt_vartypes
+  use PRTGenericMod, only : leaf_organ
+  use PRTGenericMod, only : fnrt_organ
+  use PRTGenericMod, only : sapw_organ
+  use PRTGenericMod, only : store_organ
+  use PRTGenericMod, only : repro_organ
+  use PRTGenericMod, only : struct_organ
+  use PRTGenericMod, only : all_carbon_species
+  use PRTGenericMod, only : carbon_species    ! This is a vector
+  use PRTGenericMod, only : carbon12_species
+  use PRTGenericMod, only : nitrogen_species
+  use PRTGenericMod, only : phosphorous_species
   use FatesInterfaceMod, only : hlm_freq_day
 
-  ! These public flags specify what kind of event based
-  ! turnover is happening
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : i4 => fates_int
+  use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : calloc_abs_error
+  use FatesGlobals     , only : endrun => fates_endrun
+  use FatesGlobals     , only : fates_log 
+  use shr_log_mod      , only : errMsg => shr_log_errMsg
+
   
   implicit none
   private
@@ -67,12 +74,13 @@ contains
                                                    ! transferred from storage
    
      integer             :: i_var                  ! variable index
+     integer             :: i_sp_var               ! index for all species in
+                                                   ! a given organ
      integer             :: i_cvar                 ! carbon variable index
      integer             :: i_pos                  ! spatial position index
      integer             :: i_store                ! storage variable index
      integer             :: spec_id                ! global species identifier
      integer             :: num_sp_vars            ! number of species for this organ
-     integer             :: i_store                ! variable index of storage
      real(r8)            :: mass_transfer          ! The actual mass
                                                    ! removed from storage
                                                    ! for each pool
@@ -83,10 +91,7 @@ contains
 
      associate(organ_map => prt%prt_instance%organ_map)
 
-       ! This is the total number of state variables associated
-       ! with this particular organ (ie carbon, nitrogen, phosphorous, ...)
        
-       num_sp_vars = organ_map(organ_id)%num_vars
 
        
        ! First transfer in carbon
@@ -126,7 +131,11 @@ contains
        ! Transfer in other species
        ! --------------------------------------------------------------------------------
 
-       do i_sp_var = 1, num_sp_vars
+       ! This is the total number of state variables associated
+       ! with this particular organ (ie carbon, nitrogen, phosphorous, ...)
+       
+
+       do i_sp_var = 1, organ_map(organ_id)%num_vars
           
           i_var  = organ_map(organ_id)%var_id(i_sp_var)
           
@@ -212,7 +221,7 @@ contains
     integer             :: i_pos        ! position index
     integer             :: i_var        ! index for the variable of interest 
     integer             :: i_sp_var     ! loop counter for all species in this organ
-    integer             :: num_sp_var   ! Loop size for iterating over all species
+    integer             :: num_sp_vars  ! Loop size for iterating over all species
     integer             :: spec_id      ! Species id of the turnover pool
     real(r8)            :: burned_mass  ! Burned mass of each species, in eahc
                                         ! position, in the organ of interest
@@ -281,7 +290,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine DeciduousTurnoverSimpleRetranslocation(pft,ipft,organ_id,mass_fraction)
+   subroutine DeciduousTurnoverSimpleRetranslocation(prt,ipft,organ_id,mass_fraction)
 
      ! ---------------------------------------------------------------------------------
      ! Calculate losses due to deciduous turnover.
@@ -302,8 +311,8 @@ contains
      integer             :: i_var     ! index for the variable of interest 
      integer             :: i_sp_var  ! loop counter for all species in this organ
 
-     integer             :: num_sp_var ! Loop size for iterating over all species
-                                       ! in the organ that is turning over
+     integer             :: num_sp_vars ! Loop size for iterating over all species
+                                        ! in the organ that is turning over
      integer             :: spec_id        ! Species id of the turnover pool
      integer             :: store_var_id   ! Variable id of the storage pool
      integer             :: i_pos          ! position index (spatial)

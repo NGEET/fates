@@ -24,6 +24,7 @@ module PRTGenericMod
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : i4 => fates_int
   use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : calloc_abs_error
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log 
  
@@ -223,9 +224,7 @@ module PRTGenericMod
      procedure, non_overridable :: GetState
      procedure, non_overridable :: GetTurnover
      procedure, non_overridable :: ZeroRates
-
-     procedure, non_overridable :: MaintTurnover
-     procedure, non_overridable :: MaintTurnoverSimpleRetranslocation
+     procedure, non_overridable :: CheckMassConservation
 
   end type prt_vartypes
 
@@ -279,7 +278,7 @@ module PRTGenericMod
   ! per each organ.
   
   type organ_map_type
-     integer, dimension(1,num_species_types) :: var_id
+     integer, dimension(1:num_species_types) :: var_id
      integer                                 :: num_vars
   end type organ_map_type
 
@@ -387,8 +386,8 @@ contains
 
     class(prt_vartypes) :: this
 
-    integer :: num_vars
-    integer :: i_var
+    integer :: num_vars   ! Number of variables
+    integer :: i_var      ! Variable index
 
     num_vars = size(this%variables,1)
     
@@ -658,7 +657,6 @@ contains
     ! Check to see if there is any value in these pools?
     ! SHould not deallocate if there is any carbon left
 
-
     n_vars = size(this%variables,1)
     
     do i_var = 1, n_vars
@@ -666,6 +664,7 @@ contains
        deallocate(this%variables(i_var)%val0)
        deallocate(this%variables(i_var)%net_art)
        deallocate(this%variables(i_var)%turnover)
+       deallocate(this%variables(i_var)%burned)
     end do
 
     deallocate(this%variables)
@@ -747,15 +746,15 @@ contains
 
       class(prt_vartypes) :: this
 
-      integer :: n_vars
-      integer :: ivar
+      integer :: n_vars   ! Number of variables
+      integer :: i_var    ! Variable index
 
       n_vars = size(this%variables,1)
-      do ivar = 1,n_vars
-         this%variables(ivar)%val0(:)        = this%variables(ivar)%val(:)
-         this%variables(ivar)%net_art(:)     = 0.0_r8
-         this%variables(ivar)%turnover(:)    = 0.0_r8
-         this%variables(ivar)%burned(:)      = 0.0_r8
+      do i_var = 1,n_vars
+         this%variables(i_var)%val0(:)        = this%variables(i_var)%val(:)
+         this%variables(i_var)%net_art(:)     = 0.0_r8
+         this%variables(i_var)%turnover(:)    = 0.0_r8
+         this%variables(i_var)%burned(:)      = 0.0_r8
       end do
       
     end subroutine ZeroRates
@@ -766,21 +765,22 @@ contains
 
      class(prt_vartypes) :: this
 
-     integer :: n_vars
-     integer :: ivar
+     integer :: n_vars      ! Number of variables
+     integer :: i_var       ! Variable index
+     integer :: i_pos       ! Position (coordinate) index
 
      real(r8) :: err
 
 
      n_vars = size(this%variables,1)
-     do ivar = 1,n_vars
-
-        do pos_id = 1, this%variables(ivar)%num_pos
+     do i_var = 1,n_vars
+        
+        do i_pos = 1, this%variables(i_var)%num_pos
            
-           err = (this%variables(ivar)%val(pos_id) - this%variables(ivar)%val0(pos_id)) - &
-                  (this%variables(ivar)%net_art(pos_id) &
-                   -this%variables(ivar)%turnover(pos_id) & 
-                   -this%variables(ivar)%burned(pos_id) )
+           err = (this%variables(i_var)%val(i_pos) - this%variables(i_var)%val0(i_pos)) - &
+                  (this%variables(i_var)%net_art(i_pos) &
+                   -this%variables(i_var)%turnover(i_pos) & 
+                   -this%variables(i_var)%burned(i_pos) )
            
            if( abs(err) > calloc_abs_error ) then
               write(fates_log(),*) 'PARTEH mass conservation check failed'
@@ -788,18 +788,19 @@ contains
               write(fates_log(),*) ' always equal the integrated fluxes.'
               write(fates_log(),*) ' organ id: ',this%prt_instance%state_descriptor(i_var)%organ_id
               write(fates_log(),*) ' species_id: ',this%prt_instance%state_descriptor(i_var)%spec_id
-              write(fates_log(),*) ' position id: ',pos_id
+              write(fates_log(),*) ' position id: ',i_pos
               write(fates_log(),*) ' symbol: ',trim(this%prt_instance%state_descriptor(i_var)%symbol)
               write(fates_log(),*) ' longname: ',trim(this%prt_instance%state_descriptor(i_var)%longname)
               write(fates_log(),*) ' err: ',err,' max error: ',calloc_abs_error
-              write(fates_log(),*) ' terms: ', this%variables(ivar)%val(pos_id), &
-                                               this%variables(ivar)%val0(pos_id), &
-                                               this%variables(ivar)%net_art(pos_id), &
-                                               this%variables(ivar)%turnover(pos_id)
+              write(fates_log(),*) ' terms: ', this%variables(i_var)%val(i_pos), &
+                                               this%variables(i_var)%val0(i_pos), &
+                                               this%variables(i_var)%net_art(i_pos), &
+                                               this%variables(i_var)%turnover(i_pos)
               write(fates_log(),*) ' Exiting.'
               call endrun(msg=errMsg(__FILE__, __LINE__))
            end if
 
+        end do
      end do
 
      return
@@ -809,9 +810,11 @@ contains
    
    function GetState(this, organ_id, species_id, position_id) result(sp_organ_val)
       
-
-      ! THIS CODE IS VERY INEFFICIENT RIGHT NOW
-
+      ! This function returns the current amount of mass for
+      ! any combination of organ and species.  If a position
+      ! is provided, it will us it, but otherwise, it will sum over
+      ! all dimensions.  It also can accomodate all_carbon_species, which
+      ! will return the mass of all carbon isotopes combined.
 
       class(prt_vartypes)   :: this
       integer,intent(in)    :: organ_id
@@ -819,11 +822,11 @@ contains
       integer,intent(in),optional :: position_id
       real(r8)              :: sp_organ_val
 
-      integer :: pos_id
+      integer :: i_pos
       integer :: ispec
       integer :: num_species
       integer,dimension(max_spec_per_group) :: spec_ids 
-      integer :: index
+      integer :: i_var
       
       sp_organ_val = 0.0_r8
       
@@ -836,22 +839,22 @@ contains
       end if
 
       if(present(position_id)) then
-         pos_id = position_id
+         i_pos = position_id
       
          do ispec = 1,num_species
-            index = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
-            if(index>0) sp_organ_val = sp_organ_val + this%variables(index)%val(pos_id)
+            i_var = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            if(i_var>0) sp_organ_val = sp_organ_val + this%variables(i_var)%val(i_pos)
          end do
 
       else
          
          do ispec = 1,num_species
             
-            index = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
-            if(index>0)then
+            i_var = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            if(i_var>0)then
 
-               do pos_id = 1, this%variables(index)%num_pos
-                  sp_organ_val = sp_organ_val + this%variables(index)%val(pos_id)
+               do i_pos = 1, this%variables(i_var)%num_pos
+                  sp_organ_val = sp_organ_val + this%variables(i_var)%val(i_pos)
                end do
             end if
                
@@ -869,7 +872,8 @@ contains
     function GetTurnover(this, organ_id, species_id, position_id) result(sp_organ_turnover)
       
 
-      ! THIS CODE IS VERY INEFFICIENT RIGHT NOW
+      ! THis function is very similar to GetState, with the only difference that it
+      ! returns the turnover mass so-far during the period of interest.
 
 
       class(prt_vartypes)   :: this
@@ -878,11 +882,11 @@ contains
       integer,intent(in),optional :: position_id
       real(r8)              :: sp_organ_turnover
 
-      integer :: pos_id
+      integer :: i_pos
       integer :: ispec
       integer :: num_species
       integer,dimension(max_spec_per_group) :: spec_ids 
-      integer :: index
+      integer :: i_var
       
       sp_organ_turnover = 0.0_r8
       
@@ -895,21 +899,21 @@ contains
       end if
 
       if(present(position_id)) then
-         pos_id = position_id
+         i_pos = position_id
       
          do ispec = 1,num_species
-            index = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
-            if(index>0) sp_organ_turnover = sp_organ_turnover + &
-                 this%variables(index)%turnover(pos_id)
+            i_var = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            if(i_var>0) sp_organ_turnover = sp_organ_turnover + &
+                 this%variables(i_var)%turnover(i_pos)
          end do
 
       else
 
          do ispec = 1,num_species
-            index = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
-            if(index>0) then
-               do pos_id = 1, this%variables(index)%num_pos
-                  sp_organ_turnover = sp_organ_turnover + this%variables(index)%turnover(pos_id)
+            i_var = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            if(i_var>0) then
+               do i_pos = 1, this%variables(i_var)%num_pos
+                  sp_organ_turnover = sp_organ_turnover + this%variables(i_var)%turnover(i_pos)
                end do
             end if
             
@@ -923,7 +927,9 @@ contains
     ! =========================================================================
     
     function GetBurned(this, organ_id, species_id, position_id) result(sp_organ_burned)
-      
+
+      ! THis function is very similar to GetBurned, with the only difference that it
+      ! returns the turnover mass so-far during the period of interest.
 
       class(prt_vartypes)         :: this
       integer,intent(in)          :: organ_id
@@ -931,11 +937,11 @@ contains
       integer,intent(in),optional :: position_id
       real(r8)                    :: sp_organ_burned
 
-      integer :: pos_id
+      integer :: i_pos
       integer :: ispec
       integer :: num_species
       integer,dimension(max_spec_per_group) :: spec_ids 
-      integer :: index
+      integer :: i_var
       
       sp_organ_burned = 0.0_r8
       
@@ -948,21 +954,21 @@ contains
       end if
 
       if(present(position_id)) then
-         pos_id = position_id
+         i_pos = position_id
       
          do ispec = 1,num_species
-            index = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
-            if(index>0) sp_organ_burned = sp_organ_burned + &
-                  this%variables(index)%burned(pos_id)
+            i_var = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            if(i_var>0) sp_organ_burned = sp_organ_burned + &
+                  this%variables(i_var)%burned(i_pos)
          end do
 
       else
          
          do ispec = 1,num_species
-            index = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
-            if(index>0) then
-               do pos_id = 1, this%variables(index)%num_pos
-                  sp_organ_burned = sp_organ_burned + this%variables(index)%burned(pos_id)
+            i_var = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            if(i_var>0) then
+               do i_pos = 1, this%variables(i_var)%num_pos
+                  sp_organ_burned = sp_organ_burned + this%variables(i_var)%burned(i_pos)
                end do
             end if
             
@@ -1038,9 +1044,8 @@ contains
      integer :: ispec
      integer :: n_vars
      integer,dimension(max_spec_per_group) :: spec_ids 
-     integer :: ivar
-     integer :: index
-     integer :: pos_id
+     integer :: i_var
+     integer :: i_pos
      
      if(species_id == all_carbon_species) then
         write(fates_log(),*) 'You cannot set the state of all isotopes simultaneously.'
@@ -1049,25 +1054,25 @@ contains
      end if
      
      if( present(position_id) ) then
-        pos_id = position_id
+        i_pos = position_id
      else
-        pos_id = 1
+        i_pos = 1
      end if
      
      
-     index = prt%prt_instance%sp_organ_map(organ_id,species_id)
+     i_var = prt%prt_instance%sp_organ_map(organ_id,species_id)
      
-     if(pos_id>prt%variables(index)%num_pos)then
+     if(i_pos>prt%variables(i_var)%num_pos)then
         write(fates_log(),*) 'A position index was specified that is'
         write(fates_log(),*) 'greater than the allocated position space'
-        write(fates_log(),*) ' pos_id: ',pos_id
-        write(fates_log(),*) ' num_pos: ',prt%variables(index)%num_pos
+        write(fates_log(),*) ' i_pos: ',i_pos
+        write(fates_log(),*) ' num_pos: ',prt%variables(i_var)%num_pos
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if
 
 
-     if(index>0) then
-        prt%variables(index)%val(pos_id) = state_val
+     if(i_var>0) then
+        prt%variables(i_var)%val(i_pos) = state_val
      else
         write(fates_log(),*) 'A mass was sent to PARTEH to over-write'
         write(fates_log(),*) ' a pool with a specie x organ combination. '
