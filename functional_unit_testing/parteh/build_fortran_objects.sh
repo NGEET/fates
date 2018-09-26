@@ -4,6 +4,8 @@
 
 FATES_SRC=../../
 
+CNP_SRC=/home/rgknox/SyncLRC/PARTEH/FModules/
+
 F_OPTS="-shared -fPIC -g -ffpe-trap=zero,overflow,underflow -fbacktrace -fbounds-check"
 
 MOD_FLAG="-J"
@@ -35,7 +37,7 @@ gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ -o bld/PRTLossFluxesMod.o ${FATES_SRC}/p
 gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ -o bld/PRTAllometricCarbonMod.o ${FATES_SRC}/parteh/PRTAllometricCarbonMod.F90
 
 # The CNP allometric target model 
-#gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ -o FModules/PRTAllometricCNPMod.o FModules/PRTAllometricCNPMod.F90
+gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ -o bld/PRTAllometricCNPMod.o ${CNP_SRC}/PRTAllometricCNPMod.F90
 
 # Initialize PARTEH instance and mapping functions
 gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ bld/PRTGenericMod.o bld/PRTAllometricCarbonMod.o -o bld/FatesPARTEHWrapMod.o f_wrapper_modules/FatesPARTEHWrapMod.F90
