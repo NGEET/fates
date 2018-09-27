@@ -130,11 +130,47 @@ def main(argv):
     iret=f90_fates_pftwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(parameters.num_pfts)), \
                                                                   byref(c_int(max_num_organs)))
     
-    
+    # Set the phenology type
+    phen_type = []
+    for pft_idx,pft_obj in enumerate(parameters.parteh_pfts):
+
+        evergreen        = np.int(parameters.parteh_pfts[pft_idx].param_dic['fates_phen_evergreen'][0])
+        cold_deciduous   = np.int(parameters.parteh_pfts[pft_idx].param_dic['fates_phen_season_decid'][0])
+        stress_deciduous = np.int(parameters.parteh_pfts[pft_idx].param_dic['fates_phen_stress_decid'][0])
+        if(evergreen==1):
+            if(cold_deciduous==1):
+                print("Poorly defined phenology mode 0")
+                exit(2)
+            if(stress_deciduous==1):
+                print("Poorly defined phenology mode 1")
+                exit(2)
+            phen_type.append(1)
+        elif(cold_deciduous==1):
+            if(evergreen==1):
+                print("Poorly defined phenology mode 2")
+                exit(2)
+            if(stress_deciduous==1):
+                print("Poorly defined phenology mode 3")
+                exit(2)
+            phen_type.append(2)
+        elif(stress_deciduous==1):
+            if(evergreen==1):
+                print("Poorly defined phenology mode 4")
+                exit(2)
+            if(cold_deciduous==1):
+                print("Poorly defined phenology mode 5")
+                exit(2)
+            phen_type.append(3)
+        else:
+            print("Unknown phenology mode ? {} {} {}".format(evergreen,cold_deciduous,stress_deciduous))
+            exit(2)
+
+
 
     # Loop through each pft and pft's parameters and pass them to the fortran object
     # Also, some parameters may be arrays (like organ number)
     for pft_idx,pft_obj in enumerate(parameters.parteh_pfts):
+
         for par_idx, par_key in enumerate(pft_obj.param_dic.iterkeys()):
             pval = pft_obj.param_dic[par_key]
             print("{} {} {}".format(par_idx,par_key,pval))
@@ -195,10 +231,12 @@ def main(argv):
             # ---------------------------------------------------------------------------
 
             # First lets query this pft-cohort and return a smattering of indices
+
             leaf_area  = c_double(0.0)
             agb        = c_double(0.0)
             crown_area = c_double(0.0)
             dbh        = c_double(0.0)
+            target_leaf_c = c_double(-9.9)
             leaf_c     = c_double(0.0)
             fnrt_c     = c_double(0.0)
             sapw_c     = c_double(0.0)
@@ -243,17 +281,28 @@ def main(argv):
                                                                                  byref(leaf_area), \
                                                                                  byref(crown_area), \
                                                                                  byref(agb), \
-                                                                                 byref(store_c))
+                                                                                 byref(store_c),\
+                                                                                 byref(target_leaf_c))
 
-            #            if(parameters.boundary_method=="DailyCFromUnitGPPAR"):
-            #                net_daily_c = SyntheticBoundaries.DailyCFromUnitGPPAR(leaf_area.value,agb.value)
+           
+
+            doy = time_control.datetime.astype(object).timetuple().tm_yday
+
+
+
+            # Call phenology module, if no leaves... then npp should be zero...
+            flush_c,drop_frac_c,leaf_status = SyntheticBoundaries.DeciduousPhenology(doy, \
+                                                                                     target_leaf_c.value, \
+                                                                                     store_c.value, phen_type[pft_idx])
 
             if(parameters.boundary_method=="DailyCFromCArea"):
                 
                 presc_npp_p1     = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_npp_p1']
 
                 net_daily_c = SyntheticBoundaries.DailyCFromCArea(presc_npp_p1, \
-                                                                  crown_area.value)
+                                                                  crown_area.value, \
+                                                                  phen_type[pft_idx], \
+                                                                  leaf_status)
                 net_daily_n = 0.0
                 net_daily_p = 0.0
                 r_maint_demand = 0.0
@@ -268,7 +317,9 @@ def main(argv):
                 net_daily_c, net_daily_n, net_daily_p = SyntheticBoundaries.DailyCNPFromCArea(presc_npp_p1, \
                                                                                               presc_nflux_p1, \
                                                                                               presc_pflux_p1, \
-                                                                                              crown_area.value)
+                                                                                              crown_area.value, \
+                                                                                              phen_type[pft_idx], \
+                                                                                              leaf_status)
                 r_maint_demand = 0.0
 
 
@@ -280,7 +331,7 @@ def main(argv):
                 presc_pflux_p1 = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_pflux_p1']
                 
                 
-                doy = time_control.datetime.astype(object).timetuple().tm_yday
+               
 
                 net_daily_c, net_daily_n, net_daily_p = SyntheticBoundaries.DailyCNPFromStorageSinWave(doy,\
                                                                                  store_c.value,\
@@ -288,7 +339,9 @@ def main(argv):
                                                                                  presc_nflux_p1, \
                                                                                  presc_pflux_p1, \
                                                                                  crown_area.value, \
-                                                                                 presc_npp_amp )
+                                                                                 presc_npp_amp, \
+                                                                                 phen_type[pft_idx], \
+                                                                                 leaf_status )
                 r_maint_demand = 0.0
 
             else:
@@ -297,14 +350,21 @@ def main(argv):
                 exit()
 
 
+            
+            
+
+
             # This function will pass in all boundary conditions, some will be dummy arguments
             init_canopy_trim = 1.0
             iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapdailyprt(byref(c_int(pft_idx+1)), \
                                                                                 byref(c_double(net_daily_c)), \
+                                                                                byref(c_double(init_canopy_trim)), \
+                                                                                byref(c_double(flush_c)), \
+                                                                                byref(c_double(drop_frac_c)), \
                                                                                 byref(c_double(net_daily_n)), \
                                                                                 byref(c_double(net_daily_p)), \
-                                                                                byref(c_double(init_canopy_trim)), \
                                                                                 byref(c_double(r_maint_demand)))
+                                                                                
 
             
             # This function will retrieve diagnostics

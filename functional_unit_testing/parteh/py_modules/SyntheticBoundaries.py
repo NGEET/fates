@@ -53,7 +53,7 @@ def DailyCFromUnitGPPAR(leaf_area,AGB):
     return NetDailyC
 
 
-def DailyCFromCArea(presc_npp_p1,c_area):
+def DailyCFromCArea(presc_npp_p1,c_area,phen_type,leaf_status):
     
     # -----------------------------------------------------------------------------------
     # This method was provided by Charlie Koven via is inferences from the PPA
@@ -65,13 +65,16 @@ def DailyCFromCArea(presc_npp_p1,c_area):
     # presc_npp_p1, npp generated per crown area         [kgC/m2/yr]
     # -----------------------------------------------------------------------------------
 
-    NetDailyC = presc_npp_p1 * c_area / day_per_year        
-        
+    if( (phen_type == 1) or (leaf_status ==1)):
+        NetDailyC = presc_npp_p1 * c_area / day_per_year        
+    else:
+        NetDailyC = 0.0
+
     return NetDailyC
 
 
 def DailyCNPFromCArea(presc_npp_p1,presc_nflux_p1, \
-                      presc_pflux_p1,c_area):
+                      presc_pflux_p1,c_area,phen_type,leaf_status):
     
     # -----------------------------------------------------------------------------------
     # This method was provided by Charlie Koven via is inferences from the PPA
@@ -86,15 +89,21 @@ def DailyCNPFromCArea(presc_npp_p1,presc_nflux_p1, \
     # presc_pflux_p1, Phosphorous flux per crown area                  [kgP/m2/yr]
     # -----------------------------------------------------------------------------------
 
-    NetDailyC = presc_npp_p1 * c_area / day_per_year        
-    NetDailyN = presc_nflux_p1 * c_area / day_per_year
-    NetDailyP = presc_pflux_p1 * c_area / day_per_year
+    if( (phen_type == 1) or (leaf_status ==1)):
+        NetDailyC = presc_npp_p1 * c_area / day_per_year        
+        NetDailyN = presc_nflux_p1 * c_area / day_per_year
+        NetDailyP = presc_pflux_p1 * c_area / day_per_year
+    else:
+        NetDailyC = 0.0
+        NetDailyN = 0.0
+        NetDailyP = 0.0
 
     return NetDailyC, NetDailyN, NetDailyP
 
 
 def DailyCNPFromStorageSinWave(doy,store_c,presc_npp_p1, \
-                                presc_nflux_p1,presc_pflux_p1,c_area,presc_npp_amp):
+                               presc_nflux_p1,presc_pflux_p1,c_area,presc_npp_amp, \
+                               phen_type, leaf_status):
 
 
     # This method is supposed to simulate a seasonal cycle of NPP
@@ -121,7 +130,50 @@ def DailyCNPFromStorageSinWave(doy,store_c,presc_npp_p1, \
 
     #print("sin_func: {}, NetDailyC: {}, store_c: {}, c_area :{}".format(sin_func,NetDailyC,store_c,c_area))
 
-    NetDailyN = presc_nflux_p1 * c_area / day_per_year
-    NetDailyP = presc_pflux_p1 * c_area / day_per_year
+    if( (phen_type == 1) or (leaf_status ==1)):
+        NetDailyN = presc_nflux_p1 * c_area / day_per_year
+        NetDailyP = presc_pflux_p1 * c_area / day_per_year
+    else:
+        NetDailyN = 0.0
+        NetDailyP = 0.0
+        NetDailyC = 0.0
     
     return NetDailyC, NetDailyN, NetDailyP
+
+
+def DeciduousPhenology(doy, target_leaf_c, store_c, phen_type):
+
+    # Time leaf-on with rising NPP
+    leaf_on_doy  = np.int(366.0 * 0.01)
+
+    leaf_off_doy = np.int(366.0 * 0.55)
+
+    if ( doy==leaf_on_doy):
+
+        flush_c = np.minimum(store_c,target_leaf_c * 0.5)
+    else:
+        flush_c = 0.0
+
+    if ( doy==leaf_off_doy):
+        drop_frac_c = 1.0
+        print("Dropping")
+    else:
+        drop_frac_c = 0.0
+
+    if(doy>=leaf_on_doy and doy<leaf_off_doy):
+        leaf_status = 1          # Leaves are on
+    else:
+        leaf_status = 2          # Leaves are off
+
+    if(phen_type==1):
+        flush_c     = 0.0
+        drop_frac_c = 0.0
+        leaf_status = 1
+
+    #print("doy {} leaf_on_doy {} leaf_off_doy {} flush_c {} drop_frac_c {}".format(doy,leaf_on_doy,leaf_off_doy,flush_c,drop_frac_c))
+
+
+    return  flush_c, drop_frac_c, leaf_status
+
+
+

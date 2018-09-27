@@ -24,6 +24,8 @@ module EDPftvarcon
      real(r8), pointer :: seed_alloc_mature(:)
      real(r8), pointer :: dbh_repro_threshold(:)
      real(r8), pointer :: evergreen(:)
+     real(r8), pointer :: season_decid(:)
+     real(r8), pointer :: stress_decid(:)
      real(r8), pointer :: woody(:)
      real(r8), pointer :: hgt_min(:)
      real(r8), pointer :: allom_hmode(:)
@@ -238,6 +240,19 @@ contains
     iv = iv + 1
     EDPftvarcon_ptr%var(iv)%var_name = "fates_phen_evergreen"
     EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%evergreen
+
+    allocate( EDPftvarcon_inst%season_decid(1:num_pft)); 
+    EDPftvarcon_inst%season_decid (:) = nan
+    iv = iv + 1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_phen_season_decid"
+    EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%season_decid
+
+    allocate( EDPftvarcon_inst%stress_decid(1:num_pft)); 
+    EDPftvarcon_inst%stress_decid (:) = nan
+    iv = iv + 1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_phen_stress_decid"
+    EDPftvarcon_ptr%var(iv)%rp_1d   => EDPftvarcon_inst%stress_decid
+
 
     allocate( EDPftvarcon_inst%woody(1:num_pft)); 
     EDPftvarcon_inst%woody (:) = nan

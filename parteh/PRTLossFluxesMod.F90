@@ -94,9 +94,6 @@ contains
 
      associate(organ_map => prt%prt_instance%organ_map)
 
-       
-
-       
        ! First transfer in carbon
        ! --------------------------------------------------------------------------------
        
@@ -338,10 +335,13 @@ contains
           
        end if
 
+     
+
        ! This is the total number of state variables associated
        ! with this particular organ
        num_sp_vars = organ_map(organ_id)%num_vars
-       
+
+
        do i_sp_var = 1, num_sp_vars
           
           i_var = organ_map(organ_id)%var_id(i_sp_var)
@@ -364,7 +364,9 @@ contains
           
           ! Get the variable id of the storage pool for this species
           store_var_id = prt%prt_instance%sp_organ_map(store_organ,spec_id)
-          
+      
+         
+    
           ! Loop over all of the coordinate ids
           do i_pos = 1,prt%variables(i_var)%num_pos
              
@@ -394,6 +396,14 @@ contains
              
              prt%variables(store_var_id)%val(i_pos)  = &
                   prt%variables(store_var_id)%val(i_pos) + retranslocated_mass
+
+             if(mass_fraction>nearzero)then
+                print*,"Mass Fraction",mass_fraction
+                print*,organ_id,num_sp_vars,i_var,prt%variables(i_var)%num_pos,retrans
+                print*,prt%variables(i_var)%val(i_pos),prt%variables(i_var)%turnover(i_pos)
+                print*,prt%variables(i_var)%net_art(i_pos) ,prt%variables(store_var_id)%net_art(i_pos) 
+             end if
+
              
              
           end do

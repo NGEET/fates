@@ -19,7 +19,7 @@
     <!-- we want to introduce real data drivers            -->
     <timestep_sec> 86400 </timestep_sec>
     <date_start> 1500-01-01 </date_start>
-    <date_stop>  1520-01-01 </date_stop>
+    <date_stop>  1510-01-01 </date_stop>
     <max_trunc_error> 0.001 </max_trunc_error>
   </time_control>
 
@@ -54,8 +54,8 @@
 
     <parteh_parameters >
       <pft_par name="parteh_model                       "> 1            , 1     </pft_par>
-      <pft_par name="fates_phen_evergreen		"> 1		, 1	</pft_par>
-      <pft_par name="fates_phen_season_decid		"> 0		, 0	</pft_par>
+      <pft_par name="fates_phen_evergreen		"> 1		, 0	</pft_par>
+      <pft_par name="fates_phen_season_decid		"> 0		, 1	</pft_par>
       <pft_par name="fates_phen_stress_decid		"> 0		, 0	</pft_par>
       <pft_par name="fates_seed_alloc			"> 0.2		, 0.2	</pft_par>
       <pft_par name="fates_seed_alloc_mature		"> 0.2		, 0.2 	</pft_par>
@@ -96,7 +96,7 @@
       <pft_par name="fates_branch_turnover		"> 300.0	, 300.0  </pft_par>
       <pft_par name="fates_leaf_long			"> 1.5		, 1.5	 </pft_par>
       <pft_par name="fates_root_long			"> 1.5		, 1.5    </pft_par>
-      <pft_par name="fates_leaf_stor_priority		"> 0.5		, 0.5	 </pft_par>
+      <pft_par name="fates_leaf_stor_priority		"> 0.5		, 0.0	 </pft_par>
       <pft_par name="fates_vcmax25top                   "> 50.0         , 50.0   </pft_par>
 
       <pft_par name="fates_turnover_retrans_mode"      >  1,1 </pft_par>
@@ -115,7 +115,7 @@
       <pft_par name="fates_prescribed_npp_p1">    0.4, 0.4  </pft_par>
       <pft_par name="fates_prescribed_nflux_p1"> -9.9, -9.9 </pft_par>
       <pft_par name="fates_prescribed_pflux_p1"> -9.9, -9.9 </pft_par>
-      <pft_par name="fates_prescribed_npp_amp">   0.0, 1.2  </pft_par> 
+      <pft_par name="fates_prescribed_npp_amp">   1.2, 1.2  </pft_par> 
     </boundary_parameters>
     
     

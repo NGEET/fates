@@ -45,6 +45,8 @@ module FatesCohortWrapMod
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
 
   use PRTLossFluxesMod, only : PRTMaintTurnover
+  use PRTLossFluxesMod, only : PRTDeciduousTurnover
+  use PRTLossFluxesMod, only : PRTPhenologyFlush
 
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_dbh
@@ -326,14 +328,16 @@ contains
 
   ! =====================================================================================
 
-  subroutine WrapDailyPRT(ipft,daily_carbon_gain,daily_nitrogen_gain, &
-                          daily_phosphorous_gain,canopy_trim,daily_r_maint_demand)
+  subroutine WrapDailyPRT(ipft,daily_carbon_gain,canopy_trim,flush_c,drop_frac_c, &
+       daily_nitrogen_gain, daily_phosphorous_gain,daily_r_maint_demand )
     
     implicit none
     ! Arguments
     integer(i4),intent(in) :: ipft
     real(r8),intent(in)    :: daily_carbon_gain
     real(r8),intent(in)    :: canopy_trim
+    real(r8),intent(in)    :: flush_c
+    real(r8),intent(in)    :: drop_frac_c
     real(r8), intent(in), optional :: daily_nitrogen_gain
     real(r8), intent(in), optional :: daily_phosphorous_gain
     real(r8), intent(in), optional :: daily_r_maint_demand
@@ -346,6 +350,14 @@ contains
     ! Zero the rate of change and the turnover arrays
 
     call ccohort%prt%ZeroRates()
+
+    call PRTDeciduousTurnover(ccohort%prt, ipft, leaf_organ , drop_frac_c)
+
+    if(drop_frac_c>nearzero)then
+       print*,"DCG:",daily_carbon_gain
+    end if
+    
+    call PRTPhenologyFlush(ccohort%prt, ipft, leaf_organ, flush_c)
 
     call PRTMaintTurnover(ccohort%prt, ipft)
 
@@ -386,7 +398,7 @@ contains
   
   ! =====================================================================================
   
-  subroutine WrapQueryVars(ipft,leaf_area,crown_area,agb,store_c)
+  subroutine WrapQueryVars(ipft,leaf_area,crown_area,agb,store_c,target_leaf_c)
     
     implicit none
     ! Arguments
@@ -395,6 +407,7 @@ contains
     real(r8),intent(out)    :: crown_area
     real(r8),intent(out)    :: agb
     real(r8),intent(out)    :: store_c
+    real(r8),intent(out)    :: target_leaf_c
 
     real(r8) :: leaf_c
     type(ed_cohort_type), pointer :: ccohort
@@ -415,6 +428,8 @@ contains
     leaf_area = crown_area*tree_lai(leaf_c, ipft, crown_area, nplant, cl1, canopy_lai) 
 
     call bagw_allom(ccohort%dbh,ipft,agb)
+
+    call bleaf(ccohort%dbh,ipft, ccohort%canopy_trim, target_leaf_c)
 
 
     return
@@ -493,6 +508,9 @@ contains
     store_c = ccohort%prt%GetState(organ_id=store_organ, species_id=all_carbon_species)
     struct_c = ccohort%prt%GetState(organ_id=struct_organ, species_id=all_carbon_species)
     repro_c = ccohort%prt%GetState(organ_id=repro_organ, species_id=all_carbon_species)
+
+    print*,ipft,leaf_c
+
     
     leaf_cturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=all_carbon_species)
     fnrt_cturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=all_carbon_species)
