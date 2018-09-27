@@ -361,6 +361,7 @@ def main(argv):
                                                                                 byref(c_double(init_canopy_trim)), \
                                                                                 byref(c_double(flush_c)), \
                                                                                 byref(c_double(drop_frac_c)), \
+                                                                                byref(c_int(leaf_status)), \
                                                                                 byref(c_double(net_daily_n)), \
                                                                                 byref(c_double(net_daily_p)), \
                                                                                 byref(c_double(r_maint_demand)))

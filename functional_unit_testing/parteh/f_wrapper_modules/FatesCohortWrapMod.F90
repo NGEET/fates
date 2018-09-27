@@ -56,6 +56,7 @@ module FatesCohortWrapMod
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_status
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootcexude
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootnexude
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootpexude
@@ -80,7 +81,7 @@ module FatesCohortWrapMod
      integer  :: pft             ! pft number
      integer  :: parteh_model        ! The PARTEH allocation hypothesis used
      real(r8) :: dbh             ! dbh: cm
-     
+     integer  :: status_coh      ! leaf status 1=off, 2=on
      real(r8) :: canopy_trim     ! Trimming function for the canopy
      
      real(r8) :: dhdt            ! time derivative of height       : m/year
@@ -129,6 +130,7 @@ contains
        ccohort%parteh_model              = -1
        ccohort%pft                      = -9
        ccohort%dbh                      = -999.9_r8
+       ccohort%status_coh               = -1
        ccohort%canopy_trim              = -999.9_r8
        ccohort%dhdt                     = -999.9_r8
        ccohort%ddbhdt                   = -999.9_r8
@@ -311,6 +313,7 @@ contains
        ! Register Input only BC's
        call ccohort%prt%RegisterBCIn(acnp_bc_in_id_pft,bc_ival   = ccohort%pft)
        call ccohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = ccohort%canopy_trim)
+       call ccohort%prt%RegisterBCIn(acnp_bc_in_id_status,bc_ival = ccohort%status_coh)
 
        ! Register Output Boundary Conditions
        call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootcexude,bc_rval = ccohort%carbon_root_exudate)
@@ -328,7 +331,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine WrapDailyPRT(ipft,daily_carbon_gain,canopy_trim,flush_c,drop_frac_c, &
+  subroutine WrapDailyPRT(ipft,daily_carbon_gain,canopy_trim,flush_c,drop_frac_c,leaf_status, &
        daily_nitrogen_gain, daily_phosphorous_gain,daily_r_maint_demand )
     
     implicit none
@@ -338,6 +341,7 @@ contains
     real(r8),intent(in)    :: canopy_trim
     real(r8),intent(in)    :: flush_c
     real(r8),intent(in)    :: drop_frac_c
+    integer,intent(in)     :: leaf_status
     real(r8), intent(in), optional :: daily_nitrogen_gain
     real(r8), intent(in), optional :: daily_phosphorous_gain
     real(r8), intent(in), optional :: daily_r_maint_demand
@@ -347,15 +351,13 @@ contains
 
     ccohort               => cohort_array(ipft)
 
+    ccohort%status_coh = leaf_status
+
     ! Zero the rate of change and the turnover arrays
 
     call ccohort%prt%ZeroRates()
 
     call PRTDeciduousTurnover(ccohort%prt, ipft, leaf_organ , drop_frac_c)
-
-    if(drop_frac_c>nearzero)then
-       print*,"DCG:",daily_carbon_gain
-    end if
     
     call PRTPhenologyFlush(ccohort%prt, ipft, leaf_organ, flush_c)
 
@@ -414,7 +416,7 @@ contains
 
     real(r8),parameter :: nplant = 1.0_r8
     real(r8),parameter :: site_spread = 1.0_r8
-    integer, parameter :: status_coh = 2
+
     real(r8), parameter, dimension(nclmax) :: canopy_lai = [0.0_r8,0.0_r8,0.0_r8,0.0_r8]
     integer, parameter  :: cl1 = 1
     
@@ -509,9 +511,6 @@ contains
     struct_c = ccohort%prt%GetState(organ_id=struct_organ, species_id=all_carbon_species)
     repro_c = ccohort%prt%GetState(organ_id=repro_organ, species_id=all_carbon_species)
 
-    print*,ipft,leaf_c
-
-    
     leaf_cturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=all_carbon_species)
     fnrt_cturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=all_carbon_species)
     sapw_cturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=all_carbon_species)

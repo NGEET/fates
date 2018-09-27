@@ -433,12 +433,19 @@ contains
     !         or forcefully pay from storage. 
     ! -----------------------------------------------------------------------------------
     
-    leaf_c_demand   = max(0.0_r8,(target_leaf_c - leaf_c))
-    fnrt_c_demand   = max(0.0_r8,(target_fnrt_c - fnrt_c))
+    if( EDPftvarcon_inst%evergreen(ipft) ==1 ) then
+       leaf_c_demand   = max(0.0_r8, &
+             EDPftvarcon_inst%leaf_stor_priority(ipft)*this%variables(leaf_c_id)%turnover(icd))
+    else
+       leaf_c_demand   = 0.0_r8
+    end if
+    
+    fnrt_c_demand   = max(0.0_r8, &
+          EDPftvarcon_inst%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
 
     total_c_demand = leaf_c_demand + fnrt_c_demand
     
-    if (total_c_demand> nearzero) then
+    if (total_c_demand> nearzero ) then
 
        ! If we are testing b4b, then we pay this even if we don't have the carbon
        ! Just don't pay so much carbon that storage+carbon_balance can't pay for it

@@ -149,14 +149,12 @@ def DeciduousPhenology(doy, target_leaf_c, store_c, phen_type):
     leaf_off_doy = np.int(366.0 * 0.55)
 
     if ( doy==leaf_on_doy):
-
         flush_c = np.minimum(store_c,target_leaf_c * 0.5)
     else:
         flush_c = 0.0
 
     if ( doy==leaf_off_doy):
         drop_frac_c = 1.0
-        print("Dropping")
     else:
         drop_frac_c = 0.0
 
@@ -169,9 +167,6 @@ def DeciduousPhenology(doy, target_leaf_c, store_c, phen_type):
         flush_c     = 0.0
         drop_frac_c = 0.0
         leaf_status = 1
-
-    #print("doy {} leaf_on_doy {} leaf_off_doy {} flush_c {} drop_frac_c {}".format(doy,leaf_on_doy,leaf_off_doy,flush_c,drop_frac_c))
-
 
     return  flush_c, drop_frac_c, leaf_status
 

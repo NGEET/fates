@@ -61,6 +61,13 @@ module EDTypesMod
                                         ! can be approximated to be equal to the visible band
 
 
+  integer, parameter :: leaves_on  = 2  ! Flag specifying that a deciduous plant has leaves
+                                        ! and should be allocating to them as well
+  integer, parameter :: leaves_off = 1  ! Flag specifying that a deciduous plant has dropped
+                                        ! its leaves and should not be trying to allocate
+                                        ! towards any growth.
+
+
   ! Switches that turn on/off ED dynamics process (names are self explanatory)
   ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
   ! THEY SHOULD CORRECTLY TURN OFF OR ON THE PROCESS, BUT.. THERE ARE VARIOUS 

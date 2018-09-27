@@ -298,7 +298,7 @@ contains
      !
      ! ALERT: NO CODE IS CURRENTLY IN PLACE TO LIMIT THE AMOUNT OF CARBON OR NUTRIENT
      ! CAN BE RE-TRANSLOCATED INTO STORAGE. IT IS POSSIBLE THAT THE MAXIMUM IS BEING
-     ! WAY OVER-SHOT.  TO FIX THIS, EACH HYPOTHESIS NEEDS TO HAVE WRAPPER CODE
+     ! OVER-SHOT.  TO FIX THIS, EACH HYPOTHESIS NEEDS TO HAVE WRAPPER CODE
      ! TO PROVIDE A WAY TO CALCULATE MAXIMUM ALLOWABLE STORAGE.
      !
      ! ---------------------------------------------------------------------------------
@@ -397,15 +397,6 @@ contains
              prt%variables(store_var_id)%val(i_pos)  = &
                   prt%variables(store_var_id)%val(i_pos) + retranslocated_mass
 
-             if(mass_fraction>nearzero)then
-                print*,"Mass Fraction",mass_fraction
-                print*,organ_id,num_sp_vars,i_var,prt%variables(i_var)%num_pos,retrans
-                print*,prt%variables(i_var)%val(i_pos),prt%variables(i_var)%turnover(i_pos)
-                print*,prt%variables(i_var)%net_art(i_pos) ,prt%variables(store_var_id)%net_art(i_pos) 
-             end if
-
-             
-             
           end do
           
        end do
