@@ -1465,7 +1465,7 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_vertsoilc= ',ival,' to FATES'
                end if
                
-            case('parteh_model')
+            case('parteh_mode')
                hlm_parteh_model = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_parteh_model= ',ival,' to FATES'
@@ -1584,7 +1584,7 @@ contains
      ! Initialize the Plant Allocation and Reactive Transport
      ! global functions and mapping tables
      
-     select case(int(hlm_parteh_model))
+     select case(hlm_parteh_model)
      case (1)
         call InitPRTInstanceAC()
      case(2)

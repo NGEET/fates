@@ -656,12 +656,10 @@ contains
           currentCohort%gpp_acc  = 0.0_r8
           currentCohort%resp_acc = 0.0_r8
 
-          currentCohort%npp_leaf = 0.0_r8
-          currentCohort%npp_fnrt = 0.0_r8
-          currentCohort%npp_sapw = 0.0_r8
-          currentCohort%npp_dead = 0.0_r8
-          currentCohort%npp_seed = 0.0_r8
-          currentCohort%npp_stor = 0.0_r8
+          ! No need to set the "net_art" terms to zero
+          ! they are zeroed at the beginning of the daily step
+          ! If DailyPRT, maintenance, and phenology are not called
+          ! then these should stay zero.
 
           currentCohort%bmort = 0.0_r8
           currentCohort%hmort = 0.0_r8
@@ -672,8 +670,6 @@ contains
           currentCohort%dndt      = 0.0_r8
 	  currentCohort%dhdt      = 0.0_r8
 	  currentCohort%ddbhdt    = 0.0_r8
-	  currentCohort%dbdeaddt  = 0.0_r8
-	  currentCohort%dbstoredt = 0.0_r8
 
           currentCohort => currentCohort%taller
        enddo

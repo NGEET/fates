@@ -1636,12 +1636,29 @@ end subroutine flush_hvars
                endif
 
                ! Update biomass components
-               
+
+
+               ! Mass pools [kgC]
                sapw_c   = ccohort%prt%GetState(sapw_organ, all_carbon_species)
                struct_c = ccohort%prt%GetState(struct_organ, all_carbon_species)
                leaf_c   = ccohort%prt%GetState(leaf_organ, all_carbon_species)
                fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_species)
                store_c  = ccohort%prt%GetState(store_organ, all_carbon_species)
+               
+               ! Turnover pools [kgC] * [/yr] = [kgC/yr]
+               sapw_c_turnover   = ccohort%prt%GetTurnover(sapw_organ, all_carbon_species) * hlm_freq_day
+               store_c_turnover  = ccohort%prt%GetTurnover(store_organ, all_carbon_species) * hlm_freq_day
+               leaf_c_turnover   = ccohort%prt%GetTurnover(leaf_organ, all_carbon_species) * hlm_freq_day
+               fnrt_c_turnover   = ccohort%prt%GetTurnover(fnrt_organ, all_carbon_species) * hlm_freq_day
+               struct_c_turnover = ccohort%prt%GetTurnover(struct_organ, all_carbon_species) * hlm_freq_day
+               
+               ! Net change from allocation and transport [kgC] * [/yr] = [kgC/yr]
+               sapw_c_net_art   = ccohort%prt%GetNetArt(sapw_organ, all_carbon_species) * hlm_freq_day
+               store_c_net_art  = ccohort%prt%GetNetArt(store_organ, all_carbon_species) * hlm_freq_day
+               leaf_c_net_art   = ccohort%prt%GetNetArt(leaf_organ, all_carbon_species) * hlm_freq_day
+               fnrt_c_net_art   = ccohort%prt%GetNetArt(fnrt_organ, all_carbon_species) * hlm_freq_day
+               struct_c_net_art = ccohort%prt%GetNetArt(struct_organ, all_carbon_species) * hlm_freq_day
+               repro_c_net_art  = ccohort%prt%GetNetArt(repro_organ, all_carbon_species) * hlm_freq_day
 
                alive_c  = leaf_c + fnrt_c + sapw_c
                total_c  = alive_c + store_c + struct_c
@@ -1681,14 +1698,14 @@ end subroutine flush_hvars
 
 
                ! ecosystem-level, organ-partitioned NPP/allocation fluxes
-               hio_npp_leaf_si(io_si) = hio_npp_leaf_si(io_si) + ccohort%npp_leaf * n_perm2
-               hio_npp_seed_si(io_si) = hio_npp_seed_si(io_si) + ccohort%npp_seed * n_perm2
-               hio_npp_stem_si(io_si) = hio_npp_stem_si(io_si) + (ccohort%npp_sapw + ccohort%npp_dead) * n_perm2 * &
+               hio_npp_leaf_si(io_si) = hio_npp_leaf_si(io_si) + leaf_c_net_art * n_perm2
+               hio_npp_seed_si(io_si) = hio_npp_seed_si(io_si) + repro_c_net_art * n_perm2
+               hio_npp_stem_si(io_si) = hio_npp_stem_si(io_si) + (sapw_c_net_art + struct_c_net_art) * n_perm2 * &
                     (EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
-               hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) + ccohort%npp_fnrt * n_perm2
-               hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) + (ccohort%npp_sapw + ccohort%npp_dead) * n_perm2 * &
+               hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) + fnrt_c_net_art * n_perm2
+               hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) + (sapw_c_net_art + struct_c_net_art) * n_perm2 * &
                     (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
-               hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) + ccohort%npp_stor * n_perm2
+               hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) + store_c_net_art * n_perm2
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -1707,39 +1724,25 @@ end subroutine flush_hvars
                     hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
                                                        ccohort%npp_acc_hold *n_perm2
                     hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_leaf*n_perm2
+                                                       leaf_c_net_art*n_perm2
                     hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_fnrt*n_perm2
+                                                       fnrt_c_net_art*n_perm2
                     hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_sapw*n_perm2*           &
+                                                       sapw_c_net_art*n_perm2*           &
                                                        (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                     hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_sapw*n_perm2*           &
+                                                       sapw_c_net_art*n_perm2*           &
                                                        EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
                     hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_dead*n_perm2*         &
+                                                       struct_c_net_art*n_perm2*         &
                                                        (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                     hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_dead*n_perm2*         &
+                                                       struct_c_net_art*n_perm2*         &
                                                        EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
                     hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_seed*n_perm2
+                                                       repro_c_net_art*n_perm2
                     hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_stor*n_perm2
-
-                    npp_partition_error = abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_fnrt+ &
-                          ccohort%npp_sapw+ccohort%npp_dead+ &
-                          ccohort%npp_seed+ccohort%npp_stor))
-                    if( npp_partition_error > 100.0_r8*calloc_abs_error )  then
-                       write(fates_log(),*) 'NPP Partitions are not balancing'
-                       write(fates_log(),*) 'Absolute Error [kgC/day]: ',npp_partition_error
-                       write(fates_log(),*) 'Fractional Error: ', abs(npp_partition_error/ccohort%npp_acc_hold)
-                       write(fates_log(),*) 'Terms: ',ccohort%npp_acc_hold,ccohort%npp_leaf,ccohort%npp_fnrt, &
-                             ccohort%npp_sapw,ccohort%npp_dead, &
-                             ccohort%npp_seed,ccohort%npp_stor
-                       write(fates_log(),*) ' NPP components during FATES-HLM linking does not balance '
-                       call endrun(msg=errMsg(__FILE__, __LINE__))
-                    end if
+                                                       store_c_net_art*n_perm2
 
                     ! Woody State Variables (basal area and number density and mortality)
                     if (EDPftvarcon_inst%woody(ft) == 1) then
@@ -1806,20 +1809,7 @@ end subroutine flush_hvars
                     hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
                           total_c * ccohort%n * AREA_INV
 
-                    ! Calculate turnover and allocation rates (these are in total kg/day)
-
-                    sapw_c_turnover   = ccohort%prt%GetTurnover(sapw_organ, all_carbon_species)
-                    store_c_turnover  = ccohort%prt%GetTurnover(store_organ, all_carbon_species)
-                    leaf_c_turnover   = ccohort%prt%GetTurnover(leaf_organ, all_carbon_species)
-                    fnrt_c_turnover   = ccohort%prt%GetTurnover(fnrt_organ, all_carbon_species)
-                    struct_c_turnover = ccohort%prt%GetTurnover(struct_organ, all_carbon_species)
-                    
-                    sapw_c_net_art   = ccohort%prt%GetNetArt(sapw_organ, all_carbon_species)
-                    store_c_net_art  = ccohort%prt%GetNetArt(store_organ, all_carbon_species)
-                    leaf_c_net_art   = ccohort%prt%GetNetArt(leaf_organ, all_carbon_species)
-                    fnrt_c_net_art   = ccohort%prt%GetNetArt(fnrt_organ, all_carbon_species)
-                    struct_c_net_art = ccohort%prt%GetNetArt(struct_organ, all_carbon_species)
-                    repro_c_net_art  = ccohort%prt%GetNetArt(repro_organ, all_carbon_species)
+             
 
                     ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
                     if (ccohort%canopy_layer .eq. 1) then
@@ -1892,17 +1882,17 @@ end subroutine flush_hvars
                              ccohort%seed_prod * ccohort%n
 
                        hio_npp_leaf_canopy_si_scls(io_si,scls) = hio_npp_leaf_canopy_si_scls(io_si,scls) + &
-                             leaf_c_net_art * ccohort%n * hlm_freq_day
+                             leaf_c_net_art * ccohort%n
                        hio_npp_fnrt_canopy_si_scls(io_si,scls) = hio_npp_fnrt_canopy_si_scls(io_si,scls) + &
-                             fnrt_c_net_art * ccohort%n * hlm_freq_day
+                             fnrt_c_net_art * ccohort%n
                        hio_npp_sapw_canopy_si_scls(io_si,scls) = hio_npp_sapw_canopy_si_scls(io_si,scls) + &
-                             sapw_c_net_art * ccohort%n * hlm_freq_day
+                             sapw_c_net_art * ccohort%n
                        hio_npp_dead_canopy_si_scls(io_si,scls) = hio_npp_dead_canopy_si_scls(io_si,scls) + &
-                             struct_c_net_art * ccohort%n * hlm_freq_day
+                             struct_c_net_art * ccohort%n
                        hio_npp_seed_canopy_si_scls(io_si,scls) = hio_npp_seed_canopy_si_scls(io_si,scls) + &
-                             repro_c_net_art * ccohort%n * hlm_freq_day
+                             repro_c_net_art * ccohort%n
                        hio_npp_stor_canopy_si_scls(io_si,scls) = hio_npp_stor_canopy_si_scls(io_si,scls) + &
-                             store_c_net_art * ccohort%n * hlm_freq_day
+                             store_c_net_art * ccohort%n
                        
                        hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) = &
                             hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
@@ -1973,18 +1963,18 @@ end subroutine flush_hvars
                             ccohort%seed_prod * ccohort%n
 
                        hio_npp_leaf_understory_si_scls(io_si,scls) = hio_npp_leaf_understory_si_scls(io_si,scls) + &
-                            leaf_c_net_art * ccohort%n * hlm_freq_day
+                             leaf_c_net_art * ccohort%n
                        hio_npp_fnrt_understory_si_scls(io_si,scls) = hio_npp_fnrt_understory_si_scls(io_si,scls) + &
-                            fnrt_c_net_art * ccohort%n * hlm_freq_day
+                             fnrt_c_net_art * ccohort%n
                        hio_npp_sapw_understory_si_scls(io_si,scls) = hio_npp_sapw_understory_si_scls(io_si,scls) + &
-                            sapw_c_net_art * ccohort%n * hlm_freq_day
+                             sapw_c_net_art * ccohort%n
                        hio_npp_dead_understory_si_scls(io_si,scls) = hio_npp_dead_understory_si_scls(io_si,scls) + &
-                            struct_c_net_art * ccohort%n * hlm_freq_day
+                             struct_c_net_art * ccohort%n
                        hio_npp_seed_understory_si_scls(io_si,scls) = hio_npp_seed_understory_si_scls(io_si,scls) + &
-                            repro_c_net_art * ccohort%n * hlm_freq_day
+                             repro_c_net_art * ccohort%n
                        hio_npp_stor_understory_si_scls(io_si,scls) = hio_npp_stor_understory_si_scls(io_si,scls) + &
-                            store_c_net_art * ccohort%n * hlm_freq_day
-
+                             store_c_net_art * ccohort%n
+                       
                        hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) = &
                             hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
                             ccohort%canopy_layer_yesterday * ccohort%n

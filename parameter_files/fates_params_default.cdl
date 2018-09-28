@@ -178,7 +178,7 @@ variables:
 
 	float fates_prt_nitr_stoich_p1(fates_prt_organs,fates_pft) ;
 		fates_prt_nitr_stoich_p1:units = "(gC/gN)" ;
-		fates_prt_nitr_stoich_p1:long_name = "nitrogen stoichiometry, parameter 1 (hypothesis dependant meaning)" ;
+		fates_prt_nitr_stoich_p1:long_name = "nitrogen stoichiometry" ;
 
 	float fates_prt_nitr_stoich_p2(fates_prt_organs,fates_pft) ;
 		fates_prt_nitr_stoich_p2:units = "(gC/cN)" ;
@@ -199,6 +199,10 @@ variables:
 	float fates_turnover_retrans_mode(fates_pft) ;
 		fates_turnover_retrans_mode:units = "index" ;
 		fates_turnover_retrans_mode:long_name = "retranslocation method for leaf/fineroot turnover" ;
+
+	float fates_turnover_carb_retrans_p1(fates_prt_organs,fates_pft) ;
+		fates_turnover_carb_retrans_p1:units = "na" ;
+		fates_turnover_carb_retrans_p1:long_name = "retranslocation of carbon in turnover, parameter 1 (hypothesis dependant meaning)" ;
 
 	float fates_turnover_nitr_retrans_p1(fates_prt_organs,fates_pft) ;
 		fates_turnover_nitr_retrans_p1:units = "na" ;
@@ -235,9 +239,6 @@ variables:
 	float fates_fr_flig(fates_pft) ;
 		fates_fr_flig:units = "fraction" ;
 		fates_fr_flig:long_name = "Fine root litter lignin fraction" ;
-	float fates_froot_cn_ratio(fates_pft) ;
-		fates_froot_cn_ratio:units = "gC/gN" ;
-		fates_froot_cn_ratio:long_name = "Fine root C:N" ;
 	float fates_grperc(fates_pft) ;
 		fates_grperc:units = "unitless" ;
 		fates_grperc:long_name = "Growth respiration factor" ;
@@ -268,9 +269,6 @@ variables:
 	float fates_leaf_clumping_index(fates_pft) ;
 		fates_leaf_clumping_index:units = "fraction (0-1)" ;
 		fates_leaf_clumping_index:long_name = "factor describing how much self-occlusion of leaf scattering elements decreases light interception" ;
-	float fates_leaf_cn_ratio(fates_pft) ;
-		fates_leaf_cn_ratio:units = "gC/gN" ;
-		fates_leaf_cn_ratio:long_name = "Leaf C:N" ;
 	float fates_leaf_diameter(fates_pft) ;
 		fates_leaf_diameter:units = "m" ;
 		fates_leaf_diameter:long_name = "Characteristic leaf dimension" ;
@@ -448,9 +446,6 @@ variables:
 	float fates_trim_limit(fates_pft) ;
 		fates_trim_limit:units = "m2/m2" ;
 		fates_trim_limit:long_name = "Arbitrary limit to reductions in leaf area with stress" ;
-	float fates_wood_cn_ratio(fates_pft) ;
-		fates_wood_cn_ratio:units = "gC/gN" ;
-		fates_wood_cn_ratio:long_name = "Wood C:N" ;
 	float fates_wood_density(fates_pft) ;
 		fates_wood_density:units = "g/cm3" ;
 		fates_wood_density:long_name = "mean density of woody tissue in plant" ;
@@ -749,20 +744,21 @@ data:
  fates_branch_turnover = 50, 50 ;
 
  fates_prt_unit_gr_resp = 
-  _, _,
-  _, _,	
-  _, _,
-  _, _,
-  _, _,
-  _, _;
+  0.11, 0.11,
+  0.11, 0.11,
+  0.11, 0.11,
+  0.11, 0.11,
+  0.11, 0.11,
+  0.11, 0.11,
+  0.11, 0.11;
 
  fates_prt_nitr_stoich_p1 = 
-  _, _,
-  _, _,	
-  _, _,
-  _, _,
-  _, _,
-  _, _;
+  0.033, 0.033,
+  0.024, 0.024,	
+  0.0047, 0.0047,
+  0.0047, 0.0047,
+  0.0047, 0.0047,
+  0.0047, 0.0047;
 
  fates_prt_nitr_stoich_p2 = 
   _, _,
@@ -799,6 +795,14 @@ data:
  fates_turnover_retrans_mode = 
   1, 1;
 
+ fates_turnover_carb_retrans_p1 = 
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00;
+
  fates_turnover_nitr_retrans_p1 = 
   _, _,
   _, _,	
@@ -833,8 +837,6 @@ data:
 
  fates_fr_flig = 0.25, 0.25 ;
 
- fates_froot_cn_ratio = 42, 42 ;
-
  fates_grperc = 0.11, 0.11 ;
 
  fates_hydr_avuln_gs = 2.5, 2.5 ;
@@ -854,8 +856,6 @@ data:
  fates_leaf_c3psn = 1, 1 ;
 
  fates_leaf_clumping_index = 0.85, 0.85 ;
-
- fates_leaf_cn_ratio = 30, 30 ;
 
  fates_leaf_diameter = 0.04, 0.04 ;
 
@@ -974,8 +974,6 @@ data:
  fates_trim_inc = 0.03, 0.03 ;
 
  fates_trim_limit = 0.3, 0.3 ;
-
- fates_wood_cn_ratio = 210, 210 ;
 
  fates_wood_density = 0.7, 0.7 ;
 

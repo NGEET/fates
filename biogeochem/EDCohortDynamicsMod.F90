@@ -364,13 +364,6 @@ contains
     currentCohort%resp_tstep         = nan ! RESP: kgC/indiv/timestep
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
 
-    currentCohort%npp_leaf = nan
-    currentCohort%npp_fnrt = nan
-    currentCohort%npp_sapw = nan
-    currentCohort%npp_dead = nan
-    currentCohort%npp_seed = nan
-    currentCohort%npp_stor = nan
-
     !RESPIRATION
     currentCohort%rdark              = nan
     currentCohort%resp_m             = nan ! Maintenance respiration.  kGC/cohort/year
@@ -396,16 +389,12 @@ contains
     currentCohort%dndt               = nan ! time derivative of cohort size 
     currentCohort%dhdt               = nan ! time derivative of height 
     currentCohort%ddbhdt             = nan ! time derivative of dbh 
-    currentCohort%dbdeaddt           = nan ! time derivative of dead biomass 
-    currentCohort%dbstoredt          = nan ! time derivative of stored biomass 
 
     ! FIRE
     currentCohort%cfa                = nan ! proportion of crown affected by fire
     currentCohort%cambial_mort       = nan ! probability that trees dies due to cambial char P&R (1986)
     currentCohort%crownfire_mort     = nan ! probability of tree post-fire mortality due to crown scorch
     currentCohort%fire_mort          = nan ! post-fire mortality from cambial and crown damage assuming two are independent
-
-    currentCohort%ode_opt_step       = nan ! integrator step size
 
   end subroutine nan_cohort
 
@@ -462,12 +451,6 @@ contains
     currentcohort%prom_weight        = 0._r8
     currentcohort%crownfire_mort     = 0._r8
     currentcohort%cambial_mort       = 0._r8
-    currentCohort%npp_leaf = 0._r8
-    currentCohort%npp_fnrt = 0._r8
-    currentCohort%npp_sapw = 0._r8
-    currentCohort%npp_dead = 0._r8
-    currentCohort%npp_seed = 0._r8
-    currentCohort%npp_stor = 0._r8
     
   end subroutine zero_cohort
 
@@ -872,31 +855,9 @@ contains
                                    currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
                                          nextc%n*nextc%lmort_infra)/newn
 
-                                   ! npp diagnostics
-                                   currentCohort%npp_leaf = (currentCohort%n*currentCohort%npp_leaf + &
-                                         nextc%n*nextc%npp_leaf)/newn
-                                   currentCohort%npp_fnrt = (currentCohort%n*currentCohort%npp_fnrt + &
-                                         nextc%n*nextc%npp_fnrt)/newn
-                                   currentCohort%npp_sapw = (currentCohort%n*currentCohort%npp_sapw + &
-                                         nextc%n*nextc%npp_sapw)/newn
-                                   currentCohort%npp_dead = (currentCohort%n*currentCohort%npp_dead + &
-                                         nextc%n*nextc%npp_dead)/newn
-                                   currentCohort%npp_seed = (currentCohort%n*currentCohort%npp_seed + &
-                                         nextc%n*nextc%npp_seed)/newn
-                                   currentCohort%npp_stor = (currentCohort%n*currentCohort%npp_stor + &
-                                         nextc%n*nextc%npp_stor)/newn
-
                                    ! biomass and dbh tendencies
                                    currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + &
                                          nextc%n*nextc%ddbhdt)/newn
-                                   currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt + &
-                                         nextc%n*nextc%dbdeaddt)/newn
-                                   currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt + &
-                                         nextc%n*nextc%dbstoredt)/newn
-
-                                   ! Integration step size
-                                   currentCohort%ode_opt_step = (currentCohort%n*currentCohort%ode_opt_step  + &
-                                                                 nextc%n*nextc%ode_opt_step)/newn
 
                                    do i=1, nlevleaf     
                                       if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
@@ -1237,13 +1198,6 @@ contains
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
 
-    n%npp_leaf      = o%npp_leaf
-    n%npp_fnrt      = o%npp_fnrt
-    n%npp_sapw      = o%npp_sapw
-    n%npp_dead      = o%npp_dead
-    n%npp_seed      = o%npp_seed
-    n%npp_stor      = o%npp_stor
-
     !RESPIRATION
     n%rdark           = o%rdark
     n%resp_m          = o%resp_m
@@ -1277,15 +1231,10 @@ contains
     ! Flags
     n%isnew = o%isnew
 
-    ! Integrator memory
-    n%ode_opt_step    = o%ode_opt_step
-
     ! VARIABLES NEEDED FOR INTEGRATION 
     n%dndt            = o%dndt
     n%dhdt            = o%dhdt
     n%ddbhdt          = o%ddbhdt
-    n%dbdeaddt        = o%dbdeaddt
-    n%dbstoredt       = o%dbstoredt
 
     if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn dpstoredt ',o%dbstoredt
 

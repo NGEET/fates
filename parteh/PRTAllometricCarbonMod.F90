@@ -583,15 +583,35 @@ contains
     !        including structure and reproduction according to their rates
     !        Use an adaptive euler integration. If the error is not nominal,
     !        the carbon balance sub-step (deltaC) will be halved and tried again
+    !
+    ! Note that we compare against calloc_abs_error here because it is possible
+    ! that all the carbon was effectively used up, but a miniscule amount
+    ! remains due to numerical precision (ie -20 or so), so even though
+    ! the plant has not been brought to be "on allometry", it thinks it has carbon
+    ! left to allocate, and thus it must be on allometry when its not.
     ! -----------------------------------------------------------------------------------
     
-    if( carbon_balance > nearzero ) then
+    if( carbon_balance > calloc_abs_error ) then
        
        ! This routine checks that actual carbon is not below that targets. It does
        ! allow actual pools to be above the target, and in these cases, it sends
        ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
        ! It also checks to make sure that structural biomass is not above the target.
        if ( EDPftvarcon_inst%woody(ipft) == itrue ) then
+
+
+          if( (target_store_c - store_c)>calloc_abs_error) then
+             write(fates_log(),*) 'storage is not on-allometry at the growth step'
+             write(fates_log(),*) 'exiting'
+             write(fates_log(),*) 'cbal: ',carbon_balance
+             write(fates_log(),*) 'near-zero',nearzero
+             write(fates_log(),*) 'store_c: ',store_c
+             write(fates_log(),*) 'target c: ',target_store_c
+             write(fates_log(),*) 'store_c0:', store_c0
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
+
           call TargetAllometryCheck(leaf_c, fnrt_c, sapw_c, &
                                     store_c, struct_c,       &
                                     target_leaf_c, target_fnrt_c, &

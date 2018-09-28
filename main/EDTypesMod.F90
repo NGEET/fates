@@ -212,16 +212,6 @@ module EDTypesMod
      real(r8) ::  resp_acc
      real(r8) ::  resp_acc_hold
 
-     ! Plant Tissue Carbon Fluxes
-
-     ! Fluxes in from Net Primary Production
-     real(r8) ::  npp_leaf          ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
-     real(r8) ::  npp_fnrt          ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
-     real(r8) ::  npp_sapw          ! NPP into sapwood: KgC/indiv/year
-     real(r8) ::  npp_dead          ! NPP into deadwood (structure):  KgC/indiv/year
-     real(r8) ::  npp_seed          ! NPP into seeds: KgC/indiv/year
-     real(r8) ::  npp_stor          ! NPP into storage: KgC/indiv/year
-
      real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/timestep
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
 
@@ -275,11 +265,6 @@ module EDTypesMod
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char:-
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch:-
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
-
-     ! Integration
-     real(r8) :: ode_opt_step                            ! What is the current optimum step size
-                                                         ! for the integrator? (variable units, including kgC,
-                                                         ! and then time when we have multiple species)
 
      ! Hydraulics
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
@@ -772,13 +757,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%resp_tstep             = ', ccohort%resp_tstep
      write(fates_log(),*) 'co%resp_acc               = ', ccohort%resp_acc
      write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
-     write(fates_log(),*) 'co%npp_leaf               = ', ccohort%npp_leaf
-     write(fates_log(),*) 'co%npp_fnrt              = ', ccohort%npp_fnrt
-     write(fates_log(),*) 'co%npp_sapw               = ', ccohort%npp_sapw
-     write(fates_log(),*) 'co%npp_dead              = ', ccohort%npp_dead
-     write(fates_log(),*) 'co%npp_seed              = ', ccohort%npp_seed
-     write(fates_log(),*) 'co%npp_stor              = ', ccohort%npp_stor
-     write(fates_log(),*) 'co%ode_opt_step          = ', ccohort%ode_opt_step
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
      write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g
