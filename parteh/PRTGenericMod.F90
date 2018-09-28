@@ -767,10 +767,12 @@ contains
 
    ! ====================================================================================
 
-   subroutine CheckMassConservation(this,ipft)
+   subroutine CheckMassConservation(this,ipft,position_id)
 
      class(prt_vartypes) :: this
      integer, intent(in) :: ipft
+     integer, intent(in) :: position_id ! Helps to know where
+                                        ! in the call sequence this was called
 
      integer :: n_vars      ! Number of variables
      integer :: i_var       ! Variable index
@@ -801,6 +803,7 @@ contains
               write(fates_log(),*) ' Change in mass over control period should'
               write(fates_log(),*) ' always equal the integrated fluxes.'
               write(fates_log(),*) ' pft id: ',ipft
+              write(fates_log(),*) ' position id: ',position_id
               write(fates_log(),*) ' organ id: ',this%prt_instance%state_descriptor(i_var)%organ_id
               write(fates_log(),*) ' species_id: ',this%prt_instance%state_descriptor(i_var)%spec_id
               write(fates_log(),*) ' position id: ',i_pos

@@ -662,6 +662,8 @@ contains
 
           ! Retrieve existing leaf and storage carbon
 
+          call currentCohort%prt%CheckMassConservation(currentCohort%pft,0)
+
           store_c = currentCohort%prt%GetState(store_organ, carbon12_species)
           leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_species)
 
@@ -756,6 +758,9 @@ contains
                 endif
              endif !status
           endif !drought dec.
+
+          call currentCohort%prt%CheckMassConservation(currentCohort%pft,1)
+
           currentCohort => currentCohort%shorter
        enddo !currentCohort
 

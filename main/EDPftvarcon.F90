@@ -2052,6 +2052,29 @@ contains
         
         ! Stoichiometric Ratios
 
+        ! Firstly, the seed production and germination models cannot handle nutrients. So 
+        ! we assume (for now) that seeds do not have nutrients (parteh_mode = 1 is c only)
+        if(parteh_model .eq. 2) then
+           if ( (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ) > nearzero) .or. &
+                 (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ) < -nearzero) .or. & 
+                 (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ) > nearzero) .or. &
+                 (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ) < -nearzero) .or. &
+                 (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,repro_organ) > nearzero) .or. &
+                 (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,repro_organ) < -nearzero) .or. & 
+                 (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,repro_organ) > nearzero) .or. &
+                 (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,repro_organ) < -nearzero) ) then
+              write(fates_log(),*) 'N & P should be zero in reproductive tissues'
+              write(fates_log(),*) 'until nutrients are coupled into recruitment'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ)
+              write(fates_log(),*) EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ)
+              write(fates_log(),*) EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,repro_organ)
+              write(fates_log(),*) EDPftvarcon_inst%prt_phos_stoich_p2(ipft,repro_organ)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+
         ! The first nitrogen stoichiometry is used in all cases
         if ( (any(EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
              (any(EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,:) >= 1.0_r8))) then

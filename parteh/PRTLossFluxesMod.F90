@@ -60,6 +60,7 @@ module PRTLossFluxesMod
   public :: PRTMaintTurnover
   public :: PRTBurnLosses
   public :: PRTPhenologyFlush
+  public :: PRTReproRelease
 
 contains
 
@@ -260,6 +261,82 @@ contains
      end associate
     end subroutine PRTBurnLosses
     
+
+    ! =====================================================================================
+
+
+    subroutine PRTReproRelease(prt, organ_id, spec_id, mass_fraction, mass_out)
+
+    ! This subroutine assumes that there is no re-translocation associated
+    ! with the release of reproductive tissues.
+    ! We also do not have a special flux for the release of reproductive
+    ! tissues.  To not confuse this with turnover, we will provide an output
+    ! mass flux, and instead of tracking it, we will just set val0 to val
+    ! to prevent mass imbalances.
+
+    class(prt_vartypes)  :: prt
+    integer,intent(in)   :: organ_id
+    integer,intent(in)   :: spec_id
+    real(r8),intent(in)  :: mass_fraction
+    real(r8),intent(out) :: mass_out
+
+    integer             :: i_pos        ! position index
+    integer             :: i_var        ! index for the variable of interest 
+    integer             :: spec_id      ! Species id of the turnover pool
+
+     
+    associate(organ_map        => prt%prt_instance%organ_map, &
+              sp_organ_map     => prt%prt_instance%sp_organ_map, &
+              state_descriptor => prt%prt_instance%state_descriptor)
+
+      ! This is the total number of state variables associated
+      ! with this particular organ.
+      ! In the future, we may have more finely resolved reproductive
+      ! tissues (ie seeds, flowers, etc). but now we just have 1.
+     
+      if (organ_id .ne. repro_organ) then
+         write(fates_log(),*) 'Reproductive tissue releases were called for a non-reproductive'
+         write(fates_log(),*) 'organ.'
+         write(fates_log(),*) 'pft = ',ipft
+         call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+
+      if (spec_id .ne. carbon12_species) then
+         write(fates_log(),*) 'Reproductive tissue releases were called for a species other than c12'
+         write(fates_log(),*) 'Only carbon seed masses are curently handled.'
+         write(fates_log(),*) 'pft = ',ipft
+         call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+
+      ! This is the total number of state variables associated
+      ! with this particular organ
+
+      i_var = sp_organ_map(organ_id,spec_id)
+
+      ! Reproductive mass leaving the plant
+      mass_out = 0.0_r8
+
+      ! Loop over all of the coordinate ids
+      do i_pos = 1,prt%variables(i_var)%num_pos
+         
+         ! The mass that is leaving the plant
+         mass_out = mass_out + mass_fraction * prt%variables(i_var)%val(i_pos)
+             
+         ! Update the state of the pool to reflect the mass lost
+         prt%variables(i_var)%val(i_pos) = prt%variables(i_var)%val(i_pos) - &
+               (mass_fraction * prt%variables(i_var)%val(i_pos))
+    
+         ! Update the val0 (because we don't give this dedicated flux)
+         ! This is somewhat of a hack
+         prt%variables(i_var)%val0(i_pos) = prt%variables(i_var)%val(i_pos) - &
+               prt%variables(i_var)%net_art(i_pos)
+         
+          
+      end do
+       
+    end associate
+    end subroutine PRTReproRelease
+
     ! ===================================================================================
 
 

@@ -1645,20 +1645,20 @@ end subroutine flush_hvars
                fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_species)
                store_c  = ccohort%prt%GetState(store_organ, all_carbon_species)
                
-               ! Turnover pools [kgC] * [/yr] = [kgC/yr]
-               sapw_c_turnover   = ccohort%prt%GetTurnover(sapw_organ, all_carbon_species) * hlm_freq_day
-               store_c_turnover  = ccohort%prt%GetTurnover(store_organ, all_carbon_species) * hlm_freq_day
-               leaf_c_turnover   = ccohort%prt%GetTurnover(leaf_organ, all_carbon_species) * hlm_freq_day
-               fnrt_c_turnover   = ccohort%prt%GetTurnover(fnrt_organ, all_carbon_species) * hlm_freq_day
-               struct_c_turnover = ccohort%prt%GetTurnover(struct_organ, all_carbon_species) * hlm_freq_day
+               ! Turnover pools [kgC/day] / [yr/day] = [kgC/yr]
+               sapw_c_turnover   = ccohort%prt%GetTurnover(sapw_organ, all_carbon_species) / hlm_freq_day
+               store_c_turnover  = ccohort%prt%GetTurnover(store_organ, all_carbon_species) / hlm_freq_day
+               leaf_c_turnover   = ccohort%prt%GetTurnover(leaf_organ, all_carbon_species) / hlm_freq_day
+               fnrt_c_turnover   = ccohort%prt%GetTurnover(fnrt_organ, all_carbon_species) / hlm_freq_day
+               struct_c_turnover = ccohort%prt%GetTurnover(struct_organ, all_carbon_species) / hlm_freq_day
                
-               ! Net change from allocation and transport [kgC] * [/yr] = [kgC/yr]
-               sapw_c_net_art   = ccohort%prt%GetNetArt(sapw_organ, all_carbon_species) * hlm_freq_day
-               store_c_net_art  = ccohort%prt%GetNetArt(store_organ, all_carbon_species) * hlm_freq_day
-               leaf_c_net_art   = ccohort%prt%GetNetArt(leaf_organ, all_carbon_species) * hlm_freq_day
-               fnrt_c_net_art   = ccohort%prt%GetNetArt(fnrt_organ, all_carbon_species) * hlm_freq_day
-               struct_c_net_art = ccohort%prt%GetNetArt(struct_organ, all_carbon_species) * hlm_freq_day
-               repro_c_net_art  = ccohort%prt%GetNetArt(repro_organ, all_carbon_species) * hlm_freq_day
+               ! Net change from allocation and transport [kgC/day] / [yr/day] = [kgC/yr]
+               sapw_c_net_art   = ccohort%prt%GetNetArt(sapw_organ, all_carbon_species) / hlm_freq_day
+               store_c_net_art  = ccohort%prt%GetNetArt(store_organ, all_carbon_species) / hlm_freq_day
+               leaf_c_net_art   = ccohort%prt%GetNetArt(leaf_organ, all_carbon_species) / hlm_freq_day
+               fnrt_c_net_art   = ccohort%prt%GetNetArt(fnrt_organ, all_carbon_species) / hlm_freq_day
+               struct_c_net_art = ccohort%prt%GetNetArt(struct_organ, all_carbon_species) / hlm_freq_day
+               repro_c_net_art  = ccohort%prt%GetNetArt(repro_organ, all_carbon_species) / hlm_freq_day
 
                alive_c  = leaf_c + fnrt_c + sapw_c
                total_c  = alive_c + store_c + struct_c
@@ -1869,15 +1869,15 @@ end subroutine flush_hvars
                        
                       
                        hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
-                             leaf_c_turnover * ccohort%n * hlm_freq_day
+                             leaf_c_turnover * ccohort%n
                        hio_root_md_canopy_si_scls(io_si,scls) = hio_root_md_canopy_si_scls(io_si,scls) + &
-                             fnrt_c_turnover * ccohort%n * hlm_freq_day
+                             fnrt_c_turnover * ccohort%n
                        hio_bsw_md_canopy_si_scls(io_si,scls) = hio_bsw_md_canopy_si_scls(io_si,scls) + &
-                             sapw_c_turnover * ccohort%n * hlm_freq_day
+                             sapw_c_turnover * ccohort%n
                        hio_bstore_md_canopy_si_scls(io_si,scls) = hio_bstore_md_canopy_si_scls(io_si,scls) + &
-                             store_c_turnover * ccohort%n * hlm_freq_day
+                             store_c_turnover * ccohort%n
                        hio_bdead_md_canopy_si_scls(io_si,scls) = hio_bdead_md_canopy_si_scls(io_si,scls) + &
-                             struct_c_turnover * ccohort%n * hlm_freq_day
+                             struct_c_turnover * ccohort%n
                        hio_seed_prod_canopy_si_scls(io_si,scls) = hio_seed_prod_canopy_si_scls(io_si,scls) + &
                              ccohort%seed_prod * ccohort%n
 
@@ -1950,15 +1950,15 @@ end subroutine flush_hvars
                              ccohort%npp_acc_hold * ccohort%n
 
                        hio_leaf_md_understory_si_scls(io_si,scls) = hio_leaf_md_understory_si_scls(io_si,scls) + &
-                            leaf_c_turnover * ccohort%n * hlm_freq_day
+                            leaf_c_turnover * ccohort%n
                        hio_root_md_understory_si_scls(io_si,scls) = hio_root_md_understory_si_scls(io_si,scls) + &
-                            fnrt_c_turnover * ccohort%n * hlm_freq_day
+                            fnrt_c_turnover * ccohort%n
                        hio_bsw_md_understory_si_scls(io_si,scls) = hio_bsw_md_understory_si_scls(io_si,scls) + &
-                             sapw_c_turnover * ccohort%n * hlm_freq_day
+                             sapw_c_turnover * ccohort%n
                        hio_bstore_md_understory_si_scls(io_si,scls) = hio_bstore_md_understory_si_scls(io_si,scls) + &
-                             store_c_turnover * ccohort%n * hlm_freq_day
+                             store_c_turnover * ccohort%n
                        hio_bdead_md_understory_si_scls(io_si,scls) = hio_bdead_md_understory_si_scls(io_si,scls) + &
-                             struct_c_turnover * ccohort%n * hlm_freq_day
+                             struct_c_turnover * ccohort%n
                        hio_seed_prod_understory_si_scls(io_si,scls) = hio_seed_prod_understory_si_scls(io_si,scls) + &
                             ccohort%seed_prod * ccohort%n
 

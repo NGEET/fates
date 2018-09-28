@@ -67,6 +67,9 @@ module EDMainMod
   use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : SetState
 
+  use PRTLossFluxesMod,       only : PRTMaintTurnover
+  use PRTLossFluxesMod,       only : PRTReproRelease
+
   use EDPftvarcon,            only : EDPftvarcon_inst
 
   ! CIME Globals
@@ -157,6 +160,9 @@ contains
        call bypass_dynamics(currentSite)
        
     end if
+
+    call ed_total_balance_check(currentSite,-1)
+    
 
     !******************************************************************************
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organisation 
@@ -333,11 +339,17 @@ contains
           
           currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
+          call currentCohort%prt%CheckMassConservation(ft,3)
+          call PRTMaintTurnover(currentCohort%prt,ft)
+          call currentCohort%prt%CheckMassConservation(ft,4)
           call currentCohort%prt%DailyPRT()
+          call currentCohort%prt%CheckMassConservation(ft,5)
 
           ! Transfer all reproductive tissues into seed production
-          currentCohort%seed_prod = currentCohort%prt%GetState(repro_organ,all_carbon_species) / hlm_freq_day
-          call SetState(currentCohort%prt,repro_organ,carbon12_species,0.0_r8)
+
+          call PRTReproRelease(currentCohort%prt,repro_organ,carbon12_species, &
+                               1.0_r8, currentCohort%seed_prod)
+          currentCohort%seed_prod =  currentCohort%seed_prod / hlm_freq_day
 
           ! This cohort has grown, it is no longer "new"
           currentCohort%isnew = .false.
