@@ -65,7 +65,7 @@ def DailyCFromCArea(presc_npp_p1,c_area,phen_type,leaf_status):
     # presc_npp_p1, npp generated per crown area         [kgC/m2/yr]
     # -----------------------------------------------------------------------------------
 
-    if( (phen_type == 1) or (leaf_status ==1)):
+    if( (phen_type == 1) or (leaf_status ==2)):
         NetDailyC = presc_npp_p1 * c_area / day_per_year        
     else:
         NetDailyC = 0.0
@@ -89,7 +89,7 @@ def DailyCNPFromCArea(presc_npp_p1,presc_nflux_p1, \
     # presc_pflux_p1, Phosphorous flux per crown area                  [kgP/m2/yr]
     # -----------------------------------------------------------------------------------
 
-    if( (phen_type == 1) or (leaf_status ==1)):
+    if( (phen_type == 1) or (leaf_status ==2)):
         NetDailyC = presc_npp_p1 * c_area / day_per_year        
         NetDailyN = presc_nflux_p1 * c_area / day_per_year
         NetDailyP = presc_pflux_p1 * c_area / day_per_year
@@ -125,12 +125,13 @@ def DailyCNPFromStorageSinWave(doy,store_c,presc_npp_p1, \
     NetDailyC = (presc_npp_amp * sin_func * presc_npp_p1 + presc_npp_p1) * c_area/day_per_year
 
     # This is a fail-safe, for large negatives, cant be larger than storage
+    
     if (NetDailyC < 0.0):
         NetDailyC = -np.minimum(-NetDailyC,0.98* np.float(store_c))
 
     #print("sin_func: {}, NetDailyC: {}, store_c: {}, c_area :{}".format(sin_func,NetDailyC,store_c,c_area))
 
-    if( (phen_type == 1) or (leaf_status ==1)):
+    if( (phen_type == 1) or (leaf_status ==2)):
         NetDailyN = presc_nflux_p1 * c_area / day_per_year
         NetDailyP = presc_pflux_p1 * c_area / day_per_year
     else:
@@ -159,14 +160,14 @@ def DeciduousPhenology(doy, target_leaf_c, store_c, phen_type):
         drop_frac_c = 0.0
 
     if(doy>=leaf_on_doy and doy<leaf_off_doy):
-        leaf_status = 1          # Leaves are on
+        leaf_status = 2          # Leaves are on
     else:
-        leaf_status = 2          # Leaves are off
+        leaf_status = 1          # Leaves are off
 
     if(phen_type==1):
         flush_c     = 0.0
         drop_frac_c = 0.0
-        leaf_status = 1
+        leaf_status = 2
 
     return  flush_c, drop_frac_c, leaf_status
 

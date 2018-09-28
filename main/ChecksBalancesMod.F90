@@ -1,11 +1,10 @@
 module ChecksBalancesMod
 
-   use shr_kind_mod , only : r8 => shr_kind_r8
-   use shr_const_mod, only: SHR_CONST_CDAY
-   use EDtypesMod   , only : ed_site_type,ed_patch_type,ed_cohort_type
-   use EDTypesMod   , only : AREA
-   use FatesConstants, only : g_per_kg
-
+   use shr_kind_mod,           only : r8 => shr_kind_r8
+   use shr_const_mod,          only : SHR_CONST_CDAY
+   use EDtypesMod,             only : ed_site_type,ed_patch_type,ed_cohort_type
+   use EDTypesMod,             only : AREA
+   use FatesConstantsMod,      only : g_per_kg
    use PRTGenericMod,          only : all_carbon_species
    use PRTGenericMod,          only : carbon12_species
    use PRTGenericMod,          only : nitrogen_species

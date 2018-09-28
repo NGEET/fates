@@ -6,6 +6,9 @@ module EDTypesMod
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
   use PRTGenericMod,         only : prt_vartypes
+  use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
+  use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
+  use PRTGenericMod,         only : all_carbon_species
 
   implicit none
   save
@@ -281,11 +284,7 @@ module EDTypesMod
      ! Hydraulics
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
 
-     contains
-
-        procedure, public :: b_total
-
-     end type ed_cohort_type
+  end type ed_cohort_type
 
   
      
@@ -481,7 +480,6 @@ module EDTypesMod
      ! PLANT HYDRAULICS   (not currently used in hydraulics RGK 03-2018)  
      ! type(ed_patch_hydr_type) , pointer :: pa_hydr              ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
 
-   contains
 
   end type ed_patch_type
 
@@ -612,7 +610,7 @@ module EDTypesMod
   end type ed_site_type
 
 
-
+  contains
    
   ! =====================================================================================
 
@@ -787,12 +785,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr
      write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr
      write(fates_log(),*) 'co%froot_mr               = ', ccohort%froot_mr
-     write(fates_log(),*) 'co%md                     = ', ccohort%md
-     write(fates_log(),*) 'co%leaf_md                = ', ccohort%leaf_md
-     write(fates_log(),*) 'co%root_md                = ', ccohort%root_md
-     write(fates_log(),*) 'co%bstore_md              = ', ccohort%bstore_md
-     write(fates_log(),*) 'co%bdead_md               = ', ccohort%bdead_md
-     write(fates_log(),*) 'co%bsw_md                 = ', ccohort%bsw_md
      write(fates_log(),*) 'co%dmort                  = ', ccohort%dmort
      write(fates_log(),*) 'co%seed_prod              = ', ccohort%seed_prod
      write(fates_log(),*) 'co%treelai                = ', ccohort%treelai

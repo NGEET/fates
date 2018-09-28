@@ -8,8 +8,12 @@ module EDPftvarcon
   ! !USES:
   use EDTypesMod  ,   only : maxSWb, ivis, inir
   use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : nearzero
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
+
+  use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
+  use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
 
    ! CIME Globals
   use shr_log_mod ,   only : errMsg => shr_log_errMsg
@@ -70,7 +74,7 @@ module EDPftvarcon
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:)                          ! Growth respiration per unit Carbon gained
-                                                                 ! ONLY parteh_mode == 1  [kg/kg]
+                                                                 ! ONLY parteh_model == 1  [kg/kg]
      real(r8), allocatable :: maintresp_reduction_curvature(:)   ! curvature of MR reduction as f(carbon storage), 
                                                                  ! 1=linear, 0=very curved
      real(r8), allocatable :: maintresp_reduction_intercept(:)   ! intercept of MR reduction as f(carbon storage), 
@@ -1420,7 +1424,7 @@ contains
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     
-  end subroutine Register_PFT_prt_organs
+ end subroutine Register_PFT_prt_organs
 
   ! =====================================================================================
 
@@ -1472,7 +1476,7 @@ contains
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%turnover_phos_retrans_p1)
 
-  end subroutine Receive_PFT_hydr_organs
+  end subroutine Receive_PFT_prt_organs
 
   ! -----------------------------------------------------------------------
   
@@ -1741,7 +1745,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine FatesCheckParams(is_master)
+  subroutine FatesCheckParams(is_master, parteh_model)
 
      ! ----------------------------------------------------------------------------------
      !
@@ -1756,14 +1760,34 @@ contains
 
      ! Argument
      logical, intent(in) :: is_master  ! Only log if this is the master proc
-     
+     integer, intent(in) :: parteh_model  ! argument for nl flag hlm_parteh_model
+
      character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
 
      integer :: npft,ipft
 
      npft = size(EDPftvarcon_inst%pft_used,1)
 
+
      if(.not.is_master) return
+
+
+     if (parteh_model .eq. 2) then
+        write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport'
+        write(fates_log(),*) 'with flexible target stoichiometry for NP and'
+        write(fates_log(),*) 'allometrically constrianed C is still under development'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        
+     elseif (parteh_model .ne. 1) then
+        
+        write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport has'
+        write(fates_log(),*) 'only 1 module supported, allometric carbon only.'
+        write(fates_log(),*) 'fates_parteh_model must be set to 1 in the namelist'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
      
      do ipft = 1,npft
         
@@ -1885,10 +1909,11 @@ contains
 
         ! Check re-translocations
         ! Seems reasonable to assume that sapwood, structure and reproduction
-        ! should not be re-translocating mass upon turnover
+        ! should not be re-translocating mass upon turnover.
+        ! Note to advanced users. Feel free to remove these checks...
         ! -------------------------------------------------------------------
         
-        if ((EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,repro_organ) > nearzero) .or. & 
+        if ( (EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,repro_organ) > nearzero) .or. & 
              (EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,repro_organ) > nearzero) .or.  & 
              (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,repro_organ) > nearzero) ) then
            write(fates_log(),*) ' Retranslocation of reproductive tissues should be zero.'
@@ -1925,73 +1950,76 @@ contains
         end if
         
         ! Leaf retranslocation should be between 0 and 1
-        if ((EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,leaf_organ) > 1.0_r8) .or. & 
-             ((EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,leaf_organ) < 0.0_r8)) then
+        if ( (EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,leaf_organ) > 1.0_r8) .or. & 
+             (EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,leaf_organ) < 0.0_r8) ) then
            write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,leaf_organ)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        if ((hlm_parteh_mode .eq. 2) .and. &
-             ((EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,leaf_organ) > 1.0_r8) .or.  & 
-             (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,leaf_organ) > 1.0_r8) .or. &
-             (EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,leaf_organ) < 0.0_r8) .or.  & 
-             (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,leaf_organ) < 0.0_r8))) then
-           write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,leaf_organ)
-           write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,leaf_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+        if (parteh_model .eq. 2) then
+           if ((EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,leaf_organ) > 1.0_r8) .or.  & 
+               (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,leaf_organ) > 1.0_r8) .or. &
+               (EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,leaf_organ) < 0.0_r8) .or.  & 
+               (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,leaf_organ) < 0.0_r8)) then
+              write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,leaf_organ)
+              write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,leaf_organ)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
         end if
         
         ! Fineroot retranslocation should be between 0-1
-          if ((EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,fnrt_organ) > 1.0_r8) .or. & 
-             ((EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,fnrt_organ) < 0.0_r8)) then
+        if ((EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,fnrt_organ) > 1.0_r8) .or. & 
+            (EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,fnrt_organ) < 0.0_r8)) then
            write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,fnrt_organ)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        if ((hlm_parteh_mode .eq. 2) .and. &
-             ((EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,fnrt_organ) > 1.0_r8) .or.  & 
-             (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,fnrt_organ) > 1.0_r8) .or. &
-             (EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,fnrt_organ) < 0.0_r8) .or.  & 
-             (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,fnrt_organ) < 0.0_r8))) then
-           write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,fnrt_organ)
-           write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,fnrt_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+        if (parteh_model .eq. 2) then
+           if ((EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,fnrt_organ) > 1.0_r8) .or.  & 
+               (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,fnrt_organ) > 1.0_r8) .or. &
+               (EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,fnrt_organ) < 0.0_r8) .or.  & 
+               (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,fnrt_organ) < 0.0_r8)) then
+              write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,fnrt_organ)
+              write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,fnrt_organ)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
         end if
 
         ! Storage retranslocation should be between 0-1 (storage retrans seems weird, but who knows)
         if ((EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,store_organ) > 1.0_r8) .or. & 
-             ((EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,store_organ) < 0.0_r8)) then
+            (EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,store_organ) < 0.0_r8)) then
            write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,store_organ)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        if ((hlm_parteh_mode .eq. 2) .and. &
-             ((EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,store_organ) > 1.0_r8) .or.  & 
-             (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,store_organ) > 1.0_r8) .or. &
-             (EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,store_organ) < 0.0_r8) .or.  & 
-             (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,store_organ) < 0.0_r8))) then
-           write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,store_organ)
-           write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,store_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+        if (parteh_model .eq. 2) then
+           if ((EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,store_organ) > 1.0_r8) .or.  & 
+               (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,store_organ) > 1.0_r8) .or. &
+               (EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,store_organ) < 0.0_r8) .or.  & 
+               (EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,store_organ) < 0.0_r8)) then
+              write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans_p1(ipft,store_organ)
+              write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans_p1(ipft,store_organ)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
         end if
 
         ! Growth respiration
-        if (hlm_parteh_mode .eq. 1) then
+        if (parteh_model .eq. 1) then
            if ( ( EDPftvarcon_inst%grperc(ipft) < 0.0_r8) .or. &
                 ( EDPftvarcon_inst%grperc(ipft) > 1.0_r8 ) ) then
               write(fates_log(),*) ' PFT#: ',ipft
@@ -1999,7 +2027,7 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
-        elseif(hlm_parteh_mode .eq. 2) then
+        elseif(parteh_model .eq. 2) then
            if ( ( any(EDPftvarcon_inst%prt_unit_gr_resp(ipft,:) < 0.0_r8)) .or. &
                 ( any(EDPftvarcon_inst%prt_unit_gr_resp(ipft,:) >= 1.0_r8)) ) then
               write(fates_log(),*) ' PFT#: ',ipft
@@ -2023,7 +2051,7 @@ contains
         end if
         
         ! Stoichiometric Ratios
-        if (hlm_parteh_mode .eq. 2) then
+        if (parteh_model .eq. 2) then
            if ( (any(EDPftvarcon_inst%prt_phos_stoich_p1(ipft,:) < 0.0_r8)) .or. &
                 (any(EDPftvarcon_inst%prt_phos_stoich_p1(ipft,:) >= 1.0_r8)) .or. &
                 (any(EDPftvarcon_inst%prt_phos_stoich_p2(ipft,:) < 0.0_r8)) .or. &
@@ -2037,7 +2065,7 @@ contains
            end if
         end if
 
-        if (hlm_parteh_mode .eq. 1) then
+        if (parteh_model .eq. 1) then
            if (any(EDPftvarcon_inst%prt_alloc_priority(ipft,:) .ne. 0)) then
               write(fates_log(),*) ' PFT#: ',ipft
               write(fates_log(),*) ' Allocation priorities should be 0 for H1'
@@ -2045,7 +2073,7 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
-        elseif (hlm_parteh_mode .eq. 2) then
+        elseif (parteh_model .eq. 2) then
            if ( any(EDPftvarcon_inst%prt_alloc_priority(ipft,:) < 0) .or. &
                 any(EDPftvarcon_inst%prt_alloc_priority(ipft,:) > 6) ) then
               write(fates_log(),*) ' PFT#: ',ipft

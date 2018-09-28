@@ -100,11 +100,6 @@ module FatesRestartInterfaceMod
   integer, private :: ir_dbh_co
   integer, private :: ir_height_co
   integer, private :: ir_laimemory_co
-  integer, private :: ir_leaf_md_co
-  integer, private :: ir_root_md_co
-  integer, private :: ir_sapwood_md_co
-  integer, private :: ir_dead_md_co
-  integer, private :: ir_store_md_co
   integer, private :: ir_nplant_co
   integer, private :: ir_gpp_acc_co
   integer, private :: ir_npp_acc_co
@@ -684,31 +679,6 @@ contains
          units='kgC/indiv', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_laimemory_co )
 
-    call this%set_restart_var(vname='fates_leaf_maint_dmnd', vtype=cohort_r8, &
-         long_name='ed cohort - leaf maintenance demand', &
-         units='kgC/indiv/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_md_co )
-
-    call this%set_restart_var(vname='fates_root_maint_dmnd', vtype=cohort_r8, &
-         long_name='ed cohort - fine root maintenance demand', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_md_co )
-
-    call this%set_restart_var(vname='fates_store_maint_dmnd', vtype=cohort_r8, &
-         long_name='ed cohort - storage maintenance demand', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_store_md_co )
-
-    call this%set_restart_var(vname='fates_sapwood_maint_dmnd', vtype=cohort_r8, &
-         long_name='ed cohort - sapwood maintenance demand', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_sapwood_md_co )
-
-    call this%set_restart_var(vname='fates_dead_maint_dmnd', vtype=cohort_r8, &
-         long_name='ed cohort - structure maintenance demand', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dead_md_co )
-
     call this%set_restart_var(vname='fates_nplant', vtype=cohort_r8, &
          long_name='ed cohort - number of plants in the cohort', &
          units='/patch', flushval = flushzero, &
@@ -1093,11 +1063,6 @@ contains
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
            rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
-           rio_leaf_md_co              => this%rvars(ir_leaf_md_co)%r81d, &
-           rio_root_md_co              => this%rvars(ir_root_md_co)%r81d, &
-           rio_store_md_co             => this%rvars(ir_store_md_co)%r81d, &
-           rio_sapwood_md_co           => this%rvars(ir_sapwood_md_co)%r81d, &
-           rio_dead_md_co              => this%rvars(ir_dead_md_co)%r81d, &
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
            rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
@@ -1227,11 +1192,7 @@ contains
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_height_co(io_idx_co)       = ccohort%hite
                 rio_laimemory_co(io_idx_co)    = ccohort%laimemory
-                rio_leaf_md_co(io_idx_co)      = ccohort%leaf_md
-                rio_root_md_co(io_idx_co)      = ccohort%root_md
-                rio_store_md_co(io_idx_co)     = ccohort%bstore_md
-                rio_sapwood_md_co(io_idx_co)   = ccohort%bsw_md
-                rio_dead_md_co(io_idx_co)      = ccohort%bdead_md
+
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
                 rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
@@ -1692,11 +1653,6 @@ contains
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
           rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
-          rio_leaf_md_co              => this%rvars(ir_leaf_md_co)%r81d, &
-          rio_root_md_co              => this%rvars(ir_root_md_co)%r81d, &
-          rio_sapwood_md_co           => this%rvars(ir_sapwood_md_co)%r81d, &
-          rio_store_md_co             => this%rvars(ir_store_md_co)%r81d, &
-          rio_dead_md_co              => this%rvars(ir_dead_md_co)%r81d, &
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
@@ -1794,12 +1750,12 @@ contains
                 select case(hlm_parteh_model)
                 case (1)
                    
-                   call SetState(new_cohort%prt,leaf_organ, carbon12_species, rio_bleaf_co(io_idx_co))
-                   call SetState(new_cohort%prt,fnrt_organ, carbon12_species, rio_broot_co(io_idx_co))
-                   call SetState(new_cohort%prt,sapw_organ, carbon12_species, rio_bsw_co(io_idx_co))
-                   call SetState(new_cohort%prt,store_organ, carbon12_species, rio_bstore_co(io_idx_co))
-                   call SetState(new_cohort%prt,struct_organ , carbon12_species, rio_bdead_co(io_idx_co))
-                   call SetState(new_cohort%prt,repro_organ , carbon12_species, 0.0_r8)
+                   call SetState(ccohort%prt,leaf_organ, carbon12_species, rio_bleaf_co(io_idx_co))
+                   call SetState(ccohort%prt,fnrt_organ, carbon12_species, rio_broot_co(io_idx_co))
+                   call SetState(ccohort%prt,sapw_organ, carbon12_species, rio_bsw_co(io_idx_co))
+                   call SetState(ccohort%prt,store_organ, carbon12_species, rio_bstore_co(io_idx_co))
+                   call SetState(ccohort%prt,struct_organ , carbon12_species, rio_bdead_co(io_idx_co))
+                   call SetState(ccohort%prt,repro_organ , carbon12_species, 0.0_r8)
 
                 case DEFAULT
                    write(fates_log(),*) 'You specified an unknown PRT module'
@@ -1808,19 +1764,12 @@ contains
                 end select
 
 
-                end  select
-
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
                 ccohort%laimemory    = rio_laimemory_co(io_idx_co)
-                ccohort%leaf_md      = rio_leaf_md_co(io_idx_co)
-                ccohort%root_md      = rio_root_md_co(io_idx_co)
-                ccohort%bstore_md    = rio_store_md_co(io_idx_co)
-                ccohort%bsw_md       = rio_sapwood_md_co(io_idx_co)
-                ccohort%bdead_md     = rio_dead_md_co(io_idx_co)
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)

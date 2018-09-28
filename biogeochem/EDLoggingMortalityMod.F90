@@ -45,7 +45,12 @@ module EDLoggingMortalityMod
    use FatesGlobals      , only : fates_log
    use shr_log_mod       , only : errMsg => shr_log_errMsg
    use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
-   
+
+   use PRTGenericMod     , only : all_carbon_species
+   use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
+   use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
+
+
    implicit none
    private
 

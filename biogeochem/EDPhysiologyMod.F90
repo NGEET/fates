@@ -14,6 +14,7 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : numpft
   use FatesInterfaceMod, only    : hlm_use_planthydro
   use FatesConstantsMod, only    : r8 => fates_r8
+  use FatesConstantsMod, only    : nearzero
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
@@ -76,7 +77,6 @@ module EDPhysiologyMod
   public :: trim_canopy
   public :: phenology
   private :: phenology_leafonoff
-  public  :: PlantGrowth
   public :: recruitment
   private :: cwd_input
   private :: cwd_out
@@ -997,7 +997,7 @@ contains
        if (temp_cohort%n > 0.0_r8 )then
           if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
           call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-                b_leaf, b_fineroot, b_sapwood, b_dead, b_store, 
+                b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &  
                 temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
                 currentSite%spread, bc_in)
 
@@ -1089,12 +1089,12 @@ contains
       
       do c = 1,ncwd
          currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + &
-              (sapw_turnover + struct_turnover)/hlm_freq_day   * &
+              (sapw_c_turnover + struct_c_turnover)/hlm_freq_day   * &
               SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area * &
               EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
 
          currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + &
-              (sapw_turnover + struct_turnover)/hlm_freq_day * &
+              (sapw_c_turnover + struct_c_turnover)/hlm_freq_day * &
               SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area * &
               (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
       enddo

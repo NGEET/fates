@@ -24,9 +24,6 @@ module PRTAllometricCarbonMod
   use PRTGenericMod , only  : repro_organ
   use PRTGenericMod , only  : struct_organ
 
-  use PRTLossFluxesMod    , only : PRTMaintTurnover
-
-  use FatesInterfaceMod   , only : hlm_freq_day
   use FatesAllometryMod   , only : bleaf
   use FatesAllometryMod   , only : bsap_allom
   use FatesAllometryMod   , only : bfineroot

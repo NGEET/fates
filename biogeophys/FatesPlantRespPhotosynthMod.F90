@@ -25,6 +25,7 @@ module FATESPlantRespPhotosynthMod
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : itrue
    use FatesInterfaceMod, only : hlm_use_planthydro
+   use FatesInterfaceMod, only : hlm_parteh_model
    use FatesInterfaceMod, only : numpft
    use EDTypesMod, only        : maxpft
    use EDTypesMod, only        : nlevleaf
@@ -173,6 +174,8 @@ contains
     real(r8) :: sapw_c             ! Sapwood carbon (kgC/plant)
     real(r8) :: fnrt_c             ! Fine root carbon (kgC/plant)
     real(r8) :: fnrt_n             ! Fine root nitrogen content (kgN/plant)
+    real(r8) :: leaf_c             ! Leaf carbon (kgC/plant)
+    real(r8) :: leaf_n             ! leaf nitrogen content (kgN/plant)
     real(r8) :: g_sb_leaves        ! Mean combined (stomata+boundary layer) leaf conductance [m/s]
                                    ! over all of the patch's leaves.  The "sb" refers to the combined
                                    ! "s"tomatal and "b"oundary layer.
@@ -190,6 +193,7 @@ contains
     real(r8) :: check_elai         ! This is a check on the effective LAI that is calculated
                                    ! over each cohort x layer.
     real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each cohort
+    real(r8) :: lnc_top            ! Leaf nitrogen content per unit area at canopy top [gN/m2]
     real(r8) :: lmr25top           ! canopy top leaf maint resp rate at 25C 
                                    ! for this plant or pft (umol CO2/m**2/s)
     real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_ed
@@ -198,6 +202,7 @@ contains
                                    ! above the leaf layer of interest
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
+
 
     
     ! -----------------------------------------------------------------------------------
@@ -432,21 +437,21 @@ contains
                               
                               ! Then scale this value at the top of the canopy for canopy depth
                               ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
-                              select case(new_cohort%parteh_model)
+                              select case(hlm_parteh_model)
                               case (1)
 
-                                 lnc  = EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ)/slatop(ft)
+                                 lnc_top  = EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
                                  
-!                              case (2)
-!                                 
-!                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_species)
-!                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_species)
-!                                 lnc = leaf_c / (slatop * leaf_n )
+                              case (2)
+
+                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_species)
+                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_species)
+                                 lnc_top = leaf_n / (slatop(ft) * leaf_c )
 
                               end select
 
                               lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-                              lmr25top = lmr25top * lnc / (umolC_to_kgC * g_per_kg)
+                              lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
                               
 
                               ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
@@ -575,20 +580,23 @@ contains
                      ! Units are in (kgN/plant)
                      ! ------------------------------------------------------------------
 
-                     select case(parteh_model)
+                     select case(hlm_parteh_model)
                      case (1)
                         
-                        sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-                        fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
+                        sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_species)
+                        fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_species)
 
                         live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
+                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
                         
                         live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
-                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
+                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
 
-                        fnrt_n = fnrt_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ)
+                        fnrt_n = fnrt_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ)
                      
+                     case default
+                        
+
                      end select
 
                      !------------------------------------------------------------------------------

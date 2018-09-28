@@ -225,9 +225,13 @@ module PRTGenericMod
      procedure, non_overridable :: RegisterBCInout
      procedure, non_overridable :: GetState
      procedure, non_overridable :: GetTurnover
+     procedure, non_overridable :: GetBurned
+     procedure, non_overridable :: GetNetART
      procedure, non_overridable :: ZeroRates
      procedure, non_overridable :: CheckMassConservation
-
+     procedure, non_overridable :: DeallocatePRTVartypes
+     procedure, non_overridable :: WeightedFusePRTVartypes
+     procedure, non_overridable :: CopyPRTVartypes
   end type prt_vartypes
 
   ! -------------------------------------------------------------------------------------
@@ -940,7 +944,7 @@ contains
     
     function GetBurned(this, organ_id, species_id, position_id) result(sp_organ_burned)
 
-      ! THis function is very similar to GetBurned, with the only difference that it
+      ! THis function is very similar to GetTurnover, with the only difference that it
       ! returns the turnover mass so-far during the period of interest.
 
       class(prt_vartypes)         :: this
@@ -990,6 +994,61 @@ contains
       
       return
    end function GetBurned
+
+   ! ====================================================================================
+   
+   function GetNetART(this, organ_id, species_id, position_id) result(sp_organ_netart)
+      
+      ! THis function is very similar to GetTurnover, with the only difference that it
+      ! returns the Net changes due to Allocations Reactions and Transport in that pool
+
+      class(prt_vartypes)         :: this
+      integer,intent(in)          :: organ_id
+      integer,intent(in)          :: species_id
+      integer,intent(in),optional :: position_id
+      real(r8)                    :: sp_organ_netart
+
+      integer :: i_pos
+      integer :: ispec
+      integer :: num_species
+      integer,dimension(max_spec_per_group) :: spec_ids 
+      integer :: i_var
+      
+      sp_organ_netart = 0.0_r8
+      
+      if(species_id == all_carbon_species) then
+         spec_ids(1:3) = carbon_species(1:3)
+         num_species  = 3
+      else
+         num_species  = 1
+         spec_ids(1) = species_id
+      end if
+
+      if(present(position_id)) then
+         i_pos = position_id
+      
+         do ispec = 1,num_species
+            i_var = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            if(i_var>0) sp_organ_netart = sp_organ_netart + &
+                  this%variables(i_var)%net_art(i_pos)
+         end do
+
+      else
+         
+         do ispec = 1,num_species
+            i_var = this%prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            if(i_var>0) then
+               do i_pos = 1, this%variables(i_var)%num_pos
+                  sp_organ_netart = sp_organ_netart + this%variables(i_var)%net_art(i_pos)
+               end do
+            end if
+            
+         end do
+
+      end if
+      
+      return
+   end function GetNetART
 
    ! =====================================================================================
 

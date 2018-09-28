@@ -1572,7 +1572,7 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
-      call FatesCheckParams(masterproc)
+      call FatesCheckParams(masterproc,hlm_parteh_model)
       
       return
    end subroutine FatesReportParameters
@@ -1584,7 +1584,7 @@ contains
      ! Initialize the Plant Allocation and Reactive Transport
      ! global functions and mapping tables
      
-     select case(int(hlm_parteh_mode))
+     select case(int(hlm_parteh_model))
      case (1)
         call InitPRTInstanceAC()
      case(2)

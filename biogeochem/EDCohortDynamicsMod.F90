@@ -188,7 +188,7 @@ contains
     ! are all initialized.
     ! -----------------------------------------------------------------------------------
 
-    call ccohort%prt%CheckInitialConditions()
+    call new_cohort%prt%CheckInitialConditions()
 
 
 
@@ -267,27 +267,34 @@ contains
 
   ! -------------------------------------------------------------------------------------
 
-  subroutine InitPRTCohort(ccohort)
+  subroutine InitPRTCohort(new_cohort)
 
-   ! This subroutine simply allocates and attaches the correct PRT object.
-   ! No meaningful values to are set here.
-   
-   select case(parteh_model)
-    case (1)
-       
-       allocate(callom_prt)
-       new_cohort%prt => callom_prt
-       
-    case DEFAULT
-       write(fates_log(),*) 'You specified an unknown PRT module'
-       write(fates_log(),*) 'Aborting'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end select
-
-    
-    call ccohort%prt%InitPRTVartype()
+     ! This subroutine simply allocates and attaches the correct PRT object.
+     ! No meaningful values to are set here.
+     !
+     ! !ARGUMENTS    
+     type(ed_cohort_type), intent(inout), target  :: new_cohort
+     type(callom_prt_vartypes), pointer :: callom_prt
 
 
+     select case(hlm_parteh_model)
+     case (1)
+        
+        allocate(callom_prt)
+        new_cohort%prt => callom_prt
+        
+     case DEFAULT
+
+        write(fates_log(),*) 'You specified an unknown PRT module'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+
+     end select
+     
+     
+     call new_cohort%prt%InitPRTVartype()
+     
+     return
   end subroutine InitPRTCohort
 
   !-------------------------------------------------------------------------------------!

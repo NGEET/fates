@@ -15,6 +15,7 @@ module EDMainMod
   use FatesInterfaceMod        , only : hlm_current_day 
   use FatesInterfaceMod        , only : hlm_use_planthydro 
   use FatesInterfaceMod        , only : hlm_reference_date
+  use FatesInterfaceMod        , only : hlm_use_ed_prescribed_phys
   use FatesInterfaceMod        , only : hlm_use_ed_st3 
   use FatesInterfaceMod        , only : bc_in_type
   use FatesInterfaceMod        , only : hlm_masterproc
@@ -27,7 +28,6 @@ module EDMainMod
   use EDPatchDynamicsMod       , only : fuse_patches
   use EDPatchDynamicsMod       , only : spawn_patches
   use EDPatchDynamicsMod       , only : terminate_patches
-  use EDPhysiologyMod          , only : PlantGrowth
   use EDPhysiologyMod          , only : non_canopy_derivs
   use EDPhysiologyMod          , only : phenology
   use EDPhysiologyMod          , only : recruitment
@@ -66,6 +66,8 @@ module EDMainMod
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : SetState
+
+  use EDPftvarcon,            only : EDPftvarcon_inst
 
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -260,6 +262,7 @@ contains
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
+    
     !-----------------------------------------------------------------------
 
     small_no = 0.0000000000_r8  ! Obviously, this is arbitrary.  RF - changed to zero
@@ -286,6 +289,8 @@ contains
        do while(associated(currentCohort)) 
 
 
+          ft = currentCohort%pft
+
           ! Calculate the mortality derivatives
           call Mortality_Derivative( currentSite, currentCohort, bc_in )
 
@@ -310,12 +315,12 @@ contains
           
           if (hlm_use_ed_prescribed_phys .eq. itrue) then
              if (currentCohort%canopy_layer .eq. 1) then
-                currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ipft) &
+                currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ft) &
                      * currentCohort%c_area / currentCohort%n
                 ! add these for balance checking purposes
                 currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year 
              else
-                currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ipft) &
+                currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ft) &
                      * currentCohort%c_area / currentCohort%n
                 ! add these for balance checking purposes
                 currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year
@@ -335,10 +340,10 @@ contains
           call SetState(currentCohort%prt,repro_organ,carbon12_species,0.0_r8)
 
           ! This cohort has grown, it is no longer "new"
-          currentCohort%is_new = .false.
+          currentCohort%isnew = .false.
           
           ! Update the plant height (if it has grown)
-          call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+          call h_allom(currentCohort%dbh,ft,currentCohort%hite)
           
           currentCohort%dhdt      = (currentCohort%hite-hite_old)/hlm_freq_day
           currentCohort%ddbhdt    = (currentCohort%dbh-dbh_old)/hlm_freq_day
@@ -594,7 +599,7 @@ contains
              currentCohort => currentPatch%tallest
              do while(associated(currentCohort))
                 write(fates_log(),*) 'structure: ',currentCohort%prt%GetState(struct_organ,all_carbon_species)
-                write(fates_log(),*) 'storage: ',currentCohort%prt%GetState(storage_organ,all_carbon_species)
+                write(fates_log(),*) 'storage: ',currentCohort%prt%GetState(store_organ,all_carbon_species)
                 write(fates_log(),*) 'N plant: ',currentCohort%n
                 currentCohort => currentCohort%shorter;
              enddo !end cohort loop 

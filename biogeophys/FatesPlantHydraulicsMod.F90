@@ -75,14 +75,9 @@ module FatesPlantHydraulicsMod
    use PRTGenericMod,          only : carbon12_species
    use PRTGenericMod,          only : nitrogen_species
    use PRTGenericMod,          only : phosphorous_species
-   use PRTGenericMod,          only : leaf_organ
-   use PRTGenericMod,          only : fnrt_organ
-   use PRTGenericMod,          only : sapw_organ
-   use PRTGenericMod,          only : store_organ
-   use PRTGenericMod,          only : repro_organ
-   use PRTGenericMod,          only : struct_organ
+   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
+   use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
    use PRTGenericMod,          only : carbon12_species
-   use PRTGenericMod,          only : SetState
    
    use clm_time_manager  , only : get_step_size, get_nstep
 
@@ -450,8 +445,8 @@ contains
      ccohort_hydr%z_node_aroot(1:nlevsoi_hyd) = -bc_in%z_sisl(1:nlevsoi_hyd)
 
      
-     ccohort_hydr%l_aroot_tot        = cCohort%br*C2B*EDPftvarcon_inst%hydr_srl(FT)
-     !ccohort_hydr%v_aroot_tot       = cCohort%br/EDecophyscon%ccontent(FT)/EDecophyscon%rootdens(FT)
+     ccohort_hydr%l_aroot_tot        = fnrt_c*C2B*EDPftvarcon_inst%hydr_srl(FT)
+     !ccohort_hydr%v_aroot_tot       = fnrt_c/EDecophyscon%ccontent(FT)/EDecophyscon%rootdens(FT)
      ccohort_hydr%v_aroot_tot        = pi_const*(EDPftvarcon_inst%hydr_rs2(FT)**2._r8)*ccohort_hydr%l_aroot_tot
      !ccohort_hydr%l_aroot_tot       = ccohort_hydr%v_aroot_tot/(pi_const*EDecophyscon%rs2(FT)**2)
      if(nlevsoi_hyd == 1) then
@@ -913,7 +908,10 @@ contains
            currentCohort=>currentPatch%tallest
            do while(associated(currentCohort))
               balive_patch = balive_patch + &
-                   (currentCohort%bl + currentCohort%bsw + currentCohort%br ) * currentCohort%n
+                    (currentCohort%prt%GetState(fnrt_organ, all_carbon_species) + &
+                     currentCohort%prt%GetState(sapw_organ, all_carbon_species) + &
+                     currentCohort%prt%GetState(leaf_organ, all_carbon_species)) * currentCohort%n
+              
               currentCohort => currentCohort%shorter
            enddo !cohort
            
@@ -1318,7 +1316,9 @@ end subroutine updateSizeDepRhizHydStates
            ccohort=>cpatch%tallest
            do while(associated(ccohort))
               balive_patch = balive_patch +  &
-                   (cCohort%bl + cCohort%bsw + cCohort%br) * ccohort%n
+                    (cCohort%prt%GetState(fnrt_organ, all_carbon_species) + &
+                     cCohort%prt%GetState(sapw_organ, all_carbon_species) + &
+                     cCohort%prt%GetState(leaf_organ, all_carbon_species))* ccohort%n
               ccohort => ccohort%shorter
            enddo !cohort
            
@@ -1326,8 +1326,11 @@ end subroutine updateSizeDepRhizHydStates
            ccohort=>cpatch%tallest
            do while(associated(ccohort))
               bc_out(s)%btran_pa(ifp) =  bc_out(s)%btran_pa(ifp) + &
-                   ccohort%co_hydr%btran(1) * (cCohort%bl + cCohort%bsw + cCohort%br) * &
-                   ccohort%n / balive_patch
+                   ccohort%co_hydr%btran(1) * &
+                   (cCohort%prt%GetState(fnrt_organ, all_carbon_species) + &
+                    cCohort%prt%GetState(sapw_organ, all_carbon_species) + &
+                    cCohort%prt%GetState(leaf_organ, all_carbon_species)) * &
+                    ccohort%n / balive_patch
               ccohort => ccohort%shorter
            enddo !cohort
            cpatch => cpatch%younger
