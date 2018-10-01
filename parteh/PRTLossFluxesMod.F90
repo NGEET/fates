@@ -282,7 +282,6 @@ contains
 
     integer             :: i_pos        ! position index
     integer             :: i_var        ! index for the variable of interest 
-    integer             :: spec_id      ! Species id of the turnover pool
 
      
     associate(organ_map        => prt%prt_instance%organ_map, &
@@ -297,14 +296,12 @@ contains
       if (organ_id .ne. repro_organ) then
          write(fates_log(),*) 'Reproductive tissue releases were called for a non-reproductive'
          write(fates_log(),*) 'organ.'
-         write(fates_log(),*) 'pft = ',ipft
          call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
 
       if (spec_id .ne. carbon12_species) then
          write(fates_log(),*) 'Reproductive tissue releases were called for a species other than c12'
          write(fates_log(),*) 'Only carbon seed masses are curently handled.'
-         write(fates_log(),*) 'pft = ',ipft
          call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
 

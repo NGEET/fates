@@ -50,9 +50,6 @@ module EDPatchDynamicsMod
   use PRTGenericMod,          only : store_organ
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : carbon12_species
-  use PRTGenericMod,          only : SetState
-
   use PRTLossFluxesMod,       only : PRTBurnLosses
 
 
@@ -886,6 +883,7 @@ contains
     real(r8) :: dead_tree_density    ! no trees killed by fire per m2
     reaL(r8) :: burned_litter        ! amount of each litter pool burned by fire.  kgC/m2/day
     real(r8) :: burned_leaves        ! amount of tissue consumed by fire for grass. KgC/individual/day
+    real(r8) :: leaf_burn_frac       ! fraction of leaves burned 
     real(r8) :: leaf_c               ! leaf carbon [kg]
     real(r8) :: fnrt_c               ! fineroot carbon [kg]
     real(r8) :: sapw_c               ! sapwood carbon [kg]
@@ -1062,7 +1060,12 @@ contains
           if (burned_leaves > 0.0_r8) then
 
              ! Remove burned leaves from the pool
-             call PRTBurnLosses(currentCohort%prt, leaf_organ, burned_leaves/leaf_c)
+             if(leaf_c>nearzero) then
+                leaf_burn_frac = burned_leaves/leaf_c
+             else
+                leaf_burn_frac = 0.0_r8
+             end if
+             call PRTBurnLosses(currentCohort%prt, leaf_organ, leaf_burn_frac)
              
              !KgC/gridcell/day
              currentSite%flux_out = currentSite%flux_out + burned_leaves * currentCohort%n * &

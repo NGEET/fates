@@ -23,6 +23,7 @@ module PRTAllometricCarbonMod
   use PRTGenericMod , only  : store_organ
   use PRTGenericMod , only  : repro_organ
   use PRTGenericMod , only  : struct_organ
+  use PRTGenericMod , only  : un_initialized
 
   use FatesAllometryMod   , only : bleaf
   use FatesAllometryMod   , only : bsap_allom
@@ -341,14 +342,6 @@ contains
 
 
     ! ===================================================================================
-    !
-    ! !!!! CALCULATIONS THAT SHOULD NOW BE OUTSIDE OF THIS ROUTINE !!!!
-    ! WE USED TO SET THE "ISNEW" FLAG HERE
-    ! MAKE SURE THAT IT IS SET AFTER THIS ROUTINE IS CALLED
-    ! IT SHOULD BE CALLED FOR ANY INSTANCE, NOT JUST THIS
-    ! currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
-    ! 
-    ! ===================================================================================
 
     ! Copy the boundary conditions into readable local variables  
     ! We don't use pointers, because inputs should be intent in only
@@ -359,7 +352,7 @@ contains
     canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
     ipft                            = this%bc_in(ac_bc_in_id_pft)%ival
 
-    intgr_params(:)                 = -9.9e32_r8
+    intgr_params(:)                 = un_initialized
     intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
     intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
 
@@ -782,6 +775,10 @@ contains
     
     this%variables(struct_c_id)%net_art(icd) = &
          this%variables(struct_c_id)%net_art(icd) + (struct_c - struct_c0)
+
+
+ 
+
 
 
   end associate

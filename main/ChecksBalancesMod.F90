@@ -15,7 +15,6 @@ module ChecksBalancesMod
    use PRTGenericMod,          only : store_organ
    use PRTGenericMod,          only : repro_organ
    use PRTGenericMod,          only : struct_organ
-   use PRTGenericMod,          only : carbon12_species
 
    implicit none
    

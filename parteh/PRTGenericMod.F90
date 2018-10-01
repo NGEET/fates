@@ -155,6 +155,7 @@ module PRTGenericMod
                                           ! over the control period
 
      real(r8),allocatable :: burned(:)    ! Losses due to burn                     [kg]
+
 !     real(r8),allocatable :: herbiv(:)    ! Losses due to herbivory                [kg]
 
      ! Placeholder
@@ -591,9 +592,6 @@ contains
     end if
 
     this%ode_opt_step = donor_prt_obj%ode_opt_step
-
-    this%prt_instance => donor_prt_obj%prt_instance
-
 
     return
   end subroutine CopyPRTVartypes

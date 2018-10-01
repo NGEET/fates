@@ -191,8 +191,6 @@ contains
     call new_cohort%prt%CheckInitialConditions()
 
 
-
-
     call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
                               new_cohort%size_class,new_cohort%size_by_pft_class)
 
@@ -586,6 +584,9 @@ contains
                      currentPatch%area &
                      * SF_val_CWD_frac(c) * (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) 
              enddo
+             
+             currentPatch%leaf_litter(currentCohort%pft) = currentPatch%leaf_litter(currentCohort%pft) + currentCohort%n* &
+                  (leaf_c)/currentPatch%area
 
              currentPatch%root_litter(currentCohort%pft) = currentPatch%root_litter(currentCohort%pft) + currentCohort%n* &
                   (fnrt_c+store_c)/currentPatch%area 
@@ -770,7 +771,7 @@ contains
 
 
                                 ! Fuse all mass pools
-                                call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, nextc%n/newn )
+                                call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, currentCohort%n/newn )
 
                                 currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                       + nextc%n*nextc%laimemory)/newn

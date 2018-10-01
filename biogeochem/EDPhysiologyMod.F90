@@ -1083,7 +1083,8 @@ contains
            leaf_c_turnover * currentCohort%n/currentPatch%area/hlm_freq_day
       
       currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
-           (fnrt_c_turnover + store_c_turnover ) * currentCohort%n/currentPatch%area
+           (fnrt_c_turnover + store_c_turnover ) * &
+           currentCohort%n/currentPatch%area/hlm_freq_day
       
       
       !daily leaf loss needs to be scaled up to the annual scale here. 

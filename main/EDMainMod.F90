@@ -64,8 +64,6 @@ module EDMainMod
   use PRTGenericMod,          only : store_organ
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : carbon12_species
-  use PRTGenericMod,          only : SetState
 
   use PRTLossFluxesMod,       only : PRTMaintTurnover
   use PRTLossFluxesMod,       only : PRTReproRelease
@@ -118,6 +116,9 @@ contains
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
+    currentSite%flux_in = 0.0_r8
+
+
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
     call IsItLoggingTime(hlm_masterproc,currentSite)
@@ -160,9 +161,6 @@ contains
        call bypass_dynamics(currentSite)
        
     end if
-
-    call ed_total_balance_check(currentSite,-1)
-    
 
     !******************************************************************************
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organisation 
@@ -276,6 +274,8 @@ contains
     currentSite%dseed_dt(:)       = 0._r8
     currentSite%seed_rain_flux(:) = 0._r8  
 
+    
+    
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))
@@ -346,7 +346,6 @@ contains
           call currentCohort%prt%CheckMassConservation(ft,5)
 
           ! Transfer all reproductive tissues into seed production
-
           call PRTReproRelease(currentCohort%prt,repro_organ,carbon12_species, &
                                1.0_r8, currentCohort%seed_prod)
           currentCohort%seed_prod =  currentCohort%seed_prod / hlm_freq_day
