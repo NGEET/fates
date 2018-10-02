@@ -14,6 +14,7 @@ module PRTAllometricCarbonMod
    ! ------------------------------------------------------------------------------------
 
   use PRTGenericMod , only  : prt_instance_type
+  use PRTGenericMod , only  : prt_instance
   use PRTGenericMod , only  : prt_vartype
   use PRTGenericMod , only  : prt_vartypes
   use PRTGenericMod , only  : carbon12_species
@@ -154,6 +155,8 @@ contains
      allocate(prt_instance_ac)
      allocate(prt_instance_ac%state_descriptor(ac_num_vars))
 
+     prt_instance => prt_instance_ac
+
      prt_instance_ac%hyp_name = 'Allometric Carbon Only'
      
      call prt_instance_ac%ZeroInstance()
@@ -165,12 +168,12 @@ contains
      ! simply increase it.  It will not use much memory or increase loop sizes
      
 
-     call prt_instance_ac%InitInstance(leaf_c_id,"Leaf Carbon","leaf_c",leaf_organ,carbon12_species)
-     call prt_instance_ac%InitInstance(fnrt_c_id,"Fine Root Carbon","fnrt_c",fnrt_organ,carbon12_species)
-     call prt_instance_ac%InitInstance(sapw_c_id,"Sapwood Carbon","sapw_c",sapw_organ,carbon12_species)
-     call prt_instance_ac%InitInstance(store_c_id,"Storage Carbon","store_c",store_organ,carbon12_species)
-     call prt_instance_ac%InitInstance(struct_c_id,"Structural Carbon","struct_c",struct_organ,carbon12_species)
-     call prt_instance_ac%InitInstance(repro_c_id,"Reproductive Carbon","repro_c",repro_organ,carbon12_species)
+     call prt_instance_ac%InitInstance(leaf_c_id,"Leaf Carbon","leaf_c",leaf_organ,carbon12_species,icd)
+     call prt_instance_ac%InitInstance(fnrt_c_id,"Fine Root Carbon","fnrt_c",fnrt_organ,carbon12_species,icd)
+     call prt_instance_ac%InitInstance(sapw_c_id,"Sapwood Carbon","sapw_c",sapw_organ,carbon12_species,icd)
+     call prt_instance_ac%InitInstance(store_c_id,"Storage Carbon","store_c",store_organ,carbon12_species,icd)
+     call prt_instance_ac%InitInstance(struct_c_id,"Structural Carbon","struct_c",struct_organ,carbon12_species,icd)
+     call prt_instance_ac%InitInstance(repro_c_id,"Reproductive Carbon","repro_c",repro_organ,carbon12_species,icd)
      
      return
    end subroutine InitPRTInstanceAC
@@ -850,16 +853,21 @@ contains
                  mask_repro => c_mask(repro_c_id) )
 
         canopy_trim = intgr_params(ac_bc_in_id_ctrim)
-        ipft        = nint(intgr_params(ac_bc_in_id_pft))
+        ipft        = int(intgr_params(ac_bc_in_id_pft))
 
         if(dbh>huge(dbh)) then
            print*,"BIG D IN DERIV:",dbh
            stop
         end if
 
+        print*,"ipft: ",ipft
+
         call bleaf(dbh,ipft,canopy_trim,ct_leaf,ct_dleafdd)
         call bfineroot(dbh,ipft,canopy_trim,ct_fnrt,ct_dfnrtdd)
         call bsap_allom(dbh,ipft,canopy_trim,sapw_area,ct_sap,ct_dsapdd)
+
+        print*,"Clear"
+
         call bagw_allom(dbh,ipft,ct_agw,ct_dagwdd)
         call bbgw_allom(dbh,ipft,ct_bgw,ct_dbgwdd)
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &

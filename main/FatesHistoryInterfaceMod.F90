@@ -1644,22 +1644,7 @@ end subroutine flush_hvars
                leaf_c   = ccohort%prt%GetState(leaf_organ, all_carbon_species)
                fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_species)
                store_c  = ccohort%prt%GetState(store_organ, all_carbon_species)
-               
-               ! Turnover pools [kgC/day] / [yr/day] = [kgC/yr]
-               sapw_c_turnover   = ccohort%prt%GetTurnover(sapw_organ, all_carbon_species) / hlm_freq_day
-               store_c_turnover  = ccohort%prt%GetTurnover(store_organ, all_carbon_species) / hlm_freq_day
-               leaf_c_turnover   = ccohort%prt%GetTurnover(leaf_organ, all_carbon_species) / hlm_freq_day
-               fnrt_c_turnover   = ccohort%prt%GetTurnover(fnrt_organ, all_carbon_species) / hlm_freq_day
-               struct_c_turnover = ccohort%prt%GetTurnover(struct_organ, all_carbon_species) / hlm_freq_day
-               
-               ! Net change from allocation and transport [kgC/day] / [yr/day] = [kgC/yr]
-               sapw_c_net_art   = ccohort%prt%GetNetArt(sapw_organ, all_carbon_species) / hlm_freq_day
-               store_c_net_art  = ccohort%prt%GetNetArt(store_organ, all_carbon_species) / hlm_freq_day
-               leaf_c_net_art   = ccohort%prt%GetNetArt(leaf_organ, all_carbon_species) / hlm_freq_day
-               fnrt_c_net_art   = ccohort%prt%GetNetArt(fnrt_organ, all_carbon_species) / hlm_freq_day
-               struct_c_net_art = ccohort%prt%GetNetArt(struct_organ, all_carbon_species) / hlm_freq_day
-               repro_c_net_art  = ccohort%prt%GetNetArt(repro_organ, all_carbon_species) / hlm_freq_day
-
+ 
                alive_c  = leaf_c + fnrt_c + sapw_c
                total_c  = alive_c + store_c + struct_c
 
@@ -1715,6 +1700,22 @@ end subroutine flush_hvars
                ! Flux Variables (cohorts must had experienced a day before any of these values
                ! have any meaning, otherwise they are just inialization values
                if( .not.(ccohort%isnew) ) then
+
+                  ! Turnover pools [kgC/day] / [yr/day] = [kgC/yr]
+                  sapw_c_turnover   = ccohort%prt%GetTurnover(sapw_organ, all_carbon_species) / hlm_freq_day
+                  store_c_turnover  = ccohort%prt%GetTurnover(store_organ, all_carbon_species) / hlm_freq_day
+                  leaf_c_turnover   = ccohort%prt%GetTurnover(leaf_organ, all_carbon_species) / hlm_freq_day
+                  fnrt_c_turnover   = ccohort%prt%GetTurnover(fnrt_organ, all_carbon_species) / hlm_freq_day
+                  struct_c_turnover = ccohort%prt%GetTurnover(struct_organ, all_carbon_species) / hlm_freq_day
+                  
+                  ! Net change from allocation and transport [kgC/day] / [yr/day] = [kgC/yr]
+                  sapw_c_net_art   = ccohort%prt%GetNetArt(sapw_organ, all_carbon_species) / hlm_freq_day
+                  store_c_net_art  = ccohort%prt%GetNetArt(store_organ, all_carbon_species) / hlm_freq_day
+                  leaf_c_net_art   = ccohort%prt%GetNetArt(leaf_organ, all_carbon_species) / hlm_freq_day
+                  fnrt_c_net_art   = ccohort%prt%GetNetArt(fnrt_organ, all_carbon_species) / hlm_freq_day
+                  struct_c_net_art = ccohort%prt%GetNetArt(struct_organ, all_carbon_species) / hlm_freq_day
+                  repro_c_net_art  = ccohort%prt%GetNetArt(repro_organ, all_carbon_species) / hlm_freq_day
+
 
                   associate( scpf => ccohort%size_by_pft_class, &
                              scls => ccohort%size_class )

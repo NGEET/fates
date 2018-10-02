@@ -36,7 +36,7 @@ module PRTGenericMod
   logical, parameter :: debug = .true.
 
   integer, parameter :: maxlen_varname   = 128
-  integer, parameter :: maxlen_varsymbol = 16
+  integer, parameter :: maxlen_varsymbol = 32
   integer, parameter :: maxlen_varunits  = 32
   integer, parameter :: len_baseunit     = 6
 
@@ -252,7 +252,8 @@ module PRTGenericMod
      character(len=maxlen_varsymbol) :: symbol
      integer                         :: organ_id    ! global id for organ
      integer                         :: spec_id    ! global id for species
-     
+     integer                         :: num_pos    ! number of descrete spatial positions
+
      ! Also, will probably need flags to define different types of groups that this variable
      ! belongs too, which will control things like fusion, normalization, when to zero, etc...
 
@@ -309,6 +310,9 @@ module PRTGenericMod
   end type prt_instance_type
 
   
+  type(prt_instance_type),pointer :: prt_instance
+
+
 contains
 
   ! =====================================================================================
@@ -336,7 +340,7 @@ contains
    
   ! =====================================================================================
   
-  subroutine InitInstance(this, var_id, long_name, symbol, organ_id, spec_id)
+  subroutine InitInstance(this, var_id, long_name, symbol, organ_id, spec_id, num_pos)
      
      class(prt_instance_type)    :: this
      integer, intent(in)         :: var_id
@@ -344,6 +348,7 @@ contains
      character(len=*),intent(in) :: symbol
      integer, intent(in)         :: organ_id
      integer, intent(in)         :: spec_id
+     integer, intent(in)         :: num_pos
 
      ! Set the descriptions and the associated organs/species in the variable's
      ! own array
@@ -352,6 +357,7 @@ contains
      this%state_descriptor(var_id)%symbol   = symbol
      this%state_descriptor(var_id)%organ_id = organ_id
      this%state_descriptor(var_id)%spec_id  = spec_id
+     this%state_descriptor(var_id)%num_pos  = num_pos
 
      ! Set the mapping tables for the external model
 
@@ -1162,6 +1168,8 @@ contains
    ! ====================================================================================
 
 
- 
+   
+
+
 
 end module PRTGenericMod

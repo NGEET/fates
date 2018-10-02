@@ -28,7 +28,8 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : SetState
-  use PRTGenericMod,          only : GetState
+  use PRTGenericMod,          only : prt_instance
+
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -89,11 +90,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_seedrainflux_si
   integer, private :: ir_trunk_product_si
   integer, private :: ir_ncohort_pa
-  integer, private :: ir_bsw_co
-  integer, private :: ir_bdead_co
-  integer, private :: ir_bleaf_co
-  integer, private :: ir_broot_co
-  integer, private :: ir_bstore_co
+
   integer, private :: ir_canopy_layer_co
   integer, private :: ir_canopy_layer_yesterday_co
   integer, private :: ir_canopy_trim_co
@@ -143,6 +140,9 @@ module FatesRestartInterfaceMod
   integer, private :: ir_fabi_sha_paclftls
   integer, private :: ir_watermem_siwm
 
+  integer, private :: ir_prt_base     ! Base index for all PRT variables
+
+
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter :: fates_restart_num_dimensions = 2   !(cohort,column)
   integer, parameter :: fates_restart_num_dim_kinds = 4    !(cohort-int,cohort-r8,site-int,site-r8)
@@ -150,6 +150,11 @@ module FatesRestartInterfaceMod
   ! integer constants for storing logical data
   integer, parameter :: old_cohort = 0
   integer, parameter :: new_cohort = 1  
+
+  real(r8), parameter :: flushinvalid = -9999.0
+  real(r8), parameter :: flushzero = 0.0
+  real(r8), parameter :: flushone  = 1.0
+  
 
   ! Local debug flag
   logical, parameter :: DEBUG=.false.
@@ -209,6 +214,7 @@ module FatesRestartInterfaceMod
      procedure, private :: flush_rvars
      procedure, private :: define_restart_vars
      procedure, private :: set_restart_var
+     procedure, private :: DefinePRTRestartVars
 
   end type fates_restart_interface_type
 
@@ -488,10 +494,7 @@ contains
     class(fates_restart_interface_type), intent(inout) :: this
     logical, intent(in) :: initialize_variables  ! are we 'count'ing or 'initializ'ing?
     integer :: ivar
-    real(r8), parameter :: flushinvalid = -9999.0
-    real(r8), parameter :: flushzero = 0.0
-    real(r8), parameter :: flushone  = 1.0
-
+    
     
     ivar=0
 
@@ -623,27 +626,6 @@ contains
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
 
-    call this%set_restart_var(vname='fates_bsw', vtype=cohort_r8, &
-         long_name='ed cohort sapwood biomass', units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bsw_co )
-
-    call this%set_restart_var(vname='fates_bdead', vtype=cohort_r8, &
-         long_name='ed cohort - dead (structural) biomass in living plants', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bdead_co )
-
-    call this%set_restart_var(vname='fates_bl', vtype=cohort_r8, &
-         long_name='ed cohort - leaf biomass', units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bleaf_co )
-
-    call this%set_restart_var(vname='fates_br', vtype=cohort_r8, &
-         long_name='ed cohort - fine root biomass', units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_broot_co )
-
-    call this%set_restart_var(vname='fates_bstore', vtype=cohort_r8, &
-         long_name='ed cohort - storage biomass', units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bstore_co )
-
     call this%set_restart_var(vname='fates_canopy_layer', vtype=cohort_r8, &
          long_name='ed cohort - canopy_layer', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_co )
@@ -743,7 +725,6 @@ contains
          long_name='ed cohort - mechanical mortality rate', &
          units='%/event', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_lmort_infra_co ) 
-
 
     call this%set_restart_var(vname='fates_ddbhdt', vtype=cohort_r8, &
          long_name='ed cohort - differential: ddbh/dt', &
@@ -859,13 +840,136 @@ contains
          long_name='last 10 days of volumetric soil water, by site x day-index', &
          units='m3/m3', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_watermem_siwm )
-         
+
+
+    ! Register all of the PRT states and fluxes
+
+    ir_prt_base = ivar
+    call this%DefinePRTRestartVars(initialize_variables,ivar)
+       
+ 
     
     ! Must be last thing before return
     this%num_restart_vars_ = ivar
     
-  end subroutine define_restart_vars
-    
+ end subroutine define_restart_vars
+  
+  ! =====================================================================================
+  
+  subroutine DefinePRTRestartVars(this,initialize_variables,ivar)
+
+     use FatesIOVariableKindMod, only : cohort_r8
+
+     class(fates_restart_interface_type) :: this
+     logical, intent(in)                 :: initialize_variables
+     integer,intent(inout)               :: ivar      ! global variable counter
+      
+     integer                             :: n_vars    ! number of state variables
+     integer                             :: n_pos     ! number of discrete positions
+     integer                             :: dummy_out ! dummy index for variable
+                                                      ! position in global file
+     integer                             :: i_var     ! loop counter for prt variables
+     integer                             :: i_pos     ! loop counter for discrete position
+
+     character(len=32)  :: symbol_base    ! Symbol name without position or flux type
+     character(len=128) :: name_base      ! name without position or flux type
+     character(len=4)   :: pos_symbol
+     character(len=128) :: symbol
+     character(len=256) :: long_name
+
+
+     n_vars = size(prt_instance%state_descriptor,1)
+     
+     do i_var = 1, n_vars
+        
+
+        ! The base symbol name
+        symbol_base = prt_instance%state_descriptor(i_var)%symbol
+        
+        ! The long name of the variable
+        name_base = prt_instance%state_descriptor(i_var)%longname
+
+
+        n_pos = prt_instance%state_descriptor(i_var)%num_pos
+        
+        do i_pos = 1, n_pos
+           
+           
+           ! String describing the physical position of the variable
+           write(pos_symbol, '(I3.3)') i_pos
+
+           ! Register the instantaneous state variable "val"
+           ! ----------------------------------------------------------------------------
+
+           ! The symbol that is written to file
+           symbol    = trim(symbol_base)//'_val_'//'_pos_'//trim(pos_symbol)
+           
+           ! The expanded long name of the variable
+           long_name = trim(name_base)//', state var, position:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=trim(symbol), &
+                  vtype=cohort_r8, &
+                  long_name=trim(long_name), &
+                  units='kg', flushval = flushzero, &
+                  hlms='CLM:ALM', initialize=initialize_variables, &
+                  ivar=ivar, index = dummy_out ) 
+
+           ! Register the turnover flux variables
+           ! ----------------------------------------------------------------------------
+
+           ! The symbol that is written to file
+           symbol = trim(symbol_base)//'_turn_'//'_pos_'//trim(pos_symbol)
+           
+           ! The expanded long name of the variable
+           long_name     = trim(name_base)//', turnover, position:'//trim(pos_symbol)
+           
+           call this%set_restart_var(vname=trim(symbol), &
+                 vtype=cohort_r8, &
+                 long_name=trim(long_name), &
+                 units='kg', flushval = flushzero, &
+                 hlms='CLM:ALM', initialize=initialize_variables, &
+                 ivar=ivar, index = dummy_out ) 
+            
+
+
+           ! Register the net allocation flux variable
+           ! ----------------------------------------------------------------------------
+           
+           ! The symbol that is written to file
+           symbol = trim(symbol_base)//'_net_'//'_pos_'//trim(pos_symbol)
+           
+           ! The expanded long name of the variable
+           long_name     = trim(name_base)//', net allocation/transp, position:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=trim(symbol), &
+                  vtype=cohort_r8, &
+                  long_name=trim(long_name), &
+                  units='kg', flushval = flushzero, &
+                  hlms='CLM:ALM', initialize=initialize_variables, &
+                  ivar=ivar, index = dummy_out ) 
+           
+
+
+           ! Register the burn flux variable
+           ! ----------------------------------------------------------------------------
+           ! The symbol that is written to file
+           symbol    = trim(symbol_base)//'_burned_'//'_pos_'//trim(pos_symbol)
+           
+           ! The expanded long name of the variable
+           long_name = trim(name_base)//', burned mass:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=symbol, &
+                 vtype=cohort_r8, &
+                 long_name=trim(long_name), &
+                 units='kg', flushval = flushzero, &
+                 hlms='CLM:ALM', initialize=initialize_variables, &
+                 ivar=i_var, index = dummy_out ) 
+
+        end do
+     end do
+      
+     return
+  end subroutine DefinePRTRestartVars
 
   ! =====================================================================================
    
@@ -966,7 +1070,10 @@ contains
 
     integer  :: ft               ! functional type index
     integer  :: k,j,i            ! indices to the radiation matrix
-    
+    integer  :: i_var_pos        ! loop counter for var x position
+    integer  :: i_var            ! loop counter for PRT variables
+    integer  :: i_pos            ! loop counter for discrete PRT positions
+
     type(fates_restart_variable_type) :: rvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -997,11 +1104,6 @@ contains
            rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
-           rio_bsw_co                  => this%rvars(ir_bsw_co)%r81d, &
-           rio_bdead_co                => this%rvars(ir_bdead_co)%r81d, &
-           rio_bleaf_co                => this%rvars(ir_bleaf_co)%r81d, &
-           rio_broot_co                => this%rvars(ir_broot_co)%r81d, &
-           rio_bstore_co               => this%rvars(ir_bstore_co)%r81d, &
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
@@ -1105,22 +1207,32 @@ contains
                    write(fates_log(),*) 'CLTV lowerbound ', lbound(rio_npp_acc_co,1) 
                    write(fates_log(),*) 'CLTV upperbound  ', ubound(rio_npp_acc_co,1)
                 endif
-             
-                select case(hlm_parteh_model)
-                case (1)
 
-                   rio_bsw_co(io_idx_co)    = ccohort%prt%GetState(sapw_organ, carbon12_species )
-                   rio_bdead_co(io_idx_co)  = ccohort%prt%GetState(struct_organ, carbon12_species )
-                   rio_bleaf_co(io_idx_co)  = ccohort%prt%GetState(leaf_organ, carbon12_species )
-                   rio_broot_co(io_idx_co)  = ccohort%prt%GetState(fnrt_organ, carbon12_species )
-                   rio_bstore_co(io_idx_co) = ccohort%prt%GetState(store_organ, carbon12_species )
+                ! Fill output arrays of PRT variables
+                i_var_pos = 0
+                do i_var = 1, size(ccohort%prt%variables,1)
+                   do i_pos = 1, ccohort%prt%variables(i_var)%num_pos
 
-                case DEFAULT
-                   write(fates_log(),*) 'You specified an unknown PRT module'
-                   write(fates_log(),*) 'Aborting'
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                end select
-    
+                      i_var_pos = i_var_pos + 1
+                      this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%val(i_pos)
+
+                      i_var_pos = i_var_pos + 1
+                      this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%turnover(i_pos)
+
+                      i_var_pos = i_var_pos + 1
+                      this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%net_art(i_pos)
+
+                      i_var_pos = i_var_pos + 1
+                      this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%burned(i_pos)
+                      
+                   end do
+                end do
+
+
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
@@ -1541,7 +1653,9 @@ contains
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
      integer  :: patchespersite   ! number of patches per site
      integer  :: cohortsperpatch  ! number of cohorts per patch 
-     
+     integer  :: i_var_pos        ! loop counter for var x position
+     integer  :: i_var            ! loop counter for PRT variables
+     integer  :: i_pos            ! loop counter for discrete PRT positions
 
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
@@ -1569,11 +1683,6 @@ contains
           rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
-          rio_bsw_co                  => this%rvars(ir_bsw_co)%r81d, &
-          rio_bdead_co                => this%rvars(ir_bdead_co)%r81d, &
-          rio_bleaf_co                => this%rvars(ir_bleaf_co)%r81d, &
-          rio_broot_co                => this%rvars(ir_broot_co)%r81d, &
-          rio_bstore_co               => this%rvars(ir_bstore_co)%r81d, &
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
@@ -1664,23 +1773,29 @@ contains
                    write(fates_log(),*) 'CVTL io_idx_co ',io_idx_co
                 endif
 
-                select case(hlm_parteh_model)
-                case (1)
-                   
-                   call SetState(ccohort%prt,leaf_organ, carbon12_species, rio_bleaf_co(io_idx_co))
-                   call SetState(ccohort%prt,fnrt_organ, carbon12_species, rio_broot_co(io_idx_co))
-                   call SetState(ccohort%prt,sapw_organ, carbon12_species, rio_bsw_co(io_idx_co))
-                   call SetState(ccohort%prt,store_organ, carbon12_species, rio_bstore_co(io_idx_co))
-                   call SetState(ccohort%prt,struct_organ , carbon12_species, rio_bdead_co(io_idx_co))
-                   call SetState(ccohort%prt,repro_organ , carbon12_species, 0.0_r8)
+                ! Fill PRT state variables with array data
+                i_var_pos = 0
+                do i_var = 1, size(ccohort%prt%variables,1)
+                   do i_pos = 1, ccohort%prt%variables(i_var)%num_pos
 
-                case DEFAULT
-                   write(fates_log(),*) 'You specified an unknown PRT module'
-                   write(fates_log(),*) 'Aborting'
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                end select
+                      i_var_pos = i_var_pos + 1
+                      ccohort%prt%variables(i_var)%val(i_pos) = &
+                            this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co)
 
+                      i_var_pos = i_var_pos + 1
+                      ccohort%prt%variables(i_var)%turnover(i_pos) = &
+                            this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co)
 
+                      i_var_pos = i_var_pos + 1
+                      ccohort%prt%variables(i_var)%net_art(i_pos) = &
+                            this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co)
+
+                      i_var_pos = i_var_pos + 1
+                      ccohort%prt%variables(i_var)%burned(i_pos) = &
+                            this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co)                      
+                   end do
+                end do
+                
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
