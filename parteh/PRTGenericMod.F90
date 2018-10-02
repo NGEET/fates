@@ -573,29 +573,29 @@ contains
        this%variables(i_var)%burned(:)    = donor_prt_obj%variables(i_var)%burned(:)
     end do
 
-    if(allocated(this%bc_in))then
-       num_bc_in = size(this%bc_in,1)
-       do i_bc = 1, num_bc_in
-          this%bc_in(i_bc)%ival => donor_prt_obj%bc_in(i_bc)%ival
-          this%bc_in(i_bc)%rval => donor_prt_obj%bc_in(i_bc)%rval
-       end do
-    end if
+!    if(allocated(this%bc_in))then
+!       num_bc_in = size(this%bc_in,1)
+!       do i_bc = 1, num_bc_in
+!          this%bc_in(i_bc)%ival => donor_prt_obj%bc_in(i_bc)%ival
+!          this%bc_in(i_bc)%rval => donor_prt_obj%bc_in(i_bc)%rval
+!       end do
+!    end if
        
-    if(allocated(this%bc_out))then
-       num_bc_out = size(this%bc_out,1)
-       do i_bc = 1, num_bc_out
-          this%bc_out(i_bc)%ival => donor_prt_obj%bc_out(i_bc)%ival
-          this%bc_out(i_bc)%rval => donor_prt_obj%bc_out(i_bc)%rval
-       end do
-    end if
+!    if(allocated(this%bc_out))then
+!       num_bc_out = size(this%bc_out,1)
+!       do i_bc = 1, num_bc_out
+!          this%bc_out(i_bc)%ival => donor_prt_obj%bc_out(i_bc)%ival
+!          this%bc_out(i_bc)%rval => donor_prt_obj%bc_out(i_bc)%rval
+!       end do
+!    end if
 
-    if(allocated(this%bc_inout))then
-       num_bc_inout = size(this%bc_inout,1)
-       do i_bc = 1, num_bc_inout
-          this%bc_inout(i_bc)%ival => donor_prt_obj%bc_inout(i_bc)%ival
-          this%bc_inout(i_bc)%rval => donor_prt_obj%bc_inout(i_bc)%rval
-       end do
-    end if
+!    if(allocated(this%bc_inout))then
+!       num_bc_inout = size(this%bc_inout,1)
+!       do i_bc = 1, num_bc_inout
+!          this%bc_inout(i_bc)%ival => donor_prt_obj%bc_inout(i_bc)%ival
+!          this%bc_inout(i_bc)%rval => donor_prt_obj%bc_inout(i_bc)%rval
+!       end do
+!    end if
 
     this%ode_opt_step = donor_prt_obj%ode_opt_step
 

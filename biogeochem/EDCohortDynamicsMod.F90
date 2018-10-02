@@ -175,12 +175,6 @@ contains
        call SetState(new_cohort%prt,struct_organ , carbon12_species, bdead)
        call SetState(new_cohort%prt,repro_organ , carbon12_species, 0.0_r8)
 
-       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
-       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
-
-       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
-       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
-
     end select
     
 
@@ -280,7 +274,7 @@ contains
         
         allocate(callom_prt)
         new_cohort%prt => callom_prt
-        
+     
      case DEFAULT
 
         write(fates_log(),*) 'You specified an unknown PRT module'
@@ -289,9 +283,20 @@ contains
 
      end select
      
-     
      call new_cohort%prt%InitPRTVartype()
-     
+
+     select case(hlm_parteh_model)
+     case (1)
+
+        ! Register boundary conditions
+        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
+        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
+        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
+        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
+
+     end select
+
+
      return
   end subroutine InitPRTCohort
 
