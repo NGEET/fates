@@ -860,13 +860,9 @@ contains
            stop
         end if
 
-        print*,"ipft: ",ipft
-
         call bleaf(dbh,ipft,canopy_trim,ct_leaf,ct_dleafdd)
         call bfineroot(dbh,ipft,canopy_trim,ct_fnrt,ct_dfnrtdd)
         call bsap_allom(dbh,ipft,canopy_trim,sapw_area,ct_sap,ct_dsapdd)
-
-        print*,"Clear"
 
         call bagw_allom(dbh,ipft,ct_agw,ct_dagwdd)
         call bbgw_allom(dbh,ipft,ct_bgw,ct_dbgwdd)

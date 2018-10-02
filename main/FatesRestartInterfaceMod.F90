@@ -894,7 +894,6 @@ contains
         
         do i_pos = 1, n_pos
            
-           
            ! String describing the physical position of the variable
            write(pos_symbol, '(I3.3)') i_pos
 
@@ -902,8 +901,8 @@ contains
            ! ----------------------------------------------------------------------------
 
            ! The symbol that is written to file
-           symbol    = trim(symbol_base)//'_val_'//'_pos_'//trim(pos_symbol)
-           
+           symbol    = trim(symbol_base)//'_val_'//trim(pos_symbol)
+
            ! The expanded long name of the variable
            long_name = trim(name_base)//', state var, position:'//trim(pos_symbol)
 
@@ -918,8 +917,8 @@ contains
            ! ----------------------------------------------------------------------------
 
            ! The symbol that is written to file
-           symbol = trim(symbol_base)//'_turn_'//'_pos_'//trim(pos_symbol)
-           
+           symbol = trim(symbol_base)//'_turn_'//trim(pos_symbol)
+
            ! The expanded long name of the variable
            long_name     = trim(name_base)//', turnover, position:'//trim(pos_symbol)
            
@@ -936,8 +935,8 @@ contains
            ! ----------------------------------------------------------------------------
            
            ! The symbol that is written to file
-           symbol = trim(symbol_base)//'_net_'//'_pos_'//trim(pos_symbol)
-           
+           symbol = trim(symbol_base)//'_net_'//trim(pos_symbol)
+
            ! The expanded long name of the variable
            long_name     = trim(name_base)//', net allocation/transp, position:'//trim(pos_symbol)
 
@@ -953,8 +952,8 @@ contains
            ! Register the burn flux variable
            ! ----------------------------------------------------------------------------
            ! The symbol that is written to file
-           symbol    = trim(symbol_base)//'_burned_'//'_pos_'//trim(pos_symbol)
-           
+           symbol    = trim(symbol_base)//'_burned_'//trim(pos_symbol)
+
            ! The expanded long name of the variable
            long_name = trim(name_base)//', burned mass:'//trim(pos_symbol)
 
@@ -963,7 +962,7 @@ contains
                  long_name=trim(long_name), &
                  units='kg', flushval = flushzero, &
                  hlms='CLM:ALM', initialize=initialize_variables, &
-                 ivar=i_var, index = dummy_out ) 
+                 ivar=ivar, index = dummy_out ) 
 
         end do
      end do
