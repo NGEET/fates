@@ -70,6 +70,8 @@ module EDTypesMod
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
   logical, parameter :: do_ed_phenology = .true.
+  logical, parameter :: do_fates_salinity = .true.
+  logical, parameter :: do_fates_sulphide = .false.
 
 
   ! MODEL PARAMETERS
@@ -407,7 +409,9 @@ module EDTypesMod
      ! ROOTS
      real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
      real(r8), allocatable ::  rootr_ft(:,:)                       ! fraction of water taken from each PFT and soil layer:-
-     real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-   
+     real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-
+     real(r8) ::  bstress_sal_ft(maxpft)                        ! bstress from salinity calculated seperately for each PFT:-   
+     
 
      ! DISTURBANCE 
      real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 

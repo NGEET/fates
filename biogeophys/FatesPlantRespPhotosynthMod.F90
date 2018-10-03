@@ -29,6 +29,7 @@ module FATESPlantRespPhotosynthMod
    use EDTypesMod, only        : maxpft
    use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
+   use EDTypesMod, only        : do_fates_salinity 
    
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -390,7 +391,9 @@ contains
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
                                  btran_eff = currentPatch%btran_ft(ft)
                               end if
-                              
+                              if(do_fates_salinity)then
+                                btran_eff = btran_eff*currentPatch%bstress_sal_ft(ft)
+                              endif 
                               ! Vegetation area index
                               vai = (currentPatch%elai_profile(cl,ft,iv)+currentPatch%esai_profile(cl,ft,iv)) 
                               if (iv == 1) then
