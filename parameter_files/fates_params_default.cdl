@@ -177,24 +177,28 @@ variables:
 		fates_prt_unit_gr_resp:long_name = "Unit growth respiration rate per organ" ;
 
 	float fates_prt_nitr_stoich_p1(fates_prt_organs,fates_pft) ;
-		fates_prt_nitr_stoich_p1:units = "(gC/gN)" ;
-		fates_prt_nitr_stoich_p1:long_name = "nitrogen stoichiometry" ;
+		fates_prt_nitr_stoich_p1:units = "(gN/gC)" ;
+		fates_prt_nitr_stoich_p1:long_name = "nitrogen stoichiometry, parameter 1" ;
 
 	float fates_prt_nitr_stoich_p2(fates_prt_organs,fates_pft) ;
-		fates_prt_nitr_stoich_p2:units = "(gC/cN)" ;
-		fates_prt_nitr_stoich_p2:long_name = "nitrogen stoichiometry, parameter 2 (hypothesis dependant meaning)" ;
+		fates_prt_nitr_stoich_p2:units = "(gN/gC)" ;
+		fates_prt_nitr_stoich_p2:long_name = "nitrogen stoichiometry, parameter 2" ;
 
 	float fates_prt_phos_stoich_p1(fates_prt_organs,fates_pft) ;
-		fates_prt_phos_stoich_p1:units = "(gC/gP)" ;
-		fates_prt_phos_stoich_p1:long_name = "phosphorous stoichiometry, parameter 1 (hypothesis dependant meaning)" ;
+		fates_prt_phos_stoich_p1:units = "(gP/gC)" ;
+		fates_prt_phos_stoich_p1:long_name = "phosphorous stoichiometry, parameter 1" ;
 
 	float fates_prt_phos_stoich_p2(fates_prt_organs,fates_pft) ;
-		fates_prt_phos_stoich_p2:units = "(gC/gP)" ;
-		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2 (hypothesis dependant meaning)" ;
+		fates_prt_phos_stoich_p2:units = "(gP/gC)" ;
+		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2" ;
 
 	float fates_prt_alloc_priority(fates_prt_organs,fates_pft) ;
 		fates_prt_alloc_priority:units = "index (0-fates_prt_organs)" ;
 		fates_prt_alloc_priority:long_name = "Priority order for allocation" ;
+
+	float fates_phenflush_fraction(fates_pft) ;
+		fates_phenflush_fraction:units = "fraction" ;
+		fates_phenflush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
 
 	float fates_turnover_retrans_mode(fates_pft) ;
 		fates_turnover_retrans_mode:units = "index" ;
@@ -202,15 +206,15 @@ variables:
 
 	float fates_turnover_carb_retrans_p1(fates_prt_organs,fates_pft) ;
 		fates_turnover_carb_retrans_p1:units = "na" ;
-		fates_turnover_carb_retrans_p1:long_name = "retranslocation of carbon in turnover, parameter 1 (hypothesis dependant meaning)" ;
+		fates_turnover_carb_retrans_p1:long_name = "retranslocation of carbon in turnover, parameter 1" ;
 
 	float fates_turnover_nitr_retrans_p1(fates_prt_organs,fates_pft) ;
 		fates_turnover_nitr_retrans_p1:units = "na" ;
-		fates_turnover_nitr_retrans_p1:long_name = "retranslocation of nitrogen in turnover, parameter 1 (hypothesis dependant meaning)" ;
+		fates_turnover_nitr_retrans_p1:long_name = "retranslocation of nitrogen in turnover, parameter 1" ;
 
 	float fates_turnover_phos_retrans_p1(fates_prt_organs,fates_pft) ;
 		fates_turnover_phos_retrans_p1:units = "na" ;
-		fates_turnover_phos_retrans_p1:long_name = "retranslocation of phosphorous in turnover, parameter 1 (hypothesis dependant meaning)" ;
+		fates_turnover_phos_retrans_p1:long_name = "retranslocation of phosphorous in turnover, parameter 1" ;
 
 	float fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
@@ -791,6 +795,9 @@ data:
   _, _,
   _, _,
   _, _;
+
+ fates_phenflush_fraction = 
+  0.5, 0.5;
 
  fates_turnover_retrans_mode = 
   1, 1;

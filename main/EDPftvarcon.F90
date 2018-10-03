@@ -170,6 +170,9 @@ module EDPftvarcon
 
      ! Turnover related things
 
+     real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
+                                                          ! on bud-burst [kgC/kgC]
+
      real(r8), allocatable :: leaf_long(:)                ! Leaf turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: root_long(:)                ! root turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: branch_turnover(:)          ! Turnover time for branchfall on live trees (pft) [yr]
@@ -707,6 +710,9 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_phenflush_fraction'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     
   end subroutine Register_PFT
@@ -1134,6 +1140,10 @@ contains
     name = 'fates_displar'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%displar)
+
+    name = 'fates_phenflush_fraction'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%phenflush_fraction)
 
   end subroutine Receive_PFT
 
@@ -1671,6 +1681,7 @@ contains
         write(fates_log(),fmt0) 'rhos = ',EDPftvarcon_inst%rhos
         write(fates_log(),fmt0) 'taul = ',EDPftvarcon_inst%taul 
         write(fates_log(),fmt0) 'taus = ',EDPftvarcon_inst%taus
+        write(fates_log(),fmt0) 'phenflush_fraction',EDpftvarcon_inst%phenflush_fraction
         write(fates_log(),fmt0) 'rootprof_beta = ',EDPftvarcon_inst%rootprof_beta
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
         write(fates_log(),fmt0) 'allom_hmode = ',EDPftvarcon_inst%allom_hmode
@@ -1846,6 +1857,26 @@ contains
 !           call endrun(msg=errMsg(sourcefile, __LINE__))
 !
 !        end if
+
+
+        ! Check if the fraction of storage used for flushing deciduous trees
+        ! is greater than zero, and less than or equal to 1.
+
+        if ( int(EDPftvarcon_inst%evergreen(ipft)) .ne. 1 ) then 
+           if ( ( EDPftvarcon_inst%phenflush_fraction(ipft) < nearzero ) .or. &
+                ( EDPFtvarcon_inst%phenflush_fraction(ipft) > 1 ) ) then
+              
+              write(fates_log(),*) ' Deciduous plants must flush some storage carbon'
+              write(fates_log(),*) ' on bud-burst. If phenflush_fraction is not greater than 0'
+              write(fates_log(),*) ' it will not be able to put out any leaves. Plants need leaves.'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(EDPftvarcon_inst%evergreen(ipft))
+              write(fates_log(),*) ' phenflush_fraction: ', EDPFtvarcon_inst%phenflush_fraction(ipft)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+
  
         ! Check if freezing tolerance is within reasonable bounds
         ! ----------------------------------------------------------------------------------

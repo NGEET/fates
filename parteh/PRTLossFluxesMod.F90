@@ -93,6 +93,19 @@ contains
      real(r8)            :: sp_demand              ! nutrient demand for species
 
 
+     ! We currently only allow the flushing and drop of leaves.
+     ! If other organs should be desired (like seasonality of fine-roots)
+     ! those parameters and clauses need to be added
+
+     if(organ_id .ne. leaf_organ) then
+        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
+        write(fates_log(),*) ' leaf_organ: ',leaf_organ
+        write(fates_log(),*) ' organ: ',organ_id
+        write(fates_log(),*) 'Exiting'
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+     end if
+
+
      associate(organ_map => prt%prt_instance%organ_map)
 
        ! First transfer in carbon
@@ -347,6 +360,19 @@ contains
      integer,intent(in)  :: ipft
      integer,intent(in)  :: organ_id
      real(r8),intent(in) :: mass_fraction
+     
+     ! We currently only allow the flushing and drop of leaves.
+     ! If other organs should be desired (like seasonality of fine-roots)
+     ! those parameters and clauses need to be added
+     
+     if(organ_id .ne. leaf_organ) then
+        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
+        write(fates_log(),*) ' leaf_organ: ',leaf_organ
+        write(fates_log(),*) ' organ: ',organ_id
+        write(fates_log(),*) 'Exiting'
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+     end if
+
      
      if ( int(EDPftvarcon_inst%turnover_retrans_mode(ipft)) == 1 ) then
         call DeciduousTurnoverSimpleRetranslocation(prt,ipft,organ_id,mass_fraction)
