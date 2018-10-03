@@ -71,7 +71,7 @@ module EDTypesMod
   ! INTRODUCED (RGK 03-2017)
   logical, parameter :: do_ed_phenology = .true.
   integer, parameter :: do_fates_salinity = 1
-  lnteger, parameter :: do_fates_sulphide = 0
+  integer, parameter :: do_fates_sulphide = 2
 
 
   ! MODEL PARAMETERS
