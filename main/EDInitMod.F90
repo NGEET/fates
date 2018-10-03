@@ -72,7 +72,7 @@ contains
     allocate(site_in%demotion_rate(1:nlevsclass))
     allocate(site_in%promotion_rate(1:nlevsclass))
     allocate(site_in%imort_rate(1:nlevsclass,1:numpft))
-    allocate(site_in%fmort_rate(1:nlevsclass,1:numpft,1:2))
+    allocate(site_in%fmort_rate(1:nlevsclass,1:numpft,1:nclmax))
     allocate(site_in%fmort_rate_cambial(1:nlevsclass,1:numpft))
     allocate(site_in%fmort_rate_crown(1:nlevsclass,1:numpft))
     !

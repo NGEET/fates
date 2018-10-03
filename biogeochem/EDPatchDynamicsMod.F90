@@ -498,22 +498,18 @@ contains
                 ! loss of individuals from source patch due to area shrinking
                 currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area) 
 
-                if (currentCohort%canopy_layer .eq. 1) then
-                   levcan = 1
-                else
-                   levcan = 2
-                endif
+                levcan = currentCohort%canopy_layer 
 
-                ! before changing number densities, keep track of the total rate of trees that died due to fire, as well as from each fire mortality term
+                ! before changing number densities, track total rate of trees that died due to fire, as well as from each fire mortality term
                 currentSite%fmort_rate(currentCohort%size_class, currentCohort%pft, levcan) = &
                      currentSite%fmort_rate(currentCohort%size_class, currentCohort%pft, levcan) + &
                      nc%n * currentCohort%fire_mort / hlm_freq_day
                 currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) = &
                      currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) + &
-                     nc%n * currentCohort%crownfire_mort / hlm_freq_day
+                     nc%n * currentCohort%cambial_mort / hlm_freq_day
                 currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) = &
                      currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) + &
-                     nc%n * currentCohort%cambial_mort / hlm_freq_day
+                     nc%n * currentCohort%crownfire_mort / hlm_freq_day
                 currentSite%fmort_carbonflux(levcan) = currentSite%fmort_carbonflux(levcan) + &
                      (nc%n * currentCohort%fire_mort) * &
                      currentCohort%b_total() * g_per_kg * days_per_sec * ha_per_m2
