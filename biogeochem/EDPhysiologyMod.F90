@@ -284,11 +284,11 @@ contains
                    ! Leaf cost at leaf level z accounting for sla profile
 		   if(use_leaf_age==itrue)then
                       currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
-                        (currentCohort%fracExpLeaves*EDPftvarcon_inst%expleaf_long(ipft)+ &
-			 currentCohort%fracYoungLeaves*EDPftvarcon_inst%youngleaf_long(ipft) + &
-			 currentCohort%fracOldLeaves*EDPftvarcon_inst%oldleaf_long(ipft) + &
-			 currentCohort%fracSenLeaves*EDPftvarcon_inst%senleaf_long(ipft) ) & 
-			 *1000.0_r8) !convert from sla in m2g-1 to m2kg-1		   
+                        (currentCohort%fracExpLeaves*EDPftvarcon_inst%expleaf_flong(ipft)+ &
+			 currentCohort%fracYoungLeaves*EDPftvarcon_inst%youngleaf_flong(ipft) + &
+			 currentCohort%fracOldLeaves*EDPftvarcon_inst%oldleaf_flong(ipft) + &
+			 currentCohort%fracSenLeaves*EDPftvarcon_inst%senleaf_flong(ipft) ) & 
+			 *EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1		   
 		   else
                       currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
                         EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
@@ -1117,10 +1117,11 @@ contains
        if(use_leaf_age==itrue)then
           if(currentSite%dstatus==1)then
             currentCohort%leaf_md = currentCohort%bl*currentCohort%fracSenLeaves &
-	        / (EDPftvarcon_inst%senleaf_long(ipft)* EDPftvarcon_inst%senleaf_long_fdrought(ipft))
+	        / (EDPftvarcon_inst%senleaf_flong(ipft)*EDPftvarcon_inst%leaf_long(ipft) &
+		 * EDPftvarcon_inst%senleaf_long_fdrought(ipft))
           else
 	    currentCohort%leaf_md = currentCohort%bl*currentCohort%fracSenLeaves&
-	        / EDPftvarcon_inst%senleaf_long(ipft)
+	        / (EDPftvarcon_inst%leaf_long(ipft)* EDPftvarcon_inst%senleaf_flong(ipft))
 	  endif			 
        else
          currentCohort%leaf_md = currentCohort%bl / EDPftvarcon_inst%leaf_long(ipft)
@@ -1151,17 +1152,18 @@ contains
     
     if(use_leaf_age.and. currentCohort%bl>0.0_r8)then
     	  !advance the leaf ages	  
-	  dExpLeaves_dt=previous_bl *currentCohort%fracExpLeaves &
-	                 / EDPftvarcon_inst%expleaf_long(ipft)*hlm_freq_day
-	  dYoungLeaves_dt=previous_bl *currentCohort%fracYoungLeaves &
-	                 / EDPftvarcon_inst%youngleaf_long(ipft)*hlm_freq_day	
-	  dOldLeaves_dt=previous_bl *currentCohort%fracOldLeaves &
-	                 / EDPftvarcon_inst%oldleaf_long(ipft)*hlm_freq_day			 			 
-	  dSenLeaves_dt=previous_bl *currentCohort%fracSenLeaves &
-	                 / EDPftvarcon_inst%senleaf_long(ipft)*hlm_freq_day
+	  dExpLeaves_dt=previous_bl *currentCohort%fracExpLeaves/(EDPftvarcon_inst%leaf_long(ipft)&
+	                 *EDPftvarcon_inst%expleaf_flong(ipft))*hlm_freq_day
+	  dYoungLeaves_dt=previous_bl *currentCohort%fracYoungLeaves/(EDPftvarcon_inst%leaf_long(ipft) &
+	                 *EDPftvarcon_inst%youngleaf_flong(ipft))*hlm_freq_day	
+	  dOldLeaves_dt=previous_bl *currentCohort%fracOldLeaves /(EDPftvarcon_inst%leaf_long(ipft) &
+	                 * EDPftvarcon_inst%oldleaf_flong(ipft))*hlm_freq_day			 			 
+	  dSenLeaves_dt=previous_bl *currentCohort%fracSenLeaves / (EDPftvarcon_inst%leaf_long(ipft) &
+	                 * EDPftvarcon_inst%senleaf_flong(ipft))*hlm_freq_day
 	  if(currentSite%dstatus==1)  then !drought periods
 	       dSenLeaves_dt=previous_bl *currentCohort%fracSenLeaves &
-	       /(EDPftvarcon_inst%senleaf_long(ipft)*EDPftvarcon_inst%senleaf_long_fdrought(ipft))*hlm_freq_day	  
+	       /(EDPftvarcon_inst%senleaf_flong(ipft)*EDPftvarcon_inst%senleaf_long_fdrought(ipft) &
+	       * EDPftvarcon_inst%leaf_long(ipft))*hlm_freq_day	  
 	  endif	
 	  currentCohort%fracExpLeaves = (previous_bl *currentCohort%fracExpLeaves-dExpLeaves_dt)&
 	                /currentCohort%bl

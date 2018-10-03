@@ -248,18 +248,18 @@ variables:
 	float fates_leaf_long(fates_pft) ;
 		fates_leaf_long:units = "yr" ;
 		fates_leaf_long:long_name = "Leaf longevity (ie turnover timescale)" ;
-	float fates_expleaf_long(fates_pft) ;
-		fates_leaf_long:units = "yr" ;
-		fates_leaf_long:long_name = "Leaf longevity for expanding leaves(ie turnover timescale)" ;		
-	float fates_youngleaf_long(fates_pft) ;
-		fates_leaf_long:units = "yr" ;
-		fates_leaf_long:long_name = "Leaf longevity for young leaves(ie turnover timescale)" ;		
-	float fates_oldleaf_long(fates_pft) ;
-		fates_leaf_long:units = "yr" ;
-		fates_leaf_long:long_name = "Leaf longevity for old leaves(ie turnover timescale)" ;	
-	float fates_senleaf_long(fates_pft) ;
-		fates_leaf_long:units = "yr" ;
-		fates_leaf_long:long_name = "Leaf longevity for senescent leaves(ie turnover timescale)" ;	
+	float fates_expleaf_flong(fates_pft) ;
+		fates_leaf_flong:units = "fraction" ;
+		fates_leaf_flong:long_name = "Fraction of leaf longevity for expanding leaves(ie turnover timescale)" ;		
+	float fates_youngleaf_flong(fates_pft) ;
+		fates_youngleaf_flong:units = "fraction" ;
+		fates_youngleaf_flong:long_name = "Fraction of leaf longevity for young leaves(ie turnover timescale)" ;		
+	float fates_oldleaf_flong(fates_pft) ;
+		fates_oldleaf_flong:units = "fraction" ;
+		fates_oldleaf_flong:long_name = "Fraction of leaf longevity for old leaves(ie turnover timescale)" ;	
+	float fates_senleaf_flong(fates_pft) ;
+		fates_senleaf_flong:units = "fraction" ;
+		fates_senleaf_flong:long_name = "Fraction of leaf longevity for senescent leaves(ie turnover timescale)" ;	
 	float fates_senleaf_long_fdrought(fates_pft) ;
 		fates_leaf_long:units = "yr" ;
 		fates_leaf_long:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;					
@@ -788,13 +788,13 @@ data:
 
  fates_leaf_long = 1.5, 1.5 ;
  
- fates_expleaf_long = 0.1, 0.1 ;
+ fates_expleaf_flong = 0.041, 0.041 ;
  
- fates_youngleaf_long = 0.3, 0.3 ;
+ fates_youngleaf_flong = 0.375, 0.375 ;
  
- fates_oldleaf_long = 0.3, 0.3 ;
+ fates_oldleaf_flong = 0.167, 0.167 ;
  
- fates_senleaf_long = 0.2, 0.2 ;
+ fates_senleaf_flong = 0.417, 0.417 ;
  
  fates_senleaf_long_fdrought = 1.0, 1.0 ;
  
