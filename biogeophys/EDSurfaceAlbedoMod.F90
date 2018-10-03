@@ -196,7 +196,7 @@ contains
                     bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
                     do ib = 1,hlm_numSWb
                        bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
-                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
+                       bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
                        bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
                        bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
                        bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
