@@ -28,6 +28,7 @@ module FatesInterfaceMod
    use EDPftvarcon         , only : FatesCheckParams
    use EDPftvarcon         , only : EDPftvarcon_inst
    use EDParamsMod         , only : FatesReportParams
+   use EDParamsMod         , only : bgc_soil_salinity
 
 
    ! CIME Globals
@@ -894,7 +895,7 @@ contains
       ! so THIS ROUTINE SHOULD NOT BE CALLED AFTER
       ! INITIALIZATION
       if(do_fates_salinity==itrue)then
-           this%bc_in(s)%salinity_sl(:)     = 0.4_r8
+           this%bc_in(s)%salinity_sl(:)     = bgc_soil_salinity
       endif
 
     end subroutine set_bcs

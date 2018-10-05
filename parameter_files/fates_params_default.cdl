@@ -542,6 +542,9 @@ variables:
 	float fates_part_dens ;
 		fates_part_dens:units = "kg/m2" ;
 		fates_part_dens:long_name = "spitfire parameter, oven dry particle density, Table A1 Thonicke et al 2010" ;
+	float fates_soil_salinity(fates_scalar) ;
+		fates_soil_salinity:units = "ppt" ;
+		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;		
 
 // global attributes:
                 :history = "This file was made from FatesPFTIndexSwapper.py \n",
@@ -950,4 +953,6 @@ data:
  fates_miner_total = 0.055 ;
 
  fates_part_dens = 513 ;
+ 
+ fates_soil_salinity = 0.4 ;
 }

@@ -391,7 +391,7 @@ contains
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
                                  btran_eff = currentPatch%btran_ft(ft)
                               end if
-                              if(do_fates_salinity)then
+                              if(do_fates_salinity.eq.itrue)then
                                 btran_eff = btran_eff*currentPatch%bstress_sal_ft(ft)
                               endif 
                               ! Vegetation area index
