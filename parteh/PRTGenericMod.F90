@@ -544,8 +544,8 @@ contains
   subroutine CopyPRTVartypes(this, donor_prt_obj)
 
     ! Arguments
-    class(prt_vartypes)                     :: this
-    type(prt_vartypes), intent(in), pointer :: donor_prt_obj
+    class(prt_vartypes)                      :: this
+    class(prt_vartypes), intent(in), pointer :: donor_prt_obj
 
     ! Locals
 
@@ -611,11 +611,11 @@ contains
     ! assigned for the recipient (the class calling this)
 
     ! Arguments 
-    class(prt_vartypes)                     :: this
-    type(prt_vartypes), intent(in), pointer :: donor_prt_obj
-    real(r8),intent(in)                     :: recipient_fuse_weight   ! This is the weighting
+    class(prt_vartypes)                      :: this
+    class(prt_vartypes), intent(in), pointer :: donor_prt_obj
+    real(r8),intent(in)                      :: recipient_fuse_weight   ! This is the weighting
                                                                        ! for the recipient
-    integer,intent(in),optional             :: position_id
+    integer,intent(in),optional              :: position_id
 
     ! Locals
     integer :: n_vars  ! Number of variables
