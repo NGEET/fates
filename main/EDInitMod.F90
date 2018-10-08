@@ -40,7 +40,7 @@ module EDInitMod
   implicit none
   private
 
-  logical   ::  DEBUG = .false.
+  logical   ::  debug = .false.
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -423,7 +423,7 @@ contains
           cstatus = site_in%dstatus
        endif
 
-       if ( DEBUG ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
+       if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
