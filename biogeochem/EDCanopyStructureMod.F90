@@ -33,7 +33,7 @@ module EDCanopyStructureMod
   public :: canopy_summarization
   public :: update_hlm_dynamics
 
-  logical, parameter :: DEBUG=.false.
+  logical, parameter :: debug=.false.
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -909,7 +909,7 @@ contains
 
     !----------------------------------------------------------------------
 
-    if ( DEBUG ) then
+    if ( debug ) then
        write(fates_log(),*) 'in canopy_summarization'
     endif
 
@@ -1193,12 +1193,12 @@ contains
                 ! no m2 of leaf per m2 of ground in each height class
                 ! FIX(SPM,032414) these should be uncommented this and double check
                 
-                if ( DEBUG ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
+                if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
                 
                 currentPatch%elai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) * fraction_exposed
                 currentPatch%esai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) * fraction_exposed
                 
-                if ( DEBUG ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
+                if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
                 
              enddo ! (iv) hite bins
              

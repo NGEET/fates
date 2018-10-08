@@ -54,7 +54,7 @@ module EDCohortDynamicsMod
   public :: tree_lai
   public :: tree_sai
 
-  logical, parameter :: DEBUG  = .false. ! local debug flag
+  logical, parameter :: debug  = .false. ! local debug flag
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -430,7 +430,7 @@ contains
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
          terminate = 1
-	 if ( DEBUG ) then
+	 if ( debug ) then
              write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh
          endif
        endif
@@ -444,7 +444,7 @@ contains
               (currentCohort%dbh < 0.00001_r8.and.currentCohort%bstore < 0._r8) ) then 
             terminate = 1
 
-            if ( DEBUG ) then
+            if ( debug ) then
                write(fates_log(),*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
             endif
          endif
@@ -452,7 +452,7 @@ contains
          ! In the third canopy layer
          if (currentCohort%canopy_layer > nclmax ) then 
            terminate = 1
-           if ( DEBUG ) then
+           if ( debug ) then
              write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer
            endif
          endif
@@ -461,7 +461,7 @@ contains
          if ( (currentCohort%bsw+currentCohort%bl+currentCohort%br) < 1e-10_r8  .or.  &
                currentCohort%bstore < 1e-10_r8) then 
             terminate = 1  
-            if ( DEBUG ) then
+            if ( debug ) then
               write(fates_log(),*) 'terminating cohorts 3', &
                     currentCohort%bsw,currentCohort%bl,currentCohort%br,currentCohort%bstore
             endif
@@ -470,7 +470,7 @@ contains
          ! Total cohort biomass is negative
          if ( (currentCohort%b_total()) < 0._r8) then
             terminate = 1
-            if ( DEBUG ) then
+            if ( debug ) then
             write(fates_log(),*) 'terminating cohorts 4', & 
                   currentCohort%bsw,   &
                   currentCohort%bl,    &
@@ -576,7 +576,7 @@ contains
      real(r8) :: diff
      real(r8) :: dynamic_fusion_tolerance
 
-     logical, parameter :: FUSE_DEBUG = .false.   ! This debug is over-verbose
+     logical, parameter :: fuse_debug = .false.   ! This debug is over-verbose
                                                  ! and gets its own flag
 
      !----------------------------------------------------------------------
@@ -640,7 +640,7 @@ contains
                                 newn = currentCohort%n + nextc%n
                                 fusion_took_place = 1         
 
-                                if ( FUSE_DEBUG .and. currentCohort%isnew ) then
+                                if ( fuse_debug .and. currentCohort%isnew ) then
                                    write(fates_log(),*) 'Fusing Two Cohorts'
                                    write(fates_log(),*) 'newn: ',newn
                                    write(fates_log(),*) 'Cohort I, Cohort II' 
@@ -1107,8 +1107,8 @@ contains
     n%npp_tstep       = o%npp_tstep
     n%npp_acc         = o%npp_acc
 
-    if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
-    if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
+    if ( debug ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
+    if ( debug ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
 
     n%resp_tstep      = o%resp_tstep
     n%resp_acc        = o%resp_acc
@@ -1173,7 +1173,7 @@ contains
     n%dbdeaddt        = o%dbdeaddt
     n%dbstoredt       = o%dbstoredt
 
-    if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn dpstoredt ',o%dbstoredt
+    if ( debug ) write(fates_log(),*) 'EDCohortDyn dpstoredt ',o%dbstoredt
 
     ! FIRE 
     n%cfa             = o%cfa
