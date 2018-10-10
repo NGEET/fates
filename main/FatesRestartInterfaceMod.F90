@@ -150,7 +150,7 @@ module FatesRestartInterfaceMod
   integer, parameter :: new_cohort = 1  
 
   ! Local debug flag
-  logical, parameter :: DEBUG=.false.
+  logical, parameter :: debug=.false.
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -1183,7 +1183,7 @@ contains
                 cohortsperpatch = cohortsperpatch + 1
                 totalCohorts    = totalCohorts + 1
              
-                if ( DEBUG ) then
+                if ( debug ) then
                    write(fates_log(),*) 'CLTV io_idx_co ', io_idx_co
                    write(fates_log(),*) 'CLTV lowerbound ', lbound(rio_npp_acc_co,1) 
                    write(fates_log(),*) 'CLTV upperbound  ', ubound(rio_npp_acc_co,1)
@@ -1242,7 +1242,7 @@ contains
                    rio_isnew_co(io_idx_co)     = old_cohort
                 endif
                 
-                if ( DEBUG ) then
+                if ( debug ) then
                    write(fates_log(),*) 'CLTV offsetNumCohorts II ',io_idx_co, &
                          cohortsperpatch
                 endif
@@ -1263,7 +1263,7 @@ contains
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
              
-             if ( DEBUG ) then
+             if ( debug ) then
                 write(fates_log(),*) 'offsetNumCohorts III ' &
                       ,io_idx_co,cohortsperpatch
              endif
@@ -1286,9 +1286,9 @@ contains
                 io_idx_pa_cwd = io_idx_pa_cwd + 1
              end do
              
-             if ( DEBUG ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 1 ',io_idx_pa_sunz
+             if ( debug ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
-             if ( DEBUG ) write(fates_log(),*) 'CLTV 1186 ',nlevleaf,numpft,nclmax
+             if ( debug ) write(fates_log(),*) 'CLTV 1186 ',nlevleaf,numpft,nclmax
              
              do k = 1,nlevleaf     ! nlevleaf currently 40
                 do j = 1,numpft    ! dependent on parameter file
@@ -1303,7 +1303,7 @@ contains
                 end do
              end do
              
-             if ( DEBUG ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 2 ',io_idx_pa_sunz
+             if ( debug ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 2 ',io_idx_pa_sunz
 
 
              ! Set the first cohort index to the start of the next patch, increment
@@ -1316,7 +1316,7 @@ contains
              io_idx_co      = io_idx_co_1st
              io_idx_pa_sunz = io_idx_co_1st
              
-             if ( DEBUG ) then
+             if ( debug ) then
                 write(fates_log(),*) 'CLTV io_idx_co_1st ', io_idx_co_1st
                 write(fates_log(),*) 'CLTV numCohort ', cohortsperpatch
                 write(fates_log(),*) 'CLTV totalCohorts ', totalCohorts
@@ -1364,7 +1364,7 @@ contains
           
        enddo
        
-       if ( DEBUG ) then
+       if ( debug ) then
           write(fates_log(),*) 'CLTV total cohorts ',totalCohorts
        end if
        
@@ -1474,7 +1474,7 @@ contains
 
           do idx_pa = 1,rio_npatch_si(io_idx_si)
 
-             if ( DEBUG ) then
+             if ( debug ) then
                 write(fates_log(),*) 'create patch ',idx_pa
                 write(fates_log(),*) 'idx_pa 1-cohortsperpatch : ', rio_ncohort_pa( io_idx_co_1st )
              end if
@@ -1510,7 +1510,7 @@ contains
                 ! Solve for diameter from height
                 call h2d_allom(temp_cohort%hite,temp_cohort%pft,temp_cohort%dbh)
 
-                if (DEBUG) then
+                if (debug) then
                    write(fates_log(),*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
                 end if
 
@@ -1533,7 +1533,7 @@ contains
              !
              if (idx_pa == 1) then ! nothing associated yet. first patch is pointed to by youngest and oldest
                 
-                if ( DEBUG ) write(fates_log(),*) 'idx_pa = 1 ',idx_pa
+                if ( debug ) write(fates_log(),*) 'idx_pa = 1 ',idx_pa
                 
                 sites(s)%youngest_patch         => newp                   
                 sites(s)%oldest_patch           => newp                        
@@ -1544,7 +1544,7 @@ contains
                 
              else if (idx_pa == 2) then ! add second patch to list
                 
-                if ( DEBUG ) write(fates_log(),*) 'idx_pa = 2 ',idx_pa
+                if ( debug ) write(fates_log(),*) 'idx_pa = 2 ',idx_pa
                 
                 sites(s)%youngest_patch         => newp
                 sites(s)%youngest_patch%younger => null()
@@ -1554,7 +1554,7 @@ contains
 
              else ! more than 2 patches, insert patch into youngest slot
                 
-                if ( DEBUG ) write(fates_log(),*) 'idx_pa > 2 ',idx_pa
+                if ( debug ) write(fates_log(),*) 'idx_pa > 2 ',idx_pa
                 
                 newp%older                      => sites(s)%youngest_patch
                 sites(s)%youngest_patch%younger => newp
@@ -1757,7 +1757,7 @@ contains
                 cohortsperpatch  = cohortsperpatch    + 1
                 totalcohorts     = totalcohorts + 1
                 
-                if ( DEBUG ) then
+                if ( debug ) then
                    write(fates_log(),*) 'CVTL io_idx_co ',io_idx_co
                 endif
 
@@ -1839,7 +1839,7 @@ contains
              
              ! set cohorts per patch for IO
              
-             if ( DEBUG ) then
+             if ( debug ) then
                 write(fates_log(),*) 'CVTL III ' &
                      ,io_idx_co,cohortsperpatch
              endif
@@ -1863,7 +1863,7 @@ contains
                 io_idx_pa_cwd = io_idx_pa_cwd + 1
              enddo
              
-             if ( DEBUG ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 1 ',io_idx_pa_sunz
+             if ( debug ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
              do k = 1,nlevleaf ! nlevleaf currently 40
                 do j = 1,numpft
@@ -1878,7 +1878,7 @@ contains
                 end do
              end do
              
-             if ( DEBUG ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 2 ',io_idx_pa_sunz
+             if ( debug ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 2 ',io_idx_pa_sunz
              
              ! Now increment the position of the first cohort to that of the next
              ! patch
@@ -1891,7 +1891,7 @@ contains
              io_idx_co      = io_idx_co_1st
              io_idx_pa_sunz = io_idx_co_1st
              
-             if ( DEBUG ) then
+             if ( debug ) then
                 write(fates_log(),*) 'CVTL io_idx_co_1st ', io_idx_co_1st
                 write(fates_log(),*) 'CVTL cohortsperpatch ', cohortsperpatch
                 write(fates_log(),*) 'CVTL totalCohorts ', totalCohorts
@@ -1939,7 +1939,7 @@ contains
 
        end do
        
-       if ( DEBUG ) then
+       if ( debug ) then
           write(fates_log(),*) 'CVTL total cohorts ',totalCohorts
        end if
        
