@@ -84,6 +84,9 @@ variables:
 	char fates_pftname(fates_pft, fates_string_length) ;
 		fates_pftname:units = "unitless - string" ;
 		fates_pftname:long_name = "Description of plant type" ;
+       char fates_prt_organ_name(fates_prt_organs, fates_string_length) ;
+		fates_prt_organ_name:units = "unitless - string" ;
+		fates_prt_organ_name:long_name = "Plant organ name (order must match PRTGenericMod.F90)" ;
 	float fates_rootprof_beta(fates_variants, fates_pft) ;
 		fates_rootprof_beta:units = "unitless" ;
 		fates_rootprof_beta:long_name = "Rooting beta parameter, for C and N vertical discretization (NOT USED BY DEFAULT)" ;
@@ -416,7 +419,7 @@ variables:
 		fates_seed_alloc_mature:long_name = "fraction of available carbon balance allocated to seeds in mature plants (adds to fates_seed_alloc)" ;
 	float fates_seed_dbh_repro_threshold(fates_pft) ;
 		fates_seed_dbh_repro_threshold:units = "cm" ;
-		fates_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool (NOT USED YET)" ;
+		fates_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool" ;
 	float fates_seed_decay_turnover(fates_pft) ;
 		fates_seed_decay_turnover:units = "1/yr" ;
 		fates_seed_decay_turnover:long_name = "turnover time for seeds with respect to germination" ;
@@ -687,6 +690,14 @@ data:
   "broadleaf_evergreen_tropical_tree                ",
   "broadleaf_evergreen_tropical_tree                " ;
 
+  fates_prt_organ_name =
+  "leaf                                             ",
+  "fine root                                        ",
+  "sapwood                                          ",
+  "storage                                          ",
+  "reproduction                                     ", 
+  "structure                                        ";
+
  fates_rootprof_beta =
   0.976, 0.976,
   _, _ ;
@@ -748,7 +759,6 @@ data:
  fates_branch_turnover = 50, 50 ;
 
  fates_prt_unit_gr_resp = 
-  0.11, 0.11,
   0.11, 0.11,
   0.11, 0.11,
   0.11, 0.11,
