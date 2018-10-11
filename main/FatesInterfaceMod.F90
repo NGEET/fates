@@ -466,6 +466,9 @@ module FatesInterfaceMod
       ! leaf maintenance respiration rate (umol CO2/m**2/s) 
       ! (NOT CURRENTLY USED, PLACE-HOLDER)
       !real(r8), allocatable :: lmrcanopy_pa(:)
+      
+      ! area weighted leaf water potential (MPa) 
+      real(r8), allocatable :: lwp_pa(:)
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
@@ -715,7 +718,7 @@ contains
       allocate(bc_out%active_suction_sl(nlevsoil_in))
       allocate(bc_out%rootr_pasl(maxPatchesPerSite,nlevsoil_in))
       allocate(bc_out%btran_pa(maxPatchesPerSite))
-      
+
       ! Photosynthesis
 
       allocate(bc_out%rssun_pa(maxPatchesPerSite))
@@ -753,6 +756,7 @@ contains
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
          allocate(bc_out%qflx_soil2root_sisl(nlevsoil_in))
+         allocate(bc_out%lwp_pa(maxPatchesPerSite))	 
       end if
 
       return
@@ -820,7 +824,7 @@ contains
       this%bc_out(s)%laisha_pa(:)    = 0.0_r8
       this%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
-
+      
       this%bc_out(s)%FATES_c_to_litr_lab_c_col(:) = 0.0_r8
       this%bc_out(s)%FATES_c_to_litr_cel_c_col(:) = 0.0_r8
       this%bc_out(s)%FATES_c_to_litr_lig_c_col(:) = 0.0_r8
@@ -851,6 +855,7 @@ contains
 
       if (hlm_use_planthydro.eq.itrue) then
          this%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
+	 this%bc_out(s)%lwp_pa(:)    = 0.0_r8
       end if
       this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
 

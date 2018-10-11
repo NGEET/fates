@@ -123,6 +123,7 @@ module EDTypesMod
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
 
+
   !************************************
   !** COHORT type structure          **
   !************************************

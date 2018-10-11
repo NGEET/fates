@@ -899,6 +899,8 @@ contains
         ! Note that h2oveg_dead is incremented wherever we have litter fluxes
         ! and it will be reduced via an evaporation term
         bc_out(s)%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead
+	
+	!calculate the 
 
      end do
      
@@ -1607,6 +1609,7 @@ end subroutine updateSizeDepRhizHydStates
      real(r8) :: refill_rate                   ! rate of xylem refilling  [fraction per unit time; s-1]
      real(r8) :: roota, rootb                  ! parameters for root distribution                                      [m-1]
      real(r8) :: rootfr                        ! root fraction at different soil layers
+     real(r8) :: total_lai                     ! total lai for the patch
      type(ed_site_hydr_type), pointer :: site_hydr
      type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
@@ -1672,6 +1675,8 @@ end subroutine updateSizeDepRhizHydStates
            ! ----------------------------------------------------------------------------
 
            patch_wgt = min(1.0_r8,cpatch%total_canopy_area/cpatch%area) * (cpatch%area/AREA)
+	   bc_out(s)%lwp_pa(ifp) = 0.0_r8
+	   total_lai = sum(cpatch%canopy_layer_tlai)
 
            ! Total volume transpired from this patch [mm H2O / m2 /s ] * [m2/patch] = [mm H2O / patch / s]
 !           qflx_trans_patch_vol = bc_in(s)%qflx_transp_pa(ifp) * (patch_wgt * AREA)
@@ -2233,7 +2238,12 @@ end subroutine updateSizeDepRhizHydStates
                                (ccohort_hydr%flc_aroot(j) - ccohort_hydr%flc_min_aroot(j))*exp(-refill_rate*dtime)
                       end if
                    end do
-                   
+                   !----------------------------------------------------------------------------------------------
+		   !calculate the leaf water potential at the patch level weighed by leaf area
+		   if(total_lai>0.0_r8)then
+		     bc_out(s)%lwp_pa(ifp) = bc_out(s)%lwp_pa(ifp) + ccohort_hydr%psi_ag(1)*ccohort%lai/total_lai
+		   endif
+		   
                    ccohort => ccohort%shorter
                 enddo !cohort 
 
