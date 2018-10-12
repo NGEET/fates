@@ -12,6 +12,8 @@ module EDPftvarcon
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
 
+  use PRTGenericMod,  only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,  only : prt_carbon_allom_hyp
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
 
@@ -1773,14 +1775,14 @@ contains
      if(.not.is_master) return
 
 
-     if (parteh_model .eq. 2) then
+     if (parteh_model .eq. prt_cnp_flex_allom_hyp) then
         write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport'
         write(fates_log(),*) 'with flexible target stoichiometry for NP and'
         write(fates_log(),*) 'allometrically constrianed C is still under development'
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
         
-     elseif (parteh_model .ne. 1) then
+     elseif (parteh_model .ne. prt_carbon_allom_hyp) then
         
         write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport has'
         write(fates_log(),*) 'only 1 module supported, allometric carbon only.'

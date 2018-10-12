@@ -30,7 +30,8 @@ module FATESPlantRespPhotosynthMod
    use EDTypesMod, only        : maxpft
    use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
-   
+
+   use PRTGenericMod,          only : prt_carbon_allom_hyp
    use PRTGenericMod,          only : carbon12_species
    use PRTGenericMod,          only : nitrogen_species
    use PRTGenericMod,          only : phosphorous_species
@@ -390,7 +391,7 @@ contains
                            
                            if ( .not.rate_mask_z(iv,ft,cl) .or. &
                                  (hlm_use_planthydro.eq.itrue) .or. &
-                                 (hlm_parteh_model.ne.1)   ) then
+                                 (hlm_parteh_model .ne. prt_carbon_allom_hyp )   ) then
                               
                               if (hlm_use_planthydro.eq.itrue) then
 

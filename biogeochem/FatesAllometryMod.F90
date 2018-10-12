@@ -580,7 +580,10 @@ contains
     !----------------------------------------------------------------------
 
     if( bl  <  0._r8 .or. pft  ==  0 ) then
-       write(fates_log(),*) 'problem in treelai',bl,pft
+       ! This message was signalling many times
+       ! because of cases where leaf biomass is a negative that is
+       ! within reasonable precision of 0 (ie -1e-19)
+       ! write(fates_log(),*) 'problem in treelai',bl,pft
     endif
 
     slat = g_per_kg * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg

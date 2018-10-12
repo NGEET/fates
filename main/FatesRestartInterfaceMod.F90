@@ -13,9 +13,6 @@ module FatesRestartInterfaceMod
   use FatesInterfaceMod, only : bc_in_type 
   use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
 
-  use FatesInterfaceMod      , only : hlm_parteh_model
-
-  use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_species
   use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : nitrogen_species
@@ -864,8 +861,6 @@ contains
      logical, intent(in)                 :: initialize_variables
      integer,intent(inout)               :: ivar      ! global variable counter
       
-     integer                             :: n_vars    ! number of state variables
-     integer                             :: n_pos     ! number of discrete positions
      integer                             :: dummy_out ! dummy index for variable
                                                       ! position in global file
      integer                             :: i_var     ! loop counter for prt variables
@@ -877,11 +872,7 @@ contains
      character(len=128) :: symbol
      character(len=256) :: long_name
 
-
-     n_vars = size(prt_instance%state_descriptor,1)
-     
-     do i_var = 1, n_vars
-        
+     do i_var = 1, prt_instance%num_vars
 
         ! The base symbol name
         symbol_base = prt_instance%state_descriptor(i_var)%symbol
@@ -889,10 +880,7 @@ contains
         ! The long name of the variable
         name_base = prt_instance%state_descriptor(i_var)%longname
 
-
-        n_pos = prt_instance%state_descriptor(i_var)%num_pos
-        
-        do i_pos = 1, n_pos
+        do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos
            
            ! String describing the physical position of the variable
            write(pos_symbol, '(I3.3)') i_pos
@@ -1209,8 +1197,8 @@ contains
 
                 ! Fill output arrays of PRT variables
                 i_var_pos = 0
-                do i_var = 1, size(ccohort%prt%variables,1)
-                   do i_pos = 1, ccohort%prt%variables(i_var)%num_pos
+                do i_var = 1, prt_instance%num_vars
+                   do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos
 
                       i_var_pos = i_var_pos + 1
                       this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co) = &
@@ -1774,8 +1762,8 @@ contains
 
                 ! Fill PRT state variables with array data
                 i_var_pos = 0
-                do i_var = 1, size(ccohort%prt%variables,1)
-                   do i_pos = 1, ccohort%prt%variables(i_var)%num_pos
+                do i_var = 1, prt_instance%num_vars
+                   do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos 
 
                       i_var_pos = i_var_pos + 1
                       ccohort%prt%variables(i_var)%val(i_pos) = &

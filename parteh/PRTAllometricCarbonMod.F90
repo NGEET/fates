@@ -48,27 +48,31 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
-  !  use PARTEHUtilitiesMod  , only : MaintenanceTurnover
+
 
   implicit none
   private
 
   ! -------------------------------------------------------------------------------------
   !
-  ! Define the state variables for this specific hypothesis. Give them units and define 
-  ! the indices that correspond with the generic classifications of PRT variables
+  ! Define the state variables for this specific hypothesis.
   !
   ! -------------------------------------------------------------------------------------
 
-  integer, parameter :: leaf_c_id   = 1
-  integer, parameter :: fnrt_c_id   = 2
-  integer, parameter :: sapw_c_id   = 3
-  integer, parameter :: store_c_id  = 4
-  integer, parameter :: repro_c_id  = 5
-  integer, parameter :: struct_c_id = 6
-  integer, parameter :: ac_num_vars = 6  ! Number of PRT variables
+  integer, parameter :: leaf_c_id   = 1   ! Unique object index for leaf carbon
+  integer, parameter :: fnrt_c_id   = 2   ! Unique object index for fine-root carbon
+  integer, parameter :: sapw_c_id   = 3   ! Unique object index for sapwood carbon 
+  integer, parameter :: store_c_id  = 4   ! Unique object index for storage carbon
+  integer, parameter :: repro_c_id  = 5   ! Unique object index for reproductive carbon
+  integer, parameter :: struct_c_id = 6   ! Unique object index for structural carbon
+  integer, parameter :: ac_num_vars = 6   ! THIS MUST MATCH THE LARGEST INDEX ABOVE
   
-  integer, parameter :: dbh_id          = 7  ! This is just used for the integrator
+  
+  ! For this hypothesis, we integrate dbh along with the other 6. Since this
+  ! is a boundary condition, we do not add it to the state array, but we do want
+  ! to include it with the integrator array.
+
+  integer, parameter :: dbh_id             = 7  ! This is just used for the integrator
   integer, parameter :: n_integration_vars = 7
 
 
@@ -89,6 +93,8 @@ module PRTAllometricCarbonMod
   integer, public, parameter :: ac_bc_in_id_ctrim = 2   ! Index for the canopy trim function
   integer, parameter         :: num_bc_in         = 2
 
+  ! THere are no purely output boundary conditions
+  integer, parameter         :: num_bc_out      = 0
 
   ! -------------------------------------------------------------------------------------
   ! Define the size of the coorindate vector.  For this hypothesis, there is only
@@ -118,7 +124,6 @@ module PRTAllometricCarbonMod
 
      procedure :: DailyPRT     => DailyPRTAC
      procedure :: FastPRT      => FastPRTAC
-     procedure :: InitAllocate => InitAllocateAC
 
    end type callom_prt_vartypes
    
@@ -150,23 +155,21 @@ contains
      ! organizes the specific variables in this module to
      ! pre-ordained groups, so they can be used to inform
      ! the rest of the model
+     ! This is called very early on in the call sequence of the model, and should occur
+     ! before any plants start being initialized.  These mapping tables must 
+     ! exist before that happens.
      ! -----------------------------------------------------------------------------------
 
      allocate(prt_instance_ac)
      allocate(prt_instance_ac%state_descriptor(ac_num_vars))
 
-     prt_instance => prt_instance_ac
-
      prt_instance_ac%hyp_name = 'Allometric Carbon Only'
      
+     ! Set mapping tables to zero
      call prt_instance_ac%ZeroInstance()
 
-     ! Populate the array
-     ! This is a carbon only scheme, no isotopes, so should be simple
-     ! The "indices array" max not exceed max_types_per_sp_organ
-     ! If that array limit is not large enough for new hypothesis
-     ! simply increase it.  It will not use much memory or increase loop sizes
-     
+     ! Register the variables. Each variable must be associated with a global identifier
+     ! for an organ and species.
 
      call prt_instance_ac%InitInstance(leaf_c_id,"Leaf Carbon","leaf_c",leaf_organ,carbon12_species,icd)
      call prt_instance_ac%InitInstance(fnrt_c_id,"Fine Root Carbon","fnrt_c",fnrt_organ,carbon12_species,icd)
@@ -175,61 +178,18 @@ contains
      call prt_instance_ac%InitInstance(struct_c_id,"Structural Carbon","struct_c",struct_organ,carbon12_species,icd)
      call prt_instance_ac%InitInstance(repro_c_id,"Reproductive Carbon","repro_c",repro_organ,carbon12_species,icd)
      
+     ! Set some of the array sizes for input and output boundary conditions
+     prt_instance_ac%num_bc_in    = num_bc_in
+     prt_instance_ac%num_bc_out   = num_bc_out
+     prt_instance_ac%num_bc_inout = num_bc_inout
+     prt_instance_ac%num_vars     = ac_num_vars
+
+     ! Have the global generic pointer, point to this hypothesis' object
+     prt_instance => prt_instance_ac
+
+
      return
-   end subroutine InitPRTInstanceAC
-
-
-   ! =====================================================================================
-   
-
-   subroutine InitAllocateAC(this)
-    
-     ! ----------------------------------------------------------------------------------
-     ! This initialization is called everytime a plant/cohort
-     ! is newly recruited.  This simply sets-up, allocates
-     ! and sets some initialization values
-     ! ----------------------------------------------------------------------------------
-
-     class(callom_prt_vartypes)                :: this     ! this class
-        
-     integer :: ivar
-
-
-     ! Set the instance pointer to the correct instance
-     ! ----------------------------------------------------------------------------------
-
-     this%prt_instance => prt_instance_ac
-
-     
-     ! Allocate the boundar condition arrays and flush them to no-data flags
-     ! ----------------------------------------------------------------------------------
-
-     allocate(this%bc_in(num_bc_in))
-     allocate(this%bc_inout(num_bc_inout))
-
-     
-     ! Allocate the state variables
-     allocate(this%variables(ac_num_vars))
-     
-     do ivar = 1, ac_num_vars
-
-        this%variables(ivar)%num_pos = icd
-        allocate(this%variables(ivar)%val(icd))
-        allocate(this%variables(ivar)%val0(icd))
-        allocate(this%variables(ivar)%turnover(icd))
-        allocate(this%variables(ivar)%net_art(icd))
-        allocate(this%variables(ivar)%burned(icd))
-
-     end do
-
-     ! Initialize the optimum step size as very large.
-
-     this%ode_opt_step = 1e6_r8
-
-     
-     return
-   end subroutine InitAllocateAC
-  
+  end subroutine InitPRTInstanceAC
 
   ! =====================================================================================
   

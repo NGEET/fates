@@ -1,6 +1,6 @@
 module PRTLossFluxesMod
 
-  use EDPftvarcon, only : EDPftvarcon_inst
+  use EDPftvarcon,   only : EDPftvarcon_inst
   use PRTGenericMod, only : prt_vartypes
   use PRTGenericMod, only : leaf_organ
   use PRTGenericMod, only : fnrt_organ
@@ -16,6 +16,7 @@ module PRTLossFluxesMod
   use PRTGenericMod, only : un_initialized
   use PRTGenericMod, only : check_initialized
   use PRTGenericMod, only : num_organ_types
+  use PRTGenericMod, only : prt_instance
   use FatesInterfaceMod, only : hlm_freq_day
 
   use FatesConstantsMod, only : r8 => fates_r8
@@ -84,7 +85,6 @@ contains
      integer             :: i_pos                  ! spatial position index
      integer             :: i_store                ! storage variable index
      integer             :: spec_id                ! global species identifier
-     integer             :: num_sp_vars            ! number of species for this organ
      real(r8)            :: mass_transfer          ! The actual mass
                                                    ! removed from storage
                                                    ! for each pool
@@ -106,18 +106,18 @@ contains
      end if
 
 
-     associate(organ_map => prt%prt_instance%organ_map)
+     associate(organ_map => prt_instance%organ_map)
 
        ! First transfer in carbon
        ! --------------------------------------------------------------------------------
        
-       i_cvar = prt%prt_instance%sp_organ_map(organ_id,carbon12_species)
+       i_cvar = prt_instance%sp_organ_map(organ_id,carbon12_species)
 
        ! Get the variable id of the storage pool for this species (carbon12)
-       i_store = prt%prt_instance%sp_organ_map(store_organ,carbon12_species)
+       i_store = prt_instance%sp_organ_map(store_organ,carbon12_species)
 
        ! Loop over all of the coordinate ids
-       do i_pos = 1,prt%variables(i_cvar)%num_pos
+       do i_pos = 1,prt_instance%state_descriptor(i_cvar)%num_pos
           
           ! Calculate the mass transferred out of storage into the pool of interest
           mass_transfer = prt%variables(i_store)%val(i_pos) * c_store_transfer_frac
@@ -154,12 +154,12 @@ contains
           i_var  = organ_map(organ_id)%var_id(i_sp_var)
           
           ! Variable index for the species of interest
-          spec_id = prt%prt_instance%state_descriptor(i_var)%spec_id
+          spec_id = prt_instance%state_descriptor(i_var)%spec_id
           
           if ( spec_id .ne. carbon12_species ) then
 
              ! Get the variable id of the storage pool for this species
-             i_store = prt%prt_instance%sp_organ_map(store_organ,spec_id)
+             i_store = prt_instance%sp_organ_map(store_organ,spec_id)
              
              ! Calculate the stoichiometry with C for this species
              
@@ -177,7 +177,7 @@ contains
 
 
              ! Loop over all of the coordinate ids
-             do i_pos = 1,prt%variables(i_var)%num_pos
+             do i_pos = 1,prt_instance%state_descriptor(i_var)%num_pos
                 
                 ! The target quanitity for this species is based on the amount
                 ! of carbon
@@ -240,7 +240,7 @@ contains
     real(r8)            :: burned_mass  ! Burned mass of each species, in eahc
                                         ! position, in the organ of interest
      
-    associate(organ_map => prt%prt_instance%organ_map)
+    associate(organ_map => prt_instance%organ_map)
 
        ! This is the total number of state variables associated
        ! with this particular organ
@@ -251,10 +251,10 @@ contains
           
           i_var = organ_map(organ_id)%var_id(i_sp_var)
           
-          spec_id = prt%prt_instance%state_descriptor(i_var)%spec_id
+          spec_id = prt_instance%state_descriptor(i_var)%spec_id
           
           ! Loop over all of the coordinate ids
-          do i_pos = 1,prt%variables(i_var)%num_pos
+          do i_pos = 1,prt_instance%state_descriptor(i_var)%num_pos
              
              ! The mass that is leaving the plant
              burned_mass = mass_fraction * prt%variables(i_var)%val(i_pos)
@@ -297,9 +297,9 @@ contains
     integer             :: i_var        ! index for the variable of interest 
 
      
-    associate(organ_map        => prt%prt_instance%organ_map, &
-              sp_organ_map     => prt%prt_instance%sp_organ_map, &
-              state_descriptor => prt%prt_instance%state_descriptor)
+    associate(organ_map        => prt_instance%organ_map, &
+              sp_organ_map     => prt_instance%sp_organ_map, &
+              state_descriptor => prt_instance%state_descriptor)
 
       ! This is the total number of state variables associated
       ! with this particular organ.
@@ -327,7 +327,7 @@ contains
       mass_out = 0.0_r8
 
       ! Loop over all of the coordinate ids
-      do i_pos = 1,prt%variables(i_var)%num_pos
+      do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos
          
          ! The mass that is leaving the plant
          mass_out = mass_out + mass_fraction * prt%variables(i_var)%val(i_pos)
@@ -421,7 +421,7 @@ contains
      real(r8)            :: retranslocated_mass
      
 
-     associate(organ_map => prt%prt_instance%organ_map)
+     associate(organ_map => prt_instance%organ_map)
 
        if( (organ_id == store_organ) .or. &
            (organ_id == struct_organ) .or. & 
@@ -446,7 +446,7 @@ contains
           
           i_var = organ_map(organ_id)%var_id(i_sp_var)
           
-          spec_id = prt%prt_instance%state_descriptor(i_var)%spec_id
+          spec_id = prt_instance%state_descriptor(i_var)%spec_id
           
           if ( any(spec_id == carbon_species) ) then
              retrans = EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,organ_id)
@@ -463,12 +463,10 @@ contains
           end if
           
           ! Get the variable id of the storage pool for this species
-          store_var_id = prt%prt_instance%sp_organ_map(store_organ,spec_id)
-      
-         
-    
+          store_var_id = prt_instance%sp_organ_map(store_organ,spec_id)
+          
           ! Loop over all of the coordinate ids
-          do i_pos = 1,prt%variables(i_var)%num_pos
+          do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos 
              
            ! The mass that is leaving the plant
              turnover_mass = (1.0_r8 - retrans) * mass_fraction * prt%variables(i_var)%val(i_pos)
@@ -553,12 +551,10 @@ contains
       
       class(prt_vartypes) :: prt
       integer,intent(in) :: ipft
-
       
       integer :: i_var
       integer :: spec_id
       integer :: organ_id
-      integer :: num_sp_vars
       integer :: i_pos
 
       real(r8) :: turnover
@@ -572,8 +568,6 @@ contains
       real(r8) :: retrans    ! A temp for the actual re-translocated mass
 
       
-      num_sp_vars = size(prt%variables,1)
-
       ! -----------------------------------------------------------------------------------
       ! Calculate the turnover rates (maybe this should be done once in the parameter
       ! check routine. Perhaps generate a rate in parameters derived?
@@ -606,10 +600,10 @@ contains
 
       base_turnover(repro_organ)  = 0.0_r8
 
-      do i_var = 1, num_sp_vars
+      do i_var = 1, prt_instance%num_vars
          
-         organ_id = prt%prt_instance%state_descriptor(i_var)%organ_id
-         spec_id = prt%prt_instance%state_descriptor(i_var)%spec_id
+         organ_id = prt_instance%state_descriptor(i_var)%organ_id
+         spec_id = prt_instance%state_descriptor(i_var)%spec_id
 
          if ( any(spec_id == carbon_species) ) then
             retrans = EDPftvarcon_inst%turnover_carb_retrans_p1(ipft,organ_id)
@@ -643,7 +637,7 @@ contains
             call endrun(msg=errMsg(__FILE__, __LINE__))
          end if
 
-         do i_pos = 1,prt%variables(i_var)%num_pos
+         do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos 
             
             turnover = (1.0_r8 - retrans) * base_turnover(organ_id) * prt%variables(i_var)%val(i_pos)
       

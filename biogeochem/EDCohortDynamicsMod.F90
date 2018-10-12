@@ -38,9 +38,10 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : StructureResetOfDH
   use FatesAllometryMod  , only : tree_lai, tree_sai
 
+  use PRTGenericMod,          only : prt_carbon_allom_hyp   
+  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : InitPRTVartype
   use PRTGenericMod,          only : prt_vartypes
-  use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_species
   use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : nitrogen_species
@@ -166,7 +167,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     select case(hlm_parteh_model)
-    case (1)
+    case (prt_carbon_allom_hyp)
 
        call SetState(new_cohort%prt,leaf_organ, carbon12_species, bleaf)
        call SetState(new_cohort%prt,fnrt_organ, carbon12_species, bfineroot)
@@ -261,16 +262,31 @@ contains
 
   subroutine InitPRTCohort(new_cohort)
 
+     ! ----------------------------------------------------------------------------------
      ! This subroutine simply allocates and attaches the correct PRT object.
-     ! No meaningful values to are set here.
+     ! The call to InitPRTVartype() performs the allocation of the variables
+     ! and boundary conditions inside the object.  It also initializes
+     ! all values as unitialized (large bogus values).
+     !
+     ! Each PARTEH allocation hypothesis has different expectations of boundary conditions.
+     ! These are specified by pointers to values in the host model. Because these
+     ! are pointers, they just need to be set once when the prt object is first initalized.
+     ! The calls below to "RegisterBCINOut", "RegisterBCIn" and "RegisterBCOut" are
+     ! setting those pointers.
+     ! -----------------------------------------------------------------------------------
+
      !
      ! !ARGUMENTS    
      type(ed_cohort_type), intent(inout), target  :: new_cohort
      type(callom_prt_vartypes), pointer :: callom_prt
 
 
+     ! Allocate the PRT class object
+     ! Each hypothesis has a different object which is an extension
+     ! of the base class.
+
      select case(hlm_parteh_model)
-     case (1)
+     case (prt_carbon_allom_hyp)
         
         allocate(callom_prt)
         new_cohort%prt => callom_prt
@@ -283,12 +299,32 @@ contains
 
      end select
      
+     ! This is the call to allocate the data structures in the PRT object
+     ! This call will be extended to each specific class.
+
      call new_cohort%prt%InitPRTVartype()
 
-     select case(hlm_parteh_model)
-     case (1)
 
-        ! Register boundary conditions
+     ! Set the boundary conditions that flow in an out of the PARTEH
+     ! allocation hypotheses.  These are pointers in the PRT objects that
+     ! point to values outside in the FATES model.
+
+     ! Example:
+     ! "ac_bc_inout_id_dbh" is the unique integer that defines the object index
+     ! for the allometric carbon "ac" boundary condition "bc" for DBH "dbh"
+     ! that is classified as input and output "inout".
+     ! See PRTAllometricCarbonMod.F90 to track its usage.
+     ! bc_rval is used as the optional argument identifyer to specify a real
+     ! value boundary condition.
+     ! bc_ival is used as the optional argument identifyer to specify an integer
+     ! value boundary condition.
+     
+
+     select case(hlm_parteh_model)
+     case (prt_carbon_allom_hyp)
+
+        ! Register boundary conditions for the Carbon Only Allometric Hypothesis
+
         call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
         call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
         call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
