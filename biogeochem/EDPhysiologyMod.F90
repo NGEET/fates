@@ -88,7 +88,7 @@ module EDPhysiologyMod
   public :: ZeroAllocationRates
 
 
-  logical, parameter :: DEBUG  = .false. ! local debug flag
+  logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
@@ -340,7 +340,7 @@ contains
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft))then
 
-                      if ( DEBUG ) then
+                      if ( debug ) then
                          write(fates_log(),*) 'trimming leaves', &
                                currentCohort%canopy_trim,currentCohort%leaf_cost
                       endif
@@ -365,7 +365,7 @@ contains
              currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)
           endif 
 
-          if ( DEBUG ) then
+          if ( debug ) then
              write(fates_log(),*) 'trimming',currentCohort%canopy_trim
           endif
          
@@ -494,7 +494,7 @@ contains
              currentSite%status = 2     !alter status of site to 'leaves on'
              ! NOTE(bja, 2015-01) should leafondate = model_day to be consistent with leaf off?
              currentSite%leafondate = t !record leaf on date   
-             if ( DEBUG ) write(fates_log(),*) 'leaves on'
+             if ( debug ) write(fates_log(),*) 'leaves on'
           endif !ncd
        endif !status
     endif !GDD
@@ -514,7 +514,7 @@ contains
        if (currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
           currentSite%leafoffdate = hlm_model_day   !record leaf off date   
-          if ( DEBUG ) write(fates_log(),*) 'leaves off'
+          if ( debug ) write(fates_log(),*) 'leaves off'
        endif
     endif
     endif
@@ -524,7 +524,7 @@ contains
        if(currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
           currentSite%leafoffdate = hlm_model_day   !record leaf off date   
-          if ( DEBUG ) write(fates_log(),*) 'leaves off'
+          if ( debug ) write(fates_log(),*) 'leaves off'
        endif
     endif
 
@@ -650,6 +650,9 @@ contains
     real(r8) :: store_output           ! the amount of the store to put into leaves -
                                        ! is a barrier against negative storage and C starvation. 
     real(r8) :: store_c_transfer_frac  ! Fraction of storage carbon used to flush leaves
+
+    real(r8), parameter :: leaf_drop_fraction = 1.0_r8
+
     !------------------------------------------------------------------------
 
     currentPatch => CurrentSite%oldest_patch   
@@ -706,7 +709,7 @@ contains
                    ! also track the turnover masses that will be sent to litter later on)
 
                    call PRTDeciduousTurnover(currentCohort%prt,currentCohort%pft, &
-                         leaf_organ, 1.0_r8)
+                         leaf_organ, leaf_drop_fraction)
                
                 endif !leaf status
              endif !currentSite status
@@ -714,12 +717,10 @@ contains
 
           !DROUGHT LEAF ON
           if (EDPftvarcon_inst%stress_decid(currentCohort%pft) == 1)then
-
              
              if (currentSite%dstatus == 2)then 
 
                 ! we have just moved to leaves being on . 
-
                 if (currentCohort%status_coh == 1)then    
 
                    !is it the leaf-on day? Are the leaves currently off?    
@@ -753,7 +754,7 @@ contains
                    currentCohort%laimemory   = leaf_c
 
                    call PRTDeciduousTurnover(currentCohort%prt,currentCohort%pft, &
-                         leaf_organ, 1.0_r8)
+                         leaf_organ, leaf_drop_fraction)
 
                 endif
              endif !status
@@ -1000,7 +1001,7 @@ contains
        endif
 
        if (temp_cohort%n > 0.0_r8 )then
-          if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
+          if ( debug ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
           call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                 b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &  
                 temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &

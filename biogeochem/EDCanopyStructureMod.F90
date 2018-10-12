@@ -53,7 +53,7 @@ module EDCanopyStructureMod
   public :: canopy_summarization
   public :: update_hlm_dynamics
 
-  logical, parameter :: DEBUG=.false.
+  logical, parameter :: debug=.false.
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -1025,7 +1025,7 @@ contains
     real(r8) :: struct_c             ! structure carbon [kg]
     !----------------------------------------------------------------------
 
-    if ( DEBUG ) then
+    if ( debug ) then
        write(fates_log(),*) 'in canopy_summarization'
     endif
 
@@ -1341,12 +1341,12 @@ contains
                 ! no m2 of leaf per m2 of ground in each height class
                 ! FIX(SPM,032414) these should be uncommented this and double check
                 
-                if ( DEBUG ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
+                if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
                 
                 currentPatch%elai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) * fraction_exposed
                 currentPatch%esai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) * fraction_exposed
                 
-                if ( DEBUG ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
+                if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
                 
              enddo ! (iv) hite bins
              
@@ -1532,7 +1532,7 @@ contains
              do cl = 1,currentPatch%NCL_p
                 do iv = 1,currentPatch%ncan(cl,ft)
                    
-                   if( DEBUG .and. sum(currentPatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
+                   if( debug .and. sum(currentPatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
                       
                       write(fates_log(), *) 'FATES: A canopy_area_profile exceeded 1.0'
                       write(fates_log(), *) 'cl: ',cl
@@ -1744,7 +1744,7 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
            
-           if(DEBUG) then
+           if(debug) then
               write(fates_log(),*) 'imprecise patch areas in update_hlm_dynamics',total_patch_area
            end if
            
