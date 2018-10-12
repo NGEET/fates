@@ -647,31 +647,29 @@ contains
 
     real(r8) :: leaf_c                 ! leaf carbon [kg]
     real(r8) :: store_c                ! storage carbon [kg]
-    real(r8) :: store_output           ! the amount of the store to put into leaves -
-                                       ! is a barrier against negative storage and C starvation. 
     real(r8) :: store_c_transfer_frac  ! Fraction of storage carbon used to flush leaves
-
+    integer  :: ipft
     real(r8), parameter :: leaf_drop_fraction = 1.0_r8
 
     !------------------------------------------------------------------------
 
     currentPatch => CurrentSite%oldest_patch   
 
-    store_output  = 0.5_r8
-    
     do while(associated(currentPatch))    
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))        
 
+          ipft = currentCohort%pft
+
           ! Retrieve existing leaf and storage carbon
 
-          call currentCohort%prt%CheckMassConservation(currentCohort%pft,0)
+          call currentCohort%prt%CheckMassConservation(ipft,0)
 
           store_c = currentCohort%prt%GetState(store_organ, carbon12_species)
           leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_species)
 
           !COLD LEAF ON
-          if (EDPftvarcon_inst%season_decid(currentCohort%pft) == 1)then
+          if (EDPftvarcon_inst%season_decid(ipft) == 1)then
              if (currentSite%status == 2)then !we have just moved to leaves being on . 
                 if (currentCohort%status_coh == 1)then !Are the leaves currently off?        
                    currentCohort%status_coh = 2    ! Leaves are on, so change status to 
@@ -679,13 +677,14 @@ contains
                    
                    if(store_c>nearzero) then
                       store_c_transfer_frac = &
-                            min(currentCohort%laimemory, store_c*store_output)/store_c
+                            min(EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory, store_c)/store_c
                    else
                       store_c_transfer_frac = 0.0_r8
                    end if
-                   
-                   call PRTPhenologyFlush(currentCohort%prt, currentCohort%pft, &
-                         leaf_organ, store_c_transfer_frac)
+
+                   ! This call will request that storage carbon will be transferred to 
+                   ! leaf tissues. It is specified as a fraction of the available storage
+                   call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, store_c_transfer_frac)
 
                    currentCohort%laimemory = 0.0_r8
 
@@ -708,7 +707,7 @@ contains
                    ! for carbon and any other species that are prognostic. It will
                    ! also track the turnover masses that will be sent to litter later on)
 
-                   call PRTDeciduousTurnover(currentCohort%prt,currentCohort%pft, &
+                   call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                          leaf_organ, leaf_drop_fraction)
                
                 endif !leaf status
@@ -716,7 +715,7 @@ contains
           endif  !season_decid
 
           !DROUGHT LEAF ON
-          if (EDPftvarcon_inst%stress_decid(currentCohort%pft) == 1)then
+          if (EDPftvarcon_inst%stress_decid(ipft) == 1)then
              
              if (currentSite%dstatus == 2)then 
 
@@ -730,12 +729,14 @@ contains
 
                    if(store_c>nearzero) then
                       store_c_transfer_frac = &
-                            min(currentCohort%laimemory, store_c*store_output)/store_c
+                            min(EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory, store_c)/store_c
                    else
                       store_c_transfer_frac = 0.0_r8
                    end if
                    
-                   call PRTPhenologyFlush(currentCohort%prt, currentCohort%pft, &
+                   ! This call will request that storage carbon will be transferred to 
+                   ! leaf tissues. It is specified as a fraction of the available storage
+                   call PRTPhenologyFlush(currentCohort%prt, ipft, &
                          leaf_organ, store_c_transfer_frac)
 
                    currentCohort%laimemory = 0.0_r8
@@ -753,14 +754,14 @@ contains
                    ! Remember what the lai (leaf mass actually) was for next year
                    currentCohort%laimemory   = leaf_c
 
-                   call PRTDeciduousTurnover(currentCohort%prt,currentCohort%pft, &
+                   call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                          leaf_organ, leaf_drop_fraction)
 
                 endif
              endif !status
           endif !drought dec.
 
-          call currentCohort%prt%CheckMassConservation(currentCohort%pft,1)
+          call currentCohort%prt%CheckMassConservation(ipft,1)
 
           currentCohort => currentCohort%shorter
        enddo !currentCohort
