@@ -65,7 +65,7 @@ module PRTAllometricCarbonMod
   integer, parameter :: store_c_id  = 4   ! Unique object index for storage carbon
   integer, parameter :: repro_c_id  = 5   ! Unique object index for reproductive carbon
   integer, parameter :: struct_c_id = 6   ! Unique object index for structural carbon
-  integer, parameter :: ac_num_vars = 6   ! THIS MUST MATCH THE LARGEST INDEX ABOVE
+  integer, parameter :: num_vars = 6      ! THIS MUST MATCH THE LARGEST INDEX ABOVE
   
   
   ! For this hypothesis, we integrate dbh along with the other 6. Since this
@@ -108,17 +108,8 @@ module PRTAllometricCarbonMod
   ! plant reactive transport (PRT) module
   ! -------------------------------------------------------------------------------------
 
-  type callom_prt_vartype
-
-     real(r8) :: allom_deficit   ! Deficit of plant WRT allometric target
-
-  end type callom_prt_vartype
-
-
 
   type, public, extends(prt_vartypes) :: callom_prt_vartypes
-
-     type(callom_prt_vartype),allocatable :: aux_variables(:)
 
    contains
 
@@ -139,7 +130,7 @@ module PRTAllometricCarbonMod
 
    ! This is the instance of the mapping table and variable definitions
    ! this is only allocated once per node
-   class(prt_instance_type), target, allocatable :: prt_instance_ac
+   class(prt_instance_type), public, target, allocatable :: prt_instance_ac
 
 
    public :: InitPRTInstanceAC
@@ -161,7 +152,7 @@ contains
      ! -----------------------------------------------------------------------------------
 
      allocate(prt_instance_ac)
-     allocate(prt_instance_ac%state_descriptor(ac_num_vars))
+     allocate(prt_instance_ac%state_descriptor(num_vars))
 
      prt_instance_ac%hyp_name = 'Allometric Carbon Only'
      
@@ -182,7 +173,7 @@ contains
      prt_instance_ac%num_bc_in    = num_bc_in
      prt_instance_ac%num_bc_out   = num_bc_out
      prt_instance_ac%num_bc_inout = num_bc_inout
-     prt_instance_ac%num_vars     = ac_num_vars
+     prt_instance_ac%num_vars     = num_vars
 
      ! Have the global generic pointer, point to this hypothesis' object
      prt_instance => prt_instance_ac

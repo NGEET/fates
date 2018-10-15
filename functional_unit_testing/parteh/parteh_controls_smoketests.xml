@@ -58,6 +58,8 @@
     <parteh_parameters >
       <pft_par name="parteh_model                       "> 1				 , 2          , 2 , 2          , 2  </pft_par>
       <pft_par name="fates_phen_evergreen		"> 1		, 1	, 1	, 1	, 1</pft_par>
+      <pft_par name="fates_phen_season_decid		"> 0		, 0	, 0	, 0	, 0</pft_par>
+      <pft_par name="fates_phen_stress_decid		"> 0		, 0	, 0	, 0	, 0</pft_par>
       <pft_par name="fates_seed_alloc			"> 0.2		, 0.2	, 0.2	, 0.2	, 0.2</pft_par>
       <pft_par name="fates_seed_alloc_mature		"> 0.2		, 0.2, 0.2, 0.2, 0.2		</pft_par>
       <pft_par name="fates_dbh_repro_threshold		"> 30.0		, 30.0	, 30.0, 30.0	, 30.0	</pft_par>
@@ -110,13 +112,13 @@
       <pft_organ_par name="fates_turnover_nitr_retrans_p1" > 0,0,0,0,0,0,
                                                              0,0,0,0,0,0,
                                                              0.25,0.15,0,0,0,0,
-                                                             0.25,0,0,0,0,
-                                                             0.25,0,0,0,0 </pft_organ_par>
+                                                             0.25,0,0,0,0,0,
+                                                             0.25,0,0,0,0,0 </pft_organ_par>
       <pft_organ_par name="fates_turnover_phos_retrans_p1" > 0,0,0,0,0,0,
                                                              0,0,0,0,0,0,
                                                              0.25,0.15,0,0,0,0,
-                                                             0.25,0,0,0,0,
-                                                             0.25,0,0,0,0 </pft_organ_par>
+                                                             0.25,0,0,0,0,0,
+                                                             0.25,0,0,0,0,0 </pft_organ_par>
 
       <pft_organ_par name="fates_prt_nitr_stoich_p1	        "> -9,-9,-9,-9,-9,-9,
                                                                    0.05,0.05,0.05,0.05,0.05,0.05, 

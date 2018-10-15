@@ -37,17 +37,20 @@ module FatesCohortWrapMod
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : SetState
+  use PRTGenericMod,          only : prt_instance
 
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
+  use PRTAllometricCarbonMod, only : prt_instance_ac
 
   use PRTLossFluxesMod, only : PRTMaintTurnover
   use PRTLossFluxesMod, only : PRTDeciduousTurnover
   use PRTLossFluxesMod, only : PRTPhenologyFlush
 
+  use PRTAllometricCNPMod,    only : prt_instance_acnp
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_dbh
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdc
@@ -200,7 +203,6 @@ contains
     call h2d_allom(hgt_min,ipft,ccohort%dbh)
     ccohort%canopy_trim = canopy_trim
 
-    
     ! Use allometry to compute initial values
     
     ! Leaf biomass (carbon)
@@ -229,12 +231,12 @@ contains
     
     select case(ccohort%parteh_model)
     case (1)
-       
+       prt_instance => prt_instance_ac
        allocate(callom_prt)
        ccohort%prt => callom_prt
 
     case(2)
-       
+       prt_instance => prt_instance_acnp
        allocate(cnpallom_prt)
        ccohort%prt => cnpallom_prt
        
@@ -365,7 +367,7 @@ contains
 
     select case(int(ccohort%parteh_model))
     case (1)
-       
+       prt_instance => prt_instance_ac
        ccohort%daily_carbon_gain = daily_carbon_gain
 
        call ccohort%prt%DailyPRT()
@@ -374,7 +376,7 @@ contains
        ccohort%carbon_root_exudate = 0.0_r8
 
     case (2)
-
+       prt_instance => prt_instance_acnp
        ccohort%daily_carbon_gain      = daily_carbon_gain
        ccohort%daily_nitrogen_gain    = daily_nitrogen_gain
        ccohort%daily_phosphorous_gain = daily_phosphorous_gain
@@ -391,7 +393,7 @@ contains
     end select
  
 
-    call ccohort%prt%CheckMassConservation(ipft)
+    call ccohort%prt%CheckMassConservation(ipft,1)
 
     
     
@@ -421,7 +423,16 @@ contains
     integer, parameter  :: cl1 = 1
     
     ccohort     => cohort_array(ipft)
+
+
+    select case(int(ccohort%parteh_model))
+    case (1)
+       prt_instance => prt_instance_ac
+    case (2)
+       prt_instance => prt_instance_acnp
+    end select
     
+
     leaf_c  = ccohort%prt%GetState(leaf_organ, all_carbon_species )
     store_c = ccohort%prt%GetState(store_organ, all_carbon_species )
     
@@ -501,7 +512,15 @@ contains
     real(r8),parameter :: nplant = 1.0_r8
     real(r8),parameter :: site_spread = 1.0_r8
 
-    ccohort => cohort_array(ipft)
+    ccohort => cohort_array(ipft)   
+    
+    select case(int(ccohort%parteh_model))
+    case (1)
+       prt_instance => prt_instance_ac
+    case (2)
+       prt_instance => prt_instance_acnp
+    end select
+    
     dbh    = ccohort%dbh
 
     leaf_c = ccohort%prt%GetState(organ_id=leaf_organ, species_id=all_carbon_species)
