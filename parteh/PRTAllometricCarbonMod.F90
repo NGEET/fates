@@ -622,7 +622,7 @@ contains
                                     target_leaf_c, target_fnrt_c, &
                                     target_sapw_c, target_store_c, target_struct_c, &
                                     grow_leaf, grow_fnrt, grow_sapw, grow_store)
-       else
+       else ! for grasses 
           grow_leaf  = .true.
           grow_fnrt = .true.
           grow_sapw  = .true.
