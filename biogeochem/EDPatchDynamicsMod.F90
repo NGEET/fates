@@ -1316,6 +1316,8 @@ contains
     new_patch%frac_burnt         = 0._r8  
     new_patch%total_tree_area    = 0.0_r8  
     new_patch%NCL_p              = 1
+
+   
  
   end subroutine create_patch
 
@@ -1439,6 +1441,12 @@ contains
     currentPatch%zstar                      = 0.0_r8
     currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
     currentPatch%c_lblayer                  = 0.0_r8
+
+    currentPatch%solar_zenith_flag          = -1
+    currentPatch%solar_zenith_angle         = nan
+
+    currentPatch%gnd_alb_dir(:)             = nan
+    currentPatch%gnd_alb_dif(:)             = nan
 
   end subroutine zero_patch
 

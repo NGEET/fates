@@ -329,6 +329,13 @@ module EDTypesMod
      integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
+
+     integer  ::  solar_zenith_flag                           ! integer flag specifying daylight (based on zenith angle)
+     real(r8) ::  solar_zenith_angle                          ! solar zenith angle (radians)
+
+     real(r8) ::  gnd_alb_dif(maxSWb)                         ! ground albedo for diffuse rad, both bands (fraction)
+     real(r8) ::  gnd_alb_dir(maxSWb)                         ! ground albedo for direct rad, both bands (fraction)
+     
      real(r8) ::  fabd_sun_z(nclmax,maxpft,nlevleaf)          ! sun fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
      real(r8) ::  fabd_sha_z(nclmax,maxpft,nlevleaf)          ! shade fraction of direct light absorbed by each canopy 
@@ -704,6 +711,10 @@ module EDTypesMod
      write(fates_log(),*) 'pa%total_canopy_area  = ',cpatch%total_canopy_area
      write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
      write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
+     write(fates_log(),*) 'pa%solar_zenith_flag  = ',cpatch%solar_zenith_flag
+     write(fates_log(),*) 'pa%solar_zenith_angle = ',cpatch%solar_zenith_angle
+     write(fates_log(),*) 'pa%gnd_alb_dif        = ',cpatch%gnd_alb_dif(:)
+     write(fates_log(),*) 'pa%gnd_alb_dir        = ',cpatch%gnd_alb_dir(:)
      write(fates_log(),*) 'pa%c_stomata          = ',cpatch%c_stomata
      write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
      write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate

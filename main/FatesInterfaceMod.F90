@@ -18,6 +18,8 @@ module FatesInterfaceMod
    use EDTypesMod          , only : nclmax
    use EDTypesMod          , only : nlevleaf
    use EDTypesMod          , only : maxpft
+   use EDTypesMod          , only : ncwd
+   use EDTypesMod          , only : numWaterMem
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesConstantsMod   , only : itrue,ifalse
    use FatesGlobals        , only : fates_global_verbose
@@ -924,8 +926,14 @@ contains
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          
-         fates_maxElementsPerPatch = max(maxCohortsPerPatch, &
-               numpft * nclmax * nlevleaf)
+         fates_maxElementsPerPatch = max(maxCohortsPerPatch, numpft, ncwd )
+
+         if (maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
+            write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
+            write(fates_log(), *) ' this could create problems for indexing in restart files'
+            write(fates_log(), *) ' The multiple of the two has to be greater than numWaterMem'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
          
          fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
 
