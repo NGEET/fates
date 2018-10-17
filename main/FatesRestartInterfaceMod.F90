@@ -23,8 +23,6 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,          only : store_organ
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : carbon12_species
-  use PRTGenericMod,          only : SetState
   use PRTGenericMod,          only : prt_instance
 
 
@@ -855,6 +853,29 @@ contains
   
   subroutine DefinePRTRestartVars(this,initialize_variables,ivar)
 
+    ! ----------------------------------------------------------------------------------
+    ! PARTEH variables are objects.  These objects 
+    ! each are registered to have things like names units and symbols
+    ! as part of that object.  Thus, when defining, reading and writing restarts,
+    ! instead of manually typing out each variable we want, we just loop through
+    ! our list of ojbects.
+    !
+    ! We do have to loop through the different parts of the objects indepenently.
+    ! For instance we can't have one loop that covers the states "val", and
+    ! the net allocation and reactive transport flux "net_art", so we have to loop
+    ! these each separately. As other fluxes are added in the future, they need
+    ! their own definition.
+    !
+    ! Some of the code below is about parsing the strings of these objects
+    ! and automatically building the names of the PARTEH output variables
+    ! as we go.
+    !
+    ! Note that parteh variables may or may not be scalars. Each variable's
+    ! position gets its own variable in the restart file.  So the variable
+    ! name will also parse the string for that position.
+    ! -----------------------------------------------------------------------------------
+
+
      use FatesIOVariableKindMod, only : cohort_r8
 
      class(fates_restart_interface_type) :: this
@@ -1057,7 +1078,7 @@ contains
 
     integer  :: ft               ! functional type index
     integer  :: k,j,i            ! indices to the radiation matrix
-    integer  :: i_var_pos        ! loop counter for var x position
+    integer  :: ir_prt_var       ! loop counter for var x position
     integer  :: i_var            ! loop counter for PRT variables
     integer  :: i_pos            ! loop counter for discrete PRT positions
 
@@ -1195,25 +1216,30 @@ contains
                    write(fates_log(),*) 'CLTV upperbound  ', ubound(rio_npp_acc_co,1)
                 endif
 
+
                 ! Fill output arrays of PRT variables
-                i_var_pos = 0
+                ! We just loop through the objects, and reference our members relative
+                ! the base index of the PRT variables
+                ! -----------------------------------------------------------------------
+
+                ir_prt_var = ir_prt_base
                 do i_var = 1, prt_instance%num_vars
                    do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos
-
-                      i_var_pos = i_var_pos + 1
-                      this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co) = &
+                      
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
                             ccohort%prt%variables(i_var)%val(i_pos)
 
-                      i_var_pos = i_var_pos + 1
-                      this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co) = &
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
                             ccohort%prt%variables(i_var)%turnover(i_pos)
-
-                      i_var_pos = i_var_pos + 1
-                      this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co) = &
+                      
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
                             ccohort%prt%variables(i_var)%net_art(i_pos)
 
-                      i_var_pos = i_var_pos + 1
-                      this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co) = &
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
                             ccohort%prt%variables(i_var)%burned(i_pos)
                       
                    end do
@@ -1640,7 +1666,7 @@ contains
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
      integer  :: patchespersite   ! number of patches per site
      integer  :: cohortsperpatch  ! number of cohorts per patch 
-     integer  :: i_var_pos        ! loop counter for var x position
+     integer  :: i_prt_var        ! loop counter for var x position
      integer  :: i_var            ! loop counter for PRT variables
      integer  :: i_pos            ! loop counter for discrete PRT positions
 
@@ -1761,25 +1787,29 @@ contains
                 endif
 
                 ! Fill PRT state variables with array data
-                i_var_pos = 0
+                ! We just loop through the objects, and reference our members relative
+                ! the base index of the PRT variables
+                ! -----------------------------------------------------------------------
+
+                ir_prt_var = ir_prt_base
                 do i_var = 1, prt_instance%num_vars
                    do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos 
 
-                      i_var_pos = i_var_pos + 1
+                      ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%val(i_pos) = &
-                            this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co)
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)
 
-                      i_var_pos = i_var_pos + 1
+                      ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%turnover(i_pos) = &
-                            this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co)
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)
 
-                      i_var_pos = i_var_pos + 1
+                      ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%net_art(i_pos) = &
-                            this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co)
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)
 
-                      i_var_pos = i_var_pos + 1
+                      ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%burned(i_pos) = &
-                            this%rvars(ir_prt_base+i_var_pos)%r81d(io_idx_co)                      
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)                      
                    end do
                 end do
                 

@@ -25,14 +25,15 @@ module FATESPlantRespPhotosynthMod
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : itrue
    use FatesInterfaceMod, only : hlm_use_planthydro
-   use FatesInterfaceMod, only : hlm_parteh_model
+   use FatesInterfaceMod, only : hlm_parteh_mode
    use FatesInterfaceMod, only : numpft
    use EDTypesMod, only        : maxpft
    use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
 
    use PRTGenericMod,          only : prt_carbon_allom_hyp
-   use PRTGenericMod,          only : carbon12_species
+   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp 
+   use PRTGenericMod,          only : all_carbon_species
    use PRTGenericMod,          only : nitrogen_species
    use PRTGenericMod,          only : phosphorous_species
    use PRTGenericMod,          only : leaf_organ
@@ -41,8 +42,6 @@ module FATESPlantRespPhotosynthMod
    use PRTGenericMod,          only : store_organ
    use PRTGenericMod,          only : repro_organ
    use PRTGenericMod,          only : struct_organ
-   use PRTGenericMod,          only : carbon12_species
-   use PRTGenericMod,          only : SetState
 
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -391,7 +390,7 @@ contains
                            
                            if ( .not.rate_mask_z(iv,ft,cl) .or. &
                                  (hlm_use_planthydro.eq.itrue) .or. &
-                                 (hlm_parteh_model .ne. prt_carbon_allom_hyp )   ) then
+                                 (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
                               
                               if (hlm_use_planthydro.eq.itrue) then
 
@@ -438,12 +437,12 @@ contains
                               
                               ! Then scale this value at the top of the canopy for canopy depth
                               ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
-                              select case(hlm_parteh_model)
-                              case (1)
+                              select case(hlm_parteh_mode)
+                              case (prt_carbon_allom_hyp)
 
                                  lnc_top  = EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
                                  
-                              case (2)
+                              case (prt_cnp_flex_allom_hyp)
 
                                  leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_species)
                                  leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_species)
@@ -581,11 +580,11 @@ contains
                      ! Units are in (kgN/plant)
                      ! ------------------------------------------------------------------
 
-                     select case(hlm_parteh_model)
-                     case (1)
-                        
-                        sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_species)
-                        fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_species)
+                     sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
+                     fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
+
+                     select case(hlm_parteh_mode)
+                     case (prt_carbon_allom_hyp)
 
                         live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
                               sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
@@ -594,7 +593,17 @@ contains
                               sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
 
                         fnrt_n = fnrt_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ)
+
+                     case(prt_cnp_flex_allom_hyp) 
                      
+                        live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                             currentCohort%prt%GetState(sapw_organ, nitrogen_species)
+
+                        live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
+                             currentCohort%prt%GetState(sapw_organ, nitrogen_species)
+
+                        fnrt_n = currentCohort%prt%GetState(fnrt_organ, nitrogen_species)
+
                      case default
                         
 

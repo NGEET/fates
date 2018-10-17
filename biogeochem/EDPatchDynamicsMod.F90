@@ -41,7 +41,6 @@ module EDPatchDynamicsMod
   use EDCohortDynamicsMod  , only : InitPRTCohort
 
   use PRTGenericMod,          only : all_carbon_species
-  use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : nitrogen_species
   use PRTGenericMod,          only : phosphorous_species
   use PRTGenericMod,          only : leaf_organ

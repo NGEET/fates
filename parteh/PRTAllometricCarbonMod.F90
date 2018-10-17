@@ -8,9 +8,6 @@ module PRTAllometricCarbonMod
    ! 
    ! Ryan Knox Apr 2018
    !
-   ! TO-DO: THE MAPPING TABLES SHOULD BE PROTECTED STATUS. TEST ADDING THIS AFTER 1ST
-   ! SUCCESFULL RUN
-   !
    ! ------------------------------------------------------------------------------------
 
   use PRTGenericMod , only  : prt_instance_type
@@ -86,15 +83,15 @@ module PRTAllometricCarbonMod
 
   integer, public, parameter :: ac_bc_inout_id_dbh   = 1   ! Plant DBH
   integer, public, parameter :: ac_bc_inout_id_netdc = 2   ! Index for the net daily C input BC
-  integer, parameter         :: num_bc_inout         = 2
+  integer, parameter         :: num_bc_inout         = 2   ! Number of in & output boundary conditions
 
 
   integer, public, parameter :: ac_bc_in_id_pft   = 1   ! Index for the PFT input BC
   integer, public, parameter :: ac_bc_in_id_ctrim = 2   ! Index for the canopy trim function
-  integer, parameter         :: num_bc_in         = 2
+  integer, parameter         :: num_bc_in         = 2   ! Number of input boundary condition
 
   ! THere are no purely output boundary conditions
-  integer, parameter         :: num_bc_out      = 0
+  integer, parameter         :: num_bc_out        = 0   ! Number of purely output boundary condtions
 
   ! -------------------------------------------------------------------------------------
   ! Define the size of the coorindate vector.  For this hypothesis, there is only
@@ -142,16 +139,40 @@ contains
   subroutine InitPRTInstanceAC()
 
      ! ----------------------------------------------------------------------------------
-     ! Initialize and populate the general mapping table that 
-     ! organizes the specific variables in this module to
-     ! pre-ordained groups, so they can be used to inform
-     ! the rest of the model
+     ! Initialize and populate the object that hold the descriptions of the variables,
+     ! and contains the mappings of each variable to the pre-ordained organ
+     ! and species list, and the number of boundary conditions of each 3 types.
+     !
      ! This is called very early on in the call sequence of the model, and should occur
      ! before any plants start being initialized.  These mapping tables must 
-     ! exist before that happens.
+     ! exist before that happens.  This initialization only happens once on each
+     ! machine, and the mapping will be read-only, and a global thing. This step
+     ! is not initializing the data structures bound to the plants.
+     !
+     ! There are two mapping tables.  One mapping table is a 2d array organized
+     ! by organ and species, that contains the variable index:
+     ! 
+     ! prt_instance%sp_organ_map
+     !
+     ! The other mapping table is similar, but it is a 1D array, a list of the organs.
+     ! And each of these the in turn points to a list of the indices associated
+     ! with that organ.  This is useful when you want to do lots of stuff to a specified
+     ! organ. 
+     ! 
+     ! prt_instance%organ_map
+     !
+     ! IMPORTANT NOTE:  Once this object is populated, we can use this to properly
+     ! allocate the "prt_vartypes_type" objects that attached to each plant. That process
+     ! is handled by generic functions, and does not need to be written in each hypothesis.
+     ! 
      ! -----------------------------------------------------------------------------------
 
      allocate(prt_instance_ac)
+     
+     ! The "state descriptor" object holds things like the names, the symbols, the units
+     ! of each variable. By putting it in an object, we can loop through them when
+     ! doing things like reading/writing history and restarts
+
      allocate(prt_instance_ac%state_descriptor(num_vars))
 
      prt_instance_ac%hyp_name = 'Allometric Carbon Only'
@@ -185,41 +206,77 @@ contains
   ! =====================================================================================
   
 
-  subroutine DailyPRTAC(this)
+  subroutine DailyPRTAllometricCarbon(this)
+
+    ! -----------------------------------------------------------------------------------
+    !
+    ! This is the main routine that handles allocation associated with the 1st
+    ! hypothesis;  carbon only, and growth governed by allometry
+    ! 
+    ! This routine is explained in the technical documentation in detail.
+    !
+    ! Some points:
+    ! 1) dbh, while not a PARTEH "state variable", is passed in from FATES (or other
+    !    model), is integrated along with the mass based state variables, and then
+    !    passed back to the ecosystem model. It is a "inout" style boundary condition.
+    !
+    ! 2) It is assumed that both growth respiration, and maintenance respiration
+    !    costs have already been paid, and therefore the "carbon_balance" boundary
+    !    condition is the net carbon gained by the plant over the coarse of the day.
+    !    Think of "daily integrated NPP".
+    ! 
+    ! 3) This routine will completely spend carbon_balance if it enters as a positive 
+    !    value, or replace carbon balance (using storage) if it enters as a negative value.
+    !    
+    ! 4) It is assumed that the ecosystem model calling this routine has ensured that
+    !    the net amount of negative carbon is no greater than that which can be replaced
+    !    by storage.  This routine will crash gracefully if that is not true.
+    !
+    ! 5) Leaves and fine-roots are given top priority, but just to replace maintenance 
+    !    turnover. This can also draw from strorage.
+    ! 
+    ! 6) Storage is given next available carbon gain, either to push up to zero, 
+    !    or to use it to top off stores.
+    !
+    ! 7) Third priority is then given to leaves and fine-roots again, but can only use
+    !    carbon gain. Also, this transfer will attempt to get pools up to allometry.
+    ! 
+    ! 8) Fourth priority is to bring other live pools up to allometry, and then structure.
+    ! 
+    ! 9) Finally, if carbon is yet still available, it will grow all pools out concurrently
+    !    including some to reproduction.
+    !
+    ! ----------------------------------------------------------------------------------
 
     
-    ! The class is the only argument, input and output bc's are globals
+    ! The class is the only argument
     class(callom_prt_vartypes)   :: this          ! this class
 
     ! -----------------------------------------------------------------------------------
     ! These are local copies of the in/out boundary condition structure
     ! -----------------------------------------------------------------------------------
 
-    real(r8),pointer :: dbh               ! Diameter at breast height [cm]
-                                          ! this local will point to both in and out bc's
-    real(r8),pointer :: carbon_balance    ! Daily carbon balance for this cohort [kgC]
+    real(r8),pointer :: dbh            ! Diameter at breast height [cm]
+                                       ! this local will point to both in and out bc's
+    real(r8),pointer :: carbon_balance ! Daily carbon balance for this cohort [kgC]
 
-    ! These are local copies of the input only boundary conditions
-    real(r8) :: canopy_trim           ! The canopy trimming function [0-1]
-    integer  :: ipft                  ! Plant Functional Type index
+    real(r8) :: canopy_trim            ! The canopy trimming function [0-1]
+    integer  :: ipft                   ! Plant Functional Type index
 
-    ! -----------------------------------------------------------------------------------
-    ! Local copies of output boundary conditions
-    ! -----------------------------------------------------------------------------------
-    
-    real(r8) :: target_leaf_c     ! target leaf carbon [kgC]
-    real(r8) :: target_fnrt_c     ! target fine-root carbon [kgC]
-    real(r8) :: target_sapw_c     ! target sapwood carbon [kgC]
-    real(r8) :: target_store_c    ! target storage carbon [kgC]
-    real(r8) :: target_agw_c      ! target above ground carbon in woody tissues [kgC]
-    real(r8) :: target_bgw_c      ! target below ground carbon in woody tissues [kgC]
-    real(r8) :: target_struct_c   ! target structural carbon [kgC]
+
+    real(r8) :: target_leaf_c         ! target leaf carbon [kgC]
+    real(r8) :: target_fnrt_c         ! target fine-root carbon [kgC]
+    real(r8) :: target_sapw_c         ! target sapwood carbon [kgC]
+    real(r8) :: target_store_c        ! target storage carbon [kgC]
+    real(r8) :: target_agw_c          ! target above ground carbon in woody tissues [kgC]
+    real(r8) :: target_bgw_c          ! target below ground carbon in woody tissues [kgC]
+    real(r8) :: target_struct_c       ! target structural carbon [kgC]
 
     real(r8) :: sapw_area             ! dummy var, x-section area of sapwood [m2]
 
     real(r8) :: leaf_below_target     ! fineroot biomass below target amount [kgC]
     real(r8) :: fnrt_below_target     ! fineroot biomass below target amount [kgC]
-    real(r8) :: sapw_below_target      ! sapwood biomass below target amount [kgC]
+    real(r8) :: sapw_below_target     ! sapwood biomass below target amount [kgC]
     real(r8) :: store_below_target    ! storage biomass below target amount [kgC]
     real(r8) :: struct_below_target   ! dead (structural) biomass below target amount [kgC]
     real(r8) :: total_below_target    ! total biomass below the allometric target [kgC]
@@ -227,26 +284,25 @@ contains
     real(r8) :: flux_adj              ! adjustment made to growth flux term to minimize error [kgC]
     real(r8) :: store_target_fraction ! ratio between storage and leaf biomass when on allometry [kgC]
 
-    real(r8) :: leaf_c_demand  ! leaf carbon that is demanded to replace maintenance turnover [kgC]
-    real(r8) :: fnrt_c_demand  ! fineroot carbon that is demanded to replace 
+    real(r8) :: leaf_c_demand         ! leaf carbon that is demanded to replace maintenance turnover [kgC]
+    real(r8) :: fnrt_c_demand         ! fineroot carbon that is demanded to replace 
                                       ! maintenance turnover [kgC]
-    real(r8) :: total_c_demand ! total carbon that is demanded to replace maintenance turnover [kgC]
+    real(r8) :: total_c_demand        ! total carbon that is demanded to replace maintenance turnover [kgC]
     logical  :: step_pass             ! Did the integration step pass?
 
-    real(r8) :: leaf_c_flux
-    real(r8) :: fnrt_c_flux             
-    real(r8) :: sapw_c_flux
-    real(r8) :: store_c_flux
-    real(r8) :: repro_c_flux
-    real(r8) :: struct_c_flux
+    real(r8) :: leaf_c_flux           ! Transfer into leaves at various stages [kgC]
+    real(r8) :: fnrt_c_flux           ! Transfer into fine-roots at various stages [kgC]
+    real(r8) :: sapw_c_flux           ! Transfer into sapwood at various stages [kgC]
+    real(r8) :: store_c_flux          ! Transfer into storage at various stages [kgC]
+    real(r8) :: repro_c_flux          ! Transfer into reproduction at the final stage [kgC]
+    real(r8) :: struct_c_flux         ! Transfer into structure at various stages [kgC]
 
     real(r8) :: leaf_c0               ! Initial value of carbon used to determine net flux
     real(r8) :: fnrt_c0               ! during this routine
-    real(r8) :: sapw_c0
-    real(r8) :: store_c0
-    real(r8) :: repro_c0
-    real(r8) :: struct_c0
-
+    real(r8) :: sapw_c0               ! ""   
+    real(r8) :: store_c0              ! ""
+    real(r8) :: repro_c0              ! ""
+    real(r8) :: struct_c0             ! ""
 
     logical  :: grow_leaf             ! Are leaves at allometric target and should be grown?
     logical  :: grow_fnrt             ! Are fine-roots at allometric target and should be grown?
@@ -264,27 +320,21 @@ contains
     integer  :: i_var                 ! local index for iterating state variables
 
 
-    ! Integegrator variables
+    ! Integegrator variables c_pool is "mostly" carbon variables, it also includes
+    ! dbh...
+    ! -----------------------------------------------------------------------------------
 
-    real(r8),dimension(n_integration_vars) :: c_pool       ! Vector of carbon pools passed to integrator
-    real(r8),dimension(n_integration_vars) :: c_pool_out   ! Vector of carbon pools passed back from integrator
-    logical,dimension(n_integration_vars)  :: c_mask       ! Mask of active pools during integration
+    real(r8),dimension(n_integration_vars) :: c_pool     ! Vector of carbon pools passed to integrator
+    real(r8),dimension(n_integration_vars) :: c_pool_out ! Vector of carbon pools passed back from integrator
+    logical,dimension(n_integration_vars)  :: c_mask     ! Mask of active pools during integration
 
-    real(r8), parameter :: cbal_prec = 1.0e-15_r8   ! Desired precision in carbon balance
-    integer , parameter :: max_substeps = 300       ! Maximum allowable iterations
-    real(r8), parameter :: max_trunc_error = 1.0_r8 ! Maximum allowable truncation error
-    integer,  parameter :: ODESolve = 2             ! 1=RKF45,  2=Euler
+    integer , parameter :: max_substeps = 300            ! Maximum allowable iterations
+    real(r8), parameter :: max_trunc_error = 1.0_r8      ! Maximum allowable truncation error
+    integer,  parameter :: ODESolve = 2                  ! 1=RKF45,  2=Euler
 
-    real(r8) ::  intgr_params(num_bc_in)
-
-
-    ! This is a local array containing the boundary conditions
-    ! we need this (for now at least) because the integration layer needs things
-    ! packed into simple types
-
-
-    ! This array is used to hold parameters that must be passed through
-    ! a generic integrator to the derivative functions
+    real(r8) ::  intgr_params(num_bc_in)                 ! The boundary conditions to this routine,
+                                                         ! are pressed into an array that is also
+                                                         ! passed to the integrators
 
     associate( & 
           leaf_c   => this%variables(leaf_c_id)%val(icd), &
@@ -295,10 +345,11 @@ contains
           struct_c => this%variables(struct_c_id)%val(icd))
 
 
-    ! ===================================================================================
-
-    ! Copy the boundary conditions into readable local variables  
-    ! We don't use pointers, because inputs should be intent in only
+    ! -----------------------------------------------------------------------------------
+    ! 0.
+    ! Copy the boundary conditions into readable local variables.
+    ! We don't use pointers for intput only, only in-out
+    ! -----------------------------------------------------------------------------------
 
     dbh                             => this%bc_inout(ac_bc_inout_id_dbh)%rval
     carbon_balance                  => this%bc_inout(ac_bc_inout_id_netdc)%rval
@@ -309,12 +360,24 @@ contains
     intgr_params(:)                 = un_initialized
     intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
     intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
+    
+    ! -----------------------------------------------------------------------------------
+    ! I. Remember the values for the state variables at the beginning of this
+    ! routines. We will then use that to determine their net allocation and reactive
+    ! transport flux "%net_art" at the end.
+    ! -----------------------------------------------------------------------------------
+
+    leaf_c0 = leaf_c         ! Set initial leaf carbon 
+    fnrt_c0 = fnrt_c         ! Set initial fine-root carbon
+    sapw_c0 = sapw_c         ! Set initial sapwood carbon
+    store_c0 = store_c       ! Set initial storage carbon 
+    repro_c0 = repro_c       ! Set initial reproductive carbon
+    struct_c0 = struct_c     ! Set initial structural carbon
 
 
     ! -----------------------------------------------------------------------------------
-    ! I. Calculate target size of the biomass compartment for a given dbh.   
+    ! II. Calculate target size of the biomass compartment for a given dbh.   
     ! -----------------------------------------------------------------------------------
-
     
     ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
@@ -364,12 +427,7 @@ contains
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
 
     
-    leaf_c0 = leaf_c
-    fnrt_c0 = fnrt_c
-    sapw_c0 = sapw_c
-    store_c0 = store_c
-    repro_c0 = repro_c
-    struct_c0 = struct_c
+
 
     ! -----------------------------------------------------------------------------------
     ! III.  Prioritize some amount of carbon to replace leaf/root turnover
@@ -505,7 +563,7 @@ contains
     end if
     
     ! -----------------------------------------------------------------------------------
-    ! VIII.  If carbon is still available, replenish the structural pool to get
+    ! VII.  If carbon is still available, replenish the structural pool to get
     !           back on allometry
     ! -----------------------------------------------------------------------------------
 
@@ -524,7 +582,7 @@ contains
     end if
     
     ! -----------------------------------------------------------------------------------
-    ! IX.  If carbon is yet still available ...
+    ! VIII.  If carbon is yet still available ...
     !        Our pools are now either on allometry or above (from fusion).
     !        We we can increment those pools at or below,
     !        including structure and reproduction according to their rates

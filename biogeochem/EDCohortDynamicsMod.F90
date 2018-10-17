@@ -22,7 +22,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
   use FatesInterfaceMod      , only : hlm_use_planthydro
-  use FatesInterfaceMod      , only : hlm_parteh_model
+  use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
   use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
@@ -52,7 +52,6 @@ module EDCohortDynamicsMod
   use PRTGenericMod,          only : store_organ
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : SetState
 
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
@@ -166,7 +165,7 @@ contains
     ! cohorts can be copied and fused, but special routines handle that.
     ! -----------------------------------------------------------------------------------
 
-    select case(hlm_parteh_model)
+    select case(hlm_parteh_mode)
     case (prt_carbon_allom_hyp)
 
        call SetState(new_cohort%prt,leaf_organ, carbon12_species, bleaf)
@@ -285,7 +284,7 @@ contains
      ! Each hypothesis has a different object which is an extension
      ! of the base class.
 
-     select case(hlm_parteh_model)
+     select case(hlm_parteh_mode)
      case (prt_carbon_allom_hyp)
         
         allocate(callom_prt)
@@ -320,7 +319,7 @@ contains
      ! value boundary condition.
      
 
-     select case(hlm_parteh_model)
+     select case(hlm_parteh_mode)
      case (prt_carbon_allom_hyp)
 
         ! Register boundary conditions for the Carbon Only Allometric Hypothesis

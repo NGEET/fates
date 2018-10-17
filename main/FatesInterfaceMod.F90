@@ -107,7 +107,7 @@ module FatesInterfaceMod
                                                 ! compare it to our maxpatchpersite,
                                                 ! and gracefully halt if we are over-allocating
 
-   integer, protected :: hlm_parteh_model  ! This flag signals which Plant Allocation and Reactive
+   integer, protected :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
                                            ! Transport (exensible) Hypothesis (PARTEH) to use
 
 
@@ -1218,7 +1218,7 @@ contains
          hlm_ipedof       = unset_int
          hlm_max_patch_per_site = unset_int
          hlm_use_vertsoilc = unset_int
-         hlm_parteh_model  = unset_int
+         hlm_parteh_mode   = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_logging   = unset_int
@@ -1380,9 +1380,9 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_parteh_model .eq. unset_int) then
+         if(hlm_parteh_mode .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch deciding which plant reactive transport model to use'
+               write(fates_log(), *) 'switch deciding which plant reactive transport model to use is unset, hlm_parteh_mode, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1466,9 +1466,9 @@ contains
                end if
                
             case('parteh_mode')
-               hlm_parteh_model = ival
+               hlm_parteh_mode = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_parteh_model= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering hlm_parteh_mode= ',ival,' to FATES'
                end if
 
             case('use_spitfire')
@@ -1572,7 +1572,7 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
-      call FatesCheckParams(masterproc,hlm_parteh_model)
+      call FatesCheckParams(masterproc,hlm_parteh_mode)
       
       return
    end subroutine FatesReportParameters
@@ -1584,19 +1584,24 @@ contains
      ! Initialize the Plant Allocation and Reactive Transport
      ! global functions and mapping tables
      
-     select case(hlm_parteh_model)
-     case (1)
+     select case(hlm_parteh_mode)
+     case(prt_carbon_allom_hyp)
+
         call InitPRTInstanceAC()
-     case(2)
+
+     case(prt_cnp_flex_allom_hyp)
         
         !call InitPRTInstanceACNP()
         write(fates_log(),*) 'You specified the allometric CNP mode'
         write(fates_log(),*) 'with relaxed target stoichiometry.'
-        write(fates_log(),*) 'This mode is not available yet.'
+        write(fates_log(),*) 'I.e., namelist parametre fates_parteh_mode = 2'
+        write(fates_log(),*) 'This mode is not available yet. Please set it to 1.'
         call endrun(msg=errMsg(sourcefile, __LINE__))
         
      case DEFAULT
         write(fates_log(),*) 'You specified an unknown PRT module'
+        write(fates_log(),*) 'Check your setting for fates_parteh_mode'
+        write(fates_log(),*) 'in the CLM namelist. The only valid value now is 1'
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
        
