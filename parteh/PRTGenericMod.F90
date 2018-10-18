@@ -1061,7 +1061,7 @@ contains
     function GetBurned(this, organ_id, species_id, position_id) result(sp_organ_burned)
 
       ! THis function is very similar to GetTurnover, with the only difference that it
-      ! returns the turnover mass so-far during the period of interest.
+      ! returns the burned mass so-far during the period of interest.
       
       ! NOTE: THIS HAS NOTHING TO DO WITH SPECIFYING BURNING. THIS IS JUST A QUERY FUNCTION
 
