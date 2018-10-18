@@ -143,7 +143,7 @@ contains
   subroutine InitPRTGlobalAllometricCarbon()
 
      ! ----------------------------------------------------------------------------------
-     ! Initialize and populate the object that hold the descriptions of the variables,
+     ! Initialize and populate the object that holds the descriptions of the variables,
      ! and contains the mappings of each variable to the pre-ordained organ
      ! and species list, and the number of boundary conditions of each 3 types.
      !
