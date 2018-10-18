@@ -881,7 +881,7 @@ contains
     real(r8) :: bstem                ! amount of above ground stem biomass per cohort  kgC.(goes into CWG_AG)
     real(r8) :: dead_tree_density    ! no trees killed by fire per m2
     reaL(r8) :: burned_litter        ! amount of each litter pool burned by fire.  kgC/m2/day
-    real(r8) :: burned_leaves        ! amount of tissue consumed by fire for grass. KgC/individual/day
+    real(r8) :: burned_leaves       ! amount of tissue consumed by fire for leaves. KgC/individual/day
     real(r8) :: leaf_burn_frac       ! fraction of leaves burned 
     real(r8) :: leaf_c               ! leaf carbon [kg]
     real(r8) :: fnrt_c               ! fineroot carbon [kg]
