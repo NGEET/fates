@@ -834,7 +834,7 @@ contains
                                 ! -----------------------------------------------------------------
                                 
                                 if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
-                                   call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,carbon12_species), currentCohort%pft, &
+                                   call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,all_carbon_species), currentCohort%pft, &
                                          currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
                                 end if
 

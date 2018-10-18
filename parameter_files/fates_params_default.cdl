@@ -207,17 +207,17 @@ variables:
 		fates_turnover_retrans_mode:units = "index" ;
 		fates_turnover_retrans_mode:long_name = "retranslocation method for leaf/fineroot turnover" ;
 
-	float fates_turnover_carb_retrans_p1(fates_prt_organs,fates_pft) ;
-		fates_turnover_carb_retrans_p1:units = "na" ;
-		fates_turnover_carb_retrans_p1:long_name = "retranslocation of carbon in turnover, parameter 1" ;
+	float fates_turnover_carb_retrans(fates_prt_organs,fates_pft) ;
+		fates_turnover_carb_retrans:units = "-" ;
+		fates_turnover_carb_retrans:long_name = "retranslocation fraction of carbon in turnover" ;
 
-	float fates_turnover_nitr_retrans_p1(fates_prt_organs,fates_pft) ;
-		fates_turnover_nitr_retrans_p1:units = "na" ;
-		fates_turnover_nitr_retrans_p1:long_name = "retranslocation of nitrogen in turnover, parameter 1" ;
+	float fates_turnover_nitr_retrans(fates_prt_organs,fates_pft) ;
+		fates_turnover_nitr_retrans:units = "-" ;
+		fates_turnover_nitr_retrans:long_name = "retranslocation fraction of nitrogen in turnover" ;
 
-	float fates_turnover_phos_retrans_p1(fates_prt_organs,fates_pft) ;
-		fates_turnover_phos_retrans_p1:units = "na" ;
-		fates_turnover_phos_retrans_p1:long_name = "retranslocation of phosphorous in turnover, parameter 1" ;
+	float fates_turnover_phos_retrans(fates_prt_organs,fates_pft) ;
+		fates_turnover_phos_retrans:units = "-" ;
+		fates_turnover_phos_retrans:long_name = "retranslocation fraction of phosphorous in turnover " ;
 
 	float fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
@@ -812,7 +812,7 @@ data:
  fates_turnover_retrans_mode = 
   1, 1;
 
- fates_turnover_carb_retrans_p1 = 
+ fates_turnover_carb_retrans = 
   0.00, 0.00,
   0.00, 0.00,
   0.00, 0.00,
@@ -820,7 +820,7 @@ data:
   0.00, 0.00,
   0.00, 0.00;
 
- fates_turnover_nitr_retrans_p1 = 
+ fates_turnover_nitr_retrans = 
   _, _,
   _, _,	
   _, _,
@@ -828,7 +828,7 @@ data:
   _, _,
   _, _;
 
- fates_turnover_phos_retrans_p1 = 
+ fates_turnover_phos_retrans = 
   _, _,
   _, _,	
   _, _,

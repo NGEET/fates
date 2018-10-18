@@ -367,7 +367,7 @@ contains
                      
                      call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,b_leaf)
                      call storage_fraction_of_target(b_leaf, &
-                           currentCohort%prt%GetState(store_organ, carbon12_species), &
+                           currentCohort%prt%GetState(store_organ, all_carbon_species), &
                            frac)
                      call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
                           maintresp_reduction_factor)
@@ -444,8 +444,8 @@ contains
                                  
                               case (prt_cnp_flex_allom_hyp)
 
-                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_species)
-                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_species)
+                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
+                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
                                  lnc_top = leaf_n / (slatop(ft) * leaf_c )
 
                               end select

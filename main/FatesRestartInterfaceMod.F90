@@ -23,7 +23,7 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,          only : store_organ
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : prt_instance
+  use PRTGenericMod,          only : prt_global
 
 
   ! CIME GLOBALS
@@ -893,15 +893,15 @@ contains
      character(len=128) :: symbol
      character(len=256) :: long_name
 
-     do i_var = 1, prt_instance%num_vars
+     do i_var = 1, prt_global%num_vars
 
         ! The base symbol name
-        symbol_base = prt_instance%state_descriptor(i_var)%symbol
+        symbol_base = prt_global%state_descriptor(i_var)%symbol
         
         ! The long name of the variable
-        name_base = prt_instance%state_descriptor(i_var)%longname
+        name_base = prt_global%state_descriptor(i_var)%longname
 
-        do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos
+        do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
            
            ! String describing the physical position of the variable
            write(pos_symbol, '(I3.3)') i_pos
@@ -1223,8 +1223,8 @@ contains
                 ! -----------------------------------------------------------------------
 
                 ir_prt_var = ir_prt_base
-                do i_var = 1, prt_instance%num_vars
-                   do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos
+                do i_var = 1, prt_global%num_vars
+                   do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
                       
                       ir_prt_var = ir_prt_var + 1
                       this%rvars(ir_prt_var)%r81d(io_idx_co) = &
@@ -1666,7 +1666,7 @@ contains
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
      integer  :: patchespersite   ! number of patches per site
      integer  :: cohortsperpatch  ! number of cohorts per patch 
-     integer  :: i_prt_var        ! loop counter for var x position
+     integer  :: ir_prt_var       ! loop counter for var x position
      integer  :: i_var            ! loop counter for PRT variables
      integer  :: i_pos            ! loop counter for discrete PRT positions
 
@@ -1792,8 +1792,8 @@ contains
                 ! -----------------------------------------------------------------------
 
                 ir_prt_var = ir_prt_base
-                do i_var = 1, prt_instance%num_vars
-                   do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos 
+                do i_var = 1, prt_global%num_vars
+                   do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
 
                       ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%val(i_pos) = &

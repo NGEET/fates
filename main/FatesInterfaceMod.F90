@@ -27,9 +27,10 @@ module FatesInterfaceMod
    use EDPftvarcon         , only : FatesCheckParams
    use EDPftvarcon         , only : EDPftvarcon_inst
    use EDParamsMod         , only : FatesReportParams
-
-   use PRTAllometricCarbonMod, only : InitPRTInstanceAC
-   !   use PRTAllometricCNPMod, only    : InitPRTInstanceACNP
+   use PRTGenericMod         , only : prt_carbon_allom_hyp
+   use PRTGenericMod         , only : prt_cnp_flex_allom_hyp
+   use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
+   !   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -1587,11 +1588,11 @@ contains
      select case(hlm_parteh_mode)
      case(prt_carbon_allom_hyp)
 
-        call InitPRTInstanceAC()
+        call InitPRTGlobalAllometricCarbon()
 
      case(prt_cnp_flex_allom_hyp)
         
-        !call InitPRTInstanceACNP()
+        !call InitPRTGlobalAllometricCNP()
         write(fates_log(),*) 'You specified the allometric CNP mode'
         write(fates_log(),*) 'with relaxed target stoichiometry.'
         write(fates_log(),*) 'I.e., namelist parametre fates_parteh_mode = 2'

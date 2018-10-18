@@ -5,21 +5,16 @@ module PRTGenericMod
   ! Extensible Hypotheses (EH) = PARTEH
   ! 
   ! Non-Specific (Generic) Classes and Functions
-  ! This contains the base classes for both the variables and the "instance"
+  ! This contains the base classes for both the variables and the global class
   ! This also contains science relevent procedures that are agnostic of hypothesis
   ! such as maintenance turnover and restranslocation.
   !
-  ! Ryan Knox, April 2018
+  ! THIS ROUTINE SHOULD NOT HAVE TO BE MODIFIED TO ACCOMODATE NEW HYPOTHESES
+  ! (in principle ...)
   !
+  ! Ryan Knox, April 2018
   ! ------------------------------------------------------------------------------------
 
-  ! ------------------------------------------------------------------------------------
-  ! TO-DO: Impose a parameter check function
-  !        reproduction must be priority 0 in CNP
-  !
-  ! TO-DO: Create a generic mapping table that will list all species
-  !        of a specific organ of interest.
-  ! ------------------------------------------------------------------------------------
 
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : i4 => fates_int
@@ -27,13 +22,10 @@ module PRTGenericMod
   use FatesConstantsMod, only : calloc_abs_error
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log 
- 
   use shr_log_mod      , only : errMsg => shr_log_errMsg
  
   
   implicit none
-
-  logical, parameter :: debug = .true.
 
   integer, parameter :: maxlen_varname   = 128
   integer, parameter :: maxlen_varsymbol = 32
@@ -132,8 +124,22 @@ module PRTGenericMod
 
   
   ! -------------------------------------------------------------------------------------
-  ! This is a generic variable type that can be used to describe all
-  ! species x organ variable combinations.
+  !
+  ! The following is the data structure that holds the state (ie carbon,
+  ! nutrients, etc) for each pool of each plant.
+  !
+  ! For example, this could be the carbon 12 of the leaf pool; its instantaneous state,
+  !   and its fluxes.
+  !
+  ! Note also that these are vectors and not scalars, which indicates that there
+  ! may be more than 1 discrete spatial positions.  For instance, there might be multiple
+  ! leaf layers or something.
+  ! 
+  ! Since there are many variables, as well as boundary conditions, this object is 
+  ! NESTED in the prt_vartypes  (<---- see the "s" at the end?)  structure that follows.
+  ! 
+  ! Each object will have a unique index associated with it, it will also be mapped
+  ! to a specific organ and species combination.
   ! 
   ! It is assumed that over the control period (probably 1 day) that
   ! changes in the current state (val) relative to the value at the start of the
@@ -166,7 +172,9 @@ module PRTGenericMod
 
 
   ! -------------------------------------------------------------------------------------
-  ! Input boundary conditions
+  ! Input boundary conditions.  These will be allocated as an array for each plant.
+  ! This type will also be broken into 3 types of boundary conditions:  input only,
+  ! output only, and input-output.
   ! -------------------------------------------------------------------------------------
 
   type prt_bctype
@@ -178,7 +186,8 @@ module PRTGenericMod
 
 
   ! -------------------------------------------------------------------------------------
-  ! This generic type defines the object that attaches to the instance of any plant.
+  ! The following is the object that is directly attached to each plant.
+  !
   ! ie this is the parent object.
   ! It contains the state variable object: variables
   ! as well as the boundary condition pointers bc_inout, bc_in and bc_out
@@ -194,7 +203,7 @@ module PRTGenericMod
 
   type prt_vartypes
      
-     type(prt_vartype),allocatable :: variables(:)    ! The state variables
+     type(prt_vartype),allocatable :: variables(:)    ! The state variables and fluxes
      type(prt_bctype), allocatable :: bc_inout(:)     ! These boundaries may be changed
      type(prt_bctype), allocatable :: bc_in(:)        ! These are protected
      type(prt_bctype), allocatable :: bc_out(:)       ! These are overwritten
@@ -229,11 +238,14 @@ module PRTGenericMod
      procedure, non_overridable :: CopyPRTVartypes
   end type prt_vartypes
 
+
+
+
   ! -------------------------------------------------------------------------------------
-  ! This next section contains the object that describe the mapping for each specific
+  ! This next section contains the objects that describe the mapping for each specific
   ! hypothesis. It is also a way to call the descriptions of variables for any
   ! arbitrary hypothesis.
-  ! These are things that are generally true, not specific to each plant.
+  ! These are things that are globally true, not specific to each plant.
   ! For instance the map just contains the list of variable names, not the values for
   ! each plant.
   ! These are not instanced on every plant, they are just instanced once on every model 
@@ -292,7 +304,7 @@ module PRTGenericMod
   ! -------------------------------------------------------------------------------------
 
 
-  type prt_instance_type
+  type prt_global_type
      
      ! Note that index 0 is reserved for "all" or "irrelevant"
      character(len=maxlen_varname)                             :: hyp_name
@@ -322,13 +334,13 @@ module PRTGenericMod
 
   contains
         
-     procedure, non_overridable :: ZeroInstance
-     procedure, non_overridable :: InitInstance
+     procedure, non_overridable :: ZeroGlobal
+     procedure, non_overridable :: RegisterVarInGlobal
 
-  end type prt_instance_type
+  end type prt_global_type
 
   
-  type(prt_instance_type),pointer :: prt_instance
+  type(prt_global_type),pointer :: prt_global
 
 
 contains
@@ -337,9 +349,18 @@ contains
   ! Module Functions and Subroutines
   ! =====================================================================================
 
-   subroutine ZeroInstance(this)
-      
-     class(prt_instance_type)    :: this
+
+  subroutine ZeroGlobal(this)
+  
+
+     ! This subroutine zero's out the map between variable indexes and the
+     ! species and organs they are associated with.
+     ! It also sets the counts of the variables and boundary conditions as 
+     ! a nonsense number that will trigger a fail if they are specified later.
+     ! This routine must be called 
+
+
+     class(prt_global_type)    :: this
      
      integer :: io ! Organ loop counter
      integer :: is ! Species loop counter
@@ -363,13 +384,18 @@ contains
      this%num_vars = -9
 
      return
-  end subroutine ZeroInstance
+  end subroutine ZeroGlobal
    
   ! =====================================================================================
   
-  subroutine InitInstance(this, var_id, long_name, symbol, organ_id, spec_id, num_pos)
+  subroutine RegisterVarInGlobal(this, var_id, long_name, symbol, organ_id, spec_id, num_pos)
+
      
-     class(prt_instance_type)    :: this
+     ! This subroutine is called for each variable that is defined in each specific hypothesis.
+     ! For instance, this is called six times in the carbon only hypothesis,
+     ! each time providing names, symbols, associated organs and species for each pool.
+     
+     class(prt_global_type)      :: this
      integer, intent(in)         :: var_id
      character(len=*),intent(in) :: long_name
      character(len=*),intent(in) :: symbol
@@ -377,7 +403,6 @@ contains
      integer, intent(in)         :: spec_id
      integer, intent(in)         :: num_pos
 
-    
      ! Set the descriptions and the associated organs/species in the variable's
      ! own array
 
@@ -399,7 +424,7 @@ contains
 
         
      return
-  end subroutine InitInstance
+  end subroutine RegisterVarInGlobal
 
   ! =====================================================================================
 
@@ -409,7 +434,11 @@ contains
     
     
     ! This subroutine should be the first call whenever a prt_vartype object is
-    ! instantiated.  This routine handles the allocation (extended procedure)
+    ! instantiated.  
+    ! 
+    ! Most likely, this will occur whenever a new plant or cohort is created.
+    ! 
+    ! This routine handles the allocation (extended procedure)
     ! and then the initializing of states with bogus information, and then
     ! the flushing of all boundary conditions to null.
 
@@ -428,8 +457,7 @@ contains
     
      ! ----------------------------------------------------------------------------------
      ! This initialization is called everytime a plant/cohort
-     ! is newly recruited.  This simply sets-up, allocates
-     ! and sets some initialization values
+     ! is newly recruited.  Like the name implies, we are just allocating space here.
      ! ----------------------------------------------------------------------------------
 
      class(prt_vartypes) :: this        
@@ -440,24 +468,24 @@ contains
      ! Allocate the boundar condition arrays and flush them to no-data flags
      ! ----------------------------------------------------------------------------------
 
-     if(prt_instance%num_bc_in > 0) then
-        allocate(this%bc_in(prt_instance%num_bc_in))
+     if(prt_global%num_bc_in > 0) then
+        allocate(this%bc_in(prt_global%num_bc_in))
      end if
 
-     if(prt_instance%num_bc_inout > 0) then
-        allocate(this%bc_inout(prt_instance%num_bc_inout))
+     if(prt_global%num_bc_inout > 0) then
+        allocate(this%bc_inout(prt_global%num_bc_inout))
      end if
 
-     if(prt_instance%num_bc_out > 0) then
-        allocate(this%bc_out(prt_instance%num_bc_out))
+     if(prt_global%num_bc_out > 0) then
+        allocate(this%bc_out(prt_global%num_bc_out))
      end if
      
      ! Allocate the state variables
-     allocate(this%variables(prt_instance%num_vars))
+     allocate(this%variables(prt_global%num_vars))
      
-     do i_var = 1, prt_instance%num_vars
+     do i_var = 1, prt_global%num_vars
         
-        num_pos = prt_instance%state_descriptor(i_var)%num_pos 
+        num_pos = prt_global%state_descriptor(i_var)%num_pos 
         
         allocate(this%variables(i_var)%val(num_pos))
         allocate(this%variables(i_var)%val0(num_pos))
@@ -475,11 +503,16 @@ contains
 
   subroutine InitializeInitialConditions(this)
 
+     ! ----------------------------------------------------------------------------------
+     ! This routine sets all PARTEH variables to a nonsense value.
+     ! This ensures that a fail is triggered if a value is not initialized correctly.
+     ! ----------------------------------------------------------------------------------
+
     class(prt_vartypes) :: this
 
     integer :: i_var      ! Variable index
 
-    do i_var = 1, prt_instance%num_vars
+    do i_var = 1, prt_global%num_vars
        this%variables(i_var)%val(:)      = un_initialized
        this%variables(i_var)%val0(:)     = un_initialized
        this%variables(i_var)%turnover(:) = un_initialized
@@ -499,9 +532,14 @@ contains
 
   subroutine CheckInitialConditions(this)
     
-    ! This subroutine is called for every variable defined in each specific
-    ! hypothesis.  The global index for the specific hypothesis' variable
-    ! will be provided as the second argument.
+    ! This subroutine makes sure that every variable defined
+    ! in the hypothesis has been given an initial value.
+    !
+    ! This should be called following any blocks where initial
+    ! conditions are set. In fates, these calls already
+    ! exist and when new hypotheses are added, they will
+    ! already be checked if the initial conditions are 
+    ! specified in parallel with the other hypotheses.
 
     class(prt_vartypes) :: this
 
@@ -511,7 +549,7 @@ contains
     integer :: i_gorgan   ! The global organ id for this variable
     integer :: i_gspecies ! The global species id for this variable
 
-    do i_var = 1, prt_instance%num_vars
+    do i_var = 1, prt_global%num_vars
 
        n_cor_ids = size(this%variables(i_var)%val,1)
 
@@ -519,11 +557,11 @@ contains
        
           if(this%variables(i_var)%val(i_cor) < check_initialized) then
 
-             i_gorgan   = prt_instance%state_descriptor(i_var)%organ_id
-             i_gspecies = prt_instance%state_descriptor(i_var)%spec_id
+             i_gorgan   = prt_global%state_descriptor(i_var)%organ_id
+             i_gspecies = prt_global%state_descriptor(i_var)%spec_id
 
              write(fates_log(),*)'Not all initial conditions for state variables'
-             write(fates_log(),*)' in PRT hypothesis: ',trim(prt_instance%hyp_name)
+             write(fates_log(),*)' in PRT hypothesis: ',trim(prt_global%hyp_name)
              write(fates_log(),*)' were written out.'
              write(fates_log(),*)' i_var: ',i_var
              write(fates_log(),*)' i_cor: ',i_cor
@@ -585,12 +623,15 @@ contains
   ! =====================================================================================
 
   subroutine RegisterBCIn(this,bc_id, bc_rval, bc_ival )
-     
-    
-    ! This subroutine should be called once when PARTEH
-    ! object that is bound to the plant object is first intantiated.
-    ! Unless there is some reason the boundary condition pointers
-    ! are changing.
+
+    ! This routine must be called once for each "input only" boundary condition of each 
+    ! hypothesis.  
+    ! The group of calls only needs to happen once, following InitPRTVartype.
+    ! Since we use pointers, we don't need to constantly ask for new boundary conditions
+    !
+    ! The only complication to this would occur, if the boundary condition variable
+    ! that these pointers point to is being disassociated. In that case, one would
+    ! need to re-register that boundary condition variable.
 
     
     ! Input Arguments
@@ -612,11 +653,71 @@ contains
     return
   end subroutine RegisterBCIn
   
+  ! =====================================================================================
+
+  subroutine RegisterBCOut(this,bc_id, bc_rval, bc_ival )
+
+    
+    ! This routine is similar to the routine above RegisterBCIn, except this 
+    ! is for registering "output only" boundary conditions.
+
+
+    ! Input Arguments
+    
+    class(prt_vartypes)                      :: this
+    integer,intent(in)                       :: bc_id
+    real(r8), optional, intent(inout),target :: bc_rval
+    integer, optional, intent(inout),target  :: bc_ival
+    
+    if(present(bc_ival)) then
+       this%bc_out(bc_id)%ival => bc_ival
+    end if
+
+    if(present(bc_rval)) then
+       this%bc_out(bc_id)%rval => bc_rval
+    end if
+
+    return
+  end subroutine RegisterBCOut
+
+  ! =====================================================================================
+
+  subroutine RegisterBCInOut(this,bc_id, bc_rval, bc_ival )
+
+
+    ! This routine is similar to the two routines above, except this 
+    ! is for registering "input-output" boundary conditions.
+    ! These are conditions that are passed into PARTEH, and are expected
+    ! to be updated (or not), and passed back to the host (FATES).
+
+    ! Input Arguments
+    
+    class(prt_vartypes)                      :: this
+    integer,intent(in)                       :: bc_id
+    real(r8), optional, intent(inout),target :: bc_rval
+    integer, optional, intent(inout),target  :: bc_ival
+    
+    if(present(bc_ival)) then
+       this%bc_inout(bc_id)%ival => bc_ival
+    end if
+
+    if(present(bc_rval)) then
+       this%bc_inout(bc_id)%rval => bc_rval
+    end if
+
+    return
+  end subroutine RegisterBCInOut
 
   ! =====================================================================================
 
 
   subroutine CopyPRTVartypes(this, donor_prt_obj)
+
+    ! Here we copy over all information from a donor_prt_object into the current PRT
+    ! object.   It is assumed that the current PRT object
+    ! has already been initialized ( ie. InitAllocate() )
+    ! variable val0 is omitted, because it is ephemeral and used only during the
+    ! allocation process
 
     ! Arguments
     class(prt_vartypes)                      :: this
@@ -631,13 +732,7 @@ contains
     integer :: num_bc_inout
     integer :: num_bc_out
 
-    ! Here we copy over all information from a donor_prt_object into the current PRT
-    ! object.   It is assumed that the current PRT object
-    ! has already bee initialized ( ie. InitAllocate() )
-    ! variable val0 is omitted, because it is ephemeral and used only during the
-    ! allocation process
-
-    do i_var = 1, prt_instance%num_vars
+    do i_var = 1, prt_global%num_vars
        this%variables(i_var)%val(:)       = donor_prt_obj%variables(i_var)%val(:)
        this%variables(i_var)%val0(:)      = donor_prt_obj%variables(i_var)%val0(:)
        this%variables(i_var)%net_art(:)   = donor_prt_obj%variables(i_var)%net_art(:)
@@ -675,7 +770,7 @@ contains
        pos_id = 1
     end if
 
-    do i_var = 1, prt_instance%num_vars
+    do i_var = 1, prt_global%num_vars
 
        this%variables(i_var)%val(pos_id)  = recipient_fuse_weight * this%variables(i_var)%val(pos_id) + &
             (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%val(pos_id)
@@ -705,6 +800,17 @@ contains
 
   subroutine DeallocatePRTVartypes(this)
 
+    ! ---------------------------------------------------------------------------------
+    ! Unfortunately ... all plants must die. It is sad, but when this happens
+    ! we must also deallocate our memory of them.  Man, thats really is sad. Why
+    ! must we also forget them...  Well, anyway,  any time a plant/cohort
+    ! is deallocated, we must also deallocate all this memory bound in the PARTEH
+    ! data structure.  But on the bright side, there will always be new recruits,
+    ! a new generation, to allocate as well.  Life must go on.
+    ! I suppose since we are recording their life in the history output, in a way
+    ! we are remembering them. I feel better now.
+    ! ---------------------------------------------------------------------------------
+
     class(prt_vartypes) :: this
 
     integer             :: i_var
@@ -712,7 +818,7 @@ contains
     ! Check to see if there is any value in these pools?
     ! SHould not deallocate if there is any carbon left
 
-    do i_var = 1, prt_instance%num_vars
+    do i_var = 1, prt_global%num_vars
        deallocate(this%variables(i_var)%val)
        deallocate(this%variables(i_var)%val0)
        deallocate(this%variables(i_var)%net_art)
@@ -736,51 +842,6 @@ contains
 
     return
   end subroutine DeallocatePRTVartypes
-
-  ! =====================================================================================
-
-  subroutine RegisterBCOut(this,bc_id, bc_rval, bc_ival )
-    
-    ! Input Arguments
-    
-    class(prt_vartypes)                      :: this
-    integer,intent(in)                       :: bc_id
-    real(r8), optional, intent(inout),target :: bc_rval
-    integer, optional, intent(inout),target  :: bc_ival
-    
-    if(present(bc_ival)) then
-       this%bc_out(bc_id)%ival => bc_ival
-    end if
-
-    if(present(bc_rval)) then
-       this%bc_out(bc_id)%rval => bc_rval
-    end if
-
-    return
-  end subroutine RegisterBCOut
-
-  ! =====================================================================================
-
-  subroutine RegisterBCInOut(this,bc_id, bc_rval, bc_ival )
-    
-    ! Input Arguments
-    
-    class(prt_vartypes)                      :: this
-    integer,intent(in)                       :: bc_id
-    real(r8), optional, intent(inout),target :: bc_rval
-    integer, optional, intent(inout),target  :: bc_ival
-    
-    if(present(bc_ival)) then
-       this%bc_inout(bc_id)%ival => bc_ival
-    end if
-
-    if(present(bc_rval)) then
-       this%bc_inout(bc_id)%rval => bc_rval
-    end if
-
-    return
-  end subroutine RegisterBCInOut
-
   
   ! =====================================================================================
 
@@ -791,13 +852,16 @@ contains
       ! It also sets the initial value to the current state.
       ! This allows us to make mass conservation checks, where
       ! val - val0 = net_art + turnover
+      ! 
+      ! This subroutine is called each day in FATES, which is the control interval
+      ! that we conserve carbon from the allocation and turnover process.
       ! ---------------------------------------------------------------------------------
 
       class(prt_vartypes) :: this
 
       integer :: i_var    ! Variable index
 
-      do i_var = 1, prt_instance%num_vars
+      do i_var = 1, prt_global%num_vars
          this%variables(i_var)%val0(:)        = this%variables(i_var)%val(:)
          this%variables(i_var)%net_art(:)     = 0.0_r8
          this%variables(i_var)%turnover(:)    = 0.0_r8
@@ -809,6 +873,14 @@ contains
    ! ====================================================================================
 
    subroutine CheckMassConservation(this,ipft,position_id)
+
+      
+     ! ---------------------------------------------------------------------------------
+     ! At any time, the sum of fluxes should equal the difference between val and val0.
+     ! This routine loops over all variables and ensures this is true.
+     ! The final argument is any uniqely identifying index that can be used
+     ! to differentiate where in the call sequence a failure in conservation occurs.
+     ! ---------------------------------------------------------------------------------
 
      class(prt_vartypes) :: this
      integer, intent(in) :: ipft
@@ -822,10 +894,9 @@ contains
      real(r8) :: rel_err
 
 
+     do i_var = 1, prt_global%num_vars
 
-     do i_var = 1, prt_instance%num_vars
-
-        do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos
+        do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
            
            err = abs((this%variables(i_var)%val(i_pos) - this%variables(i_var)%val0(i_pos)) - &
                   (this%variables(i_var)%net_art(i_pos) &
@@ -844,11 +915,11 @@ contains
               write(fates_log(),*) ' always equal the integrated fluxes.'
               write(fates_log(),*) ' pft id: ',ipft
               write(fates_log(),*) ' position id: ',position_id
-              write(fates_log(),*) ' organ id: ',prt_instance%state_descriptor(i_var)%organ_id
-              write(fates_log(),*) ' species_id: ',prt_instance%state_descriptor(i_var)%spec_id
+              write(fates_log(),*) ' organ id: ',prt_global%state_descriptor(i_var)%organ_id
+              write(fates_log(),*) ' species_id: ',prt_global%state_descriptor(i_var)%spec_id
               write(fates_log(),*) ' position id: ',i_pos
-              write(fates_log(),*) ' symbol: ',trim(prt_instance%state_descriptor(i_var)%symbol)
-              write(fates_log(),*) ' longname: ',trim(prt_instance%state_descriptor(i_var)%longname)
+              write(fates_log(),*) ' symbol: ',trim(prt_global%state_descriptor(i_var)%symbol)
+              write(fates_log(),*) ' longname: ',trim(prt_global%state_descriptor(i_var)%longname)
               write(fates_log(),*) ' err: ',err,' max error: ',calloc_abs_error
               write(fates_log(),*) ' terms: ', this%variables(i_var)%val(i_pos), &
                                                this%variables(i_var)%val0(i_pos), &
@@ -870,10 +941,11 @@ contains
    function GetState(this, organ_id, species_id, position_id) result(sp_organ_val)
       
       ! This function returns the current amount of mass for
-      ! any combination of organ and species.  If a position
+      ! any combination of organ and species. **IF** a position
       ! is provided, it will use it, but otherwise, it will sum over
       ! all dimensions.  It also can accomodate all_carbon_species, which
       ! will return the mass of all carbon isotopes combined.
+
 
       class(prt_vartypes)   :: this
       integer,intent(in)    :: organ_id
@@ -901,18 +973,17 @@ contains
          i_pos = position_id
       
          do ispec = 1,num_species
-            i_var = prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
-            if(i_var>0) sp_organ_val = sp_organ_val + this%variables(i_var)%val(i_pos)
+            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
+            if (i_var>0) sp_organ_val = sp_organ_val + this%variables(i_var)%val(i_pos)
          end do
 
       else
          
          do ispec = 1,num_species
             
-            i_var = prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
             if(i_var>0)then
-
-               do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos
+               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
                   sp_organ_val = sp_organ_val + this%variables(i_var)%val(i_pos)
                end do
             end if
@@ -930,9 +1001,11 @@ contains
    
     function GetTurnover(this, organ_id, species_id, position_id) result(sp_organ_turnover)
       
-
+     
       ! THis function is very similar to GetState, with the only difference that it
       ! returns the turnover mass so-far during the period of interest.
+      !
+      ! NOTE: THIS HAS NOTHING TO DO WITH SPECIFYING TURNOVER. THIS IS JUST A QUERY FUNCTION
 
 
       class(prt_vartypes)   :: this
@@ -961,7 +1034,7 @@ contains
          i_pos = position_id
       
          do ispec = 1,num_species
-            i_var = prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
             if(i_var>0) sp_organ_turnover = sp_organ_turnover + &
                  this%variables(i_var)%turnover(i_pos)
          end do
@@ -969,9 +1042,9 @@ contains
       else
 
          do ispec = 1,num_species
-            i_var = prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
             if(i_var>0) then
-               do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos
+               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
                   sp_organ_turnover = sp_organ_turnover + this%variables(i_var)%turnover(i_pos)
                end do
             end if
@@ -989,6 +1062,8 @@ contains
 
       ! THis function is very similar to GetTurnover, with the only difference that it
       ! returns the turnover mass so-far during the period of interest.
+      
+      ! NOTE: THIS HAS NOTHING TO DO WITH SPECIFYING BURNING. THIS IS JUST A QUERY FUNCTION
 
       class(prt_vartypes)         :: this
       integer,intent(in)          :: organ_id
@@ -1016,7 +1091,7 @@ contains
          i_pos = position_id
       
          do ispec = 1,num_species
-            i_var = prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
             if(i_var>0) sp_organ_burned = sp_organ_burned + &
                   this%variables(i_var)%burned(i_pos)
          end do
@@ -1024,9 +1099,9 @@ contains
       else
          
          do ispec = 1,num_species
-            i_var = prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
             if(i_var>0) then
-               do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos
+               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
                   sp_organ_burned = sp_organ_burned + this%variables(i_var)%burned(i_pos)
                end do
             end if
@@ -1044,6 +1119,9 @@ contains
       
       ! THis function is very similar to GetTurnover, with the only difference that it
       ! returns the Net changes due to Allocations Reactions and Transport in that pool
+
+      ! NOTE: THIS HAS NOTHING TO DO WITH SPECIFYING ALLOCATION/TRANSPORT. 
+      ! THIS IS JUST A QUERY FUNCTION
 
       class(prt_vartypes)         :: this
       integer,intent(in)          :: organ_id
@@ -1071,7 +1149,7 @@ contains
          i_pos = position_id
       
          do ispec = 1,num_species
-            i_var = prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
             if(i_var>0) sp_organ_netart = sp_organ_netart + &
                   this%variables(i_var)%net_art(i_pos)
          end do
@@ -1079,9 +1157,9 @@ contains
       else
          
          do ispec = 1,num_species
-            i_var = prt_instance%sp_organ_map(organ_id,spec_ids(ispec))
+            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
             if(i_var>0) then
-               do i_pos = 1, prt_instance%state_descriptor(i_var)%num_pos 
+               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
                   sp_organ_netart = sp_organ_netart + this%variables(i_var)%net_art(i_pos)
                end do
             end if
@@ -1097,6 +1175,11 @@ contains
 
    function GetCoordVal(this, organ_id, species_id ) result(prt_val)
       
+
+      ! This is support code that may be helpful when we have variables in parteh
+      ! that have multiple discrete spatial positions.
+      
+
       class(prt_vartypes)               :: this
       integer,intent(in)                :: organ_id
       integer,intent(in)                :: species_id
@@ -1163,13 +1246,13 @@ contains
         i_pos = 1
      end if
      
-     i_var = prt_instance%sp_organ_map(organ_id,species_id)
+     i_var = prt_global%sp_organ_map(organ_id,species_id)
      
-     if(i_pos > prt_instance%state_descriptor(i_var)%num_pos )then
+     if(i_pos > prt_global%state_descriptor(i_var)%num_pos )then
         write(fates_log(),*) 'A position index was specified that is'
         write(fates_log(),*) 'greater than the allocated position space'
         write(fates_log(),*) ' i_pos: ',i_pos
-        write(fates_log(),*) ' num_pos: ',prt_instance%state_descriptor(i_var)%num_pos
+        write(fates_log(),*) ' num_pos: ',prt_global%state_descriptor(i_var)%num_pos
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if
 

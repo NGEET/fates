@@ -6,12 +6,13 @@ module PRTAllometricCarbonMod
    ! Plant Allocation and Reactive Transport Extensible Hypotheses (PARTEH)
    ! CARBON only, allometric growth hypothesis
    ! 
-   ! Ryan Knox Apr 2018
+   ! Adapted from code originally in ED, by Rosie Fisher and Paul Moorcroft
+   ! This refactor written by : Ryan Knox Apr 2018
    !
    ! ------------------------------------------------------------------------------------
 
-  use PRTGenericMod , only  : prt_instance_type
-  use PRTGenericMod , only  : prt_instance
+  use PRTGenericMod , only  : prt_global_type
+  use PRTGenericMod , only  : prt_global
   use PRTGenericMod , only  : prt_vartype
   use PRTGenericMod , only  : prt_vartypes
   use PRTGenericMod , only  : carbon12_species
@@ -110,8 +111,8 @@ module PRTAllometricCarbonMod
 
    contains
 
-     procedure :: DailyPRT     => DailyPRTAC
-     procedure :: FastPRT      => FastPRTAC
+     procedure :: DailyPRT     => DailyPRTAllometricCarbon
+     procedure :: FastPRT      => FastPRTAllometricCarbon
 
    end type callom_prt_vartypes
    
@@ -126,17 +127,20 @@ module PRTAllometricCarbonMod
 
 
    ! This is the instance of the mapping table and variable definitions
-   ! this is only allocated once per node
-   class(prt_instance_type), public, target, allocatable :: prt_instance_ac
+   ! this is only allocated once per node.  This should be read-only
+   ! everywhere in the code, except for where it is populated in this init routine
+   ! below.
+
+   class(prt_global_type), protected, target, allocatable :: prt_global_ac
 
 
-   public :: InitPRTInstanceAC
+   public :: InitPRTGlobalAllometricCarbon
 
 
 contains
   
  
-  subroutine InitPRTInstanceAC()
+  subroutine InitPRTGlobalAllometricCarbon()
 
      ! ----------------------------------------------------------------------------------
      ! Initialize and populate the object that hold the descriptions of the variables,
@@ -152,14 +156,14 @@ contains
      ! There are two mapping tables.  One mapping table is a 2d array organized
      ! by organ and species, that contains the variable index:
      ! 
-     ! prt_instance%sp_organ_map
+     ! prt_global%sp_organ_map
      !
      ! The other mapping table is similar, but it is a 1D array, a list of the organs.
      ! And each of these the in turn points to a list of the indices associated
      ! with that organ.  This is useful when you want to do lots of stuff to a specified
      ! organ. 
      ! 
-     ! prt_instance%organ_map
+     ! prt_global%organ_map
      !
      ! IMPORTANT NOTE:  Once this object is populated, we can use this to properly
      ! allocate the "prt_vartypes_type" objects that attached to each plant. That process
@@ -167,41 +171,41 @@ contains
      ! 
      ! -----------------------------------------------------------------------------------
 
-     allocate(prt_instance_ac)
+     allocate(prt_global_ac)
      
      ! The "state descriptor" object holds things like the names, the symbols, the units
      ! of each variable. By putting it in an object, we can loop through them when
      ! doing things like reading/writing history and restarts
 
-     allocate(prt_instance_ac%state_descriptor(num_vars))
+     allocate(prt_global_ac%state_descriptor(num_vars))
 
-     prt_instance_ac%hyp_name = 'Allometric Carbon Only'
+     prt_global_ac%hyp_name = 'Allometric Carbon Only'
      
      ! Set mapping tables to zero
-     call prt_instance_ac%ZeroInstance()
+     call prt_global_ac%ZeroGlobal()
 
      ! Register the variables. Each variable must be associated with a global identifier
      ! for an organ and species.
 
-     call prt_instance_ac%InitInstance(leaf_c_id,"Leaf Carbon","leaf_c",leaf_organ,carbon12_species,icd)
-     call prt_instance_ac%InitInstance(fnrt_c_id,"Fine Root Carbon","fnrt_c",fnrt_organ,carbon12_species,icd)
-     call prt_instance_ac%InitInstance(sapw_c_id,"Sapwood Carbon","sapw_c",sapw_organ,carbon12_species,icd)
-     call prt_instance_ac%InitInstance(store_c_id,"Storage Carbon","store_c",store_organ,carbon12_species,icd)
-     call prt_instance_ac%InitInstance(struct_c_id,"Structural Carbon","struct_c",struct_organ,carbon12_species,icd)
-     call prt_instance_ac%InitInstance(repro_c_id,"Reproductive Carbon","repro_c",repro_organ,carbon12_species,icd)
+     call prt_global_ac%RegisterVarInGlobal(leaf_c_id,"Leaf Carbon","leaf_c",leaf_organ,carbon12_species,icd)
+     call prt_global_ac%RegisterVarInGlobal(fnrt_c_id,"Fine Root Carbon","fnrt_c",fnrt_organ,carbon12_species,icd)
+     call prt_global_ac%RegisterVarInGlobal(sapw_c_id,"Sapwood Carbon","sapw_c",sapw_organ,carbon12_species,icd)
+     call prt_global_ac%RegisterVarInGlobal(store_c_id,"Storage Carbon","store_c",store_organ,carbon12_species,icd)
+     call prt_global_ac%RegisterVarInGlobal(struct_c_id,"Structural Carbon","struct_c",struct_organ,carbon12_species,icd)
+     call prt_global_ac%RegisterVarInGlobal(repro_c_id,"Reproductive Carbon","repro_c",repro_organ,carbon12_species,icd)
      
      ! Set some of the array sizes for input and output boundary conditions
-     prt_instance_ac%num_bc_in    = num_bc_in
-     prt_instance_ac%num_bc_out   = num_bc_out
-     prt_instance_ac%num_bc_inout = num_bc_inout
-     prt_instance_ac%num_vars     = num_vars
+     prt_global_ac%num_bc_in    = num_bc_in
+     prt_global_ac%num_bc_out   = num_bc_out
+     prt_global_ac%num_bc_inout = num_bc_inout
+     prt_global_ac%num_vars     = num_vars
 
      ! Have the global generic pointer, point to this hypothesis' object
-     prt_instance => prt_instance_ac
+     prt_global => prt_global_ac
 
 
      return
-  end subroutine InitPRTInstanceAC
+  end subroutine InitPRTGlobalAllometricCarbon
 
   ! =====================================================================================
   
@@ -348,7 +352,7 @@ contains
     ! -----------------------------------------------------------------------------------
     ! 0.
     ! Copy the boundary conditions into readable local variables.
-    ! We don't use pointers for intput only, only in-out
+    ! We don't use pointers for bc's that ar "in" only, only "in-out" and "out"
     ! -----------------------------------------------------------------------------------
 
     dbh                             => this%bc_inout(ac_bc_inout_id_dbh)%rval
@@ -449,8 +453,9 @@ contains
     
     if (total_c_demand> nearzero ) then
 
-       ! If we are testing b4b, then we pay this even if we don't have the carbon
+       ! We pay this even if we don't have the carbon
        ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
+
        leaf_c_flux = min(leaf_c_demand, &
                          max(0.0_r8,(store_c+carbon_balance)* &
                          (leaf_c_demand/total_c_demand)))
@@ -629,14 +634,28 @@ contains
           grow_store = .true.
        end if
 
+       ! --------------------------------------------------------------------------------
+       ! The numerical integration of growth requires that the instantaneous state
+       ! variables are passed in as an array.  We call it "c_pool".
+       !
        ! Initialize the adaptive integrator arrays and flags
-       ! -----------------------------------------------------------------------------------
+       ! --------------------------------------------------------------------------------
+
        ierr             = 1
        totalC           = carbon_balance
        nsteps           = 0
        
-       c_pool(:) = 0.0_r8
-       c_mask(:) = .false.
+       c_pool(:) = 0.0_r8                        ! Zero state variable array
+       c_mask(:) = .false.                       ! This mask tells the integrator
+                                                 ! which indices are active. Its possible
+                                                 ! that due to fusion, or previous numerical
+                                                 ! truncation errors, that one of these pools
+                                                 ! may be larger than its target! We check
+                                                 ! this, and if true, then we flag that
+                                                 ! pool to be ignored. c_mask(i) = .false.
+                                                 ! For grasses, since they don't grow very 
+                                                 ! large and thus won't accumulate such large
+                                                 ! errors, we always mask as true.
 
        c_pool(leaf_c_id)   = leaf_c
        c_pool(fnrt_c_id)   = fnrt_c
@@ -654,6 +673,11 @@ contains
        c_mask(repro_c_id)  = .true.                ! Always calculate reproduction on growth
        c_mask(dbh_id)      = .true.                ! Always increment dbh on growth step
        
+
+       ! When using the Euler method, we keep things simple.  We always try
+       ! to make the first integration step to span the entirety of the integration
+       ! window for the independent variable (available carbon)
+
        if(ODESolve == 2) then
           this%ode_opt_step = totalC
        end if
@@ -668,6 +692,16 @@ contains
           elseif(ODESolve == 2) then
              call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,intgr_params,c_pool_out)
              !  step_pass = .true.
+             
+             ! When integrating along the allometric curve, we have the luxury of perfect
+             ! hindsite.  Ie, after we have made our step, we can see if the amount
+             ! of each carbon we have matches the target associated with the new dbh.
+             ! The following call evaluates how close we are to the allometically defined
+             ! targets. If we are too far (governed by max_trunc_error), then we
+             ! pass back the pass/fail flag (step_pass) as false.  If false, then
+             ! we halve the step-size, and then retry.  If that step was fine, then
+             ! we remember the current step size as a good next guess.
+             
              call CheckIntegratedAllometries(c_pool_out(dbh_id),ipft,canopy_trim,  &
                    c_pool_out(leaf_c_id), c_pool_out(fnrt_c_id), c_pool_out(sapw_c_id), &
                    c_pool_out(store_c_id), c_pool_out(struct_c_id), &
@@ -706,7 +740,12 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
-          ! TotalC should eventually be whittled down to near zero
+          !
+          ! TotalC should eventually be whittled down to near zero.
+          ! The solvers are not perfect, so we can't expect it to be perfectly zero.
+          ! Note that calloc_abs_error is 1e-9, which is really small (1 microgram of carbon)
+          ! yet also six orders of magnitude greater than typical rounding errors (~1e-15).
+  
           ! At that point, update the actual states
           ! --------------------------------------------------------------------------------
           if( (totalC < calloc_abs_error) .and. (step_pass) )then
@@ -793,10 +832,10 @@ contains
 
 
 
-  end associate
+   end associate
   
-  return
-  end subroutine DailyPRTAC
+   return
+  end subroutine DailyPRTAllometricCarbon
   
   ! =====================================================================================
   
@@ -821,7 +860,8 @@ contains
                                                          ! parameters into this function
 
 
-      ! Return Value
+      ! Return Value 
+      ! Change in carbon (each pool) per change in total allocatable carbon (kgC/kgC)
       real(r8),dimension(lbound(c_pools,dim=1):ubound(c_pools,dim=1)) :: dCdx 
 
       ! locals
@@ -835,14 +875,14 @@ contains
       real(r8) :: ct_store   ! target storage, dummy var (kgC)
       real(r8) :: ct_dead    ! target structural biomas, dummy var (kgC)
       real(r8) :: sapw_area      ! dummy sapwood area
-      real(r8) :: ct_dleafdd     ! target leaf biomass derivative wrt d, (kgC/cm)
-      real(r8) :: ct_dfnrtdd     ! target fine-root biomass derivative wrt d, (kgC/cm)
-      real(r8) :: ct_dsapdd      ! target sapwood biomass derivative wrt d, (kgC/cm)
-      real(r8) :: ct_dagwdd      ! target AG wood biomass derivative wrt d, (kgC/cm)
-      real(r8) :: ct_dbgwdd      ! target BG wood biomass derivative wrt d, (kgC/cm)
-      real(r8) :: ct_dstoredd    ! target storage biomass derivative wrt d, (kgC/cm)
-      real(r8) :: ct_ddeaddd     ! target structural biomass derivative wrt d, (kgC/cm)
-      real(r8) :: ct_dtotaldd    ! target total (not reproductive) biomass derivative wrt d, (kgC/cm)
+      real(r8) :: ct_dleafdd     ! target leaf biomass derivative wrt diameter, (kgC/cm)
+      real(r8) :: ct_dfnrtdd     ! target fine-root biomass derivative wrt diameter, (kgC/cm)
+      real(r8) :: ct_dsapdd      ! target sapwood biomass derivative wrt diameter, (kgC/cm)
+      real(r8) :: ct_dagwdd      ! target AG wood biomass derivative wrt diameter, (kgC/cm)
+      real(r8) :: ct_dbgwdd      ! target BG wood biomass derivative wrt diameter, (kgC/cm)
+      real(r8) :: ct_dstoredd    ! target storage biomass derivative wrt diameter, (kgC/cm)
+      real(r8) :: ct_ddeaddd     ! target structural biomass derivative wrt diameter, (kgC/cm)
+      real(r8) :: ct_dtotaldd    ! target total (not reproductive) biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: repro_fraction ! fraction of carbon balance directed towards reproduction (kgC/kgC)
 
 
@@ -863,11 +903,6 @@ contains
 
         canopy_trim = intgr_params(ac_bc_in_id_ctrim)
         ipft        = int(intgr_params(ac_bc_in_id_pft))
-
-        if(dbh>huge(dbh)) then
-           print*,"BIG D IN DERIV:",dbh
-           stop
-        end if
 
         call bleaf(dbh,ipft,canopy_trim,ct_leaf,ct_dleafdd)
         call bfineroot(dbh,ipft,canopy_trim,ct_fnrt,ct_dfnrtdd)
@@ -1018,7 +1053,7 @@ contains
 
    ! =====================================================================================
 
-   subroutine FastPRTAC(this)
+   subroutine FastPRTAllometricCarbon(this)
       
       implicit none
       class(callom_prt_vartypes) :: this     ! this class
@@ -1026,13 +1061,10 @@ contains
       ! This routine does nothing, because in the carbon only allometric RT model
       ! we currently don't have any fast-timestep processes
       ! Think of this as a stub.
-      
-      
-
 
 
       return
-    end subroutine FastPRTAC
+   end subroutine FastPRTAllometricCarbon
 
 
 end module PRTAllometricCarbonMod

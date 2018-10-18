@@ -38,11 +38,14 @@ contains
 !    select case(int(prt_mode))
 !    case (1)
 
-    call InitPRTInstanceAC()
+     ! We actually initialize all hypotheses, since we are intercomparing.
+
+
+    call InitPRTGlobalAllometricCarbon()
 
 !    case(2)
 
-    call InitPRTInstanceACNP()
+    call InitPRTGlobalAllometricCNP()
        
 !    case DEFAULT
 !       write(fates_log(),*) 'You specified an unknown PRT module'
