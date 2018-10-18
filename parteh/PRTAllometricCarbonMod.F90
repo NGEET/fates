@@ -679,7 +679,7 @@ contains
                 this%ode_opt_step = 0.5*deltaC
              end if
           else
-             write(fates_log(),*) 'An integrator was chosen that DNE'
+             write(fates_log(),*) 'An integrator was chosen that does not exist'
              write(fates_log(),*) 'ODESolve = ',ODESolve
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
