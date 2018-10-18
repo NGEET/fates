@@ -30,7 +30,6 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
-  use FatesAllometryMod  , only : bsap_allom
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
   use FatesAllometryMod  , only : h_allom
@@ -53,7 +52,7 @@ module EDCohortDynamicsMod
   public :: copy_cohort
   public :: count_cohorts
 
-  logical, parameter :: DEBUG  = .false. ! local debug flag
+  logical, parameter :: debug  = .false. ! local debug flag
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -319,12 +318,12 @@ contains
     currentCohort%dbstoredt          = nan ! time derivative of stored biomass 
 
     ! FIRE
-    currentCohort%cfa                = nan ! proportion of crown affected by fire
-    currentCohort%cambial_mort       = nan ! probability that trees dies due to cambial char P&R (1986)
-    currentCohort%crownfire_mort     = nan ! probability of tree post-fire mortality due to crown scorch
-    currentCohort%fire_mort          = nan ! post-fire mortality from cambial and crown damage assuming two are independent
+    currentCohort%fraction_crown_burned = nan ! proportion of crown affected by fire
+    currentCohort%cambial_mort          = nan ! probability that trees dies due to cambial char P&R (1986)
+    currentCohort%crownfire_mort        = nan ! probability of tree post-fire mortality due to crown scorch
+    currentCohort%fire_mort             = nan ! post-fire mortality from cambial and crown damage assuming two are independent
 
-    currentCohort%ode_opt_step       = nan ! integrator step size
+    currentCohort%ode_opt_step          = nan ! integrator step size
 
   end subroutine nan_cohort
 
@@ -346,6 +345,7 @@ contains
 
     currentCohort => cc_p
 
+<<<<<<< HEAD
     currentCohort%NV                 = 0    
     currentCohort%status_coh         = 0    
     currentCohort%rdark              = 0._r8
@@ -394,6 +394,53 @@ contains
     currentCohort%npp_stor = 0._r8
     currentCohort%size_class = 1
     currentCohort%size_class_lasttimestep = 0
+    currentCohort%NV                    = 0    
+    currentCohort%status_coh            = 0    
+    currentCohort%rdark                 = 0._r8
+    currentCohort%resp_m                = 0._r8 
+    currentCohort%resp_g                = 0._r8
+    currentCohort%livestem_mr           = 0._r8
+    currentCohort%livecroot_mr          = 0._r8
+    currentCohort%froot_mr              = 0._r8
+    currentCohort%fire_mort             = 0._r8 
+    currentcohort%npp_acc               = 0._r8
+    currentcohort%gpp_acc               = 0._r8
+    currentcohort%resp_acc              = 0._r8
+    currentcohort%npp_tstep             = 0._r8
+    currentcohort%gpp_tstep             = 0._r8
+    currentcohort%resp_tstep            = 0._r8
+    currentcohort%resp_acc_hold         = 0._r8
+    currentcohort%leaf_litter           = 0._r8
+    currentcohort%year_net_uptake(:)    = 999._r8 ! this needs to be 999, or trimming of new cohorts will break. 
+    currentcohort%ts_net_uptake(:)      = 0._r8
+    currentcohort%seed_prod             = 0._r8
+    currentcohort%fraction_crown_burned = 0._r8 
+    currentcohort%md                    = 0._r8
+    currentcohort%root_md               = 0._r8
+    currentcohort%leaf_md               = 0._r8
+    currentcohort%bstore_md             = 0._r8
+    currentcohort%bsw_md                = 0._r8
+    currentcohort%bdead_md              = 0._r8
+    currentcohort%npp_acc_hold          = 0._r8 
+    currentcohort%gpp_acc_hold          = 0._r8  
+    currentcohort%dmort                 = 0._r8 
+    currentcohort%g_sb_laweight         = 0._r8 
+    currentcohort%treesai               = 0._r8  
+    currentCohort%lmort_direct          = 0._r8
+    currentCohort%lmort_infra           = 0._r8
+    currentCohort%lmort_collateral      = 0._r8
+    currentCohort%leaf_cost             = 0._r8
+    currentcohort%excl_weight           = 0._r8
+    currentcohort%prom_weight           = 0._r8
+    currentcohort%crownfire_mort        = 0._r8
+    currentcohort%cambial_mort          = 0._r8
+    currentCohort%npp_leaf              = 0._r8
+    currentCohort%npp_fnrt              = 0._r8
+    currentCohort%npp_sapw              = 0._r8
+    currentCohort%npp_dead              = 0._r8
+    currentCohort%npp_seed              = 0._r8
+    currentCohort%npp_stor              = 0._r8
+    
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
@@ -439,7 +486,7 @@ contains
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
          terminate = 1
-	 if ( DEBUG ) then
+	 if ( debug ) then
              write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh
          endif
        endif
@@ -453,7 +500,7 @@ contains
               (currentCohort%dbh < 0.00001_r8.and.currentCohort%bstore < 0._r8) ) then 
             terminate = 1
 
-            if ( DEBUG ) then
+            if ( debug ) then
                write(fates_log(),*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
             endif
          endif
@@ -461,7 +508,7 @@ contains
          ! In the third canopy layer
          if (currentCohort%canopy_layer > nclmax ) then 
            terminate = 1
-           if ( DEBUG ) then
+           if ( debug ) then
              write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer
            endif
          endif
@@ -470,7 +517,7 @@ contains
          if ( (currentCohort%bsw+currentCohort%bl+currentCohort%br) < 1e-10_r8  .or.  &
                currentCohort%bstore < 1e-10_r8) then 
             terminate = 1  
-            if ( DEBUG ) then
+            if ( debug ) then
               write(fates_log(),*) 'terminating cohorts 3', &
                     currentCohort%bsw,currentCohort%bl,currentCohort%br,currentCohort%bstore
             endif
@@ -479,7 +526,7 @@ contains
          ! Total cohort biomass is negative
          if ( (currentCohort%b_total()) < 0._r8) then
             terminate = 1
-            if ( DEBUG ) then
+            if ( debug ) then
             write(fates_log(),*) 'terminating cohorts 4', & 
                   currentCohort%bsw,   &
                   currentCohort%bl,    &
@@ -608,7 +655,7 @@ contains
      integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
      real(r8) :: larger_n, smaller_n
 
-     logical, parameter :: FUSE_DEBUG = .false.   ! This debug is over-verbose
+     logical, parameter :: fuse_debug = .false.   ! This debug is over-verbose
                                                  ! and gets its own flag
 
      !----------------------------------------------------------------------
@@ -671,7 +718,7 @@ contains
                                 newn = currentCohort%n + nextc%n
                                 fusion_took_place = 1         
 
-                                if ( FUSE_DEBUG .and. currentCohort%isnew ) then
+                                if ( fuse_debug .and. currentCohort%isnew ) then
                                    write(fates_log(),*) 'Fusing Two Cohorts'
                                    write(fates_log(),*) 'newn: ',newn
                                    write(fates_log(),*) 'Cohort I, Cohort II' 
@@ -1190,8 +1237,8 @@ contains
     n%npp_tstep       = o%npp_tstep
     n%npp_acc         = o%npp_acc
 
-    if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
-    if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
+    if ( debug ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
+    if ( debug ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
 
     n%resp_tstep      = o%resp_tstep
     n%resp_acc        = o%resp_acc
@@ -1256,13 +1303,13 @@ contains
     n%dbdeaddt        = o%dbdeaddt
     n%dbstoredt       = o%dbstoredt
 
-    if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn dpstoredt ',o%dbstoredt
+    if ( debug ) write(fates_log(),*) 'EDCohortDyn dpstoredt ',o%dbstoredt
 
     ! FIRE 
-    n%cfa             = o%cfa
-    n%fire_mort       = o%fire_mort
-    n%crownfire_mort  = o%crownfire_mort
-    n%cambial_mort    = o%cambial_mort
+    n%fraction_crown_burned = o%fraction_crown_burned
+    n%fire_mort             = o%fire_mort
+    n%crownfire_mort        = o%crownfire_mort
+    n%cambial_mort          = o%cambial_mort
 
     ! Plant Hydraulics
     

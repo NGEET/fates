@@ -120,9 +120,9 @@ module EDPftvarcon
      real(r8), allocatable :: allom_smode(:)        ! sapwood allometry function type
      real(r8), allocatable :: allom_stmode(:)       ! storage allometry functional type 
                                                     ! (HARD-CODED FOR TIME BEING, RGK 11-2017)
-     real(r8), allocatable :: allom_latosa_int(:)   ! Leaf area to sap area conversion, intercept 
+     real(r8), allocatable :: allom_la_per_sa_int(:)   ! Leaf area to sap area conversion, intercept 
                                                     ! (sapwood area / leaf area) [cm2/m2]
-     real(r8), allocatable :: allom_latosa_slp(:)   ! Leaf area to sap area conversion, slope 
+     real(r8), allocatable :: allom_la_per_sa_slp(:)   ! Leaf area to sap area conversion, slope 
                                                     ! (sapwood area / leaf area / diameter) [cm2/m2/cm]
      real(r8), allocatable :: allom_l2fr(:)         ! Fine root biomass per leaf biomass ratio [kgC/kgC]
      real(r8), allocatable :: allom_agb_frac(:)     ! Fraction of stem above ground [-]
@@ -508,11 +508,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_allom_latosa_int'
+    name = 'fates_allom_la_per_sa_int'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_allom_latosa_slp'
+    name = 'fates_allom_la_per_sa_slp'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -940,13 +940,13 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_smode)
 
-    name = 'fates_allom_latosa_int'
+    name = 'fates_allom_la_per_sa_int'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_latosa_int)
+         data=this%allom_la_per_sa_int)
 
-    name = 'fates_allom_latosa_slp'
+    name = 'fates_allom_la_per_sa_slp'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_latosa_slp)
+         data=this%allom_la_per_sa_slp)
 
     name = 'fates_allom_l2fr'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1558,8 +1558,8 @@ contains
         write(fates_log(),fmt0) 'allom_amode = ',EDPftvarcon_inst%allom_amode
         write(fates_log(),fmt0) 'allom_cmode = ',EDPftvarcon_inst%allom_cmode
         write(fates_log(),fmt0) 'allom_smode = ',EDPftvarcon_inst%allom_smode
-        write(fates_log(),fmt0) 'allom_latosa_int = ',EDPftvarcon_inst%allom_latosa_int
-        write(fates_log(),fmt0) 'allom_latosa_slp = ',EDPftvarcon_inst%allom_latosa_slp
+        write(fates_log(),fmt0) 'allom_la_per_sa_int = ',EDPftvarcon_inst%allom_la_per_sa_int
+        write(fates_log(),fmt0) 'allom_la_per_sa_slp = ',EDPftvarcon_inst%allom_la_per_sa_slp
         write(fates_log(),fmt0) 'allom_l2fr = ',EDPftvarcon_inst%allom_l2fr
         write(fates_log(),fmt0) 'allom_agb_frac = ',EDPftvarcon_inst%allom_agb_frac
         write(fates_log(),fmt0) 'allom_d2h1 = ',EDPftvarcon_inst%allom_d2h1

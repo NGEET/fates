@@ -76,7 +76,7 @@ module EDPhysiologyMod
   public :: flux_into_litter_pools
 
 
-  logical, parameter :: DEBUG  = .false. ! local debug flag
+  logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
@@ -296,7 +296,7 @@ contains
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft))then
 
-                      if ( DEBUG ) then
+                      if ( debug ) then
                          write(fates_log(),*) 'trimming leaves', &
                                currentCohort%canopy_trim,currentCohort%leaf_cost
                       endif
@@ -321,7 +321,7 @@ contains
              currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)
           endif 
 
-          if ( DEBUG ) then
+          if ( debug ) then
              write(fates_log(),*) 'trimming',currentCohort%canopy_trim
           endif
          
@@ -444,7 +444,7 @@ contains
              currentSite%status = 2     !alter status of site to 'leaves on'
              ! NOTE(bja, 2015-01) should leafondate = model_day to be consistent with leaf off?
              currentSite%leafondate = t !record leaf on date   
-             if ( DEBUG ) write(fates_log(),*) 'leaves on'
+             if ( debug ) write(fates_log(),*) 'leaves on'
           endif !ncd
        endif !status
     endif !GDD
@@ -464,7 +464,7 @@ contains
        if (currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
           currentSite%leafoffdate = hlm_model_day   !record leaf off date   
-          if ( DEBUG ) write(fates_log(),*) 'leaves off'
+          if ( debug ) write(fates_log(),*) 'leaves off'
        endif
     endif
     endif
@@ -474,7 +474,7 @@ contains
        if(currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
           currentSite%leafoffdate = hlm_model_day   !record leaf off date   
-          if ( DEBUG ) write(fates_log(),*) 'leaves off'
+          if ( debug ) write(fates_log(),*) 'leaves off'
        endif
     endif
 
@@ -625,11 +625,11 @@ contains
                    endif
 
 
-                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 1 ',currentCohort%bstore
+                   if ( debug ) write(fates_log(),*) 'EDPhysMod 1 ',currentCohort%bstore
 
                    currentCohort%bstore = currentCohort%bstore - currentCohort%bl  ! Drain store
 
-                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 2 ',currentCohort%bstore
+                   if ( debug ) write(fates_log(),*) 'EDPhysMod 2 ',currentCohort%bstore
 
                    currentCohort%laimemory = 0.0_r8
 
@@ -665,11 +665,11 @@ contains
                     currentCohort%bl = currentCohort%bstore * store_output
                     endif
 
-                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 3 ',currentCohort%bstore
+                   if ( debug ) write(fates_log(),*) 'EDPhysMod 3 ',currentCohort%bstore
 
                    currentCohort%bstore = currentCohort%bstore - currentCohort%bl ! empty store
 
-                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 4 ',currentCohort%bstore
+                   if ( debug ) write(fates_log(),*) 'EDPhysMod 4 ',currentCohort%bstore
 
                    currentCohort%laimemory = 0.0_r8
 
@@ -875,6 +875,7 @@ contains
     real(r8) :: dbt_leaf_dd        ! change in leaf biomass wrt diameter (kgC/cm)
     real(r8) :: bt_fineroot        ! fine root biomass (kgC)
     real(r8) :: dbt_fineroot_dd    ! change in fine root biomass wrt diameter (kgC/cm)
+    real(r8) :: at_sap             ! sapwood cross-section area at referenc (m2)
     real(r8) :: bt_sap             ! sapwood biomass (kgC)
     real(r8) :: dbt_sap_dd         ! change in sapwood biomass wrt diameter (kgC/cm)
     real(r8) :: bt_agw             ! above ground biomass (kgC/cm)
@@ -1008,7 +1009,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
+    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,at_sap,bt_sap,dbt_sap_dd)
 
     ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
     call bagw_allom(currentCohort%dbh,ipft,bt_agw,dbt_agw_dd)
@@ -1033,7 +1034,7 @@ contains
        ! ------------------------------------------------------------------------------------------
        
        ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-       call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
+       call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,at_sap,bt_sap,dbt_sap_dd)
        
        ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
        call bagw_allom(currentCohort%dbh,ipft,bt_agw,dbt_agw_dd)
@@ -1474,6 +1475,7 @@ contains
       integer  :: ipft       ! pft index
       real(r8) :: ct_leaf    ! target leaf biomass, dummy var (kgC)
       real(r8) :: ct_froot   ! target fine-root biomass, dummy var (kgC)
+      real(r8) :: at_sap     ! target sapwood cross section, dummy var (m2)
       real(r8) :: ct_sap     ! target sapwood biomass, dummy var (kgC)
       real(r8) :: ct_agw     ! target aboveground wood, dummy var (kgC)
       real(r8) :: ct_bgw     ! target belowground wood, dummy var (kgC)
@@ -1511,7 +1513,7 @@ contains
 
         call bleaf(dbh,ipft,currentCohort%canopy_trim,ct_leaf,ct_dleafdd)
         call bfineroot(dbh,ipft,currentCohort%canopy_trim,ct_froot,ct_dfrootdd)
-        call bsap_allom(dbh,ipft,currentCohort%canopy_trim,ct_sap,ct_dsapdd)
+        call bsap_allom(dbh,ipft,currentCohort%canopy_trim,at_sap,ct_sap,ct_dsapdd)
         call bagw_allom(dbh,ipft,ct_agw,ct_dagwdd)
         call bbgw_allom(dbh,ipft,ct_bgw,ct_dbgwdd)
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &
@@ -1680,6 +1682,7 @@ contains
     real(r8) :: b_leaf
     real(r8) :: b_fineroot    ! fine root biomass [kgC]
     real(r8) :: b_sapwood     ! sapwood biomass [kgC]
+    real(r8) :: a_sapwood     ! sapwood cross section are [m2] (dummy)
     real(r8) :: b_agw         ! Above ground biomass [kgC]
     real(r8) :: b_bgw         ! Below ground biomass [kgC]
 
@@ -1698,7 +1701,7 @@ contains
        ! Initialize live pools
        call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_leaf)
        call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_fineroot)
-       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_sapwood)
+       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapwood, b_sapwood)
        call bagw_allom(temp_cohort%dbh,ft,b_agw)
        call bbgw_allom(temp_cohort%dbh,ft,b_bgw)
        call bdead_allom(b_agw,b_bgw,b_sapwood,ft,temp_cohort%bdead)
@@ -1739,7 +1742,7 @@ contains
        endif
 
        if (temp_cohort%n > 0.0_r8 )then
-          if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
+          if ( debug ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
           call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                 b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
                 temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &

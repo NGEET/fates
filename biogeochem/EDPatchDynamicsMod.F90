@@ -904,20 +904,20 @@ contains
              ! Unburned leaves and roots    
              
              new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + dead_tree_density * (currentCohort%bl) &
-             * (1.0_r8-currentCohort%cfa)
+             * (1.0_r8-currentCohort%fraction_crown_burned)
              new_patch%root_litter(p) = new_patch%root_litter(p) + dead_tree_density * (currentCohort%br+currentCohort%bstore)
              currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + dead_tree_density * &
-                  (currentCohort%bl) * (1.0_r8-currentCohort%cfa)
+                  (currentCohort%bl) * (1.0_r8-currentCohort%fraction_crown_burned)
              currentPatch%root_litter(p) = currentPatch%root_litter(p) + dead_tree_density * &
                   (currentCohort%br+currentCohort%bstore)
 
              ! track as diagnostic fluxes
              currentSite%leaf_litter_diagnostic_input_carbonflux(p) = currentSite%leaf_litter_diagnostic_input_carbonflux(p) + &
-                  (currentCohort%bl) * (1.0_r8-currentCohort%cfa) * currentCohort%fire_mort * currentCohort%n * &
-                  hlm_days_per_year / AREA
-             currentSite%root_litter_diagnostic_input_carbonflux(p) = currentSite%root_litter_diagnostic_input_carbonflux(p) + &
-                  (currentCohort%br+currentCohort%bstore) * (1.0_r8-currentCohort%cfa) * currentCohort%fire_mort * &
+                  (currentCohort%bl) * (1.0_r8-currentCohort%fraction_crown_burned) * currentCohort%fire_mort * & 
                   currentCohort%n * hlm_days_per_year / AREA
+             currentSite%root_litter_diagnostic_input_carbonflux(p) = currentSite%root_litter_diagnostic_input_carbonflux(p) + &
+                  (currentCohort%br+currentCohort%bstore) * (1.0_r8-currentCohort%fraction_crown_burned) &
+                   * currentCohort%fire_mort * currentCohort%n * hlm_days_per_year / AREA
       
              ! below ground coarse woody debris from burned trees
              do c = 1,ncwd
@@ -933,14 +933,14 @@ contains
              ! above ground coarse woody debris from unburned twigs and small branches
              do c = 1,2
                 new_patch%cwd_ag(c) = new_patch%cwd_ag(c) + dead_tree_density * SF_val_CWD_frac(c) * bstem &
-                * (1.0_r8-currentCohort%cfa)
+                * (1.0_r8-currentCohort%fraction_crown_burned)
                 currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + dead_tree_density * SF_val_CWD_frac(c) * &
-                     bstem * (1.0_r8-currentCohort%cfa)
+                     bstem * (1.0_r8-currentCohort%fraction_crown_burned)
 
                 ! track as diagnostic fluxes
                 currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
-                     SF_val_CWD_frac(c) * bstem * (1.0_r8-currentCohort%cfa) * currentCohort%fire_mort * currentCohort%n * &
-                     hlm_days_per_year / AREA
+                     SF_val_CWD_frac(c) * bstem * (1.0_r8-currentCohort%fraction_crown_burned) * currentCohort%fire_mort &
+                     * currentCohort%n * hlm_days_per_year / AREA
              enddo
              
              ! above ground coarse woody debris from large branches and stems: these do not burn in crown fires. 
@@ -959,11 +959,11 @@ contains
              do c = 1,2
 
                 currentSite%cwd_ag_burned(c) = currentSite%cwd_ag_burned(c) + dead_tree_density * &
-                     SF_val_CWD_frac(c) * bstem * currentCohort%cfa
+                     SF_val_CWD_frac(c) * bstem * currentCohort%fraction_crown_burned
                 currentSite%flux_out  = currentSite%flux_out + dead_tree_density * &
-                     AREA * SF_val_CWD_frac(c) * bstem * currentCohort%cfa
+                     AREA * SF_val_CWD_frac(c) * bstem * currentCohort%fraction_crown_burned
                 currentSite%total_burn_flux_to_atm  = currentSite%total_burn_flux_to_atm + dead_tree_density * &
-                     AREA * SF_val_CWD_frac(c) * bstem * currentCohort%cfa
+                     AREA * SF_val_CWD_frac(c) * bstem * currentCohort%fraction_crown_burned
 
              enddo
              
@@ -971,11 +971,11 @@ contains
              do p = 1,numpft                  
 
                 currentSite%leaf_litter_burned(p) = currentSite%leaf_litter_burned(p) + &
-                     dead_tree_density * currentCohort%bl * currentCohort%cfa
+                     dead_tree_density * currentCohort%bl * currentCohort%fraction_crown_burned
                 currentSite%flux_out  = currentSite%flux_out + &
-                     dead_tree_density * AREA * currentCohort%bl * currentCohort%cfa
+                     dead_tree_density * AREA * currentCohort%bl * currentCohort%fraction_crown_burned
                 currentSite%total_burn_flux_to_atm  = currentSite%total_burn_flux_to_atm + &
-                     dead_tree_density * AREA * currentCohort%bl * currentCohort%cfa
+                     dead_tree_density * AREA * currentCohort%bl * currentCohort%fraction_crown_burned
 
              enddo
 
@@ -987,6 +987,7 @@ contains
 
        !************************************/     
        ! PART 3) Burn parts of trees that did *not* die in the fire.
+       !         currently we only remove leaves. branch and assocaited sapwood consumption coming soon.
        ! PART 4) Burn parts of grass that are consumed by the fire. 
        ! grasses are not killed directly by fire. They die by losing all of their leaves and starving. 
        !************************************/ 
@@ -995,9 +996,9 @@ contains
 
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-             burned_leaves = min(currentCohort%bl, (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa)
+             burned_leaves = currentCohort%bl * currentCohort%fraction_crown_burned
           else
-             burned_leaves = min(currentCohort%bl, (currentCohort%bl+currentCohort%bsw) * currentPatch%burnt_frac_litter(6))
+             burned_leaves = currentCohort%bl * currentPatch%burnt_frac_litter(6)
           endif
           if (burned_leaves > 0.0_r8) then
 
@@ -1010,7 +1011,7 @@ contains
                   patch_site_areadis/currentPatch%area * AREA 
 
           endif
-          currentCohort%cfa = 0.0_r8        
+          currentCohort%fraction_crown_burned = 0.0_r8        
 
           currentCohort => currentCohort%taller
 
