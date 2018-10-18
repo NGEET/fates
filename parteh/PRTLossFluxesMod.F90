@@ -50,7 +50,7 @@ module PRTLossFluxesMod
   ! but it will be called none-the-less).
   !
   ! THIS ROUTINE ONLY DEALS WITH LOSSES OF BIOMASS FROM PLANTS THAT ARE SURVIVING
-  ! AN EVENT.  IF A PLANT DIES, THEN THIS ROUTINE DOES NOT HANDLE ITS FLUXES. It
+  ! AN EVENT.  IF A PLANT DIES, THEN THESE ROUTINES DO NOT HANDLE ITS FLUXES. It
   ! is however likely that an event like fire will kill a portion of a population,
   ! and damage the remaining population, these routines will assist in the latter.
   !
