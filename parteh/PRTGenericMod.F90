@@ -44,7 +44,7 @@ module PRTGenericMod
   ! -------------------------------------------------------------------------------------
   ! IMPORTANT!
   ! All species in all organs should be expressed in terms of KILOGRAMS
-  ! All rates of change are expressed in terms of kilorams / day
+  ! All rates of change are expressed in terms of kilograms / day
   ! This assumption cannot be broken!
   ! -------------------------------------------------------------------------------------
   
