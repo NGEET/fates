@@ -9,7 +9,7 @@ module PRTLossFluxesMod
   use PRTGenericMod, only : repro_organ
   use PRTGenericMod, only : struct_organ
   use PRTGenericMod, only : all_carbon_species
-  use PRTGenericMod, only : carbon_species    ! This is a vector
+  use PRTGenericMod, only : carbon_species_list
   use PRTGenericMod, only : carbon12_species
   use PRTGenericMod, only : nitrogen_species
   use PRTGenericMod, only : phosphorous_species
@@ -32,7 +32,7 @@ module PRTLossFluxesMod
   private
 
   ! -------------------------------------------------------------------------------------
-  ! This module hosts the public functions that handle all things
+  ! These modules house the public functions that handle all things
   ! related to loss fluxes.  They broadly cover the two types of turnover;
   ! that which happens as events (storms, deciduous drop, herbivory
   ! fire, etc), and maintenance turnover (constant background) 
@@ -42,12 +42,12 @@ module PRTLossFluxesMod
   ! Retranslocation is handled by a single
   ! flag that defines the mode for each PFT.  So there
   ! are assumptions here.  A deciduous plant does not
-  ! have maintenance leaf and fine-root turnover, and vice
-  ! versa.  Therefore, the retranslocation parameter
-  ! will have different meanings potentially, for each PFT.
-  ! 
-  ! Branchfall occurs for each PFT (it may be at a reduced rate,
-  ! but it will be called none-the-less).
+  ! have maintenance leaf and fine-root turnover.  An evergreen
+  ! plant does not have seasonal or stress induced phenology.
+  ! Therefore, the retranslocation parameter
+  ! will have different meanings potentially, for each PFT. For evergreens,
+  ! it will be the retranslocation during maintenance turnover. For deciduous,
+  ! it is during leaf drop.
   !
   ! THIS ROUTINE ONLY DEALS WITH LOSSES OF BIOMASS FROM PLANTS THAT ARE SURVIVING
   ! AN EVENT.  IF A PLANT DIES, THEN THESE ROUTINES DO NOT HANDLE ITS FLUXES. It
@@ -68,9 +68,11 @@ contains
 
   subroutine PRTPhenologyFlush(prt, ipft, organ_id, c_store_transfer_frac)
      
+     ! ----------------------------------------------------------------------------------
      ! This subroutine is used to flush (leaves) from storage upon bud-burst.
      ! Leaves are somewhat implied here, but the function does allow for other
      ! pools (fine-roots) to be flushed from storage as well.
+     ! ----------------------------------------------------------------------------------
      
      class(prt_vartypes) :: prt
      integer,intent(in)  :: ipft
@@ -211,8 +213,6 @@ contains
 
        end do
        
-
-       
      end associate
      return
   end subroutine PRTPhenologyFlush
@@ -221,12 +221,14 @@ contains
 
   subroutine PRTBurnLosses(prt, organ_id, mass_fraction)
 
+    ! ----------------------------------------------------------------------------------
     ! This subroutine assumes that there is no re-translocation associated
     ! with burn. There is only one destiny for burned mass within
     ! the organ, and that is outside the plant.  
     ! It is also assumed that non PARTEH parts of the code (ie the fire-model)
     ! will decide what to do with the burned mass (i.e. sent it to the litter
     ! pool or send to atmosphere, or.. other?)
+    ! ----------------------------------------------------------------------------------
 
     class(prt_vartypes) :: prt
     integer,intent(in)  :: organ_id
@@ -272,20 +274,22 @@ contains
        end do
        
      end associate
-    end subroutine PRTBurnLosses
+  end subroutine PRTBurnLosses
     
 
-    ! =====================================================================================
+  ! =====================================================================================
 
 
-    subroutine PRTReproRelease(prt, organ_id, spec_id, mass_fraction, mass_out)
+  subroutine PRTReproRelease(prt, organ_id, spec_id, mass_fraction, mass_out)
 
+    ! ----------------------------------------------------------------------------------
     ! This subroutine assumes that there is no re-translocation associated
     ! with the release of reproductive tissues.
     ! We also do not have a special flux for the release of reproductive
     ! tissues.  To not confuse this with turnover, we will provide an output
     ! mass flux, and instead of tracking it, we will just set val0 to val
     ! to prevent mass imbalances.
+    ! ----------------------------------------------------------------------------------
 
     class(prt_vartypes)  :: prt
     integer,intent(in)   :: organ_id
@@ -341,25 +345,27 @@ contains
          prt%variables(i_var)%val0(i_pos) = prt%variables(i_var)%val(i_pos) - &
                prt%variables(i_var)%net_art(i_pos)
          
-          
+         
       end do
        
     end associate
-    end subroutine PRTReproRelease
+  end subroutine PRTReproRelease
 
-    ! ===================================================================================
+  ! ===================================================================================
 
 
-    subroutine PRTDeciduousTurnover(prt,ipft,organ_id,mass_fraction)
+  subroutine PRTDeciduousTurnover(prt,ipft,organ_id,mass_fraction)
      
      ! ---------------------------------------------------------------------------------
      ! Generic subroutine (wrapper) calling specialized routines handling
      ! the turnover of tissues in living plants (non-mortal)
      ! ---------------------------------------------------------------------------------
+
      class(prt_vartypes) :: prt
      integer,intent(in)  :: ipft
-     integer,intent(in)  :: organ_id
-     real(r8),intent(in) :: mass_fraction
+     integer,intent(in)  :: organ_id      ! see PRTGenericMod for organ list
+     real(r8),intent(in) :: mass_fraction ! The fraction of mass in this organ that should
+                                          ! leave the indicated organ.
      
      ! We currently only allow the flushing and drop of leaves.
      ! If other organs should be desired (like seasonality of fine-roots)
@@ -405,20 +411,21 @@ contains
 
      class(prt_vartypes) :: prt
      integer,intent(in)  :: ipft
-     integer,intent(in)  :: organ_id
-     real(r8),intent(in) :: mass_fraction
+     integer,intent(in)  :: organ_id            ! see PRTGenericMod for organ list
+     real(r8),intent(in) :: mass_fraction       ! The fraction of mass in this organ that should
+                                                ! leave the indicated organ.
 
-     integer             :: i_var     ! index for the variable of interest 
-     integer             :: i_sp_var  ! loop counter for all species in this organ
+     integer             :: i_var               ! index for the variable of interest 
+     integer             :: i_sp_var            ! loop counter for all species in this organ
 
-     integer             :: num_sp_vars ! Loop size for iterating over all species
-                                        ! in the organ that is turning over
-     integer             :: spec_id        ! Species id of the turnover pool
-     integer             :: store_var_id   ! Variable id of the storage pool
-     integer             :: i_pos          ! position index (spatial)
-     real(r8)            :: retrans        ! retranslocated fraction 
-     real(r8)            :: turnover_mass
-     real(r8)            :: retranslocated_mass
+     integer             :: num_sp_vars         ! Loop size for iterating over all species
+                                                ! in the organ that is turning over
+     integer             :: spec_id             ! Species id of the turnover pool
+     integer             :: store_var_id        ! Variable id of the storage pool
+     integer             :: i_pos               ! position index (spatial)
+     real(r8)            :: retrans             ! retranslocated fraction 
+     real(r8)            :: turnover_mass       ! mass sent to turnover (leaves the plant)
+     real(r8)            :: retranslocated_mass ! mass redistributed to storage
      
 
      associate(organ_map => prt_global%organ_map)
@@ -435,12 +442,9 @@ contains
           
        end if
 
-     
-
        ! This is the total number of state variables associated
        ! with this particular organ
        num_sp_vars = organ_map(organ_id)%num_vars
-
 
        do i_sp_var = 1, num_sp_vars
           
@@ -448,7 +452,7 @@ contains
           
           spec_id = prt_global%state_descriptor(i_var)%spec_id
           
-          if ( any(spec_id == carbon_species) ) then
+          if ( any(spec_id == carbon_species_list) ) then
              retrans = EDPftvarcon_inst%turnover_carb_retrans(ipft,organ_id)
           else if( spec_id == nitrogen_species ) then
              retrans = EDPftvarcon_inst%turnover_nitr_retrans(ipft,organ_id)
@@ -605,7 +609,7 @@ contains
          organ_id = prt_global%state_descriptor(i_var)%organ_id
          spec_id = prt_global%state_descriptor(i_var)%spec_id
 
-         if ( any(spec_id == carbon_species) ) then
+         if ( any(spec_id == carbon_species_list) ) then
             retrans = EDPftvarcon_inst%turnover_carb_retrans(ipft,organ_id)
          else if( spec_id == nitrogen_species ) then
             retrans = EDPftvarcon_inst%turnover_nitr_retrans(ipft,organ_id)

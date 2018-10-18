@@ -208,28 +208,28 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     type (ed_patch_type)  , pointer :: currentPatch
 
-    integer  :: z               ! leaf layer
-    integer  :: ipft            ! pft index
-    logical  :: trimmed         ! was this layer trimmed in this year? If not expand the canopy. 
-    real(r8) :: tar_bl          ! target leaf biomass       (leaves flushed, trimmed)
-    real(r8) :: tar_bfr         ! target fine-root biomass  (leaves flushed, trimmed)
-    real(r8) :: bfr_per_bleaf   ! ratio of fine root per leaf biomass
-    real(r8) :: sla_levleaf     ! sla at leaf level z
-    real(r8) :: nscaler_levleaf ! nscaler value at leaf level z
-    integer  :: cl              ! canopy layer index
-    real(r8) :: kn              ! nitrogen decay coefficient
-    real(r8) :: sla_max         ! Observational constraint on how large sla (m2/gC) can become
-    real(r8) :: leaf_c             ! leaf carbon [kg]
-    real(r8) :: fnrt_c             ! fineroot carbon [kg]
-    real(r8) :: sapw_c             ! sapwood carbon [kg]
-    real(r8) :: store_c            ! storage carbon [kg]
-    real(r8) :: struct_c           ! structure carbon [kg]
-    real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_ed
-    real(r8) :: lai_canopy_above   ! the LAI in the canopy layers above the layer of interest
-    real(r8) :: lai_layers_above   ! the LAI in the leaf layers, within the current canopy, 
-                                   ! above the leaf layer of interest
-    real(r8) :: lai_current        ! the LAI in the current leaf layer
-    real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
+    integer  :: z                ! leaf layer
+    integer  :: ipft             ! pft index
+    logical  :: trimmed          ! was this layer trimmed in this year? If not expand the canopy. 
+    real(r8) :: tar_bl           ! target leaf biomass       (leaves flushed, trimmed)
+    real(r8) :: tar_bfr          ! target fine-root biomass  (leaves flushed, trimmed)
+    real(r8) :: bfr_per_bleaf    ! ratio of fine root per leaf biomass
+    real(r8) :: sla_levleaf      ! sla at leaf level z
+    real(r8) :: nscaler_levleaf  ! nscaler value at leaf level z
+    integer  :: cl               ! canopy layer index
+    real(r8) :: kn               ! nitrogen decay coefficient
+    real(r8) :: sla_max          ! Observational constraint on how large sla (m2/gC) can become
+    real(r8) :: leaf_c           ! leaf carbon [kg]
+    real(r8) :: fnrt_c           ! fineroot carbon [kg]
+    real(r8) :: sapw_c           ! sapwood carbon [kg]
+    real(r8) :: store_c          ! storage carbon [kg]
+    real(r8) :: struct_c         ! structure carbon [kg]
+    real(r8) :: leaf_inc         ! LAI-only portion of the vegetation increment of dinc_ed
+    real(r8) :: lai_canopy_above ! the LAI in the canopy layers above the layer of interest
+    real(r8) :: lai_layers_above ! the LAI in the leaf layers, within the current canopy, 
+                                 ! above the leaf layer of interest
+    real(r8) :: lai_current      ! the LAI in the current leaf layer
+    real(r8) :: cumulative_lai   ! the cumulative LAI, top down, to the leaf layer of interest
 
     !----------------------------------------------------------------------
 

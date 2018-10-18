@@ -32,7 +32,6 @@ module PRTGenericMod
   integer, parameter :: maxlen_varunits  = 32
   integer, parameter :: len_baseunit     = 6
 
-  ! SEND THESE TO CONSTANTS
 
   ! We use this parameter as the value for which we set un-initialized values
   real(r8), parameter :: un_initialized = -9.9e32_r8
@@ -81,11 +80,14 @@ module PRTGenericMod
   ! to the species that are acknowledged in the calling model
   ! -------------------------------------------------------------------------------------
 
-  integer, parameter :: num_species_types     = 17    ! Total number of unique species
-                                                    ! curently recognized by PARTEH
-                                                    ! should be max index in list below
+  integer, parameter :: num_species_types     = 6    ! Total number of unique species
+                                                     ! curently recognized by PARTEH
+                                                     ! should be max index in list below
 
-  ! The following list of unique public indices should be monotonic, and self-explanatory
+  ! The following list are the unique indices associated with the
+  ! species used in each hypothesis.  Note these are just POTENTIAL
+  ! species.  At the time of writing this, we are very far away from
+  ! creating allocation schemes that even use potassium.
   
   integer, parameter :: all_carbon_species  = 0
   integer, parameter :: carbon12_species    = 1
@@ -94,17 +96,22 @@ module PRTGenericMod
   integer, parameter :: nitrogen_species    = 4
   integer, parameter :: phosphorous_species = 5
   integer, parameter :: potassium_species   = 6
-  integer, parameter :: calcium_species     = 7
-  integer, parameter :: magnesium_species   = 8
-  integer, parameter :: sulfur_species      = 9
-  integer, parameter :: chlorine_species    = 10
-  integer, parameter :: iron_species        = 11
-  integer, parameter :: manganese_species   = 12
-  integer, parameter :: zinc_species        = 13
-  integer, parameter :: copper_species      = 14
-  integer, parameter :: boron_species       = 15
-  integer, parameter :: molybdenum_species  = 16
-  integer, parameter :: nickel_species      = 17
+
+  !  The following species are just placeholders. In the future
+  !  if someone wants to develope an allocation hypothesis
+  !  that uses nickel, we can just uncomment it from this list
+
+  !  integer, parameter :: calcium_species     = 7
+  !  integer, parameter :: magnesium_species   = 8
+  !  integer, parameter :: sulfur_species      = 9
+  !  integer, parameter :: chlorine_species    = 10
+  !  integer, parameter :: iron_species        = 11
+  !  integer, parameter :: manganese_species   = 12
+  !  integer, parameter :: zinc_species        = 13
+  !  integer, parameter :: copper_species      = 14
+  !  integer, parameter :: boron_species       = 15
+  !  integer, parameter :: molybdenum_species  = 16
+  !  integer, parameter :: nickel_species      = 17
 
   
   ! We have some lists of species or lists of organs, such as
@@ -119,7 +126,7 @@ module PRTGenericMod
   ! List of all carbon species, the special index "all_carbon_species"
   ! implies the following list of carbon organs
   
-  integer, parameter, dimension(3) :: carbon_species   = &
+  integer, parameter, dimension(3) :: carbon_species_list   = &
        [carbon12_species, carbon13_species, carbon14_species]
 
   
