@@ -1870,7 +1870,7 @@ end subroutine updateSizeDepRhizHydStates
         dth_layershell_col(:,:) = 0._r8
         site_hydr%dwat_veg       = 0._r8
         site_hydr%errh2o_hyd     = 0._r8
-	site_hydr%recruit_w_uptake = 0._r8
+	site_hydr%recruit_w_uptake(:) = 0._r8
         ncoh_col       = 0
 
         ! Calculate the mean site level transpiration flux
@@ -2537,7 +2537,8 @@ end subroutine updateSizeDepRhizHydStates
 
                 bc_out(s)%qflx_soil2root_sisl(bc_in(s)%nlevsoil)     = &
                       -(sum(dth_layershell_col(j,:)*site_hydr%v_shell_1D(:)) * &
-                      site_hydr%l_aroot_1D/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)- &
+                      !site_hydr%l_aroot_1D/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)- &   !BOC(10/02/2018)...error - should be plus  
+                      site_hydr%l_aroot_1D/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)+ &
 		      site_hydr%recruit_w_uptake(site_hydr%nlevsoi_hyd)
 
 !                h2osoi_liqvol = min(bc_in(s)%eff_porosity_sl(bc_in(s)%nlevsoil), &
@@ -2551,7 +2552,8 @@ end subroutine updateSizeDepRhizHydStates
                 !qflx_rootsoi(c,j)              = -(sum(dth_layershell_col(j,:))*bc_in(s)%dz_sisl(j)*denh2o/dtime)
                 bc_out(s)%qflx_soil2root_sisl(j)               = &
                       -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:)) * &
-                      site_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)- &
+                      !site_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)- &   !BOC(10/02/2018)...error - should be plus
+                      site_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)+ &
 		      site_hydr%recruit_w_uptake(j)
 
                 ! h2osoi_liqvol =  min(bc_in(s)%eff_porosity_sl(j), &

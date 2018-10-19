@@ -1810,7 +1810,9 @@ contains
                 hlm_freq_day * currentPatch%area
 
           if( hlm_use_planthydro == itrue ) then
-             call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_n)
+             !call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_n)
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort,&
+                                                  -1.0_r8 * currentCohort%dndt * hlm_freq_day)
           end if
           
 

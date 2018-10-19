@@ -361,7 +361,7 @@ module FatesHydraulicsMemMod
          this%l_aroot_1D = nan
          this%errh2o_hyd     = nan
          this%dwat_veg       = nan
-         this%h2oveg         = nan
+         this%h2oveg         = 0.0_r8
          this%h2oveg_recruit = 0.0_r8
          this%h2oveg_dead    = 0.0_r8
 	 this%h2oveg_growturn_err = 0.0_r8

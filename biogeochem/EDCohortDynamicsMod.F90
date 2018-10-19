@@ -8,6 +8,7 @@ module EDCohortDynamicsMod
   use FatesGlobals          , only : fates_log
   use FatesInterfaceMod     , only : hlm_freq_day
   use FatesInterfaceMod     , only : bc_in_type
+  use FatesInterfaceMod     , only : hlm_use_planthydro
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
@@ -498,7 +499,9 @@ contains
           currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
                 currentCohort%n * currentCohort%b_total()
 
-          
+          if( hlm_use_planthydro == itrue ) then
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort,currentCohort%n)
+          end if
 
           !put the litter from the terminated cohorts straight into the fragmenting pools
           if (currentCohort%n.gt.0.0_r8) then
