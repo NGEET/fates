@@ -28,7 +28,6 @@ module EDMortalityFunctionsMod
    public :: mortality_rates
    public :: Mortality_Derivative
    
-   logical :: DEBUG_growth = .false.
    
    ! ============================================================================
    ! 10/30/09: Created by Rosie Fisher
