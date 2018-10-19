@@ -731,7 +731,7 @@ contains
                                 currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                       + nextc%n*nextc%canopy_trim)/newn
 				      
-				if(use_leaf_age) then
+				if(use_leaf_age == itrue) then
 				  if(currentCohort%bl>0)then
 				    currentCohort%fracExpLeaves = (currentCohort%n*currentCohort%fracExpLeaves*currentCohort%bl &
                                       + nextc%n*nextc%fracExpLeaves*nextc%bl)/(newn*currentCohort%bl)
@@ -872,7 +872,7 @@ contains
                                    enddo
 				   
 				   !leaf age
-				   if(use_leaf_age) then
+				   if(use_leaf_age == itrue) then
 				    if(currentCohort%bl>0)then
 				      currentCohort%fracExpLeaves = (currentCohort%n*currentCohort%fracExpLeaves*currentCohort%bl &
                                        + nextc%n*nextc%fracExpLeaves*nextc%bl)/(newn*currentCohort%bl)
