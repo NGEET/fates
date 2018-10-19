@@ -46,7 +46,7 @@ module FATESPlantRespPhotosynthMod
    ! maximum stomatal resistance [s/m] (used across several procedures)
    real(r8),parameter :: rsmax0 =  2.e4_r8                    
    
-   logical   ::  DEBUG = .false.
+   logical   ::  debug = .false.
 
 contains
   
@@ -600,11 +600,11 @@ contains
                      ! calcualate some fluxes that are sums and nets of the base fluxes
                      ! ------------------------------------------------------------------
                      
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 904 ', currentCohort%resp_m
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 905 ', currentCohort%rdark
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 906 ', currentCohort%livestem_mr
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 907 ', currentCohort%livecroot_mr
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 908 ', currentCohort%froot_mr
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 904 ', currentCohort%resp_m
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 905 ', currentCohort%rdark
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 906 ', currentCohort%livestem_mr
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 907 ', currentCohort%livecroot_mr
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 908 ', currentCohort%froot_mr
                         
                     
 
@@ -624,9 +624,9 @@ contains
                      currentCohort%gpp_tstep     = currentCohort%gpp_tstep * dtime
                      currentCohort%ts_net_uptake = currentCohort%ts_net_uptake * dtime
 
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 911 ', currentCohort%gpp_tstep
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 911 ', currentCohort%gpp_tstep
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
                      
                      currentCohort%resp_g     = EDPftvarcon_inst%grperc(ft) * &
                                                 (max(0._r8,currentCohort%gpp_tstep - &
@@ -882,13 +882,13 @@ contains
         
      else ! day time (a little bit more complicated ...)
         
-!        if ( DEBUG ) write(fates_log(),*) 'EDphot 594 ',laisun_lsl
-!        if ( DEBUG ) write(fates_log(),*) 'EDphot 595 ',laisha_lsl
+!        if ( debug ) write(fates_log(),*) 'EDphot 594 ',laisun_lsl
+!        if ( debug ) write(fates_log(),*) 'EDphot 595 ',laisha_lsl
 
         !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
         if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
 
-!           if ( DEBUG ) write(fates_log(),*) '600 in laisun, laisha loop '
+!           if ( debug ) write(fates_log(),*) '600 in laisun, laisha loop '
            
            !Loop aroun shaded and unshaded leaves          
            psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves. 
@@ -1039,9 +1039,9 @@ contains
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
               
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 737 ', psn_out
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 738 ', agross
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 739 ', f_sun_lsl
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 737 ', psn_out
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 738 ', agross
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 739 ', f_sun_lsl
 
               ! Accumulate total photosynthesis umol/m2 ground/s-1. 
               ! weight per unit sun and sha leaves.
@@ -1056,9 +1056,9 @@ contains
                        1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-f_sun_lsl) 
               end if
 
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 758 ', psn_out
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 759 ', agross
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 760 ', f_sun_lsl
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 758 ', psn_out
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 759 ', agross
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 760 ', f_sun_lsl
               
               ! Make sure iterative solution is correct
               if (gs_mol < 0._r8) then
@@ -1193,7 +1193,7 @@ contains
     rdark     = rdark * umolC_to_kgC * maintresp_reduction_factor / nplant
     gpp       = gpp * umolC_to_kgC / nplant
     
-    if ( DEBUG ) then
+    if ( debug ) then
        write(fates_log(),*) 'EDPhoto 816 ', gpp
        write(fates_log(),*) 'EDPhoto 817 ', psn_llz(1:nv)
        write(fates_log(),*) 'EDPhoto 820 ', nv
