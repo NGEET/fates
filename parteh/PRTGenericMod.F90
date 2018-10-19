@@ -969,7 +969,7 @@ contains
       sp_organ_val = 0.0_r8
       
       if(species_id == all_carbon_species) then
-         spec_ids(1:3) = carbon_species(1:3)
+         spec_ids(1:3) = carbon_species_list(1:3)
          num_species  = 3
       else
          num_species  = 1
@@ -1030,7 +1030,7 @@ contains
       sp_organ_turnover = 0.0_r8
       
       if(species_id == all_carbon_species) then
-         spec_ids(1:3) = carbon_species(1:3)
+         spec_ids(1:3) = carbon_species_list(1:3)
          num_species  = 3
       else
          num_species  = 1
@@ -1087,7 +1087,7 @@ contains
       sp_organ_burned = 0.0_r8
       
       if(species_id == all_carbon_species) then
-         spec_ids(1:3) = carbon_species(1:3)
+         spec_ids(1:3) = carbon_species_list(1:3)
          num_species  = 3
       else
          num_species  = 1
@@ -1145,7 +1145,7 @@ contains
       sp_organ_netart = 0.0_r8
       
       if(species_id == all_carbon_species) then
-         spec_ids(1:3) = carbon_species(1:3)
+         spec_ids(1:3) = carbon_species_list(1:3)
          num_species  = 3
       else
          num_species  = 1

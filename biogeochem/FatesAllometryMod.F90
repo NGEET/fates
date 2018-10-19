@@ -89,6 +89,7 @@ module FatesAllometryMod
   use FatesConstantsMod, only : g_per_kg 
   use FatesConstantsMod, only : cm2_per_m2
   use FatesConstantsMod, only : kg_per_Megag
+  use FatesConstantsMod, only : calloc_abs_error
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun

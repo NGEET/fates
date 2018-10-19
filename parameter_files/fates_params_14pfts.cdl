@@ -208,10 +208,6 @@ variables:
 		fates_branch_turnover:units = "yr-1" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
 
-	float fates_prt_unit_gr_resp(fates_prt_organs,fates_pft) ;
-		fates_prt_unit_gr_resp:units = "gC/gC" ;
-		fates_prt_unit_gr_resp:long_name = "Unit growth respiration rate per organ" ;
-
 	float fates_prt_nitr_stoich_p1(fates_prt_organs,fates_pft) ;
 		fates_prt_nitr_stoich_p1:units = "(gN/gC)" ;
 		fates_prt_nitr_stoich_p1:long_name = "nitrogen stoichiometry, parameter 1" ;
@@ -771,15 +767,6 @@ data:
  fates_allom_stmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_branch_turnover = 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 0, 0, 0 ;
-
- fates_prt_unit_gr_resp = 
-  0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11,
-  0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11,
-  0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11,
-  0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11,
-  0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11,
-  0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11;
-
 
  fates_prt_nitr_stoich_p1 = 
   0.033,  0.029,  0.025,  0.04,   0.033,  0.04,   0.04,   0.04,   0.033,  0.04,   0.04,   0.04,   0.04,   0.04,

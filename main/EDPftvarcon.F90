@@ -14,6 +14,7 @@ module EDPftvarcon
 
   use PRTGenericMod,  only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,  only : prt_carbon_allom_hyp
+  use PRTGenericMod,  only : num_organ_types
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
 
@@ -75,8 +76,7 @@ module EDPftvarcon
      real(r8), allocatable :: vcmax25top(:)
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
-     real(r8), allocatable :: grperc(:)                          ! Growth respiration per unit Carbon gained
-                                                                 ! ONLY parteh_mode == 1  [kg/kg]
+     
      real(r8), allocatable :: maintresp_reduction_curvature(:)   ! curvature of MR reduction as f(carbon storage), 
                                                                  ! 1=linear, 0=very curved
      real(r8), allocatable :: maintresp_reduction_intercept(:)   ! intercept of MR reduction as f(carbon storage), 
@@ -163,12 +163,25 @@ module EDPftvarcon
      
      ! Plant Reactive Transport (allocation)
 
-     real(r8), allocatable :: prt_unit_gr_resp(:,:)    ! Unit growth respiration (pft x organ) [kgC/kgC]
-     real(r8), allocatable :: prt_nitr_stoich_p1(:,:)     ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
-     real(r8), allocatable :: prt_nitr_stoich_p2(:,:)     ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
-     real(r8), allocatable :: prt_phos_stoich_p1(:,:)     ! Parameter 1 for phosphorous stoichiometry (pft x organ) 
-     real(r8), allocatable :: prt_phos_stoich_p2(:,:)     ! Parameter 2 for phosphorous stoichiometry (pft x organ) 
-     real(r8), allocatable :: prt_alloc_priority(:,:)  ! Allocation priority for each organ (pft x organ) [integer 0-6]
+     real(r8), allocatable :: grperc(:)                 ! Growth respiration per unit Carbon gained
+                                                        ! One value for whole plant
+                                                        ! ONLY parteh_mode == 1  [kg/kg]
+
+     real(r8), allocatable :: prt_grperc_organ(:,:)     ! Unit growth respiration (pft x organ) [kg/kg]
+                                                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                                        ! THIS IS NOT READ IN BY THE PARAMETER FILE
+                                                        ! THIS IS JUST FILLED BY GRPERC.  WE KEEP THIS
+                                                        ! PARAMETER FOR HYPOTHESIS TESTING (ADVANCED USE)
+                                                        ! IT HAS THE PRT_ TAG BECAUSE THIS PARAMETER
+                                                        ! IS USED INSIDE PARTEH, WHILE GRPERC IS APPLIED
+                                                        ! IN THE LEAF BIOPHYSICS SCHEME
+                                                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+     real(r8), allocatable :: prt_nitr_stoich_p1(:,:)   ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_nitr_stoich_p2(:,:)   ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_phos_stoich_p1(:,:)   ! Parameter 1 for phosphorous stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_phos_stoich_p2(:,:)   ! Parameter 2 for phosphorous stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_alloc_priority(:,:)   ! Allocation priority for each organ (pft x organ) [integer 0-6]
 
      ! Turnover related things
 
@@ -1389,10 +1402,6 @@ contains
     dim_names(1) = dimension_name_pft
     dim_names(2) = dimension_name_prt_organs
 
-    name = 'fates_prt_unit_gr_resp'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_prt_nitr_stoich_p1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -1441,10 +1450,6 @@ contains
      class(fates_parameters_type), intent(inout) :: fates_params
      
      character(len=param_string_length) :: name
-
-     name = 'fates_prt_unit_gr_resp'
-     call fates_params%RetreiveParameterAllocate(name=name, &
-           data=this%prt_unit_gr_resp)
 
      name = 'fates_prt_nitr_stoich_p1'
      call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1732,7 +1737,7 @@ contains
         write(fates_log(),fmt0) 'prt_nitr_stoich_p2 = ',EDPftvarcon_inst%prt_nitr_stoich_p2
         write(fates_log(),fmt0) 'prt_phos_stoich_p1 = ',EDPftvarcon_inst%prt_phos_stoich_p1
         write(fates_log(),fmt0) 'prt_phos_stoich_p2 = ',EDPftvarcon_inst%prt_phos_stoich_p2
-        write(fates_log(),fmt0) 'prt_unit_gr_resp = ',EDPftvarcon_inst%prt_unit_gr_resp
+        write(fates_log(),fmt0) 'prt_grperc_organ   = ',EDPftvarcon_inst%prt_grperc_organ
         write(fates_log(),fmt0) 'prt_alloc_priority = ',EDPftvarcon_inst%prt_alloc_priority
 
         write(fates_log(),fmt0) 'turnover_carb_retrans = ',EDPftvarcon_inst%turnover_carb_retrans
@@ -1767,13 +1772,23 @@ contains
 
      character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
 
-     integer :: npft,ipft
+     integer :: npft     ! number of PFTs
+     integer :: ipft     ! pft index
+     integer :: norgans  ! size of the plant organ dimension
 
      npft = size(EDPftvarcon_inst%pft_used,1)
 
+     ! Prior to performing checks copy grperc to the 
+     ! organ dimensioned version
 
+     norgans = size(EDPftvarcon_inst%prt_nitr_stoich_p1,2)
+     allocate(EDPftvarcon_inst%prt_grperc_organ(npft,norgans))
+     do ipft = 1,npft
+        EDPftvarcon_inst%prt_grperc_organ(ipft,1:norgans) = EDPftvarcon_inst%grperc(ipft)
+     end do
+
+     
      if(.not.is_master) return
-
 
      if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
         write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport'
@@ -1788,6 +1803,17 @@ contains
         write(fates_log(),*) 'only 1 module supported, allometric carbon only.'
         write(fates_log(),*) 'fates_parteh_mode must be set to 1 in the namelist'
         write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
+
+     if (norgans .ne. num_organ_types) then
+        write(fates_log(),*) 'The size of the organ dimension for PRT parameters'
+        write(fates_log(),*) 'as specified in the parameter file is incompatible.'
+        write(fates_log(),*) 'All currently acceptable hypothesese are using'
+        write(fates_log(),*) 'the full set of num_organ_types = ',num_organ_types
+        write(fates_log(),*) 'The parameter file listed ',norgans
+        write(fates_log(),*) 'Exiting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
@@ -2074,10 +2100,10 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         elseif(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ( ( any(EDPftvarcon_inst%prt_unit_gr_resp(ipft,:) < 0.0_r8)) .or. &
-                ( any(EDPftvarcon_inst%prt_unit_gr_resp(ipft,:) >= 1.0_r8)) ) then
+           if ( ( any(EDPftvarcon_inst%prt_grperc_organ(ipft,:) < 0.0_r8)) .or. &
+                ( any(EDPftvarcon_inst%prt_grperc_organ(ipft,:) >= 1.0_r8)) ) then
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',EDPftvarcon_inst%prt_unit_gr_resp(ipft,:)
+              write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',EDPftvarcon_inst%prt_grperc_organ(ipft,:)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
