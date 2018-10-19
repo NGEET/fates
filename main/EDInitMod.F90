@@ -222,7 +222,7 @@ contains
        sites(s)%old_stock  = 0.0_r8
 
        sites(s)%spread     = 1.0_r8
-       if(init_dense_forest)site_in%spread = 0._r8
+       if(init_dense_forest)sites(s)%spread = 0._r8
     end do
 
     return
