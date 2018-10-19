@@ -70,8 +70,8 @@ module EDTypesMod
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
   logical, parameter :: do_ed_phenology = .true.
-  integer, parameter :: do_fates_salinity = 1
-  integer, parameter :: do_fates_sulphide = 2
+  integer, parameter :: do_fates_salinity = 0
+  integer, parameter :: do_fates_sulphide = 0
 
 
   ! MODEL PARAMETERS
