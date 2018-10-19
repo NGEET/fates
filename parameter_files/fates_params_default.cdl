@@ -620,10 +620,10 @@ data:
   -2.25, -2.25 ;
 
  fates_hydr_pinot_node =
-  -999, -999,
-  -999, -999,
-  -999, -999,
-  -999, -999 ;
+  -1.465984, -1.465984,
+  -1.228070, -1.228070,
+  -1.228070, -1.228070,
+  -1.043478, -1.043478 ;
 
  fates_hydr_pitlp_node =
   -1.67, -1.67,
@@ -895,7 +895,7 @@ data:
 
  fates_fire_nignitions = 15 ;
  
- fates_hydr_kmax_rsurf = 0.001;
+ fates_hydr_kmax_rsurf = 20;
 
  fates_hydr_psi0 = 0 ;
 
