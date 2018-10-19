@@ -267,7 +267,7 @@ module EDTypesMod
      real(r8) ::  dbstoredt                              ! time derivative of stored biomass       : KgC/year
 
      ! FIRE
-     real(r8) ::  cfa                                    ! proportion of crown affected by fire:-
+     real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char:-
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch:-
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
@@ -817,7 +817,7 @@ contains
      write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
      write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
      write(fates_log(),*) 'co%dbstoredt              = ', ccohort%dbstoredt
-     write(fates_log(),*) 'co%cfa                    = ', ccohort%cfa
+     write(fates_log(),*) 'co%fraction_crown_burned  = ', ccohort%fraction_crown_burned
      write(fates_log(),*) 'co%fire_mort              = ', ccohort%fire_mort
      write(fates_log(),*) 'co%crownfire_mort         = ', ccohort%crownfire_mort
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
