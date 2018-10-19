@@ -72,6 +72,7 @@ module EDTypesMod
   logical, parameter :: init_dense_forest  = .false.
 
 
+
   ! MODEL PARAMETERS
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
   real(r8), parameter :: AREA_INV             = 1.0e-4_r8  ! Inverse of the notion area (faster math)
@@ -121,7 +122,10 @@ module EDTypesMod
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
+<<<<<<< HEAD
 
+=======
+>>>>>>> c8b5e00bad84d4496074ff7c165987ea581ffd34
 
   !************************************
   !** COHORT type structure          **
