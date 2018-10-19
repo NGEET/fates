@@ -1689,7 +1689,6 @@ end subroutine updateSizeDepRhizHydStates
            ! ----------------------------------------------------------------------------
 
            patch_wgt = min(1.0_r8,cpatch%total_canopy_area/cpatch%area) * (cpatch%area/AREA)
-	   bc_out(s)%lwp_pa(ifp) = 0.0_r8
 	   total_lai = sum(cpatch%canopy_layer_tlai)
 
            ! Total volume transpired from this patch [mm H2O / m2 /s ] * [m2/patch] = [mm H2O / patch / s]
@@ -2252,11 +2251,6 @@ end subroutine updateSizeDepRhizHydStates
                                (ccohort_hydr%flc_aroot(j) - ccohort_hydr%flc_min_aroot(j))*exp(-refill_rate*dtime)
                       end if
                    end do
-                   !----------------------------------------------------------------------------------------------
-		   !calculate the leaf water potential at the patch level weighed by leaf area
-		   if(total_lai>0.0_r8)then
-		     bc_out(s)%lwp_pa(ifp) = bc_out(s)%lwp_pa(ifp) + ccohort_hydr%psi_ag(1)*ccohort%lai/total_lai
-		   endif
 		   
                    ccohort => ccohort%shorter
                 enddo !cohort 
