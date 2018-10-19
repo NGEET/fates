@@ -1153,7 +1153,7 @@ contains
     currentCohort%bdead  = currentCohort%bdead - currentCohort%bdead_md*hlm_freq_day
     currentCohort%bstore = currentCohort%bstore - currentCohort%bstore_md*hlm_freq_day
     
-    if(use_leaf_age.and. currentCohort%bl>0.0_r8)then
+    if(use_leaf_age==itrue.and. currentCohort%bl>0.0_r8)then
     	  !advance the leaf ages	  
 	  dExpLeaves_dt=previous_bl *currentCohort%fracExpLeaves/(EDPftvarcon_inst%leaf_long(ipft)&
 	                 *EDPftvarcon_inst%expleaf_flong(ipft))*hlm_freq_day
