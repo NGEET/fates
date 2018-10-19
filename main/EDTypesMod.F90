@@ -22,8 +22,6 @@ module EDTypesMod
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
   						  
-  integer, parameter :: use_leaf_age = 1          ! switch of using leaf age
-
   ! -------------------------------------------------------------------------------------
   ! Radiation parameters
   ! These should be part of the radiation module, but since we only have one option
@@ -71,6 +69,7 @@ module EDTypesMod
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
   logical, parameter :: do_ed_phenology = .true.
+  integer, parameter :: use_leaf_age = 0          ! switch of using leaf age
 
 
   ! MODEL PARAMETERS
