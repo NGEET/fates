@@ -69,6 +69,7 @@ module EDTypesMod
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
   logical, parameter :: do_ed_phenology = .true.
+  logical, parameter :: init_dense_forest  = .true.
 
 
   ! MODEL PARAMETERS
@@ -120,8 +121,6 @@ module EDTypesMod
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
-  logical, parameter :: init_dense_forest  = .true.
-
 
   !************************************
   !** COHORT type structure          **
