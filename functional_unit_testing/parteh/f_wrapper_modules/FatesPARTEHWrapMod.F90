@@ -12,8 +12,8 @@
 
 module FatesPARTEHWrapMod
 
-  use PRTAllometricCarbonMod, only : InitPRTInstanceAC
-  use PRTAllometricCNPMod, only    : InitPRTInstanceACNP
+  use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
+  use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
   use FatesGlobals        , only : endrun => fates_endrun
   use FatesGlobals        , only : fates_log
   use shr_log_mod         , only : errMsg => shr_log_errMsg

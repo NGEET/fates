@@ -104,17 +104,17 @@
 
       <pft_par name="fates_turnover_retrans_mode" >  1,1,1,1,1 </pft_par>
 
-      <pft_organ_par name="fates_turnover_carb_retrans_p1" > 0.05,0.05,0,0,0,0,
+      <pft_organ_par name="fates_turnover_carb_retrans" > 0.05,0.05,0,0,0,0,
                                                              0.05,0.05,0,0,0,0,
                                                              0.05,0.05,0,0,0,0,
                                                              0.05,0.05,0,0,0,0,
                                                              0.05,0.05,0,0,0,0 </pft_organ_par>
-      <pft_organ_par name="fates_turnover_nitr_retrans_p1" > 0,0,0,0,0,0,
+      <pft_organ_par name="fates_turnover_nitr_retrans" > 0,0,0,0,0,0,
                                                              0,0,0,0,0,0,
                                                              0.25,0,0,0,0,0,
                                                              0.25,0,0,0,0,0,
                                                              0.25,0,0,0,0,0 </pft_organ_par>
-      <pft_organ_par name="fates_turnover_phos_retrans_p1" > 0,0,0,0,0,0,
+      <pft_organ_par name="fates_turnover_phos_retrans" > 0,0,0,0,0,0,
                                                              0,0,0,0,0,0,
                                                              0.25,0,0,0,0,0,
                                                              0.25,0,0,0,0,0,

@@ -131,7 +131,7 @@ module PRTAllometricCarbonMod
    ! everywhere in the code, except for where it is populated in this init routine
    ! below.
 
-   class(prt_global_type), protected, target, allocatable :: prt_global_ac
+   class(prt_global_type), public, target, allocatable :: prt_global_ac
 
 
    public :: InitPRTGlobalAllometricCarbon

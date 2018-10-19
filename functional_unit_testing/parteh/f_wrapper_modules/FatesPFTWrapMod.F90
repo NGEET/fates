@@ -99,9 +99,9 @@ module EDPftvarcon
      ! THese are new, but not necessarily PARTEH labeled
      real(r8), pointer :: turnover_retrans_mode(:)
      
-     real(r8), pointer :: turnover_carb_retrans_p1(:,:)
-     real(r8), pointer :: turnover_nitr_retrans_p1(:,:)
-     real(r8), pointer :: turnover_phos_retrans_p1(:,:)
+     real(r8), pointer :: turnover_carb_retrans(:,:)
+     real(r8), pointer :: turnover_nitr_retrans(:,:)
+     real(r8), pointer :: turnover_phos_retrans(:,:)
 
 
   end type EDPftvarcon_inst_type
@@ -543,23 +543,23 @@ contains
     EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_retrans_mode"
     EDPftvarcon_ptr%var(iv)%rp_1d => EDPftvarcon_inst%turnover_retrans_mode
 
-    allocate( EDPftvarcon_inst%turnover_carb_retrans_p1(1:num_pft,1:num_organs) )
-    EDPftvarcon_inst%turnover_carb_retrans_p1(:,:) = nan
+    allocate( EDPftvarcon_inst%turnover_carb_retrans(1:num_pft,1:num_organs) )
+    EDPftvarcon_inst%turnover_carb_retrans(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_carb_retrans_p1"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_carb_retrans_p1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_carb_retrans"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_carb_retrans
 
-    allocate( EDPftvarcon_inst%turnover_nitr_retrans_p1(1:num_pft,1:num_organs) )
-    EDPftvarcon_inst%turnover_nitr_retrans_p1(:,:) = nan
+    allocate( EDPftvarcon_inst%turnover_nitr_retrans(1:num_pft,1:num_organs) )
+    EDPftvarcon_inst%turnover_nitr_retrans(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_nitr_retrans_p1"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_nitr_retrans_p1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_nitr_retrans"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_nitr_retrans
     
-    allocate( EDPftvarcon_inst%turnover_phos_retrans_p1(1:num_pft,1:num_organs) )
-    EDPftvarcon_inst%turnover_phos_retrans_p1(:,:) = nan
+    allocate( EDPftvarcon_inst%turnover_phos_retrans(1:num_pft,1:num_organs) )
+    EDPftvarcon_inst%turnover_phos_retrans(:,:) = nan
     iv = iv + 1
-    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_phos_retrans_p1"
-    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_phos_retrans_p1
+    EDPftvarcon_ptr%var(iv)%var_name = "fates_turnover_phos_retrans"
+    EDPftvarcon_ptr%var(iv)%rp_2d => EDPftvarcon_inst%turnover_phos_retrans
 
 
     ! We should gracefully fail if rootprof_beta is requested
