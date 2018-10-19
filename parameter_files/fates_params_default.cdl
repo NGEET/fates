@@ -115,13 +115,13 @@ variables:
 		fates_allom_cmode:long_name = "coarse root biomass allometry function index" ;
 	float fates_allom_d2bl1(fates_pft) ;
 		fates_allom_d2bl1:units = "variable" ;
-		fates_allom_d2bl1:long_name = "Parameter 1 for d2bl allometry (intercept)" ;
+		fates_allom_d2bl1:long_name = "Parameter 1 for d2bl allometry" ;
 	float fates_allom_d2bl2(fates_pft) ;
 		fates_allom_d2bl2:units = "variable" ;
-		fates_allom_d2bl2:long_name = "Parameter 2 for d2bl allometry (slope)" ;
+		fates_allom_d2bl2:long_name = "Parameter 2 for d2bl allometry" ;
 	float fates_allom_d2bl3(fates_pft) ;
 		fates_allom_d2bl3:units = "unitless" ;
-		fates_allom_d2bl3:long_name = "Parameter 3 for d2bl allometry (optional)" ;
+		fates_allom_d2bl3:long_name = "Parameter 3 for d2bl allometry" ;
 	float fates_allom_d2ca_coefficient_max(fates_pft) ;
 		fates_allom_d2ca_coefficient_max:units = "m2 cm^(-1/beta)" ;
 		fates_allom_d2ca_coefficient_max:long_name = "max (savanna) dbh to area multiplier factor where: area = n*d2ca_coeff*dbh^beta" ;
@@ -149,18 +149,18 @@ variables:
 	float fates_allom_l2fr(fates_pft) ;
 		fates_allom_l2fr:units = "gC/gC" ;
 		fates_allom_l2fr:long_name = "Allocation parameter: fine root C per leaf C" ;
-	float fates_allom_latosa_int(fates_pft) ;
-		fates_allom_latosa_int:units = "cm2/m2" ;
-		fates_allom_latosa_int:long_name = "Leaf area to sap area conversion, intercept (sapwood area/leaf area)" ;
-	float fates_allom_latosa_slp(fates_pft) ;
-		fates_allom_latosa_slp:units = "cm2/m2/cm" ;
-		fates_allom_latosa_slp:long_name = "Leaf area to sap area conversion, slope (sapwood area/ leaf area / diameter) (optional)" ;
+	float fates_allom_la_per_sa_int(fates_pft) ;
+		fates_allom_la_per_sa_int:units = "m2/cm2" ;
+		fates_allom_la_per_sa_int:long_name = "Leaf area per sapwood area, intercept" ;
+	float fates_allom_la_per_sa_slp(fates_pft) ;
+		fates_allom_la_per_sa_slp:units = "m2/cm2/m" ;
+		fates_allom_la_per_sa_slp:long_name = "Leaf area per sapwood area rate of change with height, slope (optional)" ;
 	float fates_allom_lmode(fates_pft) ;
 		fates_allom_lmode:units = "index" ;
 		fates_allom_lmode:long_name = "leaf biomass allometry function index" ;
 	float fates_allom_sai_scaler(fates_pft) ;
-		fates_allom_sai_scaler:units = "m2/gC" ;
-		fates_allom_sai_scaler:long_name = "allometric ratio of SAI to target bleaf" ;
+		fates_allom_sai_scaler:units = "m2/m2" ;
+		fates_allom_sai_scaler:long_name = "allometric ratio of SAI per LAI" ;
 	float fates_allom_smode(fates_pft) ;
 		fates_allom_smode:units = "index" ;
 		fates_allom_smode:long_name = "sapwood allometry function index" ;
@@ -248,6 +248,9 @@ variables:
 	float fates_leaf_long(fates_pft) ;
 		fates_leaf_long:units = "yr" ;
 		fates_leaf_long:long_name = "Leaf longevity (ie turnover timescale)" ;
+	float fates_leaf_slamax(fates_pft) ;
+		fates_leaf_slamax:units = "m^2/gC" ;
+		fates_leaf_slamax:long_name = "Maximum Specific Leaf Area (SLA), even if under a dense canopy" ;
 	float fates_leaf_slatop(fates_pft) ;
 		fates_leaf_slatop:units = "m^2/gC" ;
 		fates_leaf_slatop:long_name = "Specific Leaf Area (SLA) at top of canopy, projected area basis" ;
@@ -407,6 +410,9 @@ variables:
 	float fates_trim_limit(fates_pft) ;
 		fates_trim_limit:units = "m2/m2" ;
 		fates_trim_limit:long_name = "Arbitrary limit to reductions in leaf area with stress" ;
+	float fates_wood_cn_ratio(fates_pft) ;
+		fates_wood_cn_ratio:units = "gC/gN" ;
+		fates_wood_cn_ratio:long_name = "Wood C:N" ;
 	float fates_wood_density(fates_pft) ;
 		fates_wood_density:units = "g/cm3" ;
 		fates_wood_density:long_name = "mean density of woody tissue in plant" ;
@@ -556,7 +562,8 @@ variables:
                         " Mon Mar 19 19:05:44 EDT 2018 added entry for fates_history_height_bin_edges.\n",
                         " Thu Apr 12 14:18:46 PDT 2018 updated names on CN recruitment parameters. -- fates_params_14pft.c180412.nc -- \n",
 			" This file was made then modified wih FatesPFTIndexSwapper.py to reduce to 2 tropical pfts again. \n",
-			" Indices = [1, 1]" ;
+			" Indices = [1, 1] \n",
+			" Wed Aug 29 12:14:41 PDT 2018: (RGK) Updated latosa to la_per_sa (inverts units, invert defaults also)\n" ;
 data:
 
  fates_history_sizeclass_bin_edges = 0, 5, 10, 15, 20, 30, 40, 50, 60, 70, 
@@ -692,13 +699,13 @@ data:
 
  fates_allom_l2fr = 1, 1 ;
 
- fates_allom_latosa_int = 0.001, 0.001 ;
+ fates_allom_la_per_sa_int = 1000.0, 1000.0 ;
 
- fates_allom_latosa_slp = 0, 0 ;
+ fates_allom_la_per_sa_slp = 0.0, 0.0 ;
 
  fates_allom_lmode = 1, 1 ;
 
- fates_allom_sai_scaler = 0.0012, 0.0012 ;
+ fates_allom_sai_scaler = 0.10, 0.10 ;
 
  fates_allom_smode = 1, 1 ;
 
@@ -757,6 +764,8 @@ data:
  fates_leaf_jmaxse = 495, 495 ;
 
  fates_leaf_long = 1.5, 1.5 ;
+
+ fates_leaf_slamax = 0.0954, 0.0954 ;
 
  fates_leaf_slatop = 0.012, 0.012 ;
 
@@ -863,6 +872,8 @@ data:
  fates_trim_inc = 0.03, 0.03 ;
 
  fates_trim_limit = 0.3, 0.3 ;
+
+ fates_wood_cn_ratio = 210, 210 ;
 
  fates_wood_density = 0.7, 0.7 ;
 

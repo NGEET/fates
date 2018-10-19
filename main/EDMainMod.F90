@@ -70,7 +70,7 @@ module EDMainMod
   private :: ed_total_balance_check
   private :: bypass_dynamics
   
-  logical :: DEBUG  = .false.
+  logical :: debug  = .false.
   
   character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -401,7 +401,7 @@ contains
 
        ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
        cohort_number = count_cohorts(currentPatch)  
-       if ( DEBUG ) then
+       if ( debug ) then
           write(fates_log(),*) 'tempCount ',cohort_number
        endif
 
@@ -508,7 +508,7 @@ contains
        write(fates_log(),*) 'seeds',seed_stock
        write(fates_log(),*) 'previous total',currentSite%old_stock  
 
-       if(DEBUG)then
+       if(debug)then
           change_in_stock = 0.0_r8
           biomass_stock   = 0.0_r8
           litter_stock    = 0.0_r8

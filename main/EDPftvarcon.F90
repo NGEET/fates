@@ -51,6 +51,7 @@ module EDPftvarcon
      real(r8), allocatable :: stress_decid(:)
      real(r8), allocatable :: season_decid(:)
      real(r8), allocatable :: evergreen(:)
+     real(r8), allocatable :: slamax(:)
      real(r8), allocatable :: slatop(:)
      real(r8), allocatable :: leaf_long(:)
      real(r8), allocatable :: roota_par(:)
@@ -68,6 +69,7 @@ module EDPftvarcon
      real(r8), allocatable :: vcmax25top(:)
      real(r8), allocatable :: leafcn(:)
      real(r8), allocatable :: frootcn(:)
+     real(r8), allocatable :: woodcn(:)
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) 
@@ -118,9 +120,9 @@ module EDPftvarcon
      real(r8), allocatable :: allom_smode(:)        ! sapwood allometry function type
      real(r8), allocatable :: allom_stmode(:)       ! storage allometry functional type 
                                                     ! (HARD-CODED FOR TIME BEING, RGK 11-2017)
-     real(r8), allocatable :: allom_latosa_int(:)   ! Leaf area to sap area conversion, intercept 
+     real(r8), allocatable :: allom_la_per_sa_int(:)   ! Leaf area to sap area conversion, intercept 
                                                     ! (sapwood area / leaf area) [cm2/m2]
-     real(r8), allocatable :: allom_latosa_slp(:)   ! Leaf area to sap area conversion, slope 
+     real(r8), allocatable :: allom_la_per_sa_slp(:)   ! Leaf area to sap area conversion, slope 
                                                     ! (sapwood area / leaf area / diameter) [cm2/m2/cm]
      real(r8), allocatable :: allom_l2fr(:)         ! Fine root biomass per leaf biomass ratio [kgC/kgC]
      real(r8), allocatable :: allom_agb_frac(:)     ! Fraction of stem above ground [-]
@@ -357,6 +359,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_leaf_slamax'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_leaf_slatop'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -419,6 +425,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_froot_cn_ratio'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_wood_cn_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -498,11 +508,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_allom_latosa_int'
+    name = 'fates_allom_la_per_sa_int'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_allom_latosa_slp'
+    name = 'fates_allom_la_per_sa_slp'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -782,6 +792,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%evergreen)
 
+    name = 'fates_leaf_slamax'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%slamax)
+
     name = 'fates_leaf_slatop'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
@@ -845,6 +859,10 @@ contains
     name = 'fates_froot_cn_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%frootcn)
+
+    name = 'fates_wood_cn_ratio'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%woodcn)
 
     name = 'fates_smpso'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -922,13 +940,13 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_smode)
 
-    name = 'fates_allom_latosa_int'
+    name = 'fates_allom_la_per_sa_int'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_latosa_int)
+         data=this%allom_la_per_sa_int)
 
-    name = 'fates_allom_latosa_slp'
+    name = 'fates_allom_la_per_sa_slp'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_latosa_slp)
+         data=this%allom_la_per_sa_slp)
 
     name = 'fates_allom_l2fr'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1487,7 +1505,8 @@ contains
         write(fates_log(),fmt0) 'stress_decid = ',EDPftvarcon_inst%stress_decid
         write(fates_log(),fmt0) 'season_decid = ',EDPftvarcon_inst%season_decid
         write(fates_log(),fmt0) 'evergreen = ',EDPftvarcon_inst%evergreen
-        write(fates_log(),fmt0) 'slatop = ',EDPftvarcon_inst%slatop
+        write(fates_log(),fmt0) 'slamax = ',EDPftvarcon_inst%slamax
+        write(fates_log(),fmt0) 'slatop = ',EDPftvarcon_inst%slatop        
         write(fates_log(),fmt0) 'leaf_long = ',EDPftvarcon_inst%leaf_long
         write(fates_log(),fmt0) 'roota_par = ',EDPftvarcon_inst%roota_par
         write(fates_log(),fmt0) 'rootb_par = ',EDPftvarcon_inst%rootb_par
@@ -1503,6 +1522,7 @@ contains
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
         write(fates_log(),fmt0) 'leafcn = ',EDPftvarcon_inst%leafcn
         write(fates_log(),fmt0) 'frootcn = ',EDPftvarcon_inst%frootcn
+        write(fates_log(),fmt0) 'woodcn = ',EDPftvarcon_inst%woodcn
         write(fates_log(),fmt0) 'smpso = ',EDPftvarcon_inst%smpso
         write(fates_log(),fmt0) 'smpsc = ',EDPftvarcon_inst%smpsc
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc
@@ -1538,8 +1558,8 @@ contains
         write(fates_log(),fmt0) 'allom_amode = ',EDPftvarcon_inst%allom_amode
         write(fates_log(),fmt0) 'allom_cmode = ',EDPftvarcon_inst%allom_cmode
         write(fates_log(),fmt0) 'allom_smode = ',EDPftvarcon_inst%allom_smode
-        write(fates_log(),fmt0) 'allom_latosa_int = ',EDPftvarcon_inst%allom_latosa_int
-        write(fates_log(),fmt0) 'allom_latosa_slp = ',EDPftvarcon_inst%allom_latosa_slp
+        write(fates_log(),fmt0) 'allom_la_per_sa_int = ',EDPftvarcon_inst%allom_la_per_sa_int
+        write(fates_log(),fmt0) 'allom_la_per_sa_slp = ',EDPftvarcon_inst%allom_la_per_sa_slp
         write(fates_log(),fmt0) 'allom_l2fr = ',EDPftvarcon_inst%allom_l2fr
         write(fates_log(),fmt0) 'allom_agb_frac = ',EDPftvarcon_inst%allom_agb_frac
         write(fates_log(),fmt0) 'allom_d2h1 = ',EDPftvarcon_inst%allom_d2h1
