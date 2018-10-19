@@ -34,6 +34,7 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : ed_cohort_type 
    use EDTypesMod       , only : area
    use EDPftvarcon      , only : EDPftvarcon_inst
+   use EDTypesMod       , only : init_dense_forest
 
    implicit none
    private
@@ -928,6 +929,7 @@ contains
 
       ! Since spread is a canopy level calculation, we need to provide an initial guess here.
       site_spread = 0.5_r8
+      if(init_dense_forest)site_spread = 0.0_r8
       call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
             temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, site_spread, bc_in)
