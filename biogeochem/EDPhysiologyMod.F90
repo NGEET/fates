@@ -56,10 +56,10 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : StructureResetOfDH
 
   use PRTGenericMod, only : leaf_organ
-  use PRTGenericMod, only : all_carbon_species
-  use PRTGenericMod, only : carbon12_species
-  use PRTGenericMod, only : nitrogen_species
-  use PRTGenericMod, only : phosphorous_species
+  use PRTGenericMod, only : all_carbon_elements
+  use PRTGenericMod, only : carbon12_element
+  use PRTGenericMod, only : nitrogen_element
+  use PRTGenericMod, only : phosphorous_element
   use PRTGenericMod, only : leaf_organ
   use PRTGenericMod, only : fnrt_organ
   use PRTGenericMod, only : sapw_organ
@@ -243,7 +243,7 @@ contains
           ipft = currentCohort%pft
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
 
-          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
+          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
 
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                                            currentCohort%n, currentCohort%canopy_layer,               &
@@ -665,8 +665,8 @@ contains
 
           call currentCohort%prt%CheckMassConservation(ipft,0)
 
-          store_c = currentCohort%prt%GetState(store_organ, carbon12_species)
-          leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_species)
+          store_c = currentCohort%prt%GetState(store_organ, all_carbon_elements)
+          leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
 
           !COLD LEAF ON
           if (EDPftvarcon_inst%season_decid(ipft) == 1)then
@@ -704,7 +704,7 @@ contains
                    currentCohort%laimemory   = leaf_c
 
                    ! Drop Leaves (this routine will update the leaf state variables,
-                   ! for carbon and any other species that are prognostic. It will
+                   ! for carbon and any other element that are prognostic. It will
                    ! also track the turnover masses that will be sent to litter later on)
 
                    call PRTDeciduousTurnover(currentCohort%prt,ipft, &
@@ -1065,17 +1065,17 @@ contains
     do while(associated(currentCohort))
       pft = currentCohort%pft        
 
-      leaf_c_turnover   = currentCohort%prt%GetTurnover(leaf_organ,all_carbon_species)
-      store_c_turnover  = currentCohort%prt%GetTurnover(store_organ,all_carbon_species)
-      fnrt_c_turnover   = currentCohort%prt%GetTurnover(fnrt_organ,all_carbon_species)
-      sapw_c_turnover   = currentCohort%prt%GetTurnover(sapw_organ,all_carbon_species)
-      struct_c_turnover = currentCohort%prt%GetTurnover(struct_organ,all_carbon_species)
+      leaf_c_turnover   = currentCohort%prt%GetTurnover(leaf_organ,all_carbon_elements)
+      store_c_turnover  = currentCohort%prt%GetTurnover(store_organ,all_carbon_elements)
+      fnrt_c_turnover   = currentCohort%prt%GetTurnover(fnrt_organ,all_carbon_elements)
+      sapw_c_turnover   = currentCohort%prt%GetTurnover(sapw_organ,all_carbon_elements)
+      struct_c_turnover = currentCohort%prt%GetTurnover(struct_organ,all_carbon_elements)
 
-      leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_species)
-      store_c         = currentCohort%prt%GetState(store_organ,all_carbon_species)
-      fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_species)
-      sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_species)
-      struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_species)
+      leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+      store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+      fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+      sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+      struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
 
       ! ================================================        
       ! Litter from tissue turnover. KgC/m2/year
@@ -1643,11 +1643,11 @@ contains
             currentCohort => currentPatch%tallest
             do while(associated(currentCohort))      
                
-               leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_species)
-               store_c         = currentCohort%prt%GetState(store_organ,all_carbon_species)
-               fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_species)
-               sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_species)
-               struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_species)
+               leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+               store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+               fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+               sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+               struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
 
                biomass_bg_ft(currentCohort%pft) = biomass_bg_ft(currentCohort%pft) + &
                     ( (struct_c + sapw_c) * & 

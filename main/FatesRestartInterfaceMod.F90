@@ -13,16 +13,6 @@ module FatesRestartInterfaceMod
   use FatesInterfaceMod, only : bc_in_type 
   use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
 
-  use PRTGenericMod,          only : all_carbon_species
-  use PRTGenericMod,          only : carbon12_species
-  use PRTGenericMod,          only : nitrogen_species
-  use PRTGenericMod,          only : phosphorous_species
-  use PRTGenericMod,          only : leaf_organ
-  use PRTGenericMod,          only : fnrt_organ
-  use PRTGenericMod,          only : sapw_organ
-  use PRTGenericMod,          only : store_organ
-  use PRTGenericMod,          only : repro_organ
-  use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : prt_global
 
 
@@ -862,7 +852,7 @@ contains
     !
     ! We do have to loop through the different parts of the objects indepenently.
     ! For instance we can't have one loop that covers the states "val", and
-    ! the net allocation and reactive transport flux "net_art", so we have to loop
+    ! the net allocation and reactive transport flux "net_alloc", so we have to loop
     ! these each separately. As other fluxes are added in the future, they need
     ! their own definition.
     !
@@ -1236,7 +1226,7 @@ contains
                       
                       ir_prt_var = ir_prt_var + 1
                       this%rvars(ir_prt_var)%r81d(io_idx_co) = &
-                            ccohort%prt%variables(i_var)%net_art(i_pos)
+                            ccohort%prt%variables(i_var)%net_alloc(i_pos)
 
                       ir_prt_var = ir_prt_var + 1
                       this%rvars(ir_prt_var)%r81d(io_idx_co) = &
@@ -1804,7 +1794,7 @@ contains
                             this%rvars(ir_prt_var)%r81d(io_idx_co)
 
                       ir_prt_var = ir_prt_var + 1
-                      ccohort%prt%variables(i_var)%net_art(i_pos) = &
+                      ccohort%prt%variables(i_var)%net_alloc(i_pos) = &
                             this%rvars(ir_prt_var)%r81d(io_idx_co)
 
                       ir_prt_var = ir_prt_var + 1

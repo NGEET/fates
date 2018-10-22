@@ -15,7 +15,7 @@ module PRTAllometricCarbonMod
   use PRTGenericMod , only  : prt_global
   use PRTGenericMod , only  : prt_vartype
   use PRTGenericMod , only  : prt_vartypes
-  use PRTGenericMod , only  : carbon12_species
+  use PRTGenericMod , only  : carbon12_element
   use PRTGenericMod , only  : leaf_organ
   use PRTGenericMod , only  : fnrt_organ
   use PRTGenericMod , only  : sapw_organ
@@ -187,12 +187,12 @@ contains
      ! Register the variables. Each variable must be associated with a global identifier
      ! for an organ and species.
 
-     call prt_global_ac%RegisterVarInGlobal(leaf_c_id,"Leaf Carbon","leaf_c",leaf_organ,carbon12_species,icd)
-     call prt_global_ac%RegisterVarInGlobal(fnrt_c_id,"Fine Root Carbon","fnrt_c",fnrt_organ,carbon12_species,icd)
-     call prt_global_ac%RegisterVarInGlobal(sapw_c_id,"Sapwood Carbon","sapw_c",sapw_organ,carbon12_species,icd)
-     call prt_global_ac%RegisterVarInGlobal(store_c_id,"Storage Carbon","store_c",store_organ,carbon12_species,icd)
-     call prt_global_ac%RegisterVarInGlobal(struct_c_id,"Structural Carbon","struct_c",struct_organ,carbon12_species,icd)
-     call prt_global_ac%RegisterVarInGlobal(repro_c_id,"Reproductive Carbon","repro_c",repro_organ,carbon12_species,icd)
+     call prt_global_ac%RegisterVarInGlobal(leaf_c_id,"Leaf Carbon","leaf_c",leaf_organ,carbon12_element,icd)
+     call prt_global_ac%RegisterVarInGlobal(fnrt_c_id,"Fine Root Carbon","fnrt_c",fnrt_organ,carbon12_element,icd)
+     call prt_global_ac%RegisterVarInGlobal(sapw_c_id,"Sapwood Carbon","sapw_c",sapw_organ,carbon12_element,icd)
+     call prt_global_ac%RegisterVarInGlobal(store_c_id,"Storage Carbon","store_c",store_organ,carbon12_element,icd)
+     call prt_global_ac%RegisterVarInGlobal(struct_c_id,"Structural Carbon","struct_c",struct_organ,carbon12_element,icd)
+     call prt_global_ac%RegisterVarInGlobal(repro_c_id,"Reproductive Carbon","repro_c",repro_organ,carbon12_element,icd)
      
      ! Set some of the array sizes for input and output boundary conditions
      prt_global_ac%num_bc_in    = num_bc_in
@@ -368,7 +368,7 @@ contains
     ! -----------------------------------------------------------------------------------
     ! I. Remember the values for the state variables at the beginning of this
     ! routines. We will then use that to determine their net allocation and reactive
-    ! transport flux "%net_art" at the end.
+    ! transport flux "%net_alloc" at the end.
     ! -----------------------------------------------------------------------------------
 
     leaf_c0 = leaf_c         ! Set initial leaf carbon 
@@ -809,23 +809,23 @@ contains
 
     ! Track the net allocations and transport from this routine
 
-    this%variables(leaf_c_id)%net_art(icd) = &
-         this%variables(leaf_c_id)%net_art(icd) + (leaf_c - leaf_c0)
+    this%variables(leaf_c_id)%net_alloc(icd) = &
+         this%variables(leaf_c_id)%net_alloc(icd) + (leaf_c - leaf_c0)
 
-    this%variables(fnrt_c_id)%net_art(icd) = &
-         this%variables(fnrt_c_id)%net_art(icd) + (fnrt_c - fnrt_c0)
+    this%variables(fnrt_c_id)%net_alloc(icd) = &
+         this%variables(fnrt_c_id)%net_alloc(icd) + (fnrt_c - fnrt_c0)
     
-    this%variables(sapw_c_id)%net_art(icd) = &
-         this%variables(sapw_c_id)%net_art(icd) + (sapw_c - sapw_c0)
+    this%variables(sapw_c_id)%net_alloc(icd) = &
+         this%variables(sapw_c_id)%net_alloc(icd) + (sapw_c - sapw_c0)
     
-    this%variables(store_c_id)%net_art(icd) = &
-         this%variables(store_c_id)%net_art(icd) + (store_c - store_c0)
+    this%variables(store_c_id)%net_alloc(icd) = &
+         this%variables(store_c_id)%net_alloc(icd) + (store_c - store_c0)
     
-    this%variables(repro_c_id)%net_art(icd) = &
-         this%variables(repro_c_id)%net_art(icd) + (repro_c - repro_c0)
+    this%variables(repro_c_id)%net_alloc(icd) = &
+         this%variables(repro_c_id)%net_alloc(icd) + (repro_c - repro_c0)
     
-    this%variables(struct_c_id)%net_art(icd) = &
-         this%variables(struct_c_id)%net_art(icd) + (struct_c - struct_c0)
+    this%variables(struct_c_id)%net_alloc(icd) = &
+         this%variables(struct_c_id)%net_alloc(icd) + (struct_c - struct_c0)
 
 
  

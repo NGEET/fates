@@ -8,7 +8,7 @@ module EDTypesMod
   use PRTGenericMod,         only : prt_vartypes
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
-  use PRTGenericMod,         only : all_carbon_species
+  use PRTGenericMod,         only : all_carbon_elements
 
   implicit none
   save
@@ -728,12 +728,12 @@ module EDTypesMod
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite
      write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
      
-     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_species) 
-     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,all_carbon_species) 
-     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,all_carbon_species) 
-     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,all_carbon_species) 
-     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,all_carbon_species) 
-     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,all_carbon_species) 
+     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_elements) 
+     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,all_carbon_elements) 
+     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,all_carbon_elements) 
+     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,all_carbon_elements) 
+     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,all_carbon_elements) 
+     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,all_carbon_elements) 
 
      write(fates_log(),*) 'co%lai                    = ', ccohort%lai                         
      write(fates_log(),*) 'co%sai                    = ', ccohort%sai  

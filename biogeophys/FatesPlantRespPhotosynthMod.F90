@@ -33,9 +33,8 @@ module FATESPlantRespPhotosynthMod
 
    use PRTGenericMod,          only : prt_carbon_allom_hyp
    use PRTGenericMod,          only : prt_cnp_flex_allom_hyp 
-   use PRTGenericMod,          only : all_carbon_species
-   use PRTGenericMod,          only : nitrogen_species
-   use PRTGenericMod,          only : phosphorous_species
+   use PRTGenericMod,          only : all_carbon_elements
+   use PRTGenericMod,          only : nitrogen_element
    use PRTGenericMod,          only : leaf_organ
    use PRTGenericMod,          only : fnrt_organ
    use PRTGenericMod,          only : sapw_organ
@@ -367,7 +366,7 @@ contains
                      
                      call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,b_leaf)
                      call storage_fraction_of_target(b_leaf, &
-                           currentCohort%prt%GetState(store_organ, all_carbon_species), &
+                           currentCohort%prt%GetState(store_organ, all_carbon_elements), &
                            frac)
                      call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
                           maintresp_reduction_factor)
@@ -444,8 +443,8 @@ contains
                                  
                               case (prt_cnp_flex_allom_hyp)
 
-                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
-                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
+                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                                  lnc_top = leaf_n / (slatop(ft) * leaf_c )
 
                               end select
@@ -580,8 +579,8 @@ contains
                      ! Units are in (kgN/plant)
                      ! ------------------------------------------------------------------
 
-                     sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-                     fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
+                     sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                     fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
 
                      select case(hlm_parteh_mode)
                      case (prt_carbon_allom_hyp)
@@ -597,12 +596,12 @@ contains
                      case(prt_cnp_flex_allom_hyp) 
                      
                         live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                             currentCohort%prt%GetState(sapw_organ, nitrogen_species)
+                             currentCohort%prt%GetState(sapw_organ, nitrogen_element)
 
                         live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
-                             currentCohort%prt%GetState(sapw_organ, nitrogen_species)
+                             currentCohort%prt%GetState(sapw_organ, nitrogen_element)
 
-                        fnrt_n = currentCohort%prt%GetState(fnrt_organ, nitrogen_species)
+                        fnrt_n = currentCohort%prt%GetState(fnrt_organ, nitrogen_element)
 
                      case default
                         

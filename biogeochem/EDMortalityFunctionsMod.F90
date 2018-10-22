@@ -20,7 +20,7 @@ module EDMortalityFunctionsMod
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
    use FatesInterfaceMod     , only : bc_in_type
 
-   use PRTGenericMod,          only : all_carbon_species
+   use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : store_organ
 
    implicit none
@@ -88,7 +88,7 @@ contains
     if ( cohort_in%dbh  >  0._r8 ) then
 
        call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%canopy_trim,leaf_c_target)
-       store_c = cohort_in%prt%GetState(store_organ,all_carbon_species)
+       store_c = cohort_in%prt%GetState(store_organ,all_carbon_elements)
 
        call storage_fraction_of_target(leaf_c_target, store_c, frac)
        if( frac .lt. 1._r8) then

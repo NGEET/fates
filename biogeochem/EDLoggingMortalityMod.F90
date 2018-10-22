@@ -46,7 +46,7 @@ module EDLoggingMortalityMod
    use shr_log_mod       , only : errMsg => shr_log_errMsg
    use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
 
-   use PRTGenericMod     , only : all_carbon_species
+   use PRTGenericMod     , only : all_carbon_elements
    use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
 
@@ -285,11 +285,11 @@ contains
       do while(associated(currentCohort))       
          p = currentCohort%pft
 
-         sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-         struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
-         leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
-         fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
-         store_c  = currentCohort%prt%GetState(store_organ, all_carbon_species)
+         sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+         struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+         leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+         fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+         store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
          
          if(currentCohort%canopy_layer == 1)then         
             direct_dead   = currentCohort%n * currentCohort%lmort_direct

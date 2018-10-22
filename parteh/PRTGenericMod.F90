@@ -6,8 +6,13 @@ module PRTGenericMod
   ! 
   ! Non-Specific (Generic) Classes and Functions
   ! This contains the base classes for both the variables and the global class
-  ! This also contains science relevent procedures that are agnostic of hypothesis
-  ! such as maintenance turnover and restranslocation.
+  !
+  ! General idea:  PARTEH treats its state variables as objects. Each object
+  !  can be mapped to, or associated with:
+  !  1) an organ
+  !  2) a spatial position associated with that organ
+  !  3) a chemical element (ie carbon isotope or nutrient), aka chemical species
+  !
   !
   ! THIS ROUTINE SHOULD NOT HAVE TO BE MODIFIED TO ACCOMODATE NEW HYPOTHESES
   ! (in principle ...)
@@ -42,7 +47,7 @@ module PRTGenericMod
 
   ! -------------------------------------------------------------------------------------
   ! IMPORTANT!
-  ! All species in all organs should be expressed in terms of KILOGRAMS
+  ! All elements in all organs should be expressed in terms of KILOGRAMS
   ! All rates of change are expressed in terms of kilograms / day
   ! This assumption cannot be broken!
   ! -------------------------------------------------------------------------------------
@@ -75,59 +80,59 @@ module PRTGenericMod
   integer, parameter :: struct_organ  = 6    ! index for structure (dead) organs
 
   ! -------------------------------------------------------------------------------------
-  ! Species types
-  ! These are public indices used to map the species in each hypothesis
-  ! to the species that are acknowledged in the calling model
+  ! Element types
+  ! These are public indices used to map the elements (chem species) in each hypothesis
+  ! to the element that are acknowledged in the calling model
   ! -------------------------------------------------------------------------------------
 
-  integer, parameter :: num_species_types     = 6    ! Total number of unique species
+  integer, parameter :: num_element_types     = 6    ! Total number of unique element
                                                      ! curently recognized by PARTEH
                                                      ! should be max index in list below
 
   ! The following list are the unique indices associated with the
-  ! species used in each hypothesis.  Note these are just POTENTIAL
-  ! species.  At the time of writing this, we are very far away from
+  ! element used in each hypothesis.  Note these are just POTENTIAL
+  ! element.  At the time of writing this, we are very far away from
   ! creating allocation schemes that even use potassium.
   
-  integer, parameter :: all_carbon_species  = 0
-  integer, parameter :: carbon12_species    = 1
-  integer, parameter :: carbon13_species    = 2
-  integer, parameter :: carbon14_species    = 3
-  integer, parameter :: nitrogen_species    = 4
-  integer, parameter :: phosphorous_species = 5
-  integer, parameter :: potassium_species   = 6
+  integer, parameter :: all_carbon_elements = 0
+  integer, parameter :: carbon12_element    = 1
+  integer, parameter :: carbon13_element    = 2
+  integer, parameter :: carbon14_element    = 3
+  integer, parameter :: nitrogen_element    = 4
+  integer, parameter :: phosphorous_element = 5
+  integer, parameter :: potassium_element   = 6
 
-  !  The following species are just placeholders. In the future
+  !  The following elements are just placeholders. In the future
   !  if someone wants to develope an allocation hypothesis
   !  that uses nickel, we can just uncomment it from this list
 
-  !  integer, parameter :: calcium_species     = 7
-  !  integer, parameter :: magnesium_species   = 8
-  !  integer, parameter :: sulfur_species      = 9
-  !  integer, parameter :: chlorine_species    = 10
-  !  integer, parameter :: iron_species        = 11
-  !  integer, parameter :: manganese_species   = 12
-  !  integer, parameter :: zinc_species        = 13
-  !  integer, parameter :: copper_species      = 14
-  !  integer, parameter :: boron_species       = 15
-  !  integer, parameter :: molybdenum_species  = 16
-  !  integer, parameter :: nickel_species      = 17
+  !  integer, parameter :: calcium_element     = 7
+  !  integer, parameter :: magnesium_element   = 8
+  !  integer, parameter :: sulfur_element      = 9
+  !  integer, parameter :: chlorine_element    = 10
+  !  integer, parameter :: iron_element        = 11
+  !  integer, parameter :: manganese_element   = 12
+  !  integer, parameter :: zinc_element        = 13
+  !  integer, parameter :: copper_element      = 14
+  !  integer, parameter :: boron_element       = 15
+  !  integer, parameter :: molybdenum_element  = 16
+  !  integer, parameter :: nickel_element      = 17
 
   
-  ! We have some lists of species or lists of organs, such as
-  ! a list of all carbon species.  To keep routines simple
+  ! We have some lists of elements or lists of organs, such as
+  ! a list of all carbon elements.  To keep routines simple
   ! we set a global to the maximum list size for scratch arrays.
 
   integer, parameter :: max_spec_per_group = 3    ! we may query these lists
-                                                  ! carbon species is the biggest list
+                                                  ! the carbon elements are the biggest list
                                                   ! right now
 
 
-  ! List of all carbon species, the special index "all_carbon_species"
+  ! List of all carbon elements, the special index "all_carbon_elements"
   ! implies the following list of carbon organs
   
-  integer, parameter, dimension(3) :: carbon_species_list   = &
-       [carbon12_species, carbon13_species, carbon14_species]
+  integer, parameter, dimension(3) :: carbon_elements_list   = &
+       [carbon12_element, carbon13_element, carbon14_element]
 
   
   ! -------------------------------------------------------------------------------------
@@ -146,12 +151,12 @@ module PRTGenericMod
   ! NESTED in the prt_vartypes  (<---- see the "s" at the end?)  structure that follows.
   ! 
   ! Each object will have a unique index associated with it, it will also be mapped
-  ! to a specific organ and species combination.
+  ! to a specific organ and element combination.
   ! 
   ! It is assumed that over the control period (probably 1 day) that
   ! changes in the current state (val) relative to the value at the start of the
   ! control period (val0), are equal to the time integrated flux terms 
-  ! (net_art, turnover, etc)
+  ! (net_alloc, turnover, etc)
   !
   ! -------------------------------------------------------------------------------------
 
@@ -160,7 +165,7 @@ module PRTGenericMod
      real(r8),allocatable :: val(:)       ! Instantaneous state variable           [kg]
      real(r8),allocatable :: val0(:)      ! State variable at the beginning 
                                           ! of the control period                  [kg]
-     real(r8),allocatable :: net_art(:)   ! Net change due to allocation/transport [kg]
+     real(r8),allocatable :: net_alloc(:)   ! Net change due to allocation/transport [kg]
                                           ! over the control period                [kg]
      real(r8),allocatable :: turnover(:)  ! Losses due to turnover                 [kg]
                                           ! or, any mass destined for litter
@@ -237,7 +242,7 @@ module PRTGenericMod
      procedure, non_overridable :: GetState
      procedure, non_overridable :: GetTurnover
      procedure, non_overridable :: GetBurned
-     procedure, non_overridable :: GetNetART
+     procedure, non_overridable :: GetNetAlloc
      procedure, non_overridable :: ZeroRates
      procedure, non_overridable :: CheckMassConservation
      procedure, non_overridable :: DeallocatePRTVartypes
@@ -269,7 +274,7 @@ module PRTGenericMod
      character(len=maxlen_varname)   :: longname
      character(len=maxlen_varsymbol) :: symbol
      integer                         :: organ_id    ! global id for organ
-     integer                         :: spec_id     ! global id for species
+     integer                         :: element_id  ! global id for element
      integer                         :: num_pos     ! number of descrete spatial positions
 
      ! Also, will probably need flags to define different types of groups that this variable
@@ -281,11 +286,11 @@ module PRTGenericMod
 
   ! This type will help us loop through all the different variables associated
   ! with a specific organ type. Since variables are a combination of organ and
-  ! species, the number of unique variables is capped at the number of species
+  ! element, the number of unique variables is capped at the number of elements
   ! per each organ.
   
   type organ_map_type
-     integer, dimension(1:num_species_types) :: var_id
+     integer, dimension(1:num_element_types) :: var_id
      integer                                 :: num_vars
   end type organ_map_type
 
@@ -293,7 +298,7 @@ module PRTGenericMod
   ! This structure packs both the mapping structure and the variable descriptors
   ! -------------------------------------------------------------------------------------
   ! This array should contain the lists of indices to 
-  ! the species x organ variable structure that is used to map variables to the outside
+  ! the element x organ variable structure that is used to map variables to the outside
   ! world.
   !   
   !              
@@ -310,20 +315,19 @@ module PRTGenericMod
   !     
   ! -------------------------------------------------------------------------------------
 
-
   type prt_global_type
      
      ! Note that index 0 is reserved for "all" or "irrelevant"
      character(len=maxlen_varname)                             :: hyp_name
 
-     ! This will save the specific variable id associated with each organ and species
-     integer, dimension(0:num_organ_types,0:num_species_types) :: sp_organ_map
+     ! This will save the specific variable id associated with each organ and element
+     integer, dimension(0:num_organ_types,0:num_element_types) :: sp_organ_map
 
-     
+     ! This holds the verbose descriptions of the variables, symbols, names, etc
      type(state_descriptor_type), allocatable                  :: state_descriptor(:)
 
      ! This will save the list of variable ids associated with each organ. There
-     ! are multiple of these because we may have multiple species per organ.
+     ! are multiple of these because we may have multiple element per organ.
      type(organ_map_type), dimension(1:num_organ_types)        :: organ_map
 
      ! The number of input boundary conditions
@@ -361,7 +365,7 @@ contains
   
 
      ! This subroutine zero's out the map between variable indexes and the
-     ! species and organs they are associated with.
+     ! elements and organs they are associated with.
      ! It also sets the counts of the variables and boundary conditions as 
      ! a nonsense number that will trigger a fail if they are specified later.
      ! This routine must be called 
@@ -370,11 +374,11 @@ contains
      class(prt_global_type)    :: this
      
      integer :: io ! Organ loop counter
-     integer :: is ! Species loop counter
+     integer :: is ! Element loop counter
      
      ! First zero out the array
      do io = 1,num_organ_types
-        do is = 1,num_species_types
+        do is = 1,num_element_types
            this%sp_organ_map(io,is)      = 0
            this%organ_map(io)%var_id(is) = 0
         end do
@@ -395,33 +399,33 @@ contains
    
   ! =====================================================================================
   
-  subroutine RegisterVarInGlobal(this, var_id, long_name, symbol, organ_id, spec_id, num_pos)
+  subroutine RegisterVarInGlobal(this, var_id, long_name, symbol, organ_id, element_id, num_pos)
 
      
      ! This subroutine is called for each variable that is defined in each specific hypothesis.
      ! For instance, this is called six times in the carbon only hypothesis,
-     ! each time providing names, symbols, associated organs and species for each pool.
+     ! each time providing names, symbols, associated organs and element for each pool.
      
      class(prt_global_type)      :: this
      integer, intent(in)         :: var_id
      character(len=*),intent(in) :: long_name
      character(len=*),intent(in) :: symbol
      integer, intent(in)         :: organ_id
-     integer, intent(in)         :: spec_id
+     integer, intent(in)         :: element_id
      integer, intent(in)         :: num_pos
 
-     ! Set the descriptions and the associated organs/species in the variable's
+     ! Set the descriptions and the associated organs/element in the variable's
      ! own array
 
-     this%state_descriptor(var_id)%longname = long_name
-     this%state_descriptor(var_id)%symbol   = symbol
-     this%state_descriptor(var_id)%organ_id = organ_id
-     this%state_descriptor(var_id)%spec_id  = spec_id
-     this%state_descriptor(var_id)%num_pos  = num_pos
+     this%state_descriptor(var_id)%longname   = long_name
+     this%state_descriptor(var_id)%symbol     = symbol
+     this%state_descriptor(var_id)%organ_id   = organ_id
+     this%state_descriptor(var_id)%element_id = element_id
+     this%state_descriptor(var_id)%num_pos    = num_pos
 
      ! Set the mapping tables for the external model
 
-     this%sp_organ_map(organ_id,spec_id) = var_id
+     this%sp_organ_map(organ_id,element_id) = var_id
 
      ! Set another map that helps to locate all the relevant pools associated
      ! with an organ
@@ -497,7 +501,7 @@ contains
         allocate(this%variables(i_var)%val(num_pos))
         allocate(this%variables(i_var)%val0(num_pos))
         allocate(this%variables(i_var)%turnover(num_pos))
-        allocate(this%variables(i_var)%net_art(num_pos))
+        allocate(this%variables(i_var)%net_alloc(num_pos))
         allocate(this%variables(i_var)%burned(num_pos))
 
      end do
@@ -520,11 +524,11 @@ contains
     integer :: i_var      ! Variable index
 
     do i_var = 1, prt_global%num_vars
-       this%variables(i_var)%val(:)      = un_initialized
-       this%variables(i_var)%val0(:)     = un_initialized
-       this%variables(i_var)%turnover(:) = un_initialized
-       this%variables(i_var)%burned(:)   = un_initialized
-       this%variables(i_var)%net_art(:)  = un_initialized
+       this%variables(i_var)%val(:)       = un_initialized
+       this%variables(i_var)%val0(:)      = un_initialized
+       this%variables(i_var)%turnover(:)  = un_initialized
+       this%variables(i_var)%burned(:)    = un_initialized
+       this%variables(i_var)%net_alloc(:) = un_initialized
     end do
 
     ! Initialize the optimum step size as very large.
@@ -553,8 +557,8 @@ contains
     integer :: i_var      ! index for iterating variables
     integer :: n_cor_ids  ! Number of coordinate ids
     integer :: i_cor      ! index for iterating coordinate dimension
-    integer :: i_gorgan   ! The global organ id for this variable
-    integer :: i_gspecies ! The global species id for this variable
+    integer :: i_organ   ! The global organ id for this variable
+    integer :: i_element ! The global element id for this variable
 
     do i_var = 1, prt_global%num_vars
 
@@ -564,16 +568,16 @@ contains
        
           if(this%variables(i_var)%val(i_cor) < check_initialized) then
 
-             i_gorgan   = prt_global%state_descriptor(i_var)%organ_id
-             i_gspecies = prt_global%state_descriptor(i_var)%spec_id
+             i_organ   = prt_global%state_descriptor(i_var)%organ_id
+             i_element = prt_global%state_descriptor(i_var)%element_id
 
              write(fates_log(),*)'Not all initial conditions for state variables'
              write(fates_log(),*)' in PRT hypothesis: ',trim(prt_global%hyp_name)
              write(fates_log(),*)' were written out.'
              write(fates_log(),*)' i_var: ',i_var
              write(fates_log(),*)' i_cor: ',i_cor
-             write(fates_log(),*)' organ_id:',i_gorgan
-             write(fates_log(),*)' species_id',i_gspecies
+             write(fates_log(),*)' organ_id:',i_organ
+             write(fates_log(),*)' element_id',i_element
              write(fates_log(),*)'Exiting'
              call endrun(msg=errMsg(__FILE__, __LINE__))
           end if
@@ -643,8 +647,8 @@ contains
     
     ! Input Arguments
     
-    class(prt_vartypes)       :: this
-    integer,intent(in)        :: bc_id
+    class(prt_vartypes)                      :: this
+    integer,intent(in)                       :: bc_id
     real(r8),optional, intent(inout), target :: bc_rval
     integer, optional, intent(inout), target :: bc_ival
     
@@ -742,7 +746,7 @@ contains
     do i_var = 1, prt_global%num_vars
        this%variables(i_var)%val(:)       = donor_prt_obj%variables(i_var)%val(:)
        this%variables(i_var)%val0(:)      = donor_prt_obj%variables(i_var)%val0(:)
-       this%variables(i_var)%net_art(:)   = donor_prt_obj%variables(i_var)%net_art(:)
+       this%variables(i_var)%net_alloc(:)   = donor_prt_obj%variables(i_var)%net_alloc(:)
        this%variables(i_var)%turnover(:)  = donor_prt_obj%variables(i_var)%turnover(:)
        this%variables(i_var)%burned(:)    = donor_prt_obj%variables(i_var)%burned(:)
     end do
@@ -764,12 +768,12 @@ contains
     class(prt_vartypes)                      :: this
     class(prt_vartypes), intent(in), pointer :: donor_prt_obj
     real(r8),intent(in)                      :: recipient_fuse_weight   ! This is the weighting
-                                                                       ! for the recipient
+                                                                        ! for the recipient
     integer,intent(in),optional              :: position_id
 
     ! Locals
-    integer :: i_var   ! Loop iterator over variables
-    integer :: pos_id   ! coordinate id (defaults to 1)
+    integer :: i_var    ! Loop iterator over variables
+    integer :: pos_id   ! coordinate id (defaults to 1, if not position_id)
 
     if(present(position_id)) then
        pos_id = position_id
@@ -785,8 +789,8 @@ contains
        this%variables(i_var)%val0(pos_id)  = recipient_fuse_weight * this%variables(i_var)%val0(pos_id) + &
             (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%val0(pos_id)
 
-       this%variables(i_var)%net_art(pos_id)      = recipient_fuse_weight * this%variables(i_var)%net_art(pos_id) + &
-            (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%net_art(pos_id)
+       this%variables(i_var)%net_alloc(pos_id)      = recipient_fuse_weight * this%variables(i_var)%net_alloc(pos_id) + &
+            (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%net_alloc(pos_id)
        
        this%variables(i_var)%turnover(pos_id)    = recipient_fuse_weight * this%variables(i_var)%turnover(pos_id) + &
             (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%turnover(pos_id)
@@ -819,7 +823,6 @@ contains
     ! ---------------------------------------------------------------------------------
 
     class(prt_vartypes) :: this
-
     integer             :: i_var
     
     ! Check to see if there is any value in these pools?
@@ -828,7 +831,7 @@ contains
     do i_var = 1, prt_global%num_vars
        deallocate(this%variables(i_var)%val)
        deallocate(this%variables(i_var)%val0)
-       deallocate(this%variables(i_var)%net_art)
+       deallocate(this%variables(i_var)%net_alloc)
        deallocate(this%variables(i_var)%turnover)
        deallocate(this%variables(i_var)%burned)
     end do
@@ -858,7 +861,7 @@ contains
       ! This subroutine zeros all of the rates of change for our variables.
       ! It also sets the initial value to the current state.
       ! This allows us to make mass conservation checks, where
-      ! val - val0 = net_art + turnover
+      ! val - val0 = net_alloc + turnover
       ! 
       ! This subroutine is called each day in FATES, which is the control interval
       ! that we conserve carbon from the allocation and turnover process.
@@ -869,10 +872,10 @@ contains
       integer :: i_var    ! Variable index
 
       do i_var = 1, prt_global%num_vars
-         this%variables(i_var)%val0(:)        = this%variables(i_var)%val(:)
-         this%variables(i_var)%net_art(:)     = 0.0_r8
-         this%variables(i_var)%turnover(:)    = 0.0_r8
-         this%variables(i_var)%burned(:)      = 0.0_r8
+         this%variables(i_var)%val0(:)      = this%variables(i_var)%val(:)
+         this%variables(i_var)%net_alloc(:) = 0.0_r8
+         this%variables(i_var)%turnover(:)  = 0.0_r8
+         this%variables(i_var)%burned(:)    = 0.0_r8
       end do
       
     end subroutine ZeroRates
@@ -889,16 +892,16 @@ contains
      ! to differentiate where in the call sequence a failure in conservation occurs.
      ! ---------------------------------------------------------------------------------
 
-     class(prt_vartypes) :: this
-     integer, intent(in) :: ipft
+     class(prt_vartypes) :: this    
+     integer, intent(in) :: ipft        ! functional type of the plant
      integer, intent(in) :: position_id ! Helps to know where
                                         ! in the call sequence this was called
 
      integer :: i_var       ! Variable index
      integer :: i_pos       ! Position (coordinate) index
 
-     real(r8) :: err
-     real(r8) :: rel_err
+     real(r8) :: err        ! absolute error [kg]
+     real(r8) :: rel_err    ! error relative to the pool's size [kg]
 
 
      do i_var = 1, prt_global%num_vars
@@ -906,11 +909,11 @@ contains
         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
            
            err = abs((this%variables(i_var)%val(i_pos) - this%variables(i_var)%val0(i_pos)) - &
-                  (this%variables(i_var)%net_art(i_pos) &
+                  (this%variables(i_var)%net_alloc(i_pos) &
                    -this%variables(i_var)%turnover(i_pos) & 
                    -this%variables(i_var)%burned(i_pos) ))
            
-           if(this%variables(i_var)%val(i_pos) > nearzero) then
+           if(this%variables(i_var)%val(i_pos) > nearzero ) then
               rel_err = err / this%variables(i_var)%val(i_pos)
            else
               rel_err = 0.0_r8
@@ -923,14 +926,14 @@ contains
               write(fates_log(),*) ' pft id: ',ipft
               write(fates_log(),*) ' position id: ',position_id
               write(fates_log(),*) ' organ id: ',prt_global%state_descriptor(i_var)%organ_id
-              write(fates_log(),*) ' species_id: ',prt_global%state_descriptor(i_var)%spec_id
+              write(fates_log(),*) ' element_id: ',prt_global%state_descriptor(i_var)%element_id
               write(fates_log(),*) ' position id: ',i_pos
               write(fates_log(),*) ' symbol: ',trim(prt_global%state_descriptor(i_var)%symbol)
               write(fates_log(),*) ' longname: ',trim(prt_global%state_descriptor(i_var)%longname)
               write(fates_log(),*) ' err: ',err,' max error: ',calloc_abs_error
               write(fates_log(),*) ' terms: ', this%variables(i_var)%val(i_pos), &
                                                this%variables(i_var)%val0(i_pos), &
-                                               this%variables(i_var)%net_art(i_pos), &
+                                               this%variables(i_var)%net_alloc(i_pos), &
                                                this%variables(i_var)%turnover(i_pos), &
                                                this%variables(i_var)%burned(i_pos)
               write(fates_log(),*) ' Exiting.'
@@ -945,53 +948,52 @@ contains
 
    ! ====================================================================================
    
-   function GetState(this, organ_id, species_id, position_id) result(sp_organ_val)
+   function GetState(this, organ_id, element_id, position_id) result(state_val)
       
       ! This function returns the current amount of mass for
-      ! any combination of organ and species. **IF** a position
+      ! any combination of organ and element. **IF** a position
       ! is provided, it will use it, but otherwise, it will sum over
-      ! all dimensions.  It also can accomodate all_carbon_species, which
+      ! all dimensions.  It also can accomodate all_carbon_element, which
       ! will return the mass of all carbon isotopes combined.
+     
+      class(prt_vartypes)                   :: this
+      integer,intent(in)                    :: organ_id           ! Organ type querried
+      integer,intent(in)                    :: element_id         ! Element type querried
+      integer,intent(in),optional           :: position_id        ! Position querried
+      real(r8)                              :: state_val          ! Mass (value) of state variable [kg]
 
-
-      class(prt_vartypes)   :: this
-      integer,intent(in)    :: organ_id
-      integer,intent(in)    :: species_id
-      integer,intent(in),optional :: position_id
-      real(r8)              :: sp_organ_val
-
-      integer :: i_pos
-      integer :: ispec
-      integer :: num_species
-      integer,dimension(max_spec_per_group) :: spec_ids 
-      integer :: i_var
+      integer                               :: i_pos              ! position loop counter
+      integer                               :: i_element          ! element loop counter
+      integer                               :: num_element        ! total number of elements
+      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
+      integer                               :: i_var              ! variable id
       
-      sp_organ_val = 0.0_r8
+      state_val = 0.0_r8
       
-      if(species_id == all_carbon_species) then
-         spec_ids(1:3) = carbon_species_list(1:3)
-         num_species  = 3
+      if(element_id == all_carbon_elements) then
+         element_ids(1:3) = carbon_elements_list(1:3)
+         num_element  = 3
       else
-         num_species  = 1
-         spec_ids(1) = species_id
+         num_element  = 1
+         element_ids(1) = element_id
       end if
 
       if(present(position_id)) then
          i_pos = position_id
       
-         do ispec = 1,num_species
-            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
-            if (i_var>0) sp_organ_val = sp_organ_val + this%variables(i_var)%val(i_pos)
+         do i_element = 1,num_element
+            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
+            if (i_var>0) state_val = state_val + this%variables(i_var)%val(i_pos)
          end do
 
       else
          
-         do ispec = 1,num_species
+         do i_element = 1,num_element
             
-            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
+            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
             if(i_var>0)then
                do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
-                  sp_organ_val = sp_organ_val + this%variables(i_var)%val(i_pos)
+                  state_val = state_val + this%variables(i_var)%val(i_pos)
                end do
             end if
                
@@ -1006,7 +1008,7 @@ contains
    ! ====================================================================================
 
    
-    function GetTurnover(this, organ_id, species_id, position_id) result(sp_organ_turnover)
+    function GetTurnover(this, organ_id, element_id, position_id) result(turnover_val)
       
      
       ! THis function is very similar to GetState, with the only difference that it
@@ -1015,44 +1017,44 @@ contains
       ! NOTE: THIS HAS NOTHING TO DO WITH SPECIFYING TURNOVER. THIS IS JUST A QUERY FUNCTION
 
 
-      class(prt_vartypes)   :: this
-      integer,intent(in)    :: organ_id
-      integer,intent(in)    :: species_id
-      integer,intent(in),optional :: position_id
-      real(r8)              :: sp_organ_turnover
+      class(prt_vartypes)                   :: this
+      integer,intent(in)                    :: organ_id           ! Organ type querried
+      integer,intent(in)                    :: element_id         ! Element type querried
+      integer,intent(in),optional           :: position_id        ! Position querried
+      real(r8)                              :: turnover_val       ! Amount (value) of turnover [kg]
 
-      integer :: i_pos
-      integer :: ispec
-      integer :: num_species
-      integer,dimension(max_spec_per_group) :: spec_ids 
-      integer :: i_var
+      integer                               :: i_pos              ! position loop counter
+      integer                               :: i_element          ! element loop counter
+      integer                               :: num_element        ! total number of elements
+      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
+      integer                               :: i_var              ! variable id
       
-      sp_organ_turnover = 0.0_r8
+      turnover_val = 0.0_r8
       
-      if(species_id == all_carbon_species) then
-         spec_ids(1:3) = carbon_species_list(1:3)
-         num_species  = 3
+      if(element_id == all_carbon_elements) then
+         element_ids(1:3) = carbon_elements_list(1:3)
+         num_element  = 3
       else
-         num_species  = 1
-         spec_ids(1) = species_id
+         num_element  = 1
+         element_ids(1) = element_id
       end if
 
       if(present(position_id)) then
          i_pos = position_id
       
-         do ispec = 1,num_species
-            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
-            if(i_var>0) sp_organ_turnover = sp_organ_turnover + &
+         do i_element = 1,num_element
+            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
+            if(i_var>0) turnover_val = turnover_val + &
                  this%variables(i_var)%turnover(i_pos)
          end do
 
       else
 
-         do ispec = 1,num_species
-            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
+         do i_element = 1,num_element
+            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
             if(i_var>0) then
                do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
-                  sp_organ_turnover = sp_organ_turnover + this%variables(i_var)%turnover(i_pos)
+                  turnover_val = turnover_val + this%variables(i_var)%turnover(i_pos)
                end do
             end if
             
@@ -1065,51 +1067,52 @@ contains
 
     ! =========================================================================
     
-    function GetBurned(this, organ_id, species_id, position_id) result(sp_organ_burned)
+    function GetBurned(this, organ_id, element_id, position_id) result(burned_val)
 
       ! THis function is very similar to GetTurnover, with the only difference that it
       ! returns the burned mass so-far during the period of interest.
       
       ! NOTE: THIS HAS NOTHING TO DO WITH SPECIFYING BURNING. THIS IS JUST A QUERY FUNCTION
 
-      class(prt_vartypes)         :: this
-      integer,intent(in)          :: organ_id
-      integer,intent(in)          :: species_id
-      integer,intent(in),optional :: position_id
-      real(r8)                    :: sp_organ_burned
+      class(prt_vartypes)                   :: this
+      integer,intent(in)                    :: organ_id           ! Organ type querried
+      integer,intent(in)                    :: element_id         ! Element type querried
+      integer,intent(in),optional           :: position_id        ! Position querried
+      real(r8)                              :: burned_val         ! Amount (value) of burned [kg]
 
-      integer :: i_pos
-      integer :: ispec
-      integer :: num_species
-      integer,dimension(max_spec_per_group) :: spec_ids 
-      integer :: i_var
+      integer                               :: i_pos              ! position loop counter
+      integer                               :: i_element          ! element loop counter
+      integer                               :: num_element        ! total number of elements
+      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
+      integer                               :: i_var              ! variable id
+
       
-      sp_organ_burned = 0.0_r8
+      burned_val = 0.0_r8
       
-      if(species_id == all_carbon_species) then
-         spec_ids(1:3) = carbon_species_list(1:3)
-         num_species  = 3
+      if(element_id == all_carbon_elements) then
+         element_ids(1:3) = carbon_elements_list(1:3)
+         num_element  = 3
       else
-         num_species  = 1
-         spec_ids(1) = species_id
+         num_element  = 1
+         element_ids(1) = element_id
       end if
 
       if(present(position_id)) then
          i_pos = position_id
       
-         do ispec = 1,num_species
-            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
-            if(i_var>0) sp_organ_burned = sp_organ_burned + &
+         do i_element = 1,num_element
+            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
+            if(i_var>0) burned_val = burned_val + &
                   this%variables(i_var)%burned(i_pos)
          end do
 
       else
          
-         do ispec = 1,num_species
-            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
+         do i_element = 1,num_element
+            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
             if(i_var>0) then
                do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
-                  sp_organ_burned = sp_organ_burned + this%variables(i_var)%burned(i_pos)
+                  burned_val = burned_val + this%variables(i_var)%burned(i_pos)
                end do
             end if
             
@@ -1122,7 +1125,7 @@ contains
 
    ! ====================================================================================
    
-   function GetNetART(this, organ_id, species_id, position_id) result(sp_organ_netart)
+   function GetNetAlloc(this, organ_id, element_id, position_id) result(val_netalloc)
       
       ! THis function is very similar to GetTurnover, with the only difference that it
       ! returns the Net changes due to Allocations Reactions and Transport in that pool
@@ -1130,44 +1133,44 @@ contains
       ! NOTE: THIS HAS NOTHING TO DO WITH SPECIFYING ALLOCATION/TRANSPORT. 
       ! THIS IS JUST A QUERY FUNCTION
 
-      class(prt_vartypes)         :: this
-      integer,intent(in)          :: organ_id
-      integer,intent(in)          :: species_id
-      integer,intent(in),optional :: position_id
-      real(r8)                    :: sp_organ_netart
+      class(prt_vartypes)                   :: this
+      integer,intent(in)                    :: organ_id           ! Organ type querried
+      integer,intent(in)                    :: element_id         ! Element type querried
+      integer,intent(in),optional           :: position_id        ! Position querried
+      real(r8)                              :: val_netalloc       ! Amount (value) of allocation [kg]
 
-      integer :: i_pos
-      integer :: ispec
-      integer :: num_species
-      integer,dimension(max_spec_per_group) :: spec_ids 
-      integer :: i_var
+      integer                               :: i_pos              ! position loop counter
+      integer                               :: i_element          ! element loop counter
+      integer                               :: num_element        ! total number of elements
+      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
+      integer                               :: i_var              ! variable id
+
+      val_netalloc = 0.0_r8
       
-      sp_organ_netart = 0.0_r8
-      
-      if(species_id == all_carbon_species) then
-         spec_ids(1:3) = carbon_species_list(1:3)
-         num_species  = 3
+      if(element_id == all_carbon_elements) then
+         element_ids(1:3) = carbon_elements_list(1:3)
+         num_element  = 3
       else
-         num_species  = 1
-         spec_ids(1) = species_id
+         num_element  = 1
+         element_ids(1) = element_id
       end if
 
       if(present(position_id)) then
          i_pos = position_id
       
-         do ispec = 1,num_species
-            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
-            if(i_var>0) sp_organ_netart = sp_organ_netart + &
-                  this%variables(i_var)%net_art(i_pos)
+         do i_element = 1,num_element
+            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
+            if(i_var>0) val_netalloc = val_netalloc + &
+                 this%variables(i_var)%net_alloc(i_pos)
          end do
 
       else
          
-         do ispec = 1,num_species
-            i_var = prt_global%sp_organ_map(organ_id,spec_ids(ispec))
+         do i_element = 1,num_element
+            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
             if(i_var>0) then
                do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
-                  sp_organ_netart = sp_organ_netart + this%variables(i_var)%net_art(i_pos)
+                  val_netalloc = val_netalloc + this%variables(i_var)%net_alloc(i_pos)
                end do
             end if
             
@@ -1176,20 +1179,19 @@ contains
       end if
       
       return
-   end function GetNetART
+   end function GetNetAlloc
 
    ! =====================================================================================
 
-   function GetCoordVal(this, organ_id, species_id ) result(prt_val)
+   function GetCoordVal(this, organ_id, element_id ) result(prt_val)
       
-
       ! This is support code that may be helpful when we have variables in parteh
       ! that have multiple discrete spatial positions.
       
 
       class(prt_vartypes)               :: this
       integer,intent(in)                :: organ_id
-      integer,intent(in)                :: species_id
+      integer,intent(in)                :: element_id
       real(r8)                          :: prt_val 
       
       write(fates_log(),*)'Init must be extended by a child class.'
@@ -1221,27 +1223,25 @@ contains
 
    ! ====================================================================================
    
-   subroutine SetState(prt,organ_id, species_id, state_val, position_id)
+   subroutine SetState(prt,organ_id, element_id, state_val, position_id)
 
      ! This routine should only be called for initalizing the state value
      ! of a plant's pools.  A value is passed in to set the state of 
-     ! organ and species couplets, and position id if it is provided.
+     ! organ and element couplets, and position id if it is provided.
      ! A select statement will most definitely bracket the call to this
      ! routine.  
 
-     class(prt_vartypes) :: prt
-     integer,intent(in)  :: organ_id
-     integer,intent(in)  :: species_id
-     real(r8),intent(in) :: state_val
-     integer,intent(in),optional :: position_id
-
+     class(prt_vartypes)                   :: prt
+     integer,intent(in)                    :: organ_id      ! organ of interest
+     integer,intent(in)                    :: element_id    ! element of interest
+     real(r8),intent(in)                   :: state_val     ! value to be initialized
+     integer,intent(in),optional           :: position_id   ! position of interest
      
-     integer :: ispec
-     integer,dimension(max_spec_per_group) :: spec_ids 
-     integer :: i_var
-     integer :: i_pos
+     integer                               :: i_element     ! loop counter for elements
+     integer                               :: i_var         ! variable loop counter
+     integer                               :: i_pos         ! position loop counter
      
-     if(species_id == all_carbon_species) then
+     if(element_id == all_carbon_elements) then
         write(fates_log(),*) 'You cannot set the state of all isotopes simultaneously.'
         write(fates_log(),*) 'You can only set 1. Exiting.'
         call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -1253,7 +1253,7 @@ contains
         i_pos = 1
      end if
      
-     i_var = prt_global%sp_organ_map(organ_id,species_id)
+     i_var = prt_global%sp_organ_map(organ_id,element_id)
      
      if(i_pos > prt_global%state_descriptor(i_var)%num_pos )then
         write(fates_log(),*) 'A position index was specified that is'
@@ -1271,7 +1271,7 @@ contains
         write(fates_log(),*) ' a pool with a specie x organ combination. '
         write(fates_log(),*) ' that does not exist.'
         write(fates_log(),*) ' organ_id:',organ_id
-        write(fates_log(),*) ' species_id:',species_id
+        write(fates_log(),*) ' element_id:',element_id
         write(fates_log(),*) 'Exiting'
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if

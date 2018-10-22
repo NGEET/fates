@@ -54,10 +54,8 @@ module EDMainMod
   use ChecksBalancesMod        , only : SiteCarbonStock
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
 
-  use PRTGenericMod,          only : all_carbon_species
-  use PRTGenericMod,          only : carbon12_species
-  use PRTGenericMod,          only : nitrogen_species
-  use PRTGenericMod,          only : phosphorous_species
+  use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
@@ -346,7 +344,7 @@ contains
           call currentCohort%prt%CheckMassConservation(ft,5)
 
           ! Transfer all reproductive tissues into seed production
-          call PRTReproRelease(currentCohort%prt,repro_organ,carbon12_species, &
+          call PRTReproRelease(currentCohort%prt,repro_organ,carbon12_element, &
                                1.0_r8, currentCohort%seed_prod)
           currentCohort%seed_prod =  currentCohort%seed_prod / hlm_freq_day
 
@@ -609,8 +607,8 @@ contains
              write(fates_log(),*)'---'
              currentCohort => currentPatch%tallest
              do while(associated(currentCohort))
-                write(fates_log(),*) 'structure: ',currentCohort%prt%GetState(struct_organ,all_carbon_species)
-                write(fates_log(),*) 'storage: ',currentCohort%prt%GetState(store_organ,all_carbon_species)
+                write(fates_log(),*) 'structure: ',currentCohort%prt%GetState(struct_organ,all_carbon_elements)
+                write(fates_log(),*) 'storage: ',currentCohort%prt%GetState(store_organ,all_carbon_elements)
                 write(fates_log(),*) 'N plant: ',currentCohort%n
                 currentCohort => currentCohort%shorter;
              enddo !end cohort loop 

@@ -8,11 +8,12 @@ module PRTLossFluxesMod
   use PRTGenericMod, only : store_organ
   use PRTGenericMod, only : repro_organ
   use PRTGenericMod, only : struct_organ
-  use PRTGenericMod, only : all_carbon_species
-  use PRTGenericMod, only : carbon_species_list
-  use PRTGenericMod, only : carbon12_species
-  use PRTGenericMod, only : nitrogen_species
-  use PRTGenericMod, only : phosphorous_species
+  use PRTGenericMod, only : carbon_elements_list
+  use PRTGenericMod, only : carbon12_element
+  use PRTGenericMod, only : carbon13_element
+  use PRTGenericMod, only : carbon14_element
+  use PRTGenericMod, only : nitrogen_element
+  use PRTGenericMod, only : phosphorous_element
   use PRTGenericMod, only : un_initialized
   use PRTGenericMod, only : check_initialized
   use PRTGenericMod, only : num_organ_types
@@ -81,18 +82,19 @@ contains
                                                    ! transferred from storage
    
      integer             :: i_var                  ! variable index
-     integer             :: i_sp_var               ! index for all species in
-                                                   ! a given organ
+     integer             :: i_var_of_organ         ! index for all variables in
+                                                   ! a given organ (mostly likely
+                                                   ! synonymous with diff elements)
      integer             :: i_cvar                 ! carbon variable index
      integer             :: i_pos                  ! spatial position index
      integer             :: i_store                ! storage variable index
-     integer             :: spec_id                ! global species identifier
+     integer             :: element_id             ! global element identifier
      real(r8)            :: mass_transfer          ! The actual mass
                                                    ! removed from storage
                                                    ! for each pool
-     real(r8)            :: target_stoich          ! stoichiometry of species of interest
-     real(r8)            :: sp_target              ! target nutrient mass for species
-     real(r8)            :: sp_demand              ! nutrient demand for species
+     real(r8)            :: target_stoich          ! stoichiometry of pool of interest
+     real(r8)            :: sp_target              ! target nutrient mass for element
+     real(r8)            :: sp_demand              ! nutrient demand for element
 
 
      ! We currently only allow the flushing and drop of leaves.
@@ -110,69 +112,92 @@ contains
 
      associate(organ_map => prt_global%organ_map)
 
-       ! First transfer in carbon
-       ! --------------------------------------------------------------------------------
+       ! Flush carbon variables first, as their transfer
+       ! rates from storage is dependant on the fraction
+       ! passed in by the argument.
+       ! After the values are updated, we can then
+       ! identify the stoichiometry targets which
+       ! govern the nutrient fluxes
        
-       i_cvar = prt_global%sp_organ_map(organ_id,carbon12_species)
+       do i_var_of_organ = 1, organ_map(organ_id)%num_vars
+          
+          ! The variable index
+          i_var  = organ_map(organ_id)%var_id(i_var_of_organ)
+          
+          ! The element index of the varible of interest
+          element_id = prt_global%state_descriptor(i_var)%element_id
+          
+          ! This will filter IN all carbon related variables
+          if( any(element_id == carbon_elements_list) ) then
+             
+             ! No hypotheses exist for how to flush carbon isotopes
+             ! yet.  Please fill this in.
+             if(  (element_id == carbon13_element) .or. &
+                  (element_id == carbon14_element) )then
+                write(fates_log(),*) ' Phenology flushing routine does not know'
+                write(fates_log(),*) ' how to handle carbon isotopes. Please'
+                write(fates_log(),*) ' evaluate the code referenced in this message'
+                write(fates_log(),*) ' and provide a hypothesis.'
+                call endrun(msg=errMsg(__FILE__, __LINE__))
+             end if
 
-       ! Get the variable id of the storage pool for this species (carbon12)
-       i_store = prt_global%sp_organ_map(store_organ,carbon12_species)
-
-       ! Loop over all of the coordinate ids
-       do i_pos = 1,prt_global%state_descriptor(i_cvar)%num_pos
-          
-          ! Calculate the mass transferred out of storage into the pool of interest
-          mass_transfer = prt%variables(i_store)%val(i_pos) * c_store_transfer_frac
-          
-          ! Increment the c pool of interest
-          prt%variables(i_cvar)%net_art(i_pos)   = &
-                prt%variables(i_cvar)%net_art(i_pos) + mass_transfer
-          
-          ! Update the c pool
-          prt%variables(i_cvar)%val(i_pos)       = &
-                prt%variables(i_cvar)%val(i_pos) + mass_transfer
-          
-          ! Increment the c pool of interest
-          prt%variables(i_store)%net_art(i_pos) = &
-                prt%variables(i_store)%net_art(i_pos) - mass_transfer
-          
-          ! Update the c pool
-          prt%variables(i_store)%val(i_pos)     = &
-                prt%variables(i_store)%val(i_pos) - mass_transfer
-          
-          
+             ! Get the variable id of the storage pool for this element (carbon12)
+             i_store = prt_global%sp_organ_map(store_organ,element_id)
+             
+             ! Loop over all of the coordinate ids
+             do i_pos = 1,prt_global%state_descriptor(i_var)%num_pos
+                
+                ! Calculate the mass transferred out of storage into the pool of interest
+                mass_transfer = prt%variables(i_store)%val(i_pos) * c_store_transfer_frac
+                
+                ! Increment the c pool of interest's allocation flux
+                prt%variables(i_var)%net_alloc(i_pos)   = &
+                     prt%variables(i_var)%net_alloc(i_pos) + mass_transfer
+                
+                ! Update the c pool
+                prt%variables(i_var)%val(i_pos)       = &
+                     prt%variables(i_var)%val(i_pos) + mass_transfer
+                
+                ! Increment the storage pool's allocation flux
+                prt%variables(i_store)%net_alloc(i_pos) = &
+                     prt%variables(i_store)%net_alloc(i_pos) - mass_transfer
+                
+                ! Update the storage c pool
+                prt%variables(i_store)%val(i_pos)     = &
+                     prt%variables(i_store)%val(i_pos) - mass_transfer
+                
+                
+             end do
+          end if
        end do
+          
 
-
-       ! Transfer in other species
+       ! Transfer in other elements (nutrients)
        ! --------------------------------------------------------------------------------
-
-       ! This is the total number of state variables associated
-       ! with this particular organ (ie carbon, nitrogen, phosphorous, ...)
        
+       do i_var_of_organ = 1, organ_map(organ_id)%num_vars
+          
+          i_var  = organ_map(organ_id)%var_id(i_var_of_organ)
+          
+          ! Variable index for the element of interest
+          element_id = prt_global%state_descriptor(i_var)%element_id
+          
+          ! This will filter OUT all carbon related elements
+          if ( .not. any(element_id == carbon_elements_list)   ) then
 
-       do i_sp_var = 1, organ_map(organ_id)%num_vars
-          
-          i_var  = organ_map(organ_id)%var_id(i_sp_var)
-          
-          ! Variable index for the species of interest
-          spec_id = prt_global%state_descriptor(i_var)%spec_id
-          
-          if ( spec_id .ne. carbon12_species ) then
-
-             ! Get the variable id of the storage pool for this species
-             i_store = prt_global%sp_organ_map(store_organ,spec_id)
+             ! Get the variable id of the storage pool for this element
+             i_store = prt_global%sp_organ_map(store_organ,element_id)
              
-             ! Calculate the stoichiometry with C for this species
+             ! Calculate the stoichiometry with C for this element
              
-             if( spec_id == nitrogen_species ) then
+             if( element_id == nitrogen_element ) then
                 target_stoich = EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
-             else if( spec_id == phosphorous_species ) then
+             else if( element_id == phosphorous_element ) then
                 target_stoich = EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
              else
                 write(fates_log(),*) ' Trying to calculate nutrient flushing target'
-                write(fates_log(),*) ' for species that DNE'
-                write(fates_log(),*) ' organ: ',organ_id,' species: ',spec_id
+                write(fates_log(),*) ' for element that DNE'
+                write(fates_log(),*) ' organ: ',organ_id,' element: ',element_id
                 write(fates_log(),*) 'Exiting'
                 call endrun(msg=errMsg(__FILE__, __LINE__))
              end if
@@ -181,7 +206,7 @@ contains
              ! Loop over all of the coordinate ids
              do i_pos = 1,prt_global%state_descriptor(i_var)%num_pos
                 
-                ! The target quanitity for this species is based on the amount
+                ! The target quanitity for this element is based on the amount
                 ! of carbon
                 sp_target = prt%variables(i_cvar)%val(i_pos) * target_stoich
 
@@ -191,16 +216,16 @@ contains
                 mass_transfer = min(sp_demand, prt%variables(i_store)%val(i_pos))
 
                 ! Increment the pool of interest
-                prt%variables(i_var)%net_art(i_pos)   = &
-                      prt%variables(i_var)%net_art(i_pos) + mass_transfer
+                prt%variables(i_var)%net_alloc(i_pos)   = &
+                      prt%variables(i_var)%net_alloc(i_pos) + mass_transfer
                 
                 ! Update the c pool
                 prt%variables(i_var)%val(i_pos)       = &
                       prt%variables(i_var)%val(i_pos) + mass_transfer
 
                 ! Increment the c pool of interest
-                prt%variables(i_store)%net_art(i_pos) = &
-                      prt%variables(i_store)%net_art(i_pos) - mass_transfer
+                prt%variables(i_store)%net_alloc(i_pos) = &
+                      prt%variables(i_store)%net_alloc(i_pos) - mass_transfer
                 
                 ! Update the c pool
                 prt%variables(i_store)%val(i_pos)     = &
@@ -234,26 +259,23 @@ contains
     integer,intent(in)  :: organ_id
     real(r8),intent(in) :: mass_fraction
 
-    integer             :: i_pos        ! position index
-    integer             :: i_var        ! index for the variable of interest 
-    integer             :: i_sp_var     ! loop counter for all species in this organ
-    integer             :: num_sp_vars  ! Loop size for iterating over all species
-    integer             :: spec_id      ! Species id of the turnover pool
-    real(r8)            :: burned_mass  ! Burned mass of each species, in eahc
-                                        ! position, in the organ of interest
+    integer             :: i_pos          ! position index
+    integer             :: i_var          ! index for the variable of interest 
+    integer             :: i_var_of_organ ! loop counter for all element in this organ
+    integer             :: element_id     ! Element id of the turnover pool
+    real(r8)            :: burned_mass    ! Burned mass of each element, in eahc
+                                          ! position, in the organ of interest
      
     associate(organ_map => prt_global%organ_map)
 
        ! This is the total number of state variables associated
        ! with this particular organ
 
-       num_sp_vars = organ_map(organ_id)%num_vars
-       
-       do i_sp_var = 1, num_sp_vars
+       do i_var_of_organ = 1, organ_map(organ_id)%num_vars
           
-          i_var = organ_map(organ_id)%var_id(i_sp_var)
+          i_var = organ_map(organ_id)%var_id(i_var_of_organ)
           
-          spec_id = prt_global%state_descriptor(i_var)%spec_id
+          element_id = prt_global%state_descriptor(i_var)%element_id
           
           ! Loop over all of the coordinate ids
           do i_pos = 1,prt_global%state_descriptor(i_var)%num_pos
@@ -280,7 +302,7 @@ contains
   ! =====================================================================================
 
 
-  subroutine PRTReproRelease(prt, organ_id, spec_id, mass_fraction, mass_out)
+  subroutine PRTReproRelease(prt, organ_id, element_id, mass_fraction, mass_out)
 
     ! ----------------------------------------------------------------------------------
     ! This subroutine assumes that there is no re-translocation associated
@@ -293,7 +315,7 @@ contains
 
     class(prt_vartypes)  :: prt
     integer,intent(in)   :: organ_id
-    integer,intent(in)   :: spec_id
+    integer,intent(in)   :: element_id
     real(r8),intent(in)  :: mass_fraction
     real(r8),intent(out) :: mass_out
 
@@ -316,8 +338,8 @@ contains
          call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
 
-      if (spec_id .ne. carbon12_species) then
-         write(fates_log(),*) 'Reproductive tissue releases were called for a species other than c12'
+      if (element_id .ne. carbon12_element) then
+         write(fates_log(),*) 'Reproductive tissue releases were called for a element other than c12'
          write(fates_log(),*) 'Only carbon seed masses are curently handled.'
          call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
@@ -325,7 +347,7 @@ contains
       ! This is the total number of state variables associated
       ! with this particular organ
 
-      i_var = sp_organ_map(organ_id,spec_id)
+      i_var = sp_organ_map(organ_id,element_id)
 
       ! Reproductive mass leaving the plant
       mass_out = 0.0_r8
@@ -343,7 +365,7 @@ contains
          ! Update the val0 (because we don't give this dedicated flux)
          ! This is somewhat of a hack
          prt%variables(i_var)%val0(i_pos) = prt%variables(i_var)%val(i_pos) - &
-               prt%variables(i_var)%net_art(i_pos)
+               prt%variables(i_var)%net_alloc(i_pos)
          
          
       end do
@@ -352,7 +374,6 @@ contains
   end subroutine PRTReproRelease
 
   ! ===================================================================================
-
 
   subroutine PRTDeciduousTurnover(prt,ipft,organ_id,mass_fraction)
      
@@ -416,11 +437,8 @@ contains
                                                 ! leave the indicated organ.
 
      integer             :: i_var               ! index for the variable of interest 
-     integer             :: i_sp_var            ! loop counter for all species in this organ
-
-     integer             :: num_sp_vars         ! Loop size for iterating over all species
-                                                ! in the organ that is turning over
-     integer             :: spec_id             ! Species id of the turnover pool
+     integer             :: i_var_of_organ      ! loop counter for all element in this organ
+     integer             :: element_id          ! Element id of the turnover pool
      integer             :: store_var_id        ! Variable id of the storage pool
      integer             :: i_pos               ! position index (spatial)
      real(r8)            :: retrans             ! retranslocated fraction 
@@ -442,32 +460,28 @@ contains
           
        end if
 
-       ! This is the total number of state variables associated
-       ! with this particular organ
-       num_sp_vars = organ_map(organ_id)%num_vars
-
-       do i_sp_var = 1, num_sp_vars
+       do i_var_of_organ = 1, organ_map(organ_id)%num_vars
           
-          i_var = organ_map(organ_id)%var_id(i_sp_var)
+          i_var = organ_map(organ_id)%var_id(i_var_of_organ)
           
-          spec_id = prt_global%state_descriptor(i_var)%spec_id
+          element_id = prt_global%state_descriptor(i_var)%element_id
           
-          if ( any(spec_id == carbon_species_list) ) then
+          if ( any(element_id == carbon_elements_list) ) then
              retrans = EDPftvarcon_inst%turnover_carb_retrans(ipft,organ_id)
-          else if( spec_id == nitrogen_species ) then
+          else if( element_id == nitrogen_element ) then
              retrans = EDPftvarcon_inst%turnover_nitr_retrans(ipft,organ_id)
-          else if( spec_id == phosphorous_species ) then
+          else if( element_id == phosphorous_element ) then
              retrans = EDPftvarcon_inst%turnover_phos_retrans(ipft,organ_id)
           else
              write(fates_log(),*) 'Please add a new re-translocation clause to your '
-             write(fates_log(),*) ' organ x species combination'
-             write(fates_log(),*) ' organ: ',leaf_organ,' species: ',spec_id
+             write(fates_log(),*) ' organ x element combination'
+             write(fates_log(),*) ' organ: ',leaf_organ,' element: ',element_id
              write(fates_log(),*) 'Exiting'
              call endrun(msg=errMsg(__FILE__, __LINE__))
           end if
           
-          ! Get the variable id of the storage pool for this species
-          store_var_id = prt_global%sp_organ_map(store_organ,spec_id)
+          ! Get the variable id of the storage pool for this element
+          store_var_id = prt_global%sp_organ_map(store_organ,element_id)
           
           ! Loop over all of the coordinate ids
           do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
@@ -483,7 +497,7 @@ contains
                   + turnover_mass
              
              ! Track the amount of mass the is being re-translocated (- is amount lost)
-             prt%variables(i_var)%net_art(i_pos)  = prt%variables(i_var)%net_art(i_pos)  &
+             prt%variables(i_var)%net_alloc(i_pos)  = prt%variables(i_var)%net_alloc(i_pos)  &
                   - retranslocated_mass
              
              ! Update the state of the pool to reflect the mass lost
@@ -493,8 +507,8 @@ contains
              ! Now, since re-translocation is handled by the storage pool, 
              ! we add the re-translocated mass to it
              
-             prt%variables(store_var_id)%net_art(i_pos)  = &
-                  prt%variables(store_var_id)%net_art(i_pos) + retranslocated_mass
+             prt%variables(store_var_id)%net_alloc(i_pos)  = &
+                  prt%variables(store_var_id)%net_alloc(i_pos) + retranslocated_mass
              
              prt%variables(store_var_id)%val(i_pos)  = &
                   prt%variables(store_var_id)%val(i_pos) + retranslocated_mass
@@ -556,21 +570,17 @@ contains
       class(prt_vartypes) :: prt
       integer,intent(in) :: ipft
       
-      integer :: i_var
-      integer :: spec_id
-      integer :: organ_id
-      integer :: i_pos
+      integer  :: i_var            ! the variable index
+      integer  :: element_id       ! the element associated w/ each variable
+      integer  :: organ_id         ! the organ associated w/ each variable
+      integer  :: i_pos            ! spatial position loop counter
 
-      real(r8) :: turnover
-      real(r8) :: leaf_turnover
-      real(r8) :: fnrt_turnover
-      real(r8) :: sapw_turnover
-      real(r8) :: store_turnover
-      real(r8) :: struct_turnover
-      real(r8) :: repro_turnover
-      real(r8), dimension(num_organ_types) :: base_turnover   ! A temp for the actual turnover removed from pool
-      real(r8) :: retrans    ! A temp for the actual re-translocated mass
+      real(r8) :: turnover         ! Actual turnover removed from each
+                                   ! pool [kg]
+      real(r8) :: retrans          ! A temp for the actual re-translocated mass
 
+      ! A temp for the actual turnover removed from pool
+      real(r8), dimension(num_organ_types) :: base_turnover   
       
       ! -----------------------------------------------------------------------------------
       ! Calculate the turnover rates (maybe this should be done once in the parameter
@@ -578,6 +588,10 @@ contains
       ! -----------------------------------------------------------------------------------
 
       base_turnover(:) = un_initialized
+
+      ! All plants can have branch turnover, if branchfall is nonz-ero,
+      ! which will reduce sapwood, structure and storage.
+      ! -----------------------------------------------------------------------------------
       
       if ( EDPftvarcon_inst%branch_turnover(ipft) > nearzero ) then
          base_turnover(sapw_organ)   = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
@@ -589,12 +603,17 @@ contains
          base_turnover(store_organ)  = 0.0_r8
       end if
 
+      ! All plants are allowed to have fine-root turnover if a non-zero
+      ! life-span is selected
+      ! ---------------------------------------------------------------------------------
       if ( EDPftvarcon_inst%root_long(ipft) > nearzero ) then
          base_turnover(fnrt_organ) = hlm_freq_day / EDPftvarcon_inst%root_long(ipft)
       else
          base_turnover(fnrt_organ) = 0.0_r8
       end if
 
+      ! Only EVERGREENS HAVE MAINTENANCE LEAF TURNOVER 
+      ! -------------------------------------------------------------------------------------
       if ( (EDPftvarcon_inst%leaf_long(ipft) > nearzero ) .and. &
            (EDPftvarcon_inst%evergreen(ipft) == 1) ) then
          base_turnover(leaf_organ) = hlm_freq_day / EDPftvarcon_inst%leaf_long(ipft)
@@ -607,18 +626,18 @@ contains
       do i_var = 1, prt_global%num_vars
          
          organ_id = prt_global%state_descriptor(i_var)%organ_id
-         spec_id = prt_global%state_descriptor(i_var)%spec_id
+         element_id = prt_global%state_descriptor(i_var)%element_id
 
-         if ( any(spec_id == carbon_species_list) ) then
+         if ( any(element_id == carbon_elements_list) ) then
             retrans = EDPftvarcon_inst%turnover_carb_retrans(ipft,organ_id)
-         else if( spec_id == nitrogen_species ) then
+         else if( element_id == nitrogen_element ) then
             retrans = EDPftvarcon_inst%turnover_nitr_retrans(ipft,organ_id)
-         else if( spec_id == phosphorous_species ) then
+         else if( element_id == phosphorous_element ) then
             retrans = EDPftvarcon_inst%turnover_phos_retrans(ipft,organ_id)
          else
             write(fates_log(),*) 'Please add a new re-translocation clause to your '
-            write(fates_log(),*) ' organ x species combination'
-            write(fates_log(),*) ' organ: ',organ_id,' species: ',spec_id
+            write(fates_log(),*) ' organ x element combination'
+            write(fates_log(),*) ' organ: ',organ_id,' element: ',element_id
             write(fates_log(),*) 'Exiting'
             call endrun(msg=errMsg(__FILE__, __LINE__))
          end if
@@ -626,7 +645,7 @@ contains
          if(base_turnover(organ_id) < check_initialized) then
             write(fates_log(),*) 'A maintenance turnover rate for the organ'
             write(fates_log(),*) ' was not specified....'
-            write(fates_log(),*) ' organ: ',organ_id,' species: ',spec_id
+            write(fates_log(),*) ' organ: ',organ_id,' element: ',element_id
             write(fates_log(),*) ' base turnover rate: ',base_turnover(organ_id)
             write(fates_log(),*) 'Exiting'
             call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -635,7 +654,7 @@ contains
 
          if(retrans<0.0 .or. retrans>1.0) then
             write(fates_log(),*) 'Unacceptable retranslocation calculated'
-            write(fates_log(),*) ' organ: ',organ_id,' species: ',spec_id
+            write(fates_log(),*) ' organ: ',organ_id,' element: ',element_id
             write(fates_log(),*) ' retranslocation fraction: ',retrans
             write(fates_log(),*) 'Exiting'
             call endrun(msg=errMsg(__FILE__, __LINE__))

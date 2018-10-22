@@ -28,10 +28,7 @@ module EDCanopyStructureMod
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort
 
   use PRTGenericMod,          only : leaf_organ
-  use PRTGenericMod,          only : all_carbon_species
-  use PRTGenericMod,          only : carbon12_species
-  use PRTGenericMod,          only : nitrogen_species
-  use PRTGenericMod,          only : phosphorous_species
+  use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
@@ -473,11 +470,11 @@ contains
             
             cc_loss = currentCohort%excl_weight
             
-            leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_species)
-            store_c         = currentCohort%prt%GetState(store_organ,all_carbon_species)
-            fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_species)
-            sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_species)
-            struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_species)
+            leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+            store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+            fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+            sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+            struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
             
             if(currentCohort%canopy_layer == i_lyr .and. cc_loss>nearzero )then
                
@@ -694,11 +691,11 @@ contains
                !look at the cohorts in the canopy layer below... 
                if(currentCohort%canopy_layer == i_lyr+1)then 
                   
-                  leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_species)
-                  store_c         = currentCohort%prt%GetState(store_organ,all_carbon_species)
-                  fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_species)
-                  sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_species)
-                  struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_species)
+                  leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+                  store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+                  fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+                  sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+                  struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
                   
                   currentCohort%canopy_layer = i_lyr   
                   call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
@@ -841,11 +838,11 @@ contains
                      currentSite%promotion_rate(currentCohort%size_class) = &
                           currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
 
-                     leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_species)
-                     store_c         = currentCohort%prt%GetState(store_organ,all_carbon_species)
-                     fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_species)
-                     sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_species)
-                     struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_species)
+                     leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+                     store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+                     fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+                     sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+                     struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
 
                      currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
                           (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * currentCohort%n
@@ -877,11 +874,11 @@ contains
                      currentSite%promotion_rate(copyc%size_class) = &
                           currentSite%promotion_rate(copyc%size_class) + copyc%n
 
-                     leaf_c          = copyc%prt%GetState(leaf_organ,all_carbon_species)
-                     store_c         = copyc%prt%GetState(store_organ,all_carbon_species)
-                     fnrt_c          = copyc%prt%GetState(fnrt_organ,all_carbon_species)
-                     sapw_c          = copyc%prt%GetState(sapw_organ,all_carbon_species)
-                     struct_c        = copyc%prt%GetState(struct_organ,all_carbon_species)
+                     leaf_c          = copyc%prt%GetState(leaf_organ,all_carbon_elements)
+                     store_c         = copyc%prt%GetState(store_organ,all_carbon_elements)
+                     fnrt_c          = copyc%prt%GetState(fnrt_organ,all_carbon_elements)
+                     sapw_c          = copyc%prt%GetState(sapw_organ,all_carbon_elements)
+                     struct_c        = copyc%prt%GetState(struct_organ,all_carbon_elements)
 
                      currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
                           (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * copyc%n
@@ -1066,11 +1063,11 @@ contains
              ft = currentCohort%pft
 
 
-             leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
-             sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-             struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
-             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
-             store_c  = currentCohort%prt%GetState(store_organ, all_carbon_species)
+             leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+             sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+             struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+             store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
              
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
@@ -1253,7 +1250,7 @@ contains
           ! Note that the canopy_layer_lai is also calculated in this loop
           ! but since we go top down in terms of plant size, we should be okay
 
-          leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_species)
+          leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
 
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                                            currentCohort%n, currentCohort%canopy_layer,               &

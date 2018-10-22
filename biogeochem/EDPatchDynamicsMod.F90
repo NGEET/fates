@@ -40,9 +40,7 @@ module EDPatchDynamicsMod
 
   use EDCohortDynamicsMod  , only : InitPRTCohort
 
-  use PRTGenericMod,          only : all_carbon_species
-  use PRTGenericMod,          only : nitrogen_species
-  use PRTGenericMod,          only : phosphorous_species
+  use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
@@ -416,11 +414,11 @@ contains
              nc%canopy_layer = 1 
              nc%canopy_layer_yesterday = 1._r8 
 
-             sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-             struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
-             leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
-             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
-             store_c  = currentCohort%prt%GetState(store_organ, all_carbon_species)
+             sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+             struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+             leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+             store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
              
              total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
@@ -934,11 +932,11 @@ contains
              ! Divide their litter into the four litter streams, and spread evenly across ground surface. 
              !************************************/  
 
-             sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-             struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
-             leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
-             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
-             store_c  = currentCohort%prt%GetState(store_organ, all_carbon_species)
+             sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+             struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+             leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+             store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
              
              ! stem biomass per tree
              bstem  = (sapw_c + struct_c) * EDPftvarcon_inst%allom_agb_frac(p)
@@ -1050,8 +1048,8 @@ contains
        currentCohort => new_patch%shortest
        do while(associated(currentCohort))
 
-          sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
+          sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
 
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
 
@@ -1135,11 +1133,11 @@ contains
     do while(associated(currentCohort))       
        p = currentCohort%pft
        
-       sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-       struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
-       leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
-       fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
-       store_c  = currentCohort%prt%GetState(store_organ, all_carbon_species)
+       sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+       struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+       leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+       fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+       store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
 
           if(currentCohort%canopy_layer == 1)then         
              !currentCohort%dmort = mortality_rates(currentCohort) 
@@ -1979,7 +1977,7 @@ contains
 
              currentPatch%pft_agb_profile(currentCohort%pft,j) = &
                   currentPatch%pft_agb_profile(currentCohort%pft,j) + &
-                  currentCohort%prt%GetState(struct_organ, all_carbon_species) * &
+                  currentCohort%prt%GetState(struct_organ, all_carbon_elements) * &
                   currentCohort%n/currentPatch%area
 
           endif

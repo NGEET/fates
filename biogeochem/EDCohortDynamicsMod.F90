@@ -42,10 +42,10 @@ module EDCohortDynamicsMod
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : InitPRTVartype
   use PRTGenericMod,          only : prt_vartypes
-  use PRTGenericMod,          only : all_carbon_species
-  use PRTGenericMod,          only : carbon12_species
-  use PRTGenericMod,          only : nitrogen_species
-  use PRTGenericMod,          only : phosphorous_species
+  use PRTGenericMod,          only : all_carbon_elements
+  use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : nitrogen_element
+  use PRTGenericMod,          only : phosphorous_element
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
@@ -168,12 +168,12 @@ contains
     select case(hlm_parteh_mode)
     case (prt_carbon_allom_hyp)
 
-       call SetState(new_cohort%prt,leaf_organ, carbon12_species, bleaf)
-       call SetState(new_cohort%prt,fnrt_organ, carbon12_species, bfineroot)
-       call SetState(new_cohort%prt,sapw_organ, carbon12_species, bsap)
-       call SetState(new_cohort%prt,store_organ, carbon12_species, bstore)
-       call SetState(new_cohort%prt,struct_organ , carbon12_species, bdead)
-       call SetState(new_cohort%prt,repro_organ , carbon12_species, 0.0_r8)
+       call SetState(new_cohort%prt,leaf_organ, carbon12_element, bleaf)
+       call SetState(new_cohort%prt,fnrt_organ, carbon12_element, bfineroot)
+       call SetState(new_cohort%prt,sapw_organ, carbon12_element, bsap)
+       call SetState(new_cohort%prt,store_organ, carbon12_element, bstore)
+       call SetState(new_cohort%prt,struct_organ , carbon12_element, bdead)
+       call SetState(new_cohort%prt,repro_organ , carbon12_element, 0.0_r8)
 
     end select
     
@@ -540,12 +540,12 @@ contains
        terminate = 0 
        tallerCohort => currentCohort%taller
 
-       leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
-       store_c = currentCohort%prt%GetState(store_organ, all_carbon_species)
-       sapw_c  = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-       fnrt_c  = currentCohort%prt%GetState(fnrt_organ, all_carbon_species)
-       struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
-       repro_c  = currentCohort%prt%GetState(repro_organ, all_carbon_species)
+       leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+       store_c = currentCohort%prt%GetState(store_organ, all_carbon_elements)
+       sapw_c  = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+       fnrt_c  = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+       struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+       repro_c  = currentCohort%prt%GetState(repro_organ, all_carbon_elements)
 
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
@@ -653,12 +653,12 @@ contains
           end if
           
           ! Zero out the state pools
-          call SetState(currentCohort%prt,leaf_organ,carbon12_species,0.0_r8)
-          call SetState(currentCohort%prt,fnrt_organ,carbon12_species,0.0_r8)
-          call SetState(currentCohort%prt,sapw_organ,carbon12_species,0.0_r8)
-          call SetState(currentCohort%prt,struct_organ,carbon12_species,0.0_r8)
-          call SetState(currentCohort%prt,repro_organ,carbon12_species,0.0_r8)
-          call SetState(currentCohort%prt,store_organ,carbon12_species,0.0_r8)
+          call SetState(currentCohort%prt,leaf_organ,carbon12_element,0.0_r8)
+          call SetState(currentCohort%prt,fnrt_organ,carbon12_element,0.0_r8)
+          call SetState(currentCohort%prt,sapw_organ,carbon12_element,0.0_r8)
+          call SetState(currentCohort%prt,struct_organ,carbon12_element,0.0_r8)
+          call SetState(currentCohort%prt,repro_organ,carbon12_element,0.0_r8)
+          call SetState(currentCohort%prt,store_organ,carbon12_element,0.0_r8)
 
           ! Set pointers and remove the current cohort from the list
           shorterCohort => currentCohort%shorter
@@ -834,7 +834,7 @@ contains
                                 ! -----------------------------------------------------------------
                                 
                                 if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
-                                   call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,all_carbon_species), currentCohort%pft, &
+                                   call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,all_carbon_elements), currentCohort%pft, &
                                          currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
                                 end if
 

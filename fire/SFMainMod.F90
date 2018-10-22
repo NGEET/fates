@@ -29,17 +29,13 @@
   use EDtypesMod            , only : TR_SF
 
   use PRTGenericMod,          only : leaf_organ
-  use PRTGenericMod,          only : all_carbon_species
-  use PRTGenericMod,          only : carbon12_species
-  use PRTGenericMod,          only : nitrogen_species
-  use PRTGenericMod,          only : phosphorous_species
+  use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
   use PRTGenericMod,          only : store_organ
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : carbon12_species
   use PRTGenericMod,          only : SetState
 
 
@@ -184,7 +180,7 @@ contains
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 0)then 
              
              currentPatch%livegrass = currentPatch%livegrass + &
-                  currentCohort%prt%GetState(leaf_organ, all_carbon_species) * &
+                  currentCohort%prt%GetState(leaf_organ, all_carbon_elements) * &
                   currentCohort%n/currentPatch%area
 
           endif
@@ -846,9 +842,9 @@ contains
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
 
-                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
-                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
+                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
 
                 tree_ag_biomass = tree_ag_biomass + &
                       currentCohort%n * (leaf_c + & 
@@ -868,9 +864,9 @@ contains
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1 &
                   .and. (tree_ag_biomass > 0.0_r8)) then !trees only
 
-                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_species)
-                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_species)
-                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_species)
+                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
                 
                 f_ag_bmass = currentCohort%n * (leaf_c + &
                              EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c)) &
