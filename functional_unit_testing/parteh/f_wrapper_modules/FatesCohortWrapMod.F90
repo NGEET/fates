@@ -25,17 +25,17 @@ module FatesCohortWrapMod
   use PRTGenericMod,          only : InitPRTVartype
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : leaf_organ
-  use PRTGenericMod,          only : all_carbon_species
-  use PRTGenericMod,          only : carbon12_species
-  use PRTGenericMod,          only : nitrogen_species
-  use PRTGenericMod,          only : phosphorous_species
+  use PRTGenericMod,          only : all_carbon_elements
+  use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : nitrogen_element
+  use PRTGenericMod,          only : phosphorous_element
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
   use PRTGenericMod,          only : store_organ
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : carbon12_species
+  use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : SetState
   use PRTGenericMod,          only : prt_global
 
@@ -251,12 +251,12 @@ contains
     select case(ccohort%parteh_model)
     case (1)
 
-       call SetState(ccohort%prt,leaf_organ, carbon12_species, leaf_c)
-       call SetState(ccohort%prt,fnrt_organ, carbon12_species, fnrt_c)
-       call SetState(ccohort%prt,sapw_organ, carbon12_species, sapw_c)
-       call SetState(ccohort%prt,store_organ, carbon12_species, store_c)
-       call SetState(ccohort%prt,struct_organ , carbon12_species, struct_c)
-       call SetState(ccohort%prt,repro_organ , carbon12_species, repro_c)
+       call SetState(ccohort%prt,leaf_organ, carbon12_element, leaf_c)
+       call SetState(ccohort%prt,fnrt_organ, carbon12_element, fnrt_c)
+       call SetState(ccohort%prt,sapw_organ, carbon12_element, sapw_c)
+       call SetState(ccohort%prt,store_organ, carbon12_element, store_c)
+       call SetState(ccohort%prt,struct_organ , carbon12_element, struct_c)
+       call SetState(ccohort%prt,repro_organ , carbon12_element, repro_c)
 
        call ccohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = ccohort%dbh)
        call ccohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = ccohort%daily_carbon_gain)
@@ -284,26 +284,26 @@ contains
 
        ccohort%accum_r_maint_deficit = 0.0_r8
        
-       call SetState(ccohort%prt,leaf_organ, carbon12_species, leaf_c)
-       call SetState(ccohort%prt,fnrt_organ, carbon12_species, fnrt_c)
-       call SetState(ccohort%prt,sapw_organ, carbon12_species, sapw_c)
-       call SetState(ccohort%prt,store_organ, carbon12_species, store_c)
-       call SetState(ccohort%prt,struct_organ , carbon12_species, struct_c)
-       call SetState(ccohort%prt,repro_organ , carbon12_species, repro_c)
+       call SetState(ccohort%prt,leaf_organ, carbon12_element, leaf_c)
+       call SetState(ccohort%prt,fnrt_organ, carbon12_element, fnrt_c)
+       call SetState(ccohort%prt,sapw_organ, carbon12_element, sapw_c)
+       call SetState(ccohort%prt,store_organ, carbon12_element, store_c)
+       call SetState(ccohort%prt,struct_organ , carbon12_element, struct_c)
+       call SetState(ccohort%prt,repro_organ , carbon12_element, repro_c)
 
-       call SetState(ccohort%prt,leaf_organ, nitrogen_species, leaf_n)
-       call SetState(ccohort%prt,fnrt_organ, nitrogen_species, fnrt_n)
-       call SetState(ccohort%prt,sapw_organ, nitrogen_species, sapw_n)
-       call SetState(ccohort%prt,store_organ, nitrogen_species, store_n)
-       call SetState(ccohort%prt,struct_organ , nitrogen_species, struct_n)
-       call SetState(ccohort%prt,repro_organ , nitrogen_species, repro_n)
+       call SetState(ccohort%prt,leaf_organ, nitrogen_element, leaf_n)
+       call SetState(ccohort%prt,fnrt_organ, nitrogen_element, fnrt_n)
+       call SetState(ccohort%prt,sapw_organ, nitrogen_element, sapw_n)
+       call SetState(ccohort%prt,store_organ, nitrogen_element, store_n)
+       call SetState(ccohort%prt,struct_organ , nitrogen_element, struct_n)
+       call SetState(ccohort%prt,repro_organ , nitrogen_element, repro_n)
 
-       call SetState(ccohort%prt,leaf_organ, phosphorous_species, leaf_p)
-       call SetState(ccohort%prt,fnrt_organ, phosphorous_species, fnrt_p)
-       call SetState(ccohort%prt,sapw_organ, phosphorous_species, sapw_p)
-       call SetState(ccohort%prt,store_organ, phosphorous_species, store_p)
-       call SetState(ccohort%prt,struct_organ , phosphorous_species, struct_p)
-       call SetState(ccohort%prt,repro_organ , phosphorous_species, repro_p)
+       call SetState(ccohort%prt,leaf_organ, phosphorous_element, leaf_p)
+       call SetState(ccohort%prt,fnrt_organ, phosphorous_element, fnrt_p)
+       call SetState(ccohort%prt,sapw_organ, phosphorous_element, sapw_p)
+       call SetState(ccohort%prt,store_organ, phosphorous_element, store_p)
+       call SetState(ccohort%prt,struct_organ , phosphorous_element, struct_p)
+       call SetState(ccohort%prt,repro_organ , phosphorous_element, repro_p)
        
        ! Register In/Out Boundary Conditions
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval   = ccohort%dbh)
@@ -433,8 +433,8 @@ contains
     end select
     
 
-    leaf_c  = ccohort%prt%GetState(leaf_organ, all_carbon_species )
-    store_c = ccohort%prt%GetState(store_organ, all_carbon_species )
+    leaf_c  = ccohort%prt%GetState(leaf_organ, all_carbon_elements )
+    store_c = ccohort%prt%GetState(store_organ, all_carbon_elements )
     
     call carea_allom(ccohort%dbh,nplant,site_spread,ipft,crown_area)
 
@@ -523,44 +523,44 @@ contains
     
     dbh    = ccohort%dbh
 
-    leaf_c = ccohort%prt%GetState(organ_id=leaf_organ, species_id=all_carbon_species)
-    fnrt_c = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=all_carbon_species)
-    sapw_c = ccohort%prt%GetState(organ_id=sapw_organ, species_id=all_carbon_species)
-    store_c = ccohort%prt%GetState(organ_id=store_organ, species_id=all_carbon_species)
-    struct_c = ccohort%prt%GetState(organ_id=struct_organ, species_id=all_carbon_species)
-    repro_c = ccohort%prt%GetState(organ_id=repro_organ, species_id=all_carbon_species)
+    leaf_c = ccohort%prt%GetState(organ_id=leaf_organ, species_id=all_carbon_elements)
+    fnrt_c = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=all_carbon_elements)
+    sapw_c = ccohort%prt%GetState(organ_id=sapw_organ, species_id=all_carbon_elements)
+    store_c = ccohort%prt%GetState(organ_id=store_organ, species_id=all_carbon_elements)
+    struct_c = ccohort%prt%GetState(organ_id=struct_organ, species_id=all_carbon_elements)
+    repro_c = ccohort%prt%GetState(organ_id=repro_organ, species_id=all_carbon_elements)
 
-    leaf_cturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=all_carbon_species)
-    fnrt_cturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=all_carbon_species)
-    sapw_cturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=all_carbon_species)
-    store_cturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=all_carbon_species)
-    struct_cturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=all_carbon_species)
+    leaf_cturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=all_carbon_elements)
+    fnrt_cturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=all_carbon_elements)
+    sapw_cturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=all_carbon_elements)
+    store_cturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=all_carbon_elements)
+    struct_cturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=all_carbon_elements)
 
-    leaf_n = ccohort%prt%GetState(organ_id=leaf_organ, species_id=nitrogen_species)
-    fnrt_n = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=nitrogen_species)
-    sapw_n = ccohort%prt%GetState(organ_id=sapw_organ, species_id=nitrogen_species)
-    store_n = ccohort%prt%GetState(organ_id=store_organ, species_id=nitrogen_species)
-    struct_n = ccohort%prt%GetState(organ_id=struct_organ, species_id=nitrogen_species)
-    repro_n = ccohort%prt%GetState(organ_id=repro_organ, species_id=nitrogen_species)
+    leaf_n = ccohort%prt%GetState(organ_id=leaf_organ, species_id=nitrogen_element)
+    fnrt_n = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=nitrogen_element)
+    sapw_n = ccohort%prt%GetState(organ_id=sapw_organ, species_id=nitrogen_element)
+    store_n = ccohort%prt%GetState(organ_id=store_organ, species_id=nitrogen_element)
+    struct_n = ccohort%prt%GetState(organ_id=struct_organ, species_id=nitrogen_element)
+    repro_n = ccohort%prt%GetState(organ_id=repro_organ, species_id=nitrogen_element)
     
-    leaf_nturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=nitrogen_species)
-    fnrt_nturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=nitrogen_species)
-    sapw_nturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=nitrogen_species)
-    store_nturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=nitrogen_species)
-    struct_nturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=nitrogen_species)
+    leaf_nturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=nitrogen_element)
+    fnrt_nturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=nitrogen_element)
+    sapw_nturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=nitrogen_element)
+    store_nturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=nitrogen_element)
+    struct_nturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=nitrogen_element)
 
-    leaf_p = ccohort%prt%GetState(organ_id=leaf_organ, species_id=phosphorous_species)
-    fnrt_p = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=phosphorous_species)
-    sapw_p = ccohort%prt%GetState(organ_id=sapw_organ, species_id=phosphorous_species)
-    store_p = ccohort%prt%GetState(organ_id=store_organ, species_id=phosphorous_species)
-    struct_p = ccohort%prt%GetState(organ_id=struct_organ, species_id=phosphorous_species)
-    repro_p = ccohort%prt%GetState(organ_id=repro_organ, species_id=phosphorous_species)
+    leaf_p = ccohort%prt%GetState(organ_id=leaf_organ, species_id=phosphorous_element)
+    fnrt_p = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=phosphorous_element)
+    sapw_p = ccohort%prt%GetState(organ_id=sapw_organ, species_id=phosphorous_element)
+    store_p = ccohort%prt%GetState(organ_id=store_organ, species_id=phosphorous_element)
+    struct_p = ccohort%prt%GetState(organ_id=struct_organ, species_id=phosphorous_element)
+    repro_p = ccohort%prt%GetState(organ_id=repro_organ, species_id=phosphorous_element)
     
-    leaf_pturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=phosphorous_species)
-    fnrt_pturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=phosphorous_species)
-    sapw_pturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=phosphorous_species)
-    store_pturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=phosphorous_species)
-    struct_pturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=phosphorous_species)
+    leaf_pturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=phosphorous_element)
+    fnrt_pturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=phosphorous_element)
+    sapw_pturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=phosphorous_element)
+    store_pturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=phosphorous_element)
+    struct_pturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=phosphorous_element)
 
     growth_resp = ccohort%daily_r_grow
 
