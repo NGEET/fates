@@ -773,7 +773,7 @@ contains
          currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
              currentCohort%seed_prod * currentCohort%n/currentPatch%area
        else
-         !for grasses, the bstore goes to the reproduction through colonial reproduction when grass dies
+         !for grasses, the bstore goes to the reproduction through clonal reproduction when grass dies
          currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
            (currentCohort%seed_prod * currentCohort%n- &
 	   1.0_r8 * currentCohort%dndt*currentCohort%bstore)/currentPatch%area
