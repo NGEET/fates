@@ -751,14 +751,10 @@ contains
        do while (associated(currentCohort))
           do p = 1, numpft
              if (pft_present(p)) then
-	        if(EDPftvarcon_inst%woody(p)==itrue)then
-                  currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  currentCohort%seed_prod * currentCohort%n / &
-                     (currentPatch%area * npfts_present)
-		else
-		  !for grasses, the bstore goes to the reproduction through colonial reproduction when grass dies
+		  !a certain fraction of bstore goes to clonal reproduction when plants die
                   currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + (currentCohort%seed_prod * currentCohort%n - &
-                            1.0_r8 * currentCohort%dndt*currentCohort%bstore)/(currentPatch%area * npfts_present)		  
-		endif
+                            1.0_r8 * currentCohort%dndt*currentCohort%bstore*EDPftvarcon_inst%allom_frbstor_repro(p)) &
+			    /(currentPatch%area * npfts_present)		  
              endif
           end do
           currentCohort => currentCohort%shorter
@@ -769,15 +765,10 @@ contains
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
        p = currentCohort%pft
-       if(EDPftvarcon_inst%woody(p)==itrue)then
-         currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
-             currentCohort%seed_prod * currentCohort%n/currentPatch%area
-       else
-         !for grasses, the bstore goes to the reproduction through clonal reproduction when grass dies
-         currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
+       !a certain fraction of bstore goes to clonal reproduction when plants die
+       currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
            (currentCohort%seed_prod * currentCohort%n- &
-	   1.0_r8 * currentCohort%dndt*currentCohort%bstore)/currentPatch%area
-       endif
+	   1.0_r8 * currentCohort%dndt*currentCohort%bstore*EDPftvarcon_inst%allom_frbstor_repro(p))/currentPatch%area
        currentCohort => currentCohort%shorter
     enddo !cohort loop
 
@@ -1874,14 +1865,9 @@ contains
                 ! the losses of live trees and those flagged for death
                 !(currentCohort%bl+currentCohort%leaf_litter/hlm_freq_day)* dead_n
 	
-	  !for grasses, the bstore goes to the reproduction through colonial reproduction when grass dies	
-	  if(EDPftvarcon_inst%woody(pft)==itrue) then
-            currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
-               (currentCohort%br+currentCohort%bstore)     * dead_n
-	  else
-	    currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
-               (currentCohort%br)     * dead_n    
-	  endif
+	  !a fraction of bstore goes to the reproduction through clonal reproduction when plants die	
+          currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
+              (currentCohort%br+currentCohort%bstore*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * dead_n
 
           ! Update diagnostics that track resource management
           currentSite%resources_management%delta_litter_stock  = &
