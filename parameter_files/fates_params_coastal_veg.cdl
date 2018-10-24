@@ -167,6 +167,9 @@ variables:
 	float fates_allom_stmode(fates_pft) ;
 		fates_allom_stmode:units = "index" ;
 		fates_allom_stmode:long_name = "storage allometry function index" ;
+	float fates_allom_frbstor_repro(fates_pft) ;
+		fates_allom_frbstor_repro:units = "fraction" ;
+		fates_allom_frbstor_repro:long_name = "fraction of bstore goes to reproduction after plant dies" ;			
 	float fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr-1" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
@@ -703,6 +706,8 @@ data:
  fates_allom_smode = 1, 1 ;
 
  fates_allom_stmode = 1, 1 ;
+ 
+ fates_allom_frbstor_repro = 1.0, 1.0;
 
  fates_branch_turnover = 50, 50 ;
 
