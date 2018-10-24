@@ -14,6 +14,7 @@ module EDCanopyStructureMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
+  use EDCohortDynamicsMod   , only : InitPRTCohort
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
@@ -25,6 +26,16 @@ module EDCanopyStructureMod
   use FatesInterfaceMod     , only : hlm_use_planthydro
   use FatesInterfaceMod     , only : numpft
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort
+
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : all_carbon_elements
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : fnrt_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : store_organ
+  use PRTGenericMod,          only : repro_organ
+  use PRTGenericMod,          only : struct_organ
+  use PRTGenericMod,          only : SetState
 
 
   ! CIME Globals
@@ -319,6 +330,11 @@ contains
       type(ed_cohort_type), pointer :: currentCohort,copyc
       integer  :: i_cwd                  ! Index for CWD pool
       real(r8) :: cc_loss                ! cohort crown area loss in demotion (m2)
+      real(r8) :: leaf_c             ! leaf carbon [kg]
+      real(r8) :: fnrt_c             ! fineroot carbon [kg]
+      real(r8) :: sapw_c             ! sapwood carbon [kg]
+      real(r8) :: store_c            ! storage carbon [kg]
+      real(r8) :: struct_c           ! structure carbon [kg]
       real(r8) :: lossarea
       real(r8) :: newarea
       real(r8) :: demote_area
@@ -454,6 +470,12 @@ contains
             
             cc_loss = currentCohort%excl_weight
             
+            leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+            store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+            fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+            sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+            struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
+            
             if(currentCohort%canopy_layer == i_lyr .and. cc_loss>nearzero )then
                
                if ( (cc_loss-currentCohort%c_area) > -nearzero .and. &
@@ -468,7 +490,7 @@ contains
                   currentSite%demotion_rate(currentCohort%size_class) = &
                        currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
                   currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
-                       currentCohort%b_total() * currentCohort%n
+                       (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * currentCohort%n
                   
                elseif(cc_loss > nearzero .and. cc_loss < currentCohort%c_area )then
                   
@@ -480,7 +502,8 @@ contains
                   ! remains in the upper-story.  The original is the one
                   ! demoted to the understory
                   
-                  allocate(copyc)                  
+                  allocate(copyc)
+                  call InitPRTCohort(copyc)
                   if( hlm_use_planthydro.eq.itrue ) then
                      call InitHydrCohort(currentSite,copyc)
                   endif
@@ -499,7 +522,7 @@ contains
                   currentSite%demotion_rate(currentCohort%size_class) = &
                        currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
                   currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
-                       currentCohort%b_total() * currentCohort%n
+                       (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * currentCohort%n
                   
                   call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,copyc%c_area)
                   call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
@@ -532,46 +555,46 @@ contains
                   do i_cwd=1,ncwd
                      
                      currentPatch%CWD_AG(i_cwd)  = currentPatch%CWD_AG(i_cwd) + &
-                          (currentCohort%bdead+currentCohort%bsw) * &
+                          (struct_c + sapw_c ) * &
                           EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
                           SF_val_CWD_frac(i_cwd)*currentCohort%n/currentPatch%area  
                      
                      currentPatch%CWD_BG(i_cwd)  = currentPatch%CWD_BG(i_cwd) + &
-                          (currentCohort%bdead+currentCohort%bsw) * &
+                          (struct_c + sapw_c) * & 
                           (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
                           SF_val_CWD_frac(i_cwd)*currentCohort%n/currentPatch%area !litter flux per m2.
                      
                   enddo
                   
                   currentPatch%leaf_litter(currentCohort%pft)  = &
-                       currentPatch%leaf_litter(currentCohort%pft) + (currentCohort%bl)* &
-                       currentCohort%n/currentPatch%area ! leaf litter flux per m2.
+                       currentPatch%leaf_litter(currentCohort%pft) + &
+                       leaf_c * currentCohort%n/currentPatch%area ! leaf litter flux per m2.
                   
                   currentPatch%root_litter(currentCohort%pft)  = &
                        currentPatch%root_litter(currentCohort%pft) + &
-                       (currentCohort%br+currentCohort%bstore)*currentCohort%n/currentPatch%area
+                       (fnrt_c + store_c) * currentCohort%n/currentPatch%area
                   
                   ! keep track of the above fluxes at the site level as a 
                   ! CWD/litter input flux (in kg / site-m2 / yr)
                   do i_cwd=1,ncwd
                      currentSite%CWD_AG_diagnostic_input_carbonflux(i_cwd) = &
                           currentSite%CWD_AG_diagnostic_input_carbonflux(i_cwd) &
-                          + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                          + currentCohort%n * (struct_c + sapw_c) * & 
                           SF_val_CWD_frac(i_cwd) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) &
                           * hlm_days_per_year / AREA
                      currentSite%CWD_BG_diagnostic_input_carbonflux(i_cwd) = &
                           currentSite%CWD_BG_diagnostic_input_carbonflux(i_cwd) &
-                          + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                          + currentCohort%n * (struct_c + sapw_c) * & 
                           SF_val_CWD_frac(i_cwd) * (1.0_r8 -  &
                           EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * hlm_days_per_year / AREA
                   enddo
                   
                   currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
                        currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
-                       currentCohort%n * (currentCohort%bl) * hlm_days_per_year  / AREA
+                       currentCohort%n * leaf_c * hlm_days_per_year  / AREA
                   currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
                        currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
-                       currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
+                       currentCohort%n * (fnrt_c  + store_c) * hlm_days_per_year  / AREA
                   
                   currentCohort%n            = 0.0_r8
                   currentCohort%c_area       = 0.0_r8
@@ -641,7 +664,11 @@ contains
       real(r8) :: cc_gain                ! cohort crown area gain in promotion (m2)
       real(r8) :: arealayer_current      ! area (m2) of the current canopy layer
       real(r8) :: arealayer_below        ! area (m2) of the layer below the current layer
-
+      real(r8) :: leaf_c             ! leaf carbon [kg]
+      real(r8) :: fnrt_c             ! fineroot carbon [kg]
+      real(r8) :: sapw_c             ! sapwood carbon [kg]
+      real(r8) :: store_c            ! storage carbon [kg]
+      real(r8) :: struct_c           ! structure carbon [kg]
       
       call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
       call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr+1,arealayer_below)
@@ -663,15 +690,22 @@ contains
             do while (associated(currentCohort))            
                !look at the cohorts in the canopy layer below... 
                if(currentCohort%canopy_layer == i_lyr+1)then 
+                  
+                  leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+                  store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+                  fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+                  sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+                  struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
+                  
                   currentCohort%canopy_layer = i_lyr   
                   call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
                         currentCohort%pft,currentCohort%c_area)
                   ! keep track of number and biomass of promoted cohort
                   currentSite%promotion_rate(currentCohort%size_class) = &
-                        currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
+                       currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
                   currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
-                        currentCohort%b_total() * currentCohort%n
-
+                       (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * currentCohort%n
+                  
                endif
                currentCohort => currentCohort%shorter   
             enddo
@@ -787,7 +821,9 @@ contains
          
             currentCohort => currentPatch%tallest
             do while (associated(currentCohort))      
+
                
+
                !All the trees in this layer need to promote some area upwards... 
                if(currentCohort%canopy_layer == i_lyr+1)then 
                
@@ -801,12 +837,20 @@ contains
                      ! keep track of number and biomass of promoted cohort
                      currentSite%promotion_rate(currentCohort%size_class) = &
                           currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
+
+                     leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+                     store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+                     fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+                     sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+                     struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
+
                      currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
-                          currentCohort%b_total() * currentCohort%n
+                          (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * currentCohort%n
 
                   elseif ( cc_gain > nearzero .and. cc_gain < currentCohort%c_area) then
                      
                      allocate(copyc)
+                     call InitPRTCohort(copyc)
                      if( hlm_use_planthydro.eq.itrue ) then
                         call InitHydrCohort(CurrentSite,copyc)
                      endif
@@ -829,8 +873,15 @@ contains
                      ! keep track of number and biomass of promoted cohort
                      currentSite%promotion_rate(copyc%size_class) = &
                           currentSite%promotion_rate(copyc%size_class) + copyc%n
+
+                     leaf_c          = copyc%prt%GetState(leaf_organ,all_carbon_elements)
+                     store_c         = copyc%prt%GetState(store_organ,all_carbon_elements)
+                     fnrt_c          = copyc%prt%GetState(fnrt_organ,all_carbon_elements)
+                     sapw_c          = copyc%prt%GetState(sapw_organ,all_carbon_elements)
+                     struct_c        = copyc%prt%GetState(struct_organ,all_carbon_elements)
+
                      currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
-                          copyc%b_total() * copyc%n
+                          (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * copyc%n
                      
                      call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
                           currentCohort%pft,currentCohort%c_area)
@@ -964,7 +1015,11 @@ contains
     integer  :: ifp
     integer  :: patchn                                  ! identification number for each patch. 
     real(r8) :: canopy_leaf_area                        ! total amount of leaf area in the vegetated area. m2.  
-
+    real(r8) :: leaf_c               ! leaf carbon [kg]
+    real(r8) :: fnrt_c               ! fineroot carbon [kg]
+    real(r8) :: sapw_c               ! sapwood carbon [kg]
+    real(r8) :: store_c              ! storage carbon [kg]
+    real(r8) :: struct_c             ! structure carbon [kg]
     !----------------------------------------------------------------------
 
     if ( debug ) then
@@ -1007,7 +1062,12 @@ contains
              
              ft = currentCohort%pft
 
-             
+
+             leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+             sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+             struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+             store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
              
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
@@ -1017,7 +1077,7 @@ contains
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                   currentCohort%pft,currentCohort%c_area)
 
-             currentCohort%treelai = tree_lai(currentCohort%bl,             &
+             currentCohort%treelai = tree_lai(leaf_c,             &
                   currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                   currentCohort%canopy_layer, currentPatch%canopy_layer_tlai )
 
@@ -1041,9 +1101,9 @@ contains
                       currentCohort%pft,currentCohort%canopy_trim
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
-             if( (currentCohort%bsw + currentCohort%bl + currentCohort%br) <= 0._r8)then
+             if( (sapw_c + leaf_c + fnrt_c) <= 0._r8)then
                 write(fates_log(),*) 'FATES: alive biomass is zero in canopy_summarization', &
-                      currentCohort%bsw + currentCohort%bl + currentCohort%br
+                      sapw_c + leaf_c + fnrt_c
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
 
@@ -1139,6 +1199,7 @@ contains
     real(r8) :: max_chite                ! top of cohort canopy      (m)
     real(r8) :: lai                      ! summed lai for checking m2 m-2
     real(r8) :: snow_depth_avg           ! avg snow over whole site
+    real(r8) :: leaf_c                   ! leaf carbon [kg]
     
     !----------------------------------------------------------------------
 
@@ -1189,7 +1250,9 @@ contains
           ! Note that the canopy_layer_lai is also calculated in this loop
           ! but since we go top down in terms of plant size, we should be okay
 
-          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%pft, currentCohort%c_area, &
+          leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+
+          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                                            currentCohort%n, currentCohort%canopy_layer,               &
                                            currentPatch%canopy_layer_tlai )    
 

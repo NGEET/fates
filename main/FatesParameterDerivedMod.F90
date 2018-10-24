@@ -23,8 +23,6 @@ module FatesParameterDerivedMod
                                             ! rate at 25C (umol CO2/m**2/s)
      real(r8), allocatable :: kp25top(:)    ! canopy top: initial slope of CO2 response
                                             ! curve (C4 plants) at 25C
-     real(r8), allocatable :: lmr25top(:)   ! canopy top: leaf maintenance respiration
-                                            ! rate at 25C (umol CO2/m**2/s)
    contains
      
      procedure :: Init
@@ -45,7 +43,6 @@ contains
     allocate(this%jmax25top(numpft))
     allocate(this%tpu25top(numpft))
     allocate(this%kp25top(numpft))
-    allocate(this%lmr25top(numpft))
     
     return
   end subroutine InitAllocate
@@ -63,19 +60,11 @@ contains
     integer  :: ft                 ! pft index
     real(r8) :: lnc                ! leaf N concentration (gN leaf/m^2)
     
-    associate( &
-
-         vcmax25top => EDPftvarcon_inst%vcmax25top, & ! 
-         slatop     => EDPftvarcon_inst%slatop    , & ! specific leaf area at top of canopy, 
-                                                      ! projected area basis [m^2/gC]
-         leafcn     => EDPftvarcon_inst%leafcn )      ! leaf C:N (gC/gN)
+    associate( vcmax25top => EDPftvarcon_inst%vcmax25top ) 
     
       call this%InitAllocate(numpft)
       
       do ft = 1,numpft
-
-         ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
-         lnc  = 1._r8 / (slatop(ft) * leafcn(ft))
          
          ! Parameters derived from vcmax25top. 
          ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
@@ -92,17 +81,7 @@ contains
          this%tpu25top(ft)  = 0.167_r8  * vcmax25top(ft)
          this%kp25top(ft)   = 20000._r8 * vcmax25top(ft)
          
-         ! Leaf maintenance respiration to match the base rate used in CN
-         ! but with the new temperature functions for C3 and C4 plants.
-         !
-         !
-         ! CN respiration has units:  g C / g N [leaf] / s. This needs to be
-         ! converted from g C / g N [leaf] / s to umol CO2 / m**2 [leaf] / s
-         !
-         ! Then scale this value at the top of the canopy for canopy depth
          
-         this%lmr25top(ft) = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-         this%lmr25top(ft) = this%lmr25top(ft) * lnc / (umolC_to_kgC * g_per_kg)
          
       end do !ft 
 

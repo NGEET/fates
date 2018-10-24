@@ -28,6 +28,17 @@
   use EDtypesMod            , only : NFSC
   use EDtypesMod            , only : TR_SF
 
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : all_carbon_elements
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : fnrt_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : store_organ
+  use PRTGenericMod,          only : repro_organ
+  use PRTGenericMod,          only : struct_organ
+  use PRTGenericMod,          only : SetState
+
+
   implicit none
   private
 
@@ -167,7 +178,11 @@ contains
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 0)then 
-             currentPatch%livegrass = currentPatch%livegrass + currentCohort%bl*currentCohort%n/currentPatch%area
+             
+             currentPatch%livegrass = currentPatch%livegrass + &
+                  currentCohort%prt%GetState(leaf_organ, all_carbon_elements) * &
+                  currentCohort%n/currentPatch%area
+
           endif
           currentCohort => currentCohort%shorter
        enddo
@@ -810,8 +825,12 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
-    real f_ag_bmass      !fraction of a tree cohort's above-ground biomass as a proportion of total patch ag tree biomass.
-    real tree_ag_biomass !total amount of above-ground tree biomass in patch. kgC/m2
+    real(r8) ::  f_ag_bmass      !fraction of a tree cohort's above-ground biomass as a proportion of total patch ag tree biomass.
+    real(r8) ::  tree_ag_biomass !total amount of above-ground tree biomass in patch. kgC/m2
+    real(r8) ::  leaf_c     ! leaf carbon      [kg]
+    real(r8) ::  sapw_c     ! sapwood carbon   [kg]
+    real(r8) ::  struct_c   ! structure carbon [kg]
+
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch)) 
@@ -822,8 +841,14 @@ contains
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
-                tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)* &
-                     (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
+
+                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+
+                tree_ag_biomass = tree_ag_biomass + &
+                      currentCohort%n * (leaf_c + & 
+                      EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
              endif !trees only
 
              currentCohort=>currentCohort%shorter;
@@ -838,8 +863,15 @@ contains
           do while(associated(currentCohort))
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1 &
                   .and. (tree_ag_biomass > 0.0_r8)) then !trees only
-                f_ag_bmass = ((currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(currentCohort%bsw + &
-                     currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
+
+                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+                
+                f_ag_bmass = currentCohort%n * (leaf_c + &
+                             EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c)) &
+                             / tree_ag_biomass
+
                 !equation 16 in Thonicke et al. 2010
                 if(write_SF == itrue)then
                    if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass

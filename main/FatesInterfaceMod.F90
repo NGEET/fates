@@ -27,7 +27,10 @@ module FatesInterfaceMod
    use EDPftvarcon         , only : FatesCheckParams
    use EDPftvarcon         , only : EDPftvarcon_inst
    use EDParamsMod         , only : FatesReportParams
-
+   use PRTGenericMod         , only : prt_carbon_allom_hyp
+   use PRTGenericMod         , only : prt_cnp_flex_allom_hyp
+   use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
+   !   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -40,6 +43,7 @@ module FatesInterfaceMod
    public :: SetFatesTime
    public :: set_fates_global_elements
    public :: FatesReportParameters
+   public :: InitPARTEHGlobals
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -103,6 +107,10 @@ module FatesInterfaceMod
                                                 ! So we want to at least query it,
                                                 ! compare it to our maxpatchpersite,
                                                 ! and gracefully halt if we are over-allocating
+
+   integer, protected :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
+                                           ! Transport (exensible) Hypothesis (PARTEH) to use
+
 
    integer, protected :: hlm_use_vertsoilc ! This flag signals whether or not the 
                                            ! host model is using vertically discretized
@@ -592,7 +600,7 @@ contains
     logical, intent(in) :: global_verbose
 
     call FatesGlobalsInit(log_unit,global_verbose)
-
+    
   end subroutine FatesInterfaceInit
 
    ! ====================================================================================
@@ -1211,6 +1219,7 @@ contains
          hlm_ipedof       = unset_int
          hlm_max_patch_per_site = unset_int
          hlm_use_vertsoilc = unset_int
+         hlm_parteh_mode   = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_logging   = unset_int
@@ -1372,6 +1381,13 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_parteh_mode .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch deciding which plant reactive transport model to use is unset, hlm_parteh_mode, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_vertsoilc .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc, exiting'
@@ -1448,6 +1464,12 @@ contains
                hlm_use_vertsoilc = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_vertsoilc= ',ival,' to FATES'
+               end if
+               
+            case('parteh_mode')
+               hlm_parteh_mode = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_parteh_mode= ',ival,' to FATES'
                end if
 
             case('use_spitfire')
@@ -1551,9 +1573,43 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
-      call FatesCheckParams(masterproc)
+      call FatesCheckParams(masterproc,hlm_parteh_mode)
       
       return
    end subroutine FatesReportParameters
+
+   ! ====================================================================================
+
+   subroutine InitPARTEHGlobals()
+   
+     ! Initialize the Plant Allocation and Reactive Transport
+     ! global functions and mapping tables
+     
+     select case(hlm_parteh_mode)
+     case(prt_carbon_allom_hyp)
+
+        call InitPRTGlobalAllometricCarbon()
+
+     case(prt_cnp_flex_allom_hyp)
+        
+        !call InitPRTGlobalAllometricCNP()
+        write(fates_log(),*) 'You specified the allometric CNP mode'
+        write(fates_log(),*) 'with relaxed target stoichiometry.'
+        write(fates_log(),*) 'I.e., namelist parametre fates_parteh_mode = 2'
+        write(fates_log(),*) 'This mode is not available yet. Please set it to 1.'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        
+     case DEFAULT
+        write(fates_log(),*) 'You specified an unknown PRT module'
+        write(fates_log(),*) 'Check your setting for fates_parteh_mode'
+        write(fates_log(),*) 'in the CLM namelist. The only valid value now is 1'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+    end select
+
+
+
+   end subroutine InitPARTEHGlobals
 
 end module FatesInterfaceMod
