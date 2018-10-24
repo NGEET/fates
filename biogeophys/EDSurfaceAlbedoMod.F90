@@ -39,7 +39,7 @@ module EDSurfaceRadiationMod
   public :: ED_Norman_Radiation  ! Surface albedo and two-stream fluxes
   public :: ED_SunShadeFracs
   
-  logical :: DEBUG = .false.  ! for debugging this module
+  logical :: debug = .false.  ! for debugging this module
 
   
   real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
@@ -712,7 +712,7 @@ contains
                                    if (ib == ivis) then ! only set the absorbed PAR for the visible light band. 
                                       do iv = 1, currentPatch%nrad(L,ft)
                                          if (radtype==idirect) then
-                                            if ( DEBUG ) then
+                                            if ( debug ) then
                                                write(fates_log(),*) 'EDsurfAlb 730 ',Abs_dif_z(ft,iv),currentPatch%f_sun(L,ft,iv)
                                                write(fates_log(),*) 'EDsurfAlb 731 ', currentPatch%fabd_sha_z(L,ft,iv), &
                                                     currentPatch%fabd_sun_z(L,ft,iv)
@@ -728,7 +728,7 @@ contains
                                             currentPatch%fabi_sun_z(L,ft,iv) = Abs_dif_z(ft,iv) * &
                                                  currentPatch%f_sun(L,ft,iv)
                                          endif
-                                         if ( DEBUG ) then
+                                         if ( debug ) then
                                             write(fates_log(),*) 'EDsurfAlb 740 ', currentPatch%fabd_sha_z(L,ft,iv), &
                                                  currentPatch%fabd_sun_z(L,ft,iv)
                                          endif
@@ -979,7 +979,7 @@ contains
           
           ifp=ifp+1
           
-          if( DEBUG ) write(fates_log(),*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft
+          if( debug ) write(fates_log(),*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft
           
           ! zero out various datas
           cpatch%ed_parsun_z(:,:,:) = 0._r8
@@ -1007,7 +1007,7 @@ contains
           do CL = 1, cpatch%NCL_p
              do FT = 1,numpft
 
-                if( DEBUG ) write(fates_log(),*) 'edsurfRad_5601',CL,FT,cpatch%nrad(CL,ft)
+                if( debug ) write(fates_log(),*) 'edsurfRad_5601',CL,FT,cpatch%nrad(CL,ft)
                 
                 do iv = 1, cpatch%nrad(CL,ft) !NORMAL CASE. 
                    
@@ -1017,8 +1017,8 @@ contains
                    cpatch%ed_laisun_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
                          cpatch%f_sun(CL,ft,iv)
                    
-                   if ( DEBUG ) write(fates_log(),*) 'edsurfRad 570 ',cpatch%elai_profile(CL,ft,iv)
-                   if ( DEBUG ) write(fates_log(),*) 'edsurfRad 571 ',cpatch%f_sun(CL,ft,iv)
+                   if ( debug ) write(fates_log(),*) 'edsurfRad 570 ',cpatch%elai_profile(CL,ft,iv)
+                   if ( debug ) write(fates_log(),*) 'edsurfRad 571 ',cpatch%f_sun(CL,ft,iv)
                    
                    cpatch%ed_laisha_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
                          (1._r8 - cpatch%f_sun(CL,ft,iv))
@@ -1052,16 +1052,16 @@ contains
          ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
          ! are canopy integrated so that layer values equal big leaf values.
          
-         if ( DEBUG ) write(fates_log(),*) 'edsurfRad 645 ',cpatch%NCL_p,numpft
+         if ( debug ) write(fates_log(),*) 'edsurfRad 645 ',cpatch%NCL_p,numpft
          
          do CL = 1, cpatch%NCL_p
             do FT = 1,numpft
                
-               if ( DEBUG ) write(fates_log(),*) 'edsurfRad 649 ',cpatch%nrad(CL,ft)
+               if ( debug ) write(fates_log(),*) 'edsurfRad 649 ',cpatch%nrad(CL,ft)
                
                do iv = 1, cpatch%nrad(CL,ft)
                   
-                  if ( DEBUG ) then
+                  if ( debug ) then
                      write(fates_log(),*) 'edsurfRad 653 ', cpatch%ed_parsun_z(CL,ft,iv)
                      write(fates_log(),*) 'edsurfRad 654 ', bc_in(s)%solad_parb(ifp,ipar)
                      write(fates_log(),*) 'edsurfRad 655 ', bc_in(s)%solai_parb(ifp,ipar)
@@ -1073,13 +1073,13 @@ contains
                         bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sun_z(CL,ft,iv) + &
                         bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sun_z(CL,ft,iv) 
                   
-                  if ( DEBUG )write(fates_log(),*) 'edsurfRad 663 ', cpatch%ed_parsun_z(CL,ft,iv)
+                  if ( debug )write(fates_log(),*) 'edsurfRad 663 ', cpatch%ed_parsun_z(CL,ft,iv)
                   
                   cpatch%ed_parsha_z(CL,ft,iv) = &
                         bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sha_z(CL,ft,iv) + &
                         bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sha_z(CL,ft,iv)          
                   
-                  if ( DEBUG ) write(fates_log(),*) 'edsurfRad 669 ', cpatch%ed_parsha_z(CL,ft,iv)
+                  if ( debug ) write(fates_log(),*) 'edsurfRad 669 ', cpatch%ed_parsha_z(CL,ft,iv)
                   
                end do !iv
             end do !FT
