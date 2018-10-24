@@ -143,6 +143,8 @@ module EDPftvarcon
      real(r8), allocatable :: allom_agb2(:)         ! Parameter 2 for agb allometry
      real(r8), allocatable :: allom_agb3(:)         ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)         ! Parameter 3 for agb allometry
+     
+     real(r8), allocatable :: allom_frbstor_repro(:)! fraction of bstrore for reproduction after mortality
 
      ! Prescribed Physiology Mode Parameters
      real(r8), allocatable :: prescribed_npp_canopy(:)           ! this is only for the special 
@@ -573,6 +575,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_allom_agb4'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+	 
+    name = 'fates_allom_frbstor_repro'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -1011,6 +1017,10 @@ contains
     name = 'fates_allom_agb4'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_agb4)
+	 
+    name = 'fates_allom_frbstor_repro'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_frbstor_repro) 
 
     name = 'fates_hydr_p_taper'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1576,6 +1586,7 @@ contains
         write(fates_log(),fmt0) 'allom_agb2 = ',EDPftvarcon_inst%allom_agb2
         write(fates_log(),fmt0) 'allom_agb3 = ',EDPftvarcon_inst%allom_agb3
         write(fates_log(),fmt0) 'allom_agb4 = ',EDPftvarcon_inst%allom_agb4
+	write(fates_log(),fmt0) 'allom_frbstor_repro = ',EDPftvarcon_inst%allom_frbstor_repro
         write(fates_log(),fmt0) 'hydr_p_taper = ',EDPftvarcon_inst%hydr_p_taper
         write(fates_log(),fmt0) 'hydr_rs2 = ',EDPftvarcon_inst%hydr_rs2
         write(fates_log(),fmt0) 'hydr_srl = ',EDPftvarcon_inst%hydr_srl
@@ -1724,6 +1735,22 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
         end if
+
+        ! Check if fraction of storage to reproduction is between 0-1
+        ! ----------------------------------------------------------------------------------
+        
+        if ( ( EDPftvarcon_inst%allom_frbstor_repro(ipft) <= 0.0_r8 ) .or. &
+             ( EDPftvarcon_inst%allom_frbstor_repro(ipft) >= 1.0_r8 ) ) then
+
+           write(fates_log(),*) 'fraction of storage to reproduction'
+           write(fates_log(),*) ' after plants die, must be between'
+           write(fates_log(),*) ' 0 and 1'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' allom_frbstor_repro: ',EDPftvarcon_inst%allom_frbstor_repro(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if	
 
         ! Check if photosynthetic pathway is neither C3/C4
         ! ----------------------------------------------------------------------------------
