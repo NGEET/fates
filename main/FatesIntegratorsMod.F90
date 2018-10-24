@@ -1,8 +1,5 @@
 module FatesIntegratorsMod
 
-   use EDTypesMod          , only : ed_site_type
-   use EDTypesMod          , only : ed_patch_type
-   use EDTypesMod          , only : ed_cohort_type
    use FatesConstantsMod, only    : r8 => fates_r8
 
    implicit none
@@ -13,7 +10,7 @@ module FatesIntegratorsMod
 
 contains
 
-  subroutine RKF45(DerivFunction,Y,Ymask,dx,x,ccohort,max_err,Yout,l_pass)
+  subroutine RKF45(DerivFunction,Y,Ymask,dx,x,max_err,param_array,Yout,opt_dx,l_pass)
 
       ! ---------------------------------------------------------------------------------
       ! Runge-Kutta-Fehlerg  4/5 order adaptive explicit integration
@@ -27,9 +24,11 @@ contains
       logical,intent(in), dimension(:)          :: Ymask    ! logical mask defining what is on
       real(r8),intent(in)                       :: dx       ! step size of independent variable
       real(r8),intent(in)                       :: x        ! independent variable (time?)
-      type(ed_cohort_type),intent(inout),target :: ccohort  ! Cohort derived type
       real(r8),intent(in)                       :: max_err  ! Maximum allowable error (absolute)
+      real(r8),intent(in), dimension(:)         :: param_array ! Arbitrary space for parameters
       real(r8),intent(inout), dimension(:)      :: Yout     ! The output vector
+      real(r8),intent(out)                       :: opt_dx   ! Optimum step size based
+                                                                ! on estimated error
       logical,intent(out)                       :: l_pass   ! Was this a successfully step?
 
       ! Locals
@@ -84,96 +83,93 @@ contains
       
       ! Input Functional Argument
       interface
-         function DerivFunction(Y,Ymask,x,ccohort) result(dYdx)
-              use EDTypesMod          , only : ed_site_type
-              use EDTypesMod          , only : ed_patch_type
-              use EDTypesMod          , only : ed_cohort_type
-              use FatesConstantsMod, only    : r8 => fates_r8
-              real(r8),intent(in), dimension(:)        :: Y        ! dependent variable (array)
-              logical,intent(in), dimension(:)         :: Ymask    ! logical mask defining what is on
-              real(r8),intent(in)                      :: x        ! independent variable (time?)
-              type(ed_cohort_type),intent(in),target   :: ccohort  ! Cohort derived type
-              real(r8),dimension(lbound(Y,dim=1):ubound(Y,dim=1)) :: dYdx     ! Derivative of dependent variable
-          end function DerivFunction
-       end interface
-       
-       nY = size(Y,1)
+         function DerivFunction(Y,Ymask,x,param_array) result(dYdx)
+           use FatesConstantsMod, only    : r8 => fates_r8
+           real(r8),intent(in), dimension(:)        :: Y        ! dependent variable (array)
+           logical,intent(in), dimension(:)         :: Ymask    ! logical mask defining what is on
+           real(r8),intent(in)                      :: x        ! independent variable (time?)
+           real(r8),intent(in), dimension(:)        :: param_array
+           real(r8),dimension(lbound(Y,dim=1):ubound(Y,dim=1)) :: dYdx     ! Derivative of dependent variable
+         end function DerivFunction
+      end interface
+      
+      nY = size(Y,1)
+      
+      ! 0th Step
+      Ytemp(1:nY) = Y(1:nY)
+      xtemp       = x
+      K0(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,param_array)
+      
+      ! 1st Step
+      Ytemp(1:nY) = Y(1:nY) + dx * (f1_0*K0(1:nY))
+      xtemp       = x + t1*dx
+      K1(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,param_array)
+      
+      ! 2nd Step
+      Ytemp(1:nY) = Y(1:nY) + dx * ( f2_0*K0(1:nY) + f2_1*K1(1:nY) )
+      xtemp       = x + t2*dx
+      K2(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,param_array)
+      
+      ! 3rd Step
+      Ytemp(1:nY) = Y(1:nY) + dx * ( f3_0*K0(1:nY) + f3_1*K1(1:nY) + &
+                                     f3_2*K2(1:nY))
+      xtemp       = x + t3*dx
+      K3(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,param_array)
 
-       ! 0th Step
-       Ytemp(1:nY) = Y(1:nY)
-       xtemp       = x
-       K0(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,ccohort)
+      ! 4th Step
+      Ytemp(1:nY) = Y(1:nY) + dx * ( f4_0*K0(1:nY) + f4_1*K1(1:nY) + &
+                                     f4_2*K2(1:nY) + f4_3*K3(1:nY))
+      xtemp       = x + t4*dx
+      K4(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,param_array)
+      
+      ! 5th Step
+      Ytemp(1:nY) = Y(1:nY) + dx * ( f5_0*K0(1:nY) + f5_1*K1(1:nY) + &
+                                     f5_2*K2(1:nY) + f5_3*K3(1:nY) + &
+                                     f5_4*K4(1:nY))
+      xtemp       = x + t5*dx
+      K5(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,param_array)
 
-       ! 1st Step
-       Ytemp(1:nY) = Y(1:nY) + dx * (f1_0*K0(1:nY))
-       xtemp       = x + t1*dx
-       K1(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,ccohort)
-       
-       ! 2nd Step
-       Ytemp(1:nY) = Y(1:nY) + dx * ( f2_0*K0(1:nY) + f2_1*K1(1:nY) )
-       xtemp       = x + t2*dx
-       K2(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,ccohort)
-       
-       ! 3rd Step
-       Ytemp(1:nY) = Y(1:nY) + dx * ( f3_0*K0(1:nY) + f3_1*K1(1:nY) + &
-                                      f3_2*K2(1:nY))
-       xtemp       = x + t3*dx
-       K3(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,ccohort)
+      
+      ! Evaluate error on the 4/5 steps
+      
+      ! 4th order
+      Ytemp(1:nY) = Y(1:nY) + dx * ( y_0*K0(1:nY) + y_2*K2(1:nY) + &
+                                     y_3*K3(1:nY) + y_4*K4(1:nY) )
+      ! 5th order
+      Yout(1:nY)  = Y(1:nY) + dx * ( z_0*K0(1:nY) + z_2*K2(1:nY) + &
+                                     z_3*K3(1:nY) + z_4*K4(1:nY) + &
+                                     z_5*K5(1:nY) )
+      
+      ! Take the maximum absolute error across all variables
+      ! To prevent weirdness set a nominal lower bound
+      err45 = maxval(abs(Yout(1:nY)-Ytemp(1:nY)))
+      
+      ! --------------------------------------------------------------------------------
+      ! Evaluate error and either approve/reject step.
+      ! 
+      ! Update our estimate of the optimal time-step. We won't update
+      ! the current time-step based on this, but we will save this info
+      ! to help decide the starting sub-step on the next full step
+      ! The equations may be so smooth that the error estimate is so low that it creates
+      ! an overflow on the divide, set a lower bound based on max_err.
+      ! 1e-5, as an error ratio will shorten the timestep to ~5% of original
+      ! --------------------------------------------------------------------------------
 
-       ! 4th Step
-       Ytemp(1:nY) = Y(1:nY) + dx * ( f4_0*K0(1:nY) + f4_1*K1(1:nY) + &
-                                      f4_2*K2(1:nY) + f4_3*K3(1:nY))
-       xtemp       = x + t4*dx
-       K4(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,ccohort)
-       
-       ! 5th Step
-       Ytemp(1:nY) = Y(1:nY) + dx * ( f5_0*K0(1:nY) + f5_1*K1(1:nY) + &
-                                      f5_2*K2(1:nY) + f5_3*K3(1:nY) + &
-                                      f5_4*K4(1:nY))
-       xtemp       = x + t5*dx
-       K5(1:nY)    = DerivFunction(Ytemp(1:nY),Ymask,xtemp,ccohort)
+      opt_dx = dx * max(min_step_fraction, &
+                        0.840896 * (max_err/ max(err45,0.00001*max_err))**0.25)
 
-       
-       ! Evaluate error on the 4/5 steps
-
-       ! 4th order
-       Ytemp(1:nY) = Y(1:nY) + dx * ( y_0*K0(1:nY) + y_2*K2(1:nY) + &
-                                      y_3*K3(1:nY) + y_4*K4(1:nY) )
-       ! 5th order
-       Yout(1:nY)  = Y(1:nY) + dx * ( z_0*K0(1:nY) + z_2*K2(1:nY) + &
-                                      z_3*K3(1:nY) + z_4*K4(1:nY) + &
-                                      z_5*K5(1:nY) )
-       
-       ! Take the maximum absolute error across all variables
-       ! To prevent weirdness set a nominal lower bound
-       err45 = maxval(abs(Yout(1:nY)-Ytemp(1:nY)))
-
-       ! --------------------------------------------------------------------------------
-       ! Evaluate error and either approve/reject step.
-       ! 
-       ! Update our estimate of the optimal time-step. We won't update
-       ! the current time-step based on this, but we will save this info
-       ! to help decide the starting sub-step on the next full step
-       ! The equations may be so smooth that the error estimate is so low that it creates
-       ! an overflow on the divide, set a lower bound based on max_err.
-       ! 1e-5, as an error ratio will shorten the timestep to ~5% of original
-       ! --------------------------------------------------------------------------------
-
-       ccohort%ode_opt_step = dx * max(min_step_fraction, &
-                                       0.840896 * (max_err/ max(err45,0.00001*max_err))**0.25)
-
-       if(err45 > max_err) then
-          l_pass                 = .false.
-       else
-          l_pass                 = .true.
-       end if
-
-       return
+      if(err45 > max_err) then
+         l_pass                 = .false.
+      else
+         l_pass                 = .true.
+      end if
+      
+      return
     end subroutine RKF45
-
+    
     ! ===================================================================================
 
-    subroutine Euler(DerivFunction,Y,Ymask,dx,x,ccohort,Yout)
+    subroutine Euler(DerivFunction,Y,Ymask,dx,x,param_array,Yout)
 
       ! ---------------------------------------------------------------------------------
       ! Simple Euler Integration
@@ -185,7 +181,7 @@ contains
       logical,intent(in), dimension(:)          :: Ymask    ! logical mask defining what is on
       real(r8),intent(in)                       :: dx       ! step size of independent variable
       real(r8),intent(in)                       :: x        ! independent variable (time?)
-      type(ed_cohort_type),intent(inout),target :: ccohort  ! Cohort derived type
+      real(r8),intent(in), dimension(:)         :: param_array ! Arbitrary space for parameters
       real(r8),intent(inout), dimension(:)      :: Yout     ! The output vector
 
       ! Locals
@@ -196,22 +192,19 @@ contains
       
       ! Input Functional Argument
       interface
-         function DerivFunction(Y,Ymask,x,ccohort) result(dYdx)
-              use EDTypesMod          , only : ed_site_type
-              use EDTypesMod          , only : ed_patch_type
-              use EDTypesMod          , only : ed_cohort_type
-              use FatesConstantsMod, only    : r8 => fates_r8
-              real(r8),intent(in), dimension(:)      :: Y        ! dependent variable (array)
-              logical,intent(in), dimension(:)       :: Ymask    ! logical mask defining what is on
-              real(r8),intent(in)                    :: x        ! independent variable (time?)
-              type(ed_cohort_type),intent(in),target :: ccohort  ! Cohort derived type
+         function DerivFunction(Y,Ymask,x,param_array) result(dYdx)
+           use FatesConstantsMod, only    : r8 => fates_r8
+              real(r8),intent(in), dimension(:)      :: Y            ! dependent variable (array)
+              logical,intent(in), dimension(:)       :: Ymask        ! logical mask defining what is on
+              real(r8),intent(in)                    :: x            ! independent variable (time?)
+              real(r8),intent(in), dimension(:)      :: param_array
               real(r8),dimension(lbound(Y,dim=1):ubound(Y,dim=1)) :: dYdx     ! Derivative of dependent variable
           end function DerivFunction
        end interface
 
        nY = size(Y,1)
        
-       dYdx(1:nY)  = DerivFunction(Y(1:nY),Ymask,x,ccohort)
+       dYdx(1:nY)  = DerivFunction(Y(1:nY),Ymask,x,param_array)
        Yout(1:nY)  = Y(1:nY) + dx * dYdx(1:nY)
        
 
