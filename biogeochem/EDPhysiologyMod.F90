@@ -589,7 +589,7 @@ contains
     if ((t >= currentSite%dleafondate - 30.and.t <= currentSite%dleafondate + 30).or.(t > 360 - 15.and. &
          currentSite%dleafondate < 15))then ! are we in the window?
        ! TODO: CHANGE THIS MATH, MOVE THE DENOMENATOR OUTSIDE OF THE SUM (rgk 01-2017)
-       if (sum(currentSite%water_memory(1:numWaterMem)/dble(numWaterMem)) &
+       if (sum(currentSite%water_memory(1:numWaterMem)/real(numWaterMem,r8)) &
             >= ED_val_phen_drought_threshold.and.currentSite%dstatus == 1.and.t >= 10)then 
           ! leave some minimum time between leaf off and leaf on to prevent 'flickering'.  
           if (timesincedleafoff > ED_val_phen_doff_time)then  

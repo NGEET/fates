@@ -258,7 +258,7 @@ variables:
 		fates_hydr_rfrac_stem:units = "fraction" ;
 		fates_hydr_rfrac_stem:long_name = "fraction of total tree resistance from troot to canopy" ;
 	float fates_hydr_rs2(fates_pft) ;
-		fates_hydr_rs2:units = "mm" ;
+		fates_hydr_rs2:units = "m" ;
 		fates_hydr_rs2:long_name = "absorbing root radius" ;
 	float fates_hydr_srl(fates_pft) ;
 		fates_hydr_srl:units = "m g-1" ;
