@@ -1,0 +1,169 @@
+<?xml version="1.0"?>
+<all>
+
+  <!-- If desired, parameters with a vector dimensioned pft -->
+  <!-- can be specified in parameters. This index, or array -->
+  <!-- chooses which type of indices to simulate.           -->
+  <!-- THis convention (like C and python), assumes that    -->
+  <!-- first index in all arrays is zero                    -->
+  <!-- when calling fortran routines, we accomodate offset  -->
+
+  <pft_index> 0 </pft_index>
+  
+  <time_control>
+    <!-- Specify Dates as YYYY-MM-DD -->
+    <!-- You may be thinking that this is silly to specify -->
+    <!-- exact dates for a synthetic driver.  The logic is -->
+    <!-- that this is easy to specify a number of days this-->
+    <!-- way anyway, and it also allows flexibility in-case-->
+    <!-- we want to introduce real data drivers            -->
+    <timestep_sec> 86400 </timestep_sec>
+    <date_start> 1500-01-01 </date_start>
+    <date_stop>  1600-01-01 </date_stop>
+    <max_trunc_error> 0.001 </max_trunc_error>
+  </time_control>
+
+  
+  <!-- Specify which PRT Hypothesis you would like to use -->
+  <!-- AllometricCarbon == 1 -->
+  <!-- AllometricCNP    == 2 -->
+
+  <!--<hypothesis> AllometricCNP </hypothesis> -->
+  <hypothesis> AllometricCNP </hypothesis>
+   
+  <!-- <boundary_formulation method="AllometricCarbon"> DailyCFromCArea  </boundary_formulation> -->
+  <boundary_formulation> DailyCNPFromCArea  </boundary_formulation>
+
+
+  <!-- Specify the synthetic or data driven boundary conditions -->
+  <parameters>
+    
+    <pft_names> 
+      <pft_par>Carbon Only</pft_par>
+      <pft_par>CNP, 10x nutrient </pft_par>
+      <pft_par>CNP, 0 nutrient, p1=p2=0 </pft_par>
+      <pft_par>CNP, 0.5 equiv N </pft_par>
+      <pft_par>CNP, 0.5 equiv P </pft_par>
+    </pft_names>
+
+    <organ_names>
+      <organ_par> leaf </organ_par>
+      <organ_par> fine root </organ_par>
+      <organ_par> sapwood </organ_par>
+      <organ_par> storage </organ_par>
+      <organ_par> reproductive </organ_par>
+      <organ_par> structural </organ_par>
+    </organ_names>
+
+    <parteh_parameters >
+      <pft_par name="parteh_model                       "> 1				 , 2          , 2 , 2          , 2  </pft_par>
+      <pft_par name="fates_phen_evergreen		"> 1		, 1	, 1	, 1	, 1</pft_par>
+      <pft_par name="fates_phen_season_decid		"> 0		, 0	, 0	, 0	, 0</pft_par>
+      <pft_par name="fates_phen_stress_decid		"> 0		, 0	, 0	, 0	, 0</pft_par>
+      <pft_par name="fates_seed_alloc			"> 0.2		, 0.2	, 0.2	, 0.2	, 0.2</pft_par>
+      <pft_par name="fates_seed_alloc_mature		"> 0.2		, 0.2, 0.2, 0.2, 0.2		</pft_par>
+      <pft_par name="fates_dbh_repro_threshold		"> 30.0		, 30.0	, 30.0, 30.0	, 30.0	</pft_par>
+      <pft_par name="fates_woody			"> 1.0		, 1.0	, 1.0, 1.0	, 1.0	</pft_par>
+      <pft_par name="fates_recruit_hgt_min		"> 1.5		, 1.5	, 1.5, 1.5	, 1.5	</pft_par>
+      <pft_par name="fates_allom_dbh_maxheight		"> 50.0		, 50.0	, 50.0, 50.0	, 50.0	</pft_par>
+      <pft_par name="fates_allom_hmode			"> 5		, 5	, 5, 5	, 5	</pft_par>
+      <pft_par name="fates_allom_amode			"> 3		, 3	, 3, 3	, 3	</pft_par>
+      <pft_par name="fates_allom_lmode			"> 1		, 1	, 1, 1	, 1	</pft_par>
+      <pft_par name="fates_allom_smode			"> 1		, 1	, 1, 1	, 1	</pft_par>
+      <pft_par name="fates_allom_stmode			"> 1		, 1	, 1, 1	, 1	</pft_par>
+      <pft_par name="fates_allom_cmode			"> 1		, 1	, 1, 1	, 1	</pft_par>
+      <pft_par name="fates_allom_fmode			"> 1		, 1	, 1, 1	, 1	</pft_par>
+      <pft_par name="fates_allom_d2h1			"> 57.6		, 57.6	, 57.6, 57.6	, 57.6	</pft_par>
+      <pft_par name="fates_allom_d2h2			"> 0.74		, 0.74	, 0.74, 0.74	, 0.74	</pft_par>
+      <pft_par name="fates_allom_d2h3			"> 21.6		, 21.6	, 21.6, 21.6	, 21.6	</pft_par>
+      <pft_par name="fates_allom_agb1			"> 0.0673	, 0.0673	 , 0.0673, 0.0673 , 0.0673	</pft_par>
+      <pft_par name="fates_allom_agb2			"> 0.976	, 0.976		 , 0.976, 0.976	 , 0.976	</pft_par>
+      <pft_par name="fates_allom_agb3			"> -999.9	, -999.9	 , -999.9, -999.9 , -999.9	</pft_par>
+      <pft_par name="fates_allom_agb4			"> -999.9	, -999.9	 , -999.9, -999.9 , -999.9	</pft_par>
+      <pft_par name="fates_allom_d2bl1			"> 0.07		, 0.07		 , 0.07, 0.07	 , 0.07	</pft_par>
+      <pft_par name="fates_allom_d2bl2			"> 1.3		,  1.3		 , 1.3,  1.3   , 1.3    	</pft_par>
+      <pft_par name="fates_allom_d2bl3			"> 0.55		, 0.55		 , 0.55 , 0.55   , 0.55 	</pft_par>
+      <pft_par name="fates_cushion			"> 2.0		, 2.0		 , 2.0, 2.0    , 2.0		</pft_par>
+      <pft_par name="fates_wood_density			"> 0.7		, 0.7		 , 0.7, 0.7    , 0.7		</pft_par>
+      <pft_par name="fates_c2b				"> 2.0		, 2.0		 , 2.0, 2.0    , 2.0		</pft_par>
+      <pft_par name="fates_allom_la_per_sa_int		"> 1.00 	, 1.00		 , 1.00	, 1.00   , 1.00		</pft_par>
+      <pft_par name="fates_allom_la_per_sa_slp		"> 0.0		, 0.0		 , 0.0, 0.0    , 0.0		</pft_par>
+      <pft_par name="fates_slatop			"> 0.012	, 0.012		 , 0.012, 0.012	 , 0.012	</pft_par>
+      <pft_par name="fates_slamax			"> 0.012	, 0.012		 , 0.012, 0.012	 , 0.012	</pft_par>
+      <pft_par name="fates_allom_l2fr			"> 1.0		, 1.0		 , 1.0, 1.0	 , 1.0	</pft_par>
+      <pft_par name="fates_allom_agb_frac		"> 0.65		, 0.65		 , 0.65	, 0.65	 , 0.65	</pft_par>
+      <pft_par name="fates_allom_sai_scaler		"> 0.1		, 0.1		 , 0.1, 0.1 , 0.1		</pft_par>
+      <pft_par name="fates_allom_blca_expnt_diff	"> 0.0		, 0.0	, 0.0, 0.0	, 0.0	</pft_par>
+      <pft_par name="fates_allom_d2ca_coefficient_min	"> 0.33		, 0.33	, 0.33, 0.33	, 0.33	</pft_par>
+      <pft_par name="fates_allom_d2ca_coefficient_max	"> 0.65		, 0.65	, 0.65, 0.65	, 0.65	</pft_par>
+      <pft_par name="fates_branch_turnover		"> 300.0	, 300.0	, 300.0, 300.0	, 300.0	</pft_par>
+      <pft_par name="fates_leaf_long			"> 1.5		, 1.5	,1.5, 1.5	,1.5	</pft_par>
+      <pft_par name="fates_root_long			"> 1.5		, 1.5	,1.5, 1.5	,1.5	</pft_par>
+      <pft_par name="fates_leaf_stor_priority		"> 0.5		, 0.5	,0.5, 0.5	,0.5	</pft_par>
+      <pft_par name="fates_vcmax25top                   "> 50.0				 , 50.0      , 50.0 , 50.0      , 50.0    </pft_par>
+
+      <pft_par name="fates_turnover_retrans_mode" >  1,1,1,1,1 </pft_par>
+
+      <pft_organ_par name="fates_turnover_carb_retrans" > 0,0,0,0,0,0,
+                                                             0,0,0,0,0,0,
+                                                             0.05,0.05,0,0,0,0,
+                                                             0.05,0.05,0,0,0,0,
+                                                             0.05,0.05,0,0,0,0 </pft_organ_par>
+      <pft_organ_par name="fates_turnover_nitr_retrans" > 0,0,0,0,0,0,
+                                                             0,0,0,0,0,0,
+                                                             0.25,0.15,0,0,0,0,
+                                                             0.25,0,0,0,0,0,
+                                                             0.25,0,0,0,0,0 </pft_organ_par>
+      <pft_organ_par name="fates_turnover_phos_retrans" > 0,0,0,0,0,0,
+                                                             0,0,0,0,0,0,
+                                                             0.25,0.15,0,0,0,0,
+                                                             0.25,0,0,0,0,0,
+                                                             0.25,0,0,0,0,0 </pft_organ_par>
+
+      <pft_organ_par name="fates_prt_nitr_stoich_p1	        "> -9,-9,-9,-9,-9,-9,
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05, 
+								   0,0,0,0,0,0,
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05,
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05  </pft_organ_par>
+
+      <pft_organ_par name="fates_prt_nitr_stoich_p2	        "> -9,-9,-9,-9,-9,-9,
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05,
+								   0,0,0,0,0,0,
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05,
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05  </pft_organ_par>
+      <pft_organ_par name="fates_prt_phos_stoich_p1	        "> -9,-9,-9,-9,-9,-9, 
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05,
+                                                                   0,0,0,0,0,0,
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05,
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05  </pft_organ_par>
+      <pft_organ_par name="fates_prt_phos_stoich_p2	        "> -9,-9,-9,-9,-9,-9, 
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05, 
+                                                                   0,0,0,0,0,0,
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05,
+                                                                   0.05,0.05,0.05,0.05,0.05,0.05  </pft_organ_par>
+
+      <pft_organ_par name="fates_prt_alloc_priority "> -9,-9,-9,-9,-9,-9,
+                                                             1,1,2,2,0,3,
+                                                             1,1,2,2,0,3,
+							     1,1,2,2,0,3,
+                                                             1,1,2,2,0,3 </pft_organ_par>
+
+      <pft_organ_par name="fates_prt_unit_gr_resp" > -9,-9,-9,-9,-9,-9, 
+                                                        0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
+                                                        0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
+							0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
+                                                        0.01, 0.01, 0.01, 0.01, 0.01, 0.01 </pft_organ_par>
+
+
+    </parteh_parameters>
+      
+    <boundary_parameters >
+      <pft_par name="fates_prescribed_npp_p1">    0.4, 0.4, 0.4, 0.4, 0.4   </pft_par>
+      <pft_par name="fates_prescribed_nflux_p1" > -9.9, 40.0, 0.0, 0.01, 40.0  </pft_par>
+      <pft_par name="fates_prescribed_pflux_p1" > -9.9, 40.0, 0.0, 40.0, 0.01  </pft_par>
+    </boundary_parameters>
+    
+    
+  </parameters>
+  
+</all>
