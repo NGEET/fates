@@ -5,6 +5,7 @@ dimensions:
 	fates_history_height_bins = 6 ;
 	fates_history_size_bins = 13 ;
 	fates_hydr_organs = 4 ;
+	fates_prt_organs  = 6 ;
 	fates_litterclass = 6 ;
 	fates_pft = 2 ;
 	fates_scalar = 1 ;
@@ -83,6 +84,9 @@ variables:
 	char fates_pftname(fates_pft, fates_string_length) ;
 		fates_pftname:units = "unitless - string" ;
 		fates_pftname:long_name = "Description of plant type" ;
+       char fates_prt_organ_name(fates_prt_organs, fates_string_length) ;
+		fates_prt_organ_name:units = "unitless - string" ;
+		fates_prt_organ_name:long_name = "Plant organ name (order must match PRTGenericMod.F90)" ;
 	float fates_rootprof_beta(fates_variants, fates_pft) ;
 		fates_rootprof_beta:units = "unitless" ;
 		fates_rootprof_beta:long_name = "Rooting beta parameter, for C and N vertical discretization (NOT USED BY DEFAULT)" ;
@@ -170,6 +174,47 @@ variables:
 	float fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr-1" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
+
+	float fates_prt_nitr_stoich_p1(fates_prt_organs,fates_pft) ;
+		fates_prt_nitr_stoich_p1:units = "(gN/gC)" ;
+		fates_prt_nitr_stoich_p1:long_name = "nitrogen stoichiometry, parameter 1" ;
+
+	float fates_prt_nitr_stoich_p2(fates_prt_organs,fates_pft) ;
+		fates_prt_nitr_stoich_p2:units = "(gN/gC)" ;
+		fates_prt_nitr_stoich_p2:long_name = "nitrogen stoichiometry, parameter 2" ;
+
+	float fates_prt_phos_stoich_p1(fates_prt_organs,fates_pft) ;
+		fates_prt_phos_stoich_p1:units = "(gP/gC)" ;
+		fates_prt_phos_stoich_p1:long_name = "phosphorous stoichiometry, parameter 1" ;
+
+	float fates_prt_phos_stoich_p2(fates_prt_organs,fates_pft) ;
+		fates_prt_phos_stoich_p2:units = "(gP/gC)" ;
+		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2" ;
+
+	float fates_prt_alloc_priority(fates_prt_organs,fates_pft) ;
+		fates_prt_alloc_priority:units = "index (0-fates_prt_organs)" ;
+		fates_prt_alloc_priority:long_name = "Priority order for allocation" ;
+
+	float fates_phenflush_fraction(fates_pft) ;
+		fates_phenflush_fraction:units = "fraction" ;
+		fates_phenflush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
+
+	float fates_turnover_retrans_mode(fates_pft) ;
+		fates_turnover_retrans_mode:units = "index" ;
+		fates_turnover_retrans_mode:long_name = "retranslocation method for leaf/fineroot turnover" ;
+
+	float fates_turnover_carb_retrans(fates_prt_organs,fates_pft) ;
+		fates_turnover_carb_retrans:units = "-" ;
+		fates_turnover_carb_retrans:long_name = "retranslocation fraction of carbon in turnover" ;
+
+	float fates_turnover_nitr_retrans(fates_prt_organs,fates_pft) ;
+		fates_turnover_nitr_retrans:units = "-" ;
+		fates_turnover_nitr_retrans:long_name = "retranslocation fraction of nitrogen in turnover" ;
+
+	float fates_turnover_phos_retrans(fates_prt_organs,fates_pft) ;
+		fates_turnover_phos_retrans:units = "-" ;
+		fates_turnover_phos_retrans:long_name = "retranslocation fraction of phosphorous in turnover " ;
+
 	float fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
 		fates_c2b:long_name = "Carbon to biomass multiplier of bulk structural tissues" ;
@@ -197,9 +242,6 @@ variables:
 	float fates_fr_flig(fates_pft) ;
 		fates_fr_flig:units = "fraction" ;
 		fates_fr_flig:long_name = "Fine root litter lignin fraction" ;
-	float fates_froot_cn_ratio(fates_pft) ;
-		fates_froot_cn_ratio:units = "gC/gN" ;
-		fates_froot_cn_ratio:long_name = "Fine root C:N" ;
 	float fates_grperc(fates_pft) ;
 		fates_grperc:units = "unitless" ;
 		fates_grperc:long_name = "Growth respiration factor" ;
@@ -230,9 +272,6 @@ variables:
 	float fates_leaf_clumping_index(fates_pft) ;
 		fates_leaf_clumping_index:units = "fraction (0-1)" ;
 		fates_leaf_clumping_index:long_name = "factor describing how much self-occlusion of leaf scattering elements decreases light interception" ;
-	float fates_leaf_cn_ratio(fates_pft) ;
-		fates_leaf_cn_ratio:units = "gC/gN" ;
-		fates_leaf_cn_ratio:long_name = "Leaf C:N" ;
 	float fates_leaf_diameter(fates_pft) ;
 		fates_leaf_diameter:units = "m" ;
 		fates_leaf_diameter:long_name = "Characteristic leaf dimension" ;
@@ -376,7 +415,7 @@ variables:
 		fates_seed_alloc_mature:long_name = "fraction of available carbon balance allocated to seeds in mature plants (adds to fates_seed_alloc)" ;
 	float fates_seed_dbh_repro_threshold(fates_pft) ;
 		fates_seed_dbh_repro_threshold:units = "cm" ;
-		fates_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool (NOT USED YET)" ;
+		fates_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool" ;
 	float fates_seed_decay_turnover(fates_pft) ;
 		fates_seed_decay_turnover:units = "1/yr" ;
 		fates_seed_decay_turnover:long_name = "turnover time for seeds with respect to germination" ;
@@ -410,9 +449,6 @@ variables:
 	float fates_trim_limit(fates_pft) ;
 		fates_trim_limit:units = "m2/m2" ;
 		fates_trim_limit:long_name = "Arbitrary limit to reductions in leaf area with stress" ;
-	float fates_wood_cn_ratio(fates_pft) ;
-		fates_wood_cn_ratio:units = "gC/gN" ;
-		fates_wood_cn_ratio:long_name = "Wood C:N" ;
 	float fates_wood_density(fates_pft) ;
 		fates_wood_density:units = "g/cm3" ;
 		fates_wood_density:long_name = "mean density of woody tissue in plant" ;
@@ -650,6 +686,14 @@ data:
   "broadleaf_evergreen_tropical_tree                ",
   "broadleaf_evergreen_tropical_tree                " ;
 
+  fates_prt_organ_name =
+  "leaf                                             ",
+  "fine root                                        ",
+  "sapwood                                          ",
+  "storage                                          ",
+  "reproduction                                     ", 
+  "structure                                        ";
+
  fates_rootprof_beta =
   0.976, 0.976,
   _, _ ;
@@ -710,6 +754,76 @@ data:
 
  fates_branch_turnover = 50, 50 ;
 
+ fates_prt_nitr_stoich_p1 = 
+  0.033, 0.033,
+  0.024, 0.024,	
+  0.0047, 0.0047,
+  0.0047, 0.0047,
+  0.0, 0.0, 
+  0.0047, 0.0047;
+
+ fates_prt_nitr_stoich_p2 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_phos_stoich_p1 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_phos_stoich_p2 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_alloc_priority = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_phenflush_fraction = 
+  0.5, 0.5;
+
+ fates_turnover_retrans_mode = 
+  1, 1;
+
+ fates_turnover_carb_retrans = 
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00;
+
+ fates_turnover_nitr_retrans = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_turnover_phos_retrans = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
  fates_c2b = 2, 2 ;
 
  fates_displar = 0.67, 0.67 ;
@@ -727,8 +841,6 @@ data:
  fates_fr_flab = 0.25, 0.25 ;
 
  fates_fr_flig = 0.25, 0.25 ;
-
- fates_froot_cn_ratio = 42, 42 ;
 
  fates_grperc = 0.11, 0.11 ;
 
@@ -749,8 +861,6 @@ data:
  fates_leaf_c3psn = 1, 1 ;
 
  fates_leaf_clumping_index = 0.85, 0.85 ;
-
- fates_leaf_cn_ratio = 30, 30 ;
 
  fates_leaf_diameter = 0.04, 0.04 ;
 
@@ -869,8 +979,6 @@ data:
  fates_trim_inc = 0.03, 0.03 ;
 
  fates_trim_limit = 0.3, 0.3 ;
-
- fates_wood_cn_ratio = 210, 210 ;
 
  fates_wood_density = 0.7, 0.7 ;
 
