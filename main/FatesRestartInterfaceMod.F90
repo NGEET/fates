@@ -79,6 +79,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_canopy_layer_co
   integer, private :: ir_canopy_layer_yesterday_co
   integer, private :: ir_canopy_trim_co
+  integer, private :: ir_size_class_lasttimestep_co
   integer, private :: ir_dbh_co
   integer, private :: ir_height_co
   integer, private :: ir_laimemory_co
@@ -623,6 +624,10 @@ contains
          long_name='ed cohort - canopy_trim', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_trim_co )
 
+    call this%set_restart_var(vname='fates_size_class_lasttimestep', vtype=cohort_int, &
+         long_name='ed cohort - size-class last timestep', units='index', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_size_class_lasttimestep_co )
+
     call this%set_restart_var(vname='fates_dbh', vtype=cohort_r8, &
          long_name='ed cohort - diameter at breast height', units='cm', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbh_co )
@@ -1105,6 +1110,7 @@ contains
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
+           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
            rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
@@ -1239,6 +1245,7 @@ contains
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
+                rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_height_co(io_idx_co)       = ccohort%hite
                 rio_laimemory_co(io_idx_co)    = ccohort%laimemory
@@ -1689,6 +1696,7 @@ contains
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
+          rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
           rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
@@ -1806,6 +1814,7 @@ contains
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
+                ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
                 ccohort%laimemory    = rio_laimemory_co(io_idx_co)
