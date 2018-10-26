@@ -1442,7 +1442,7 @@ contains
     currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
     currentPatch%c_lblayer                  = 0.0_r8
 
-    currentPatch%solar_zenith_flag          = -1
+    currentPatch%solar_zenith_flag          = .false.
     currentPatch%solar_zenith_angle         = nan
 
     currentPatch%gnd_alb_dir(:)             = nan

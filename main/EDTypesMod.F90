@@ -330,7 +330,7 @@ module EDTypesMod
 
      !RADIATION FLUXES      
 
-     integer  ::  solar_zenith_flag                           ! integer flag specifying daylight (based on zenith angle)
+     logical  ::  solar_zenith_flag                           ! integer flag specifying daylight (based on zenith angle)
      real(r8) ::  solar_zenith_angle                          ! solar zenith angle (radians)
 
      real(r8) ::  gnd_alb_dif(maxSWb)                         ! ground albedo for diffuse rad, both bands (fraction)

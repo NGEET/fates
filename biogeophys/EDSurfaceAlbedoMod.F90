@@ -105,11 +105,11 @@ contains
               currentPatch%nrmlzd_parprof_dif_z(:,:,:) = 0._r8
 
               currentPatch%solar_zenith_flag         = bc_in(s)%filter_vegzen_pa(ifp)
-              currentPatch%solar_zenith_angle        = bc_in(s)%coszen_pa(ifp) 
+              currentPatch%solar_zenith_angle        = bc_in(s)%coszen_pa(ifp)
               currentPatch%gnd_alb_dif(1:hlm_numSWb) = bc_in(s)%albgr_dif_rb(1:hlm_numSWb)
               currentPatch%gnd_alb_dir(1:hlm_numSWb) = bc_in(s)%albgr_dir_rb(1:hlm_numSWb)
 
-              if(currentPatch%solar_zenith_flag .eq. itrue )then
+              if(currentPatch%solar_zenith_flag )then
 
                  bc_out(s)%albd_parb(ifp,:)            = 0._r8  ! output HLM
                  bc_out(s)%albi_parb(ifp,:)            = 0._r8  ! output HLM
@@ -127,7 +127,6 @@ contains
                     do ib = 1,hlm_numSWb
 
                        ! Requires a fix here, abld vs albi
-
                        bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                        bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
                        bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
@@ -288,8 +287,6 @@ contains
                  
       ! Is this pft/canopy layer combination present in this patch?
       
-      ! IS THIS NEEDED? SHOULDN'T THIS ALREADY BE CALCULATED??? RGK
-
       do L = 1,nclmax
          do ft = 1,numpft
             currentPatch%canopy_mask(L,ft) = 0
@@ -308,7 +305,7 @@ contains
       !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
       cosz = max(0.001_r8, currentPatch%solar_zenith_angle ) !copied from previous radiation code...
       do ft = 1,numpft
-         sb = (90._r8 - (acos(cosz)*180/pi)) * (pi / 180._r8)
+         sb = (90._r8 - (acos(cosz)*180._r8/pi)) * (pi / 180._r8)
          chil = xl(ft) !min(max(xl(ft), -0.4_r8), 0.6_r8 )
          if ( abs(chil) <= 0.01_r8) then
             chil  = 0.01_r8
@@ -386,7 +383,7 @@ contains
                   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
                   if (L==1)then
                      tr_dir_z(L,ft,1) = 1._r8
-                  else   
+                  else
                      tr_dir_z(L,ft,1)  = weighted_dir_tr(L-1)
                   endif
                   laisum = 0.00_r8                         

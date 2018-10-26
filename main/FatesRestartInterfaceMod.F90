@@ -6,6 +6,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod , only : fates_short_string_length
   use FatesConstantsMod , only : fates_long_string_length
   use FatesConstantsMod , only : itrue
+  use FatesConstantsMod , only : ifalse
   use FatesGlobals      , only : fates_log
   use FatesGlobals      , only : endrun => fates_endrun
   use FatesIODimensionsMod, only : fates_io_dimension_type
@@ -1104,7 +1105,7 @@ contains
            rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
-           rio_solar_zenith_flag_pa         => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
+           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
            rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
@@ -1294,7 +1295,11 @@ contains
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
              
              ! Set zenith angle info
-             rio_solar_zenith_flag_pa( io_idx_co_1st)  = cpatch%solar_zenith_flag
+             if ( cpatch%solar_zenith_flag ) then
+                rio_solar_zenith_flag_pa(io_idx_co_1st)     = itrue
+             else
+                rio_solar_zenith_flag_pa(io_idx_co_1st)     = ifalse
+             endif
              rio_solar_zenith_angle_pa( io_idx_co_1st) = cpatch%solar_zenith_angle
 
              if ( debug ) then
@@ -1682,7 +1687,7 @@ contains
           rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
-          rio_solar_zenith_flag_pa         => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
+          rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
           rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
@@ -1852,7 +1857,9 @@ contains
              cpatch%age                = rio_age_pa(io_idx_co_1st) 
              cpatch%area               = rio_area_pa(io_idx_co_1st)
              cpatch%age_class          = get_age_class_index(cpatch%age)
-             cpatch%solar_zenith_flag  = rio_solar_zenith_flag_pa(io_idx_co_1st)
+
+             ! Set zenith angle info
+             cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
              cpatch%solar_zenith_angle = rio_solar_zenith_angle_pa(io_idx_co_1st)
 
              ! set cohorts per patch for IO
@@ -2008,11 +2015,11 @@ contains
            ! When calling norman radiation from the short-timestep
            ! we are passing in boundary conditions to set the following
            ! variables:
-           ! currentPatch%solar_zenith_flag          (is there daylight?)
+           ! currentPatch%solar_zenith_flag     (is there daylight?)
            ! currentPatch%solar_zenith_angle    (what is the value?)
            ! -----------------------------------------------------------
            
-           if(currentPatch%solar_zenith_flag .eq. itrue)then
+           if(currentPatch%solar_zenith_flag)then
               
               bc_out(s)%albd_parb(ifp,:) = 0._r8  ! output HLM
               bc_out(s)%albi_parb(ifp,:) = 0._r8  ! output HLM
