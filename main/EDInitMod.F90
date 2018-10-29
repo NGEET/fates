@@ -354,7 +354,10 @@ contains
     real(r8) :: b_leaf     ! biomass in leaves [kgC]
     real(r8) :: b_fineroot ! biomass in fine roots [kgC]
     real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
+    real(r8) :: b_dead     ! biomass in structure (dead) [kgC]
+    real(r8) :: b_store    ! biomass in storage [kgC]
     real(r8) :: a_sapwood  ! area in sapwood (dummy) [m2]
+
     integer, parameter :: rstatus = 0
 
     !----------------------------------------------------------------------
@@ -394,9 +397,9 @@ contains
        ! Calculate sapwood biomass
        call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapwood,b_sapwood)
        
-       call bdead_allom( b_agw, b_bgw, b_sapwood, pft, temp_cohort%bdead )
+       call bdead_allom( b_agw, b_bgw, b_sapwood, pft, b_dead )
 
-       call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim,temp_cohort%bstore)
+       call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, b_store)
 
 
        if( EDPftvarcon_inst%evergreen(pft) == 1) then
@@ -426,7 +429,7 @@ contains
        if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-            b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
+            b_leaf, b_fineroot, b_sapwood, b_dead, b_store, & 
             temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
 
 
@@ -435,6 +438,13 @@ contains
        endif
 
     enddo !numpft
+
+    ! Zero the mass flux pools of the new cohorts
+!    temp_cohort => patch_in%tallest
+!    do while(associated(temp_cohort)) 
+!       call temp_cohort%prt%ZeroRates()
+!       temp_cohort => temp_cohort%shorter
+!    end do
 
     call fuse_cohorts(site_in, patch_in,bc_in)
     call sort_cohorts(patch_in)
