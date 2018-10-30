@@ -69,7 +69,20 @@ module EDTypesMod
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
   logical, parameter :: do_ed_phenology = .true.
-  logical, parameter :: init_dense_forest  = .false.
+
+
+  ! This is the community level amount of spread expected in nearly-bare-ground
+  ! and inventory starting modes.
+  ! These are used to initialize only. These values will scale between
+  ! the PFT defined maximum and minimum crown area scaing parameters.
+  !
+  ! A value of 1 indicates that
+  ! plants should have crown areas at maximum spread for their size and PFT.
+  ! A value of 0 means that they have the least amount of spread for their
+  ! size and PFT.
+  
+  real(r8), parameter :: init_spread_near_bare_ground = 1.0_r8
+  real(r8), parameter :: init_spread_inventory        = 0.0_r8
 
 
   ! MODEL PARAMETERS
