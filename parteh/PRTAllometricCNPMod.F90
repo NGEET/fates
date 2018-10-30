@@ -13,9 +13,9 @@ module PRTAllometricCNPMod
   use PRTGenericMod , only  : prt_global_type
   use PRTGenericMod , only  : prt_global
   use PRTGenericMod , only  : prt_vartypes
-  use PRTGenericMod , only  : carbon12_species
-  use PRTGenericMod , only  : nitrogen_species
-  use PRTGenericMod , only  : phosphorous_species
+  use PRTGenericMod , only  : carbon12_element
+  use PRTGenericMod , only  : nitrogen_element
+  use PRTGenericMod , only  : phosphorous_element
 
   use PRTGenericMod , only  : leaf_organ
   use PRTGenericMod , only  : fnrt_organ
@@ -41,6 +41,7 @@ module PRTAllometricCNPMod
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use FatesConstantsMod   , only : r8 => fates_r8
   use FatesConstantsMod   , only : i4 => fates_int
+  use FatesConstantsMod   , only : calloc_abs_error
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
   use EDPftvarcon         , only : EDPftvarcon_inst
@@ -59,7 +60,7 @@ module PRTAllometricCNPMod
   !
   ! -------------------------------------------------------------------------------------
 
-  integer, parameter :: num_organs  = 6     ! Number of organs
+  
 
   integer, parameter :: leaf_c_id   = 1       ! leaf carbon index
   integer, parameter :: fnrt_c_id   = 2       ! fine-root carbon index
@@ -82,13 +83,17 @@ module PRTAllometricCNPMod
   integer, parameter :: repro_p_id  = 17
   integer, parameter :: struct_p_id = 18
  
-  ! These arrays simply point to the carbon, nitrogen and phosphorous pools as groups
-  integer, parameter, dimension(num_organs) :: c_ids = [1,2,3,4,5,6]
-  integer, parameter, dimension(num_organs) :: n_ids = [7,8,9,10,11,12]
-  integer, parameter, dimension(num_organs) :: p_ids = [13,14,15,16,17,18]
+  ! Total number of state variables
+  integer, parameter :: num_vars    = 18
 
-  ! Total number of species/organ mass variables
-  integer, parameter         :: num_vars = 18
+
+  ! This is the ordered list of organs used in this module
+  ! -------------------------------------------------------------------------------------
+
+  integer, parameter                        :: num_organs = 6
+  integer, parameter, dimension(num_organs) :: organ_list = &
+       [leaf_organ, fnrt_organ, sapw_organ, store_organ, repro_organ, struct_organ]
+  
 
   ! -------------------------------------------------------------------------------------
   ! Set up the array used in the integrator, these are PRIVATE
@@ -122,12 +127,12 @@ module PRTAllometricCNPMod
 
   
   integer, public, parameter :: acnp_bc_inout_id_dbh        = 1  ! Plant DBH
-  integer, public, parameter :: acnp_bc_inout_id_netdc      = 2  ! Index for the net daily C input BC
-  integer, public, parameter :: acnp_bc_inout_id_netdn      = 3  ! Index for the net daily N input BC
-  integer, public, parameter :: acnp_bc_inout_id_netdp      = 4  ! Index for the net daily P input BC
-  integer, public, parameter :: acnp_bc_inout_id_rmaint_def = 5  ! Index for any accumulated maintenance
-                                                                  ! respiration deficit
-  integer, public, parameter :: num_bc_inout = 5
+  integer, public, parameter :: acnp_bc_inout_id_rmaint_def = 2  ! Index for any accumulated maintenance
+                                                                 ! respiration deficit
+  integer, public, parameter :: acnp_bc_inout_id_netdc      = 3  ! Index for the net daily C input BC
+  integer, public, parameter :: acnp_bc_inout_id_netdn      = 4  ! Index for the net daily N input BC
+  integer, public, parameter :: acnp_bc_inout_id_netdp      = 5  ! Index for the net daily P input BC
+  integer, public, parameter :: num_bc_inout                = 5
 
   ! -------------------------------------------------------------------------------------
   ! Input only Boundary Indices (These are public)
@@ -136,6 +141,7 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_in_id_pft     = 1     ! Index for the PFT input BC
   integer, public, parameter :: acnp_bc_in_id_ctrim   = 2     ! Index for the canopy trim function
   integer, public, parameter :: acnp_bc_in_id_status  = 3     ! phenology status 2=active, 1=not-active
+ 
   integer, parameter         :: num_bc_in             = 3
 
   ! -------------------------------------------------------------------------------------
@@ -165,8 +171,8 @@ module PRTAllometricCNPMod
      
   contains
      
-     procedure :: DailyPRT     => DailyPRTACNP
-     procedure :: FastPRT      => FastPRTACNP
+     procedure :: DailyPRT     => DailyPRTAllometricCNP
+     procedure :: FastPRT      => FastPRTAllometricCNP
      
   end type cnp_allom_prt_vartypes
 
@@ -212,26 +218,26 @@ contains
 
      ! These mappings help define and classify the different variables in the global sense
 
-     call prt_global_acnp%RegisterVarInGlobal(leaf_c_id,'Leaf Carbon','leaf_c',leaf_organ,carbon12_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(fnrt_c_id,'Fine Root Carbon','fnrt_c',fnrt_organ,carbon12_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(sapw_c_id,'Sapwood Carbon','sapw_c',sapw_organ,carbon12_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(store_c_id,'Storage Carbon','store_c',store_organ,carbon12_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(struct_c_id,'Structural Carbon','struct_c',struct_organ,carbon12_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(repro_c_id,'Reproductive Carbon','repro_c',repro_organ,carbon12_species,icd)
+     call prt_global_acnp%RegisterVarInGlobal(leaf_c_id,'Leaf Carbon','leaf_c',leaf_organ,carbon12_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(fnrt_c_id,'Fine Root Carbon','fnrt_c',fnrt_organ,carbon12_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(sapw_c_id,'Sapwood Carbon','sapw_c',sapw_organ,carbon12_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(store_c_id,'Storage Carbon','store_c',store_organ,carbon12_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(struct_c_id,'Structural Carbon','struct_c',struct_organ,carbon12_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(repro_c_id,'Reproductive Carbon','repro_c',repro_organ,carbon12_element,icd)
      
-     call prt_global_acnp%RegisterVarInGlobal(leaf_n_id,'Leaf Nitrogen','leaf_n',leaf_organ,nitrogen_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(fnrt_n_id,'Fine Root Nitrogen','fnrt_n',fnrt_organ,nitrogen_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(sapw_n_id,'Sapwood Nitrogen','sapw_n',sapw_organ,nitrogen_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(store_n_id,'Storage Nitrogen','store_n',store_organ,nitrogen_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(struct_n_id,'Structural Nitrogen','struct_n',struct_organ,nitrogen_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(repro_n_id,'Reproductive Nitrogen','repro_n',repro_organ,nitrogen_species,icd)
+     call prt_global_acnp%RegisterVarInGlobal(leaf_n_id,'Leaf Nitrogen','leaf_n',leaf_organ,nitrogen_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(fnrt_n_id,'Fine Root Nitrogen','fnrt_n',fnrt_organ,nitrogen_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(sapw_n_id,'Sapwood Nitrogen','sapw_n',sapw_organ,nitrogen_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(store_n_id,'Storage Nitrogen','store_n',store_organ,nitrogen_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(struct_n_id,'Structural Nitrogen','struct_n',struct_organ,nitrogen_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(repro_n_id,'Reproductive Nitrogen','repro_n',repro_organ,nitrogen_element,icd)
 
-     call prt_global_acnp%RegisterVarInGlobal(leaf_p_id,'Leaf Phosphorous','leaf_p',leaf_organ,phosphorous_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(fnrt_p_id,'Fine Root Phosphorous','fnrt_p',fnrt_organ,phosphorous_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(sapw_p_id,'Sapwood Phosphorous','sapw_p',sapw_organ,phosphorous_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(store_p_id,'Storage Phosphorous','store_p',store_organ,phosphorous_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(struct_p_id,'Structural Phosphorous','struct_p',struct_organ,phosphorous_species,icd)
-     call prt_global_acnp%RegisterVarInGlobal(repro_p_id,'Reproductive Phosphorous','repro_p',repro_organ,phosphorous_species,icd)
+     call prt_global_acnp%RegisterVarInGlobal(leaf_p_id,'Leaf Phosphorous','leaf_p',leaf_organ,phosphorous_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(fnrt_p_id,'Fine Root Phosphorous','fnrt_p',fnrt_organ,phosphorous_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(sapw_p_id,'Sapwood Phosphorous','sapw_p',sapw_organ,phosphorous_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(store_p_id,'Storage Phosphorous','store_p',store_organ,phosphorous_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(struct_p_id,'Structural Phosphorous','struct_p',struct_organ,phosphorous_element,icd)
+     call prt_global_acnp%RegisterVarInGlobal(repro_p_id,'Reproductive Phosphorous','repro_p',repro_organ,phosphorous_element,icd)
 
 
      ! Set some of the array sizes for input and output boundary conditions
@@ -250,7 +256,7 @@ contains
   ! =====================================================================================
   
 
-  subroutine DailyPRTACNP(this)
+  subroutine DailyPRTAllometricCNP(this)
 
     class(cnp_allom_prt_vartypes) :: this
 
@@ -350,57 +356,57 @@ contains
     integer  :: istep                    ! current substep index
     real(r8) :: hite_out                 ! dummy height variable
 
-    integer  :: i                        ! Generic loop counter
+    integer  :: i                        ! Generic loop counter (mostly used for organ counting)
+    integer  :: ii                       ! Generic loop counter (mostly used for organ counting)
     integer  :: i_var                    ! Index for generic variable
     integer  :: i_cvar                   ! Index for a carbon variable
     integer  :: i_nvar                   ! Index for a nitrogen variable
     integer  :: i_pvar                   ! Index for a phosphorous variable
     integer  :: i_gorgan                 ! Index for organ using the global (generic)
                                          ! indexing system
-    integer  :: i_lorgan                 ! Index for organ in the local ACNP order
     integer  :: i_priority               ! Index for the current priority level
 
 
-    real(r8), dimension(num_vars)  :: v_val0   ! The value of each state at the beginning
-                                               ! of this routine (not to be confused with
-                                               ! the val0 structure, which is the value
-                                               ! of the state at the beginning of the land-model
-                                               ! period of interest.
+    real(r8), dimension(num_vars)  :: v_val0               ! The value of each state at the beginning
+                                                           ! of this routine (not to be confused with
+                                                           ! the val0 structure, which is the value
+                                                           ! of the state at the beginning of the land-model
+                                                           ! period of interest.
 
-    real(r8), dimension(num_vars)  :: v_target ! Target quantity for each state variable [kg]
-    real(r8), dimension(num_vars)  :: v_demand ! Demand to get to target from current    [kg]
+    real(r8), dimension(num_vars)  :: v_target             ! Target quantity for each state variable [kg]
+    real(r8), dimension(num_vars)  :: v_demand             ! Demand to get to target from current    [kg]
     
 
-    integer  :: num_organs_curpri ! Number of pools at current priority level
+    integer  :: num_organs_curpri                          ! Number of pools at current priority level
 
 
-    real(r8), dimension(num_organs) :: r_g  ! Unit growth respriation for each pool [kg/kg]
-    real(r8), dimension(num_organs) :: growth_resp  ! Total growth respiration for each pool [kg]
-    real(r8) :: total_growth_respiration            ! Total plant respiration (kgC)
+    real(r8), dimension(num_organs) :: r_g                 ! Unit growth respriation for each pool [kg/kg]
+    real(r8), dimension(num_organs) :: growth_resp         ! Total growth respiration for each pool [kg]
+    real(r8) :: total_growth_respiration                   ! Total plant respiration (kgC)
 
-    integer, dimension(num_organs) :: curpri_c_ids  ! C variable ID's of the current priority level
-    integer, dimension(num_organs) :: curpri_n_ids  ! N variable ID's of the current priority level
-    integer, dimension(num_organs) :: curpri_p_ids  ! P variable ID's of the current priority level
+    integer, dimension(num_organs) :: curpri_c_ids         ! C variable ID's of the current priority level
+    integer, dimension(num_organs) :: curpri_n_ids         ! N variable ID's of the current priority level
+    integer, dimension(num_organs) :: curpri_p_ids         ! P variable ID's of the current priority level
 
     ! Integegrator variables
     ! These are not global because we want a unique instance for each time the routine is called
+    ! ----------------------------------------------------------------------------------------
 
-    real(r8),dimension(num_intgr_vars) :: state_array     ! Vector of carbon pools passed to integrator
-    real(r8),dimension(num_intgr_vars) :: state_array_out ! Vector of carbon pools passed back from integrator
-    logical,dimension(num_intgr_vars)  :: state_mask      ! Mask of active pools during integration
+    real(r8),dimension(num_intgr_vars) :: state_array      ! Vector of carbon pools passed to integrator
+    real(r8),dimension(num_intgr_vars) :: state_array_out  ! Vector of carbon pools passed back from integrator
+    logical,dimension(num_intgr_vars)  :: state_mask       ! Mask of active pools during integration
 
     integer, parameter  :: n_max_priority = num_organs + 1 ! Maximum possible number of priority levels is
-                                                               ! the total number organs plus 1, which allows
-                                                               ! each organ to have its own level, and ignore
-                                                               ! the specialized priority 1
+                                                           ! the total number organs plus 1, which allows
+                                                           ! each organ to have its own level, and ignore
+                                                           ! the specialized priority 1
 
-    real(r8), parameter :: cbal_prec = 1.0e-15_r8   ! Desired precision in carbon balance
-    integer , parameter :: max_substeps = 300       ! Maximum allowable iterations
-    real(r8), parameter :: max_trunc_error = 1.0_r8 ! Maximum allowable truncation error
-    integer,  parameter :: ODESolve = 2             ! 1=RKF45,  2=Euler
+    integer , parameter :: max_substeps = 300              ! Maximum allowable iterations
+    real(r8), parameter :: max_trunc_error = 1.0_r8        ! Maximum allowable truncation error
+    integer,  parameter :: ODESolve = 2                    ! 1=RKF45,  2=Euler
 
-    real(r8), parameter :: store_overflow_frac = 0.15  ! The fraction above target allowed in storage
-                                                       ! to accept overflow, or extra carbon at end of allocation
+    real(r8), parameter :: store_overflow_frac = 0.15      ! The fraction above target allowed in storage
+                                                           ! to accept overflow, or extra carbon at end of allocation
 
     ! This is a local array containing the boundary conditions
     ! we need this (for now at least) because the integration layer needs things
@@ -451,7 +457,13 @@ contains
           sapw_p   => this%variables(sapw_p_id)%val(icd), &
           store_p  => this%variables(store_p_id)%val(icd), &
           repro_p  => this%variables(repro_p_id)%val(icd), &
-          struct_p => this%variables(struct_p_id)%val(icd) )
+          struct_p => this%variables(struct_p_id)%val(icd), &
+
+          ! This is the list of organs
+          organ_map => prt_global%organ_map, &
+          
+          ! This is the list of organ x element
+          sp_organ_map => prt_global%sp_organ_map)
 
 
     ! Copy the in/out boundary conditions as pointers
@@ -471,12 +483,12 @@ contains
     phen_status                       = this%bc_in(acnp_bc_in_id_status)%ival
     ipft                              = this%bc_in(acnp_bc_in_id_pft)%ival
 
-    r_g(leaf_organ)                    = EDPftvarcon_inst%prt_unit_gr_resp(ipft,leaf_organ)
-    r_g(fnrt_organ)                    = EDPftvarcon_inst%prt_unit_gr_resp(ipft,fnrt_organ)
-    r_g(sapw_organ)                    = EDPftvarcon_inst%prt_unit_gr_resp(ipft,sapw_organ)
-    r_g(store_organ)                   = EDPftvarcon_inst%prt_unit_gr_resp(ipft,store_organ)
-    r_g(struct_organ)                  = EDPftvarcon_inst%prt_unit_gr_resp(ipft,struct_organ)
-    r_g(repro_organ)                   = EDPftvarcon_inst%prt_unit_gr_resp(ipft,repro_organ)
+    r_g(leaf_organ)                    = EDPftvarcon_inst%prt_grperc_organ(ipft,leaf_organ)
+    r_g(fnrt_organ)                    = EDPftvarcon_inst%prt_grperc_organ(ipft,fnrt_organ)
+    r_g(sapw_organ)                    = EDPftvarcon_inst%prt_grperc_organ(ipft,sapw_organ)
+    r_g(store_organ)                   = EDPftvarcon_inst%prt_grperc_organ(ipft,store_organ)
+    r_g(struct_organ)                  = EDPftvarcon_inst%prt_grperc_organ(ipft,struct_organ)
+    r_g(repro_organ)                   = EDPftvarcon_inst%prt_grperc_organ(ipft,repro_organ)
 
     intgr_params(:)                    = -9.9e32_r8
     intgr_params(acnp_bc_in_id_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
@@ -498,7 +510,7 @@ contains
     v_target(:) = -999.9_r8
     v_demand(:) = -999.9_r8
 
-
+    ! Remember the value of all state variables before we start allocating
     do i_var = 1, num_vars
        v_val0(i_var) = this%variables(i_var)%val(icd)
     end do
@@ -557,16 +569,17 @@ contains
 
     ! Target storage carbon [kgC,kgC/cm]
     call bstore_allom(dbh,ipft,canopy_trim, store_c_target, store_dcdd_target)
-    ! -----------------------------------------------------------------------------------
-    !  
-    ! -----------------------------------------------------------------------------------
+
+
 
     ! -----------------------------------------------------------------------------------
     ! Calculate the allometric deficits for all pools
     ! Note that we are factoring in the growth respiration taxes on the carbon pools
-    !
-    ! We allow storage to go over target to handle over-flow at the end
-    !
+    ! 
+    ! Capping to positive values is necessary, some pools may be above targets
+    ! because of either numerical integration errors, or in the case of storage, 
+    ! we may had been limited in the last growth step by nutrients, and had 
+    ! overflow.
     ! -----------------------------------------------------------------------------------
     
     leaf_c_demand   = max(0.0_r8,(leaf_c_target - leaf_c) * (1.0_r8 + r_g(leaf_organ)))
@@ -577,7 +590,7 @@ contains
 
     ! Make sure that reproductive demand is always zero until stature growth step. We only
     ! allocate a portion during that part of the algorithm
-    repro_c_demand   = 0.0_r8
+    repro_c_demand  = 0.0_r8
 
 
     ! -----------------------------------------------------------------------------------
@@ -594,21 +607,19 @@ contains
     curpri_n_ids(:) = 0    ! "current-priority" nitrogen variable id's
     curpri_p_ids(:) = 0    ! "current-priority" phosphorous variable id's
     
+    
     i = 0
-    do i_lorgan = 1, num_organs
-
-       ! Map this variable to its global pool id, this is necessary
-       ! for communicating with the right parameter
-       i_gorgan = prt_global%state_descriptor(c_ids(i_lorgan))%organ_id
+    do ii = 1, num_organs
        
-       priority_code = int(EDPftvarcon_inst%prt_alloc_priority(ipft,i_gorgan))
+       ! The priority code associated with this organ
+       priority_code = int(EDPftvarcon_inst%prt_alloc_priority(ipft, organ_list(ii)))
        
        ! 1 is the highest priority code possible
        if( priority_code == 1 ) then
           i = i + 1
-          curpri_c_ids(i) = c_ids(i_lorgan)
-          curpri_n_ids(i) = n_ids(i_lorgan)
-          curpri_p_ids(i) = p_ids(i_lorgan)
+          curpri_c_ids(i) = sp_organ_map(organ_list(ii),carbon12_element)
+          curpri_n_ids(i) = sp_organ_map(organ_list(ii),nitrogen_element)
+          curpri_p_ids(i) = sp_organ_map(organ_list(ii),phosphorous_element)
        end if
     end do
     
@@ -749,12 +760,12 @@ contains
           
           
           ! Update the nutrient demands (which are based off of carbon actual..)
-          v_target(i_nvar) = this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,i_gorgan)
+          v_target(i_nvar) = this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,i_gorgan)
           v_demand(i_nvar) = max(0.0_r8, v_target(i_nvar) - this%variables(i_nvar)%val(icd))
           
           
           ! Update the phosphorous demands (which are based off of carbon actual..)
-          v_target(i_pvar) = this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_phos_stoich_p2(ipft,i_gorgan)
+          v_target(i_pvar) = this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_phos_stoich_p1(ipft,i_gorgan)
           v_demand(i_pvar) = max(0.0_r8, v_target(i_pvar) - this%variables(i_pvar)%val(icd))
           
        end do
@@ -852,26 +863,22 @@ contains
        curpri_c_ids(:) = 0    ! "current-priority" carbon variable id's
        curpri_n_ids(:) = 0    ! "current-priority" nitrogen variable id's
        curpri_p_ids(:) = 0    ! "current-priority" phosphorous variable id's
-       
+
        i = 0
-       do i_lorgan = 1, num_organs
+       do ii = 1, num_organs
           
-          ! Map this variable to its global pool id, this is necessary
-          ! for communicating with the right parameter
-          i_gorgan = prt_global%state_descriptor(c_ids(i_lorgan))%organ_id
-          
-          priority_code = int(EDPftvarcon_inst%prt_alloc_priority(ipft,i_gorgan))
+          ! The priority code associated with this organ
+          priority_code = int(EDPftvarcon_inst%prt_alloc_priority(ipft, organ_list(ii)))
           
           ! 1 is the highest priority code possible
           if( priority_code == i_priority ) then
              i = i + 1
-             curpri_c_ids(i) = c_ids(i_lorgan)
-             curpri_n_ids(i) = n_ids(i_lorgan)
-             curpri_p_ids(i) = p_ids(i_lorgan)
+             curpri_c_ids(i) = sp_organ_map(organ_list(ii),carbon12_element)
+             curpri_n_ids(i) = sp_organ_map(organ_list(ii),nitrogen_element)
+             curpri_p_ids(i) = sp_organ_map(organ_list(ii),phosphorous_element)
           end if
        end do
-
-
+       
        ! Bring carbon up to target first, this order is required
        ! because we need to know the resulting carbon concentrations
        ! before  we set the allometric targets for the nutrients
@@ -916,13 +923,13 @@ contains
 
           ! nitrogen demand
           v_target(i_nvar) = this%variables(i_cvar)%val(icd) * &
-               EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,i_gorgan)
+               EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,i_gorgan)
 
           v_demand(i_nvar) = max(0.0_r8,v_target(i_nvar) - this%variables(i_nvar)%val(icd))
           
           ! phosphorous demand
           v_target(i_pvar) = this%variables(i_cvar)%val(icd) * &
-               EDPftvarcon_inst%prt_phos_stoich_p2(ipft,i_gorgan)
+               EDPftvarcon_inst%prt_phos_stoich_p1(ipft,i_gorgan)
           
           v_demand(i_pvar) = max(0.0_r8,v_target(i_pvar) - this%variables(i_pvar)%val(icd))
           
@@ -1022,9 +1029,11 @@ contains
        ! catch up with the other pools in the next stature growth steps.
 
        do i = 1, num_organs
-          i_cvar   = c_ids(i)
+
+          i_cvar = sp_organ_map(organ_list(i),carbon12_element)
+
           if (this%variables(i_cvar)%val(icd) <= (v_target(i_cvar) + nearzero)) then
-             state_mask(i)                 = .true.    ! flag index of state variable
+             state_mask(i)            = .true.    ! flag index of state variable
              state_mask(i+num_organs) = .true.    ! flag index for its growth respiration too
           end if
        end do
@@ -1101,69 +1110,69 @@ contains
        ! --------------------------------------------------------------------------------
        
        grow_c_from_c = carbon_gain * struct_c_frac / (1.0_r8 + r_g(struct_organ))
-       grow_c_from_n = nitrogen_gain * struct_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,struct_organ)
-       grow_c_from_p = phosphorous_gain * struct_c_frac / EDPftvarcon_inst%prt_phos_stoich_p2(ipft,struct_organ)
+       grow_c_from_n = nitrogen_gain * struct_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,struct_organ)
+       grow_c_from_p = phosphorous_gain * struct_c_frac / EDPftvarcon_inst%prt_phos_stoich_p1(ipft,struct_organ)
 
        if (state_mask(intgr_leaf_c_id))  then
           grow_c_from_c = grow_c_from_c + carbon_gain * leaf_c_frac / (1.0_r8 + r_g(leaf_organ))
-          grow_c_from_n = grow_c_from_n + nitrogen_gain * leaf_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,leaf_organ)
-          grow_c_from_p = grow_c_from_p + phosphorous_gain * leaf_c_frac /  EDPftvarcon_inst%prt_phos_stoich_p2(ipft,leaf_organ)
+          grow_c_from_n = grow_c_from_n + nitrogen_gain * leaf_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ)
+          grow_c_from_p = grow_c_from_p + phosphorous_gain * leaf_c_frac /  EDPftvarcon_inst%prt_phos_stoich_p1(ipft,leaf_organ)
 
           ! Nutrient pools may already be above the current minimum target, add that head start onto the equiavelnt
           ! value so the "head-start" quantity is factored in...
           grow_c_from_n = grow_c_from_n + &
                 max(0.0_r8,this%variables(leaf_n_id)%val(icd) - v_target(leaf_n_id)) / &
-                EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,leaf_organ)
+                EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ)
           grow_c_from_p = grow_c_from_p + &
                 max(0.0_r8,this%variables(leaf_p_id)%val(icd) - v_target(leaf_p_id)) / &
-                EDPftvarcon_inst%prt_phos_stoich_p2(ipft,leaf_organ)
+                EDPftvarcon_inst%prt_phos_stoich_p1(ipft,leaf_organ)
 
        end if
        if (state_mask(intgr_fnrt_c_id)) then
           grow_c_from_c = grow_c_from_c + carbon_gain * fnrt_c_frac / (1.0_r8 + r_g(fnrt_organ))
-          grow_c_from_n = grow_c_from_n + nitrogen_gain * fnrt_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,fnrt_organ)
-          grow_c_from_p = grow_c_from_p + phosphorous_gain * fnrt_c_frac / EDPftvarcon_inst%prt_phos_stoich_p2(ipft,fnrt_organ)
+          grow_c_from_n = grow_c_from_n + nitrogen_gain * fnrt_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ)
+          grow_c_from_p = grow_c_from_p + phosphorous_gain * fnrt_c_frac / EDPftvarcon_inst%prt_phos_stoich_p1(ipft,fnrt_organ)
 
           grow_c_from_n = grow_c_from_n + &
                 max(0.0_r8,this%variables(fnrt_n_id)%val(icd) - v_target(fnrt_n_id)) / &
-                EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,fnrt_organ)
+                EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ)
           grow_c_from_p = grow_c_from_p + &
                 max(0.0_r8,this%variables(fnrt_p_id)%val(icd) - v_target(fnrt_p_id)) / &
-                EDPftvarcon_inst%prt_phos_stoich_p2(ipft,fnrt_organ)
+                EDPftvarcon_inst%prt_phos_stoich_p1(ipft,fnrt_organ)
 
        end if
        if (state_mask(intgr_sapw_c_id)) then
           grow_c_from_c = grow_c_from_c + carbon_gain * sapw_c_frac / (1.0_r8 + r_g(sapw_organ))
-          grow_c_from_n = grow_c_from_n + nitrogen_gain * sapw_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,sapw_organ)
-          grow_c_from_p = grow_c_from_p + phosphorous_gain * sapw_c_frac / EDPftvarcon_inst%prt_phos_stoich_p2(ipft,sapw_organ)
+          grow_c_from_n = grow_c_from_n + nitrogen_gain * sapw_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
+          grow_c_from_p = grow_c_from_p + phosphorous_gain * sapw_c_frac / EDPftvarcon_inst%prt_phos_stoich_p1(ipft,sapw_organ)
 
           grow_c_from_n = grow_c_from_n + &
                 max(0.0_r8,this%variables(sapw_n_id)%val(icd) - v_target(sapw_n_id)) / &
-                EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,sapw_organ)
+                EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
           grow_c_from_p = grow_c_from_p + &
                 max(0.0_r8,this%variables(sapw_p_id)%val(icd) - v_target(sapw_p_id)) / &
-                EDPftvarcon_inst%prt_phos_stoich_p2(ipft,sapw_organ)
+                EDPftvarcon_inst%prt_phos_stoich_p1(ipft,sapw_organ)
 
 
        end if
        if (state_mask(intgr_store_c_id)) then
           grow_c_from_c = grow_c_from_c + carbon_gain * store_c_frac / (1.0_r8 + r_g(store_organ))
-          grow_c_from_n = grow_c_from_n + nitrogen_gain * store_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,store_organ)
-          grow_c_from_p = grow_c_from_p + phosphorous_gain * store_c_frac / EDPftvarcon_inst%prt_phos_stoich_p2(ipft,store_organ)
+          grow_c_from_n = grow_c_from_n + nitrogen_gain * store_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,store_organ)
+          grow_c_from_p = grow_c_from_p + phosphorous_gain * store_c_frac / EDPftvarcon_inst%prt_phos_stoich_p1(ipft,store_organ)
 
           grow_c_from_n = grow_c_from_n + &
                 max(0.0_r8,this%variables(store_n_id)%val(icd) - v_target(store_n_id)) / &
-                EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,store_organ)
+                EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,store_organ)
           grow_c_from_p = grow_c_from_p + &
                 max(0.0_r8,this%variables(store_p_id)%val(icd) - v_target(store_p_id)) / &
-                EDPftvarcon_inst%prt_phos_stoich_p2(ipft,store_organ)
+                EDPftvarcon_inst%prt_phos_stoich_p1(ipft,store_organ)
 
 
        end if
        if (state_mask(intgr_repro_c_id)) then
           grow_c_from_c = grow_c_from_c + carbon_gain * repro_c_frac / (1.0_r8 + r_g(repro_organ))
-          grow_c_from_n = grow_c_from_n + nitrogen_gain * repro_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,repro_organ)
-          grow_c_from_p = grow_c_from_p + phosphorous_gain * repro_c_frac / EDPftvarcon_inst%prt_phos_stoich_p2(ipft,repro_organ)
+          grow_c_from_n = grow_c_from_n + nitrogen_gain * repro_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ)
+          grow_c_from_p = grow_c_from_p + phosphorous_gain * repro_c_frac / EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ)
 
           ! The amount of existing reproductive material has no bearing on how much 
           ! is allocated.
@@ -1183,20 +1192,20 @@ contains
        ! Also, if all stoichiometries are all 0.. then set grow_c_from_x to sufficiently
        ! high that it does not limit growth
 
-       if (  (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,leaf_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,fnrt_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,sapw_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,store_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,struct_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,repro_organ) < nearzero ) ) then
+       if (  (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ) < nearzero ) .and. &
+             (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ) < nearzero ) .and. &
+             (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ) < nearzero ) .and. &
+             (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,store_organ) < nearzero ) .and. &
+             (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,struct_organ) < nearzero ) .and. &
+             (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ) < nearzero ) ) then
           grow_c_from_n = 1.0e10_r8
        end if
-       if (  (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,leaf_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,fnrt_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,sapw_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,store_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,struct_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,repro_organ) < nearzero ) ) then
+       if (  (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,leaf_organ) < nearzero ) .and. &
+             (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,fnrt_organ) < nearzero ) .and. &
+             (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,sapw_organ) < nearzero ) .and. &
+             (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,store_organ) < nearzero ) .and. &
+             (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,struct_organ) < nearzero ) .and. &
+             (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ) < nearzero ) ) then
           grow_c_from_p = 1.0e10_r8
        end if
 
@@ -1218,7 +1227,7 @@ contains
           
           ! Transfer carbon variables into the integrator
           do i = 1, num_organs
-             i_cvar   = c_ids(i)
+             i_cvar   = sp_organ_map(organ_list(i),carbon12_element)
              ! Carbon in the actual tissue
              state_array(i) = this%variables(i_cvar)%val(icd)
              ! Respired carbon (should already be zero'd)
@@ -1292,7 +1301,7 @@ contains
                 
                 sum_c_flux = 0.0_r8
                 do i = 1, num_organs
-                   i_cvar   = c_ids(i)
+                   i_cvar = sp_organ_map(organ_list(i),carbon12_element)
                    if(state_mask(i_cvar))then
                       ! Add in the carbon flux
                       sum_c_flux = sum_c_flux + (state_array(i_cvar) - this%variables(i_cvar)%val(icd))
@@ -1307,12 +1316,12 @@ contains
                 sum_p_demand = 0.0_r8
                 
                 do i = 1, num_organs
+
+                   i_cvar   = sp_organ_map(organ_list(i),carbon12_element)
+                   i_nvar   = sp_organ_map(organ_list(i),nitrogen_element)
+                   i_pvar   = sp_organ_map(organ_list(i),phosphorous_element)
                    
-                   i_cvar   = c_ids(i)
-                   i_nvar   = n_ids(i)
-                   i_pvar   = p_ids(i)
-                   
-                   i_gorgan = prt_global%state_descriptor(i_cvar)%organ_id
+                   i_gorgan = organ_list(i)
                    
                    ! Calculate adjusted flux
                    c_flux   = (state_array(i_cvar) - this%variables(i_cvar)%val(icd))*c_flux_adj
@@ -1328,7 +1337,7 @@ contains
                    ! update the nitrogen target and demand for the MINIMUM stoichiometry
                    
                    v_target(i_nvar) = &
-                        this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,i_gorgan)
+                        this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,i_gorgan)
                    
                    v_demand(i_nvar) = &
                         max(0.0_r8,v_target(i_nvar) - this%variables(i_nvar)%val(icd))
@@ -1336,7 +1345,7 @@ contains
                    ! Update the phosphorous target and demand for the MINIMUM stoichiometry
                    
                    v_target(i_pvar) = &
-                        this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_phos_stoich_p2(ipft,i_gorgan)
+                        this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_phos_stoich_p1(ipft,i_gorgan)
                    
                    v_demand(i_pvar) = &
                         max(0.0_r8,v_target(i_pvar) - this%variables(i_pvar)%val(icd))
@@ -1352,9 +1361,11 @@ contains
                 sum_p_flux = min(phosphorous_gain, sum_p_demand)
                 
                 do i = 1, num_organs
-                   i_cvar   = c_ids(i)
-                   i_nvar   = n_ids(i)
-                   i_pvar   = p_ids(i)             
+
+                   i_cvar   = sp_organ_map(organ_list(i),carbon12_element)
+                   i_nvar   = sp_organ_map(organ_list(i),nitrogen_element)
+                   i_pvar   = sp_organ_map(organ_list(i),phosphorous_element)
+                   i_gorgan = organ_list(i)
                    
                    ! Transport nitrogren flux into the pool
                    if(sum_n_demand>nearzero) this%variables(i_nvar)%val(icd) = this%variables(i_nvar)%val(icd) + &
@@ -1402,15 +1413,14 @@ contains
     sum_p_demand = 0.0_r8
     do i = 1, num_organs
        
-       i_cvar   = c_ids(i)
-       i_nvar   = n_ids(i)
-       i_pvar   = p_ids(i)
-       
-       i_gorgan = prt_global%state_descriptor(i_cvar)%organ_id
+       i_cvar   = sp_organ_map(organ_list(i),carbon12_element)
+       i_nvar   = sp_organ_map(organ_list(i),nitrogen_element)
+       i_pvar   = sp_organ_map(organ_list(i),phosphorous_element)
+       i_gorgan = organ_list(i)
        
        ! This is the optimal nitrogen target and demand
        v_target(i_nvar) = this%variables(i_cvar)%val(icd) * &
-            EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,i_gorgan) 
+            EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,i_gorgan) 
        
        v_demand(i_nvar) = max(0.0_r8, v_target(i_nvar) - this%variables(i_nvar)%val(icd))
 
@@ -1419,7 +1429,7 @@ contains
 
        ! This is the optimal phosphorous target and demand
        v_target(i_pvar) = this%variables(i_cvar)%val(icd) * &
-            EDPftvarcon_inst%prt_phos_stoich_p1(ipft,i_gorgan) 
+            EDPftvarcon_inst%prt_phos_stoich_p2(ipft,i_gorgan) 
 
        v_demand(i_pvar) = max(0.0_r8, v_target(i_pvar) - this%variables(i_pvar)%val(icd))
        
@@ -1432,12 +1442,10 @@ contains
 
     do i = 1, num_organs
        
-       i_cvar   = c_ids(i)
-       i_nvar   = n_ids(i)
-       i_pvar   = p_ids(i)
-       
-       i_gorgan = prt_global%state_descriptor(i_cvar)%organ_id
-       
+       i_cvar   = sp_organ_map(organ_list(i),carbon12_element)
+       i_nvar   = sp_organ_map(organ_list(i),nitrogen_element)
+       i_pvar   = sp_organ_map(organ_list(i),phosphorous_element)
+
        if(sum_n_demand>nearzero) then
           n_flux = sum_n_flux * v_demand(i_nvar) / sum_n_demand
        else
@@ -1490,8 +1498,8 @@ contains
 
     ! Sum up growth respiration
     total_growth_respiration = 0.0_r8
-    do i_var = 1, num_organs
-       i_cvar   = c_ids(i_var)
+    do i = 1, num_organs
+       i_cvar   = sp_organ_map(organ_list(i),carbon12_element)
        total_growth_respiration = total_growth_respiration + growth_resp(i_cvar)
     end do
     
@@ -1519,8 +1527,8 @@ contains
     ! Update the diagnostic on daily rate of change
 
     do i_var = 1,num_vars
-       this%variables(i_var)%net_art(icd) = &
-            this%variables(i_var)%net_art(icd) + &
+       this%variables(i_var)%net_alloc(icd) = &
+            this%variables(i_var)%net_alloc(icd) + &
             (this%variables(i_var)%val(icd) - v_val0(i_var))
     end do
 
@@ -1528,11 +1536,11 @@ contains
   end associate
 
   return
-  end subroutine DailyPRTACNP 
+  end subroutine DailyPRTAllometricCNP
   
   ! =====================================================================================
 
-  subroutine FastPRTACNP(this)
+  subroutine FastPRTAllometricCNP(this)
       
     implicit none
     class(cnp_allom_prt_vartypes) :: this     ! this class
@@ -1542,7 +1550,7 @@ contains
     ! Think of this as a stub.
     
     return
-  end subroutine FastPRTACNP
+  end subroutine FastPRTAllometricCNP
 
   ! =====================================================================================
   
@@ -1638,19 +1646,19 @@ contains
            repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%seed_alloc_mature(ipft)
         end if
 
-        total_dcostdd = struct_dcdd_target * (1.0_r8 + EDPftvarcon_inst%prt_unit_gr_resp(ipft,struct_organ))
+        total_dcostdd = struct_dcdd_target * (1.0_r8 + EDPftvarcon_inst%prt_grperc_organ(ipft,struct_organ))
 
         if (mask_leaf) then
-           total_dcostdd = total_dcostdd + leaf_dcdd_target * (1.0_r8 + EDPftvarcon_inst%prt_unit_gr_resp(ipft,leaf_organ))
+           total_dcostdd = total_dcostdd + leaf_dcdd_target * (1.0_r8 + EDPftvarcon_inst%prt_grperc_organ(ipft,leaf_organ))
         end if
         if (mask_fnrt) then
-           total_dcostdd = total_dcostdd + fnrt_dcdd_target * (1.0_r8 + EDPftvarcon_inst%prt_unit_gr_resp(ipft,fnrt_organ))
+           total_dcostdd = total_dcostdd + fnrt_dcdd_target * (1.0_r8 + EDPftvarcon_inst%prt_grperc_organ(ipft,fnrt_organ))
         end if
         if (mask_sapw) then
-           total_dcostdd = total_dcostdd + sapw_dcdd_target * (1.0_r8 + EDPftvarcon_inst%prt_unit_gr_resp(ipft,sapw_organ))
+           total_dcostdd = total_dcostdd + sapw_dcdd_target * (1.0_r8 + EDPftvarcon_inst%prt_grperc_organ(ipft,sapw_organ))
         end if
         if (mask_store) then
-           total_dcostdd = total_dcostdd + store_dcdd_target * (1.0_r8 + EDPftvarcon_inst%prt_unit_gr_resp(ipft,store_organ))
+           total_dcostdd = total_dcostdd + store_dcdd_target * (1.0_r8 + EDPftvarcon_inst%prt_grperc_organ(ipft,store_organ))
         end if
         
         dCdx(:) = 0.0_r8
@@ -1663,37 +1671,36 @@ contains
            
            dCdx(intgr_struct_c_id) = struct_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
            dCdx(intgr_struct_gr_id) = struct_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction) * &
-                EDPftvarcon_inst%prt_unit_gr_resp(ipft,struct_organ)
-          
+                EDPftvarcon_inst%prt_grperc_organ(ipft,struct_organ)
            
            if (mask_leaf) then
               dCdx(intgr_leaf_c_id)  = leaf_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
               dCdx(intgr_leaf_gr_id) = (leaf_dcdd_target/total_dcostdd) *  (1.0_r8 - repro_fraction) * &
-                   EDPftvarcon_inst%prt_unit_gr_resp(ipft,leaf_organ)
+                   EDPftvarcon_inst%prt_grperc_organ(ipft,leaf_organ)
            end if
            
            if (mask_fnrt) then
               dCdx(intgr_fnrt_c_id)  = fnrt_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
               dCdx(intgr_fnrt_gr_id) = (fnrt_dcdd_target/total_dcostdd) * (1.0_r8 - repro_fraction) * &
-                   EDPftvarcon_inst%prt_unit_gr_resp(ipft,fnrt_organ) 
+                   EDPftvarcon_inst%prt_grperc_organ(ipft,fnrt_organ)
            end if
            
            if (mask_sapw) then
               dCdx(intgr_sapw_c_id)  = sapw_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
               dCdx(intgr_sapw_gr_id) = (sapw_dcdd_target/total_dcostdd) * (1.0_r8 - repro_fraction) * &
-                   EDPftvarcon_inst%prt_unit_gr_resp(ipft,sapw_organ) 
+                   EDPftvarcon_inst%prt_grperc_organ(ipft,sapw_organ)
            end if
            
            if (mask_store) then
               dCdx(intgr_store_c_id)  = store_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
               dCdx(intgr_store_gr_id) = (store_dcdd_target/total_dcostdd) * (1.0_r8 - repro_fraction) * &
-                   EDPftvarcon_inst%prt_unit_gr_resp(ipft,store_organ) 
+                   EDPftvarcon_inst%prt_grperc_organ(ipft,store_organ)
            end if
            
            if (mask_repro) then
-              dCdx(intgr_repro_c_id)  = repro_fraction / (1.0_r8 +  EDPftvarcon_inst%prt_unit_gr_resp(ipft,repro_organ) )
-              dCdx(intgr_repro_gr_id) = repro_fraction * EDPftvarcon_inst%prt_unit_gr_resp(ipft,repro_organ) / &
-                   (1.0_r8 +  EDPftvarcon_inst%prt_unit_gr_resp(ipft,repro_organ) )
+              dCdx(intgr_repro_c_id)  = repro_fraction / (1.0_r8 + EDPftvarcon_inst%prt_grperc_organ(ipft,repro_organ) )
+              dCdx(intgr_repro_gr_id) = repro_fraction * EDPftvarcon_inst%prt_grperc_organ(ipft,repro_organ) / &
+                   (1.0_r8 +  EDPftvarcon_inst%prt_grperc_organ(ipft,repro_organ) )
            end if
            
            dCdx(intgr_dbh_id)      = (1.0_r8/total_dcostdd)*(1.0_r8 - repro_fraction)
