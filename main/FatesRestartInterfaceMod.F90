@@ -13,6 +13,9 @@ module FatesRestartInterfaceMod
   use FatesInterfaceMod, only : bc_in_type 
   use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
 
+  use PRTGenericMod,          only : prt_global
+
+
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
 
@@ -72,22 +75,14 @@ module FatesRestartInterfaceMod
   integer, private :: ir_seedrainflux_si
   integer, private :: ir_trunk_product_si
   integer, private :: ir_ncohort_pa
-  integer, private :: ir_bsw_co
-  integer, private :: ir_bdead_co
-  integer, private :: ir_bleaf_co
-  integer, private :: ir_broot_co
-  integer, private :: ir_bstore_co
+
   integer, private :: ir_canopy_layer_co
   integer, private :: ir_canopy_layer_yesterday_co
   integer, private :: ir_canopy_trim_co
+  integer, private :: ir_size_class_lasttimestep_co
   integer, private :: ir_dbh_co
   integer, private :: ir_height_co
   integer, private :: ir_laimemory_co
-  integer, private :: ir_leaf_md_co
-  integer, private :: ir_root_md_co
-  integer, private :: ir_sapwood_md_co
-  integer, private :: ir_dead_md_co
-  integer, private :: ir_store_md_co
   integer, private :: ir_nplant_co
   integer, private :: ir_gpp_acc_co
   integer, private :: ir_npp_acc_co
@@ -95,15 +90,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_gpp_acc_hold_co
   integer, private :: ir_npp_acc_hold_co
   integer, private :: ir_resp_acc_hold_co
-  integer, private :: ir_npp_leaf_co
-  integer, private :: ir_npp_froot_co
-  integer, private :: ir_npp_sw_co
-  integer, private :: ir_npp_dead_co
-  integer, private :: ir_npp_seed_co
-  integer, private :: ir_npp_store_co
 
-  integer, private :: ir_ode_opt_step_co
-  
   integer, private :: ir_bmort_co
   integer, private :: ir_hmort_co
   integer, private :: ir_cmort_co
@@ -117,8 +104,6 @@ module FatesRestartInterfaceMod
 
 
   integer, private :: ir_ddbhdt_co
-  integer, private :: ir_dbdeaddt_co
-  integer, private :: ir_dbstoredt_co
   integer, private :: ir_resp_tstep_co
   integer, private :: ir_pft_co
   integer, private :: ir_status_co
@@ -141,6 +126,9 @@ module FatesRestartInterfaceMod
   integer, private :: ir_fabi_sha_paclftls
   integer, private :: ir_watermem_siwm
 
+  integer, private :: ir_prt_base     ! Base index for all PRT variables
+
+
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter :: fates_restart_num_dimensions = 2   !(cohort,column)
   integer, parameter :: fates_restart_num_dim_kinds = 4    !(cohort-int,cohort-r8,site-int,site-r8)
@@ -148,6 +136,11 @@ module FatesRestartInterfaceMod
   ! integer constants for storing logical data
   integer, parameter :: old_cohort = 0
   integer, parameter :: new_cohort = 1  
+
+  real(r8), parameter :: flushinvalid = -9999.0
+  real(r8), parameter :: flushzero = 0.0
+  real(r8), parameter :: flushone  = 1.0
+  
 
   ! Local debug flag
   logical, parameter :: debug=.false.
@@ -207,6 +200,7 @@ module FatesRestartInterfaceMod
      procedure, private :: flush_rvars
      procedure, private :: define_restart_vars
      procedure, private :: set_restart_var
+     procedure, private :: DefinePRTRestartVars
 
   end type fates_restart_interface_type
 
@@ -486,10 +480,7 @@ contains
     class(fates_restart_interface_type), intent(inout) :: this
     logical, intent(in) :: initialize_variables  ! are we 'count'ing or 'initializ'ing?
     integer :: ivar
-    real(r8), parameter :: flushinvalid = -9999.0
-    real(r8), parameter :: flushzero = 0.0
-    real(r8), parameter :: flushone  = 1.0
-
+    
     
     ivar=0
 
@@ -621,27 +612,6 @@ contains
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
 
-    call this%set_restart_var(vname='fates_bsw', vtype=cohort_r8, &
-         long_name='ed cohort sapwood biomass', units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bsw_co )
-
-    call this%set_restart_var(vname='fates_bdead', vtype=cohort_r8, &
-         long_name='ed cohort - dead (structural) biomass in living plants', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bdead_co )
-
-    call this%set_restart_var(vname='fates_bl', vtype=cohort_r8, &
-         long_name='ed cohort - leaf biomass', units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bleaf_co )
-
-    call this%set_restart_var(vname='fates_br', vtype=cohort_r8, &
-         long_name='ed cohort - fine root biomass', units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_broot_co )
-
-    call this%set_restart_var(vname='fates_bstore', vtype=cohort_r8, &
-         long_name='ed cohort - storage biomass', units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bstore_co )
-
     call this%set_restart_var(vname='fates_canopy_layer', vtype=cohort_r8, &
          long_name='ed cohort - canopy_layer', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_co )
@@ -653,6 +623,10 @@ contains
     call this%set_restart_var(vname='fates_canopy_trim', vtype=cohort_r8, &
          long_name='ed cohort - canopy_trim', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_trim_co )
+
+    call this%set_restart_var(vname='fates_size_class_lasttimestep', vtype=cohort_int, &
+         long_name='ed cohort - size-class last timestep', units='index', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_size_class_lasttimestep_co )
 
     call this%set_restart_var(vname='fates_dbh', vtype=cohort_r8, &
          long_name='ed cohort - diameter at breast height', units='cm', flushval = flushzero, &
@@ -666,31 +640,6 @@ contains
          long_name='ed cohort - target leaf biomass set from prev year', &
          units='kgC/indiv', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_laimemory_co )
-
-    call this%set_restart_var(vname='fates_leaf_maint_dmnd', vtype=cohort_r8, &
-         long_name='ed cohort - leaf maintenance demand', &
-         units='kgC/indiv/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_md_co )
-
-    call this%set_restart_var(vname='fates_root_maint_dmnd', vtype=cohort_r8, &
-         long_name='ed cohort - fine root maintenance demand', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_md_co )
-
-    call this%set_restart_var(vname='fates_store_maint_dmnd', vtype=cohort_r8, &
-         long_name='ed cohort - storage maintenance demand', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_store_md_co )
-
-    call this%set_restart_var(vname='fates_sapwood_maint_dmnd', vtype=cohort_r8, &
-         long_name='ed cohort - sapwood maintenance demand', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_sapwood_md_co )
-
-    call this%set_restart_var(vname='fates_dead_maint_dmnd', vtype=cohort_r8, &
-         long_name='ed cohort - structure maintenance demand', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dead_md_co )
 
     call this%set_restart_var(vname='fates_nplant', vtype=cohort_r8, &
          long_name='ed cohort - number of plants in the cohort', &
@@ -726,41 +675,6 @@ contains
          long_name='ed cohort - current step resp', &
          units='kgC/indiv/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_hold_co )
-
-    call this%set_restart_var(vname='fates_npp_leaf', vtype=cohort_r8, &
-         long_name='ed cohort - npp sent to leaves', &
-         units='kgC/indiv/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_leaf_co )
-
-    call this%set_restart_var(vname='fates_npp_froot', vtype=cohort_r8, &
-         long_name='ed cohort - npp sent to fine roots', &
-         units='kgC/indiv/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_froot_co )
-
-    call this%set_restart_var(vname='fates_npp_sapwood', vtype=cohort_r8, &
-         long_name='ed cohort - npp sent to sapwood', &
-         units='kgC/indiv/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_sw_co )
-
-    call this%set_restart_var(vname='fates_npp_bdead', vtype=cohort_r8, &
-         long_name='ed cohort - npp sent to dead (structure) biomass in live plants', &
-         units='kgC/indiv/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_dead_co )
-
-    call this%set_restart_var(vname='fates_npp_seed', vtype=cohort_r8, &
-         long_name='ed cohort - npp sent to seed biomass', &
-         units='kgC/indiv/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_seed_co )
-
-    call this%set_restart_var(vname='fates_npp_store', vtype=cohort_r8, &
-         long_name='ed cohort - npp sent to storage biomass', &
-         units='kgC/indiv/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_store_co )
-
-    call this%set_restart_var(vname='fates_ode_opt_step', vtype=cohort_r8, &
-         long_name='ed cohort - current ode integrator step size', &
-         units='-', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ode_opt_step_co)
 
     call this%set_restart_var(vname='fates_bmort', vtype=cohort_r8, &
          long_name='ed cohort - background mortality rate', &
@@ -802,21 +716,10 @@ contains
          units='%/event', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_lmort_infra_co ) 
 
-
     call this%set_restart_var(vname='fates_ddbhdt', vtype=cohort_r8, &
          long_name='ed cohort - differential: ddbh/dt', &
          units='cm/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ddbhdt_co )
-
-    call this%set_restart_var(vname='fates_dbdeaddt', vtype=cohort_r8, &
-         long_name='ed cohort - differential: ddbh/dt', &
-         units='cm/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbdeaddt_co )
-
-    call this%set_restart_var(vname='fates_dbstoredt', vtype=cohort_r8, &
-         long_name='ed cohort - differential: ddbh/dt', &
-         units='cm/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbstoredt_co )
 
     call this%set_restart_var(vname='fates_resp_tstep', vtype=cohort_r8, &
          long_name='ed cohort - autotrophic respiration over timestep', &
@@ -927,13 +830,149 @@ contains
          long_name='last 10 days of volumetric soil water, by site x day-index', &
          units='m3/m3', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_watermem_siwm )
-         
+
+
+    ! Register all of the PRT states and fluxes
+
+    ir_prt_base = ivar
+    call this%DefinePRTRestartVars(initialize_variables,ivar)
+       
+ 
     
     ! Must be last thing before return
     this%num_restart_vars_ = ivar
     
-  end subroutine define_restart_vars
-    
+ end subroutine define_restart_vars
+  
+  ! =====================================================================================
+  
+  subroutine DefinePRTRestartVars(this,initialize_variables,ivar)
+
+    ! ----------------------------------------------------------------------------------
+    ! PARTEH variables are objects.  These objects 
+    ! each are registered to have things like names units and symbols
+    ! as part of that object.  Thus, when defining, reading and writing restarts,
+    ! instead of manually typing out each variable we want, we just loop through
+    ! our list of ojbects.
+    !
+    ! We do have to loop through the different parts of the objects indepenently.
+    ! For instance we can't have one loop that covers the states "val", and
+    ! the net allocation and reactive transport flux "net_alloc", so we have to loop
+    ! these each separately. As other fluxes are added in the future, they need
+    ! their own definition.
+    !
+    ! Some of the code below is about parsing the strings of these objects
+    ! and automatically building the names of the PARTEH output variables
+    ! as we go.
+    !
+    ! Note that parteh variables may or may not be scalars. Each variable's
+    ! position gets its own variable in the restart file.  So the variable
+    ! name will also parse the string for that position.
+    ! -----------------------------------------------------------------------------------
+
+
+     use FatesIOVariableKindMod, only : cohort_r8
+
+     class(fates_restart_interface_type) :: this
+     logical, intent(in)                 :: initialize_variables
+     integer,intent(inout)               :: ivar      ! global variable counter
+      
+     integer                             :: dummy_out ! dummy index for variable
+                                                      ! position in global file
+     integer                             :: i_var     ! loop counter for prt variables
+     integer                             :: i_pos     ! loop counter for discrete position
+
+     character(len=32)  :: symbol_base    ! Symbol name without position or flux type
+     character(len=128) :: name_base      ! name without position or flux type
+     character(len=4)   :: pos_symbol
+     character(len=128) :: symbol
+     character(len=256) :: long_name
+
+     do i_var = 1, prt_global%num_vars
+
+        ! The base symbol name
+        symbol_base = prt_global%state_descriptor(i_var)%symbol
+        
+        ! The long name of the variable
+        name_base = prt_global%state_descriptor(i_var)%longname
+
+        do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
+           
+           ! String describing the physical position of the variable
+           write(pos_symbol, '(I3.3)') i_pos
+
+           ! Register the instantaneous state variable "val"
+           ! ----------------------------------------------------------------------------
+
+           ! The symbol that is written to file
+           symbol    = trim(symbol_base)//'_val_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name = trim(name_base)//', state var, position:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=trim(symbol), &
+                  vtype=cohort_r8, &
+                  long_name=trim(long_name), &
+                  units='kg', flushval = flushzero, &
+                  hlms='CLM:ALM', initialize=initialize_variables, &
+                  ivar=ivar, index = dummy_out ) 
+
+           ! Register the turnover flux variables
+           ! ----------------------------------------------------------------------------
+
+           ! The symbol that is written to file
+           symbol = trim(symbol_base)//'_turn_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name     = trim(name_base)//', turnover, position:'//trim(pos_symbol)
+           
+           call this%set_restart_var(vname=trim(symbol), &
+                 vtype=cohort_r8, &
+                 long_name=trim(long_name), &
+                 units='kg', flushval = flushzero, &
+                 hlms='CLM:ALM', initialize=initialize_variables, &
+                 ivar=ivar, index = dummy_out ) 
+            
+
+
+           ! Register the net allocation flux variable
+           ! ----------------------------------------------------------------------------
+           
+           ! The symbol that is written to file
+           symbol = trim(symbol_base)//'_net_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name     = trim(name_base)//', net allocation/transp, position:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=trim(symbol), &
+                  vtype=cohort_r8, &
+                  long_name=trim(long_name), &
+                  units='kg', flushval = flushzero, &
+                  hlms='CLM:ALM', initialize=initialize_variables, &
+                  ivar=ivar, index = dummy_out ) 
+           
+
+
+           ! Register the burn flux variable
+           ! ----------------------------------------------------------------------------
+           ! The symbol that is written to file
+           symbol    = trim(symbol_base)//'_burned_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name = trim(name_base)//', burned mass:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=symbol, &
+                 vtype=cohort_r8, &
+                 long_name=trim(long_name), &
+                 units='kg', flushval = flushzero, &
+                 hlms='CLM:ALM', initialize=initialize_variables, &
+                 ivar=ivar, index = dummy_out ) 
+
+        end do
+     end do
+      
+     return
+  end subroutine DefinePRTRestartVars
 
   ! =====================================================================================
    
@@ -1034,7 +1073,10 @@ contains
 
     integer  :: ft               ! functional type index
     integer  :: k,j,i            ! indices to the radiation matrix
-    
+    integer  :: ir_prt_var       ! loop counter for var x position
+    integer  :: i_var            ! loop counter for PRT variables
+    integer  :: i_pos            ! loop counter for discrete PRT positions
+
     type(fates_restart_variable_type) :: rvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -1065,22 +1107,13 @@ contains
            rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
-           rio_bsw_co                  => this%rvars(ir_bsw_co)%r81d, &
-           rio_bdead_co                => this%rvars(ir_bdead_co)%r81d, &
-           rio_bleaf_co                => this%rvars(ir_bleaf_co)%r81d, &
-           rio_broot_co                => this%rvars(ir_broot_co)%r81d, &
-           rio_bstore_co               => this%rvars(ir_bstore_co)%r81d, &
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
+           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
            rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
-           rio_leaf_md_co              => this%rvars(ir_leaf_md_co)%r81d, &
-           rio_root_md_co              => this%rvars(ir_root_md_co)%r81d, &
-           rio_store_md_co             => this%rvars(ir_store_md_co)%r81d, &
-           rio_sapwood_md_co           => this%rvars(ir_sapwood_md_co)%r81d, &
-           rio_dead_md_co              => this%rvars(ir_dead_md_co)%r81d, &
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
            rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
@@ -1088,14 +1121,6 @@ contains
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
            rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
            rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
-           rio_npp_leaf_co             => this%rvars(ir_npp_leaf_co)%r81d, &
-           rio_npp_froot_co            => this%rvars(ir_npp_froot_co)%r81d, &
-           rio_npp_sw_co               => this%rvars(ir_npp_sw_co)%r81d, &
-           rio_npp_dead_co             => this%rvars(ir_npp_dead_co)%r81d, &
-           rio_npp_seed_co             => this%rvars(ir_npp_seed_co)%r81d, &
-           rio_npp_store_co            => this%rvars(ir_npp_store_co)%r81d, &
-
-           rio_ode_opt_step_co         => this%rvars(ir_ode_opt_step_co)%r81d, &
 
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
@@ -1106,8 +1131,6 @@ contains
            rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
            rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
            rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
-           rio_dbdeaddt_co             => this%rvars(ir_dbdeaddt_co)%r81d, &
-           rio_dbstoredt_co            => this%rvars(ir_dbstoredt_co)%r81d, &
            rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
@@ -1188,23 +1211,45 @@ contains
                    write(fates_log(),*) 'CLTV lowerbound ', lbound(rio_npp_acc_co,1) 
                    write(fates_log(),*) 'CLTV upperbound  ', ubound(rio_npp_acc_co,1)
                 endif
-             
-                rio_bsw_co(io_idx_co)          = ccohort%bsw
-                rio_bdead_co(io_idx_co)        = ccohort%bdead
-                rio_bleaf_co(io_idx_co)        = ccohort%bl
-                rio_broot_co(io_idx_co)        = ccohort%br
-                rio_bstore_co(io_idx_co)       = ccohort%bstore
+
+
+                ! Fill output arrays of PRT variables
+                ! We just loop through the objects, and reference our members relative
+                ! the base index of the PRT variables
+                ! -----------------------------------------------------------------------
+
+                ir_prt_var = ir_prt_base
+                do i_var = 1, prt_global%num_vars
+                   do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
+                      
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%val(i_pos)
+
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%turnover(i_pos)
+                      
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%net_alloc(i_pos)
+
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%burned(i_pos)
+                      
+                   end do
+                end do
+
+
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
+                rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_height_co(io_idx_co)       = ccohort%hite
                 rio_laimemory_co(io_idx_co)    = ccohort%laimemory
-                rio_leaf_md_co(io_idx_co)      = ccohort%leaf_md
-                rio_root_md_co(io_idx_co)      = ccohort%root_md
-                rio_store_md_co(io_idx_co)     = ccohort%bstore_md
-                rio_sapwood_md_co(io_idx_co)   = ccohort%bsw_md
-                rio_dead_md_co(io_idx_co)      = ccohort%bdead_md
+
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
                 rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
@@ -1212,13 +1257,7 @@ contains
                 rio_gpp_acc_hold_co(io_idx_co) = ccohort%gpp_acc_hold
                 rio_resp_acc_hold_co(io_idx_co) = ccohort%resp_acc_hold
                 rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
-                rio_npp_leaf_co(io_idx_co)     = ccohort%npp_leaf
-                rio_npp_froot_co(io_idx_co)    = ccohort%npp_fnrt
-                rio_npp_sw_co(io_idx_co)       = ccohort%npp_sapw
-                rio_npp_dead_co(io_idx_co)     = ccohort%npp_dead
-                rio_npp_seed_co(io_idx_co)     = ccohort%npp_seed
-                rio_npp_store_co(io_idx_co)    = ccohort%npp_stor 
-                rio_ode_opt_step_co(io_idx_co) = ccohort%ode_opt_step
+
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
                 rio_hmort_co(io_idx_co)        = ccohort%hmort
                 rio_cmort_co(io_idx_co)        = ccohort%cmort
@@ -1231,8 +1270,6 @@ contains
                 rio_lmort_infra_co(io_idx_co)        = ccohort%lmort_infra
 
                 rio_ddbhdt_co(io_idx_co)       = ccohort%ddbhdt
-                rio_dbdeaddt_co(io_idx_co)     = ccohort%dbdeaddt
-                rio_dbstoredt_co(io_idx_co)    = ccohort%dbstoredt
                 rio_resp_tstep_co(io_idx_co)   = ccohort%resp_tstep
                 rio_pft_co(io_idx_co)          = ccohort%pft
                 rio_status_co(io_idx_co)       = ccohort%status_coh
@@ -1421,6 +1458,8 @@ contains
      integer                           :: idx_pa        ! local patch index
      integer                           :: io_idx_si     ! global site index in IO vector
      integer                           :: io_idx_co_1st ! global cohort index in IO vector
+     real(r8)                          :: b_dead        ! dummy structural biomass (kgC)
+     real(r8)                          :: b_store       ! dummy storage carbon (kgC)
      real(r8)                          :: b_leaf        ! leaf biomass dummy var (kgC)
      real(r8)                          :: b_fineroot    ! fineroot dummy var (kgC)
      real(r8)                          :: b_sapwood     ! sapwood dummy var (kgC)
@@ -1495,8 +1534,7 @@ contains
                 allocate(temp_cohort)
                 
                 temp_cohort%n = 700.0_r8
-                temp_cohort%bdead = 0.0_r8
-                temp_cohort%bstore = 0.0_r8
+                
                 temp_cohort%laimemory = 0.0_r8
                 temp_cohort%canopy_trim = 1.0_r8
                 temp_cohort%canopy_layer = 1.0_r8
@@ -1514,14 +1552,16 @@ contains
                    write(fates_log(),*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
                 end if
 
+                b_dead     = 0.0_r8
+                b_store    = 0.0_r8
                 b_leaf     = 0.0_r8
                 b_fineroot = 0.0_r8
                 b_sapwood  = 0.0_r8
                 site_spread = 0.5_r8
                 call create_cohort(sites(s),newp, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-                     b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
-                     temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, newp%NCL_p, &
-                     site_spread, bc_in(s))
+                      b_leaf, b_fineroot, b_sapwood, b_dead, b_store,  &
+                      temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, newp%NCL_p, &
+                      site_spread, bc_in(s))
                 
                 deallocate(temp_cohort)
                 
@@ -1623,7 +1663,9 @@ contains
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
      integer  :: patchespersite   ! number of patches per site
      integer  :: cohortsperpatch  ! number of cohorts per patch 
-     
+     integer  :: ir_prt_var       ! loop counter for var x position
+     integer  :: i_var            ! loop counter for PRT variables
+     integer  :: i_pos            ! loop counter for discrete PRT positions
 
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
@@ -1651,22 +1693,13 @@ contains
           rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
-          rio_bsw_co                  => this%rvars(ir_bsw_co)%r81d, &
-          rio_bdead_co                => this%rvars(ir_bdead_co)%r81d, &
-          rio_bleaf_co                => this%rvars(ir_bleaf_co)%r81d, &
-          rio_broot_co                => this%rvars(ir_broot_co)%r81d, &
-          rio_bstore_co               => this%rvars(ir_bstore_co)%r81d, &
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
+          rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
           rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
-          rio_leaf_md_co              => this%rvars(ir_leaf_md_co)%r81d, &
-          rio_root_md_co              => this%rvars(ir_root_md_co)%r81d, &
-          rio_sapwood_md_co           => this%rvars(ir_sapwood_md_co)%r81d, &
-          rio_store_md_co             => this%rvars(ir_store_md_co)%r81d, &
-          rio_dead_md_co              => this%rvars(ir_dead_md_co)%r81d, &
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
@@ -1674,15 +1707,7 @@ contains
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
           rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
           rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
-          rio_npp_leaf_co             => this%rvars(ir_npp_leaf_co)%r81d, &
-          rio_npp_froot_co            => this%rvars(ir_npp_froot_co)%r81d, &
-          rio_npp_sw_co               => this%rvars(ir_npp_sw_co)%r81d, &
-          rio_npp_dead_co             => this%rvars(ir_npp_dead_co)%r81d, &
-          rio_npp_seed_co             => this%rvars(ir_npp_seed_co)%r81d, &
-          rio_npp_store_co            => this%rvars(ir_npp_store_co)%r81d, & 
 
-          rio_ode_opt_step_co         => this%rvars(ir_ode_opt_step_co)%r81d, & 
-       
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
@@ -1694,8 +1719,6 @@ contains
           rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
 
           rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
-          rio_dbdeaddt_co             => this%rvars(ir_dbdeaddt_co)%r81d, &
-          rio_dbstoredt_co            => this%rvars(ir_dbstoredt_co)%r81d, &
           rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
@@ -1761,22 +1784,40 @@ contains
                    write(fates_log(),*) 'CVTL io_idx_co ',io_idx_co
                 endif
 
-                ccohort%bsw          = rio_bsw_co(io_idx_co)
-                ccohort%bdead        = rio_bdead_co(io_idx_co)
-                ccohort%bl           = rio_bleaf_co(io_idx_co)
-                ccohort%br           = rio_broot_co(io_idx_co)
-                ccohort%bstore       = rio_bstore_co(io_idx_co)
+                ! Fill PRT state variables with array data
+                ! We just loop through the objects, and reference our members relative
+                ! the base index of the PRT variables
+                ! -----------------------------------------------------------------------
+
+                ir_prt_var = ir_prt_base
+                do i_var = 1, prt_global%num_vars
+                   do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
+
+                      ir_prt_var = ir_prt_var + 1
+                      ccohort%prt%variables(i_var)%val(i_pos) = &
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)
+
+                      ir_prt_var = ir_prt_var + 1
+                      ccohort%prt%variables(i_var)%turnover(i_pos) = &
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)
+
+                      ir_prt_var = ir_prt_var + 1
+                      ccohort%prt%variables(i_var)%net_alloc(i_pos) = &
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)
+
+                      ir_prt_var = ir_prt_var + 1
+                      ccohort%prt%variables(i_var)%burned(i_pos) = &
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)                      
+                   end do
+                end do
+                
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
+                ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
                 ccohort%laimemory    = rio_laimemory_co(io_idx_co)
-                ccohort%leaf_md      = rio_leaf_md_co(io_idx_co)
-                ccohort%root_md      = rio_root_md_co(io_idx_co)
-                ccohort%bstore_md    = rio_store_md_co(io_idx_co)
-                ccohort%bsw_md       = rio_sapwood_md_co(io_idx_co)
-                ccohort%bdead_md     = rio_dead_md_co(io_idx_co)
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
@@ -1784,13 +1825,7 @@ contains
                 ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
                 ccohort%resp_acc_hold = rio_resp_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
-                ccohort%npp_leaf     = rio_npp_leaf_co(io_idx_co)
-                ccohort%npp_fnrt     = rio_npp_froot_co(io_idx_co)
-                ccohort%npp_sapw     = rio_npp_sw_co(io_idx_co)
-                ccohort%npp_dead     = rio_npp_dead_co(io_idx_co)
-                ccohort%npp_seed     = rio_npp_seed_co(io_idx_co)
-                ccohort%npp_stor     = rio_npp_store_co(io_idx_co)
-                ccohort%ode_opt_step = rio_ode_opt_step_co(io_idx_co)
+
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
@@ -1803,8 +1838,6 @@ contains
                 ccohort%lmort_infra        = rio_lmort_infra_co(io_idx_co)
 
                 ccohort%ddbhdt       = rio_ddbhdt_co(io_idx_co)
-                ccohort%dbdeaddt     = rio_dbdeaddt_co(io_idx_co)
-                ccohort%dbstoredt    = rio_dbstoredt_co(io_idx_co)
                 ccohort%resp_tstep   = rio_resp_tstep_co(io_idx_co)
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)

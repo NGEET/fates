@@ -28,6 +28,17 @@
   use EDtypesMod            , only : NFSC
   use EDtypesMod            , only : TR_SF
 
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : all_carbon_elements
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : fnrt_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : store_organ
+  use PRTGenericMod,          only : repro_organ
+  use PRTGenericMod,          only : struct_organ
+  use PRTGenericMod,          only : SetState
+
+
   implicit none
   private
 
@@ -167,7 +178,11 @@ contains
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 0)then 
-             currentPatch%livegrass = currentPatch%livegrass + currentCohort%bl*currentCohort%n/currentPatch%area
+             
+             currentPatch%livegrass = currentPatch%livegrass + &
+                  currentCohort%prt%GetState(leaf_organ, all_carbon_elements) * &
+                  currentCohort%n/currentPatch%area
+
           endif
           currentCohort => currentCohort%shorter
        enddo
@@ -230,7 +245,7 @@ contains
           endif
           ! FIX(RF,032414): needs refactoring. 
           ! average water content !is this the correct metric?         
-          timeav_swc                  = sum(currentSite%water_memory(1:numWaterMem)) / dble(numWaterMem)
+          timeav_swc                  = sum(currentSite%water_memory(1:numWaterMem)) / real(numWaterMem,r8)
           ! Equation B2 in Thonicke et al. 2010
           ! live grass moisture content depends on upper soil layer
           fuel_moisture(lg_sf)        = max(0.0_r8, 10.0_r8/9._r8 * timeav_swc - 1.0_r8/9.0_r8)           
@@ -754,7 +769,8 @@ contains
              ! THIS SHOULD HAVE THE COLUMN AND LU AREA WEIGHT ALSO, NO?
 
              gridarea = km2_to_m2     ! 1M m2 in a km2
-             !NF = number of lighting strikes per day per km2
+             
+             ! NF = number of lighting strikes per day per km2
              currentPatch%NF = ED_val_nignitions * currentPatch%area/area /365 
 
              ! If there are 15  lightening strickes per year, per km2. (approx from NASA product) 
@@ -769,9 +785,10 @@ contains
              size_of_fire = ((3.1416_r8/(4.0_r8*lb))*((df+db)**2.0_r8))
 
              !AB = daily area burnt = size fires in m2 * num ignitions * prob ignition starts fire
+             ! m2 per km2 per day
              currentPatch%AB = size_of_fire * currentPatch%NF * currentSite%FDI
              
-             patch_area_in_m2 = gridarea*currentPatch%area/area
+             patch_area_in_m2 = gridarea *currentPatch%area/area
              
              currentPatch%frac_burnt = currentPatch%AB / patch_area_in_m2
              if(write_SF == itrue)then
@@ -810,8 +827,12 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
-    real f_ag_bmass      !fraction of a tree cohort's above-ground biomass as a proportion of total patch ag tree biomass.
-    real tree_ag_biomass !total amount of above-ground tree biomass in patch. kgC/m2
+    real(r8) ::  f_ag_bmass      !fraction of a tree cohort's above-ground biomass as a proportion of total patch ag tree biomass.
+    real(r8) ::  tree_ag_biomass !total amount of above-ground tree biomass in patch. kgC/m2
+    real(r8) ::  leaf_c     ! leaf carbon      [kg]
+    real(r8) ::  sapw_c     ! sapwood carbon   [kg]
+    real(r8) ::  struct_c   ! structure carbon [kg]
+
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch)) 
@@ -822,8 +843,14 @@ contains
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
-                tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)* &
-                     (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
+
+                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+
+                tree_ag_biomass = tree_ag_biomass + &
+                      currentCohort%n * (leaf_c + & 
+                      EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
              endif !trees only
 
              currentCohort=>currentCohort%shorter;
@@ -838,8 +865,15 @@ contains
           do while(associated(currentCohort))
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1 &
                   .and. (tree_ag_biomass > 0.0_r8)) then !trees only
-                f_ag_bmass = ((currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(currentCohort%bsw + &
-                     currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
+
+                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+                
+                f_ag_bmass = currentCohort%n * (leaf_c + &
+                             EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c)) &
+                             / tree_ag_biomass
+
                 !equation 16 in Thonicke et al. 2010
                 if(write_SF == itrue)then
                    if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass

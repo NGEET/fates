@@ -71,6 +71,10 @@ module FatesPlantHydraulicsMod
    use FatesHydraulicsMemMod, only: InitHydraulicsDerived
    use FatesHydraulicsMemMod, only: nlevsoi_hyd_max
 
+   use PRTGenericMod,          only : all_carbon_elements
+   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
+   use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
+   
    use clm_time_manager  , only : get_step_size, get_nstep
 
    use FatesConstantsMod,     only: cm2_per_m2
@@ -312,6 +316,10 @@ contains
     real(r8) :: kmax_tot                     ! total tree (leaf to root tip) hydraulic conductance                   [kg s-1 MPa-1]
     real(r8) :: dz_node1_nodekplus1          ! cumulative distance between canopy node and node k + 1                [m]
     real(r8) :: dz_node1_lowerk              ! cumulative distance between canopy node and upper boundary of node k  [m]
+    real(r8) :: leaf_c
+    real(r8) :: fnrt_c
+    real(r8) :: sapw_c
+    real(r8) :: struct_c
     integer  :: nlevsoi_hyd                  ! Number of soil hydraulic layers
     integer  :: nlevsoil                     ! Number of total soil layers
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
@@ -326,16 +334,22 @@ contains
     FT                         =  cCohort%pft
     roota                      =  EDPftvarcon_inst%roota_par(FT)
     rootb                      =  EDPftvarcon_inst%rootb_par(FT)
+
+    leaf_c   = cCohort%prt%GetState(leaf_organ, all_carbon_elements)
+    sapw_c   = cCohort%prt%GetState(sapw_organ, all_carbon_elements)
+    fnrt_c   = cCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+    struct_c = cCohort%prt%GetState(struct_organ, all_carbon_elements)
+
     !roota                      =  4.372_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
     !rootb                      =  0.978_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
     !roota                      =  8.992_r8                          ! TESTING: shallow (see Zeng 2001 Table 1)
     !rootb                      =  8.992_r8                          ! TESTING: shallow (see Zeng 2001 Table 1)
-    if(cCohort%bl>0.0) then !only update when bleaf >0
-     b_woody_carb               = cCohort%bsw + cCohort%bdead
+    if(leaf_c>0.0) then !only update when bleaf >0
+     b_woody_carb               = sapw_c + struct_c
      b_woody_bg_carb            = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(FT)) * b_woody_carb
 
-     b_tot_carb                 = cCohort%bsw + cCohort%bdead + cCohort%bl + cCohort%br
-     b_canopy_carb              = cCohort%bl
+     b_tot_carb                 = sapw_c + struct_c + leaf_c + fnrt_c
+     b_canopy_carb              = leaf_c
      b_bg_carb                  = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(FT)) * b_tot_carb
 
      ! SAVE INITIAL VOLUMES
@@ -388,15 +402,16 @@ contains
 
      !     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8 
      !      m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
-
-
+     ! or ...
+     ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * cCohort%hite ) * 1.e-4_r8
+     
      v_sapwood    = a_sapwood * z_stem
      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
      ! TRANSPORTING ROOT DEPTH & VOLUME
      !in special case where n_hypool_troot = 1, the node depth of the single troot pool
      !is the depth at which 50% total root distribution is attained
-     dcumul_rf                  = 1._r8/dble(n_hypool_troot)
+     dcumul_rf                  = 1._r8/real(n_hypool_troot,r8)
 
      do k=1,n_hypool_troot
 	cumul_rf                = dcumul_rf*k
@@ -417,7 +432,7 @@ contains
 
      !Determine belowground biomass as a function of total (sapwood, heartwood, leaf, fine root) biomass
      !then subtract out the fine root biomass to get coarse (transporting) root biomass
-     !b_troot_carb               = b_bg_carb - cCohort%br   ! this can give negative values
+
      b_troot_carb               = b_woody_bg_carb   
      b_troot_biom               = b_troot_carb * C2B 
      v_troot                    = b_troot_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8)
@@ -427,8 +442,8 @@ contains
      ccohort_hydr%z_node_aroot(1:nlevsoi_hyd) = -bc_in%z_sisl(1:nlevsoi_hyd)
 
      
-     ccohort_hydr%l_aroot_tot        = cCohort%br*C2B*EDPftvarcon_inst%hydr_srl(FT)
-     !ccohort_hydr%v_aroot_tot       = cCohort%br/EDecophyscon%ccontent(FT)/EDecophyscon%rootdens(FT)
+     ccohort_hydr%l_aroot_tot        = fnrt_c*C2B*EDPftvarcon_inst%hydr_srl(FT)
+     !ccohort_hydr%v_aroot_tot       = fnrt_c/EDecophyscon%ccontent(FT)/EDecophyscon%rootdens(FT)
      ccohort_hydr%v_aroot_tot        = pi_const*(EDPftvarcon_inst%hydr_rs2(FT)**2._r8)*ccohort_hydr%l_aroot_tot
      !ccohort_hydr%l_aroot_tot       = ccohort_hydr%v_aroot_tot/(pi_const*EDecophyscon%rs2(FT)**2)
      if(nlevsoi_hyd == 1) then
@@ -890,7 +905,10 @@ contains
            currentCohort=>currentPatch%tallest
            do while(associated(currentCohort))
               balive_patch = balive_patch + &
-                   (currentCohort%bl + currentCohort%bsw + currentCohort%br ) * currentCohort%n
+                    (currentCohort%prt%GetState(fnrt_organ, all_carbon_elements) + &
+                     currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
+                     currentCohort%prt%GetState(leaf_organ, all_carbon_elements)) * currentCohort%n
+              
               currentCohort => currentCohort%shorter
            enddo !cohort
            
@@ -1009,11 +1027,11 @@ contains
 		   kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                          log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
                    csite_hydr%kmax_upper_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8    
+		                       1._r8/kmax_soil_total)**(-1._r8)    
                    csite_hydr%kmax_bound_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8 
+		                       1._r8/kmax_soil_total)**(-1._r8) 
                    csite_hydr%kmax_lower_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8 
+		                       1._r8/kmax_soil_total)**(-1._r8)
                 end if
 		if(j == 1) then
                    if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
@@ -1024,11 +1042,11 @@ contains
 		      kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
                             log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
                       csite_hydr%kmax_upper_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                       1._r8/kmax_soil_total)**(-1._r8)
                       csite_hydr%kmax_bound_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                       1._r8/kmax_soil_total)**(-1._r8)
                       csite_hydr%kmax_lower_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                       1._r8/kmax_soil_total)**(-1._r8)
                    end if
                 end if
              else
@@ -1295,7 +1313,9 @@ end subroutine updateSizeDepRhizHydStates
            ccohort=>cpatch%tallest
            do while(associated(ccohort))
               balive_patch = balive_patch +  &
-                   (cCohort%bl + cCohort%bsw + cCohort%br) * ccohort%n
+                    (cCohort%prt%GetState(fnrt_organ, all_carbon_elements) + &
+                     cCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
+                     cCohort%prt%GetState(leaf_organ, all_carbon_elements))* ccohort%n
               ccohort => ccohort%shorter
            enddo !cohort
            
@@ -1303,8 +1323,11 @@ end subroutine updateSizeDepRhizHydStates
            ccohort=>cpatch%tallest
            do while(associated(ccohort))
               bc_out(s)%btran_pa(ifp) =  bc_out(s)%btran_pa(ifp) + &
-                   ccohort%co_hydr%btran(1) * (cCohort%bl + cCohort%bsw + cCohort%br) * &
-                   ccohort%n / balive_patch
+                   ccohort%co_hydr%btran(1) * &
+                   (cCohort%prt%GetState(fnrt_organ, all_carbon_elements) + &
+                    cCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
+                    cCohort%prt%GetState(leaf_organ, all_carbon_elements)) * &
+                    ccohort%n / balive_patch
               ccohort => ccohort%shorter
            enddo !cohort
            cpatch => cpatch%younger
@@ -2532,7 +2555,7 @@ end subroutine updateSizeDepRhizHydStates
     iterh1 = 0
     do while( iterh1 == 0 .or. ((abs(we_local) > thresh .or. supsub_flag /= 0) .and. iterh1 < maxiter) )
        dt_fac = max(imult*iterh1,1)
-       dt_fac2 = DBLE(dt_fac)
+       dt_fac2 = real(dt_fac,r8)
        dt_new = dtime/dt_fac2
 
        !! restore initial states for a fresh attempt using new sub-timesteps
@@ -4078,7 +4101,7 @@ end subroutine updateSizeDepRhizHydStates
   ! !LOCAL VARIABLES:
   !------------------------------------------------------------------------------
 
-  satfrac = (psi/psisat)**(-1/B)
+  satfrac = (psi/psisat)**(-1.0_r8/B)
 
   end subroutine swcCampbell_satfrac_from_psi
 
@@ -4416,7 +4439,7 @@ end subroutine updateSizeDepRhizHydStates
     r_out_shell(nshell) = (pi_const*l_aroot/(area*dz))**(-0.5_r8)                  ! eqn(8) S98
     if(nshell > 1) then
        do k = 1,nshell-1
-          r_out_shell(k)   = rs1*(r_out_shell(nshell)/rs1)**((k+0._r8)/nshell)  ! eqn(7) S98
+          r_out_shell(k)   = rs1*(r_out_shell(nshell)/rs1)**((real(k,r8))/real(nshell,r8))  ! eqn(7) S98
        enddo
     end if
 

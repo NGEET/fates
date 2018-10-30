@@ -797,7 +797,10 @@ contains
       real(r8) :: b_leaf     ! biomass in leaves [kgC]
       real(r8) :: b_fineroot ! biomass in fine roots [kgC]
       real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
+      real(r8) :: b_dead
+      real(r8) :: b_store 
       real(r8) :: a_sapwood  ! area of sapwood at reference height [m2]
+
 
       character(len=128),parameter    :: wr_fmt = &
            '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
@@ -900,9 +903,9 @@ contains
       ! Calculate sapwood biomass
       call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim, a_sapwood, b_sapwood)
       
-      call bdead_allom( b_agw, b_bgw, b_sapwood, c_pft, temp_cohort%bdead )
+      call bdead_allom( b_agw, b_bgw, b_sapwood, c_pft, b_dead )
 
-      call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim,temp_cohort%bstore)
+      call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim, b_store)
       
       if( EDPftvarcon_inst%evergreen(c_pft) == 1) then
          temp_cohort%laimemory = 0._r8
@@ -930,8 +933,8 @@ contains
 
       ! Since spread is a canopy level calculation, we need to provide an initial guess here.
       call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-            b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
-            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, csite%spread, bc_in)
+           b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &
+           temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, csite%spread, bc_in)
 
       
       deallocate(temp_cohort) ! get rid of temporary cohort
