@@ -504,10 +504,10 @@ contains
                   
                   allocate(copyc)
                   call InitPRTCohort(copyc)
-                  call copy_cohort(currentCohort, copyc)
                   if( hlm_use_planthydro.eq.itrue ) then
                      call InitHydrCohort(currentSite,copyc)
                   endif
+		  call copy_cohort(currentCohort, copyc)
                   
                   newarea = currentCohort%c_area - cc_loss
                   copyc%n = currentCohort%n*newarea/currentCohort%c_area 
@@ -851,11 +851,11 @@ contains
                      
                      allocate(copyc)
                      call InitPRTCohort(copyc)
-                     call copy_cohort(currentCohort, copyc) !makes an identical copy...
                      if( hlm_use_planthydro.eq.itrue ) then
                         call InitHydrCohort(CurrentSite,copyc)
                      endif
-                                          
+                     call copy_cohort(currentCohort, copyc) !makes an identical copy...
+		                          
                      newarea = currentCohort%c_area - cc_gain !new area of existing cohort
 
                      call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
@@ -1422,11 +1422,11 @@ contains
                    ! is obscured by snow.
                    
                    layer_top_hite = currentCohort%hite - &
-                         ( dble(iv-1.0)/currentCohort%NV * currentCohort%hite *  &
+                         ( real(iv-1,r8)/currentCohort%NV * currentCohort%hite *  &
                          EDPftvarcon_inst%crown(currentCohort%pft) )
                    
                    layer_bottom_hite = currentCohort%hite - &
-                         ( dble(iv)/currentCohort%NV * currentCohort%hite * &
+                         ( real(iv,r8)/currentCohort%NV * currentCohort%hite * &
                          EDPftvarcon_inst%crown(currentCohort%pft) )
                    
                    fraction_exposed = 1.0_r8
@@ -1449,7 +1449,7 @@ contains
                    
                    if(iv==currentCohort%NV) then
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
-                            (dinc_ed*dble(currentCohort%nv-1.0_r8))
+                            (dinc_ed*real(currentCohort%nv-1,r8))
                       if(remainder > dinc_ed )then
                          write(fates_log(), *)'ED: issue with remainder', &
                                currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
