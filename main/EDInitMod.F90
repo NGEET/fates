@@ -19,7 +19,8 @@ module EDInitMod
   use EDTypesMod                , only : nuMWaterMem
   use EDTypesMod                , only : maxpft
   use EDTypesMod                , only : AREA
-  use EDTypesMod                , only : init_dense_forest
+  use EDTypesMod                , only : init_spread_near_bare_ground
+  use EDTypesMod                , only : init_spread_inventory
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
@@ -73,6 +74,7 @@ contains
     allocate(site_in%demotion_rate(1:nlevsclass))
     allocate(site_in%promotion_rate(1:nlevsclass))
     allocate(site_in%imort_rate(1:nlevsclass,1:numpft))
+    allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
     !
     end subroutine init_site_vars
 
@@ -126,6 +128,9 @@ contains
     site_in%recruitment_rate(:) = 0._r8
     site_in%imort_rate(:,:) = 0._r8
     site_in%imort_carbonflux = 0._r8
+
+    ! fusoin-induced growth flux of individuals
+    site_in%growthflux_fusion(:,:) = 0._r8
 
     ! demotion/promotion info
     site_in%demotion_rate(:) = 0._r8
@@ -221,8 +226,6 @@ contains
        sites(s)%frac_burnt = 0.0_r8
        sites(s)%old_stock  = 0.0_r8
 
-       sites(s)%spread     = 1.0_r8
-       if(init_dense_forest)sites(s)%spread = 0._r8
     end do
 
     return
@@ -280,6 +283,13 @@ contains
 
      if ( hlm_use_inventory_init.eq.itrue ) then
 
+        ! Initialize the site-level crown area spread factor (0-1)
+        ! It is likely that closed canopy forest inventories
+        ! have smaller spread factors than bare ground (they are crowded)
+        do s = 1, nsites
+           sites(s)%spread     = init_spread_inventory
+        enddo
+
         call initialize_sites_by_inventory(nsites,sites,bc_in)
 
         do s = 1, nsites
@@ -293,6 +303,11 @@ contains
 
         !FIX(SPM,032414) clean this up...inits out of this loop
         do s = 1, nsites
+
+           ! Initialize the site-level crown area spread factor (0-1)
+           ! It is likely that closed canopy forest inventories
+           ! have smaller spread factors than bare ground (they are crowded)
+           sites(s)%spread     = init_spread_near_bare_ground
 
            allocate(newp)
 
@@ -356,7 +371,10 @@ contains
     real(r8) :: b_leaf     ! biomass in leaves [kgC]
     real(r8) :: b_fineroot ! biomass in fine roots [kgC]
     real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
+    real(r8) :: b_dead     ! biomass in structure (dead) [kgC]
+    real(r8) :: b_store    ! biomass in storage [kgC]
     real(r8) :: a_sapwood  ! area in sapwood (dummy) [m2]
+
     integer, parameter :: rstatus = 0
 
     !----------------------------------------------------------------------
@@ -396,9 +414,9 @@ contains
        ! Calculate sapwood biomass
        call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapwood,b_sapwood)
        
-       call bdead_allom( b_agw, b_bgw, b_sapwood, pft, temp_cohort%bdead )
+       call bdead_allom( b_agw, b_bgw, b_sapwood, pft, b_dead )
 
-       call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim,temp_cohort%bstore)
+       call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, b_store)
 
 
        if( EDPftvarcon_inst%evergreen(pft) == 1) then
@@ -428,7 +446,7 @@ contains
        if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-            b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
+            b_leaf, b_fineroot, b_sapwood, b_dead, b_store, & 
             temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
 
 
@@ -437,6 +455,13 @@ contains
        endif
 
     enddo !numpft
+
+    ! Zero the mass flux pools of the new cohorts
+!    temp_cohort => patch_in%tallest
+!    do while(associated(temp_cohort)) 
+!       call temp_cohort%prt%ZeroRates()
+!       temp_cohort => temp_cohort%shorter
+!    end do
 
     call fuse_cohorts(site_in, patch_in,bc_in)
     call sort_cohorts(patch_in)
