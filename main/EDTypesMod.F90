@@ -82,6 +82,20 @@ module EDTypesMod
   logical, parameter :: do_ed_phenology = .true.
 
 
+  ! This is the community level amount of spread expected in nearly-bare-ground
+  ! and inventory starting modes.
+  ! These are used to initialize only. These values will scale between
+  ! the PFT defined maximum and minimum crown area scaing parameters.
+  !
+  ! A value of 1 indicates that
+  ! plants should have crown areas at maximum spread for their size and PFT.
+  ! A value of 0 means that they have the least amount of spread for their
+  ! size and PFT.
+  
+  real(r8), parameter :: init_spread_near_bare_ground = 1.0_r8
+  real(r8), parameter :: init_spread_inventory        = 0.0_r8
+
+
   ! MODEL PARAMETERS
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
   real(r8), parameter :: AREA_INV             = 1.0e-4_r8  ! Inverse of the notion area (faster math)
@@ -132,7 +146,7 @@ module EDTypesMod
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
 
-  !************************************
+ !************************************
   !** COHORT type structure          **
   !************************************
   type ed_cohort_type

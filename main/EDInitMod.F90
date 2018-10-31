@@ -19,6 +19,8 @@ module EDInitMod
   use EDTypesMod                , only : nuMWaterMem
   use EDTypesMod                , only : maxpft
   use EDTypesMod                , only : AREA
+  use EDTypesMod                , only : init_spread_near_bare_ground
+  use EDTypesMod                , only : init_spread_inventory
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
@@ -224,7 +226,6 @@ contains
        sites(s)%frac_burnt = 0.0_r8
        sites(s)%old_stock  = 0.0_r8
 
-       sites(s)%spread     = 1.0_r8
     end do
 
     return
@@ -282,6 +283,13 @@ contains
 
      if ( hlm_use_inventory_init.eq.itrue ) then
 
+        ! Initialize the site-level crown area spread factor (0-1)
+        ! It is likely that closed canopy forest inventories
+        ! have smaller spread factors than bare ground (they are crowded)
+        do s = 1, nsites
+           sites(s)%spread     = init_spread_inventory
+        enddo
+
         call initialize_sites_by_inventory(nsites,sites,bc_in)
 
         do s = 1, nsites
@@ -295,6 +303,11 @@ contains
 
         !FIX(SPM,032414) clean this up...inits out of this loop
         do s = 1, nsites
+
+           ! Initialize the site-level crown area spread factor (0-1)
+           ! It is likely that closed canopy forest inventories
+           ! have smaller spread factors than bare ground (they are crowded)
+           sites(s)%spread     = init_spread_near_bare_ground
 
            allocate(newp)
 
