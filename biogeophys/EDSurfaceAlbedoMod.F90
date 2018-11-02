@@ -264,7 +264,6 @@ contains
       weighted_dif_down(:) = 0._r8
       weighted_dif_up(:)   = 0._r8
 
-      ftweight(:,:,:)      = 0._r8
       tr_dir_z(:,:,:)      = 0._r8   
       tr_dif_z(:,:,:)      = 0._r8
       lai_change(:,:,:)    = 0._r8
@@ -305,7 +304,7 @@ contains
       !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
       cosz = max(0.001_r8, currentPatch%solar_zenith_angle ) !copied from previous radiation code...
       do ft = 1,numpft
-         sb = (90._r8 - (acos(cosz)*180._r8/pi)) * (pi / 180._r8)
+         sb = (90._r8 - (acos(cosz)*180/pi)) * (pi / 180._r8)
          chil = xl(ft) !min(max(xl(ft), -0.4_r8), 0.6_r8 )
          if ( abs(chil) <= 0.01_r8) then
             chil  = 0.01_r8
@@ -322,7 +321,6 @@ contains
 
       !do this once for one unit of diffuse, and once for one unit of direct radiation
       do radtype = 1, n_rad_stream_types 
-
 
          ! Extract information that needs to be provided by ED into local array.
          ! RGK: NOT SURE WHY WE NEED FTWEIGHT ...
@@ -363,7 +361,7 @@ contains
                   tr_dif_z(L,ft,:) = 0._r8
                   do iv = 1,currentPatch%nrad(L,ft)
                      do j = 1,9
-                        angle = (5._r8 + dble(j - 1) * 10._r8) * 3.142_r8 / 180._r8
+                        angle = (5._r8 + (j - 1) * 10._r8) * 3.142 / 180._r8
                         gdir = phi1b(ft) + phi2b(ft) * sin(angle)
                         tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) + exp(-clumping_index(ft) * &
                              gdir / sin(angle) * &
@@ -371,7 +369,7 @@ contains
                              sin(angle)*cos(angle)
                      end do
                      
-                     tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) * 2._r8 * (10.00_r8 * pi / 180._r8)
+                     tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) * 2._r8 * (10.00 * pi / 180._r8)
                      
                   end do
                   
