@@ -396,7 +396,7 @@ contains
 
                   if ( tied_size_with_neighbor ) then
                      ! now we need to go through and figure out how many equal-size cohorts there are.
-                     ! then we need to go through, add up the collective corwn areas of all equal-sized and equal-canopy-layer cohorts,
+                     ! then we need to go through, add up the collective crown areas of all equal-sized and equal-canopy-layer cohorts,
                      ! and then demote from each as if they were a single group
                      !
                      total_crownarea_of_tied_cohorts = currentCohort%c_area
@@ -454,7 +454,7 @@ contains
                     has_taller_equalsized_neighbor) then
                   sumweights_equalsizebuffer = sumweights_equalsizebuffer + currentCohort%excl_weight
                else if (ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor) then
-                  sumweights = sumweights + sumweights_equalsizebuffer
+                  sumweights = sumweights + currentCohort%excl_weight + sumweights_equalsizebuffer
                   sumweights_equalsizebuffer = 0._r8
                else
                   sumweights = sumweights + currentCohort%excl_weight
@@ -837,8 +837,8 @@ contains
 
                      if ( tied_size_with_neighbor ) then
                         ! now we need to go through and figure out how many equal-size cohorts there are.
-                        ! then we need to go through, add up the collective corwn areas of all equal-sized and equal-canopy-layer cohorts,
-                        ! and then demote from each as if they were a single group
+                        ! then we need to go through, add up the collective crown areas of all equal-sized and equal-canopy-layer cohorts,
+                        ! and then promote from each as if they were a single group
                         !
                         total_crownarea_of_tied_cohorts = currentCohort%c_area
                         !
@@ -894,7 +894,7 @@ contains
                        has_shorter_equalsized_neighbor) then
                      sumweights_equalsizebuffer = sumweights_equalsizebuffer + currentCohort%prom_weight
                   else if (ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor) then
-                     sumweights = sumweights + sumweights_equalsizebuffer
+                     sumweights = sumweights + currentCohort%prom_weight + sumweights_equalsizebuffer
                      sumweights_equalsizebuffer = 0._r8
                   else
                      sumweights = sumweights + currentCohort%prom_weight
