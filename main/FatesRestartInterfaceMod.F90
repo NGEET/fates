@@ -1061,7 +1061,7 @@ contains
     integer  :: io_idx_co      ! cohort index
     integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
     integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
-    integer  :: io_idx_pa_sb   ! each SW band (vis/ir) per patch (pa_sb)
+    integer  :: io_idx_pa_ib   ! each SW band (vis/ir) per patch (pa_ib)
     integer  :: io_idx_si_wmem ! each water memory class within each site
     
     ! Some counters (for checking mostly)
@@ -1169,7 +1169,7 @@ contains
           io_idx_co      = io_idx_co_1st
           io_idx_pa_pft  = io_idx_co_1st
           io_idx_pa_cwd  = io_idx_co_1st
-          io_idx_pa_sb   = io_idx_co_1st
+          io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           
           ! write seed_bank info(site-level, but PFT-resolved)
@@ -1326,9 +1326,9 @@ contains
              end do
              
              do i = 1,maxSWb
-                rio_gnd_alb_dif_pasb(io_idx_pa_sb) = cpatch%gnd_alb_dif(i)
-                rio_gnd_alb_dir_pasb(io_idx_pa_sb) = cpatch%gnd_alb_dir(i)
-                io_idx_pa_sb = io_idx_pa_sb + 1
+                rio_gnd_alb_dif_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dif(i)
+                rio_gnd_alb_dir_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dir(i)
+                io_idx_pa_ib = io_idx_pa_ib + 1
              end do
 
              
@@ -1342,7 +1342,7 @@ contains
              ! reset counters so that they are all advanced evenly.
              io_idx_pa_pft  = io_idx_co_1st
              io_idx_pa_cwd  = io_idx_co_1st
-             io_idx_pa_sb   = io_idx_co_1st
+             io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
              
              if ( debug ) then
@@ -1650,7 +1650,7 @@ contains
      integer  :: io_idx_co      ! cohort index
      integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
      integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
-     integer  :: io_idx_pa_sb   ! each SW radiation band per patch (pa_sb)
+     integer  :: io_idx_pa_ib   ! each SW radiation band per patch (pa_ib)
      integer  :: io_idx_si_wmem ! each water memory class within each site
 
      ! Some counters (for checking mostly)
@@ -1740,7 +1740,7 @@ contains
           io_idx_co      = io_idx_co_1st
           io_idx_pa_pft  = io_idx_co_1st
           io_idx_pa_cwd  = io_idx_co_1st
-          io_idx_pa_sb   = io_idx_co_1st
+          io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           
           ! read seed_bank info(site-level, but PFT-resolved)
@@ -1890,9 +1890,9 @@ contains
              enddo
              
              do i = 1,maxSWb
-                cpatch%gnd_alb_dif(i) = rio_gnd_alb_dif_pasb(io_idx_pa_sb)
-                cpatch%gnd_alb_dir(i) = rio_gnd_alb_dir_pasb(io_idx_pa_sb)
-                io_idx_pa_sb = io_idx_pa_sb + 1
+                cpatch%gnd_alb_dif(i) = rio_gnd_alb_dif_pasb(io_idx_pa_ib)
+                cpatch%gnd_alb_dir(i) = rio_gnd_alb_dir_pasb(io_idx_pa_ib)
+                io_idx_pa_ib = io_idx_pa_ib + 1
              end do
 
              ! Now increment the position of the first cohort to that of the next
@@ -1903,7 +1903,7 @@ contains
              ! and max the number of allowed cohorts per patch
              io_idx_pa_pft  = io_idx_co_1st
              io_idx_pa_cwd  = io_idx_co_1st
-             io_idx_pa_sb   = io_idx_co_1st
+             io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
              
              if ( debug ) then
