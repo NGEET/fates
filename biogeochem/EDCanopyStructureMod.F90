@@ -26,6 +26,7 @@ module EDCanopyStructureMod
   use FatesInterfaceMod     , only : hlm_use_planthydro
   use FatesInterfaceMod     , only : numpft
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort
+  use EDTypesMod            , only : maxCohortsPerPatch
 
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
@@ -350,6 +351,7 @@ contains
       type(ed_cohort_type), pointer :: cohort_tosearch_relative_to, cohort_tocompare_to
       real(r8) :: total_crownarea_of_tied_cohorts
       real(r8) :: sumweights_equalsizebuffer
+      integer  :: whileloop_counter
       
 
       ! First, determine how much total canopy area we have in this layer
@@ -395,6 +397,9 @@ contains
                   endif
 
                   if ( tied_size_with_neighbor ) then
+                     if ( DEBUG ) then
+                        write(fates_log(),*) 'tied_size_with_neighbor eq true in demotion phase'
+                     endif
                      ! now we need to go through and figure out how many equal-size cohorts there are.
                      ! then we need to go through, add up the collective crown areas of all equal-sized and equal-canopy-layer cohorts,
                      ! and then demote from each as if they were a single group
@@ -403,41 +408,53 @@ contains
                      !
                      ! first the "shorter" cohorts (scare-quotes because they aren't actually shorter)
                      found_shortest_equal_neighbor = .false.
-                     cohort_tosearch_relative_to = currentCohort
+                     cohort_tosearch_relative_to => currentCohort
+                     whileloop_counter = 0
                      do while ( .not. found_shortest_equal_neighbor)
+                        whileloop_counter = whileloop_counter + 1
                         if (associated(cohort_tosearch_relative_to%shorter)) then
-                           cohort_tocompare_to = cohort_tosearch_relative_to%shorter
+                           cohort_tocompare_to => cohort_tosearch_relative_to%shorter
                            if (cohort_tocompare_to%dbh .eq. currentCohort%dbh ) then
                               if (cohort_tocompare_to%canopy_layer .eq. currentCohort%canopy_layer ) then
                                  total_crownarea_of_tied_cohorts = total_crownarea_of_tied_cohorts + cohort_tocompare_to%c_area
                               endif
-                              cohort_tosearch_relative_to = cohort_tocompare_to
+                              cohort_tosearch_relative_to => cohort_tocompare_to
                            else
                               found_shortest_equal_neighbor = .true.
                            end if
                         else
                            found_shortest_equal_neighbor = .true.
                         endif
+                        if ( whileloop_counter .ge. maxCohortsPerPatch ) then
+                           ! something has gone horribly wrong and we are in an infite loop.
+                           call endrun(msg=errMsg(sourcefile, __LINE__))
+                        endif
                      end do
                      !
                      ! then the "taller" cohorts (scare-quotes because they aren't actually taller)
                      has_taller_equalsized_neighbor = .false.  !  init this as false
                      found_tallest_equal_neighbor = .false.
-                     cohort_tosearch_relative_to = currentCohort
+                     cohort_tosearch_relative_to => currentCohort
+                     whileloop_counter = 0
                      do while ( .not. found_tallest_equal_neighbor)
+                        whileloop_counter = whileloop_counter + 1
                         if (associated(cohort_tosearch_relative_to%taller)) then
-                           cohort_tocompare_to = cohort_tosearch_relative_to%taller
+                           cohort_tocompare_to => cohort_tosearch_relative_to%taller
                            if (cohort_tocompare_to%dbh .eq. currentCohort%dbh ) then
                               if (cohort_tocompare_to%canopy_layer .eq. currentCohort%canopy_layer ) then
                                  total_crownarea_of_tied_cohorts = total_crownarea_of_tied_cohorts + cohort_tocompare_to%c_area
                                  has_taller_equalsized_neighbor = .true.
                               endif
-                              cohort_tosearch_relative_to = cohort_tocompare_to
+                              cohort_tosearch_relative_to => cohort_tocompare_to
                            else
                               found_tallest_equal_neighbor = .true.
                            end if
                         else
                            found_tallest_equal_neighbor = .true.
+                        endif
+                        if ( whileloop_counter .ge. maxCohortsPerPatch ) then
+                           ! something has gone horribly wrong and we are in an infite loop.
+                           call endrun(msg=errMsg(sourcefile, __LINE__))
                         endif
                      end do
                      !
@@ -453,7 +470,7 @@ contains
                if ((ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor .and. &
                     has_taller_equalsized_neighbor) then
                   sumweights_equalsizebuffer = sumweights_equalsizebuffer + currentCohort%excl_weight
-               else if (ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor) then
+               else if ( (ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor) then
                   sumweights = sumweights + currentCohort%excl_weight + sumweights_equalsizebuffer
                   sumweights_equalsizebuffer = 0._r8
                else
@@ -756,7 +773,7 @@ contains
       type(ed_cohort_type), pointer :: cohort_tosearch_relative_to, cohort_tocompare_to
       real(r8) :: total_crownarea_of_tied_cohorts
       real(r8) :: sumweights_equalsizebuffer
-
+      integer  :: whileloop_counter
       
       call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
       call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr+1,arealayer_below)
@@ -836,6 +853,10 @@ contains
                      endif
 
                      if ( tied_size_with_neighbor ) then
+                        if ( DEBUG ) then
+                           write(fates_log(),*) 'tied_size_with_neighbor eq true in promotion phase'
+                        endif
+
                         ! now we need to go through and figure out how many equal-size cohorts there are.
                         ! then we need to go through, add up the collective crown areas of all equal-sized and equal-canopy-layer cohorts,
                         ! and then promote from each as if they were a single group
@@ -843,42 +864,54 @@ contains
                         total_crownarea_of_tied_cohorts = currentCohort%c_area
                         !
                         ! first the "shorter" cohorts (scare-quotes because they aren't actually shorter)
+                        has_shorter_equalsized_neighbor = .false.  !  init this as false
                         found_shortest_equal_neighbor = .false.
-                        cohort_tosearch_relative_to = currentCohort
+                        cohort_tosearch_relative_to => currentCohort
+                        whileloop_counter = 0
                         do while ( .not. found_shortest_equal_neighbor)
+                           whileloop_counter = whileloop_counter + 1
                            if (associated(cohort_tosearch_relative_to%shorter)) then
-                              cohort_tocompare_to = cohort_tosearch_relative_to%shorter
+                              cohort_tocompare_to => cohort_tosearch_relative_to%shorter
                               if (cohort_tocompare_to%dbh .eq. currentCohort%dbh ) then
                                  if (cohort_tocompare_to%canopy_layer .eq. currentCohort%canopy_layer ) then
                                     total_crownarea_of_tied_cohorts = total_crownarea_of_tied_cohorts + cohort_tocompare_to%c_area
                                     has_shorter_equalsized_neighbor = .true.
                                  endif
-                                 cohort_tosearch_relative_to = cohort_tocompare_to
+                                 cohort_tosearch_relative_to => cohort_tocompare_to
                               else
                                  found_shortest_equal_neighbor = .true.
                               end if
                            else
                               found_shortest_equal_neighbor = .true.
                            endif
+                           if ( whileloop_counter .ge. maxCohortsPerPatch ) then
+                              ! something has gone horribly wrong and we are in an infite loop.
+                              call endrun(msg=errMsg(sourcefile, __LINE__))
+                           endif
                         end do
                         !
                         ! then the "taller" cohorts (scare-quotes because they aren't actually taller)
-                        has_shorter_equalsized_neighbor = .false.  !  init this as false
                         found_tallest_equal_neighbor = .false.
-                        cohort_tosearch_relative_to = currentCohort
+                        cohort_tosearch_relative_to => currentCohort
+                        whileloop_counter = 0
                         do while ( .not. found_tallest_equal_neighbor)
+                           whileloop_counter = whileloop_counter + 1
                            if (associated(cohort_tosearch_relative_to%taller)) then
-                              cohort_tocompare_to = cohort_tosearch_relative_to%taller
+                              cohort_tocompare_to => cohort_tosearch_relative_to%taller
                               if (cohort_tocompare_to%dbh .eq. currentCohort%dbh ) then
                                  if (cohort_tocompare_to%canopy_layer .eq. currentCohort%canopy_layer ) then
                                     total_crownarea_of_tied_cohorts = total_crownarea_of_tied_cohorts + cohort_tocompare_to%c_area
                                  endif
-                                 cohort_tosearch_relative_to = cohort_tocompare_to
+                                 cohort_tosearch_relative_to => cohort_tocompare_to
                               else
                                  found_tallest_equal_neighbor = .true.
                               end if
                            else
                               found_tallest_equal_neighbor = .true.
+                           endif
+                           if ( whileloop_counter .ge. maxCohortsPerPatch ) then
+                              ! something has gone horribly wrong and we are in an infite loop.
+                              call endrun(msg=errMsg(sourcefile, __LINE__))
                            endif
                         end do
                         !
@@ -893,7 +926,7 @@ contains
                   if ((ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor .and. &
                        has_shorter_equalsized_neighbor) then
                      sumweights_equalsizebuffer = sumweights_equalsizebuffer + currentCohort%prom_weight
-                  else if (ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor) then
+                  else if ( (ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor) then
                      sumweights = sumweights + currentCohort%prom_weight + sumweights_equalsizebuffer
                      sumweights_equalsizebuffer = 0._r8
                   else
