@@ -1028,8 +1028,6 @@ contains
 
  subroutine set_restart_vectors(this,nc,nsites,sites)
 
-   use EDTypesMod, only : nclmax
-   use EDTypesMod, only : nlevleaf
    use FatesInterfaceMod, only : fates_maxElementsPerPatch
    use FatesInterfaceMod, only : numpft
    use EDTypesMod, only : ed_site_type
@@ -1331,10 +1329,6 @@ contains
                 io_idx_pa_ib = io_idx_pa_ib + 1
              end do
 
-             
-             if ( debug ) write(fates_log(),*) 'CLTV 1186 ',nlevleaf,numpft,nclmax
-
-
              ! Set the first cohort index to the start of the next patch, increment
              ! by the maximum number of cohorts per patch
              io_idx_co_1st = io_idx_co_1st + fates_maxElementsPerPatch
@@ -1416,8 +1410,6 @@ contains
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : ncwd
      use EDTypesMod,           only : maxSWb
-     use EDTypesMod,           only : nlevleaf
-     use EDTypesMod,           only : nclmax
      use FatesInterfaceMod,    only : fates_maxElementsPerPatch
      use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
@@ -1614,8 +1606,6 @@ contains
      use EDTypesMod, only : ed_patch_type
      use EDTypesMod, only : ncwd
      use EDTypesMod, only : maxSWb
-     use EDTypesMod, only : nlevleaf
-     use EDTypesMod, only : nclmax
      use FatesInterfaceMod, only : numpft
      use FatesInterfaceMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
