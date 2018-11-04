@@ -15,6 +15,7 @@ module EDSurfaceRadiationMod
   use EDTypesMod        , only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : itrue
+  use FatesConstantsMod , only : pi_const
   use FatesInterfaceMod , only : bc_in_type
   use FatesInterfaceMod , only : bc_out_type
   use FatesInterfaceMod , only : hlm_numSWb
@@ -125,10 +126,8 @@ contains
                     bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                     bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
                     do ib = 1,hlm_numSWb
-
-                       ! Requires a fix here, abld vs albi
                        bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
-                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
+                       bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
                        bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
                        bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
                        bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
@@ -228,7 +227,6 @@ contains
     real(r8) :: angle
     
     real(r8),parameter :: tolerance = 0.000000001_r8
-    real(r8), parameter :: pi   = 3.141592654                 ! PI
     
     
     integer, parameter :: max_diag_nlevleaf = 4
@@ -304,7 +302,7 @@ contains
       !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
       cosz = max(0.001_r8, currentPatch%solar_zenith_angle ) !copied from previous radiation code...
       do ft = 1,numpft
-         sb = (90._r8 - (acos(cosz)*180/pi)) * (pi / 180._r8)
+         sb = (90._r8 - (acos(cosz)*180._r8/pi_const)) * (pi_const / 180._r8)
          chil = xl(ft) !min(max(xl(ft), -0.4_r8), 0.6_r8 )
          if ( abs(chil) <= 0.01_r8) then
             chil  = 0.01_r8
@@ -361,7 +359,7 @@ contains
                   tr_dif_z(L,ft,:) = 0._r8
                   do iv = 1,currentPatch%nrad(L,ft)
                      do j = 1,9
-                        angle = (5._r8 + (j - 1) * 10._r8) * 3.142 / 180._r8
+                        angle = (5._r8 + real(j - 1,r8) * 10._r8) * pi_const / 180._r8
                         gdir = phi1b(ft) + phi2b(ft) * sin(angle)
                         tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) + exp(-clumping_index(ft) * &
                              gdir / sin(angle) * &
@@ -369,7 +367,7 @@ contains
                              sin(angle)*cos(angle)
                      end do
                      
-                     tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) * 2._r8 * (10.00 * pi / 180._r8)
+                     tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) * 2._r8 * (10._r8 * pi_const / 180._r8)
                      
                   end do
                   
@@ -638,11 +636,11 @@ contains
                if (L == currentPatch%NCL_p.and.currentPatch%NCL_p > 1)then !is this the (incomplete) understorey?
                   !Add on the radiation coming up through the canopy gaps.
                   !diffuse to diffuse
-                  weighted_dif_up(L) = weighted_dif_up(L) +(1.0-sum(ftweight(L,1:numpft,1))) * &
+                  weighted_dif_up(L) = weighted_dif_up(L) +(1.0_r8-sum(ftweight(L,1:numpft,1))) * &
                        weighted_dif_down(L-1) * currentPatch%gnd_alb_dif(ib) 
                   !direct to diffuse
                   weighted_dif_up(L) = weighted_dif_up(L) + forc_dir(radtype) * &
-                       weighted_dir_tr(L-1) * (1.0-sum(ftweight(L,1:numpft,1))) * currentPatch%gnd_alb_dir(ib)
+                       weighted_dir_tr(L-1) * (1.0_r8-sum(ftweight(L,1:numpft,1))) * currentPatch%gnd_alb_dir(ib)
                endif
             end do !L
             
@@ -711,7 +709,7 @@ contains
                   end do!ft
                   if (L == currentPatch%NCL_p.and.currentPatch%NCL_p > 1)then !is this the (incomplete) understorey?
                      weighted_dif_down(L) = weighted_dif_down(L) + weighted_dif_down(L-1) * &
-                          (1.0-sum(ftweight(L,1:numpft,1)))
+                          (1.0_r8-sum(ftweight(L,1:numpft,1)))
                   end if
                end do ! do L loop
 
@@ -933,7 +931,7 @@ contains
                end if
             else
                if ( abs(currentPatch%sabs_dif(ib)-(currentPatch%tr_soil_dif(ib) * &
-                    (1.0_r8-currentPatch%gnd_alb_dif(ib)  ))) > 0.0001)then
+                    (1.0_r8-currentPatch%gnd_alb_dif(ib)  ))) > 0.0001_r8)then
                   write(fates_log(),*)'dif ground absorption error',currentPatch%sabs_dif(ib) , &
                        (currentPatch%tr_soil_dif(ib)* &
                        (1.0_r8-currentPatch%gnd_alb_dif(ib)  )),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
