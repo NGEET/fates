@@ -812,14 +812,13 @@ module EDTypesMod
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
      write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
-     !if ( hlm_use_planthydro.eq.itrue ) then
-     !  call dump_cohort_hydr(ccohort)
-     !end if
-     write(fates_log(),*) 'ccohort_hydr%th_aroot(:) = ', ccohort%co_hydr%th_aroot(:)
-     !write(fates_log(),*) 'ccohort_hydr%th_aroot_prev(:) = ', ccohort%co_hydr%th_aroot_prev(:)
-     !write(fates_log(),*) 'ccohort_hydr%th_aroot_prev_uncorr(:) = ', ccohort%co_hydr%th_aroot_prev_uncorr(:)
-     write(fates_log(),*) 'ccohort_hydr%v_aroot_layer_init(:) = ', ccohort%co_hydr%v_aroot_layer_init(:)
-     write(fates_log(),*) 'ccohort_hydr%v_aroot_layer(:) = ', ccohort%co_hydr%v_aroot_layer(:)
+     if ( hlm_use_planthydro.eq.itrue ) then
+        write(fates_log(),*) 'ccohort_hydr%th_aroot(:) = ', ccohort%co_hydr%th_aroot(:)
+        !write(fates_log(),*) 'ccohort_hydr%th_aroot_prev(:) = ', ccohort%co_hydr%th_aroot_prev(:)
+        !write(fates_log(),*) 'ccohort_hydr%th_aroot_prev_uncorr(:) = ', ccohort%co_hydr%th_aroot_prev_uncorr(:)
+        write(fates_log(),*) 'ccohort_hydr%v_aroot_layer_init(:) = ', ccohort%co_hydr%v_aroot_layer_init(:)
+        write(fates_log(),*) 'ccohort_hydr%v_aroot_layer(:) = ', ccohort%co_hydr%v_aroot_layer(:)
+     endif 
      write(fates_log(),*) '----------------------------------------'
      return
   end subroutine dump_cohort
