@@ -812,7 +812,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
      write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
-     if ( hlm_use_planthydro.eq.itrue ) then
+     if (associated(ccohort_hydr%th_aroot) ) then
         write(fates_log(),*) 'ccohort_hydr%th_aroot(:) = ', ccohort%co_hydr%th_aroot(:)
         !write(fates_log(),*) 'ccohort_hydr%th_aroot_prev(:) = ', ccohort%co_hydr%th_aroot_prev(:)
         !write(fates_log(),*) 'ccohort_hydr%th_aroot_prev_uncorr(:) = ', ccohort%co_hydr%th_aroot_prev_uncorr(:)
