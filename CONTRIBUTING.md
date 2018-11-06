@@ -6,9 +6,9 @@ Thank you for considering contributing to the development of FATES. There are a 
 
 https://github.com/NGEET/fates/blob/master/LICENSE.txt
 
-## If working with unreleased code, please read the use policy that governs the developer repository:
+## Please read and follow the code of conduct:
 
-https://github.com/NGEET/fates/wiki/Use-and-distribution-policy-for-fates-developer-repository
+https://github.com/NGEET/fates/blob/master/CODE_OF_CONDUCT.md
 
 ## Getting Started
 
@@ -21,7 +21,6 @@ Those who wish to contribute code to FATES must have those changes integrated th
 * It is best to create an issue to describe the work you are undertaking prior to starting.  This helps the community sync with your efforts, prevents duplication of efforts, and science is not done in a vaccuum!
 * Expect peers to interact, help, discuss and eventually approve your submission (pull-request)
 
-
 ## Things to Remember
 
 * Make commits in logical units (i.e. group changes)
@@ -30,11 +29,9 @@ Those who wish to contribute code to FATES must have those changes integrated th
 * We have no standard protocol for commit messages, but try to make them meaningful, concise and succinct.
 * You will most likely have to test (see workflow above), see: https://github.com/NGEET/fates/wiki/Testing-Protocols
 
-
 ## Coding Practices and Style
 
 Please refer to the FATES style guide: https://github.com/NGEET/fates/wiki/Coding-Practices-and-Style-Guide
-
 
 ## Trivial Changes
 
@@ -42,8 +39,7 @@ If changes are trivial, it's possible testing will not be required. Conversation
 
 ## Documentation
 
-Yes please!  If you are creating new code, fixing existing code, anything.  Please add comments in the code itself.  Please also follow the style guide for comments.  Also, please create and/or modify existing wiki documentation.  You may be asked to add documtation prior to having a pull-request approved.
-
+Yes please!  If you are creating new code, fixing existing code, anything.  Please add comments in the code itself.  Please also follow the style guide for comments.  Please update the tech note, and submit a PR to [the fates-docs repo](https://github.com/NGEET/fates-docs/) alongside your FATES PR.  Also, please create and/or modify existing wiki documentation.  You may be asked to add documtation prior to having a pull-request approved.
 
 ## Additional Resources
 

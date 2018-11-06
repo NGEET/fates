@@ -28,6 +28,17 @@
   use EDtypesMod            , only : NFSC
   use EDtypesMod            , only : TR_SF
 
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : all_carbon_elements
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : fnrt_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : store_organ
+  use PRTGenericMod,          only : repro_organ
+  use PRTGenericMod,          only : struct_organ
+  use PRTGenericMod,          only : SetState
+
+
   implicit none
   private
 
@@ -45,7 +56,7 @@
   public :: post_fire_mortality
 
   integer :: write_SF = 0     ! for debugging
-  logical :: DEBUG = .false.  ! for debugging
+  logical :: debug = .false.  ! for debugging
 
   ! ============================================================================
   ! ============================================================================
@@ -167,7 +178,11 @@ contains
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 0)then 
-             currentPatch%livegrass = currentPatch%livegrass + currentCohort%bl*currentCohort%n/currentPatch%area
+             
+             currentPatch%livegrass = currentPatch%livegrass + &
+                  currentCohort%prt%GetState(leaf_organ, all_carbon_elements) * &
+                  currentCohort%n/currentPatch%area
+
           endif
           currentCohort => currentCohort%shorter
        enddo
@@ -230,7 +245,7 @@ contains
           endif
           ! FIX(RF,032414): needs refactoring. 
           ! average water content !is this the correct metric?         
-          timeav_swc                  = sum(currentSite%water_memory(1:numWaterMem)) / dble(numWaterMem)
+          timeav_swc                  = sum(currentSite%water_memory(1:numWaterMem)) / real(numWaterMem,r8)
           ! Equation B2 in Thonicke et al. 2010
           ! live grass moisture content depends on upper soil layer
           fuel_moisture(lg_sf)        = max(0.0_r8, 10.0_r8/9._r8 * timeav_swc - 1.0_r8/9.0_r8)           
@@ -343,7 +358,7 @@ contains
        currentCohort => currentPatch%tallest
  
        do while(associated(currentCohort))
-          if (DEBUG) write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
+          if (debug) write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
           else
@@ -354,7 +369,7 @@ contains
        tree_fraction = tree_fraction + min(currentPatch%area,currentPatch%total_tree_area)/AREA
        grass_fraction = grass_fraction + min(currentPatch%area,total_grass_area)/AREA 
        
-       if(DEBUG)then
+       if(debug)then
          write(fates_log(),*) 'SF  currentPatch%area ',currentPatch%area
          write(fates_log(),*) 'SF  currentPatch%total_area ',currentPatch%total_tree_area
          write(fates_log(),*) 'SF  total_grass_area ',tree_fraction,grass_fraction
@@ -366,7 +381,7 @@ contains
 
     !if there is a cover of more than one, then the grasses are under the trees
     grass_fraction = min(grass_fraction,1.0_r8-tree_fraction) 
-    bare_fraction = 1.0 - tree_fraction - grass_fraction
+    bare_fraction = 1.0_r8 - tree_fraction - grass_fraction
     if(write_sf == itrue)then
        if ( hlm_masterproc == itrue ) write(fates_log(),*) 'grass, trees, bare', &
             grass_fraction, tree_fraction, bare_fraction
@@ -377,7 +392,7 @@ contains
     do while(associated(currentPatch))       
        currentPatch%total_tree_area = min(currentPatch%total_tree_area,currentPatch%area)
        ! effect_wspeed in units m/min      
-       currentPatch%effect_wspeed = currentSite%wind * (tree_fraction*0.4+(grass_fraction+bare_fraction)*0.6)
+       currentPatch%effect_wspeed = currentSite%wind * (tree_fraction*0.4_r8+(grass_fraction+bare_fraction)*0.6_r8)
       
        currentPatch => currentPatch%younger
     enddo !end patch loop
@@ -430,9 +445,9 @@ contains
 
        ! ----start spreading---
 
-       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) &
+       if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) &
             'SF - currentPatch%fuel_bulkd ',currentPatch%fuel_bulkd
-       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) &
+       if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) &
             'SF - SF_val_part_dens ',SF_val_part_dens
 
        ! beta = packing ratio (unitless)
@@ -443,8 +458,8 @@ contains
        ! packing ratio (unitless) 
        beta_op = 0.200395_r8 *(currentPatch%fuel_sav**(-0.8189_r8))
 
-       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta ',beta
-       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta_op ',beta_op
+       if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - beta ',beta
+       if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - beta_op ',beta_op
        beta_ratio = beta/beta_op   !unitless
 
        if(write_sf == itrue)then
@@ -467,13 +482,13 @@ contains
        ! Equation A9 in Thonicke et al. 2010. 
        e = 0.715_r8 * (exp(-0.01094_r8 * currentPatch%fuel_sav))
 
-       if (DEBUG) then
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - c ',c
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ', &
+       if (debug) then
+          if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - c ',c
+          if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ', &
                                                                          currentPatch%effect_wspeed
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - b ',b
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta_ratio ',beta_ratio
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - e ',e
+          if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - b ',b
+          if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - beta_ratio ',beta_ratio
+          if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - e ',e
        endif
 
        ! Equation A5 in Thonicke et al. 2010
@@ -488,7 +503,7 @@ contains
           if (debug_windspeed) write(fates_log(),*) 'month and day', hlm_current_month, hlm_current_day             
        else
           !max condition 225 ft/min (FIREMIP Rabin table A10 JSBACH-Spitfire) convert to 68.577 m/min 
-          wind_elev_fire = max(0.0_r8,(68.577-0.5*currentPatch%effect_wspeed))
+          wind_elev_fire = max(0.0_r8,(68.577_r8-0.5_r8*currentPatch%effect_wspeed))
           phi_wind = c * ((3.281_r8*wind_elev_fire)**b)*(beta_ratio**(-e))
           if (debug_windspeed) write(fates_log(),*) 'SF wind GREATER max ', currentPatch%effect_wspeed
           if (debug_windspeed) write(fates_log(),*) 'month and day', hlm_current_month, hlm_current_day 
@@ -503,7 +518,7 @@ contains
        ! ---reaction intensity----
        ! Equation in table A1 Thonicke et al. 2010. 
        a = 8.9033_r8 * (currentPatch%fuel_sav**(-0.7913_r8))
-       a_beta = exp(a*(1-beta_ratio))  !dummy variable for reaction_v_opt equation
+       a_beta = exp(a*(1.0_r8-beta_ratio))  !dummy variable for reaction_v_opt equation
   
        ! Equation in table A1 Thonicke et al. 2010.
        ! reaction_v_max and reaction_v_opt = reaction velocity in units of per min
@@ -674,7 +689,7 @@ contains
           ! Equation 14 in Thonicke et al. 2010
           ! fire duration in minutes
 
-          currentPatch%FD = (SF_val_max_durat+1) / (1.0_r8 + SF_val_max_durat * &
+          currentPatch%FD = (SF_val_max_durat+1.0_r8) / (1.0_r8 + SF_val_max_durat * &
                             exp(SF_val_durat_slope*currentSite%FDI))
 
           if(write_SF == itrue)then
@@ -754,7 +769,8 @@ contains
              ! THIS SHOULD HAVE THE COLUMN AND LU AREA WEIGHT ALSO, NO?
 
              gridarea = km2_to_m2     ! 1M m2 in a km2
-             !NF = number of lighting strikes per day per km2
+             
+             ! NF = number of lighting strikes per day per km2
              currentPatch%NF = ED_val_nignitions * currentPatch%area/area /365 
 
              ! If there are 15  lightening strickes per year, per km2. (approx from NASA product) 
@@ -769,18 +785,19 @@ contains
              size_of_fire = ((3.1416_r8/(4.0_r8*lb))*((df+db)**2.0_r8))
 
              !AB = daily area burnt = size fires in m2 * num ignitions * prob ignition starts fire
+             ! m2 per km2 per day
              currentPatch%AB = size_of_fire * currentPatch%NF * currentSite%FDI
              
-             patch_area_in_m2 = gridarea*currentPatch%area/area
+             patch_area_in_m2 = gridarea *currentPatch%area/area
              
              currentPatch%frac_burnt = currentPatch%AB / patch_area_in_m2
              if(write_SF == itrue)then
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
              endif
 
-             if (currentPatch%frac_burnt > 1 ) then !all of patch burnt. 
+             if (currentPatch%frac_burnt > 1.0_r8 ) then !all of patch burnt. 
                 
-                currentPatch%frac_burnt = 1.0 ! capping at 1 same as %AB/patch_area_in_m2 
+                currentPatch%frac_burnt = 1.0_r8 ! capping at 1 same as %AB/patch_area_in_m2 
 
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
@@ -810,8 +827,12 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
-    real f_ag_bmass      !fraction of a tree cohort's above-ground biomass as a proportion of total patch ag tree biomass.
-    real tree_ag_biomass !total amount of above-ground tree biomass in patch. kgC/m2
+    real(r8) ::  f_ag_bmass      !fraction of a tree cohort's above-ground biomass as a proportion of total patch ag tree biomass.
+    real(r8) ::  tree_ag_biomass !total amount of above-ground tree biomass in patch. kgC/m2
+    real(r8) ::  leaf_c     ! leaf carbon      [kg]
+    real(r8) ::  sapw_c     ! sapwood carbon   [kg]
+    real(r8) ::  struct_c   ! structure carbon [kg]
+
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch)) 
@@ -822,8 +843,14 @@ contains
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
-                tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)* &
-                     (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
+
+                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+
+                tree_ag_biomass = tree_ag_biomass + &
+                      currentCohort%n * (leaf_c + & 
+                      EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
              endif !trees only
 
              currentCohort=>currentCohort%shorter;
@@ -838,8 +865,15 @@ contains
           do while(associated(currentCohort))
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1 &
                   .and. (tree_ag_biomass > 0.0_r8)) then !trees only
-                f_ag_bmass = ((currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(currentCohort%bsw + &
-                     currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
+
+                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+                
+                f_ag_bmass = currentCohort%n * (leaf_c + &
+                             EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c)) &
+                             / tree_ag_biomass
+
                 !equation 16 in Thonicke et al. 2010
                 if(write_SF == itrue)then
                    if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass
@@ -862,8 +896,8 @@ contains
   subroutine  crown_damage ( currentSite )
     !*****************************************************************
 
-    !returns the updated currentCohort%cfa value for each tree cohort within each patch.
-    !currentCohort%cfa  proportion of crown affected by fire
+    !returns the updated currentCohort%fraction_crown_burned for each tree cohort within each patch.
+    !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -878,12 +912,12 @@ contains
           currentCohort=>currentPatch%tallest
 
           do while(associated(currentCohort))  
-             currentCohort%cfa = 0.0_r8
+             currentCohort%fraction_crown_burned = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
                 if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft))) then 
-                   currentCohort%cfa = 0.0_r8
+                   currentCohort%fraction_crown_burned = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
@@ -891,21 +925,21 @@ contains
                    if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH >=  &
                         (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)))) then 
 
-                           currentCohort%cfa =  (currentPatch%SH-currentCohort%hite*(1- &
+                           currentCohort%fraction_crown_burned =  (currentPatch%SH-currentCohort%hite*(1.0_r8- &
                                 EDPftvarcon_inst%crown(currentCohort%pft)))/(currentCohort%hite* &
                                 EDPftvarcon_inst%crown(currentCohort%pft)) 
 
                    else 
                       ! Flames over top of canopy. 
-                      currentCohort%cfa =  1.0_r8 
+                      currentCohort%fraction_crown_burned =  1.0_r8 
                    endif
 
                 endif
                 ! Check for strange values. 
-                currentCohort%cfa = min(1.0_r8, max(0.0_r8,currentCohort%cfa))              
+                currentCohort%fraction_crown_burned = min(1.0_r8, max(0.0_r8,currentCohort%fraction_crown_burned))              
              endif !trees only
              !shrink canopy to account for burnt section.     
-             !currentCohort%canopy_trim = min(currentCohort%canopy_trim,(1.0_r8-currentCohort%cfa)) 
+             !currentCohort%canopy_trim = min(currentCohort%canopy_trim,(1.0_r8-currentCohort%fraction_crown_burned)) 
 
              currentCohort => currentCohort%shorter;
 
@@ -973,7 +1007,7 @@ contains
   !*****************************************************************
 
     !  returns the updated currentCohort%fire_mort value for each tree cohort within each patch.
-    !  currentCohort%cfa  proportion of crown affected by fire
+    !  currentCohort%fraction_crown_burned is proportion of crown affected by fire
     !  currentCohort%crownfire_mort  probability of tree post-fire mortality due to crown scorch
     !  currentCohort%cambial_mort  probability of tree post-fire mortality due to cambial char
     !  currentCohort%fire_mort  post-fire mortality from cambial and crown damage assuming two are independent.
@@ -994,7 +1028,7 @@ contains
              currentCohort%crownfire_mort = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then
                 ! Equation 22 in Thonicke et al. 2010. 
-                currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%cfa**3.0_r8
+                currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 
                 currentCohort%fire_mort = currentCohort%crownfire_mort+currentCohort%cambial_mort- &
                      (currentCohort%crownfire_mort*currentCohort%cambial_mort)  !joint prob.   

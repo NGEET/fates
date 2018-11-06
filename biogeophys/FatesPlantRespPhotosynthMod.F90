@@ -25,11 +25,23 @@ module FATESPlantRespPhotosynthMod
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : itrue
    use FatesInterfaceMod, only : hlm_use_planthydro
+   use FatesInterfaceMod, only : hlm_parteh_mode
    use FatesInterfaceMod, only : numpft
    use EDTypesMod, only        : maxpft
    use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
-   
+
+   use PRTGenericMod,          only : prt_carbon_allom_hyp
+   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp 
+   use PRTGenericMod,          only : all_carbon_elements
+   use PRTGenericMod,          only : nitrogen_element
+   use PRTGenericMod,          only : leaf_organ
+   use PRTGenericMod,          only : fnrt_organ
+   use PRTGenericMod,          only : sapw_organ
+   use PRTGenericMod,          only : store_organ
+   use PRTGenericMod,          only : repro_organ
+   use PRTGenericMod,          only : struct_organ
+
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
 
@@ -45,7 +57,7 @@ module FATESPlantRespPhotosynthMod
    ! maximum stomatal resistance [s/m] (used across several procedures)
    real(r8),parameter :: rsmax0 =  2.e4_r8                    
    
-   logical   ::  DEBUG = .false.
+   logical   ::  debug = .false.
 
 contains
   
@@ -70,6 +82,7 @@ contains
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
+    use EDTypesMod        , only : dinc_ed
     use FatesInterfaceMod , only : bc_in_type
     use FatesInterfaceMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
@@ -84,6 +97,7 @@ contains
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
     use FatesAllometryMod, only : i_hydro_rootprof_context
+    use FatesAllometryMod, only : decay_coeff_kn
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -148,8 +162,6 @@ contains
     real(r8) :: ceair              ! vapor pressure of air, constrained (Pa)
     real(r8) :: nscaler            ! leaf nitrogen scaling coefficient
     real(r8) :: leaf_frac          ! ratio of to leaf biomass to total alive biomass
-    real(r8) :: laican             ! canopy sum of lai_z
-    real(r8) :: vai                ! leaf and steam area in ths layer. 
     real(r8) :: tcsoi              ! Temperature response function for root respiration. 
     real(r8) :: tcwood             ! Temperature response function for wood
     
@@ -158,7 +170,11 @@ contains
                                    ! nitrogen content (kgN/plant)
     real(r8) :: live_croot_n       ! Live coarse root (below-ground sapwood) 
                                    ! nitrogen content (kgN/plant)
-    real(r8) :: froot_n            ! Fine root nitrogen content (kgN/plant)
+    real(r8) :: sapw_c             ! Sapwood carbon (kgC/plant)
+    real(r8) :: fnrt_c             ! Fine root carbon (kgC/plant)
+    real(r8) :: fnrt_n             ! Fine root nitrogen content (kgN/plant)
+    real(r8) :: leaf_c             ! Leaf carbon (kgC/plant)
+    real(r8) :: leaf_n             ! leaf nitrogen content (kgN/plant)
     real(r8) :: g_sb_leaves        ! Mean combined (stomata+boundary layer) leaf conductance [m/s]
                                    ! over all of the patch's leaves.  The "sb" refers to the combined
                                    ! "s"tomatal and "b"oundary layer.
@@ -169,12 +185,24 @@ contains
     real(r8) :: r_stomata          ! Mean stomatal resistance across all leaves in the patch [s/m]
 
 
-    real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration when storage pools are low
+    real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance 
+                                            ! respiration when storage pools are low
     real(r8) :: b_leaf             ! leaf biomass kgC
     real(r8) :: frac               ! storage pool as a fraction of target leaf biomass
     real(r8) :: check_elai         ! This is a check on the effective LAI that is calculated
                                    ! over each cohort x layer.
     real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each cohort
+    real(r8) :: lnc_top            ! Leaf nitrogen content per unit area at canopy top [gN/m2]
+    real(r8) :: lmr25top           ! canopy top leaf maint resp rate at 25C 
+                                   ! for this plant or pft (umol CO2/m**2/s)
+    real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_ed
+    real(r8) :: lai_canopy_above   ! the LAI in the canopy layers above the layer of interest
+    real(r8) :: lai_layers_above   ! the LAI in the leaf layers, within the current canopy, 
+                                   ! above the leaf layer of interest
+    real(r8) :: lai_current        ! the LAI in the current leaf layer
+    real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
+
+
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -214,8 +242,6 @@ contains
          slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
                                                   ! projected area basis [m^2/gC]
          woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
-         leafcn    => EDPftvarcon_inst%leafcn , & ! leaf C:N (gC/gN)
-         frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
          q10       => FatesSynchronizedParamsInst%Q10 )
 
       bbbopt(0) = ED_val_bbopt_c4
@@ -241,9 +267,6 @@ contains
 
             g_sb_leaves = 0._r8
             check_elai  = 0._r8
-
-            !psncanopy_pa = 0._r8
-            !lmrcanopy_pa = 0._r8
 
             ! Part II. Filter out patches 
             ! Patch level filter flag for photosynthesis calculations
@@ -293,13 +316,9 @@ contains
                   ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
                   ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
                   ! (2010) Biogeosciences, 7, 1833-1859
-                  ! Remove daylength factor from vcmax25 so that kn is based on maximum vcmax25
                   
-                  if (bc_in(s)%dayl_factor_pa(ifp)  ==  0._r8) then
-                     kn(ft) =  0._r8
-                  else
-                     kn(ft) = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(ft) - 2.43_r8)
-                  end if
+                  kn(ft) = decay_coeff_kn(ft)
+                  
 
                   ! This is probably unnecessary and already calculated
                   ! ALSO, THIS ROOTING PROFILE IS USED TO CALCULATE RESPIRATION
@@ -346,20 +365,14 @@ contains
                      cl = currentCohort%canopy_layer
                      
                      call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,b_leaf)
-                     call storage_fraction_of_target(b_leaf, currentCohort%bstore, frac)
+                     call storage_fraction_of_target(b_leaf, &
+                           currentCohort%prt%GetState(store_organ, all_carbon_elements), &
+                           frac)
                      call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
                           maintresp_reduction_factor)
 
                      ! are there any leaves of this pft in this layer?
                      if(currentPatch%canopy_mask(cl,ft) == 1)then 
-                        
-                        if(cl==1)then !are we in the top canopy layer or a shaded layer?
-                           laican = 0._r8
-                        else
-
-                           laican = sum(currentPatch%canopy_layer_tai(1:cl-1)) 
-
-                        end if
                         
                         ! Loop over leaf-layers
                         do iv = 1,currentCohort%nv
@@ -374,37 +387,74 @@ contains
                            ! not been done yet.
                            ! ------------------------------------------------------------
                            
-                           if ( .not.rate_mask_z(iv,ft,cl) .or. (hlm_use_planthydro.eq.itrue) ) then
+                           if ( .not.rate_mask_z(iv,ft,cl) .or. &
+                                 (hlm_use_planthydro.eq.itrue) .or. &
+                                 (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
                               
                               if (hlm_use_planthydro.eq.itrue) then
-!                                 write(fates_log(),*) 'hlm_use_planthydro'
-!                                 write(fates_log(),*) 'has been set to true.  You have inadvertently'
-!                                 write(fates_log(),*) 'turned on a future feature that is not in the'
-!                                 write(fates_log(),*) 'FATES codeset yet. Please set this to'
-!                                 write(fates_log(),*) 'false and re-compile.'
-!                                 call endrun(msg=errMsg(sourcefile, __LINE__))
 
-                                 bbb   = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
+
+                                 bbb       = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
                                  btran_eff = currentCohort%co_hydr%btran(1) 
+                                 
+                                 ! dinc_ed is the total vegetation area index of each "leaf" layer
+                                 ! we convert to the leaf only portion of the increment
+                                 ! ------------------------------------------------------
+                                 leaf_inc    = dinc_ed * &
+                                               currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
+                                 
+                                 ! Now calculate the cumulative top-down lai of the current layer's midpoint
+                                 lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
+                                 lai_layers_above  = leaf_inc * (iv-1)
+                                 lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
+                                 cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current 
+
                               else
+                                 
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
                                  btran_eff = currentPatch%btran_ft(ft)
+                                 ! For consistency sake, we use total LAI here, and not exposed
+                                 ! if the plant is under-snow, it will be effectively dormant for 
+                                 ! the purposes of nscaler
+
+                                 cumulative_lai = sum(currentPatch%canopy_layer_tlai(1:cl-1))  + &
+                                                  sum(currentPatch%tlai_profile(cl,ft,1:iv-1)) + &
+                                                  0.5*currentPatch%tlai_profile(cl,ft,iv)
+                                           
+
                               end if
-                              
-                              ! Vegetation area index
-                              vai = (currentPatch%elai_profile(cl,ft,iv)+currentPatch%esai_profile(cl,ft,iv)) 
-                              if (iv == 1) then
-                                 laican = laican + 0.5_r8 * vai
-                              else
-                                 laican = laican + 0.5_r8 * (currentPatch%elai_profile(cl,ft,iv-1)+ &
-                                       currentPatch%esai_profile(cl,ft,iv-1)+vai)
-                              end if
+                           
                               
                               ! Scale for leaf nitrogen profile
-                              nscaler = exp(-kn(ft) * laican)
+                              nscaler = exp(-kn(ft) * cumulative_lai)
+                              
+                              ! Leaf maintenance respiration to match the base rate used in CN
+                              ! but with the new temperature functions for C3 and C4 plants.
+
+                              ! CN respiration has units:  g C / g N [leaf] / s. This needs to be
+                              ! converted from g C / g N [leaf] / s to umol CO2 / m**2 [leaf] / s
+                              
+                              ! Then scale this value at the top of the canopy for canopy depth
+                              ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
+                              select case(hlm_parteh_mode)
+                              case (prt_carbon_allom_hyp)
+
+                                 lnc_top  = EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 
+                              case (prt_cnp_flex_allom_hyp)
+
+                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                                 lnc_top = leaf_n / (slatop(ft) * leaf_c )
+
+                              end select
+
+                              lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
+                              lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
+                              
 
                               ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
-                              call LeafLayerMaintenanceRespiration( param_derived%lmr25top(ft),&  ! in
+                              call LeafLayerMaintenanceRespiration( lmr25top,                 &  ! in
                                                                     nscaler,                  &  ! in
                                                                     ft,                       &  ! in
                                                                     bc_in(s)%t_veg_pa(ifp),   &  ! in
@@ -528,13 +578,36 @@ contains
                      ! the sapwood pools.
                      ! Units are in (kgN/plant)
                      ! ------------------------------------------------------------------
-                     live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * currentCohort%bsw / &
-                           frootcn(currentCohort%pft)
-                     live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * currentCohort%bsw  / &
-                           frootcn(currentCohort%pft)
-                     froot_n       = currentCohort%br / frootcn(currentCohort%pft) 
+
+                     sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                     fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+
+                     select case(hlm_parteh_mode)
+                     case (prt_carbon_allom_hyp)
+
+                        live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
+                        
+                        live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
+                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
+
+                        fnrt_n = fnrt_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ)
+
+                     case(prt_cnp_flex_allom_hyp) 
                      
-                     
+                        live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                             currentCohort%prt%GetState(sapw_organ, nitrogen_element)
+
+                        live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
+                             currentCohort%prt%GetState(sapw_organ, nitrogen_element)
+
+                        fnrt_n = currentCohort%prt%GetState(fnrt_organ, nitrogen_element)
+
+                     case default
+                        
+
+                     end select
+
                      !------------------------------------------------------------------------------
                      ! Calculate Whole Plant Respiration
                      ! (this doesn't really need to be in this iteration at all, surely?)
@@ -561,7 +634,7 @@ contains
                      do j = 1,bc_in(s)%nlevsoil
                         tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
-                              froot_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
+                              fnrt_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
                      enddo
                      
                      ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
@@ -585,11 +658,11 @@ contains
                      ! calcualate some fluxes that are sums and nets of the base fluxes
                      ! ------------------------------------------------------------------
                      
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 904 ', currentCohort%resp_m
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 905 ', currentCohort%rdark
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 906 ', currentCohort%livestem_mr
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 907 ', currentCohort%livecroot_mr
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 908 ', currentCohort%froot_mr
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 904 ', currentCohort%resp_m
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 905 ', currentCohort%rdark
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 906 ', currentCohort%livestem_mr
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 907 ', currentCohort%livecroot_mr
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 908 ', currentCohort%froot_mr
                         
                     
 
@@ -609,9 +682,9 @@ contains
                      currentCohort%gpp_tstep     = currentCohort%gpp_tstep * dtime
                      currentCohort%ts_net_uptake = currentCohort%ts_net_uptake * dtime
 
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 911 ', currentCohort%gpp_tstep
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
-                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 911 ', currentCohort%gpp_tstep
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
+                     if ( debug ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
                      
                      currentCohort%resp_g     = EDPftvarcon_inst%grperc(ft) * &
                                                 (max(0._r8,currentCohort%gpp_tstep - &
@@ -867,13 +940,13 @@ contains
         
      else ! day time (a little bit more complicated ...)
         
-!        if ( DEBUG ) write(fates_log(),*) 'EDphot 594 ',laisun_lsl
-!        if ( DEBUG ) write(fates_log(),*) 'EDphot 595 ',laisha_lsl
+!        if ( debug ) write(fates_log(),*) 'EDphot 594 ',laisun_lsl
+!        if ( debug ) write(fates_log(),*) 'EDphot 595 ',laisha_lsl
 
         !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
         if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
 
-!           if ( DEBUG ) write(fates_log(),*) '600 in laisun, laisha loop '
+!           if ( debug ) write(fates_log(),*) '600 in laisun, laisha loop '
            
            !Loop aroun shaded and unshaded leaves          
            psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves. 
@@ -1024,9 +1097,9 @@ contains
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
               
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 737 ', psn_out
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 738 ', agross
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 739 ', f_sun_lsl
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 737 ', psn_out
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 738 ', agross
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 739 ', f_sun_lsl
 
               ! Accumulate total photosynthesis umol/m2 ground/s-1. 
               ! weight per unit sun and sha leaves.
@@ -1041,9 +1114,9 @@ contains
                        1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-f_sun_lsl) 
               end if
 
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 758 ', psn_out
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 759 ', agross
-!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 760 ', f_sun_lsl
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 758 ', psn_out
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 759 ', agross
+!              if ( debug ) write(fates_log(),*) 'EDPhoto 760 ', f_sun_lsl
               
               ! Make sure iterative solution is correct
               if (gs_mol < 0._r8) then
@@ -1105,7 +1178,6 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use FatesConstantsMod, only : umolC_to_kgC
-    use EDTypesMod, only : dinc_ed
     
     ! Arguments
     integer, intent(in)  :: nv               ! number of active leaf layers
@@ -1179,7 +1251,7 @@ contains
     rdark     = rdark * umolC_to_kgC * maintresp_reduction_factor / nplant
     gpp       = gpp * umolC_to_kgC / nplant
     
-    if ( DEBUG ) then
+    if ( debug ) then
        write(fates_log(),*) 'EDPhoto 816 ', gpp
        write(fates_log(),*) 'EDPhoto 817 ', psn_llz(1:nv)
        write(fates_log(),*) 'EDPhoto 820 ', nv
@@ -1599,6 +1671,10 @@ contains
       real(r8), parameter :: lmrse = 490._r8      ! entropy term for lmr (J/mol/K)
       real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high 
                                                   ! temperature inhibition (25 C = 1.0)
+
+
+ 
+
 
       ! Part I: Leaf Maintenance respiration: umol CO2 / m**2 [leaf] / s
       ! ----------------------------------------------------------------------------------

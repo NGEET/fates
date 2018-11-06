@@ -5,6 +5,7 @@ dimensions:
 	fates_history_height_bins = 6 ;
 	fates_history_size_bins = 13 ;
 	fates_hydr_organs = 4 ;
+	fates_prt_organs  = 6 ;
 	fates_litterclass = 6 ;
 	fates_pft = 2 ;
 	fates_scalar = 1 ;
@@ -83,6 +84,9 @@ variables:
 	char fates_pftname(fates_pft, fates_string_length) ;
 		fates_pftname:units = "unitless - string" ;
 		fates_pftname:long_name = "Description of plant type" ;
+       char fates_prt_organ_name(fates_prt_organs, fates_string_length) ;
+		fates_prt_organ_name:units = "unitless - string" ;
+		fates_prt_organ_name:long_name = "Plant organ name (order must match PRTGenericMod.F90)" ;
 	float fates_rootprof_beta(fates_variants, fates_pft) ;
 		fates_rootprof_beta:units = "unitless" ;
 		fates_rootprof_beta:long_name = "Rooting beta parameter, for C and N vertical discretization (NOT USED BY DEFAULT)" ;
@@ -115,13 +119,13 @@ variables:
 		fates_allom_cmode:long_name = "coarse root biomass allometry function index" ;
 	float fates_allom_d2bl1(fates_pft) ;
 		fates_allom_d2bl1:units = "variable" ;
-		fates_allom_d2bl1:long_name = "Parameter 1 for d2bl allometry (intercept)" ;
+		fates_allom_d2bl1:long_name = "Parameter 1 for d2bl allometry" ;
 	float fates_allom_d2bl2(fates_pft) ;
 		fates_allom_d2bl2:units = "variable" ;
-		fates_allom_d2bl2:long_name = "Parameter 2 for d2bl allometry (slope)" ;
+		fates_allom_d2bl2:long_name = "Parameter 2 for d2bl allometry" ;
 	float fates_allom_d2bl3(fates_pft) ;
 		fates_allom_d2bl3:units = "unitless" ;
-		fates_allom_d2bl3:long_name = "Parameter 3 for d2bl allometry (optional)" ;
+		fates_allom_d2bl3:long_name = "Parameter 3 for d2bl allometry" ;
 	float fates_allom_d2ca_coefficient_max(fates_pft) ;
 		fates_allom_d2ca_coefficient_max:units = "m2 cm^(-1/beta)" ;
 		fates_allom_d2ca_coefficient_max:long_name = "max (savanna) dbh to area multiplier factor where: area = n*d2ca_coeff*dbh^beta" ;
@@ -149,18 +153,18 @@ variables:
 	float fates_allom_l2fr(fates_pft) ;
 		fates_allom_l2fr:units = "gC/gC" ;
 		fates_allom_l2fr:long_name = "Allocation parameter: fine root C per leaf C" ;
-	float fates_allom_latosa_int(fates_pft) ;
-		fates_allom_latosa_int:units = "cm2/m2" ;
-		fates_allom_latosa_int:long_name = "Leaf area to sap area conversion, intercept (sapwood area/leaf area)" ;
-	float fates_allom_latosa_slp(fates_pft) ;
-		fates_allom_latosa_slp:units = "cm2/m2/cm" ;
-		fates_allom_latosa_slp:long_name = "Leaf area to sap area conversion, slope (sapwood area/ leaf area / diameter) (optional)" ;
+	float fates_allom_la_per_sa_int(fates_pft) ;
+		fates_allom_la_per_sa_int:units = "m2/cm2" ;
+		fates_allom_la_per_sa_int:long_name = "Leaf area per sapwood area, intercept" ;
+	float fates_allom_la_per_sa_slp(fates_pft) ;
+		fates_allom_la_per_sa_slp:units = "m2/cm2/m" ;
+		fates_allom_la_per_sa_slp:long_name = "Leaf area per sapwood area rate of change with height, slope (optional)" ;
 	float fates_allom_lmode(fates_pft) ;
 		fates_allom_lmode:units = "index" ;
 		fates_allom_lmode:long_name = "leaf biomass allometry function index" ;
 	float fates_allom_sai_scaler(fates_pft) ;
-		fates_allom_sai_scaler:units = "m2/gC" ;
-		fates_allom_sai_scaler:long_name = "allometric ratio of SAI to target bleaf" ;
+		fates_allom_sai_scaler:units = "m2/m2" ;
+		fates_allom_sai_scaler:long_name = "allometric ratio of SAI per LAI" ;
 	float fates_allom_smode(fates_pft) ;
 		fates_allom_smode:units = "index" ;
 		fates_allom_smode:long_name = "sapwood allometry function index" ;
@@ -170,6 +174,47 @@ variables:
 	float fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr-1" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
+
+	float fates_prt_nitr_stoich_p1(fates_prt_organs,fates_pft) ;
+		fates_prt_nitr_stoich_p1:units = "(gN/gC)" ;
+		fates_prt_nitr_stoich_p1:long_name = "nitrogen stoichiometry, parameter 1" ;
+
+	float fates_prt_nitr_stoich_p2(fates_prt_organs,fates_pft) ;
+		fates_prt_nitr_stoich_p2:units = "(gN/gC)" ;
+		fates_prt_nitr_stoich_p2:long_name = "nitrogen stoichiometry, parameter 2" ;
+
+	float fates_prt_phos_stoich_p1(fates_prt_organs,fates_pft) ;
+		fates_prt_phos_stoich_p1:units = "(gP/gC)" ;
+		fates_prt_phos_stoich_p1:long_name = "phosphorous stoichiometry, parameter 1" ;
+
+	float fates_prt_phos_stoich_p2(fates_prt_organs,fates_pft) ;
+		fates_prt_phos_stoich_p2:units = "(gP/gC)" ;
+		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2" ;
+
+	float fates_prt_alloc_priority(fates_prt_organs,fates_pft) ;
+		fates_prt_alloc_priority:units = "index (0-fates_prt_organs)" ;
+		fates_prt_alloc_priority:long_name = "Priority order for allocation" ;
+
+	float fates_phenflush_fraction(fates_pft) ;
+		fates_phenflush_fraction:units = "fraction" ;
+		fates_phenflush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
+
+	float fates_turnover_retrans_mode(fates_pft) ;
+		fates_turnover_retrans_mode:units = "index" ;
+		fates_turnover_retrans_mode:long_name = "retranslocation method for leaf/fineroot turnover" ;
+
+	float fates_turnover_carb_retrans(fates_prt_organs,fates_pft) ;
+		fates_turnover_carb_retrans:units = "-" ;
+		fates_turnover_carb_retrans:long_name = "retranslocation fraction of carbon in turnover" ;
+
+	float fates_turnover_nitr_retrans(fates_prt_organs,fates_pft) ;
+		fates_turnover_nitr_retrans:units = "-" ;
+		fates_turnover_nitr_retrans:long_name = "retranslocation fraction of nitrogen in turnover" ;
+
+	float fates_turnover_phos_retrans(fates_prt_organs,fates_pft) ;
+		fates_turnover_phos_retrans:units = "-" ;
+		fates_turnover_phos_retrans:long_name = "retranslocation fraction of phosphorous in turnover " ;
+
 	float fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
 		fates_c2b:long_name = "Carbon to biomass multiplier of bulk structural tissues" ;
@@ -197,9 +242,6 @@ variables:
 	float fates_fr_flig(fates_pft) ;
 		fates_fr_flig:units = "fraction" ;
 		fates_fr_flig:long_name = "Fine root litter lignin fraction" ;
-	float fates_froot_cn_ratio(fates_pft) ;
-		fates_froot_cn_ratio:units = "gC/gN" ;
-		fates_froot_cn_ratio:long_name = "Fine root C:N" ;
 	float fates_grperc(fates_pft) ;
 		fates_grperc:units = "unitless" ;
 		fates_grperc:long_name = "Growth respiration factor" ;
@@ -216,7 +258,7 @@ variables:
 		fates_hydr_rfrac_stem:units = "fraction" ;
 		fates_hydr_rfrac_stem:long_name = "fraction of total tree resistance from troot to canopy" ;
 	float fates_hydr_rs2(fates_pft) ;
-		fates_hydr_rs2:units = "mm" ;
+		fates_hydr_rs2:units = "m" ;
 		fates_hydr_rs2:long_name = "absorbing root radius" ;
 	float fates_hydr_srl(fates_pft) ;
 		fates_hydr_srl:units = "m g-1" ;
@@ -230,9 +272,6 @@ variables:
 	float fates_leaf_clumping_index(fates_pft) ;
 		fates_leaf_clumping_index:units = "fraction (0-1)" ;
 		fates_leaf_clumping_index:long_name = "factor describing how much self-occlusion of leaf scattering elements decreases light interception" ;
-	float fates_leaf_cn_ratio(fates_pft) ;
-		fates_leaf_cn_ratio:units = "gC/gN" ;
-		fates_leaf_cn_ratio:long_name = "Leaf C:N" ;
 	float fates_leaf_diameter(fates_pft) ;
 		fates_leaf_diameter:units = "m" ;
 		fates_leaf_diameter:long_name = "Characteristic leaf dimension" ;
@@ -248,6 +287,9 @@ variables:
 	float fates_leaf_long(fates_pft) ;
 		fates_leaf_long:units = "yr" ;
 		fates_leaf_long:long_name = "Leaf longevity (ie turnover timescale)" ;
+	float fates_leaf_slamax(fates_pft) ;
+		fates_leaf_slamax:units = "m^2/gC" ;
+		fates_leaf_slamax:long_name = "Maximum Specific Leaf Area (SLA), even if under a dense canopy" ;
 	float fates_leaf_slatop(fates_pft) ;
 		fates_leaf_slatop:units = "m^2/gC" ;
 		fates_leaf_slatop:long_name = "Specific Leaf Area (SLA) at top of canopy, projected area basis" ;
@@ -373,7 +415,7 @@ variables:
 		fates_seed_alloc_mature:long_name = "fraction of available carbon balance allocated to seeds in mature plants (adds to fates_seed_alloc)" ;
 	float fates_seed_dbh_repro_threshold(fates_pft) ;
 		fates_seed_dbh_repro_threshold:units = "cm" ;
-		fates_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool (NOT USED YET)" ;
+		fates_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool" ;
 	float fates_seed_decay_turnover(fates_pft) ;
 		fates_seed_decay_turnover:units = "1/yr" ;
 		fates_seed_decay_turnover:long_name = "turnover time for seeds with respect to germination" ;
@@ -553,7 +595,8 @@ variables:
                         " Mon Mar 19 19:05:44 EDT 2018 added entry for fates_history_height_bin_edges.\n",
                         " Thu Apr 12 14:18:46 PDT 2018 updated names on CN recruitment parameters. -- fates_params_14pft.c180412.nc -- \n",
 			" This file was made then modified wih FatesPFTIndexSwapper.py to reduce to 2 tropical pfts again. \n",
-			" Indices = [1, 1]" ;
+			" Indices = [1, 1] \n",
+			" Wed Aug 29 12:14:41 PDT 2018: (RGK) Updated latosa to la_per_sa (inverts units, invert defaults also)\n" ;
 data:
 
  fates_history_sizeclass_bin_edges = 0, 5, 10, 15, 20, 30, 40, 50, 60, 70, 
@@ -614,10 +657,10 @@ data:
   -2.25, -2.25 ;
 
  fates_hydr_pinot_node =
-  -999, -999,
-  -999, -999,
-  -999, -999,
-  -999, -999 ;
+  -1.465984, -1.465984,
+  -1.228070, -1.228070,
+  -1.228070, -1.228070,
+  -1.043478, -1.043478 ;
 
  fates_hydr_pitlp_node =
   -1.67, -1.67,
@@ -642,6 +685,14 @@ data:
  fates_pftname =
   "broadleaf_evergreen_tropical_tree                ",
   "broadleaf_evergreen_tropical_tree                " ;
+
+  fates_prt_organ_name =
+  "leaf                                             ",
+  "fine root                                        ",
+  "sapwood                                          ",
+  "storage                                          ",
+  "reproduction                                     ", 
+  "structure                                        ";
 
  fates_rootprof_beta =
   0.976, 0.976,
@@ -689,19 +740,89 @@ data:
 
  fates_allom_l2fr = 1, 1 ;
 
- fates_allom_latosa_int = 0.001, 0.001 ;
+ fates_allom_la_per_sa_int = 1000.0, 1000.0 ;
 
- fates_allom_latosa_slp = 0, 0 ;
+ fates_allom_la_per_sa_slp = 0.0, 0.0 ;
 
  fates_allom_lmode = 1, 1 ;
 
- fates_allom_sai_scaler = 0.0012, 0.0012 ;
+ fates_allom_sai_scaler = 0.10, 0.10 ;
 
  fates_allom_smode = 1, 1 ;
 
  fates_allom_stmode = 1, 1 ;
 
  fates_branch_turnover = 50, 50 ;
+
+ fates_prt_nitr_stoich_p1 = 
+  0.033, 0.033,
+  0.024, 0.024,	
+  0.0047, 0.0047,
+  0.0047, 0.0047,
+  0.0, 0.0, 
+  0.0047, 0.0047;
+
+ fates_prt_nitr_stoich_p2 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_phos_stoich_p1 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_phos_stoich_p2 = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_prt_alloc_priority = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_phenflush_fraction = 
+  0.5, 0.5;
+
+ fates_turnover_retrans_mode = 
+  1, 1;
+
+ fates_turnover_carb_retrans = 
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00,
+  0.00, 0.00;
+
+ fates_turnover_nitr_retrans = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
+
+ fates_turnover_phos_retrans = 
+  _, _,
+  _, _,	
+  _, _,
+  _, _,
+  _, _,
+  _, _;
 
  fates_c2b = 2, 2 ;
 
@@ -720,8 +841,6 @@ data:
  fates_fr_flab = 0.25, 0.25 ;
 
  fates_fr_flig = 0.25, 0.25 ;
-
- fates_froot_cn_ratio = 42, 42 ;
 
  fates_grperc = 0.11, 0.11 ;
 
@@ -743,8 +862,6 @@ data:
 
  fates_leaf_clumping_index = 0.85, 0.85 ;
 
- fates_leaf_cn_ratio = 30, 30 ;
-
  fates_leaf_diameter = 0.04, 0.04 ;
 
  fates_leaf_jmaxha = 43540, 43540 ;
@@ -754,6 +871,8 @@ data:
  fates_leaf_jmaxse = 495, 495 ;
 
  fates_leaf_long = 1.5, 1.5 ;
+
+ fates_leaf_slamax = 0.0954, 0.0954 ;
 
  fates_leaf_slatop = 0.012, 0.012 ;
 
@@ -885,7 +1004,7 @@ data:
 
  fates_fire_nignitions = 15 ;
  
- fates_hydr_kmax_rsurf = 0.001;
+ fates_hydr_kmax_rsurf = 20;
 
  fates_hydr_psi0 = 0 ;
 
