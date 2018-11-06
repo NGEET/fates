@@ -15,8 +15,7 @@ module FatesPlantHydraulicsMod
    !
    ! WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
    !
-   !  PLANT HYDRAULICS IS AN EXPERIMENTAL OPTION THAT IS STILL UNDERGOING TESTING.  THERE IS
-   !  ABSOLUTELY NO SUPPORT ON THIS FEATURE FOR THE TIME BEING>
+   !  PLANT HYDRAULICS IS AN EXPERIMENTAL OPTION THAT IS STILL UNDERGOING TESTING.  
    ! 
    ! WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
    !
@@ -1564,7 +1563,7 @@ contains
     do j = 1,csite_hydr%nlevsoi_hyd
        ! BOC: PLEASE CHECK UNITS ON h2o_liq_sisl(j) (RGK)
        errh2o(j) = h2osoi_liq_col_new(j) - bc_in%h2o_liq_sisl(j)
-       if (abs(errh2o(j)) > 1.e-9_r8) then
+       if (abs(errh2o(j)) > 1.e-4_r8) then
           found = .true.
           indexj = j
           if( found ) then
