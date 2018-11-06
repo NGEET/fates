@@ -270,7 +270,7 @@ module FatesHydraulicsMemMod
      real(r8) ::  rootuptake09                    ! net flow into roots (+ into roots), soil layer 9                  [kg/indiv/timestep]
      real(r8) ::  rootuptake10                    ! net flow into roots (+ into roots), soil layer 10                 [kg/indiv/timestep]
                                                   ! BC PLANT HYDRAULICS - flags
-     logical ::   is_newly_recuited               !whether the new cohort is newly recuited
+     logical ::   is_newly_recruited               !whether the new cohort is newly recruited
      
   contains
      

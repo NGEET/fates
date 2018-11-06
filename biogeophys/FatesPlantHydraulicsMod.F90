@@ -732,7 +732,7 @@ contains
      ncohort_hydr%rootuptake09       = ocohort_hydr%rootuptake09
      ncohort_hydr%rootuptake10       = ocohort_hydr%rootuptake10
      
-     ncohort_hydr%is_newly_recuited  = ocohort_hydr%is_newly_recuited
+     ncohort_hydr%is_newly_recruited  = ocohort_hydr%is_newly_recruited
 
   end subroutine CopyCohortHydraulics
   
@@ -849,7 +849,7 @@ contains
      !ccohort_hydr%th_aroot_prev(:)
      !ccohort_hydr%th_aroot_prev_uncorr(:)
 
-     ccohort_hydr%is_newly_recuited        = .false.
+     ccohort_hydr%is_newly_recruited        = .false.
 
   end subroutine FuseCohortHydraulics
 
@@ -867,7 +867,7 @@ contains
     allocate(ccohort_hydr)
     currentCohort%co_hydr => ccohort_hydr
     call ccohort_hydr%AllocateHydrCohortArrays(currentSite%si_hydr%nlevsoi_hyd)
-    ccohort_hydr%is_newly_recuited = .false. 
+    ccohort_hydr%is_newly_recruited = .false. 
 
   end subroutine InitHydrCohort
 
@@ -1029,7 +1029,7 @@ contains
      ! ----------------------------------------------------------------------------------
 
      use EDTypesMod, only : AREA
-    use EDTypesMod     , only : dump_cohort
+     use EDTypesMod     , only : dump_cohort
 
      ! Arguments
      integer, intent(in)                       :: nsites
@@ -1072,24 +1072,20 @@ contains
            currentCohort=>currentPatch%tallest
            do while(associated(currentCohort))
               ccohort_hydr => currentCohort%co_hydr
-              csite_hydr%h2oveg = csite_hydr%h2oveg + &
+	      !only account for the water for not newly recruit for mass balance
+	      if(.not.ccohort_hydr%is_newly_recruited) then 
+                csite_hydr%h2oveg = csite_hydr%h2oveg + &
                     (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:)) + &
                     sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:)) + &
                     sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
                     denh2o*currentCohort%n
 
-     !if(nstep == 49) then ! .and. &
-       !(maxval(ccohort_hydr%errh2o_growturn_aroot(:)) > 1.0_r8 .or. &
-       !  minval(ccohort_hydr%errh2o_growturn_aroot(:)) < -1.0_r8)) then
-       !write(fates_log(),*)'ccohort_hydr%errh2o_growturn_aroot(:)', ccohort_hydr%errh2o_growturn_aroot(:)
-       !write(fates_log(),*)'ccohort_hydr%v_aroot_layer(:)', ccohort_hydr%v_aroot_layer(:)
-       !call dump_cohort(currentCohort)
-     !endif
-              csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
+                csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
                     (sum(ccohort_hydr%errh2o_growturn_ag(:)*ccohort_hydr%v_ag(:))      + &
                      sum(ccohort_hydr%errh2o_growturn_troot(:)*ccohort_hydr%v_troot(:))   + &
                      sum(ccohort_hydr%errh2o_growturn_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
                      denh2o*currentCohort%n
+              endif
 
               currentCohort => currentCohort%shorter
            enddo !cohort
@@ -1101,22 +1097,88 @@ contains
 
         ! Note that h2oveg_dead is incremented wherever we have litter fluxes
         ! and it will be reduced via an evaporation term
+	! growturn_err is a term to accomodate error in growth or turnover. need to be improved for future(CX) 
         bc_out(s)%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
-                                        csite_hydr%h2oveg_recruit - &
                                         csite_hydr%h2oveg_growturn_err - &
                                         csite_hydr%h2oveg_pheno_err
 
      end do
 
-     !if(nstep == 49) then
-       !write(fates_log(),*)'csite_hydr%h2oveg', csite_hydr%h2oveg
-       !write(fates_log(),*)'csite_hydr%h2oveg_dead', csite_hydr%h2oveg_dead
-       !write(fates_log(),*)'csite_hydr%h2oveg_growturn_err', csite_hydr%h2oveg_growturn_err
-       !write(fates_log(),*)'csite_hydr%h2oveg_pheno_err', csite_hydr%h2oveg_pheno_err
-     !endif
-     
+   
     return
   end subroutine UpdateH2OVeg
+  
+  !=====================================================================================
+  subroutine RecruitWUptake(nsites,sites,bc_in,dtime)
+
+     ! ----------------------------------------------------------------------------------
+     ! This subroutine is called to caluate the water requirement for newly recruited cohorts
+     ! The water update is allocated proportionally to the root biomass, which could be updated
+     ! to accomodate the soil moisture and rooting depth for small seedlings (Chonggang XU).
+     ! After the root water uptake, is_newly_recruited flag is set to false.
+     ! ----------------------------------------------------------------------------------
+
+     use EDTypesMod, only : AREA
+      ! Arguments
+     integer, intent(in)                       :: nsites
+     type(ed_site_type), intent(inout), target :: sites(nsites)
+     type(bc_in_type), intent(in)              :: bc_in(nsites)    
+     real(r8), intent(in)                      :: dtime !time (seconds)
+
+     ! Locals
+     type(ed_cohort_type), pointer :: currentCohort
+     type(ed_patch_type), pointer :: currentPatch
+     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+     type(ed_site_hydr_type), pointer :: csite_hydr
+     integer :: s, j, ft
+     integer :: nstep !number of time steps 
+     real(r8) :: roota !root distriubiton parameter a
+     real(r8) :: rootb !root distriubiton parameter b
+     real(r8) :: rootfr !fraction of root in different soil layer
+     real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/s)
+      
+     do s = 1,nsites 
+        csite_hydr => sites(s)%si_hydr
+        csite_hydr%recruit_w_uptake = 0.0_r8
+        currentPatch => sites(s)%oldest_patch 
+        do while(associated(currentPatch)) 
+           currentCohort=>currentPatch%tallest
+           do while(associated(currentCohort))
+              ccohort_hydr => currentCohort%co_hydr
+	      ft       = currentCohort%pft
+  	      !-----------------------------------------------------------
+              ! recruitment water uptake
+	      if(ccohort_hydr%is_newly_recruited) then
+	        roota    =  EDPftvarcon_inst%roota_par(ft)
+                rootb    =  EDPftvarcon_inst%rootb_par(ft)
+	        recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
+                    sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:))             + &
+                    sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
+                    denh2o*currentCohort%n/AREA/dtime
+                if( csite_hydr%nlevsoi_hyd == 1) then
+                    csite_hydr%recruit_w_uptake(1) = csite_hydr%recruit_w_uptake(1)+ &
+		                                    recruitw
+                else
+                  do j=1,csite_hydr%nlevsoi_hyd
+                    if(j == 1) then
+                       rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j))
+                    else
+                       rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j)) - &
+                          zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j-1))
+                    end if
+		    csite_hydr%recruit_w_uptake(j) = csite_hydr%recruit_w_uptake(j) + &
+		                                    recruitw*rootfr
+                  end do
+                end if
+		ccohort_hydr%is_newly_recruited = .false.
+	      endif
+	      currentCohort=>currentCohort%shorter
+	  end do !cohort loop	   
+          currentPatch => currentPatch%younger
+	end do !patch
+     end do ! site loop
+	
+  end subroutine RecruitWUptake	   
 
   ! =====================================================================================
 
@@ -1272,7 +1334,7 @@ contains
   
   ! =================================================================================
 
-   subroutine updateSizeDepRhizHydStates(currentSite, bc_in)
+  subroutine updateSizeDepRhizHydStates(currentSite, bc_in)
     !
     ! !DESCRIPTION: Updates size of 'representative' rhizosphere -- node radii, volumes.
     ! As fine root biomass (and thus absorbing root length) increases, this characteristic
@@ -1481,13 +1543,13 @@ contains
           end if
        end if
     enddo
- end if !nshell > 1
+   end if !nshell > 1
     
-end subroutine updateSizeDepRhizHydStates
+  end subroutine updateSizeDepRhizHydStates
 
 
-   ! ====================================================================================
-   subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
+  ! ====================================================================================
+  subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
 
      ! Arguments
      integer,intent(in)                      :: nsites
@@ -1827,9 +1889,8 @@ end subroutine updateSizeDepRhizHydStates
                                                ! as it regards the fraction of canopy area as the relevant
                                                ! area, and assumes that the HLM has it's own patch
                                                ! that is not tracked by FATES which accounts for all
-                                               ! non-canopy areas across all patches
-					       
-     real(r8) :: recruitw                      !water uptake due to recruitment (kg/m2/s) 
+                                               ! non-canopy areas across all patches					       
+
      real(r8) :: smp                           ! temporary for matric potential (MPa)
      integer  :: tmp
      real(r8) :: tmp1
@@ -1842,7 +1903,7 @@ end subroutine updateSizeDepRhizHydStates
      real(r8) :: rootfr                        ! root fraction at different soil layers
      type(ed_site_hydr_type), pointer :: site_hydr
      type(ed_cohort_hydr_type), pointer :: ccohort_hydr
-    integer  :: err_code = 0
+     integer  :: err_code = 0
 
      ! ----------------------------------------------------------------------------------
      ! Important note: We are interested in calculating the total fluxes in and out of the
@@ -1856,11 +1917,13 @@ end subroutine updateSizeDepRhizHydStates
      ! Input:  [real(r8) (:,:,:)] soil matric potential (MPa) by layer and rhizosphere shell
      
      !for debug only
-     nstep = get_nstep()
+     !nstep = get_nstep()
      
-     if(nstep == 98)then
-        write(fates_log(),*) 'debug'
-     endif
+     !For newly recruited cohorts, add the water uptake demand to csite_hydr%recruit_w_uptake
+     call RecruitWUptake(nsites,sites,bc_in,dtime)
+     
+     !update water storage in veg after incorporating newly recuited cohorts
+     call UpdateH2OVeg(nsites,sites,bc_out)
 	     
      do s = 1, nsites
           
@@ -1870,7 +1933,6 @@ end subroutine updateSizeDepRhizHydStates
         dth_layershell_col(:,:) = 0._r8
         site_hydr%dwat_veg       = 0._r8
         site_hydr%errh2o_hyd     = 0._r8
-	site_hydr%recruit_w_uptake(:) = 0._r8
         ncoh_col       = 0
 
         ! Calculate the mean site level transpiration flux
@@ -1936,32 +1998,6 @@ end subroutine updateSizeDepRhizHydStates
               ccohort_hydr%dqtopdth_dthdt  = 0._r8
               ccohort_hydr%sapflow         = 0._r8
               ccohort_hydr%rootuptake      = 0._r8
-	      !-----------------------------------------------------------
-              ! recruitment water uptake
-	      if(ccohort_hydr%is_newly_recuited) then
-	        roota    =  EDPftvarcon_inst%roota_par(ft)
-                rootb    =  EDPftvarcon_inst%rootb_par(ft)
-	        recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
-                    sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:))             + &
-                    sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
-                    denh2o*ccohort%n/AREA/dtime
-                if( site_hydr%nlevsoi_hyd == 1) then
-                    site_hydr%recruit_w_uptake(1) = site_hydr%recruit_w_uptake(1)+ &
-		                                    recruitw
-                else
-                  do j=1,site_hydr%nlevsoi_hyd
-                    if(j == 1) then
-                       rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j))
-                    else
-                       rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j)) - &
-                          zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j-1))
-                    end if
-		    site_hydr%recruit_w_uptake(j) = site_hydr%recruit_w_uptake(j) + &
-		                                    recruitw*rootfr
-                  end do
-                end if
-		ccohort_hydr%is_newly_recuited = .false.
-	      endif	      
               
               ! Relative transpiration of this cohort from the whole patch
 !!              qflx_rel_tran_coh = ccohort%g_sb_laweight/gscan_patch
@@ -2460,18 +2496,6 @@ end subroutine updateSizeDepRhizHydStates
                       end if
                    end do
                    do j=1,site_hydr%nlevsoi_hyd
-     if(nstep == 98)then
-       !call check_var_real(ccohort_hydr%flc_min_aroot(j),'ccohort_hydr%flc_min_aroot(j)',err_code)
-       !if (err_code == 1 .or. err_code == 10 .or. err_code == 100) then
-       !write(fates_log(),*)'ccohort_hydr%flc_min_aroot(j)', ccohort_hydr%flc_min_aroot(j)
-       !  call dump_cohort(ccohort)
-       !end if
-       !call check_var_real(ccohort_hydr%flc_aroot(j),'ccohort_hydr%flc_aroot(j)',err_code)
-       !if (err_code == 1 .or. err_code == 10 .or. err_code == 100) then
-       !write(fates_log(),*)'ccohort_hydr%flc_aroot(j)', ccohort_hydr%flc_aroot(j)
-       !  call dump_cohort(ccohort)
-       !end if
-     endif
                       ccohort_hydr%flc_min_aroot(j) = min(ccohort_hydr%flc_min_aroot(j), ccohort_hydr%flc_aroot(j))
                       if(ccohort_hydr%psi_aroot(j) >= ccohort_hydr%refill_thresh .and. &
                             ccohort_hydr%flc_aroot(j) > ccohort_hydr%flc_min_aroot(j)) then   ! then refilling
@@ -2678,7 +2702,7 @@ end subroutine updateSizeDepRhizHydStates
            currentCohort=>currentPatch%tallest
            do while(associated(currentCohort))
               ccohort_hydr => currentCohort%co_hydr
-              if(ccohort_hydr%is_newly_recuited) then
+              if(ccohort_hydr%is_newly_recruited) then
                  csite_hydr%h2oveg_recruit = csite_hydr%h2oveg_recruit + &
                        (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:)) + &
                        sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:)) + &
