@@ -5,12 +5,15 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod , only : fates_avg_flag_length
   use FatesConstantsMod , only : fates_short_string_length
   use FatesConstantsMod , only : fates_long_string_length
+  use FatesConstantsMod , only : itrue
+  use FatesConstantsMod , only : ifalse
   use FatesGlobals      , only : fates_log
   use FatesGlobals      , only : endrun => fates_endrun
   use FatesIODimensionsMod, only : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
   use FatesInterfaceMod, only : bc_in_type 
+  use FatesInterfaceMod, only : bc_out_type
   use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
 
   use PRTGenericMod,          only : prt_global
@@ -102,6 +105,9 @@ module FatesRestartInterfaceMod
   integer, private :: ir_lmort_collateral_co
   integer, private :: ir_lmort_infra_co
 
+  ! Radiation
+  integer, private :: ir_solar_zenith_flag_pa
+  integer, private :: ir_solar_zenith_angle_pa
 
   integer, private :: ir_ddbhdt_co
   integer, private :: ir_resp_tstep_co
@@ -110,6 +116,10 @@ module FatesRestartInterfaceMod
   integer, private :: ir_isnew_co
   integer, private :: ir_cwd_ag_pacw
   integer, private :: ir_cwd_bg_pacw
+
+  integer, private :: ir_gnd_alb_dif_pasb
+  integer, private :: ir_gnd_alb_dir_pasb
+
   integer, private :: ir_leaf_litter_paft
   integer, private :: ir_root_litter_paft
   integer, private :: ir_leaf_litter_in_paft
@@ -119,11 +129,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_livegrass_pa
   integer, private :: ir_age_pa
   integer, private :: ir_area_pa
-  integer, private :: ir_fsun_paclftls
-  integer, private :: ir_fabd_sun_paclftls
-  integer, private :: ir_fabi_sun_paclftls
-  integer, private :: ir_fabd_sha_paclftls
-  integer, private :: ir_fabi_sha_paclftls
+
   integer, private :: ir_watermem_siwm
 
   integer, private :: ir_prt_base     ! Base index for all PRT variables
@@ -192,6 +198,7 @@ module FatesRestartInterfaceMod
      procedure, public :: set_restart_vectors
      procedure, public :: create_patchcohort_structure
      procedure, public :: get_restart_vectors
+     procedure, public :: update_3dpatch_radiation
      ! private work functions
      procedure, private :: init_dim_kinds_maps
      procedure, private :: set_dim_indices
@@ -609,6 +616,16 @@ contains
          long_name='the number of cohorts per patch', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ncohort_pa )
 
+    call this%set_restart_var(vname='fates_solar_zenith_flag_pa', vtype=cohort_int, &
+         long_name='switch specifying if zenith is positive', units='unitless', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_solar_zenith_flag_pa )
+    
+    call this%set_restart_var(vname='fates_solar_zenith_angle_pa', vtype=cohort_r8, &
+         long_name='the angle of the solar zenith for each patch', units='radians', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_solar_zenith_angle_pa )
+
+
+
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
 
@@ -753,6 +770,16 @@ contains
          units='kgC/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwd_bg_pacw )
 
+    call this%set_restart_var(vname='fates_gnd_alb_dif', vtype=cohort_r8, &
+         long_name='ground albedo of diffuse radiation vis and ir', &
+         units='fraction', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gnd_alb_dif_pasb )
+
+    call this%set_restart_var(vname='fates_gnd_alb_dir', vtype=cohort_r8, &
+         long_name='ground albedo of direct radiation vis and ir', &
+         units='fraction', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gnd_alb_dir_pasb )
+
     call this%set_restart_var(vname='fates_leaf_litter', vtype=cohort_r8, &
          long_name='leaf litter, by patch x pft (non-respiring)', &
          units='kgC/m2', flushval = flushzero, &
@@ -796,31 +823,6 @@ contains
          long_name='are of the ED patch', units='m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
 
-    ! These dimensions are pa "patch" cl "canopy layer" ft "functional type" ls "layer sublevel"
-    call this%set_restart_var(vname='fates_f_sun', vtype=cohort_r8, &
-         long_name='fraction of sunlit leaves, by patch x can-layer x pft x sublayer', &
-         units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fsun_paclftls )
-
-    call this%set_restart_var(vname='fates_fabd_sun_z', vtype=cohort_r8, &
-         long_name='sun fraction of direct light absorbed, by patch x can-layer x pft x sublayer', &
-         units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabd_sun_paclftls )
-
-    call this%set_restart_var(vname='fates_fabi_sun_z', vtype=cohort_r8, &
-         long_name='sun fraction of indirect light absorbed, by patch x can-layer x pft x sublayer', &
-         units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabi_sun_paclftls )
-
-    call this%set_restart_var(vname='fates_fabd_sha_z', vtype=cohort_r8, &
-         long_name='shade fraction of direct light absorbed, by patch x can-layer x pft x sublayer', &
-         units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabd_sha_paclftls )
-
-    call this%set_restart_var(vname='fates_fabi_sha_z', vtype=cohort_r8, &
-         long_name='shade fraction of indirect light absorbed, by patch x can-layer x pft x sublayer', &
-         units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabi_sha_paclftls )
 
     !
     ! site x time level vars
@@ -1031,14 +1033,13 @@ contains
 
  subroutine set_restart_vectors(this,nc,nsites,sites)
 
-   use EDTypesMod, only : nclmax
-   use EDTypesMod, only : nlevleaf
    use FatesInterfaceMod, only : fates_maxElementsPerPatch
    use FatesInterfaceMod, only : numpft
    use EDTypesMod, only : ed_site_type
    use EDTypesMod, only : ed_cohort_type
    use EDTypesMod, only : ed_patch_type
    use EDTypesMod, only : ncwd
+   use EDTypesMod, only : maxSWb
    use EDTypesMod, only : numWaterMem
 
     ! Arguments
@@ -1063,7 +1064,7 @@ contains
     integer  :: io_idx_co      ! cohort index
     integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
     integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
-    integer  :: io_idx_pa_sunz ! index for the combined dimensions for radiation
+    integer  :: io_idx_pa_ib   ! each SW band (vis/ir) per patch (pa_ib)
     integer  :: io_idx_si_wmem ! each water memory class within each site
     
     ! Some counters (for checking mostly)
@@ -1107,6 +1108,8 @@ contains
            rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
+           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
+           rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
@@ -1121,7 +1124,6 @@ contains
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
            rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
            rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
-
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
@@ -1137,6 +1139,8 @@ contains
            rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
            rio_cwd_ag_pacw             => this%rvars(ir_cwd_ag_pacw)%r81d, &
            rio_cwd_bg_pacw             => this%rvars(ir_cwd_bg_pacw)%r81d, &
+           rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
+           rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
            rio_leaf_litter_paft        => this%rvars(ir_leaf_litter_paft)%r81d, &
            rio_root_litter_paft        => this%rvars(ir_root_litter_paft)%r81d, &
            rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
@@ -1146,11 +1150,6 @@ contains
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-           rio_fsun_paclftls           => this%rvars(ir_fsun_paclftls)%r81d, &
-           rio_fabd_sun_z_paclftls     => this%rvars(ir_fabd_sun_paclftls)%r81d, &
-           rio_fabi_sun_z_paclftls     => this%rvars(ir_fabi_sun_paclftls)%r81d, &
-           rio_fabd_sha_z_paclftls     => this%rvars(ir_fabd_sha_paclftls)%r81d, &
-           rio_fabi_sha_z_paclftls     => this%rvars(ir_fabi_sha_paclftls)%r81d, &
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d )
 
        totalCohorts = 0
@@ -1174,8 +1173,8 @@ contains
           io_idx_co      = io_idx_co_1st
           io_idx_pa_pft  = io_idx_co_1st
           io_idx_pa_cwd  = io_idx_co_1st
+          io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
-          io_idx_pa_sunz = io_idx_co_1st
           
           ! write seed_bank info(site-level, but PFT-resolved)
           do i = 1,numpft
@@ -1300,6 +1299,14 @@ contains
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
              
+             ! Set zenith angle info
+             if ( cpatch%solar_zenith_flag ) then
+                rio_solar_zenith_flag_pa(io_idx_co_1st)     = itrue
+             else
+                rio_solar_zenith_flag_pa(io_idx_co_1st)     = ifalse
+             endif
+             rio_solar_zenith_angle_pa( io_idx_co_1st) = cpatch%solar_zenith_angle
+
              if ( debug ) then
                 write(fates_log(),*) 'offsetNumCohorts III ' &
                       ,io_idx_co,cohortsperpatch
@@ -1323,25 +1330,11 @@ contains
                 io_idx_pa_cwd = io_idx_pa_cwd + 1
              end do
              
-             if ( debug ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 1 ',io_idx_pa_sunz
-             
-             if ( debug ) write(fates_log(),*) 'CLTV 1186 ',nlevleaf,numpft,nclmax
-             
-             do k = 1,nlevleaf     ! nlevleaf currently 40
-                do j = 1,numpft    ! dependent on parameter file
-                   do i = 1,nclmax ! nclmax currently 2
-                      rio_fsun_paclftls(io_idx_pa_sunz)        = cpatch%f_sun(i,j,k)
-                      rio_fabd_sun_z_paclftls(io_idx_pa_sunz)  = cpatch%fabd_sun_z(i,j,k)
-                      rio_fabi_sun_z_paclftls(io_idx_pa_sunz)  = cpatch%fabi_sun_z(i,j,k)
-                      rio_fabd_sha_z_paclftls(io_idx_pa_sunz)  = cpatch%fabd_sha_z(i,j,k)
-                      rio_fabi_sha_z_paclftls(io_idx_pa_sunz)  = cpatch%fabi_sha_z(i,j,k)
-                      io_idx_pa_sunz = io_idx_pa_sunz + 1
-                   end do
-                end do
+             do i = 1,maxSWb
+                rio_gnd_alb_dif_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dif(i)
+                rio_gnd_alb_dir_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dir(i)
+                io_idx_pa_ib = io_idx_pa_ib + 1
              end do
-             
-             if ( debug ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 2 ',io_idx_pa_sunz
-
 
              ! Set the first cohort index to the start of the next patch, increment
              ! by the maximum number of cohorts per patch
@@ -1350,8 +1343,8 @@ contains
              ! reset counters so that they are all advanced evenly.
              io_idx_pa_pft  = io_idx_co_1st
              io_idx_pa_cwd  = io_idx_co_1st
+             io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
-             io_idx_pa_sunz = io_idx_co_1st
              
              if ( debug ) then
                 write(fates_log(),*) 'CLTV io_idx_co_1st ', io_idx_co_1st
@@ -1423,8 +1416,7 @@ contains
      use EDTypesMod,           only : ed_cohort_type
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : ncwd
-     use EDTypesMod,           only : nlevleaf
-     use EDTypesMod,           only : nclmax
+     use EDTypesMod,           only : maxSWb
      use FatesInterfaceMod,    only : fates_maxElementsPerPatch
      use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
@@ -1620,8 +1612,7 @@ contains
      use EDTypesMod, only : ed_cohort_type
      use EDTypesMod, only : ed_patch_type
      use EDTypesMod, only : ncwd
-     use EDTypesMod, only : nlevleaf
-     use EDTypesMod, only : nclmax
+     use EDTypesMod, only : maxSWb
      use FatesInterfaceMod, only : numpft
      use FatesInterfaceMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
@@ -1656,7 +1647,7 @@ contains
      integer  :: io_idx_co      ! cohort index
      integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
      integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
-     integer  :: io_idx_pa_sunz ! index for the combined dimensions for radiation
+     integer  :: io_idx_pa_ib   ! each SW radiation band per patch (pa_ib)
      integer  :: io_idx_si_wmem ! each water memory class within each site
 
      ! Some counters (for checking mostly)
@@ -1693,6 +1684,8 @@ contains
           rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
+          rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
+          rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
@@ -1707,17 +1700,14 @@ contains
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
           rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
           rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
-
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
           rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
           rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
-
           rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
           rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
           rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
-
           rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
           rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
@@ -1725,6 +1715,8 @@ contains
           rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
           rio_cwd_ag_pacw             => this%rvars(ir_cwd_ag_pacw)%r81d, &
           rio_cwd_bg_pacw             => this%rvars(ir_cwd_bg_pacw)%r81d, &
+          rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
+          rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
           rio_leaf_litter_paft        => this%rvars(ir_leaf_litter_paft)%r81d, &
           rio_root_litter_paft        => this%rvars(ir_root_litter_paft)%r81d, &
           rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
@@ -1734,11 +1726,6 @@ contains
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-          rio_fsun_paclftls           => this%rvars(ir_fsun_paclftls)%r81d, &
-          rio_fabd_sun_z_paclftls     => this%rvars(ir_fabd_sun_paclftls)%r81d, &
-          rio_fabi_sun_z_paclftls     => this%rvars(ir_fabi_sun_paclftls)%r81d, &
-          rio_fabd_sha_z_paclftls     => this%rvars(ir_fabd_sha_paclftls)%r81d, &
-          rio_fabi_sha_z_paclftls     => this%rvars(ir_fabi_sha_paclftls)%r81d, &
           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d )
      
        totalcohorts = 0
@@ -1751,7 +1738,7 @@ contains
           io_idx_co      = io_idx_co_1st
           io_idx_pa_pft  = io_idx_co_1st
           io_idx_pa_cwd  = io_idx_co_1st
-          io_idx_pa_sunz = io_idx_co_1st
+          io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           
           ! read seed_bank info(site-level, but PFT-resolved)
@@ -1865,17 +1852,22 @@ contains
              !
              ! deal with patch level fields here
              !
-             cpatch%livegrass  = rio_livegrass_pa(io_idx_co_1st)
-             cpatch%age        = rio_age_pa(io_idx_co_1st) 
-             cpatch%area       = rio_area_pa(io_idx_co_1st)
-             cpatch%age_class  = get_age_class_index(cpatch%age)
-             
+             cpatch%livegrass          = rio_livegrass_pa(io_idx_co_1st)
+             cpatch%age                = rio_age_pa(io_idx_co_1st) 
+             cpatch%area               = rio_area_pa(io_idx_co_1st)
+             cpatch%age_class          = get_age_class_index(cpatch%age)
+
+             ! Set zenith angle info
+             cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
+             cpatch%solar_zenith_angle = rio_solar_zenith_angle_pa(io_idx_co_1st)
+
              ! set cohorts per patch for IO
              
              if ( debug ) then
                 write(fates_log(),*) 'CVTL III ' &
                      ,io_idx_co,cohortsperpatch
              endif
+
              !
              ! deal with patch level fields of arrays here
              !
@@ -1896,23 +1888,12 @@ contains
                 io_idx_pa_cwd = io_idx_pa_cwd + 1
              enddo
              
-             if ( debug ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 1 ',io_idx_pa_sunz
-             
-             do k = 1,nlevleaf ! nlevleaf currently 40
-                do j = 1,numpft
-                   do i = 1,nclmax ! nclmax currently 2
-                      cpatch%f_sun(i,j,k)      = rio_fsun_paclftls(io_idx_pa_sunz) 
-                      cpatch%fabd_sun_z(i,j,k) = rio_fabd_sun_z_paclftls(io_idx_pa_sunz)
-                      cpatch%fabi_sun_z(i,j,k) = rio_fabi_sun_z_paclftls(io_idx_pa_sunz)
-                      cpatch%fabd_sha_z(i,j,k) = rio_fabd_sha_z_paclftls(io_idx_pa_sunz)
-                      cpatch%fabi_sha_z(i,j,k) = rio_fabi_sha_z_paclftls(io_idx_pa_sunz)
-                      io_idx_pa_sunz = io_idx_pa_sunz + 1
-                   end do
-                end do
+             do i = 1,maxSWb
+                cpatch%gnd_alb_dif(i) = rio_gnd_alb_dif_pasb(io_idx_pa_ib)
+                cpatch%gnd_alb_dir(i) = rio_gnd_alb_dir_pasb(io_idx_pa_ib)
+                io_idx_pa_ib = io_idx_pa_ib + 1
              end do
-             
-             if ( debug ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 2 ',io_idx_pa_sunz
-             
+
              ! Now increment the position of the first cohort to that of the next
              ! patch
              
@@ -1921,8 +1902,8 @@ contains
              ! and max the number of allowed cohorts per patch
              io_idx_pa_pft  = io_idx_co_1st
              io_idx_pa_cwd  = io_idx_co_1st
+             io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
-             io_idx_pa_sunz = io_idx_co_1st
              
              if ( debug ) then
                 write(fates_log(),*) 'CVTL io_idx_co_1st ', io_idx_co_1st
@@ -1979,4 +1960,111 @@ contains
      end associate
    end subroutine get_restart_vectors
    
+  
+   ! ====================================================================================
+
+   subroutine update_3dpatch_radiation(this, nc, nsites, sites, bc_out)
+
+     ! -------------------------------------------------------------------------
+     ! This subroutine populates output boundary conditions related to radiation
+     ! called upon restart reads.
+     ! -------------------------------------------------------------------------
+
+     use EDTypesMod, only            : ed_site_type
+     use EDTypesMod, only            : ed_patch_type
+     use EDSurfaceRadiationMod, only : PatchNormanRadiation
+     use FatesInterfaceMod, only     : hlm_numSWb
+
+     ! !ARGUMENTS:
+     class(fates_restart_interface_type) , intent(inout) :: this
+     integer                     , intent(in)            :: nc
+     integer                     , intent(in)            :: nsites
+     type(ed_site_type)          , intent(inout), target :: sites(nsites)
+     type(bc_out_type)           , intent(inout)         :: bc_out(nsites)
+
+     ! locals
+     ! ----------------------------------------------------------------------------------
+     type(ed_patch_type),pointer  :: currentPatch  ! current patch
+     integer                      :: s             ! site counter
+     integer                      :: ib            ! radiation band counter
+     integer                      :: ifp           ! patch counter
+
+     do s = 1, nsites
+        
+        ifp = 0
+        currentpatch => sites(s)%oldest_patch
+        do while (associated(currentpatch))  
+           ifp = ifp+1
+           
+           currentPatch%f_sun      (:,:,:) = 0._r8
+           currentPatch%fabd_sun_z (:,:,:) = 0._r8
+           currentPatch%fabd_sha_z (:,:,:) = 0._r8
+           currentPatch%fabi_sun_z (:,:,:) = 0._r8
+           currentPatch%fabi_sha_z (:,:,:) = 0._r8
+           currentPatch%fabd       (:)     = 0._r8
+           currentPatch%fabi       (:)     = 0._r8
+
+           ! zero diagnostic radiation profiles
+           currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+           currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+           currentPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
+           currentPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
+           
+           ! -----------------------------------------------------------
+           ! When calling norman radiation from the short-timestep
+           ! we are passing in boundary conditions to set the following
+           ! variables:
+           ! currentPatch%solar_zenith_flag     (is there daylight?)
+           ! currentPatch%solar_zenith_angle    (what is the value?)
+           ! -----------------------------------------------------------
+           
+           if(currentPatch%solar_zenith_flag)then
+              
+              bc_out(s)%albd_parb(ifp,:) = 0._r8  ! output HLM
+              bc_out(s)%albi_parb(ifp,:) = 0._r8  ! output HLM
+              bc_out(s)%fabi_parb(ifp,:) = 0._r8  ! output HLM
+              bc_out(s)%fabd_parb(ifp,:) = 0._r8  ! output HLM
+              bc_out(s)%ftdd_parb(ifp,:) = 1._r8  ! output HLM
+              bc_out(s)%ftid_parb(ifp,:) = 1._r8  ! output HLM
+              bc_out(s)%ftii_parb(ifp,:) = 1._r8  ! output HLM
+                 
+              if (maxval(currentPatch%nrad(1,:))==0)then
+                 !there are no leaf layers in this patch. it is effectively bare ground. 
+                 ! no radiation is absorbed  
+                 bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
+                 bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
+                 do ib = 1,hlm_numSWb
+
+                    ! REQUIRES A FIX HERE albd vs albi
+
+                    bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
+                    bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
+                    bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
+                    bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
+                    bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
+                 enddo
+              else
+                 
+                 call PatchNormanRadiation (currentPatch, &
+                      bc_out(s)%albd_parb(ifp,:), &
+                      bc_out(s)%albi_parb(ifp,:), &
+                      bc_out(s)%fabd_parb(ifp,:), &
+                      bc_out(s)%fabi_parb(ifp,:), &
+                      bc_out(s)%ftdd_parb(ifp,:), &
+                      bc_out(s)%ftid_parb(ifp,:), &
+                      bc_out(s)%ftii_parb(ifp,:))
+              
+              endif ! is there vegetation? 
+              
+           end if    ! if the vegetation and zenith filter is active
+     
+
+           currentPatch => currentPatch%younger
+        end do       ! Loop linked-list patches
+     enddo           ! Loop Sites
+     
+     return
+   end subroutine update_3dpatch_radiation
+
+
  end module FatesRestartInterfaceMod
