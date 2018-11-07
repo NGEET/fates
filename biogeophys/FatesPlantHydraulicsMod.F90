@@ -234,7 +234,7 @@ contains
     
     ccohort_hydr%lwp_mem(:)       = ccohort_hydr%psi_ag(1)   ! initializes the leaf water potential memory
     ccohort_hydr%lwp_stable       = ccohort_hydr%psi_ag(1)
-    ccohort_hydr%lwp_is_unstable  = .false.             ! inital value for leaf water potential stability flag
+    ccohort_hydr%lwp_is_unstable  = .false.                  ! inital value for leaf water potential stability flag
     ccohort_hydr%flc_ag(:)        =  1.0_r8
     ccohort_hydr%flc_troot(:)        =  1.0_r8
     ccohort_hydr%flc_aroot(:)     =  1.0_r8
@@ -564,9 +564,9 @@ contains
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     integer  :: j,k,FT                       ! indices
     integer  :: err_code = 0
-    real(r8) :: th_ag_uncorr(      n_hypool_ag) ! 
-    real(r8) :: th_troot_uncorr(n_hypool_troot) ! 
-    real(r8) :: th_aroot_uncorr(currentSite%si_hydr%nlevsoi_hyd)    ! 
+    real(r8) :: th_ag_uncorr(      n_hypool_ag) ! uncorrected aboveground water content[m3 m-3]
+    real(r8) :: th_troot_uncorr(n_hypool_troot) ! uncorrected transporting root water content[m3 m-3]
+    real(r8) :: th_aroot_uncorr(currentSite%si_hydr%nlevsoi_hyd)    ! uncorrected absorbing root water content[m3 m-3] 
     real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
      integer :: nstep !number of time steps
     !-----------------------------------------------------------------------
@@ -1670,8 +1670,9 @@ contains
     real(r8) :: dwat_kg                                ! water remaining to be distributed across shells                [kg]
     real(r8) :: thdiff                                 ! water content difference between ordered adjacent rhiz shells  [m3 m-3]
     real(r8) :: wdiff                                  ! mass of water represented by thdiff over previous k shells     [kg]
-    real(r8) :: errh2o(nlevsoi_hyd_max)                  ! water budget error after updating                              [kg/m2]
-    real(r8) :: h2osoi_liq_shell(nlevsoi_hyd_max,nshell) !
+    real(r8) :: errh2o(nlevsoi_hyd_max)                ! water budget error after updating                              [kg/m2]
+    real(r8) :: cumShellH2O                            ! sum of water in all the shells of a specific layer             [kg/m2]
+    real(r8) :: h2osoi_liq_shell(nlevsoi_hyd_max,nshell) !water in the rhizosphere shells                               [kg]
     integer  :: tmp                                    ! temporary
     logical  :: found                                  ! flag in search loop
     !-----------------------------------------------------------------------
@@ -1689,12 +1690,14 @@ contains
 
        csite_hydr => sites(s)%si_hydr
 
-       do j = 1,csite_hydr%nlevsoi_hyd
+       do j = 1,csite_hydr%nlevsoi_hyd 
+          cumShellH2O=sum(csite_hydr%h2osoi_liqvol_shell(j,:) *csite_hydr%v_shell(j,:)) &
+               / bc_in(s)%dz_sisl(j) * csite_hydr%l_aroot_layer(j) * denh2o/AREA
           
           if(csite_hydr%nlevsoi_hyd == 1) then
-             dwat_kgm2 = bc_in(s)%h2o_liq_sisl(bc_in(s)%nlevsoil) - csite_hydr%h2osoi_liq_prev(csite_hydr%nlevsoi_hyd)
+             dwat_kgm2 = bc_in(s)%h2o_liq_sisl(bc_in(s)%nlevsoil) - cumShellH2O
           else    !  if(csite_hydr%nlevsoi_hyd == bc_in(s)%nlevsoil ) then
-             dwat_kgm2 = bc_in(s)%h2o_liq_sisl(j) - csite_hydr%h2osoi_liq_prev(j)
+             dwat_kgm2 = bc_in(s)%h2o_liq_sisl(j) - cumShellH2O
           end if
 
           dwat_kg = dwat_kgm2 * AREA
