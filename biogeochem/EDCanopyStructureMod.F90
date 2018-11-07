@@ -462,11 +462,14 @@ contains
                      currentCohort%excl_weight = &
                           max(min(currentCohort%c_area, (currentCohort%c_area/total_crownarea_of_tied_cohorts) * &
                           (demote_area - sumweights) ), 0._r8)
-                  else
+                  else !  i.e. tied_size_with_neighbor = .false.
                      currentCohort%excl_weight = &
                           max(min(currentCohort%c_area, demote_area - sumweights ), 0._r8)
                   endif
                endif
+               !
+               ! when two or more cohorts have the same size, we need to keep track of their cumulative demoted crown area
+               ! in a separate buffer and add it once we reach the last of the equal-sized cohorts
                if ((ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor .and. &
                     has_taller_equalsized_neighbor) then
                   sumweights_equalsizebuffer = sumweights_equalsizebuffer + currentCohort%excl_weight
@@ -918,11 +921,14 @@ contains
                         ! now we know the total crown area of all equal-sized, equal-canopy-layer cohorts
                         currentCohort%prom_weight = max(min(currentCohort%c_area, &
                              (currentCohort%c_area/total_crownarea_of_tied_cohorts) * (promote_area - sumweights) ), 0._r8)
-                     else
+                     else !  i.e. tied_size_with_neighbor = .false.
                         currentCohort%prom_weight = max(min(currentCohort%c_area, &
                              promote_area - sumweights ), 0._r8)
                      endif
                   endif
+                  !
+                  ! when two or more cohorts have the same size, we need to keep track of their cumulative demoted crown area
+                  ! in a separate buffer and add it once we reach the last of the equal-sized cohorts
                   if ((ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor .and. &
                        has_shorter_equalsized_neighbor) then
                      sumweights_equalsizebuffer = sumweights_equalsizebuffer + currentCohort%prom_weight
