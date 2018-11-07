@@ -379,19 +379,19 @@ contains
                   ! normal (stochastic) case. weight cohort demotion by 
                   ! inverse size to a constant power
                   currentCohort%excl_weight = &
-                       currentCohort%n/(currentCohort%dbh**ED_val_comp_excln)  
+                       currentCohort%n/(currentCohort%hite**ED_val_comp_excln)
                else
                   ! Rank ordered deterministic method
 
                   ! check to make sure there are no cohorts of equal size
                   tied_size_with_neighbor = .false.
                   if (associated(currentCohort%shorter)) then
-                     if (currentCohort%shorter%dbh .eq. currentCohort%dbh ) then
+                     if (currentCohort%shorter%hite .eq. currentCohort%hite ) then
                         tied_size_with_neighbor = .true.
                      endif
                   endif
                   if (associated(currentCohort%taller)) then
-                     if (currentCohort%taller%dbh .eq. currentCohort%dbh ) then
+                     if (currentCohort%taller%hite .eq. currentCohort%hite ) then
                         tied_size_with_neighbor = .true.
                      endif
                   endif
@@ -414,7 +414,7 @@ contains
                         whileloop_counter = whileloop_counter + 1
                         if (associated(cohort_tosearch_relative_to%shorter)) then
                            cohort_tocompare_to => cohort_tosearch_relative_to%shorter
-                           if (cohort_tocompare_to%dbh .eq. currentCohort%dbh ) then
+                           if (cohort_tocompare_to%hite .eq. currentCohort%hite ) then
                               if (cohort_tocompare_to%canopy_layer .eq. currentCohort%canopy_layer ) then
                                  total_crownarea_of_tied_cohorts = total_crownarea_of_tied_cohorts + cohort_tocompare_to%c_area
                               endif
@@ -440,7 +440,7 @@ contains
                         whileloop_counter = whileloop_counter + 1
                         if (associated(cohort_tosearch_relative_to%taller)) then
                            cohort_tocompare_to => cohort_tosearch_relative_to%taller
-                           if (cohort_tocompare_to%dbh .eq. currentCohort%dbh ) then
+                           if (cohort_tocompare_to%hite .eq. currentCohort%hite ) then
                               if (cohort_tocompare_to%canopy_layer .eq. currentCohort%canopy_layer ) then
                                  total_crownarea_of_tied_cohorts = total_crownarea_of_tied_cohorts + cohort_tocompare_to%c_area
                                  has_taller_equalsized_neighbor = .true.
@@ -835,19 +835,19 @@ contains
                if(currentCohort%canopy_layer == i_lyr+1)then !look at the cohorts in the canopy layer below... 
                   if (ED_val_comp_excln .ge. 0.0_r8 ) then
                      ! normal (stochastic) case, as above.
-                     currentCohort%prom_weight = currentCohort%n*currentCohort%dbh**ED_val_comp_excln
+                     currentCohort%prom_weight = currentCohort%n*currentCohort%hite**ED_val_comp_excln
                   else
                      ! Rank ordered deterministic method
 
                      ! check to make sure there are no cohorts of equal size
                      tied_size_with_neighbor = .false.
                      if (associated(currentCohort%shorter)) then
-                        if (currentCohort%shorter%dbh .eq. currentCohort%dbh ) then
+                        if (currentCohort%shorter%hite .eq. currentCohort%hite ) then
                            tied_size_with_neighbor = .true.
                         endif
                      endif
                      if (associated(currentCohort%taller)) then
-                        if (currentCohort%taller%dbh .eq. currentCohort%dbh ) then
+                        if (currentCohort%taller%hite .eq. currentCohort%hite ) then
                            tied_size_with_neighbor = .true.
                         endif
                      endif
@@ -872,7 +872,7 @@ contains
                            whileloop_counter = whileloop_counter + 1
                            if (associated(cohort_tosearch_relative_to%shorter)) then
                               cohort_tocompare_to => cohort_tosearch_relative_to%shorter
-                              if (cohort_tocompare_to%dbh .eq. currentCohort%dbh ) then
+                              if (cohort_tocompare_to%hite .eq. currentCohort%hite ) then
                                  if (cohort_tocompare_to%canopy_layer .eq. currentCohort%canopy_layer ) then
                                     total_crownarea_of_tied_cohorts = total_crownarea_of_tied_cohorts + cohort_tocompare_to%c_area
                                     has_shorter_equalsized_neighbor = .true.
@@ -898,7 +898,7 @@ contains
                            whileloop_counter = whileloop_counter + 1
                            if (associated(cohort_tosearch_relative_to%taller)) then
                               cohort_tocompare_to => cohort_tosearch_relative_to%taller
-                              if (cohort_tocompare_to%dbh .eq. currentCohort%dbh ) then
+                              if (cohort_tocompare_to%hite .eq. currentCohort%hite ) then
                                  if (cohort_tocompare_to%canopy_layer .eq. currentCohort%canopy_layer ) then
                                     total_crownarea_of_tied_cohorts = total_crownarea_of_tied_cohorts + cohort_tocompare_to%c_area
                                  endif
