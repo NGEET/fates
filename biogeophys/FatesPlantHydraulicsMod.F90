@@ -413,7 +413,7 @@ contains
      !     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8 
      !      m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
      ! or ...
-     ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * cCohort%hite ) * 1.e-4_r8
+     a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * cCohort%hite ) * 1.e-4_r8
      
      v_sapwood    = a_sapwood * z_stem
      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
@@ -1317,27 +1317,13 @@ contains
                 end if
 		if(j == 1) then
                    if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
-                     csite_hydr%kmax_upper_shell_1D(k)  = kmax_root_surf_total
-                     csite_hydr%kmax_bound_shell_1D(k)  = kmax_root_surf_total
-                     csite_hydr%kmax_lower_shell_1D(k)  = kmax_root_surf_total
-                     csite_hydr%kmax_upper_shell_1D(k)  = large_kmax_bound
-                     csite_hydr%kmax_bound_shell_1D(k)  = large_kmax_bound
-                     csite_hydr%kmax_lower_shell_1D(k)  = large_kmax_bound
+                     csite_hydr%kmax_upper_shell_1D(k)  = csite_hydr%kmax_upper_shell(1,k)
+                     csite_hydr%kmax_bound_shell_1D(k)  = csite_hydr%kmax_bound_shell(1,k)
+                     csite_hydr%kmax_lower_shell_1D(k)  = csite_hydr%kmax_lower_shell(1,k)
                    else
-		      kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
-                            log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
-                      !csite_hydr%kmax_upper_shell_1D(k) = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
-		      !      log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
-                      !csite_hydr%kmax_bound_shell_1D(k) = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
-		      !      log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
-                      !csite_hydr%kmax_lower_shell_1D(k) = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
-		      !      log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
-                      csite_hydr%kmax_upper_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**(-1._r8)
-                      csite_hydr%kmax_bound_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**(-1._r8)
-                      csite_hydr%kmax_lower_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**(-1._r8)
+                      csite_hydr%kmax_upper_shell_1D(k) = csite_hydr%kmax_upper_shell(1,k)
+                      csite_hydr%kmax_bound_shell_1D(k) = csite_hydr%kmax_bound_shell(1,k)
+                      csite_hydr%kmax_lower_shell_1D(k) = csite_hydr%kmax_lower_shell(1,k)
                    end if
                 end if
              else
