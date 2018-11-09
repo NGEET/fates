@@ -2187,11 +2187,13 @@ end subroutine flush_hvars
          sites(s)%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
          sites(s)%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
          sites(s)%root_litter_diagnostic_input_carbonflux(:) = 0._r8
-
-         hio_h2oveg_dead_si(io_si)         = sites(s)%si_hydr%h2oveg_dead
-         hio_h2oveg_recruit_si(io_si)      = sites(s)%si_hydr%h2oveg_recruit
-         hio_h2oveg_growturn_err_si(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
-         hio_h2oveg_pheno_err_si(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
+         
+	 if(hlm_use_planthydro==itrue)then 
+           hio_h2oveg_dead_si(io_si)         = sites(s)%si_hydr%h2oveg_dead
+           hio_h2oveg_recruit_si(io_si)      = sites(s)%si_hydr%h2oveg_recruit
+           hio_h2oveg_growturn_err_si(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
+           hio_h2oveg_pheno_err_si(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
+	 endif
          
       enddo ! site loop
       
