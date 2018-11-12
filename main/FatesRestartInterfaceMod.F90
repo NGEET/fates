@@ -846,7 +846,7 @@ contains
     
  end subroutine define_restart_vars
   
-  ! =====================================================================================
+ ! =====================================================================================
   
   subroutine DefinePRTRestartVars(this,initialize_variables,ivar)
 
@@ -978,6 +978,137 @@ contains
 
   ! =====================================================================================
    
+  subroutine DefineHydroVecCohortRestartVars(this,initialize_variables,ivar)
+
+    ! ----------------------------------------------------------------------------------
+    ! Plant Hydraulics has many variables that are bound to the cohort
+    ! and are vectors.  To prevent absolutely massive restart files
+    ! we will actually split the restart information of these different
+    ! vector indices into different saved variables. 
+    ! -----------------------------------------------------------------------------------
+
+
+     use FatesIOVariableKindMod, only : cohort_r8
+
+     class(fates_restart_interface_type) :: this
+     logical, intent(in)                 :: initialize_variables
+     integer,intent(inout)               :: ivar      ! global variable counter
+      
+     integer                             :: dummy_out ! dummy index for variable
+                                                      ! position in global file
+     integer                             :: i_var     ! loop counter for prt variables
+     integer                             :: i_pos     ! loop counter for discrete position
+
+     character(len=32)  :: symbol_base    ! Symbol name without position or flux type
+     character(len=128) :: name_base      ! name without position or flux type
+     character(len=4)   :: pos_symbol
+     character(len=128) :: symbol
+     character(len=256) :: long_name
+
+     ! NEED FOR RESTARTS
+     ccohort_hydr%v_ag_init(:)          =  ccohort_hydr%v_ag(:)
+     ccohort_hydr%v_troot_init(:)       =  ccohort_hydr%v_troot(:)
+     ccohort_hydr%v_aroot_layer_init(:) =  ccohort_hydr%v_aroot_layer(:)
+
+
+     ! CAN BE REMOVED ALTOGETHER
+     ccohort_hydr%z_node_aroot(1:nlevsoi_hyd) = -bc_in%z_sisl(1:nlevsoi_hyd)
+
+
+     do i_var = 1, prt_global%num_vars
+
+        
+
+
+
+        ! The base symbol name
+        symbol_base = prt_global%state_descriptor(i_var)%symbol
+        
+        ! The long name of the variable
+        name_base = prt_global%state_descriptor(i_var)%longname
+
+        do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
+           
+           ! String describing the physical position of the variable
+           write(pos_symbol, '(I3.3)') i_pos
+
+           ! Register the instantaneous state variable "val"
+           ! ----------------------------------------------------------------------------
+
+           ! The symbol that is written to file
+           symbol    = trim(symbol_base)//'_val_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name = trim(name_base)//', state var, position:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=trim(symbol), &
+                  vtype=cohort_r8, &
+                  long_name=trim(long_name), &
+                  units='kg', flushval = flushzero, &
+                  hlms='CLM:ALM', initialize=initialize_variables, &
+                  ivar=ivar, index = dummy_out ) 
+
+           ! Register the turnover flux variables
+           ! ----------------------------------------------------------------------------
+
+           ! The symbol that is written to file
+           symbol = trim(symbol_base)//'_turn_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name     = trim(name_base)//', turnover, position:'//trim(pos_symbol)
+           
+           call this%set_restart_var(vname=trim(symbol), &
+                 vtype=cohort_r8, &
+                 long_name=trim(long_name), &
+                 units='kg', flushval = flushzero, &
+                 hlms='CLM:ALM', initialize=initialize_variables, &
+                 ivar=ivar, index = dummy_out ) 
+            
+
+
+           ! Register the net allocation flux variable
+           ! ----------------------------------------------------------------------------
+           
+           ! The symbol that is written to file
+           symbol = trim(symbol_base)//'_net_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name     = trim(name_base)//', net allocation/transp, position:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=trim(symbol), &
+                  vtype=cohort_r8, &
+                  long_name=trim(long_name), &
+                  units='kg', flushval = flushzero, &
+                  hlms='CLM:ALM', initialize=initialize_variables, &
+                  ivar=ivar, index = dummy_out ) 
+           
+
+
+           ! Register the burn flux variable
+           ! ----------------------------------------------------------------------------
+           ! The symbol that is written to file
+           symbol    = trim(symbol_base)//'_burned_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name = trim(name_base)//', burned mass:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=symbol, &
+                 vtype=cohort_r8, &
+                 long_name=trim(long_name), &
+                 units='kg', flushval = flushzero, &
+                 hlms='CLM:ALM', initialize=initialize_variables, &
+                 ivar=ivar, index = dummy_out ) 
+
+        end do
+     end do
+      
+     return
+  end subroutine DefineHydroRestartVars
+
+  ! =====================================================================================
+
+
+
   subroutine set_restart_var(this,vname,vtype,long_name,units,flushval, &
         hlms,initialize,ivar,index)
 
