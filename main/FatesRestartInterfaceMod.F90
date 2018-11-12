@@ -1005,10 +1005,24 @@ contains
      character(len=128) :: symbol
      character(len=256) :: long_name
 
-     ! NEED FOR RESTARTS
+     ! From update props
      ccohort_hydr%v_ag_init(:)          =  ccohort_hydr%v_ag(:)
      ccohort_hydr%v_troot_init(:)       =  ccohort_hydr%v_troot(:)
      ccohort_hydr%v_aroot_layer_init(:) =  ccohort_hydr%v_aroot_layer(:)
+
+     ! From update states
+     ccohort_hydr%th_ag(:)
+     ccohort_hydr%th_troot(k)
+     ccohort_hydr%th_aroot(j) 
+
+     ! From update rhiz props
+     csite_hydr%l_aroot_layer_init(:)  = csite_hydr%l_aroot_layer(:)
+     csite_hydr%r_node_shell_init(:,:) = csite_hydr%r_node_shell(:,:)
+     csite_hydr%v_shell_init(:,:)      = csite_hydr%v_shell(:,:)
+     
+
+     ! From update rhiz states
+     csite_hydr%h2osoi_liqvol_shell(j,k) 
 
 
      ! CAN BE REMOVED ALTOGETHER
