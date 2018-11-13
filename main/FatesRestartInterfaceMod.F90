@@ -14,6 +14,7 @@ module FatesRestartInterfaceMod
   use FatesRestartVariableMod, only : fates_restart_variable_type
   use FatesInterfaceMod, only : bc_in_type 
   use FatesInterfaceMod, only : bc_out_type
+  use FatesInterfaceMod, only : hlm_use_planthydro
   use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
 
   use PRTGenericMod,          only : prt_global
@@ -133,6 +134,18 @@ module FatesRestartInterfaceMod
   integer, private :: ir_watermem_siwm
 
   integer, private :: ir_prt_base     ! Base index for all PRT variables
+
+  ! Hydraulic indices
+  integer, private :: ir_hydro_v_ag_covec
+  integer, private :: ir_hydro_v_troot_covec
+  integer, private :: ir_hydro_v_aroot_layer_covec
+  integer, private :: ir_hydro_th_ag_covec
+  integer, private :: ir_hydro_th_troot_covec
+  integer, private :: ir_hydro_th_aroot_covec 
+  integer, private :: ir_hydro_aroot_layer_si
+  integer, private :: ir_hydro_r_node_shell_si
+  integer, private :: ir_hydro_v_shell_si
+  integer, private :: ir_hydro_liqvol_shell_si
 
 
   ! The number of variable dim/kind types we have defined (static)
@@ -824,6 +837,65 @@ contains
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
 
 
+    if(hlm_use_planthydro==itrue) then
+
+       call RegisterCohortVectors('fates_hydro_v_ag', vtype=cohort_r8, &
+            long_name='maximum storage volume of hydraulic compartments (above ground)',  &
+            units='m3', n_hypool_ag, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_v_ag_covec) 
+       
+       call RegisterCohortVectors('fates_hydro_v_troot', vtype=cohort_r8, &
+            long_name='maximum storage volume of transporting root compartments',  &
+            units='m3', n_hypool_troot, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_v_troot_covec) 
+       
+       call RegisterCohortVectors('fates_hydro_v_aroot_layer', vtype=cohort_r8, &
+            long_name='maximum storage volume of absorbing roots hydraulic compartments by soil layer',  &
+            units='m3', nlevsoi_hyd_max, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_v_aroot_layer_covec) 
+       
+       call RegisterCohortVectors('fates_hydro_th_ag', vtype=cohort_r8, &
+            long_name='water in aboveground compartments',  &
+            units='kg/plant', n_hypool_ag, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_th_ag_covec) 
+       
+       call RegisterCohortVectors('fates_hydro_th_troot', vtype=cohort_r8, &
+            long_name='water in transporting roots', &
+            units='kg/plant', n_hypool_troot, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_th_troot_covec) 
+       
+       call RegisterCohortVectors('fates_hydro_th_aroot', vtype=cohort_r8, &
+            long_name='water in absorbing roots',  &
+            units='kg/plant', nlevsoi_hyd_max, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_th_aroot_covec) 
+
+       ! Site-level absorbing root maximum volume
+       call this%set_restart_var(vname='fates_hydro_l_aroot_layer', vtype=cohort_r8, &
+            long_name='Total length (across cohorts) of absorbing roots by soil layer', &
+            units='m', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_l_aroot_layer_si )
+
+       ! Site-level Nodal Radius of rhizosphere compartments
+       call this%set_restart_var(vname='fates_hydro_r_node_shell', vtype=cohort_r8, &
+            long_name='Nodal Radius of rhizosphere compartments (layerxshell)', &
+            units='m', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_r_node_shell_si )
+       
+       ! Site-level volume of rhizosphere compartments
+       call this%set_restart_var(vname='fates_hydro_v_shell', vtype=cohort_r8, &
+            long_name='Volume of rhizosphere compartments (layerxshell)', &
+            units='m3', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_v_shell_si )
+
+       ! Site-level volumentric liquid water content (shell x layer)
+       call this%set_restart_var(vname='fates_hydro_liqvol_shell', vtype=cohort_r8, &
+            long_name='Volumetric water content of rhizosphere compartments (layerxshell)', &
+            units='m3/m3', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_liqvol_shell_si )
+       
+    end if
+
+
     !
     ! site x time level vars
     !
@@ -976,152 +1048,117 @@ contains
      return
   end subroutine DefinePRTRestartVars
 
-  ! =====================================================================================
-   
-  subroutine DefineHydroVecCohortRestartVars(this,initialize_variables,ivar)
 
-    ! ----------------------------------------------------------------------------------
-    ! Plant Hydraulics has many variables that are bound to the cohort
-    ! and are vectors.  To prevent absolutely massive restart files
-    ! we will actually split the restart information of these different
-    ! vector indices into different saved variables. 
-    ! -----------------------------------------------------------------------------------
+  subroutine RegisterCohortVector(this,symbol_base, vtype_in, long_name_base, &
+                                      units_in, veclength, flushval, hlms_in,   &
+                                      initialize=initialize_variables,    &
+                                      ivar=ivar_inout, index = index_out) 
 
-
-     use FatesIOVariableKindMod, only : cohort_r8
-
-     class(fates_restart_interface_type) :: this
-     logical, intent(in)                 :: initialize_variables
-     integer,intent(inout)               :: ivar      ! global variable counter
-      
-     integer                             :: dummy_out ! dummy index for variable
-                                                      ! position in global file
-     integer                             :: i_var     ! loop counter for prt variables
-     integer                             :: i_pos     ! loop counter for discrete position
-
-     character(len=32)  :: symbol_base    ! Symbol name without position or flux type
-     character(len=128) :: name_base      ! name without position or flux type
-     character(len=4)   :: pos_symbol
-     character(len=128) :: symbol
-     character(len=256) :: long_name
-
-     ! From update props
-     ccohort_hydr%v_ag_init(:)          =  ccohort_hydr%v_ag(:)
-     ccohort_hydr%v_troot_init(:)       =  ccohort_hydr%v_troot(:)
-     ccohort_hydr%v_aroot_layer_init(:) =  ccohort_hydr%v_aroot_layer(:)
-
-     ! From update states
-     ccohort_hydr%th_ag(:)
-     ccohort_hydr%th_troot(k)
-     ccohort_hydr%th_aroot(j) 
-
-     ! From update rhiz props
-     csite_hydr%l_aroot_layer_init(:)  = csite_hydr%l_aroot_layer(:)
-     csite_hydr%r_node_shell_init(:,:) = csite_hydr%r_node_shell(:,:)
-     csite_hydr%v_shell_init(:,:)      = csite_hydr%v_shell(:,:)
-     
-
-     ! From update rhiz states
-     csite_hydr%h2osoi_liqvol_shell(j,k) 
-
-
-     ! CAN BE REMOVED ALTOGETHER
-     ccohort_hydr%z_node_aroot(1:nlevsoi_hyd) = -bc_in%z_sisl(1:nlevsoi_hyd)
-
-
-     do i_var = 1, prt_global%num_vars
-
-        
-
-
-
-        ! The base symbol name
-        symbol_base = prt_global%state_descriptor(i_var)%symbol
-        
-        ! The long name of the variable
-        name_base = prt_global%state_descriptor(i_var)%longname
-
-        do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
-           
-           ! String describing the physical position of the variable
-           write(pos_symbol, '(I3.3)') i_pos
-
-           ! Register the instantaneous state variable "val"
-           ! ----------------------------------------------------------------------------
-
-           ! The symbol that is written to file
-           symbol    = trim(symbol_base)//'_val_'//trim(pos_symbol)
-
-           ! The expanded long name of the variable
-           long_name = trim(name_base)//', state var, position:'//trim(pos_symbol)
-
-           call this%set_restart_var(vname=trim(symbol), &
-                  vtype=cohort_r8, &
-                  long_name=trim(long_name), &
-                  units='kg', flushval = flushzero, &
-                  hlms='CLM:ALM', initialize=initialize_variables, &
-                  ivar=ivar, index = dummy_out ) 
-
-           ! Register the turnover flux variables
-           ! ----------------------------------------------------------------------------
-
-           ! The symbol that is written to file
-           symbol = trim(symbol_base)//'_turn_'//trim(pos_symbol)
-
-           ! The expanded long name of the variable
-           long_name     = trim(name_base)//', turnover, position:'//trim(pos_symbol)
-           
-           call this%set_restart_var(vname=trim(symbol), &
-                 vtype=cohort_r8, &
-                 long_name=trim(long_name), &
-                 units='kg', flushval = flushzero, &
-                 hlms='CLM:ALM', initialize=initialize_variables, &
-                 ivar=ivar, index = dummy_out ) 
-            
-
-
-           ! Register the net allocation flux variable
-           ! ----------------------------------------------------------------------------
-           
-           ! The symbol that is written to file
-           symbol = trim(symbol_base)//'_net_'//trim(pos_symbol)
-
-           ! The expanded long name of the variable
-           long_name     = trim(name_base)//', net allocation/transp, position:'//trim(pos_symbol)
-
-           call this%set_restart_var(vname=trim(symbol), &
-                  vtype=cohort_r8, &
-                  long_name=trim(long_name), &
-                  units='kg', flushval = flushzero, &
-                  hlms='CLM:ALM', initialize=initialize_variables, &
-                  ivar=ivar, index = dummy_out ) 
-           
-
-
-           ! Register the burn flux variable
-           ! ----------------------------------------------------------------------------
-           ! The symbol that is written to file
-           symbol    = trim(symbol_base)//'_burned_'//trim(pos_symbol)
-
-           ! The expanded long name of the variable
-           long_name = trim(name_base)//', burned mass:'//trim(pos_symbol)
-
-           call this%set_restart_var(vname=symbol, &
-                 vtype=cohort_r8, &
-                 long_name=trim(long_name), &
-                 units='kg', flushval = flushzero, &
-                 hlms='CLM:ALM', initialize=initialize_variables, &
-                 ivar=ivar, index = dummy_out ) 
-
-        end do
-     end do
-      
-     return
-  end subroutine DefineHydroRestartVars
+       
+    ! The basic idea here is that instead of saving cohorts with vector data
+    ! as long arrays in the restart file, we give each index of the vector
+    ! its own variable.  This helps reduce the size of the restart files
+    ! considerably.
+    
+    
+    use FatesIOVariableKindMod, only : cohort_r8
+    
+    class(fates_restart_interface_type) :: this
+    character(*),intent(in) :: symbol_base    ! Symbol name without position
+    character(*),intent(in) :: vtype_in       ! String defining variable type 
+    character(*),intent(in) :: long_name_base ! name without position
+    character(*),intent(in) :: units_in       ! units for this variable
+    integer,intent(in)      :: veclength      ! length of the vector
+    real(r8),intent(in)     :: flushval_in    ! Value to flush to
+    character(*),intent(in) :: hlms_in        ! The HLMs this works in
+    logical, intent(in)     :: init_var_in    ! Is this registering or counting?
+    integer,intent(inout)   :: ivar_inout     ! global variable counter
+    integer,intent(out)     :: index_out      ! The variable index for this variable
+    
+    ! Local Variables
+    character(len=4)        :: pos_symbol     ! vectors need text strings for each position
+    character(len=128)      :: symbol         ! symbol  name written to file
+    character(len=256)      :: long_name      ! long name written to file
+    integer                 :: i_pos          ! loop counter for discrete position
+    
+    ! We give each vector its own index
+    
+    index_out = ivar_inout + 1
+    
+    do i_pos = 1, veclength
+       
+       ! String describing the physical position of the variable
+       write(pos_symbol, '(I3.3)') i_pos
+       
+       ! The symbol that is written to file
+       symbol    = trim(symbol_base)//'_vec_'//trim(pos_symbol)
+       
+       ! The expanded long name of the variable
+       long_name = trim(long_name_base)//', position:'//trim(pos_symbol)
+       
+       call this%set_restart_var(vname=trim(symbol), &
+            vtype=vtype_in, &
+            long_name=trim(long_name), &
+            units=units_in, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, &
+            ivar=ivar, index = index_out ) 
+       
+    end do
+    
+  end subroutine RegisterCohortVector
 
   ! =====================================================================================
+  
+  subroutine RetrieveCohortRealVector(this, state_vector, len_state_vector, &
+                                       variable_index_base, co_global_index)
+    
+    ! This subroutine walks through global cohort vector indices
+    ! and pulls from the different associated restart variables
+    
+    class(fates_restart_interface_type) , intent(inout) :: this
+    real(r8),intent(inout) :: state_vector(len_state_vector)
+    integer,intent(in)     :: len_state_vector
+    integer,intent(in)     :: variable_index_base
+    integer,intent(in)     :: co_global_index
+    
+    integer :: i_pos              ! vector position loop index
+    integer :: ir_pos_var         ! global variable index
+    
+    ir_pos_var = variable_index_base
+    do i_pos = 1, len_state_vector
+       state_vector(i_pos) = this%rvars(ir_pos_var)%r81d(co_global_index)
+       ir_pos_var = ir_pos_var + 1
+    end do
+    return
+  end subroutine RetrieveCohortRealVector
+  
+  ! =====================================================================================   
+  
+  subroutine SetCohortRealVector(this, state_vector, len_state_vector, &
+                                  variable_index_base, co_global_index)
 
+    ! This subroutine walks through global cohort vector indices
+    ! and pushes into the restart arrays the different associated restart variables
+    
+    class(fates_restart_interface_type) , intent(inout) :: this
+    real(r8),intent(in)  :: state_vector(len_state_vector)
+    integer,intent(in)   :: len_state_vector
+    integer,intent(in)   :: variable_index_base
+    integer,intent(in)   :: co_global_index
+    
+    integer :: i_pos              ! vector position loop index
+    integer :: ir_pos_var         ! global variable index
+    
+    ir_pos_var = variable_index_base
+    do i_pos = 1, len_state_vector
+       this%rvars(ir_pos_var)%r81d(co_global_index) = state_vector(i_pos)
+       ir_pos_var = ir_pos_var + 1
+    end do
+    return
+  end subroutine SetCohortRealVector
+  
 
+  ! =====================================================================================
 
   subroutine set_restart_var(this,vname,vtype,long_name,units,flushval, &
         hlms,initialize,ivar,index)
@@ -1295,7 +1332,12 @@ contains
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d )
+           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
+           rio_hydro_l_aroot_layer_si  => this%rvars(ir_hydro_l_aroot_layer_si)%r81d,  &
+           rio_hydro_r_node_shell_si   => this%rvars(ir_hydro_r_node_shell_si)%r81d, &
+           rio_hydro_v_shell_si        => this%rvars(ir_hydro_v_shell_si)%r81d,      &
+           rio_hydro_liqvol_shell_si   => this%rvars(ir_hydro_liqvol_shell_si)%r81d
+      )
 
        totalCohorts = 0
        
@@ -1320,6 +1362,12 @@ contains
           io_idx_pa_cwd  = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
+
+          ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
+          io_idx_si_lyr       = io_idx_co_1st
+          io_idx_si_lyr_shell = io_idx_co_1st
+          
+          
           
           ! write seed_bank info(site-level, but PFT-resolved)
           do i = 1,numpft
@@ -1385,6 +1433,19 @@ contains
                    end do
                 end do
 
+                
+                if(hlm_use_planthydro==itrue)then
+                   
+                   ! Load the storage compartment volumes
+                   call this%SetCohortRealVector(cohort%hydr_co%v_ag,n_hypool_ag,ir_hydro_v_ag_covec,io_idx_co)
+                   call this%SetCohortRealVector(cohort%hydr_co%v_troot,n_hypool_troot,ir_hydro_v_troot_covec,io_idx_co)
+                   call this%SetCohortRealVector(cohort%hydr_co%v_aroot_layer,site(s)%si_hydr%nlevsoi_hyd,ir_hydro_v_aroot_layer_covec,io_idx_co)
+
+                   ! Load the water contents
+                   call this%SetCohortRealVector(cohort%hydr_co%th_ag,n_hypool_ag,ir_hydro_th_ag_covec,io_idx_co)
+                   call this%SetCohortRealVector(cohort%hydr_co%th_troot,n_hypool_troot,ir_hydro_th_troot_covec,io_idx_co)
+                   call this%SetCohortRealVector(cohort%hydr_co%th_aroot_layer,site(s)%si_hydr%nlevsoi_hyd,ir_hydro_th_aroot_layer_covec,io_idx_co)
+                end if
 
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
@@ -1536,6 +1597,35 @@ contains
              rio_watermem_siwm( io_idx_si_wmem ) = sites(s)%water_memory(i)
              io_idx_si_wmem = io_idx_si_wmem + 1
           end do
+
+          ! -----------------------------------------------------------------------------
+          ! Set site-level hydraulics arrays
+          ! -----------------------------------------------------------------------------
+
+          if(hlm_use_planthydro==itrue)then
+
+             ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
+             do i = 1, site_hydr%nlevsoi_hyd
+
+                ! Loop shells
+                do k = 1, nshell
+                   
+                   rio_hydro_r_node_shell_si(io_idx_si_lyr_shell) = &
+                        sites(s)%si_hydr%r_node_shell(i,k) 
+
+                   rio_hydro_v_shell_si(io_idx_si_lyr_shell)      = &
+                        sites(s)%si_hydr%v_shell(i,k)
+
+                   rio_hydro_liqvol_shell_si(io_idx_si_lyr_shell) = &
+                        sites(s)%si_hydr%h2osoi_liqvol_shell(i,k)
+
+                   io_idx_si_lyr_shell = io_idx_si_lyr_shell + 1
+                end do
+
+                rio_hydro_l_aroot_layer_si(io_idx_si_lyr) = sites(s)%si_hydr%l_aroot_layer(i)
+                io_idx_si_lyr       = io_idx_si_lyr + 1
+             end do
+          end if
           
        enddo
        
@@ -1557,6 +1647,7 @@ contains
      ! subroutine is called prior to the transfer of the restart vectors into the
      ! linked-list state structure.
      ! ---------------------------------------------------------------------------------
+
      use EDTypesMod,           only : ed_site_type
      use EDTypesMod,           only : ed_cohort_type
      use EDTypesMod,           only : ed_patch_type
@@ -1695,6 +1786,9 @@ contains
                 b_fineroot = 0.0_r8
                 b_sapwood  = 0.0_r8
                 site_spread = 0.5_r8
+
+                ! Hydraulics - if turned on, the hydraulics arrays are being allocated in create_cohort as well.
+
                 call create_cohort(sites(s),newp, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                       b_leaf, b_fineroot, b_sapwood, b_dead, b_store,  &
                       temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, newp%NCL_p, &
@@ -1871,7 +1965,12 @@ contains
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-          rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d )
+          rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
+          rio_hydro_l_aroot_layer_si  => this%rvars(ir_hydro_l_aroot_layer_si)%r81d,  &
+          rio_hydro_r_node_shell_si   => this%rvars(ir_hydro_r_node_shell_si)%r81d, &
+          rio_hydro_v_shell_si        => this%rvars(ir_hydro_v_shell_si)%r81d,      &
+          rio_hydro_liqvol_shell_si   => this%rvars(ir_hydro_liqvol_shell_si)%r81d
+       )
      
        totalcohorts = 0
      
@@ -1895,6 +1994,8 @@ contains
           
           ! Perform a check on the number of patches per site
           patchespersite = 0
+
+          
           
           cpatch => sites(s)%oldest_patch
           do while(associated(cpatch))
@@ -1942,6 +2043,28 @@ contains
                             this%rvars(ir_prt_var)%r81d(io_idx_co)                      
                    end do
                 end do
+
+                
+                if(hlm_use_planthydro==itrue)then
+                   
+                   ! Load the storage compartment volumes
+                   call this%RetrieveCohortRealVector(cohort%hydr_co%v_ag,n_hypool_ag, &
+                                                      ir_hydro_v_ag_covec,io_idx_co)
+                   call this%RetrieveCohortRealVector(cohort%hydr_co%v_troot,n_hypool_troot, &
+                                                      ir_hydro_v_troot_covec,io_idx_co)
+                   call this%RetrieveCohortRealVector(cohort%hydr_co%v_aroot_layer,site(s)%si_hydr%nlevsoi_hyd, &
+                                                      ir_hydro_v_aroot_layer_covec,io_idx_co)
+
+                   ! Load the water contents
+                   call this%RetrieveCohortRealVector(cohort%hydr_co%th_ag,n_hypool_ag, &
+                                                      ir_hydro_th_ag_covec,io_idx_co)
+                   call this%RetrieveCohortRealVector(cohort%hydr_co%th_troot,n_hypool_troot, &
+                                                      ir_hydro_th_troot_covec,io_idx_co)
+                   call this%RetrieveCohortRealVector(cohort%hydr_co%th_aroot_layer,site(s)%si_hydr%nlevsoi_hyd, &
+                                                      ir_hydro_th_aroot_layer_covec,io_idx_co)
+                end if
+
+
                 
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
@@ -2069,6 +2192,43 @@ contains
              sites(s)%water_memory(i) = rio_watermem_siwm( io_idx_si_wmem )
              io_idx_si_wmem = io_idx_si_wmem + 1
           end do
+
+          ! -----------------------------------------------------------------------------
+          ! Retrieve site-level hydraulics arrays
+          ! Note that Hydraulics structures, their allocations, and the length
+          ! declaration nlevsoi_hyd should be allocated early on when the code first
+          ! allocates sites (before restart info), and when the soils layer is 
+          ! first known.
+          ! -----------------------------------------------------------------------------
+
+          if(hlm_use_planthydro==itrue)then
+
+             ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
+             do i = 1, site(s)%si_hydr%nlevsoi_hyd
+
+                ! Loop shells
+                do k = 1, nshell
+                   
+                   sites(s)%si_hydr%r_node_shell(i,k) = & 
+                        rio_hydro_r_node_shell_si(io_idx_si_lyr_shell)
+                         
+                   sites(s)%si_hydr%v_shell(i,k) = & 
+                        rio_hydro_v_shell_si(io_idx_si_lyr_shell)
+                        
+                   sites(s)%si_hydr%h2osoi_liqvol_shell(i,k) = &
+                        rio_hydro_liqvol_shell_si(io_idx_si_lyr_shell)
+
+                   io_idx_si_lyr_shell = io_idx_si_lyr_shell + 1
+                end do
+                
+                sites(s)%si_hydr%l_aroot_layer(i) = & 
+                     rio_hydro_l_aroot_layer_si(io_idx_si_lyr)
+                
+                io_idx_si_lyr       = io_idx_si_lyr + 1
+             end do
+
+          end if
+
           
           sites(s)%old_stock      = rio_old_stock_si(io_idx_si)
           sites(s)%status         = rio_cd_status_si(io_idx_si)
