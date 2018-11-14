@@ -401,7 +401,8 @@ contains
      b_stem_carb  = b_tot_carb - b_bg_carb - b_canopy_carb
      b_stem_biom  = b_stem_carb * C2B                               ! kg DM
      v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8) !BOC...may be needed for testing/comparison w/ v_sapwood
-     a_leaf_tot   = b_canopy_carb * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
+     !a_leaf_tot   = b_canopy_carb * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
+     a_leaf_tot  = cCohort%treelai * cCohort%c_area/cCohort%n        ! calculate the leaf area based on the leaf profile 
 
      call bsap_allom(cCohort%dbh,cCohort%pft,cCohort%canopy_trim,a_sapwood_target,bsw_target)
      

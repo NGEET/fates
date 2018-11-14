@@ -849,8 +849,15 @@ contains
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
+				      
 
-                                if(hlm_use_planthydro.eq.itrue) call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)
+                                if(hlm_use_planthydro.eq.itrue) then
+				    call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+				          currentCohort%pft,currentCohort%c_area)
+                                    currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, &
+                                          currentCohort%pft, currentCohort%c_area, currentCohort%n )					  
+				    call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
+				 endif
 
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
