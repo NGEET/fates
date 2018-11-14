@@ -243,8 +243,8 @@ contains
 
     if( hlm_use_planthydro.eq.itrue ) then
        call InitHydrCohort(CurrentSite,new_cohort)
-       call updateSizeDepTreeHydProps(CurrentSite,new_cohort, bc_in) 
-       call initTreeHydStates(CurrentSite,new_cohort, bc_in)
+!       call updateSizeDepTreeHydProps(CurrentSite,new_cohort, bc_in) 
+!       call initTreeHydStates(CurrentSite,new_cohort, bc_in)
        if(recruitstatus==1)then
           new_cohort%co_hydr%is_newly_recruited = .true.
        endif
