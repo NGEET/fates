@@ -964,8 +964,9 @@ contains
     real(r8) :: previous_bl      !previous time step bleaf
     real(r8) :: dExpLeaves_dt    !change of amount of expanding leavese due to aging
     real(r8) :: dYoungLeaves_dt  !change of amount of youngleavese due to aging
-    real(r8) :: dOldLeaves_dt  !change of amount of old leavese due to aging
-    real(r8) :: dSenLeaves_dt  !change of amount of senescent leavese due to aging
+    real(r8) :: dOldLeaves_dt    !change of amount of old leavese due to aging
+    real(r8) :: dSenLeaves_dt    !change of amount of senescent leavese due to aging
+    real(r8) :: sumAgeFrac       !sum of leaf age fractions
 
     ! Woody turnover timescale [years]
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
@@ -1167,6 +1168,16 @@ contains
 	               dOldLeaves_dt)/currentCohort%bl
 	  currentCohort%fracSenLeaves = (previous_bl *currentCohort%fracSenLeaves+dOldLeaves_dt- &
 	               dSenLeaves_dt)/currentCohort%bl	
+          sumAgeFrac = currentCohort%fracExpLeaves + currentCohort%fracYoungLeaves + &
+	        currentCohort%fracOldLeaves + currentCohort%fracSenLeaves
+	  if(sumAgeFrac > 1.01_r8)then
+	     write(fates_log(),*) 'Warning: Sum of leaf age fraction become larger than 1.0, &
+	           sumAgeFrac= ',sumAgeFrac 
+	  endif
+	  if(sumAgeFrac < 0.99_r8)then
+	     write(fates_log(),*) 'Warning: Sum of leaf age fraction become less than 1.0, &
+	           sumAgeFrac= ',sumAgeFrac 	     
+	  endif	  
     endif
     ! -----------------------------------------------------------------------------------
     ! V.  Prioritize some amount of carbon to replace leaf/root turnover
@@ -1205,7 +1216,17 @@ contains
 	                /currentCohort%bl
 	  currentCohort%fracYoungLeaves = (previous_bl *currentCohort%fracYoungLeaves)/currentCohort%bl
 	  currentCohort%fracOldLeaves = (previous_bl *currentCohort%fracOldLeaves)/currentCohort%bl
-	  currentCohort%fracSenLeaves = (previous_bl *currentCohort%fracSenLeaves)/currentCohort%bl	       
+	  currentCohort%fracSenLeaves = (previous_bl *currentCohort%fracSenLeaves)/currentCohort%bl	 
+          sumAgeFrac = currentCohort%fracExpLeaves + currentCohort%fracYoungLeaves + &
+	        currentCohort%fracOldLeaves + currentCohort%fracSenLeaves	  
+	  if(sumAgeFrac > 1.01_r8)then
+	     write(fates_log(),*) 'Warning: Sum of leaf age fraction become larger than 1.0, &
+	           sumAgeFrac= ',sumAgeFrac 
+	  endif
+	  if(sumAgeFrac < 0.99_r8)then
+	     write(fates_log(),*) 'Warning: Sum of leaf age fraction become less than 1.0, &
+	           sumAgeFrac= ',sumAgeFrac 	     
+	  endif	        
        endif
 
     end if
