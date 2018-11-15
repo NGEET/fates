@@ -282,17 +282,8 @@ contains
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
                    ! Leaf cost at leaf level z accounting for sla profile
-		   if(use_leaf_age==itrue)then
-                      currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
-                        (currentCohort%fracExpLeaves*EDPftvarcon_inst%expleaf_flong(ipft)+ &
-			 currentCohort%fracYoungLeaves*EDPftvarcon_inst%youngleaf_flong(ipft) + &
-			 currentCohort%fracOldLeaves*EDPftvarcon_inst%oldleaf_flong(ipft) + &
-			 currentCohort%fracSenLeaves*EDPftvarcon_inst%senleaf_flong(ipft) ) & 
-			 *EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1		   
-		   else
-                      currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
+                   currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
                         EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
-		   endif
                    if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
