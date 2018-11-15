@@ -36,7 +36,8 @@ module FatesPlantHydraulicsMod
    use FatesConstantsMod, only : denh2o => dens_fresh_liquid_water
    use FatesConstantsMod, only : grav => grav_earth
    use FatesConstantsMod, only : ifalse, itrue
-   
+   use FatesConstantsMod, only : pi_const
+
    use EDParamsMod       , only : hydr_kmax_rsurf
 
    use EDTypesMod        , only : ed_site_type
@@ -139,6 +140,10 @@ module FatesPlantHydraulicsMod
    public :: initTreeHydStates
    public :: updateSizeDepRhizHydProps
    public :: updateSizeDepRhizHydStates
+   public :: RestartHydrStates
+   public :: SavePreviousCompartmentVolumes
+   public :: UpdateTreeHydrNodes
+   public :: UpdateTreeHydrLenVolCond
 
    !------------------------------------------------------------------------------
    ! 01/18/16: Created by Brad Christoffersen
@@ -175,8 +180,78 @@ contains
       end select
 	     
  end subroutine Hydraulics_Drive
-  
+ 
  ! =====================================================================================
+
+ subroutine RestartHydrStates(sites,nsites,bc_in,bc_out)
+
+    ! It is assumed that the following state variables have been read in by
+    ! the restart machinery. 
+    !
+    ! co_hydr%th_ag
+    ! co_hydr%th_troot
+    ! co_hydr%th_aroot
+    ! si_hydr%r_node_shell
+    ! si_hydr%v_shell
+    ! si_hydr%h2osoi_liqvol_shell
+    ! si_hydr%l_aroot_layer
+    !
+    ! The goal of this subroutine is to call
+    ! the correct sequence of hydraulics initializations to repopulate
+    ! information that relies on these key states, as well as other vegetation
+    ! states such as carbon pools and plant geometry.
+
+    type(ed_site_type)          , intent(inout), target :: sites(nsites)
+    integer                     , intent(in)            :: nsites
+    type(bc_in_type)            , intent(in)            :: bc_in(nsites)
+    type(bc_out_type)           , intent(inout)         :: bc_out(nsites)
+    
+    ! locals
+    ! ----------------------------------------------------------------------------------
+    ! LL pointers
+    type(ed_patch_type),pointer  :: cpatch      ! current patch
+    type(ed_cohort_type),pointer :: ccohort     ! current cohort
+    integer                      :: s           ! site loop counter
+
+    do s = 1,nsites
+
+       cpatch => sites(s)%oldest_patch
+       do while(associated(cpatch))
+             
+          ccohort => cpatch%shortest
+          do while(associated(ccohort))  
+             
+             ! This calculates node heights
+             call UpdateTreeHydrNodes(ccohort%co_hydr,ccohort%pft,ccohort%hite, &
+                                      sites(s)%si_hydr%nlevsoi_hyd,bc_in(s))
+                   
+             ! This calculates volumes, lengths and max conductances
+             call UpdateTreeHydrLenVolCond(ccohort,sites(s)%si_hydr%nlevsoi_hyd,bc_in(s))
+             
+             ! Since this is a newly initialized plant, we set the previous compartment-size
+             ! equal to the ones we just calculated.
+             call SavePreviousCompartmentVolumes(ccohort%co_hydr) 
+             
+             ccohort%co_hydr%errh2o_growturn_aroot(:) = 0.0_r8
+             ccohort%co_hydr%errh2o_growturn_ag(:)    = 0.0_r8
+             ccohort%co_hydr%errh2o_growturn_troot(:) = 0.0_r8
+
+             ccohort => ccohort%taller
+          enddo
+          
+          cpatch => cpatch%younger
+       end do
+
+       call updateSizeDepRhizHydProps(sites(s), bc_in(s) )
+
+    end do
+    
+    call UpdateH2OVeg(nsites,sites,bc_out(s))
+
+    return
+ end subroutine RestartHydrStates
+ 
+ ! ====================================================================================
 
  subroutine initTreeHydStates(site_p, cc_p, bc_in)
     
@@ -274,7 +349,7 @@ contains
   ! =====================================================================================
 
     
-  subroutine UpdateTreeHydrNodes(ccohort_hydr,pft,plant_height,nlevsoi_hyd)
+  subroutine UpdateTreeHydrNodes(ccohort_hydr,ft,plant_height,nlevsoi_hyd,bc_in)
      
      ! --------------------------------------------------------------------------------
      ! This subroutine calculates the nodal heights critical to hydraulics in the plant
@@ -294,9 +369,11 @@ contains
      
      ! Arguments
      type(ed_cohort_hydr_type), intent(inout) :: ccohort_hydr 
-     integer,intent(in)                       :: pft           ! plant functional type index
+     integer,intent(in)                       :: ft            ! plant functional type index
      real(r8), intent(in)                     :: plant_height  ! [m]
      integer,intent(in)                       :: nlevsoi_hyd   ! number of soil hydro layers
+     type(bc_in_type)       , intent(in)      :: bc_in         ! Boundary Conditions
+    
      
      ! Locals
      
@@ -305,6 +382,7 @@ contains
      real(r8) :: crown_depth   ! crown depth for the plant [m]
      real(r8) :: dz_canopy     ! discrete crown depth intervals [m]
      real(r8) :: z_stem        ! the height of the plants stem below crown [m]
+     real(r8) :: dz_stem       ! vertical stem discretization                           [m]
      real(r8) :: dcumul_rf     ! cumulative root distribution discretization            [-]
      real(r8) :: cumul_rf      ! cumulative root distribution where depth is determined [-]
      real(r8) :: z_cumul_rf    ! depth at which cumul_rf occurs                         [m]
@@ -313,7 +391,10 @@ contains
      ! Crown Nodes
      ! in special case where n_hypool_leaf = 1, the node height of the canopy
      ! water pool is 1/2 the distance from the bottom of the canopy to the top of the tree
-     
+
+     roota                      =  EDPftvarcon_inst%roota_par(ft)
+     rootb                      =  EDPftvarcon_inst%rootb_par(ft)
+
      call CrownDepth(plant_height,crown_depth)
      
      dz_canopy                  = crown_depth / real(n_hypool_leaf,r8)
@@ -401,7 +482,6 @@ contains
     ! shell radii, volumes, and compartment volumes of plant tissues
 
     ! !USES:
-    use FatesConstantsMod  , only : pi_const
     use shr_sys_mod        , only : shr_sys_abort
 
     ! ARGUMENTS:
@@ -410,8 +490,9 @@ contains
     type(bc_in_type)       , intent(in)             :: bc_in       ! Boundary Conditions
 
     ! Locals
-    integer  :: nlevsoil_hyd                     ! Number of total soil layers
+    integer                            :: nlevsoi_hyd             ! Number of total soil layers
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+    integer                            :: ft
 
     nlevsoi_hyd                =  currentSite%si_hydr%nlevsoi_hyd
     ccohort_hydr               => ccohort%co_hydr
@@ -423,21 +504,21 @@ contains
     call SavePreviousCompartmentVolumes(ccohort_hydr)
     
     ! This updates all of the z_node positions
-    call UpdateTreeHydrNodes(ccohort_hydr,ft,ccohort%hite,nlevsoi_hyd)
+    call UpdateTreeHydrNodes(ccohort_hydr,ft,ccohort%hite,nlevsoi_hyd,bc_in)
     
     ! This updates plant compartment volumes, lengths and 
     ! maximum conductances. Make sure for already
     ! initialized vegetation, that SavePreviousCompartment
     ! volumes, and UpdateTreeHydrNodes is called prior to this.
     
-    call UpdateTreeHydrLenVolCond(ccohort,nlevsoi_hydr,bc_in)
+    call UpdateTreeHydrLenVolCond(ccohort,nlevsoi_hyd,bc_in)
     
     
   end subroutine updateSizeDepTreeHydProps
 
   ! =====================================================================================
 
-  subroutine UpdateTreeHydrLenVolCond(ccohort,nlevsoi_hydr,bc_in)
+  subroutine UpdateTreeHydrLenVolCond(ccohort,nlevsoi_hyd,bc_in)
     
       ! -----------------------------------------------------------------------------------
       ! This subroutine calculates three attributes of a plant:
@@ -456,11 +537,12 @@ contains
       type(ed_cohort_type),intent(inout)  :: ccohort
       integer,intent(in)                  :: nlevsoi_hyd   ! number of soil hydro layers
       type(bc_in_type)       , intent(in) :: bc_in       ! Boundary Conditions
-
       
-
-      type(ed_cohort_hydr_type), intent(inout) :: ccohort_hydr     ! Plant hydraulics structure
-      integer  :: pft                          ! Plant functional type index
+      type(ed_cohort_hydr_type),pointer :: ccohort_hydr     ! Plant hydraulics structure
+      integer  :: j,k
+      integer  :: ft                           ! Plant functional type index 
+      real(r8) :: roota                        ! root profile parameter a zeng2001_crootfr
+      real(r8) :: rootb                        ! root profile parameter b zeng2001_crootfr
       real(r8) :: leaf_c                       ! Current amount of leaf carbon in the plant                            [kg]
       real(r8) :: fnrt_c                       ! Current amount of fine-root carbon in the plant                       [kg]
       real(r8) :: sapw_c                       ! Current amount of sapwood carbon in the plant                         [kg]
@@ -471,11 +553,17 @@ contains
       real(r8) :: b_woody_bg_carb              ! belowground woody biomass in carbon units                             [kgC/indiv]
       real(r8) :: b_stem_carb                  ! aboveground stem biomass in carbon units                              [kgC/indiv]
       real(r8) :: b_stem_biom                  ! aboveground stem biomass in dry wt units                              [kg/indiv]
+      real(r8) :: b_bg_carb                    ! belowground biomass (coarse + fine roots) in carbon units             [kgC/indiv]
+      real(r8) :: b_tot_carb                   ! total individual biomass in carbon units                              [kgC/indiv]
       real(r8) :: v_stem                       ! aboveground stem volume                                               [m3/indiv]
+      real(r8) :: z_stem                       ! the height of the plants stem below crown [m]
       real(r8) :: sla                          ! specific leaf area                                                    [cm2/g]
       real(r8) :: v_canopy                     ! total leaf (canopy) volume                                            [m3/indiv]
       real(r8) :: denleaf                      ! leaf dry mass per unit fresh leaf volume                              [kg/m3]     
       real(r8) :: a_sapwood                    ! sapwood area                                                          [m2]
+      real(r8) :: a_sapwood_target             ! sapwood cross-section area at reference height, at target biomass     [m2]
+      real(r8) :: bsw_target                   ! sapwood carbon, at target                                             [kgC]
+      real(r8) :: a_leaf_tot                   ! total leaf area                                                       [m2/indiv]
       real(r8) :: v_sapwood                    ! sapwood volume                                                        [m3]
       real(r8) :: b_troot_carb                 ! transporting root biomass in carbon units                             [kgC/indiv]
       real(r8) :: b_troot_biom                 ! transporting root biomass in dry wt units                             [kg/indiv]
@@ -499,10 +587,19 @@ contains
       real(r8) :: kmax_tot                           ! total tree (leaf to root tip) 
                                                      ! hydraulic conductance        [kg s-1 MPa-1]
       
+      real(r8),parameter :: taper_exponent = 1._r8/3._r8 ! Savage et al. (2010) xylem taper exponent [-]
+
+
+      ccohort_hydr => ccohort%co_hydr
+      ft           = ccohort%pft
+
       leaf_c   = ccohort%prt%GetState(leaf_organ, all_carbon_elements)
       sapw_c   = ccohort%prt%GetState(sapw_organ, all_carbon_elements)
       fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
       struct_c = ccohort%prt%GetState(struct_organ, all_carbon_elements)
+
+      roota    =  EDPftvarcon_inst%roota_par(ft)
+      rootb    =  EDPftvarcon_inst%rootb_par(ft)
 
       !roota                      =  4.372_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
       !rootb                      =  0.978_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
@@ -556,7 +653,9 @@ contains
          !      m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
          ! or ...
          !a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%hite ) * 1.e-4_r8
-         
+
+         call CrownDepth(ccohort%hite,crown_depth)
+         z_stem       = ccohort%hite - crown_depth
          v_sapwood    = a_sapwood * z_stem
          ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
@@ -619,10 +718,9 @@ contains
             end if
             kmax_node1_nodekplus1(k) = EDPftvarcon_inst%hydr_kmax_node(ft,2) * a_sapwood / dz_node1_nodekplus1
             kmax_node1_lowerk(k)     = EDPftvarcon_inst%hydr_kmax_node(ft,2) * a_sapwood / dz_node1_lowerk
-            chi_node1_nodekplus1(k)  = xylemtaper(p, dz_node1_nodekplus1)
-            chi_node1_lowerk(k)      = xylemtaper(p, dz_node1_lowerk)
+            chi_node1_nodekplus1(k)  = xylemtaper(taper_exponent, dz_node1_nodekplus1)
+            chi_node1_lowerk(k)      = xylemtaper(taper_exponent, dz_node1_lowerk)
             if(.not.do_kbound_upstream) then
-               call CrownDepth(ccohort%hite,crown_depth)
                if(crown_depth == 0._r8) then 
                   write(fates_log(),*) 'do_kbound_upstream requires a nonzero canopy depth '
                   call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -669,7 +767,7 @@ contains
          ccohort_hydr%kmax_treebg_tot      = ( 1._r8/kmax_tot - 1._r8/kmax_treeag_tot ) ** (-1._r8)
          
          if(nlevsoi_hyd == 1) then
-            ccohort_hydr%kmax_treebg_layer(:) = ccohort_hydr%kmax_treebg_tot * cPatch%rootfr_ft(ft,:)
+            ccohort_hydr%kmax_treebg_layer(:) = ccohort_hydr%kmax_treebg_tot * ccohort%patchptr%rootfr_ft(ft,:)
          else
             do j=1,nlevsoi_hyd
                if(j == 1) then
@@ -687,7 +785,7 @@ contains
 
 
   ! =====================================================================================
-  subroutine updateSizeDepTreeHydStates(currentSite,cc_p)
+  subroutine updateSizeDepTreeHydStates(currentSite,ccohort)
     !
     ! !DESCRIPTION: 
     !
@@ -696,11 +794,10 @@ contains
     use EDTypesMod     , only : dump_cohort
     
     ! !ARGUMENTS:
-     type(ed_site_type)    , intent(in)             :: currentSite ! Site stuff
-    type(ed_cohort_type)   , intent(inout), target  :: cc_p ! current cohort pointer
+     type(ed_site_type)    , intent(in)    :: currentSite ! Site stuff
+    type(ed_cohort_type)   , intent(inout) :: ccohort
     !
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer :: cCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     integer  :: j,k,FT                       ! indices
     integer  :: err_code = 0
@@ -708,11 +805,10 @@ contains
     real(r8) :: th_troot_uncorr(n_hypool_troot) ! uncorrected transporting root water content[m3 m-3]
     real(r8) :: th_aroot_uncorr(currentSite%si_hydr%nlevsoi_hyd)    ! uncorrected absorbing root water content[m3 m-3] 
     real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
-     integer :: nstep !number of time steps
+    integer :: nstep !number of time steps
     !-----------------------------------------------------------------------
 
-    cCohort => cc_p
-    ccohort_hydr => cCohort%co_hydr
+    ccohort_hydr => ccohort%co_hydr
     FT      =  cCohort%pft
     
     ! MAYBE ADD A NAN CATCH?  If updateSizeDepTreeHydProps() was not called twice prior to the first
@@ -1360,7 +1456,6 @@ contains
     ! the same.  
     !
     ! !USES:
-    use FatesConstantsMod    , only : pi_const
     use EDTypesMod           , only : AREA
     
     ! !ARGUMENTS:
@@ -4879,7 +4974,7 @@ contains
     ! the same.  
     !
     ! !USES:
-    use FatesConstantsMod, only : pi_const
+    
     !
     ! !ARGUMENTS:
     real(r8)     , intent(in)             :: l_aroot

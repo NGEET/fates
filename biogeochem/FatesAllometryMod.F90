@@ -1847,7 +1847,7 @@ contains
   ! =====================================================================================
 
 
-  subroutine CrownDepth(hite,crown_depth)
+  subroutine CrownDepth(height,crown_depth)
 
     ! -----------------------------------------------------------------------------------
     ! This routine returns the depth of a plant's crown.  Which is the length
@@ -1864,7 +1864,7 @@ contains
     ! crown depth from Poorter, Bongers & Bongers
     ! crown_depth = exp(-1.169_r8)*cCohort%hite**1.098_r8   
     
-    crown_depth               = min(cCohort%hite,0.1_r8)
+    crown_depth               = min(height,0.1_r8)
     
     return
  end subroutine CrownDepth

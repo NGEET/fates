@@ -140,9 +140,6 @@ module FatesRestartInterfaceMod
   integer, private :: ir_prt_base     ! Base index for all PRT variables
 
   ! Hydraulic indices
-  integer, private :: ir_hydro_v_ag_covec
-  integer, private :: ir_hydro_v_troot_covec
-  integer, private :: ir_hydro_v_aroot_layer_covec
   integer, private :: ir_hydro_th_ag_covec
   integer, private :: ir_hydro_th_troot_covec
   integer, private :: ir_hydro_th_aroot_covec 
@@ -860,22 +857,6 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
-
-       call this%RegisterCohortVector(symbol_base='fates_hydro_v_ag', vtype=cohort_r8, &
-            long_name_base='maximum storage volume of hydraulic compartments (above ground)',  &
-            units='m3', veclength=n_hypool_ag, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_v_ag_covec) 
-       
-       call this%RegisterCohortVector(symbol_base='fates_hydro_v_troot', vtype=cohort_r8, &
-            long_name_base='maximum storage volume of transporting root compartments',  &
-            units='m3', veclength=n_hypool_troot, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_v_troot_covec) 
-       
-       call this%RegisterCohortVector(symbol_base='fates_hydro_v_aroot_layer', vtype=cohort_r8, &
-            long_name_base='maximum storage volume of absorbing roots hydraulic compartments by layer',  &
-            units='m3', veclength=nlevsoi_hyd_max, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_v_aroot_layer_covec) 
-       
        call this%RegisterCohortVector(symbol_base='fates_hydro_th_ag', vtype=cohort_r8, &
             long_name_base='water in aboveground compartments',  &
             units='kg/plant', veclength=n_hypool_ag, flushval = flushzero, &
@@ -1461,14 +1442,6 @@ contains
                 
                 if(hlm_use_planthydro==itrue)then
                    
-                   ! Load the storage compartment volumes
-                   call this%SetCohortRealVector(ccohort%co_hydr%v_ag,n_hypool_ag, &
-                                                 ir_hydro_v_ag_covec,io_idx_co)
-                   call this%SetCohortRealVector(ccohort%co_hydr%v_troot,n_hypool_troot, &
-                                                 ir_hydro_v_troot_covec,io_idx_co)
-                   call this%SetCohortRealVector(ccohort%co_hydr%v_aroot_layer,sites(s)%si_hydr%nlevsoi_hyd, &
-                                                 ir_hydro_v_aroot_layer_covec,io_idx_co)
-
                    ! Load the water contents
                    call this%SetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
                                                  ir_hydro_th_ag_covec,io_idx_co)
@@ -1707,22 +1680,18 @@ contains
      ! local variables
      
      type(ed_patch_type) , pointer     :: newp
-     type(ed_cohort_type), allocatable :: temp_cohort
+     type(ed_cohort_type), pointer     :: new_cohort
+     type(ed_cohort_type), pointer     :: prev_cohort
      real(r8)                          :: cwd_ag_local(ncwd)
      real(r8)                          :: cwd_bg_local(ncwd)
      real(r8)                          :: leaf_litter_local(maxpft)
      real(r8)                          :: root_litter_local(maxpft)
      real(r8)                          :: patch_age
      integer                           :: cohortstatus
-     integer                           :: s        ! site index
+     integer                           :: s             ! site index
      integer                           :: idx_pa        ! local patch index
      integer                           :: io_idx_si     ! global site index in IO vector
      integer                           :: io_idx_co_1st ! global cohort index in IO vector
-     real(r8)                          :: b_dead        ! dummy structural biomass (kgC)
-     real(r8)                          :: b_store       ! dummy storage carbon (kgC)
-     real(r8)                          :: b_leaf        ! leaf biomass dummy var (kgC)
-     real(r8)                          :: b_fineroot    ! fineroot dummy var (kgC)
-     real(r8)                          :: b_sapwood     ! sapwood dummy var (kgC)
      real(r8)                          :: site_spread   ! site sprea dummy var (0-1)
      integer                           :: fto
      integer                           :: ft
@@ -1753,7 +1722,7 @@ contains
           
           call init_site_vars( sites(s) )
           call zero_site( sites(s) )
-          
+
           ! 
           ! set a few items that are necessary on restart for ED but not on the 
           ! restart file
@@ -1788,45 +1757,48 @@ contains
              
              ! give this patch a unique patch number
              newp%patchno = idx_pa
-	     
+
+
+	     ! Iterate over the number of cohorts
+             ! the file says are associated with this patch
+             ! we are just allocating space here, so we do 
+             ! a simple list filling routine
+             
+             newp%tallest  => null()
+             newp%shortest => null()
+             prev_cohort   => null()
+
              do fto = 1, rio_ncohort_pa( io_idx_co_1st )
 
-                allocate(temp_cohort)
+                allocate(new_cohort)
+                call nan_cohort(new_cohort)  
+                new_cohort%patchptr => newp
+
+                ! If this is the first in the list, it is tallest
+                if (.not.associated(newp%tallest)) then
+                   newp%tallest => new_cohort
+                endif
                 
-                temp_cohort%n = 700.0_r8
+                ! Every cohort's taller is the one that came before
+                ! (unless it is first)
+                if(associated(prev_cohort)) then
+                   new_cohort%taller   => prev_cohort
+                   prev_cohort%shorter => new_cohort
+                end if
                 
-                temp_cohort%laimemory = 0.0_r8
-                temp_cohort%canopy_trim = 1.0_r8
-                temp_cohort%canopy_layer = 1.0_r8
-                temp_cohort%canopy_layer_yesterday = 1.0_r8
-
-                temp_cohort%pft = 1   ! Give it a nominal PFT value for allocation
-
-                cohortstatus    = 2   ! status of 2 means leaves are out (dummy var)
-
-                temp_cohort%hite = 1.25_r8
-                ! Solve for diameter from height
-                call h2d_allom(temp_cohort%hite,temp_cohort%pft,temp_cohort%dbh)
-
-                if (debug) then
-                   write(fates_log(),*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
+                ! Ever cohort added takes over as shortest
+                newp%shortest => new_cohort
+                
+                ! Initialize the PRT environment (allocate/choose hypothesis only)
+                call InitPRTCohort(new_cohort)
+                
+                ! Allocate hydraulics arrays
+                if( hlm_use_planthydro.eq.itrue ) then
+                   call InitHydrCohort(sites(s),new_cohort)
                 end if
 
-                b_dead     = 0.0_r8
-                b_store    = 0.0_r8
-                b_leaf     = 0.0_r8
-                b_fineroot = 0.0_r8
-                b_sapwood  = 0.0_r8
-                site_spread = 0.5_r8
-
-                ! Hydraulics - if turned on, the hydraulics arrays are being allocated in create_cohort as well.
-
-                call create_cohort(sites(s),newp, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-                      b_leaf, b_fineroot, b_sapwood, b_dead, b_store,  &
-                      temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, newp%NCL_p, &
-                      site_spread, bc_in(s))
-                
-                deallocate(temp_cohort)
+                ! Update the previous
+                prev_cohort => new_cohort
                 
              enddo ! ends loop over fto
              
@@ -2083,27 +2055,6 @@ contains
                 end do
 
                 
-                if(hlm_use_planthydro==itrue)then
-                   
-                   ! Load the storage compartment volumes
-                   call this%GetCohortRealVector(ccohort%co_hydr%v_ag,n_hypool_ag, &
-                                                      ir_hydro_v_ag_covec,io_idx_co)
-                   call this%GetCohortRealVector(ccohort%co_hydr%v_troot,n_hypool_troot, &
-                                                      ir_hydro_v_troot_covec,io_idx_co)
-                   call this%GetCohortRealVector(ccohort%co_hydr%v_aroot_layer,sites(s)%si_hydr%nlevsoi_hyd, &
-                                                      ir_hydro_v_aroot_layer_covec,io_idx_co)
-
-                   ! Load the water contents
-                   call this%GetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
-                                                      ir_hydro_th_ag_covec,io_idx_co)
-                   call this%GetCohortRealVector(ccohort%co_hydr%th_troot,n_hypool_troot, &
-                                                      ir_hydro_th_troot_covec,io_idx_co)
-                   call this%GetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevsoi_hyd, &
-                                                      ir_hydro_th_aroot_covec,io_idx_co)
-                end if
-
-
-                
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
@@ -2135,6 +2086,19 @@ contains
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
+
+                ! Initialize Plant Hydraulics
+
+                if(hlm_use_planthydro==itrue)then
+                   
+                   ! Load the water contents
+                   call this%GetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
+                                                      ir_hydro_th_ag_covec,io_idx_co)
+                   call this%GetCohortRealVector(ccohort%co_hydr%th_troot,n_hypool_troot, &
+                                                      ir_hydro_th_troot_covec,io_idx_co)
+                   call this%GetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevsoi_hyd, &
+                                                      ir_hydro_th_aroot_covec,io_idx_co)
+                end if
                 
                 io_idx_co = io_idx_co + 1
              
@@ -2295,7 +2259,7 @@ contains
           sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
 
        end do
-       
+
        if ( debug ) then
           write(fates_log(),*) 'CVTL total cohorts ',totalCohorts
        end if
@@ -2305,8 +2269,10 @@ contains
    
   
    ! ====================================================================================
+   
 
-   subroutine update_3dpatch_radiation(this, nc, nsites, sites, bc_out)
+
+ subroutine update_3dpatch_radiation(this, nsites, sites, bc_out)
 
      ! -------------------------------------------------------------------------
      ! This subroutine populates output boundary conditions related to radiation
@@ -2320,7 +2286,6 @@ contains
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
-     integer                     , intent(in)            :: nc
      integer                     , intent(in)            :: nsites
      type(ed_site_type)          , intent(inout), target :: sites(nsites)
      type(bc_out_type)           , intent(inout)         :: bc_out(nsites)

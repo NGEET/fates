@@ -132,8 +132,8 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
     type(ed_cohort_type), pointer :: storesmallcohort 
-    type(ed_cohort_type), pointer :: storebigcohort   
-    type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+    type(ed_cohort_type), pointer :: storebigcohort  
+    integer :: nlevsoi_hyd                      ! number of hydraulically active soil layers 
     integer :: tnull,snull                      ! are the tallest and shortest cohorts allocate
     !----------------------------------------------------------------------
 
@@ -251,22 +251,21 @@ contains
 
     if( hlm_use_planthydro.eq.itrue ) then
 
-       ccohort_hydr => ccohort%co_hydr
-       nlevsoi_hydr = currentSite%si_hydr%nlevsoi_hyd
-       
+       nlevsoi_hyd = currentSite%si_hydr%nlevsoi_hyd
+
        ! This allocates array spaces
        call InitHydrCohort(currentSite,new_cohort)
 
        ! This calculates node heights
-       call UpdateTreeHydrNodes(ccohort_hydr,ft,new_cohort%hite,nlevsoi_hydr)
+       call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft,new_cohort%hite,nlevsoi_hyd)
 
        ! This calculates volumes, lengths and max conductances
-       call UpdateTreeHydrLenVolCond(ccohort,nlevsoi_hydr,bc_in)
-
+       call UpdateTreeHydrLenVolCond(new_cohort,nlevsoi_hyd,bc_in)
+       
        ! Since this is a newly initialized plant, we set the previous compartment-size
        ! equal to the ones we just calculated.
-       call SavePreviousCompartmentVolumes(ccohort_hydr)
-
+       call SavePreviousCompartmentVolumes(new_cohort%co_hydr)
+       
        ! This comes up with starter suctions and then water contents
        ! based on the soil values
        call initTreeHydStates(currentSite,new_cohort, bc_in)
