@@ -53,12 +53,12 @@ module EDPftvarcon
      real(r8), allocatable :: evergreen(:)
      real(r8), allocatable :: slamax(:)
      real(r8), allocatable :: slatop(:)
-     real(r8), allocatable :: leaf_long(:)
-     real(r8), allocatable :: expleaf_flong(:)
-     real(r8), allocatable :: youngleaf_flong(:)
-     real(r8), allocatable :: oldleaf_flong(:)
-     real(r8), allocatable :: senleaf_flong(:)
-     real(r8), allocatable :: senleaf_long_fdrought(:)
+     real(r8), allocatable :: leaf_long(:)  !Leaf longevity (ie turnover timescale)
+     real(r8), allocatable :: expleaf_flong(:) !Fraction of leaf longevity for expanding leaves(ie turnover timescale)
+     real(r8), allocatable :: youngleaf_flong(:) !Fraction of leaf longevity for young leaves(ie turnover timescale)
+     real(r8), allocatable :: oldleaf_flong(:) !Fraction of leaf longevity for old leaves(ie turnover timescale)
+     real(r8), allocatable :: senleaf_flong(:) !Fraction of leaf longevity for senescent leaves(ie turnover timescale)
+     real(r8), allocatable :: senleaf_long_fdrought(:) !Multiplication factor for leaf longevity of senescent leaves during drought(1.0 indicates no change) 
      real(r8), allocatable :: roota_par(:)
      real(r8), allocatable :: rootb_par(:)
      real(r8), allocatable :: lf_flab(:)
@@ -71,11 +71,11 @@ module EDPftvarcon
      real(r8), allocatable :: clumping_index(:) ! factor describing how much self-occlusion 
                                                 ! of leaf scattering elements decreases light interception
      real(r8), allocatable :: c3psn(:)          ! index defining the photosynthetic pathway C4 = 0,  C3 = 1
-     real(r8), allocatable :: vcmax25top(:)
-     real(r8), allocatable :: vcmax25top_fexp(:)
-     real(r8), allocatable :: vcmax25top_fyoung(:)
-     real(r8), allocatable :: vcmax25top_fold(:)
-     real(r8), allocatable :: vcmax25top_fsen(:)          
+     real(r8), allocatable :: vcmax25top(:)     !maximum carboxylation rate of Rub. at 25C, canopy top
+     real(r8), allocatable :: vcmax25top_fexp(:) !mutiplying factor of vcmax25 for expanding leaves
+     real(r8), allocatable :: vcmax25top_fyoung(:)!mutiplying factor of vcmax25 for young leaves
+     real(r8), allocatable :: vcmax25top_fold(:)  !mutiplying factor of vcmax25 for old leaves
+     real(r8), allocatable :: vcmax25top_fsen(:)  !mutiplying factor of vcmax25 for senescent leaves        
      real(r8), allocatable :: leafcn(:)
      real(r8), allocatable :: frootcn(:)
      real(r8), allocatable :: woodcn(:)
