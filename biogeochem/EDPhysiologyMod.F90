@@ -1002,13 +1002,12 @@ contains
        endif
 
        if (temp_cohort%n > 0.0_r8 )then
-          if ( debug ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
+
           call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                 b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &  
                 temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
                 currentSite%spread, bc_in)
-
-
+             
           ! keep track of how many individuals were recruited for passing to history
           currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
 
