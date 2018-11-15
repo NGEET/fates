@@ -813,7 +813,6 @@ contains
                           ccohort_hydr%flc_aroot(j), site_hydr, bc_in)
      end do
      call flc_gs_from_psi(currentCohort, ccohort_hydr%psi_ag(1))
-     call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)      !hydraulics quantities that are functions of hite & biomasses
      ccohort_hydr%qtop_dt        = (currentCohort%n*ccohort_hydr%qtop_dt        + &
                                     nextCohort%n*ncohort_hydr%qtop_dt)/newn
      ccohort_hydr%dqtopdth_dthdt = (currentCohort%n*ccohort_hydr%dqtopdth_dthdt + &
@@ -1129,7 +1128,8 @@ contains
 	! growturn_err is a term to accomodate error in growth or turnover. need to be improved for future(CX) 
         bc_out(s)%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
                                         csite_hydr%h2oveg_growturn_err - &
-                                        csite_hydr%h2oveg_pheno_err
+                                        csite_hydr%h2oveg_pheno_err-&
+					csite_hydr%h2oveg_hydro_err
 
      end do
 
@@ -1926,6 +1926,7 @@ contains
      real(r8) :: refill_rate                   ! rate of xylem refilling  [fraction per unit time; s-1]
      real(r8) :: roota, rootb                  ! parameters for root distribution                                      [m-1]
      real(r8) :: rootfr                        ! root fraction at different soil layers
+     real(r8) :: prev_h2oveg                   ! previous time step plant water storage (kg/m2)
      type(ed_site_hydr_type), pointer :: site_hydr
      type(ed_cohort_hydr_type), pointer :: ccohort_hydr
      integer  :: err_code = 0
@@ -1958,6 +1959,7 @@ contains
         dth_layershell_col(:,:) = 0._r8
         site_hydr%dwat_veg       = 0._r8
         site_hydr%errh2o_hyd     = 0._r8
+	prev_h2oveg    = site_hydr%h2oveg
         ncoh_col       = 0
 
         ! Calculate the mean site level transpiration flux
@@ -2601,7 +2603,6 @@ contains
                 !qflx_rootsoi(c,j)              = -(sum(dth_layershell_col(j,:))*bc_in(s)%dz_sisl(j)*denh2o/dtime)
                 bc_out(s)%qflx_soil2root_sisl(j)               = &
                       -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:)) * &
-                      !site_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)- &   !BOC(10/02/2018)...error - should be plus
                       site_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)+ &
 		      site_hydr%recruit_w_uptake(j)
 
@@ -2635,12 +2636,15 @@ contains
 	   
 	   totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:))*dtime
 	   
-           total_e = bc_out(s)%plant_stored_h2o_si - site_hydr%h2oveg - &
-	       site_hydr%h2oveg_dead + totalrootuptake - totalqtop_dt
+           total_e = prev_h2oveg - site_hydr%h2oveg - &
+	             + totalrootuptake - totalqtop_dt
+	       
+	   site_hydr%h2oveg_hydro_err = site_hydr%h2oveg_hydro_err + site_hydr%errh2o_hyd
 	   
            bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead - &
                                            site_hydr%h2oveg_growturn_err - &
-                                           site_hydr%h2oveg_pheno_err
+                                           site_hydr%h2oveg_pheno_err-&
+					   site_hydr%h2oveg_hydro_err
 
            
         enddo !site

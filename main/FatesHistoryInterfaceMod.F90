@@ -156,7 +156,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_h2oveg_recruit_si
   integer, private :: ih_h2oveg_growturn_err_si
   integer, private :: ih_h2oveg_pheno_err_si
-  
+  integer, private :: ih_h2oveg_hydro_err_si
+    
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
   integer, private :: ih_gpp_si_scpf
@@ -1521,7 +1522,8 @@ end subroutine flush_hvars
                hio_h2oveg_dead_si                   => this%hvars(ih_h2oveg_dead_si)%r81d, &
                hio_h2oveg_recruit_si                => this%hvars(ih_h2oveg_recruit_si)%r81d, &
                hio_h2oveg_growturn_err_si           => this%hvars(ih_h2oveg_growturn_err_si)%r81d, &
-               hio_h2oveg_pheno_err_si              => this%hvars(ih_h2oveg_pheno_err_si)%r81d)
+               hio_h2oveg_pheno_err_si              => this%hvars(ih_h2oveg_pheno_err_si)%r81d,&
+	       hio_h2oveg_hydro_err_si              => this%hvars(ih_h2oveg_hydro_err_si)%r81d)
 
                
       ! ---------------------------------------------------------------------------------
@@ -2236,6 +2238,7 @@ end subroutine flush_hvars
            hio_h2oveg_recruit_si(io_si)      = sites(s)%si_hydr%h2oveg_recruit
            hio_h2oveg_growturn_err_si(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
            hio_h2oveg_pheno_err_si(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
+	   hio_h2oveg_hydro_err_si(io_si)    = sites(s)%si_hydr%h2oveg_hydro_err
 	 endif
          
       enddo ! site loop
@@ -4628,7 +4631,11 @@ end subroutine flush_hvars
              long='cumulative net borrowed (+) from plant_stored_h2o due to leaf emergence', use_default='inactive',   &
              avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_pheno_err_si )
-
+	     
+       call this%set_history_var(vname='H2OVEG_HYDRO_ERR', units = 'kg/m2',               &
+             long='cumulative net borrowed (+) from plant_stored_h2o due to plant hydrodynamics', use_default='inactive',   &
+             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_hydro_err_si )
     end if
 
     ! Must be last thing before return

@@ -151,7 +151,10 @@ module FatesHydraulicsMemMod
                                                     !  Draw from or add to this pool when
                                                     !  insufficient plant water available to 
                                                     !  support production of new leaves.
-
+     real(r8) :: h2oveg_hydro_err                   ! error water pool (kg/m2) for hydrodynamics
+                                                    !  Draw from or add to this pool when
+                                                    !  insufficient plant water available to 
+                                                    !  support transpiration
      
      !     Hold Until Van Genuchten is implemented
      ! col inverse of air-entry pressure     [MPa-1]  (for van Genuchten SWC only)
@@ -366,6 +369,7 @@ module FatesHydraulicsMemMod
          this%h2oveg_dead    = 0.0_r8
 	 this%h2oveg_growturn_err = 0.0_r8
          this%h2oveg_pheno_err    = 0.0_r8
+	 this%h2oveg_hydro_err    = 0.0_r8
          
        end associate
 
