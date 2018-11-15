@@ -557,6 +557,7 @@ contains
     ! !USES:
     use FatesUtilsMod  , only : check_var_real
     use EDTypesMod     , only : dump_cohort
+    use EDTypesMod     , only : AREA
     
     ! !ARGUMENTS:
      type(ed_site_type)    , intent(in)             :: currentSite ! Site stuff
@@ -565,6 +566,7 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: cCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+    type(ed_site_hydr_type),pointer :: csite_hydr
     integer  :: j,k,FT                       ! indices
     integer  :: err_code = 0
     real(r8) :: th_ag_uncorr(      n_hypool_ag) ! uncorrected aboveground water content[m3 m-3]
@@ -609,18 +611,12 @@ contains
     ! + means water created; - means water destroyed
     ccohort_hydr%errh2o_growturn_ag(:)    = ccohort_hydr%th_ag(:)    - th_ag_uncorr(:)
     ccohort_hydr%errh2o_growturn_troot(:) = ccohort_hydr%th_troot(:) - th_troot_uncorr(:)
-     !for debug only
-     !nstep = get_nstep()
-     !if(nstep == 49) then
-       !write(fates_log(),*)'ccohort_hydr%errh2o_growturn_aroot(:) = ', ccohort_hydr%errh2o_growturn_aroot(:)
-       !write(fates_log(),*)'ccohort_hydr%th_aroot(:) = ', ccohort_hydr%th_aroot(:)
-       !write(fates_log(),*)'th_aroot_uncorr(:) = ', th_aroot_uncorr(:)
-       !write(fates_log(),*)'ccohort_hydr%v_aroot_layer_init(:) = ', ccohort_hydr%v_aroot_layer_init(:)
-       !write(fates_log(),*)'ccohort_hydr%v_aroot_layer(:) = ', ccohort_hydr%v_aroot_layer(:)
-       !call dump_cohort(cCohort)
-       !call endrun(msg=errMsg(sourcefile, __LINE__))
-     !end if
-
+    csite_hydr =>currentSite%si_hydr
+    csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
+                    (sum(ccohort_hydr%errh2o_growturn_ag(:)*ccohort_hydr%v_ag(:))      + &
+                     sum(ccohort_hydr%errh2o_growturn_troot(:)*ccohort_hydr%v_troot(:))   + &
+                     sum(ccohort_hydr%errh2o_growturn_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
+                     denh2o*cCohort%n/AREA
     
     ! UPDATES OF WATER POTENTIALS ARE DONE PRIOR TO RICHARDS' SOLUTION WITHIN FATESPLANTHYDRAULICSMOD.F90
     
@@ -1085,20 +1081,8 @@ contains
 
         csite_hydr => sites(s)%si_hydr
         csite_hydr%h2oveg = 0.0_r8
-        currentPatch => sites(s)%oldest_patch 
-        do while(associated(currentPatch))
-           
-           balive_patch = 0._r8
-           currentCohort=>currentPatch%tallest
-           do while(associated(currentCohort))
-              balive_patch = balive_patch + &
-                    (currentCohort%prt%GetState(fnrt_organ, all_carbon_elements) + &
-                     currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
-                     currentCohort%prt%GetState(leaf_organ, all_carbon_elements)) * currentCohort%n
-              
-              currentCohort => currentCohort%shorter
-           enddo !cohort
-           
+        currentPatch => sites(s)%oldest_patch
+        do while(associated(currentPatch))         
            currentCohort=>currentPatch%tallest
            do while(associated(currentCohort))
               ccohort_hydr => currentCohort%co_hydr
@@ -1109,12 +1093,6 @@ contains
                     sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:)) + &
                     sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
                     denh2o*currentCohort%n
-
-                csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
-                    (sum(ccohort_hydr%errh2o_growturn_ag(:)*ccohort_hydr%v_ag(:))      + &
-                     sum(ccohort_hydr%errh2o_growturn_troot(:)*ccohort_hydr%v_troot(:))   + &
-                     sum(ccohort_hydr%errh2o_growturn_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
-                     denh2o*currentCohort%n
               endif
 
               currentCohort => currentCohort%shorter
@@ -1123,7 +1101,6 @@ contains
         enddo !end patch loop
         
         csite_hydr%h2oveg              = csite_hydr%h2oveg              / AREA
-        csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err / AREA
 
         ! Note that h2oveg_dead is incremented wherever we have litter fluxes
         ! and it will be reduced via an evaporation term
@@ -2634,7 +2611,7 @@ contains
 	     ccohort=>cpatch%tallest
 	     do while(associated(ccohort))
                 ccohort_hydr => ccohort%co_hydr
-                totalrootuptake = totalrootuptake + ccohort_hydr%rootuptake* ccohort%n/AREA
+                !totalrootuptake = totalrootuptake + ccohort_hydr%rootuptake* ccohort%n/AREA
 		totalqtop_dt= totalqtop_dt+  ccohort_hydr%qtop_dt* ccohort%n/AREA
                 ccohort => ccohort%shorter
              enddo !cohort
@@ -2643,10 +2620,9 @@ contains
 	   
 	   totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:))*dtime
 	   
-           total_e = prev_h2oveg - site_hydr%h2oveg - &
-	             + totalrootuptake - totalqtop_dt
+           total_e = site_hydr%h2oveg-(prev_h2oveg + totalrootuptake - totalqtop_dt)
 	       
-	   site_hydr%h2oveg_hydro_err = site_hydr%h2oveg_hydro_err + site_hydr%errh2o_hyd
+	   site_hydr%h2oveg_hydro_err = site_hydr%h2oveg_hydro_err + total_e
 	   
            bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead - &
                                            site_hydr%h2oveg_growturn_err - &
