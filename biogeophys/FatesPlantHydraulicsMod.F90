@@ -112,6 +112,8 @@ module FatesPlantHydraulicsMod
                                                           ! hydraulic properties and states be 
                                                           ! updated every day when trees grow or 
                                                           ! when recruitment happens?
+   logical,parameter :: debug = .false.                   !flag to report warning in hydro
+							  
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -3081,7 +3083,9 @@ contains
     we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
     we_area_outer     = we_tot_outer/(cCohort%c_area / cCohort%n)                   ! kg/m2 ground/individual
     if(abs(we_tot_outer*cCohort%n)/AREA>1.0e-7_r8) then
-       write(fates_log(),*)'WARNING: plant hydraulics water balance error exceeds 1.0e-7 and is ajusted for error'
+      if(debug) then
+          write(fates_log(),*)'WARNING: plant hydraulics water balance error exceeds 1.0e-7 and is ajusted for error'
+      endif
       !dump the error water to the bin with largest water storage
       max_l  = maxloc(th_node(:)*v_node(:),dim=1)
       th_node(max_l) = th_node(max_l)-  &
