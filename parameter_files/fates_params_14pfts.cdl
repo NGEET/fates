@@ -322,9 +322,6 @@ variables:
 		fates_senleaf_flong:long_name = "Fraction of leaf longevity for senescent leaves(ie turnover timescale)" ;	
 	float fates_senleaf_long_fdrought(fates_pft) ;
 		fates_senleaf_long_fdrought:units = "unitless[0-1]" ;
-		fates_senleaf_long_fdrought:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;
-	float fates_senleaf_long_fdrought(fates_pft) ;
-		fates_senleaf_long_fdrought:units = "unitless[0-1]" ;
 		fates_senleaf_long_fdrought:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;				
 	float fates_leaf_slamax(fates_pft) ;
 		fates_leaf_slamax:units = "m^2/gC" ;
