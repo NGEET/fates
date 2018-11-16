@@ -22,7 +22,10 @@ module FatesRestartInterfaceMod
   use FatesHydraulicsMemMod,  only : n_hypool_troot
   use FatesHydraulicsMemMod,  only : nlevsoi_hyd_max
   use PRTGenericMod,          only : prt_global
-
+  use EDCohortDynamicsMod,      only : nan_cohort
+  use EDCohortDynamicsMod,      only : zero_cohort
+  use EDCohortDynamicsMod,      only : InitPRTCohort
+  use FatesPlantHydraulicsMod,  only : InitHydrCohort
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -1772,6 +1775,7 @@ contains
 
                 allocate(new_cohort)
                 call nan_cohort(new_cohort)  
+                call zero_cohort(new_cohort)
                 new_cohort%patchptr => newp
 
                 ! If this is the first in the list, it is tallest

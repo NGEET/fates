@@ -37,6 +37,8 @@ module FatesPlantHydraulicsMod
    use FatesConstantsMod, only : grav => grav_earth
    use FatesConstantsMod, only : ifalse, itrue
    use FatesConstantsMod, only : pi_const
+   use FatesConstantsMod, only : cm2_per_m2
+   use FatesConstantsMod, only : g_per_kg
 
    use EDParamsMod       , only : hydr_kmax_rsurf
 
@@ -50,6 +52,7 @@ module FatesPlantHydraulicsMod
    use FatesInterfaceMod  , only : hlm_use_planthydro
 
    use FatesAllometryMod, only    : bsap_allom
+   use FatesAllometryMod, only    : CrownDepth
    
    use FatesHydraulicsMemMod, only: ed_site_hydr_type
    use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
@@ -76,8 +79,6 @@ module FatesPlantHydraulicsMod
    use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
    
    use clm_time_manager  , only : get_step_size, get_nstep
-
-   use FatesConstantsMod,     only: cm2_per_m2
 
    use EDPftvarcon, only : EDPftvarcon_inst
 
@@ -448,8 +449,6 @@ contains
         ccohort_hydr%z_node_troot(:)    = ccohort_hydr%z_node_aroot(nlevsoi_hyd)
      end if
      
-     
-     
      return
   end subroutine UpdateTreeHydrNodes
 
@@ -467,7 +466,6 @@ contains
     ccohort_hydr%v_ag_init(:)          =  ccohort_hydr%v_ag(:)
     ccohort_hydr%v_troot_init(:)       =  ccohort_hydr%v_troot(:)
     ccohort_hydr%v_aroot_layer_init(:) =  ccohort_hydr%v_aroot_layer(:)
-    
     
     return
   end subroutine SavePreviousCompartmentVolumes
@@ -636,11 +634,12 @@ contains
          b_stem_carb  = b_tot_carb - b_bg_carb - b_canopy_carb
          b_stem_biom  = b_stem_carb * C2B                               ! kg DM
 
-         !BOC...may be needed for testing/comparison w/ v_sapwood
-         v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(ft)*1.e3_r8) 
+         !BOC...may be needed for testing/comparison w/ v_sapwood 
+         !    kg  / ( g cm-3 * cm3/m3 * kg/g ) -> m3    
+         v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(ft)*1.e3_r8  ) 
 
          ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
-         a_leaf_tot   = b_canopy_carb * sla * 1.e3_r8 / 1.e4_r8         
+         a_leaf_tot   = b_canopy_carb * sla * g_per_kg  / cm2_per_m2 
          
          call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,bsw_target)
      
@@ -660,8 +659,9 @@ contains
          ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
 
-         !Determine belowground biomass as a function of total (sapwood, heartwood, leaf, fine root) biomass
-         !then subtract out the fine root biomass to get coarse (transporting) root biomass
+         ! Determine belowground biomass as a function of total (sapwood, heartwood, 
+         ! leaf, fine root) biomass then subtract out the fine root biomass to get 
+         ! coarse (transporting) root biomass
          
          b_troot_carb               = b_woody_bg_carb   
          b_troot_biom               = b_troot_carb * C2B 
@@ -677,7 +677,8 @@ contains
 
          ! Estimate absorbing root volume (all layers)
          ! ------------------------------------------------------------------------------
-         ccohort_hydr%v_aroot_tot        = pi_const*(EDPftvarcon_inst%hydr_rs2(ft)**2._r8)*ccohort_hydr%l_aroot_tot
+         ccohort_hydr%v_aroot_tot        = pi_const * (EDPftvarcon_inst%hydr_rs2(ft)**2._r8) * &
+                                           ccohort_hydr%l_aroot_tot
 
          
          ! Partition the total absorbing root lengths and volumes into the active soil layers
@@ -767,7 +768,8 @@ contains
          ccohort_hydr%kmax_treebg_tot      = ( 1._r8/kmax_tot - 1._r8/kmax_treeag_tot ) ** (-1._r8)
          
          if(nlevsoi_hyd == 1) then
-            ccohort_hydr%kmax_treebg_layer(:) = ccohort_hydr%kmax_treebg_tot * ccohort%patchptr%rootfr_ft(ft,:)
+            ccohort_hydr%kmax_treebg_layer(:) = ccohort_hydr%kmax_treebg_tot * &
+                                                ccohort%patchptr%rootfr_ft(ft,:)
          else
             do j=1,nlevsoi_hyd
                if(j == 1) then

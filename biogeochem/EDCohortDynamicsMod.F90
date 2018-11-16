@@ -31,6 +31,9 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
+  use FatesPlantHydraulicsMod, only : UpdateTreeHydrNodes
+  use FatesPlantHydraulicsMod, only : UpdateTreeHydrLenVolCond
+  use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
@@ -257,7 +260,8 @@ contains
        call InitHydrCohort(currentSite,new_cohort)
 
        ! This calculates node heights
-       call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft,new_cohort%hite,nlevsoi_hyd)
+       call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
+                                new_cohort%hite,nlevsoi_hyd,bc_in)
 
        ! This calculates volumes, lengths and max conductances
        call UpdateTreeHydrLenVolCond(new_cohort,nlevsoi_hyd,bc_in)
