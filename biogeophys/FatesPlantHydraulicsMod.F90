@@ -245,11 +245,18 @@ contains
           cpatch => cpatch%younger
        end do
 
+       sites(s)%si_hydr%h2oveg = 0.0_r8
+       sites(s)%si_hydr%h2oveg_recruit = 0.0_r8
+       sites(s)%si_hydr%h2oveg_dead = 0.0_r8
+       sites(s)%si_hydr%h2oveg_growturn_err = 0.0_r8
+       sites(s)%si_hydr%h2oveg_pheno_err = 0.0_r8
+       sites(s)%si_hydr%h2oveg_hydro_err = 0.0_r8
+
        call updateSizeDepRhizHydProps(sites(s), bc_in(s) )
 
     end do
     
-    call UpdateH2OVeg(nsites,sites,bc_out(s))
+    call UpdateH2OVeg(nsites,sites,bc_out)
 
     return
  end subroutine RestartHydrStates
@@ -563,7 +570,6 @@ contains
       real(r8) :: a_sapwood                    ! sapwood area                                                          [m2]
       real(r8) :: a_sapwood_target             ! sapwood cross-section area at reference height, at target biomass     [m2]
       real(r8) :: bsw_target                   ! sapwood carbon, at target                                             [kgC]
-      real(r8) :: a_leaf_tot                   ! total leaf area                                                       [m2/indiv]
       real(r8) :: v_sapwood                    ! sapwood volume                                                        [m3]
       real(r8) :: b_troot_carb                 ! transporting root biomass in carbon units                             [kgC/indiv]
       real(r8) :: b_troot_biom                 ! transporting root biomass in dry wt units                             [kg/indiv]
@@ -639,12 +645,11 @@ contains
          !    kg  / ( g cm-3 * cm3/m3 * kg/g ) -> m3    
          v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(ft)*1.e3_r8  ) 
 
-         ! calculate the leaf area based on the leaf profile 
-         a_leaf_tot  = cCohort%treelai * cCohort%c_area/cCohort%n        
+         ! calculate the sapwood cross-sectional area
          call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,bsw_target)
-     
          a_sapwood = a_sapwood_target
          
+         ! Alternative ways to calculate sapwood cross section
          ! or ....
          ! a_sapwood = a_sapwood_target * ccohort%bsw / bsw_target
          
@@ -1476,7 +1481,7 @@ contains
     csite_hydr%l_aroot_layer(:)  = 0._r8
     cPatch => currentSite%youngest_patch
     do while(associated(cPatch))
-       cCohort => cPatch%tallest     
+       cCohort => cPatch%tallest
        do while(associated(cCohort))
           ccohort_hydr => cCohort%co_hydr
           csite_hydr%l_aroot_layer(:) = csite_hydr%l_aroot_layer(:) + ccohort_hydr%l_aroot_layer(:)*cCohort%n
