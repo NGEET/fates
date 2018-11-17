@@ -11,6 +11,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
+  use FatesConstantsMod     , only : fates_unset_r8
   use FatesInterfaceMod     , only : hlm_days_per_year
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -729,6 +730,7 @@ contains
      real(r8) :: newn
      real(r8) :: diff
      real(r8) :: dynamic_fusion_tolerance
+     real(r8) :: dbh
 
      integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
      real(r8) :: larger_n, smaller_n
@@ -794,6 +796,7 @@ contains
                              if( currentCohort%isnew.eqv.nextc%isnew ) then
 
                                 newn = currentCohort%n + nextc%n
+
                                 fusion_took_place = 1         
 
                                 if ( fuse_debug .and. currentCohort%isnew ) then
@@ -822,26 +825,28 @@ contains
                                 currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                       + nextc%n*nextc%laimemory)/newn
 
-                                currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
-                                      + nextc%n*nextc%dbh)/newn
-
-                                call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
-                                
                                 currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                       + nextc%n*nextc%canopy_trim)/newn
 
-                                ! -----------------------------------------------------------------
-                                ! If fusion pushed structural biomass to be larger than
-                                ! the allometric target value derived by diameter, we
-                                ! then increase diameter and height until the allometric 
-                                ! target matches actual bdead. (if it is the other way around
-                                ! we then just let the carbon pools grow to fill-out allometry)
-                                ! -----------------------------------------------------------------
+                                ! conserve total crown area during the fusion step, and then calculate dbh of the
+                                ! fused cohort as that which conserves both crown area and the dbh to crown area allometry.  
+                                ! dbh will be updated in the next growth step in the (likely) event that dbh to structural 
+                                ! biomass allometry is exceeded. if using a capped crown area allometry and above the cap, 
+                                ! then calculate as the weighted average of fusing cohorts' dbh
+
+                                currentCohort%c_area = currentCohort%c_area + nextc%c_area
+
+                                call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
+                                     currentCohort%c_area,inverse=.true.)
                                 
-                                if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
-                                   call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,all_carbon_elements), currentCohort%pft, &
-                                         currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
-                                end if
+                                if (dbh .eq. fates_unset_r8) then
+                                   currentCohort%dbh = (currentCohort%n*currentCohort%dbh         &
+                                        + nextc%n*nextc%dbh)/newn
+                                else
+                                   currentCohort%dbh = dbh
+                                endif
+
+                                call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
