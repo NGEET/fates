@@ -146,9 +146,6 @@ module FatesRestartInterfaceMod
   integer, private :: ir_hydro_th_ag_covec
   integer, private :: ir_hydro_th_troot_covec
   integer, private :: ir_hydro_th_aroot_covec 
-  integer, private :: ir_hydro_l_aroot_layer_si
-  integer, private :: ir_hydro_r_node_shell_si
-  integer, private :: ir_hydro_v_shell_si
   integer, private :: ir_hydro_liqvol_shell_si
   integer, private :: ir_hydro_err_growturn_aroot_covec
   integer, private :: ir_hydro_err_growturn_ag_covec
@@ -897,25 +894,6 @@ contains
             units='kg/plant', veclength=n_hypool_troot, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_troot_covec) 
 
-
-       ! Site-level absorbing root maximum volume
-       call this%set_restart_var(vname='fates_hydro_l_aroot_layer', vtype=cohort_r8, &
-            long_name='Total length (across cohorts) of absorbing roots by soil layer', &
-            units='m', flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_l_aroot_layer_si )
-
-       ! Site-level Nodal Radius of rhizosphere compartments
-       call this%set_restart_var(vname='fates_hydro_r_node_shell', vtype=cohort_r8, &
-            long_name='Nodal Radius of rhizosphere compartments (layerxshell)', &
-            units='m', flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_r_node_shell_si )
-       
-       ! Site-level volume of rhizosphere compartments
-       call this%set_restart_var(vname='fates_hydro_v_shell', vtype=cohort_r8, &
-            long_name='Volume of rhizosphere compartments (layerxshell)', &
-            units='m3', flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_v_shell_si )
-
        ! Site-level volumentric liquid water content (shell x layer)
        call this%set_restart_var(vname='fates_hydro_liqvol_shell', vtype=cohort_r8, &
             long_name='Volumetric water content of rhizosphere compartments (layerxshell)', &
@@ -1309,7 +1287,6 @@ contains
     integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
     integer  :: io_idx_pa_ib   ! each SW band (vis/ir) per patch (pa_ib)
     integer  :: io_idx_si_wmem ! each water memory class within each site
-    integer  :: io_idx_si_lyr       ! site - layer x index 
     integer  :: io_idx_si_lyr_shell ! site - layer x shell index
 
     ! Some counters (for checking mostly)
@@ -1396,9 +1373,6 @@ contains
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
-           rio_hydro_l_aroot_layer_si  => this%rvars(ir_hydro_l_aroot_layer_si)%r81d,  &
-           rio_hydro_r_node_shell_si   => this%rvars(ir_hydro_r_node_shell_si)%r81d, &
-           rio_hydro_v_shell_si        => this%rvars(ir_hydro_v_shell_si)%r81d,      &
            rio_hydro_liqvol_shell_si   => this%rvars(ir_hydro_liqvol_shell_si)%r81d,  &
            rio_hydro_recruit_si        => this%rvars(ir_hydro_recruit_si)%r81d, &
            rio_hydro_dead_si           => this%rvars(ir_hydro_dead_si)%r81d, &
@@ -1432,10 +1406,7 @@ contains
           io_idx_si_wmem = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
-          io_idx_si_lyr       = io_idx_co_1st
           io_idx_si_lyr_shell = io_idx_co_1st
-          
-          
           
           ! write seed_bank info(site-level, but PFT-resolved)
           do i = 1,numpft
@@ -1692,25 +1663,12 @@ contains
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
              do i = 1, sites(s)%si_hydr%nlevsoi_hyd
-
                 ! Loop shells
                 do k = 1, nshell
-                   
-                   rio_hydro_r_node_shell_si(io_idx_si_lyr_shell) = &
-                        sites(s)%si_hydr%r_node_shell(i,k) 
-
-                   rio_hydro_v_shell_si(io_idx_si_lyr_shell)      = &
-                        sites(s)%si_hydr%v_shell(i,k)
-
                    rio_hydro_liqvol_shell_si(io_idx_si_lyr_shell) = &
                         sites(s)%si_hydr%h2osoi_liqvol_shell(i,k)
-
                    io_idx_si_lyr_shell = io_idx_si_lyr_shell + 1
                 end do
-
-                rio_hydro_l_aroot_layer_si(io_idx_si_lyr) = sites(s)%si_hydr%l_aroot_layer(i)
-
-                io_idx_si_lyr       = io_idx_si_lyr + 1
              end do
           end if
           
@@ -1976,7 +1934,6 @@ contains
      integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
      integer  :: io_idx_pa_ib   ! each SW radiation band per patch (pa_ib)
      integer  :: io_idx_si_wmem ! each water memory class within each site
-     integer  :: io_idx_si_lyr       ! site - layer x index 
      integer  :: io_idx_si_lyr_shell ! site - layer x shell index
 
      ! Some counters (for checking mostly)
@@ -2056,9 +2013,6 @@ contains
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
-          rio_hydro_l_aroot_layer_si  => this%rvars(ir_hydro_l_aroot_layer_si)%r81d,  &
-          rio_hydro_r_node_shell_si   => this%rvars(ir_hydro_r_node_shell_si)%r81d, &
-          rio_hydro_v_shell_si        => this%rvars(ir_hydro_v_shell_si)%r81d,      &
           rio_hydro_liqvol_shell_si   => this%rvars(ir_hydro_liqvol_shell_si)%r81d, &
           rio_hydro_recruit_si        => this%rvars(ir_hydro_recruit_si)%r81d, &
           rio_hydro_dead_si           => this%rvars(ir_hydro_dead_si)%r81d, &
@@ -2080,7 +2034,6 @@ contains
           io_idx_si_wmem = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
-          io_idx_si_lyr       = io_idx_co_1st
           io_idx_si_lyr_shell = io_idx_co_1st
 
 
@@ -2314,26 +2267,12 @@ contains
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
              do i = 1, sites(s)%si_hydr%nlevsoi_hyd
-
                 ! Loop shells
                 do k = 1, nshell
-                   
-                   sites(s)%si_hydr%r_node_shell(i,k) = & 
-                        rio_hydro_r_node_shell_si(io_idx_si_lyr_shell)
-                         
-                   sites(s)%si_hydr%v_shell(i,k) = & 
-                        rio_hydro_v_shell_si(io_idx_si_lyr_shell)
-                        
                    sites(s)%si_hydr%h2osoi_liqvol_shell(i,k) = &
                         rio_hydro_liqvol_shell_si(io_idx_si_lyr_shell)
-
                    io_idx_si_lyr_shell = io_idx_si_lyr_shell + 1
                 end do
-                
-                sites(s)%si_hydr%l_aroot_layer(i) = & 
-                     rio_hydro_l_aroot_layer_si(io_idx_si_lyr)
-                
-                io_idx_si_lyr       = io_idx_si_lyr + 1
              end do
 
           end if

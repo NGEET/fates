@@ -259,10 +259,9 @@ contains
           cpatch => cpatch%younger
        end do
        
-       sites(s)%si_hydr%l_aroot_layer_init(:)  = -9.9e10_r8
-       sites(s)%si_hydr%r_node_shell_init(:,:) = -9.9e10_r8
-       sites(s)%si_hydr%v_shell_init(:,:)      = -9.9e10_r8
-
+       sites(s)%si_hydr%l_aroot_layer_init(:)  = un_initialized
+       sites(s)%si_hydr%r_node_shell_init(:,:) = un_initialized
+       sites(s)%si_hydr%v_shell_init(:,:)      = un_initialized
 
 
        ! Update static quantities related to the rhizosphere
