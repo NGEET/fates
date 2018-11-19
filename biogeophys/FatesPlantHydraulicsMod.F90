@@ -145,6 +145,7 @@ module FatesPlantHydraulicsMod
    public :: updateSizeDepRhizHydStates
    public :: RestartHydrStates
    public :: SavePreviousCompartmentVolumes
+   public :: SavePreviousRhizVolumes
    public :: UpdateTreeHydrNodes
    public :: UpdateTreeHydrLenVolCond
 
@@ -212,9 +213,10 @@ contains
     ! locals
     ! ----------------------------------------------------------------------------------
     ! LL pointers
-    type(ed_patch_type),pointer  :: cpatch      ! current patch
-    type(ed_cohort_type),pointer :: ccohort     ! current cohort
-    integer                      :: s           ! site loop counter
+    type(ed_patch_type),pointer       :: cpatch      ! current patch
+    type(ed_cohort_type),pointer      :: ccohort     ! current cohort
+    type(ed_cohort_hydr_type),pointer :: ccohort_hydr
+    integer                           :: s           ! site loop counter
 
     do s = 1,nsites
 
@@ -224,8 +226,10 @@ contains
           ccohort => cpatch%shortest
           do while(associated(ccohort))  
              
+             ccohort_hydr => ccohort%co_hydr
+
              ! This calculates node heights
-             call UpdateTreeHydrNodes(ccohort%co_hydr,ccohort%pft,ccohort%hite, &
+             call UpdateTreeHydrNodes(ccohort_hydr,ccohort%pft,ccohort%hite, &
                                       sites(s)%si_hydr%nlevsoi_hyd,bc_in(s))
                    
              ! This calculates volumes, lengths and max conductances
@@ -233,26 +237,42 @@ contains
              
              ! Since this is a newly initialized plant, we set the previous compartment-size
              ! equal to the ones we just calculated.
-             call SavePreviousCompartmentVolumes(ccohort%co_hydr) 
-             
-             ccohort%co_hydr%errh2o_growturn_aroot(:) = 0.0_r8
-             ccohort%co_hydr%errh2o_growturn_ag(:)    = 0.0_r8
-             ccohort%co_hydr%errh2o_growturn_troot(:) = 0.0_r8
+             call SavePreviousCompartmentVolumes(ccohort_hydr) 
+
+             ! Set some generic initial values
+             ccohort_hydr%refill_days      =  3.0_r8
+             ccohort_hydr%lwp_mem(:)       = 0.0_r8
+             ccohort_hydr%lwp_stable       = 0.0_r8
+             ccohort_hydr%lwp_is_unstable  = .false.
+             ccohort_hydr%flc_ag(:)        =  1.0_r8
+             ccohort_hydr%flc_troot(:)     =  1.0_r8
+             ccohort_hydr%flc_aroot(:)     =  1.0_r8
+             ccohort_hydr%flc_min_ag(:)    =  1.0_r8
+             ccohort_hydr%flc_min_troot(:)    =  1.0_r8
+             ccohort_hydr%flc_min_aroot(:) =  1.0_r8
+             ccohort_hydr%refill_thresh    = -0.01_r8
+             ccohort_hydr%refill_days      =  3.0_r8
 
              ccohort => ccohort%taller
           enddo
           
           cpatch => cpatch%younger
        end do
+       
+       sites(s)%si_hydr%l_aroot_layer_init(:)  = -9.9e10_r8
+       sites(s)%si_hydr%r_node_shell_init(:,:) = -9.9e10_r8
+       sites(s)%si_hydr%v_shell_init(:,:)      = -9.9e10_r8
 
-       sites(s)%si_hydr%h2oveg = 0.0_r8
-       sites(s)%si_hydr%h2oveg_recruit = 0.0_r8
-       sites(s)%si_hydr%h2oveg_dead = 0.0_r8
-       sites(s)%si_hydr%h2oveg_growturn_err = 0.0_r8
-       sites(s)%si_hydr%h2oveg_pheno_err = 0.0_r8
-       sites(s)%si_hydr%h2oveg_hydro_err = 0.0_r8
 
-       call updateSizeDepRhizHydProps(sites(s), bc_in(s) )
+
+       ! Update static quantities related to the rhizosphere
+       call UpdateSizeDepRhizVolLenCon(sites(s), bc_in(s))
+
+       ! We update the "initial" values of the rhizosphere after
+       ! the previous call to make sure that the conductances are updated
+       ! Now we set the prevous to the current so that the water states
+       ! are not perturbed
+       call SavePreviousRhizVolumes(sites(s), bc_in(s))
 
     end do
     
@@ -1435,7 +1455,28 @@ contains
 
   ! =====================================================================================
 
-  subroutine updateSizeDepRhizHydProps(currentSite, bc_in )
+  subroutine SavePreviousRhizVolumes(currentSite, bc_in)
+
+    ! !ARGUMENTS:
+    type(ed_site_type)     , intent(inout), target :: currentSite
+    type(bc_in_type)       , intent(in) :: bc_in
+    type(ed_site_hydr_type), pointer    :: csite_hydr
+    integer                             :: nlevsoi_hyd
+    
+    csite_hydr => currentSite%si_hydr
+    nlevsoi_hyd = csite_hydr%nlevsoi_hyd
+     
+    csite_hydr%l_aroot_layer_init(:)  = csite_hydr%l_aroot_layer(:)
+    csite_hydr%r_node_shell_init(:,:) = csite_hydr%r_node_shell(:,:)
+    csite_hydr%v_shell_init(:,:)      = csite_hydr%v_shell(:,:)
+    
+    return
+  end subroutine SavePreviousRhizVolumes
+  
+  ! ======================================================================================
+
+  subroutine UpdateSizeDepRhizVolLenCon(currentSite, bc_in)
+
     !
     ! !DESCRIPTION: Updates size of 'representative' rhizosphere -- node radii, volumes.
     ! As fine root biomass (and thus absorbing root length) increases, this characteristic
@@ -1469,13 +1510,9 @@ contains
     integer                        :: nlevsoi_hyd	  
 
     !-----------------------------------------------------------------------
-    
+ 
     csite_hydr => currentSite%si_hydr
     nlevsoi_hyd = csite_hydr%nlevsoi_hyd
-
-    csite_hydr%l_aroot_layer_init(:)  = csite_hydr%l_aroot_layer(:)
-    csite_hydr%r_node_shell_init(:,:) = csite_hydr%r_node_shell(:,:)
-    csite_hydr%v_shell_init(:,:)      = csite_hydr%v_shell(:,:)
 
     ! update cohort-level root length density and accumulate it across cohorts and patches to the column level
     csite_hydr%l_aroot_layer(:)  = 0._r8
@@ -1523,8 +1560,10 @@ contains
                    csite_hydr%kmax_lower_shell(j,k)  = kmax_root_surf_total
 
                 else
+
 		   kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                          log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
+
                    !csite_hydr%kmax_upper_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
 		   !      log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
                    !csite_hydr%kmax_bound_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
@@ -1570,6 +1609,43 @@ contains
        end if !has l_aroot_layer changed?
     enddo ! loop over soil layers
 
+
+
+    return
+  end subroutine UpdateSizeDepRhizVolLenCon
+
+
+  ! =====================================================================================
+
+
+  subroutine updateSizeDepRhizHydProps(currentSite, bc_in )
+    !
+    ! !DESCRIPTION: Updates size of 'representative' rhizosphere -- node radii, volumes.
+    ! As fine root biomass (and thus absorbing root length) increases, this characteristic
+    ! rhizosphere shrinks even though the total volume of soil tapped by fine roots remains
+    ! the same.  
+    !
+    ! !USES:
+
+    use EDTypesMod           , only : AREA
+    
+    ! !ARGUMENTS:
+    type(ed_site_type)     , intent(inout), target :: currentSite
+    type(bc_in_type)       , intent(in) :: bc_in
+
+
+    ! Save current volumes, lenghts and nodes to an "initial"
+    ! used to calculate effects in states later on.
+    
+    call SavePreviousRhizVolumes(currentSite, bc_in)
+
+    ! Update the properties of the vegetation-soil hydraulic environment
+    ! these are independent on the water state
+    
+    call UpdateSizeDepRhizVolLenCon(currentSite, bc_in)
+
+
+    return
   end subroutine updateSizeDepRhizHydProps
   
   ! =================================================================================
