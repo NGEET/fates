@@ -69,7 +69,11 @@ module FatesHydraulicsMemMod
 
    ! P-V curve: correction for nonzero psi0x
    real(r8), dimension(n_porous_media)           :: cap_corr                                        
-
+   
+   !temporatory variables
+   real(r8) :: cohort_recruit_water_layer(nlevsoi_hyd_max)   ! the recruit water requirement for a 
+                                                             ! single individual at different layer (kg H2o/m2)
+   real(r8) :: recruit_water_avail_layer(nlevsoi_hyd_max)    ! the recruit water avaibility from soil (kg H2o/m2)
 
    type ed_site_hydr_type
 

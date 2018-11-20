@@ -73,6 +73,8 @@ module FatesPlantHydraulicsMod
    use FatesHydraulicsMemMod, only: C2B
    use FatesHydraulicsMemMod, only: InitHydraulicsDerived
    use FatesHydraulicsMemMod, only: nlevsoi_hyd_max
+   use FatesHydraulicsMemMod, only: cohort_recruit_water_layer
+   use FatesHydraulicsMemMod, only: recruit_water_avail_layer
 
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
@@ -148,6 +150,7 @@ module FatesPlantHydraulicsMod
    public :: SavePreviousRhizVolumes
    public :: UpdateTreeHydrNodes
    public :: UpdateTreeHydrLenVolCond
+   public :: ConstrainRecruitNumber
 
    !------------------------------------------------------------------------------
    ! 01/18/16: Created by Brad Christoffersen
@@ -1451,6 +1454,95 @@ contains
      end do ! site loop
 	
   end subroutine RecruitWUptake	   
+  
+  !=====================================================================================
+  subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
+
+     ! ---------------------------------------------------------------------------
+     ! This subroutine constrains the number of plants so that there is enought water 
+     !  for newly recruited individuals from the soil
+     ! ---------------------------------------------------------------------------
+     use EDTypesMod, only : AREA
+
+     ! Arguments
+     type(ed_site_type), intent(inout), target     :: csite
+     type(ed_cohort_type) , intent(inout), target  :: ccohort
+     type(bc_in_type)    , intent(in)              :: bc_in 
+
+     ! Locals
+     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+     type(ed_site_hydr_type), pointer :: csite_hydr
+     real(r8) :: tmp1
+     real(r8) :: watres_local   !minum water content
+     real(r8) :: total_water !total water in rhizosphere at a specific layer (m^3)
+     real(r8) :: total_water_min !total minimum water in rhizosphere at a specific layer (m^3)
+     real(r8) :: roota !root distriubiton parameter a
+     real(r8) :: rootb !root distriubiton parameter b
+     real(r8) :: rootfr !fraction of root in different soil layer
+     real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/individual)   
+     real(r8) :: n, nmin !number of individuals in cohorts  
+     integer :: s, j, ft
+
+
+     csite_hydr => csite%si_hydr
+     ccohort_hydr =>ccohort%co_hydr
+     recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
+                    sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:))  + &
+                    sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
+                    denh2o
+     
+     do j=1,csite_hydr%nlevsoi_hyd
+          if(j == 1) then
+                       rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
+          else
+                       rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
+                      zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
+         end if
+	 cohort_recruit_water_layer(j) = recruitw*rootfr
+     end do  
+     
+     do j=1,csite_hydr%nlevsoi_hyd
+          select case (iswc)
+           case (van_genuchten) 
+                 write(fates_log(),*) &
+                 'Van Genuchten plant hydraulics is inoperable until further notice'
+                 call endrun(msg=errMsg(sourcefile, __LINE__)) 
+           case (campbell)
+                 call swcCampbell_satfrac_from_psi(bc_in%smpmin_si*denh2o*grav*1.e-9_r8, &
+                                    (-1._r8)*bc_in%sucsat_sisl(j)*denh2o*grav*1.e-9_r8, &
+                                    bc_in%bsw_sisl(j),     &
+                                    tmp1)
+                 call swcCampbell_th_from_satfrac(tmp1, &
+                               bc_in%watsat_sisl(j),   &
+                                    watres_local)
+                 
+	    
+           case default
+         end select
+         total_water = sum(csite_hydr%v_shell(j,:)*csite_hydr%h2osoi_liqvol_shell(j,:)) * &
+                         ccohort_hydr%l_aroot_layer(j)/&
+                         bc_in %dz_sisl(j) 
+	 total_water_min = sum(csite_hydr%v_shell(j,:)*watres_local) * &
+                         ccohort_hydr%l_aroot_layer(j)/&
+                         bc_in %dz_sisl(j)  		  
+	 !assumes that only 50% is available for recruit water....
+	 recruit_water_avail_layer(j)=0.5_r8*min(0.0_r8,total_water-total_water_min)
+	  
+     end do
+     
+     nmin  = 1.0e+36 
+     do j=1,csite_hydr%nlevsoi_hyd
+       if(recruit_water_avail_layer(j)>0.0_r8) then
+          n = recruit_water_avail_layer(j)/cohort_recruit_water_layer(j)
+       else
+          n = 0.0_r8
+       endif
+       nmin = min(n, nmin)     
+     end do
+     ccohort%n = min (ccohort%n, nmin) 
+
+  end subroutine ConstrainRecruitNumber
+
 
   ! =====================================================================================
 

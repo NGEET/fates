@@ -39,6 +39,11 @@ module EDPhysiologyMod
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
+  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
+  use FatesPlantHydraulicsMod  , only : initTreeHydStates
+  use FatesPlantHydraulicsMod  , only : InitHydrCohort
+  use FatesPlantHydraulicsMod  , only : ConstrainRecruitNumber
+  
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : calloc_abs_error
 
@@ -993,23 +998,38 @@ contains
        else
           ! prescribed recruitment rates. number per sq. meter per year
           temp_cohort%n        = currentPatch%area * EDPftvarcon_inst%prescribed_recruitment(ft) * hlm_freq_day
-          ! modify the carbon balance accumulators to take into account the different way of defining recruitment
-          ! add prescribed rates as an input C flux, and the recruitment that would have otherwise occured as an output flux
-          ! (since the carbon associated with them effectively vanishes)
-          currentSite%flux_in = currentSite%flux_in + temp_cohort%n * &
-                (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
-          currentSite%flux_out = currentSite%flux_out + currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day
        endif
 
        if (temp_cohort%n > 0.0_r8 )then
-
-          call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+          if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
+	  if( hlm_use_planthydro.eq.itrue ) then
+	      call InitHydrCohort(CurrentSite,temp_cohort)
+	      call carea_allom(temp_cohort%dbh,temp_cohort%n,currentSite%spread, &
+				          ft,temp_cohort%c_area)
+              temp_cohort%treelai = tree_lai(temp_cohort%bl, &
+				           cohortstatus, ft, &
+                                           temp_cohort%c_area, temp_cohort%n )	      
+              call updateSizeDepTreeHydProps(CurrentSite,temp_cohort, bc_in) 
+              call initTreeHydStates(CurrentSite,temp_cohort, bc_in)
+ 	      call ConstrainRecruitNumber(currentSite,temp_cohort, bc_in)
+	  endif
+	  if(temp_cohort%n > 0.0_r8) then
+            call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                 b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &  
                 temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
                 currentSite%spread, bc_in)
-             
-          ! keep track of how many individuals were recruited for passing to history
-          currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
+            ! keep track of how many individuals were recruited for passing to history
+            currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
+	    ! modify the carbon balance accumulators to take into account the different way of defining recruitment
+            ! add prescribed rates as an input C flux, and the recruitment that would have otherwise occured as an output flux
+            ! (since the carbon associated with them effectively vanishes)
+	    ! check the water for hydraulics
+	    if (hlm_use_ed_prescribed_phys .ne. ifalse .and. EDPftvarcon_inst%prescribed_recruitment(ft) .ge. 0. ) then
+              currentSite%flux_in = currentSite%flux_in + temp_cohort%n * &
+                (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
+              currentSite%flux_out = currentSite%flux_out + currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day
+	    endif 
+	  endif 
 
        endif
     enddo  !pft loop
