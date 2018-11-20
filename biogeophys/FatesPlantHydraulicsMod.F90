@@ -3361,7 +3361,7 @@ contains
     ccohort_hydr%iterh2 = real(iterh2)
 
     ! WATER BALANCE ERROR-HANDLING
-    if (abs(we_local) > thresh) then
+    if ( (abs(we_local) > thresh) .and. debug) then
        write(fates_log(),*)'WARNING: plant hydraulics water balance error exceeds threshold of ',&
              thresh
     else if (abs(we_local) > thresh_break) then
