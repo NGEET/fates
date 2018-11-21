@@ -81,9 +81,9 @@ module FatesHydraulicsMemMod
                                                     ! may or may not cross that with a simple or
                                                     ! non-simple layering
 
-     real(r8),allocatable :: v_shell(:,:)           ! Volume of rhizosphere compartment (m) 
-     real(r8),allocatable :: v_shell_init(:,:)      ! Previous volume of rhizosphere compartment (m) 
-     real(r8),allocatable :: v_shell_1D(:)          ! Volume of rhizosphere compartment (m)
+     real(r8),allocatable :: v_shell(:,:)           ! Volume of rhizosphere compartment (m3) 
+     real(r8),allocatable :: v_shell_init(:,:)      ! Previous volume of rhizosphere compartment (m3) 
+     real(r8),allocatable :: v_shell_1D(:)          ! Volume of rhizosphere compartment (m3)
      real(r8),allocatable :: r_node_shell(:,:)      ! Nodal radius of rhizosphere compartment (m)
      real(r8),allocatable :: r_node_shell_init(:,:) ! Previous Nodal radius of rhizosphere compartment (m)
      real(r8),allocatable :: l_aroot_layer(:)       ! Total length (across cohorts) of absorbing

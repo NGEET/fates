@@ -31,6 +31,9 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
+  use FatesPlantHydraulicsMod, only : UpdateTreeHydrNodes
+  use FatesPlantHydraulicsMod, only : UpdateTreeHydrLenVolCond
+  use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
@@ -98,6 +101,13 @@ contains
     !
     ! !DESCRIPTION:
     ! create new cohort
+    ! There are 4 places this is called
+    ! 1) Initializing new cohorts at the beginning of a cold-start simulation
+    ! 2) Initializing new recruits during dynamics
+    ! 3) Initializing new cohorts at the beginning of a inventory read
+    ! 4) Initializing new cohorts during restart
+    !
+    ! It is assumed that in the first 3, this is called with a reasonable amount of starter information.
     !
     ! !USES:
     !
@@ -125,7 +135,8 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
     type(ed_cohort_type), pointer :: storesmallcohort 
-    type(ed_cohort_type), pointer :: storebigcohort   
+    type(ed_cohort_type), pointer :: storebigcohort  
+    integer :: nlevsoi_hyd                      ! number of hydraulically active soil layers 
     integer :: tnull,snull                      ! are the tallest and shortest cohorts allocate
     !----------------------------------------------------------------------
 
@@ -242,12 +253,31 @@ contains
     new_cohort%isnew = .true.
 
     if( hlm_use_planthydro.eq.itrue ) then
-       call InitHydrCohort(CurrentSite,new_cohort)
-       call updateSizeDepTreeHydProps(CurrentSite,new_cohort, bc_in) 
-       call initTreeHydStates(CurrentSite,new_cohort, bc_in)
+
+       nlevsoi_hyd = currentSite%si_hydr%nlevsoi_hyd
+
+       ! This allocates array spaces
+       call InitHydrCohort(currentSite,new_cohort)
+
+       ! This calculates node heights
+       call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
+                                new_cohort%hite,nlevsoi_hyd,bc_in)
+
+       ! This calculates volumes, lengths and max conductances
+       call UpdateTreeHydrLenVolCond(new_cohort,nlevsoi_hyd,bc_in)
+       
+       ! Since this is a newly initialized plant, we set the previous compartment-size
+       ! equal to the ones we just calculated.
+       call SavePreviousCompartmentVolumes(new_cohort%co_hydr)
+       
+       ! This comes up with starter suctions and then water contents
+       ! based on the soil values
+       call initTreeHydStates(currentSite,new_cohort, bc_in)
+
        if(recruitstatus==1)then
           new_cohort%co_hydr%is_newly_recruited = .true.
        endif
+
     endif
     
     call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
