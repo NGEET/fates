@@ -1409,12 +1409,16 @@ contains
      real(r8) :: rootb !root distriubiton parameter b
      real(r8) :: rootfr !fraction of root in different soil layer
      real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/s)
+     real(r8) :: recruitw_total ! total water for newly recruited cohorts (kg water/m2/s)
+     real(r8) :: err !mass error of water for newly recruited cohorts (kg water/m2/s)
+     real(r8) :: sumrw_uptake !sum of water take for newly recruited cohorts (kg water/m2/s)
      
      recruitflag = .false. 
      do s = 1,nsites 
         csite_hydr => sites(s)%si_hydr
         csite_hydr%recruit_w_uptake = 0.0_r8
-        currentPatch => sites(s)%oldest_patch 
+        currentPatch => sites(s)%oldest_patch
+	recruitw_total = 0.0_r8 
         do while(associated(currentPatch)) 
            currentCohort=>currentPatch%tallest
            do while(associated(currentCohort))
@@ -1430,6 +1434,7 @@ contains
                     sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:))             + &
                     sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
                     denh2o*currentCohort%n/AREA/dtime
+		recruitw_total = recruitw_total + recruitw
                 if( csite_hydr%nlevsoi_hyd == 1) then
                     csite_hydr%recruit_w_uptake(1) = csite_hydr%recruit_w_uptake(1)+ &
 		                                    recruitw
@@ -1451,6 +1456,15 @@ contains
 	  end do !cohort loop	   
           currentPatch => currentPatch%younger
 	end do !patch
+	!balance check
+	sumrw_uptake = sum(csite_hydr%recruit_w_uptake)
+	err = recruitw_total - sumrw_uptake 
+	if(abs(err)>1.0_r8e-10)then
+	   do j=1,csite_hydr%nlevsoi_hyd
+	     csite_hydr%recruit_w_uptake(j) = csite_hydr%recruit_w_uptake(j) + &
+	         err*csite_hydr%recruit_w_uptake(j)/sumrw_uptake
+	   enddo	   
+	endif
      end do ! site loop
 	
   end subroutine RecruitWUptake	   
@@ -1483,7 +1497,9 @@ contains
      real(r8) :: n, nmin !number of individuals in cohorts  
      integer :: s, j, ft
 
-
+     roota                     =  EDPftvarcon_inst%roota_par(ccohort%pft)
+     rootb                     =  EDPftvarcon_inst%rootb_par(ccohort%pft)
+    
      csite_hydr => csite%si_hydr
      ccohort_hydr =>ccohort%co_hydr
      recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
@@ -1520,24 +1536,22 @@ contains
            case default
          end select
          total_water = sum(csite_hydr%v_shell(j,:)*csite_hydr%h2osoi_liqvol_shell(j,:)) * &
-                         ccohort_hydr%l_aroot_layer(j)/&
+                         csite_hydr%l_aroot_layer(j)/&
                          bc_in %dz_sisl(j) 
 	 total_water_min = sum(csite_hydr%v_shell(j,:)*watres_local) * &
-                         ccohort_hydr%l_aroot_layer(j)/&
+                         csite_hydr%l_aroot_layer(j)/&
                          bc_in %dz_sisl(j)  		  
 	 !assumes that only 50% is available for recruit water....
-	 recruit_water_avail_layer(j)=0.5_r8*min(0.0_r8,total_water-total_water_min)
+	 recruit_water_avail_layer(j)=0.5_r8*max(0.0_r8,total_water-total_water_min)
 	  
      end do
      
      nmin  = 1.0e+36 
      do j=1,csite_hydr%nlevsoi_hyd
-       if(recruit_water_avail_layer(j)>0.0_r8) then
+       if(cohort_recruit_water_layer(j)>0.0_r8) then
           n = recruit_water_avail_layer(j)/cohort_recruit_water_layer(j)
-       else
-          n = 0.0_r8
+          nmin = min(n, nmin) 
        endif
-       nmin = min(n, nmin)     
      end do
      ccohort%n = min (ccohort%n, nmin) 
 
@@ -3025,8 +3039,9 @@ contains
              enddo !cohort
 	     cpatch => cpatch%younger
 	   enddo !patch
-	   
-	   totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:))*dtime
+	   !remove the recruitment water uptake as it has been added to prev_h2oveg 
+	   totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:)- &
+	                  site_hydr%recruit_w_uptake(:))*dtime
 	   
            total_e = site_hydr%h2oveg-(prev_h2oveg + totalrootuptake - totalqtop_dt)
 	       
