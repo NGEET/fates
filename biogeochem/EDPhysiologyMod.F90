@@ -1006,9 +1006,18 @@ contains
 	      call InitHydrCohort(CurrentSite,temp_cohort)
 	      call carea_allom(temp_cohort%dbh,temp_cohort%n,currentSite%spread, &
 				          ft,temp_cohort%c_area)
-              temp_cohort%treelai = tree_lai(temp_cohort%bl, &
-				           cohortstatus, ft, &
-                                           temp_cohort%c_area, temp_cohort%n )	      
+	      if(associated(currentPatch%shortest)) then
+	         temp_cohort%canopy_layer =  currentPatch%shortest%canopy_layer
+	      else
+	         temp_cohort%canopy_layer = 1
+	      endif		
+	      temp_cohort%pft = ft
+	      temp_cohort%bsw = b_sapwood
+	      temp_cohort%br = 	b_fineroot
+	      temp_cohort%bl = 	b_leaf	  
+              temp_cohort%treelai = tree_lai(temp_cohort%bl, ft,&
+				             temp_cohort%c_area,temp_cohort%n, &
+                                             temp_cohort%canopy_layer,currentPatch%canopy_layer_tlai)	      
               call updateSizeDepTreeHydProps(CurrentSite,temp_cohort, bc_in) 
               call initTreeHydStates(CurrentSite,temp_cohort, bc_in)
  	      call ConstrainRecruitNumber(currentSite,temp_cohort, bc_in)
