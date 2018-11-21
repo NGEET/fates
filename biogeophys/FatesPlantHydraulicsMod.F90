@@ -338,6 +338,7 @@ contains
     do k=1, n_hypool_troot
        dz = ccohort_hydr%z_node_troot(k) - ccohort_hydr%z_node_aroot(1)
        ccohort_hydr%psi_troot(k) = ccohort_hydr%psi_aroot(1) - 1.e-6_r8*denh2o*grav*dz 
+       if (ccohort_hydr%psi_troot(k)>0.0_r8) ccohort_hydr%psi_troot(k) = -0.01_r8
        call th_from_psi(ft, 3, ccohort_hydr%psi_troot(k), ccohort_hydr%th_troot(k), csite%si_hydr, bc_in)
     end do
 
@@ -349,6 +350,7 @@ contains
     do k=n_hypool_ag-1, 1, -1
        dz = ccohort_hydr%z_node_ag(k) - ccohort_hydr%z_node_ag(k+1)
        ccohort_hydr%psi_ag(k) = ccohort_hydr%psi_ag(k+1) - 1.e-6_r8*denh2o*grav*dz
+       if(ccohort_hydr%psi_ag(k)>0.0_r8) ccohort_hydr%psi_ag(k)= -0.01_r8
        call th_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), ccohort_hydr%th_ag(k), csite%si_hydr, bc_in)
     end do
     
@@ -1459,7 +1461,7 @@ contains
 	!balance check
 	sumrw_uptake = sum(csite_hydr%recruit_w_uptake)
 	err = recruitw_total - sumrw_uptake 
-	if(abs(err)>1.0_r8e-10)then
+	if(abs(err)>1.0e-10_r8)then
 	   do j=1,csite_hydr%nlevsoi_hyd
 	     csite_hydr%recruit_w_uptake(j) = csite_hydr%recruit_w_uptake(j) + &
 	         err*csite_hydr%recruit_w_uptake(j)/sumrw_uptake
@@ -3881,14 +3883,20 @@ contains
     real(r8) :: y_new                  ! corresponding y value at x.new
     real(r8) :: f_new                  ! y difference between new y guess at x.new and target y
     real(r8) :: chg                    ! difference between x upper and lower bounds (approach 0 in bisection)
+    integer  :: nitr                   ! number of iterations 
     !----------------------------------------------------------------------
-  
+    if(psi_node > 0.0_r8) then
+      write(fates_log(),*)'Error: psi_note become positive,&
+                           psi_node=',psi_node
+      call endrun(msg=errMsg(sourcefile, __LINE__))  
+    endif
     call psi_from_th(ft, pm, lower, y_lo)
     call psi_from_th(ft, pm, upper, y_hi)
     f_lo  = y_lo - psi_node
     f_hi  = y_hi - psi_node
     chg   = upper - lower
-    do while(abs(chg) .gt. xtol)
+    nitr = 0
+    do while(abs(chg) .gt. xtol .and. nitr < 100)
        x_new = 0.5_r8*(lower + upper)
        call psi_from_th(ft, pm, x_new, y_new)
        f_new = y_new - psi_node
@@ -3898,7 +3906,12 @@ contains
        if((f_lo * f_new) .lt. 0._r8) upper = x_new
        if((f_hi * f_new) .lt. 0._r8) lower = x_new
        chg = upper - lower
+       nitr = nitr + 1
     end do
+    
+    if(nitr .eq. 100)then
+        write(fates_log(),*)'Warning: number of iteraction reaches 100 for bisect_pv'
+    endif
     
     th_node = x_new
 	     
