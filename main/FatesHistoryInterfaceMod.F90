@@ -3378,12 +3378,12 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_total_exp_leaf_pa )
 	 
-    call this%set_history_var(vname='Toal_YoungLeaf', units='gC/m2',                   &
+    call this%set_history_var(vname='Total_YoungLeaf', units='gC/m2',                   &
          long='Total young leaf biomass',  use_default='inactive',                            &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_total_young_leaf_pa )
 	 
-    call this%set_history_var(vname='Toal_OldLeaf', units='gC/m2',                   &
+    call this%set_history_var(vname='Total_OldLeaf', units='gC/m2',                   &
          long='Total old leaf biomass',  use_default='inactive',                            &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_total_old_leaf_pa )
