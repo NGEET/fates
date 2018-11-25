@@ -86,13 +86,13 @@ contains
     hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
     hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
     if(hlm_use_planthydro.eq.itrue)then
+     !note the flc is set as the fraction of max conductivity in hydro
      min_fmc_ag = minval(cohort_in%co_hydr%flc_ag(:))
      min_fmc_tr = minval(cohort_in%co_hydr%flc_troot(:))
      min_fmc_ar = minval(cohort_in%co_hydr%flc_aroot(:))
      min_fmc = min(min_fmc_ag, min_fmc_tr)
      min_fmc = min(min_fmc, min_fmc_ar)
      flc = 1.0_r8-min_fmc
-     !note the flc is set as the fraction of max conductivity in hydro
      if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then 
        hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
            EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
