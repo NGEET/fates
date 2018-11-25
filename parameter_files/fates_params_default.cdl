@@ -913,7 +913,7 @@ data:
 
  fates_mort_hf_sm_threshold = 1e-06, 1e-06 ;
  
- fates_mort_hf_sm_threshold = 0.5, 0.5 ;
+ fates_mort_hf_flc_threshold = 0.5, 0.5 ;
 
  fates_mort_scalar_coldstress = 3, 3 ;
 
