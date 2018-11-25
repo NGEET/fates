@@ -344,6 +344,9 @@ variables:
 	float fates_mort_hf_sm_threshold(fates_pft) ;
 		fates_mort_hf_sm_threshold:units = "unitless" ;
 		fates_mort_hf_sm_threshold:long_name = "soil moisture (btran units) at which drought mortality begins for non-hydraulic model" ;
+	float fates_mort_hf_flc_threshold(fates_pft) ;
+		fates_mort_hf_flc_threshold:units = "fraction" ;
+		fates_mort_hf_flc_threshold:long_name = "plant fractional loss of conductivity at which drought mortality begins for hydraulic model" ;			
 	float fates_mort_scalar_coldstress(fates_pft) ;
 		fates_mort_scalar_coldstress:units = "1/yr" ;
 		fates_mort_scalar_coldstress:long_name = "maximum mortality rate from cold stress" ;
@@ -909,6 +912,8 @@ data:
  fates_mort_freezetol = 2.5, 2.5 ;
 
  fates_mort_hf_sm_threshold = 1e-06, 1e-06 ;
+ 
+ fates_mort_hf_sm_threshold = 0.5, 0.5 ;
 
  fates_mort_scalar_coldstress = 3, 3 ;
 
