@@ -13,12 +13,13 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : hlm_day_of_year
   use FatesInterfaceMod, only    : numpft
   use FatesInterfaceMod, only    : hlm_use_planthydro
+  use FatesInterfaceMod, only    : hlm_parteh_mode
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
-  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
+  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts,InitPRTCohort
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : decay_coeff_kn
@@ -43,6 +44,7 @@ module EDPhysiologyMod
   use FatesPlantHydraulicsMod  , only : initTreeHydStates
   use FatesPlantHydraulicsMod  , only : InitHydrCohort
   use FatesPlantHydraulicsMod  , only : ConstrainRecruitNumber
+  use FatesPlantHydraulicsMod  , only : DeallocateHydrCohort
   
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : calloc_abs_error
@@ -59,7 +61,8 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod  , only : StructureResetOfDH
-
+  
+  use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : leaf_organ
   use PRTGenericMod, only : all_carbon_elements
   use PRTGenericMod, only : carbon12_element
@@ -955,6 +958,10 @@ contains
 
     allocate(temp_cohort) ! create temporary cohort
     call zero_cohort(temp_cohort)
+    if( hlm_use_planthydro.eq.itrue ) then
+	call InitHydrCohort(CurrentSite,temp_cohort)
+    endif
+    call InitPRTCohort(temp_cohort)
 
     do ft = 1,numpft
 
@@ -1002,8 +1009,8 @@ contains
 
        if (temp_cohort%n > 0.0_r8 )then
           if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
+	  !constrain the number of individual based on rhyzosphere water availability
 	  if( hlm_use_planthydro.eq.itrue ) then
-	      call InitHydrCohort(CurrentSite,temp_cohort)
 	      call carea_allom(temp_cohort%dbh,temp_cohort%n,currentSite%spread, &
 				          ft,temp_cohort%c_area)
 	      if(associated(currentPatch%shortest)) then
@@ -1012,10 +1019,18 @@ contains
 	         temp_cohort%canopy_layer = 1
 	      endif		
 	      temp_cohort%pft = ft
-	      temp_cohort%bsw = b_sapwood
-	      temp_cohort%br = 	b_fineroot
-	      temp_cohort%bl = 	b_leaf	  
-              temp_cohort%treelai = tree_lai(temp_cohort%bl, ft,&
+	      select case(hlm_parteh_mode)
+                case (prt_carbon_allom_hyp)
+
+                  call SetState(temp_cohort%prt,leaf_organ, carbon12_element, b_leaf)
+                  call SetState(temp_cohort%prt,fnrt_organ, carbon12_element, b_fineroot)
+                  call SetState(temp_cohort%prt,sapw_organ, carbon12_element, b_sapwood)
+                  call SetState(temp_cohort%prt,store_organ, carbon12_element, b_store)
+                  call SetState(temp_cohort%prt,struct_organ, carbon12_element, b_dead)
+                  call SetState(temp_cohort%prt,repro_organ , carbon12_element, 0.0_r8)
+
+              end select
+              temp_cohort%treelai = tree_lai(b_leaf, ft,&
 				             temp_cohort%c_area,temp_cohort%n, &
                                              temp_cohort%canopy_layer,currentPatch%canopy_layer_tlai)	      
               call updateSizeDepTreeHydProps(CurrentSite,temp_cohort, bc_in) 
@@ -1038,11 +1053,16 @@ contains
                 (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
               currentSite%flux_out = currentSite%flux_out + currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day
 	    endif 
+	    
 	  endif 
 
        endif
     enddo  !pft loop
-
+    !deallocate the temporatory cohort
+    if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(temp_cohort)
+    !Deallocate the cohort's PRT structure
+    call temp_cohort%prt%DeallocatePRTVartypes()
+    deallocate(temp_cohort%prt)
     deallocate(temp_cohort) ! delete temporary cohort
 
   end subroutine recruitment
