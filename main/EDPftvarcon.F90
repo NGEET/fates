@@ -32,55 +32,67 @@ module EDPftvarcon
 
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
-     real(r8), allocatable :: pft_used           (:) ! Switch to turn on and off PFTs
-    
-     real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance
-     real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
-     real(r8), allocatable :: hgt_min            (:) ! sapling height m
+
+     real(r8), allocatable :: pft_used(:)            ! Switch to turn on and off PFTs
+     real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
+     real(r8), allocatable :: wood_density(:)        ! wood density  g cm^-3  ...
+     real(r8), allocatable :: hgt_min(:)             ! sapling height m
      real(r8), allocatable :: dbh_repro_threshold(:) ! diameter at which mature plants shift allocation
-     real(r8), allocatable :: dleaf              (:) ! leaf characteristic dimension length (m)
-     real(r8), allocatable :: z0mr               (:) ! ratio of roughness length of vegetation to height (-) 
-     real(r8), allocatable :: displar            (:) ! ratio of displacement height to canopy top height (-)
-     real(r8), allocatable :: cushion            (:) ! labile carbon storage target as multiple of leaf pool.
-     real(r8), allocatable :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation
+     real(r8), allocatable :: dleaf(:)               ! leaf characteristic dimension length (m)
+     real(r8), allocatable :: z0mr(:)                ! ratio of roughness length of vegetation to height (-) 
+     real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height (-)
+     real(r8), allocatable :: cushion(:)             ! labile carbon storage target as multiple of leaf pool.
+     real(r8), allocatable :: leaf_stor_priority(:)  ! leaf turnover vs labile carbon use prioritisation
                                                      ! (1 = lose  leaves, 0 = use store).
-     real(r8), allocatable :: crown              (:) ! fraction of the height of the plant that is occupied by crown. For fire model. 
-     real(r8), allocatable :: bark_scaler        (:) ! scaler from dbh to bark thickness. For fire model.
-     real(r8), allocatable :: crown_kill         (:) ! scaler on fire death. For fire model. 
-     real(r8), allocatable :: initd              (:) ! initial seedling density 
-     real(r8), allocatable :: seed_rain          (:) ! seeds that come from outside the gridbox.
-     real(r8), allocatable :: BB_slope           (:) ! ball berry slope parameter
+     real(r8), allocatable :: crown(:)               ! fraction of the height of the plant 
+                                                     ! that is occupied by crown. For fire model. 
+     real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
+     real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model. 
+     real(r8), allocatable :: initd(:)               ! initial seedling density 
+     real(r8), allocatable :: seed_rain(:)           ! seeds that come from outside the gridbox.
+     real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
      
-     real(r8), allocatable :: seed_alloc_mature  (:) ! fraction of carbon balance allocated to clonal reproduction.
-     real(r8), allocatable :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds.
-     real(r8), allocatable :: c2b                (:) ! Carbon to biomass multiplier [kg/kgC]
-     real(r8), allocatable :: woody(:)
-     real(r8), allocatable :: stress_decid(:)
-     real(r8), allocatable :: season_decid(:)
-     real(r8), allocatable :: evergreen(:)
-     real(r8), allocatable :: slamax(:)
-     real(r8), allocatable :: slatop(:)
+     real(r8), allocatable :: seed_alloc_mature(:)   ! fraction of carbon balance allocated to 
+                                                     ! clonal reproduction.
+     real(r8), allocatable :: seed_alloc(:)          ! fraction of carbon balance allocated to seeds.
+     real(r8), allocatable :: c2b(:)                 ! Carbon to biomass multiplier [kg/kgC]
+     real(r8), allocatable :: woody(:)               ! Does the plant have wood?      (1=yes, 0=no)
+
+                                                     ! The following three PFT classes 
+                                                     ! are mutually exclusive
+     real(r8), allocatable :: stress_decid(:)        ! Is the plant stress deciduous? (1=yes, 0=no)
+     real(r8), allocatable :: season_decid(:)        ! Is the plant seasonally deciduous (1=yes, 0=no)
+     real(r8), allocatable :: evergreen(:)           ! Is the plant an evergreen (1=yes, 0=no)
+
+     real(r8), allocatable :: slamax(:)              ! Maximum specific leaf area of plant (at bottom) [m2/gC]
+     real(r8), allocatable :: slatop(:)              ! Specific leaf area at canopy top [m2/gC]
      
-     real(r8), allocatable :: roota_par(:)
-     real(r8), allocatable :: rootb_par(:)
-     real(r8), allocatable :: lf_flab(:)
-     real(r8), allocatable :: lf_fcel(:)
-     real(r8), allocatable :: lf_flig(:)
-     real(r8), allocatable :: fr_flab(:)
-     real(r8), allocatable :: fr_fcel(:)
-     real(r8), allocatable :: fr_flig(:)
-     real(r8), allocatable :: xl(:)
-     real(r8), allocatable :: clumping_index(:) ! factor describing how much self-occlusion 
-                                                ! of leaf scattering elements decreases light interception
-     real(r8), allocatable :: c3psn(:)          ! index defining the photosynthetic pathway C4 = 0,  C3 = 1
-     real(r8), allocatable :: vcmax25top(:)
-     real(r8), allocatable :: smpso(:)
-     real(r8), allocatable :: smpsc(:)
-     
-     real(r8), allocatable :: maintresp_reduction_curvature(:)   ! curvature of MR reduction as f(carbon storage), 
-                                                                 ! 1=linear, 0=very curved
-     real(r8), allocatable :: maintresp_reduction_intercept(:)   ! intercept of MR reduction as f(carbon storage), 
-                                                                 ! 0=no throttling, 1=max throttling
+     real(r8), allocatable :: roota_par(:)           ! Normalized Root profile scaling parameter A
+     real(r8), allocatable :: rootb_par(:)           ! Normalized root profile scaling parameter B
+     real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
+     real(r8), allocatable :: lf_fcel(:)             ! Leaf litter cellulose fraction [-]
+     real(r8), allocatable :: lf_flig(:)             ! Leaf litter lignan fraction [-]
+     real(r8), allocatable :: fr_flab(:)             ! Fine-root litter labile fraction [-]
+     real(r8), allocatable :: fr_fcel(:)             ! Fine-root litter cellulose fraction [-]
+     real(r8), allocatable :: fr_flig(:)             ! Fine-root litter lignatn fraction [-]
+     real(r8), allocatable :: xl(:)                  ! Leaf-stem orientation index
+     real(r8), allocatable :: clumping_index(:)      ! factor describing how much self-occlusion 
+                                                     ! of leaf scattering elements 
+                                                     ! decreases light interception
+     real(r8), allocatable :: c3psn(:)               ! index defining the photosynthetic 
+                                                     ! pathway C4 = 0,  C3 = 1
+     real(r8), allocatable :: vcmax25top(:)          ! maximum carboxylation rate of Rub. at 25C, 
+                                                     ! canopy top [umol CO2/m^2/s]
+     real(r8), allocatable :: smpso(:)               ! Soil water potential at full stomatal opening 
+                                                     ! (non-HYDRO mode only) [mm]
+     real(r8), allocatable :: smpsc(:)               ! Soil water potential at full stomatal closure 
+                                                     ! (non-HYDRO mode only) [mm]
+
+
+     real(r8), allocatable :: maintresp_reduction_curvature(:) ! curvature of MR reduction as f(carbon storage), 
+                                                               ! 1=linear, 0=very curved
+     real(r8), allocatable :: maintresp_reduction_intercept(:) ! intercept of MR reduction as f(carbon storage), 
+                                                               ! 0=no throttling, 1=max throttling
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: mort_scalar_coldstress(:)
      real(r8), allocatable :: mort_scalar_cstarvation(:)
@@ -148,7 +160,7 @@ module EDPftvarcon
      real(r8), allocatable :: allom_agb3(:)         ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)         ! Parameter 3 for agb allometry
      
-     real(r8), allocatable :: allom_frbstor_repro(:)! fraction of bstrore for reproduction after mortality
+     real(r8), allocatable :: allom_frbstor_repro(:) ! fraction of bstrore for reproduction after mortality
 
      ! Prescribed Physiology Mode Parameters
      real(r8), allocatable :: prescribed_npp_canopy(:)           ! this is only for the special 

@@ -1,6 +1,8 @@
 module EDTypesMod
 
   use FatesConstantsMod,     only : r8 => fates_r8
+  use FatesConstantsMod,     only : ifalse
+  use FatesConstantsMod,     only : itrue
   use FatesGlobals,          only : fates_log
   use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
@@ -79,9 +81,15 @@ module EDTypesMod
   ! TO-DO: THESE SHOULD BE PARAMETERS IN THE FILE OR NAMELIST - ADDING THESE
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
-  logical, parameter :: do_ed_phenology = .true.
-  integer, parameter :: do_fates_salinity = 0
-  integer, parameter :: do_fates_sulphide = 0
+
+  logical, parameter :: do_ed_phenology   = .true.
+
+
+  ! Flag to turn on/off salinity effects on the effective "btran"
+  ! btran stress function.
+
+  logical, parameter :: do_fates_salinity = .false.
+
 
 
   ! This is the community level amount of spread expected in nearly-bare-ground

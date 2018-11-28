@@ -678,7 +678,7 @@ contains
       allocate(bc_in%h2o_liqvol_sl(nlevsoil_in))
       
       !BGC
-      if(do_fates_salinity== itrue) then
+      if(do_fates_salinity) then
          allocate(bc_in%salinity_sl(nlevsoil_in))	 
       endif
 
@@ -822,7 +822,7 @@ contains
       this%bc_in(s)%snow_depth_si       = 0.0_r8
       this%bc_in(s)%frac_sno_eff_si     = 0.0_r8
       
-      if(do_fates_salinity==itrue)then
+      if(do_fates_salinity)then
          this%bc_in(s)%salinity_sl(:)   = 0.0_r8
       endif
 
@@ -905,7 +905,7 @@ contains
       ! are written only once at the beginning
       ! so THIS ROUTINE SHOULD NOT BE CALLED AFTER
       ! INITIALIZATION
-      if(do_fates_salinity==itrue)then
+      if(do_fates_salinity)then
            this%bc_in(s)%salinity_sl(:)     = bgc_soil_salinity
       endif
 

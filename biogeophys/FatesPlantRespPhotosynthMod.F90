@@ -424,7 +424,7 @@ contains
 
                               end if
 
-                              if(do_fates_salinity.eq.itrue)then
+                              if(do_fates_salinity)then
                                 btran_eff = btran_eff*currentPatch%bstress_sal_ft(ft)
                               endif 
 

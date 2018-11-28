@@ -17,7 +17,7 @@ module FatesBstressMod
                                   numpft
    use FatesInterfaceMod , only : hlm_use_planthydro
    use FatesGlobals      , only : fates_log
-
+   use EDBtranMod        , only : check_layer_water
 
    implicit none
    private
@@ -95,22 +95,5 @@ contains
     end subroutine btran_sal_stress_fates
           
   ! ====================================================================================
-
-  logical function check_layer_water(h2o_liq_vol, tempk)
-    
-    implicit none
-    ! Arguments
-    real(r8),intent(in) :: h2o_liq_vol
-    real(r8),intent(in) :: tempk
-    
-    check_layer_water = .false.
-
-    if ( h2o_liq_vol .gt. 0._r8 ) then
-       if ( tempk .gt. tfrz-2._r8) then
-          check_layer_water = .true.
-       end if
-    end if
-    return
-  end function check_layer_water
 
 end module FatesBstressMod

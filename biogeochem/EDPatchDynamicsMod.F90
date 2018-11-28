@@ -1151,7 +1151,7 @@ contains
                   canopy_dead*leaf_c
 
              ! Some plants upon death will transfer storage carbon to seed production
-             ! what is not transferred to seeds goes to root litter flux
+             ! Storage carbon that is not transferred to seeds goes to root litter flux
 
              canopy_mortality_root_litter(p) = canopy_mortality_root_litter(p) + &
                   canopy_dead*(fnrt_c + store_c*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(p)) )
