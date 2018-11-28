@@ -1145,14 +1145,20 @@ contains
              !not right to recalcualte dmort here.
              canopy_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * hlm_freq_day * fates_mortality_disturbance_fraction)
 
-
-
              canopy_mortality_woody_litter(p)= canopy_mortality_woody_litter(p) + &
                   canopy_dead*(struct_c + sapw_c)
              canopy_mortality_leaf_litter(p) = canopy_mortality_leaf_litter(p) + &
                   canopy_dead*leaf_c
+
+             ! Some plants upon death will transfer storage carbon to seed production
+             ! what is not transferred to seeds goes to root litter flux
+
              canopy_mortality_root_litter(p) = canopy_mortality_root_litter(p) + &
-                  canopy_dead*(fnrt_c + store_c)
+                  canopy_dead*(fnrt_c + store_c*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(p)) )
+
+             currentSite%seed_bank(p) = currentSite%seed_bank(p) + &
+                   canopy_dead * store_c * EDPftvarcon_inst%allom_frbstor_repro(p)/AREA
+
 
              if( hlm_use_planthydro == itrue ) then
                 call AccumulateMortalityWaterStorage(currentSite,currentCohort, canopy_dead)
