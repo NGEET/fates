@@ -89,6 +89,7 @@ module FatesAllometryMod
   use FatesConstantsMod, only : g_per_kg 
   use FatesConstantsMod, only : cm2_per_m2
   use FatesConstantsMod, only : kg_per_Megag
+  use FatesConstantsMod, only : calloc_abs_error
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
@@ -548,7 +549,7 @@ contains
 
   ! =====================================================================================
 
-  real(r8) function tree_lai( bl, pft, c_area, nplant, cl, canopy_lai)
+  real(r8) function tree_lai( leaf_c, pft, c_area, nplant, cl, canopy_lai)
 
     ! -----------------------------------------------------------------------------------
     ! LAI of individual trees is a function of the total leaf area and the total 
@@ -556,8 +557,8 @@ contains
     ! ----------------------------------------------------------------------------------
 
     ! !ARGUMENTS
-    real(r8), intent(in) :: bl                        ! plant leaf biomass [kg]     
-    integer, intent(in)  :: pft
+    real(r8), intent(in) :: leaf_c                    ! plant leaf carbon [kg]
+    integer, intent(in)  :: pft                       ! Plant Functional Type index
     real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
     real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
     integer, intent(in)  :: cl                        ! canopy layer index
@@ -579,12 +580,15 @@ contains
                                    ! tree_lai function
     !----------------------------------------------------------------------
 
-    if( bl  <  0._r8 .or. pft  ==  0 ) then
-       write(fates_log(),*) 'problem in treelai',bl,pft
+    if( leaf_c  <  -1.1_r8*calloc_abs_error .or. pft  ==  0 ) then
+       write(fates_log(),*) 'negative leaf carbon in LAI calculation?'
+       write(fates_log(),*) 'or.. pft was zero?'
+       write(fates_log(),*) 'problem in treelai',leaf_c,pft
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     slat = g_per_kg * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg
-    leafc_per_unitarea = bl/(c_area/nplant) !KgC/m2
+    leafc_per_unitarea = leaf_c/(c_area/nplant) !KgC/m2
     
     if(leafc_per_unitarea > 0.0_r8)then
 
