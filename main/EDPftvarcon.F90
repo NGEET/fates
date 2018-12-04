@@ -1964,8 +1964,8 @@ contains
         ! Check if fraction of storage to reproduction is between 0-1
         ! ----------------------------------------------------------------------------------
         
-        if ( ( EDPftvarcon_inst%allom_frbstor_repro(ipft) <= 0.0_r8 ) .or. &
-             ( EDPftvarcon_inst%allom_frbstor_repro(ipft) >= 1.0_r8 ) ) then
+        if ( ( EDPftvarcon_inst%allom_frbstor_repro(ipft) < 0.0_r8 ) .or. &
+             ( EDPftvarcon_inst%allom_frbstor_repro(ipft) > 1.0_r8 ) ) then
 
            write(fates_log(),*) 'fraction of storage to reproduction'
            write(fates_log(),*) ' after plants die, must be between'
