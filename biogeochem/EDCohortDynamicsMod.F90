@@ -12,6 +12,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : fates_unset_r8
+  use FatesConstantsMod     , only : nearzero
   use FatesInterfaceMod     , only : hlm_days_per_year
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -820,7 +821,8 @@ contains
 
 
                                 ! Fuse all mass pools
-                                call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, currentCohort%n/newn )
+                                call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, &
+                                                                               currentCohort%n/newn )
 
                                 currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                       + nextc%n*nextc%laimemory)/newn
@@ -828,18 +830,20 @@ contains
                                 currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                       + nextc%n*nextc%canopy_trim)/newn
 
-                                ! conserve total crown area during the fusion step, and then calculate dbh of the
-                                ! fused cohort as that which conserves both crown area and the dbh to crown area allometry.  
-                                ! dbh will be updated in the next growth step in the (likely) event that dbh to structural 
-                                ! biomass allometry is exceeded. if using a capped crown area allometry and above the cap, 
-                                ! then calculate as the weighted average of fusing cohorts' dbh
+                                ! conserve total crown area during the fusion step, and then calculate 
+                                ! dbh of the fused cohort as that which conserves both crown area and 
+                                ! the dbh to crown area allometry.  dbh will be updated in the next 
+                                ! growth step in the (likely) event that dbh to structural iomass 
+                                ! allometry is exceeded. if using a capped crown area allometry and 
+                                ! above the cap, then calculate as the weighted average of fusing 
+                                ! cohorts' dbh
 
                                 currentCohort%c_area = currentCohort%c_area + nextc%c_area
 
                                 call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
                                      currentCohort%c_area,inverse=.true.)
                                 
-                                if (dbh .eq. fates_unset_r8) then
+                                if (abs(dbh-fates_unset_r8)<nearzero) then
                                    currentCohort%dbh = (currentCohort%n*currentCohort%dbh         &
                                         + nextc%n*nextc%dbh)/newn
                                 else
