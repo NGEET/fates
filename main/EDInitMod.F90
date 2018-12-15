@@ -21,10 +21,12 @@ module EDInitMod
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
   use EDTypesMod                , only : init_spread_inventory
+  use EDTypesMod                , only : first_leaf_aclass
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
   use FatesInterfaceMod         , only : numpft
+  use FatesInterfaceMod         , only : nleafage
   use ChecksBalancesMod         , only : SiteCarbonStock
   use FatesInterfaceMod         , only : nlevsclass
   use FatesAllometryMod         , only : h2d_allom
@@ -447,8 +449,8 @@ contains
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             b_leaf, b_fineroot, b_sapwood, b_dead, b_store, & 
-            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
-
+            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, &
+            site_in%spread, first_leaf_aclass, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 

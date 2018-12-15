@@ -5,6 +5,7 @@ dimensions:
 	fates_history_size_bins = 13 ;
 	fates_history_height_bins = 6 ;
 	fates_hydr_organs = 4 ;
+	fates_leafage_class = 1;  
 	fates_NCWD = 4 ;
 	fates_litterclass = 6 ;
 	fates_scalar = 1 ;
@@ -344,7 +345,7 @@ variables:
 	float fates_leaf_jmaxse(fates_pft) ;
 		fates_leaf_jmaxse:units = "J/mol/K" ;
 		fates_leaf_jmaxse:long_name = "entropy term for jmax" ;
-	float fates_leaf_long(fates_pft) ;
+	float fates_leaf_long(fates_leafage_class,fates_pft) ;
 		fates_leaf_long:units = "yr" ;
 		fates_leaf_long:long_name = "Leaf longevity (ie turnover timescale)" ;
 	float fates_leaf_slamax(fates_pft) ;
@@ -365,7 +366,7 @@ variables:
 	float fates_leaf_tpuse(fates_pft) ;
 		fates_leaf_tpuse:units = "J/mol/K" ;
 		fates_leaf_tpuse:long_name = "entropy term for tpu" ;
-	float fates_leaf_vcmax25top(fates_pft) ;
+	float fates_leaf_vcmax25top(fates_leafage_class,fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
 	float fates_leaf_vcmaxha(fates_pft) ;

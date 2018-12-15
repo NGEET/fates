@@ -81,8 +81,7 @@ module EDPftvarcon
                                                      ! decreases light interception
      real(r8), allocatable :: c3psn(:)               ! index defining the photosynthetic 
                                                      ! pathway C4 = 0,  C3 = 1
-     real(r8), allocatable :: vcmax25top(:)          ! maximum carboxylation rate of Rub. at 25C, 
-                                                     ! canopy top [umol CO2/m^2/s]
+    
      real(r8), allocatable :: smpso(:)               ! Soil water potential at full stomatal opening 
                                                      ! (non-HYDRO mode only) [mm]
      real(r8), allocatable :: smpsc(:)               ! Soil water potential at full stomatal closure 
@@ -202,7 +201,7 @@ module EDPftvarcon
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
 
-     real(r8), allocatable :: leaf_long(:)                ! Leaf turnover time (longevity) (pft)             [yr]
+     
      real(r8), allocatable :: root_long(:)                ! root turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: branch_turnover(:)          ! Turnover time for branchfall on live trees (pft) [yr]
      real(r8), allocatable :: turnover_retrans_mode(:)    ! Retranslocation method (pft)
@@ -211,7 +210,14 @@ module EDPftvarcon
      real(r8), allocatable :: turnover_nitr_retrans(:,:)  ! nitrogen re-translocation fraction (pft x organ)
      real(r8), allocatable :: turnover_phos_retrans(:,:)  ! phosphorous re-translocation fraction (pft x organ)
 
+     ! Parameters dimensioned by PFT and leaf age
+     real(r8), allocatable :: leaf_long(:,:)              ! Leaf turnover time (longevity) (pft x age-class)
+                                                          ! If there is >1 class, it is the longevity from
+                                                          ! one class to the next [yr]
      
+     real(r8), allocatable :: vcmax25top(:,:)             ! maximum carboxylation rate of Rub. at 25C, 
+                                                          ! canopy top [umol CO2/m^2/s].  Dimensioned by 
+                                                          ! leaf age-class
      ! Plant Hydraulic Parameters
      ! ---------------------------------------------------------------------------------------------
 
@@ -246,6 +252,8 @@ module EDPftvarcon
      procedure, private :: Receive_PFT_hydr_organs 
      procedure, private :: Register_PFT_prt_organs
      procedure, private :: Receive_PFT_prt_organs
+     procedure, private :: Register_PFT_leafage
+     procedure, private :: Receive_PFT_leafage
      procedure, private :: Register_PFT_numrad
      procedure, private :: Receive_PFT_numrad
   end type EDPftvarcon_type
@@ -288,6 +296,7 @@ contains
     call this%Register_PFT_nvariants(fates_params)
     call this%Register_PFT_hydr_organs(fates_params)
     call this%Register_PFT_prt_organs(fates_params)
+    call this%Register_PFT_leafage(fates_params)
     
   end subroutine Register
 
@@ -306,6 +315,7 @@ contains
     call this%Receive_PFT_nvariants(fates_params)
     call this%Receive_PFT_hydr_organs(fates_params)
     call this%Receive_PFT_prt_organs(fates_params)
+    call this%Receive_PFT_leafage(fates_params)
 
   end subroutine Receive
 
@@ -426,10 +436,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_long'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_roota_par'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -472,10 +478,6 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_leaf_c3psn'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_vcmax25top'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -905,10 +907,6 @@ contains
     name = 'fates_leaf_c3psn'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%c3psn)
-
-    name = 'fates_leaf_vcmax25top'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%vcmax25top)
 
     name = 'fates_smpso'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1403,6 +1401,64 @@ contains
   end subroutine Receive_PFT_nvariants
 
   ! -----------------------------------------------------------------------
+
+  subroutine Register_PFT_leafage(this, fates_params)
+
+    use FatesParametersInterface, only : fates_parameters_type, param_string_length
+    use FatesParametersInterface, only : max_dimensions, dimension_name_leaf_age
+    use FatesParametersInterface, only : dimension_name_pft, dimension_shape_2d
+    
+    implicit none
+
+    class(EDPftvarcon_type), intent(inout) :: this
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    integer, parameter :: dim_lower_bound(2) = (/ lower_bound_pft, lower_bound_general /)
+    character(len=param_string_length) :: dim_names(2)
+    character(len=param_string_length) :: name
+
+    dim_names(1) = dimension_name_pft
+    dim_names(2) = dimension_name_leaf_age
+
+    name = 'fates_leaf_long'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_leaf_vcmax25top'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+
+    return
+  end subroutine Register_PFT_leafage
+
+  ! =====================================================================================
+
+  subroutine Receive_PFT_leafage(this, fates_params)
+     
+     use FatesParametersInterface, only : fates_parameters_type
+     use FatesParametersInterface, only : param_string_length
+     
+     implicit none
+     
+     class(EDPftvarcon_type), intent(inout) :: this
+     class(fates_parameters_type), intent(inout) :: fates_params
+     
+     character(len=param_string_length) :: name
+
+     name = 'fates_leaf_long'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%leaf_long)
+     
+     name = 'fates_leaf_vcmax25top'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%vcmax25top)
+
+     return
+   end subroutine Receive_PFT_leafage
+
+  ! =====================================================================================
+
   
   subroutine Register_PFT_prt_organs(this, fates_params)
 

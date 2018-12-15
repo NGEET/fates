@@ -156,6 +156,16 @@ module EDTypesMod
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
 
+  
+  ! Leaf age class initialization schemes
+  integer, parameter :: nan_leaf_aclass = 0     ! initialize leaf age classes as undefined
+                                                ! (used when copying)
+  integer, parameter :: equal_leaf_aclass = 1   ! initialize leaf age classes equal
+                                                ! (used for inventory initialization)
+  integer, parameter :: first_leaf_aclass = 2   ! initialize leaf age classes as all in
+                                                ! youngest class (used for recruitment)
+
+
  !************************************
   !** COHORT type structure          **
   !************************************
@@ -236,6 +246,12 @@ module EDTypesMod
      real(r8) ::  resp_tstep         ! Autotrophic respiration (see above *)
      real(r8) ::  resp_acc
      real(r8) ::  resp_acc_hold
+
+     real(r8),allocatable :: frac_leaf_aclass(:)       ! This array's size is defined by the
+                                                       ! number of leaf age classes. 
+                                                       ! and this defines the fraction of
+                                                       ! leaf mass in different age classes
+                                                       ! This should ALWAYS sum to 1 !!
 
      real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/timestep
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
@@ -797,6 +813,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%resp_acc               = ', ccohort%resp_acc
      write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
+     write(fates_log(),*) 'co%frac_leaf_aclass       = ', ccohort%frac_leaf_aclass(:)
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
      write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g
      write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr

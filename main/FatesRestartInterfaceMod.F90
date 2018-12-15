@@ -1417,6 +1417,7 @@ contains
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : ncwd
      use EDTypesMod,           only : maxSWb
+     use EDTypesMod,           only : nan_leaf_aclass
      use FatesInterfaceMod,    only : fates_maxElementsPerPatch
      use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
@@ -1553,7 +1554,7 @@ contains
                 call create_cohort(sites(s),newp, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                       b_leaf, b_fineroot, b_sapwood, b_dead, b_store,  &
                       temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, newp%NCL_p, &
-                      site_spread, bc_in(s))
+                      site_spread, nan_leaf_aclass, bc_in(s))
                 
                 deallocate(temp_cohort)
                 
@@ -1818,6 +1819,10 @@ contains
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
                 ccohort%fmort        = rio_fmort_co(io_idx_co)
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
+
+                ! THE ACTUAL LEAF AGES MUST BE READ IN AFTER NEW HYDRO PR
+                ! (THAT PR HAS THE VECTOR READ-IN MACHINERY)
+                ccohort%frac_leaf_aclass(1:nleafage) = 1._r8 / real(nleafage,r8)
 
                 !Logging
                 ccohort%lmort_direct       = rio_lmort_direct_co(io_idx_co)
