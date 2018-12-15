@@ -12,6 +12,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesInterfaceMod     , only : hlm_days_per_year
+  use FatesInterfaceMod     , only : nleafage
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
@@ -60,7 +61,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
 
-
+  use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
 
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -91,34 +92,38 @@ contains
 
   !-------------------------------------------------------------------------------------!
 
-  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh, bleaf, bfineroot, bsap, &
-                           bdead, bstore, laimemory, status, recruitstatus,ctrim, clayer, spread, bc_in)
+  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh, bleaf, bfineroot, &
+                           bsap, bdead, bstore, laimemory, status, recruitstatus,ctrim, &
+                           clayer, spread, leaf_aclass_init, bc_in)
 
-    !
-    ! !DESCRIPTION:
-    ! create new cohort
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS    
+
     type(ed_site_type), intent(inout),   target :: currentSite
     type(ed_patch_type), intent(inout), pointer :: patchptr
-    integer,  intent(in)   :: pft       ! Cohort Plant Functional Type
-    integer,  intent(in)   :: clayer    ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
-    integer,  intent(in)   :: status    ! growth status of plant  (2 = leaves on , 1 = leaves off)
-    integer,  intent(in)   :: recruitstatus    ! recruit status of plant  (1 = recruitment , 0 = other)
-    real(r8), intent(in)   :: nn        ! number of individuals in cohort per 'area' (10000m2 default)
-    real(r8), intent(in)   :: hite      ! height: meters
-    real(r8), intent(in)   :: dbh       ! dbh: cm
-    real(r8), intent(in)   :: bleaf     ! biomass in leaves: kgC
-    real(r8), intent(in)   :: bfineroot ! biomass in fineroots: kgC
-    real(r8), intent(in)   :: bsap      ! biomass in sapwood: kgC
-    real(r8), intent(in)   :: bdead     ! total dead biomass: kGC per indiv
-    real(r8), intent(in)   :: bstore    ! stored carbon: kGC per indiv
-    real(r8), intent(in)   :: laimemory ! target leaf biomass- set from previous year: kGC per indiv
-    real(r8), intent(in)   :: ctrim     ! What is the fraction of the maximum leaf biomass that we are targeting? :-
-    real(r8), intent(in)   :: spread    ! The community assembly effects how spread crowns are in horizontal space
-    type(bc_in_type), intent(in) :: bc_in ! External boundary conditions
+    integer,  intent(in)   :: pft                        ! Cohort Plant Functional Type
+    integer,  intent(in)   :: clayer                     ! canopy status of cohort 
+                                                         ! (1 = canopy, 2 = understorey, etc.)
+    integer,  intent(in)   :: status                     ! growth status of plant  
+                                                         ! (2 = leaves on , 1 = leaves off)
+    integer,  intent(in)   :: recruitstatus              ! recruit status of plant  
+                                                         ! (1 = recruitment , 0 = other)
+    real(r8), intent(in)   :: nn                         ! number of individuals in cohort 
+                                                         ! per 'area' (10000m2 default)
+    real(r8), intent(in)   :: hite                       ! height: meters
+    real(r8), intent(in)   :: dbh                        ! dbh: cm
+    real(r8), intent(in)   :: bleaf                      ! biomass in leaves: kgC
+    real(r8), intent(in)   :: bfineroot                  ! biomass in fineroots: kgC
+    real(r8), intent(in)   :: bsap                       ! biomass in sapwood: kgC
+    real(r8), intent(in)   :: bdead                      ! total dead biomass: kGC per indiv
+    real(r8), intent(in)   :: bstore                     ! stored carbon: kGC per indiv
+    real(r8), intent(in)   :: laimemory                  ! target leaf biomass- set from 
+                                                         ! previous year: kGC per indiv
+    real(r8), intent(in)   :: ctrim                      ! What is the fraction of the maximum 
+                                                         ! leaf biomass that we are targeting?
+    real(r8), intent(in)   :: spread                     ! The community assembly effects how 
+                                                         ! spread crowns are in horizontal space
+    integer,  intent(in)   :: leaf_aclass_init           ! how to initialized the leaf age class
+                                                         ! distribution
+    type(bc_in_type), intent(in) :: bc_in                ! External boundary conditions
      
     !
     ! !LOCAL VARIABLES:
@@ -129,6 +134,7 @@ contains
     !----------------------------------------------------------------------
 
     allocate(new_cohort)
+    allocate(new_cohort%frac_leaf_aclass(nleafage))
 
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
@@ -152,6 +158,22 @@ contains
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
 
+    
+    ! All newly initialized cohorts start off with all leaf biomass
+    ! as classified in the newest age class
+    if(leaf_aclass_init .eq. equal_leaf_aclass) then
+       new_cohort%frac_leaf_aclass(1:nleafage) = 1._r8 / real(nleafage,r8)
+    elseif(leaf_aclass_init .eq. first_leaf_aclass) then
+       new_cohort%frac_leaf_aclass(1:nleafage) = 0._r8
+       new_cohort%frac_leaf_aclass(1)          = 1._r8
+    elseif(leaf_aclass_init .eq. nan_leaf_aclass) then
+       new_cohort%frac_leaf_aclass(1:nleafage) = nan
+    else
+       write(fates_log(),*) 'An unknown leaf age distribution was'
+       write(fates_log(),*) 'requested during create cohort'
+       write(fates_log(),*) 'leaf_aclass_init: ',leaf_aclass_init
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
 
     ! Initialize the Plant allocative Reactive Transport (PaRT) module
     ! Choose from one of the extensible hypotheses (EH)
@@ -343,7 +365,7 @@ contains
     !  Make all the cohort variables NaN so they aren't used before defined.   
     !
     ! !USES:
-    use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
+
     use FatesConstantsMod, only : fates_unset_int
 
     !
@@ -389,7 +411,8 @@ contains
     currentCohort%c_area             = nan ! areal extent of canopy (m2)
     currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
     currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
-
+    currentCohort%frac_leaf_aclass(:)= nan ! leaf age classes
+    
     ! CARBON FLUXES 
     currentCohort%gpp_acc_hold       = nan ! GPP:  kgC/indiv/year
     currentCohort%gpp_tstep          = nan ! GPP:  kgC/indiv/timestep
@@ -686,6 +709,7 @@ contains
           ! Deallocate the cohort's PRT structure
           call currentCohort%prt%DeallocatePRTVartypes()
           deallocate(currentCohort%prt)
+          deallocate(currentCohort%frac_leaf_aclass)
 
           deallocate(currentCohort)
           nullify(currentCohort)
@@ -706,7 +730,6 @@ contains
      !
      ! !USES:
      use EDParamsMod , only :  ED_val_cohort_fusion_tol
-     use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
      !
      ! !ARGUMENTS   
      type (ed_site_type), intent(inout),  target :: currentSite 
@@ -728,6 +751,8 @@ contains
      integer  :: nocohorts
      real(r8) :: newn
      real(r8) :: diff
+     real(r8) :: leaf_c_next  ! Leaf carbon * plant density of current (for weighting)
+     real(r8) :: leaf_c_curr  ! Leaf carbon * plant density of next (for weighting)
      real(r8) :: dynamic_fusion_tolerance
 
      integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
@@ -851,6 +876,26 @@ contains
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
                                       nextc%n*nextc%canopy_layer_yesterday)/newn
+
+                                ! Leaf age class fractions
+                                ! -----------------------------------------------------------------
+                                leaf_c_next  = nextc%prt%GetState(leaf_organ, all_carbon_elements)*nextc%n
+                                leaf_c_curr  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)*currentCohort%n
+
+                                if( (leaf_c_next + leaf_c_curr) > nearzero ) then
+                                   currentCohort%frac_leaf_aclass(1:nleafage) = &
+                                        (leaf_c_curr*currentCohort%frac_leaf_aclass(1:nleafage) + &
+                                        leaf_c_next*nextc%frac_leaf_aclass(1:nleafage))/(leaf_c_next+leaf_c_curr)
+                                
+                                   ! Force leaf age class to sum to unity
+                                   currentCohort%frac_leaf_aclass(1:nleafage) = &
+                                        currentCohort%frac_leaf_aclass(1:nleafage) / &
+                                        sum(currentCohort%frac_leaf_aclass(1:nleafage))
+                                else
+                                   currentCohort%frac_leaf_aclass(1:nleafage) = 0._r8
+                                   currentCohort%frac_leaf_aclass(1) = 1._r8
+                                end if
+                                   
                                 
                                 ! keep track of the size class bins so that we can monitor growth fluxes
                                 ! compare the values.  if they are the same, then nothing needs to be done. if not, track the diagnostic flux
@@ -981,7 +1026,7 @@ contains
                                 ! Deallocate the cohort's PRT structure
                                 call nextc%prt%DeallocatePRTVartypes()
                                 deallocate(nextc%prt)
-
+                                deallocate(nextc%frac_leaf_aclass)
                                 deallocate(nextc)
                                 nullify(nextc)
 
@@ -1262,7 +1307,8 @@ contains
 
     ! This transfers the PRT objects over.
     call n%prt%CopyPRTVartypes(o%prt)
-    
+
+    n%frac_leaf_aclass(1:nleafage) = o%frac_leaf_aclass(1:nleafage)
 
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold

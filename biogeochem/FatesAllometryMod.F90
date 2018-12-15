@@ -2103,7 +2103,7 @@ contains
     ! kn = 0.11. Here, we derive kn from vcmax25 as in Lloyd et al 
     ! (2010) Biogeosciences, 7, 1833-1859
     
-    decay_coeff_kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
+    decay_coeff_kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft,0) - 2.43_r8)
     
     return
   end function decay_coeff_kn

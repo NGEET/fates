@@ -33,6 +33,7 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : ed_patch_type
    use EDTypesMod       , only : ed_cohort_type 
    use EDTypesMod       , only : area
+   use EDTypesMod       , only : equal_leaf_aclass
    use EDPftvarcon      , only : EDPftvarcon_inst
 
 
@@ -880,6 +881,7 @@ contains
       
       allocate(temp_cohort)   ! A temporary cohort is needed because we want to make
                               ! use of the allometry functions
+                              ! Don't need to allocate leaf age classes (not used)
 
       temp_cohort%pft         = c_pft
       temp_cohort%n           = c_nplant * cpatch%area
@@ -934,7 +936,8 @@ contains
       ! Since spread is a canopy level calculation, we need to provide an initial guess here.
       call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
            b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &
-           temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, csite%spread, bc_in)
+           temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
+           1, csite%spread, equal_leaf_aclass, bc_in)
 
       
       deallocate(temp_cohort) ! get rid of temporary cohort

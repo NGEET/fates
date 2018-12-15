@@ -385,14 +385,17 @@ contains
                            ! cohort-layer combo of interest.  
                            ! but in the vanilla case, we only re-calculate if it has
                            ! not been done yet.
+                           ! Other cases where we need to solve for every cohort
+                           ! in every leaf layer:  nutrient dynamic mode, multiple leaf
+                           ! age classes
                            ! ------------------------------------------------------------
                            
                            if ( .not.rate_mask_z(iv,ft,cl) .or. &
                                  (hlm_use_planthydro.eq.itrue) .or. &
+                                 (nleafage > 1) .or. &
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
                               
-                              if (hlm_use_planthydro.eq.itrue) then
-
+                              if (hlm_use_planthydro.eq.itrue ) then
 
                                  bbb       = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
                                  btran_eff = currentCohort%co_hydr%btran(1) 
@@ -476,10 +479,11 @@ contains
 
                               call LeafLayerBiophysicalRates(currentPatch%ed_parsun_z(cl,ft,iv), &  ! in
                                                              ft,                                 &  ! in
-                                                             EDPftvarcon_inst%vcmax25top(ft),    &  ! in
-                                                             param_derived%jmax25top(ft),        &  ! in
-                                                             param_derived%tpu25top(ft),         &  ! in
-                                                             param_derived%kp25top(ft),          &  ! in
+                                                             currentCohort%frac_leaf_aclass(:),  &  ! in
+                                                             EDPftvarcon_inst%vcmax25top(ft,:),  &  ! in
+                                                             param_derived%jmax25top(ft,:),      &  ! in
+                                                             param_derived%tpu25top(ft,:),       &  ! in
+                                                             param_derived%kp25top(ft,:),        &  ! in
                                                              nscaler,                            &  ! in
                                                              bc_in(s)%t_veg_pa(ifp),             &  ! in
                                                              btran_eff,                          &  ! in
@@ -1701,6 +1705,7 @@ contains
 
    subroutine LeafLayerBiophysicalRates( parsun_lsl, &
                                          ft,            &
+                                         frac_leaf_aclass, &
                                          vcmax25top_ft, &
                                          jmax25top_ft, &
                                          tpu25top_ft, &
@@ -1736,11 +1741,12 @@ contains
       real(r8), intent(in) :: parsun_lsl      ! PAR absorbed in sunlit leaves for this layer
       integer,  intent(in) :: ft              ! (plant) Functional Type Index
       real(r8), intent(in) :: nscaler         ! Scale for leaf nitrogen profile
-      real(r8), intent(in) :: vcmax25top_ft   ! canopy top maximum rate of carboxylation at 25C 
+      real(r8), intent(in) :: frac_leaf_aclass(nleafage)  ! Fraction of leaves in each age-class
+      real(r8), intent(in) :: vcmax25top_ft(nleafage)   ! canopy top maximum rate of carboxylation at 25C 
                                               ! for this pft (umol CO2/m**2/s)
-      real(r8), intent(in) :: jmax25top_ft    ! canopy top maximum electron transport rate at 25C 
+      real(r8), intent(in) :: jmax25top_ft(nleafage)    ! canopy top maximum electron transport rate at 25C 
                                               ! for this pft (umol electrons/m**2/s)
-      real(r8), intent(in) :: tpu25top_ft     ! canopy top triose phosphate utilization rate at 25C 
+      real(r8), intent(in) :: tpu25top_ft(nleafage)     ! canopy top triose phosphate utilization rate at 25C 
                                               ! for this pft (umol CO2/m**2/s)
       real(r8), intent(in) :: co2_rcurve_islope25top_ft      ! initial slope of CO2 response curve
                                               ! (C4 plants) at 25C, canopy top, this pft
@@ -1803,9 +1809,9 @@ contains
          tpu               = 0._r8
          co2_rcurve_islope = 0._r8
       else                                     ! day time
-         vcmax25 = vcmax25top_ft * nscaler
-         jmax25  = jmax25top_ft * nscaler
-         tpu25   = tpu25top_ft * nscaler
+         vcmax25 = sum(vcmax25top_ft(1:nleafage) * frac_leaf_aclass(1:nleafage)) * nscaler
+         jmax25  = sum(jmax25top_ft(1:nleafage) * frac_leaf_aclass(1:nleafage)) * nscaler
+         tpu25   = sum(tpu25top_ft(1:nleafage) * frac_leaf_aclass(1:nleafage)) * nscaler
          co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
          
          ! Adjust for temperature

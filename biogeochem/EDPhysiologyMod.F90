@@ -12,6 +12,7 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : hlm_freq_day
   use FatesInterfaceMod, only    : hlm_day_of_year
   use FatesInterfaceMod, only    : numpft
+  use FatesInterfaceMod, only    : nleafage
   use FatesInterfaceMod, only    : hlm_use_planthydro
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
@@ -32,6 +33,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod          , only : dump_cohort
+  use EDTypesMod          , only : first_leaf_aclass
 
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
@@ -326,7 +328,7 @@ contains
                 else !evergreen costs
                    ! Leaf cost at leaf level z accounting for sla profile
                    currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
-                        EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
+                        EDPftvarcon_inst%leaf_long(ipft,0)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
@@ -1027,7 +1029,7 @@ contains
           call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                 b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &  
                 temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
-                currentSite%spread, bc_in)
+                currentSite%spread, first_leaf_aclass, bc_in)
 
 
           ! keep track of how many individuals were recruited for passing to history

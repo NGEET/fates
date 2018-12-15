@@ -614,9 +614,9 @@ contains
 
       ! Only EVERGREENS HAVE MAINTENANCE LEAF TURNOVER 
       ! -------------------------------------------------------------------------------------
-      if ( (EDPftvarcon_inst%leaf_long(ipft) > nearzero ) .and. &
+      if ( (EDPftvarcon_inst%leaf_long(ipft,0) > nearzero ) .and. &
            (EDPftvarcon_inst%evergreen(ipft) == 1) ) then
-         base_turnover(leaf_organ) = hlm_freq_day / EDPftvarcon_inst%leaf_long(ipft)
+         base_turnover(leaf_organ) = hlm_freq_day / EDPftvarcon_inst%leaf_long(ipft,0)
       else
          base_turnover(leaf_organ) = 0.0_r8
       endif

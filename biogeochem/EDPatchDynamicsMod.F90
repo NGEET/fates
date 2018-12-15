@@ -22,6 +22,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_days_per_year
   use FatesInterfaceMod    , only : numpft
+  use FatesInterfaceMod    , only : nleafage
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue
@@ -401,6 +402,7 @@ contains
           do while(associated(currentCohort))       
 
              allocate(nc)             
+             allocate(nc%frac_leaf_aclass(nleafage))
              if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
              call InitPRTCohort(nc)
              call zero_cohort(nc)
@@ -674,6 +676,7 @@ contains
                 if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nc)
                 call nc%prt%DeallocatePRTVartypes()
                 deallocate(nc%prt)
+                deallocate(nc%frac_leaf_aclass)
                 deallocate(nc)
 
              endif
@@ -1926,6 +1929,7 @@ contains
        if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(ccohort)
        call ccohort%prt%DeallocatePRTVartypes()
        deallocate(ccohort%prt)
+       deallocate(ccohort%frac_leaf_aclass)
        deallocate(ccohort)
        ccohort => ncohort
 

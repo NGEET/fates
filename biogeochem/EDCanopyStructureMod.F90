@@ -25,6 +25,7 @@ module EDCanopyStructureMod
   use FatesInterfaceMod     , only : hlm_days_per_year
   use FatesInterfaceMod     , only : hlm_use_planthydro
   use FatesInterfaceMod     , only : numpft
+  use FatesInterfaceMod     , only : nleafage
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort
 
   use PRTGenericMod,          only : leaf_organ
@@ -503,6 +504,7 @@ contains
                   ! demoted to the understory
                   
                   allocate(copyc)
+                  allocate(copyc%frac_leaf_aclass(nleafage))
                   call InitPRTCohort(copyc)
                   if( hlm_use_planthydro.eq.itrue ) then
                      call InitHydrCohort(currentSite,copyc)
@@ -850,6 +852,7 @@ contains
                   elseif ( cc_gain > nearzero .and. cc_gain < currentCohort%c_area) then
                      
                      allocate(copyc)
+                     allocate(copyc%frac_leaf_aclass(nleafage))
                      call InitPRTCohort(copyc)
                      if( hlm_use_planthydro.eq.itrue ) then
                         call InitHydrCohort(CurrentSite,copyc)
