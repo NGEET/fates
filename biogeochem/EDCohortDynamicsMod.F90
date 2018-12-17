@@ -159,8 +159,10 @@ contains
     new_cohort%laimemory    = laimemory
 
     
-    ! All newly initialized cohorts start off with all leaf biomass
-    ! as classified in the newest age class
+    ! All newly initialized cohorts start off with an assumption
+    ! about leaf age (depending on what is calling the initialization
+    ! of this cohort
+
     if(leaf_aclass_init .eq. equal_leaf_aclass) then
        new_cohort%frac_leaf_aclass(1:nleafage) = 1._r8 / real(nleafage,r8)
     elseif(leaf_aclass_init .eq. first_leaf_aclass) then
@@ -878,6 +880,8 @@ contains
                                       nextc%n*nextc%canopy_layer_yesterday)/newn
 
                                 ! Leaf age class fractions
+                                ! First calculate the total amount of leaf in each to enable
+                                ! a weighted average of the two
                                 ! -----------------------------------------------------------------
                                 leaf_c_next  = nextc%prt%GetState(leaf_organ, all_carbon_elements)*nextc%n
                                 leaf_c_curr  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)*currentCohort%n
@@ -892,6 +896,8 @@ contains
                                         currentCohort%frac_leaf_aclass(1:nleafage) / &
                                         sum(currentCohort%frac_leaf_aclass(1:nleafage))
                                 else
+                                   ! If there is no leaf at all... then we set
+                                   ! the age fraction to be all in the growing class
                                    currentCohort%frac_leaf_aclass(1:nleafage) = 0._r8
                                    currentCohort%frac_leaf_aclass(1) = 1._r8
                                 end if
@@ -1308,6 +1314,7 @@ contains
     ! This transfers the PRT objects over.
     call n%prt%CopyPRTVartypes(o%prt)
 
+    ! Leaf age class fractions
     n%frac_leaf_aclass(1:nleafage) = o%frac_leaf_aclass(1:nleafage)
 
     ! CARBON FLUXES

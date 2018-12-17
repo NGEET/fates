@@ -524,7 +524,7 @@ contains
 
    ! ====================================================================================
    
-   subroutine PRTMaintTurnover(prt,ipft)
+   subroutine PRTMaintTurnover(prt,ipft,senescent_frac)
       
       ! ---------------------------------------------------------------------------------
       ! Generic subroutine (wrapper) calling specialized routines handling
@@ -534,7 +534,7 @@ contains
       integer,intent(in)  :: ipft
       
       if ( int(EDPftvarcon_inst%turnover_retrans_mode(ipft)) == 1 ) then
-         call MaintTurnoverSimpleRetranslocation(prt,ipft)
+         call MaintTurnoverSimpleRetranslocation(prt,ipft,senescent_frac)
       else
          write(fates_log(),*) 'A maintenance/retranslocation mode was specified'
          write(fates_log(),*) 'that is unknown.'
@@ -548,7 +548,7 @@ contains
 
    ! ===================================================================================
    
-   subroutine MaintTurnoverSimpleRetranslocation(prt,ipft)
+   subroutine MaintTurnoverSimpleRetranslocation(prt,ipft,senescent_frac)
 
       ! ---------------------------------------------------------------------------------
       ! This subroutine removes biomass from all applicable pools due to 
@@ -567,14 +567,17 @@ contains
       ! 4) There are currently no reaction costs associated with re-translocation
       ! ---------------------------------------------------------------------------------
       
-      class(prt_vartypes) :: prt
-      integer,intent(in) :: ipft
+      class(prt_vartypes)  :: prt
+      integer, intent(in)  :: ipft
+      real(r8), intent(in) :: senescent_frac
       
       integer  :: i_var            ! the variable index
       integer  :: element_id       ! the element associated w/ each variable
       integer  :: organ_id         ! the organ associated w/ each variable
       integer  :: i_pos            ! spatial position loop counter
-
+      integer  :: aclass_sen_id    ! the index of the leaf age class dimension
+                                   ! associated with the senescing pool
+      
       real(r8) :: turnover         ! Actual turnover removed from each
                                    ! pool [kg]
       real(r8) :: retrans          ! A temp for the actual re-translocated mass
@@ -612,11 +615,18 @@ contains
          base_turnover(fnrt_organ) = 0.0_r8
       end if
 
+
+      ! The last index of the leaf longevity array contains the turnover
+      ! timescale for the senescent pool
+      aclass_sen_id = size(EDPftvarcon_inst%leaf_long(ipft,:))
+
       ! Only EVERGREENS HAVE MAINTENANCE LEAF TURNOVER 
       ! -------------------------------------------------------------------------------------
-      if ( (EDPftvarcon_inst%leaf_long(ipft,0) > nearzero ) .and. &
-           (EDPftvarcon_inst%evergreen(ipft) == 1) ) then
-         base_turnover(leaf_organ) = hlm_freq_day / EDPftvarcon_inst%leaf_long(ipft,0)
+      if ( (EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id) > nearzero ) .and. &
+           (EDPftvarcon_inst%evergreen(ipft) == itrue) ) then
+
+         base_turnover(leaf_organ) = senescent_frac * hlm_freq_day / &
+                                     EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id)
       else
          base_turnover(leaf_organ) = 0.0_r8
       endif
