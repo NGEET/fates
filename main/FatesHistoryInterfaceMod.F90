@@ -33,6 +33,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : sec_per_day
   use FatesConstantsMod        , only : days_per_year
   use FatesConstantsMod        , only : years_per_day
+  use FatesConstantsMod        , only : secondaryforest
 
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
@@ -151,6 +152,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_froot_mr_si
   integer, private :: ih_livestem_mr_si
   integer, private :: ih_livecroot_mr_si
+  integer, private :: ih_fraction_secondary_forest_si
   
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
@@ -301,6 +303,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_biomass_si_age
   integer, private :: ih_c_stomata_si_age
   integer, private :: ih_c_lblayer_si_age
+  integer, private :: ih_agesince_anthrodist_si_age
+  integer, private :: ih_secondaryforest_area_si_age
 
   ! indices to (site x height) variables
   integer, private :: ih_canopy_height_dist_si_height
@@ -1300,6 +1304,7 @@ end subroutine flush_hvars
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
+    integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for time-since-anthropogenic-disturbance of secondary forest
     
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -1494,6 +1499,9 @@ end subroutine flush_hvars
                hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d, &
                hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
                hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
+               hio_fraction_secondary_forest_si  => this%hvars(ih_fraction_secondary_forest_si)%r81d, &
+               hio_agesince_anthrodist_si_age    => this%hvars(ih_agesince_anthrodist_si_age)%r81d, &
+               hio_secondaryforest_area_si_age  => this%hvars(ih_secondaryforest_area_si_age)%r81d, &
                hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
                hio_leaf_height_dist_si_height     => this%hvars(ih_leaf_height_dist_si_height)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
@@ -1569,6 +1577,22 @@ end subroutine flush_hvars
                     + cpatch%zstar * cpatch%area * AREA_INV
             endif
 
+            ! some diagnostics on secondary forest area and its age distribution
+            if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+               hio_fraction_secondary_forest_si(io_si) = hio_fraction_secondary_forest_si(io_si) + &
+                    cpatch%area * AREA_INV
+               
+               ageclass_since_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
+               
+               hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist) = &
+                    hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
+                    + cpatch%area * AREA_INV
+
+               hio_secondaryforest_area_si_age(io_si,cpatch%age_class) = &
+                    hio_secondaryforest_area_si_age(io_si,cpatch%age_class)  &
+                    + cpatch%area * AREA_INV
+            endif
+            
             ccohort => cpatch%shortest
             do while(associated(ccohort))
                
@@ -2389,7 +2413,6 @@ end subroutine flush_hvars
             
             hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) + &
                  cpatch%c_lblayer * cpatch%total_canopy_area
-            
 
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -2462,8 +2485,6 @@ end subroutine flush_hvars
                   ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
                   hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
                         ccohort%froot_mr * n_perm2  * sec_per_day * days_per_year
-
-                  
 
 
                   ! accumulate fluxes per patch age bin
@@ -3207,6 +3228,24 @@ end subroutine flush_hvars
          use_default='inactive',                     &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_age )
+
+    ! Secondary forest area and age diagnostics
+
+    call this%set_history_var(vname='SECONDARY_FOREST_FRACTION', units='m2/m2', &
+         long='Secondary forest fraction', use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_fraction_secondary_forest_si )
+
+    call this%set_history_var(vname='SECONDARY_AREA_BY_AGE_SINCE_ANTHRO_DIST', units='m2/m2', &
+         long='Secondary forest patch area age distribution since anthropgenic disturbance', use_default='inactive', &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_agesince_anthrodist_si_age )
+
+    call this%set_history_var(vname='SECONDARY_AREA_PATCH_AGE_DIST', units='m2/m2', &
+         long='Secondary forest patch area age distribution since any kind of disturbance', use_default='inactive', &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_secondaryforest_area_si_age )
+
 
     ! Fire Variables
 

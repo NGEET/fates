@@ -10,6 +10,7 @@ module EDPatchDynamicsMod
   use EDtypesMod           , only : ncwd, n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : maxPatchesPerSite
+  use EDTypesMod           , only : maxPatchesPerSite_by_disttype  
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
@@ -37,6 +38,8 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : days_per_sec
   use FatesConstantsMod    , only : years_per_day
   use FatesConstantsMod    , only : nearzero
+  use FatesConstantsMod    , only : primaryforest, secondaryforest
+  use FatesConstantsMod    , only : n_anthro_disturbance_categories
 
   use EDCohortDynamicsMod  , only : InitPRTCohort
 
@@ -309,12 +312,15 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: new_patch
+    type (ed_patch_type) , pointer :: new_patch_primary
+    type (ed_patch_type) , pointer :: new_patch_secondary
     type (ed_patch_type) , pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_cohort_type), pointer :: nc
     type (ed_cohort_type), pointer :: storesmallcohort
-    type (ed_cohort_type), pointer :: storebigcohort  
-    real(r8) :: site_areadis                 ! total area disturbed in m2 per site per day
+    type (ed_cohort_type), pointer :: storebigcohort
+    real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
+    real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day    
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: tnull                        ! is there a tallest cohort?
@@ -342,7 +348,8 @@ contains
     currentSite%leaf_litter_burned  = 0.0_r8
     currentSite%total_burn_flux_to_atm = 0.0_r8    
 
-    site_areadis = 0.0_r8
+    site_areadis_primary = 0.0_r8
+    site_areadis_secondary = 0.0_r8    
     do while(associated(currentPatch))
 
        !FIX(RF,032414) Does using the max(fire,mort) actually make sense here?
@@ -351,33 +358,71 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))          
        end if
 
-       site_areadis = site_areadis + currentPatch%area * currentPatch%disturbance_rate
+       if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
+            currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .and. &
+            currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire) ) then
+       
+          site_areadis_primary = site_areadis_primary + currentPatch%area * currentPatch%disturbance_rate
+       else
+          site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate          
+       endif
+       
        currentPatch => currentPatch%older     
 
     enddo ! end loop over patches. sum area disturbed for all patches. 
 
-    if (site_areadis > 0.0_r8) then  
+    if ( (site_areadis_primary + site_areadis_secondary) > 0.0_r8) then  
        cwd_ag_local = 0.0_r8
        cwd_bg_local = 0.0_r8
        leaf_litter_local = 0.0_r8
        root_litter_local = 0.0_r8
        age = 0.0_r8
 
-       allocate(new_patch)
-       call create_patch(currentSite, new_patch, age, site_areadis, &
-            cwd_ag_local, cwd_bg_local, leaf_litter_local, &
-            root_litter_local, bc_in%nlevsoil)
+       ! create two empty patches, to absorb newly disturbed primary and secondary forest area
+       if ( site_areadis_primary .gt. 0.0_r8) then
+          allocate(new_patch_primary)
+          call create_patch(currentSite, new_patch_primary, age, site_areadis_primary, &
+               cwd_ag_local, cwd_bg_local, leaf_litter_local, &
+               root_litter_local, bc_in%nlevsoil, primaryforest)
+          new_patch_primary%tallest  => null()
+          new_patch_primary%shortest => null()
+       endif
 
-       new_patch%tallest  => null()
-       new_patch%shortest => null()
-
+       if ( site_areadis_secondary .gt. 0.0_r8) then
+          allocate(new_patch_secondary)
+          call create_patch(currentSite, new_patch_secondary, age, site_areadis_secondary, &
+               cwd_ag_local, cwd_bg_local, leaf_litter_local, &
+               root_litter_local, bc_in%nlevsoil, secondaryforest)
+          new_patch_secondary%tallest  => null()
+          new_patch_secondary%shortest => null()
+       endif
+    
        currentPatch => currentSite%oldest_patch
        ! loop round all the patches that contribute surviving indivduals and litter pools to the new patch.     
        do while(associated(currentPatch))   
 
+          ! figure out whether the receiver patch for disturbance from this patch will be primary or secondary land
+          if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
+               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .and. &
+               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire) ) then
+             new_patch => new_patch_primary
+          else
+             new_patch => new_patch_secondary
+          endif
+
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
 
+          ! for the secondary forest case, if the dominant disturbance from this patch is non-anthropogenic,
+          ! we need to average in the time-since-anthropogenic-disturbance from the donor patch into that of the receiver patch
+          if ( currentPatch%anthro_disturbance_label .eq. secondaryforest .and. &
+               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .and. &
+               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire) ) then
+
+             new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
+                  currentPatch%age_since_anthro_disturbance * (patch_site_areadis / site_areadis_secondary)
+          endif
+          
           call average_patch_properties(currentPatch, new_patch, patch_site_areadis)
           
           if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
@@ -704,22 +749,43 @@ contains
 
           
        !*************************/
-       !**  INSERT NEW PATCH INTO LINKED LIST    
-       !**********`***************/        
-       currentPatch               => currentSite%youngest_patch
-       new_patch%older            => currentPatch
-       new_patch%younger          => NULL()
-       currentPatch%younger       => new_patch
-       currentSite%youngest_patch => new_patch
+       !**  INSERT NEW PATCH(ES) INTO LINKED LIST    
+       !**********`***************/
+       
+       if ( site_areadis_primary .gt. 0.0_r8) then
+          currentPatch               => currentSite%youngest_patch
+          new_patch_primary%older    => currentPatch
+          new_patch_primary%younger  => NULL()
+          currentPatch%younger       => new_patch_primary
+          currentSite%youngest_patch => new_patch_primary
+       endif
+       
+       if ( site_areadis_secondary .gt. 0.0_r8) then
+          currentPatch               => currentSite%youngest_patch
+          new_patch_secondary%older  => currentPatch
+          new_patch_secondary%younger=> NULL()
+          currentPatch%younger       => new_patch_secondary
+          currentSite%youngest_patch => new_patch_secondary
+       endif
        
        ! sort out the cohorts, since some of them may be so small as to need removing. 
        ! the first call to terminate cohorts removes sparse number densities,
        ! the second call removes for all other reasons (sparse culling must happen
        ! before fusion)
-       call terminate_cohorts(currentSite, new_patch, 1)
-       call fuse_cohorts(currentSite,new_patch, bc_in)
-       call terminate_cohorts(currentSite, new_patch, 2)
-       call sort_cohorts(new_patch)
+
+       if ( site_areadis_primary .gt. 0.0_r8) then
+          call terminate_cohorts(currentSite, new_patch_primary, 1)
+          call fuse_cohorts(currentSite,new_patch_primary, bc_in)
+          call terminate_cohorts(currentSite, new_patch_primary, 2)
+          call sort_cohorts(new_patch_primary)
+       endif
+
+       if ( site_areadis_secondary .gt. 0.0_r8) then
+          call terminate_cohorts(currentSite, new_patch_secondary, 1)
+          call fuse_cohorts(currentSite,new_patch_secondary, bc_in)
+          call terminate_cohorts(currentSite, new_patch_secondary, 2)
+          call sort_cohorts(new_patch_secondary)
+       endif
 
     endif !end new_patch area 
 
@@ -1249,7 +1315,7 @@ contains
 
   ! ============================================================================
   subroutine create_patch(currentSite, new_patch, age, areap,cwd_ag_local,cwd_bg_local, &
-       leaf_litter_local,root_litter_local,nlevsoil)
+       leaf_litter_local,root_litter_local,nlevsoil,label)
     !
     ! !DESCRIPTION:
     !  Set default values for creating a new patch
@@ -1266,6 +1332,7 @@ contains
     real(r8), intent(in) :: root_litter_local(:) ! initial value of root litter. KgC/m2
     real(r8), intent(in) :: leaf_litter_local(:) ! initial value of leaf litter. KgC/m2
     integer, intent(in)  :: nlevsoil             ! number of soil layers
+    integer, intent(in)  :: label                ! anthropogenic disturbance label
     !
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -1297,6 +1364,14 @@ contains
     new_patch%cwd_bg             = cwd_bg_local
     new_patch%leaf_litter        = leaf_litter_local
     new_patch%root_litter        = root_litter_local
+
+    ! assign anthropgenic disturbance category and label
+    new_patch%anthro_disturbance_label = label
+    if (label .eq. secondaryforest) then
+       new_patch%age_since_anthro_disturbance = age
+    else
+       new_patch%age_since_anthro_disturbance = -1._r8   ! replace with fates_unset_r8 when possible
+    endif
  
     !zeroing things because of the surfacealbedo problem... shouldnt really be necesary
     new_patch%cwd_ag_in(:)       = 0._r8
@@ -1477,9 +1552,10 @@ contains
     integer  :: ft,z        !counters for pft and height class
     real(r8) :: norm        !normalized difference between biomass profiles
     real(r8) :: profiletol  !tolerance of patch fusion routine. Starts off high and is reduced if there are too many patches.
-    integer  :: nopatches   !number of patches presently in gridcell
+    integer  :: nopatches(n_anthro_disturbance_categories)   !number of patches presently in gridcell
     integer  :: iterate     !switch of patch reduction iteration scheme. 1 to keep going, 0 to stop
-    integer  :: fuse_flag   !do patches get fused (1) or not (0). 
+    integer  :: fuse_flag   !do patches get fused (1) or not (0).
+    integer  :: i_disttype  !iterator over anthropogenic disturbance categories
     !
     !---------------------------------------------------------------------
 
@@ -1487,163 +1563,182 @@ contains
 
     profiletol = ED_val_patch_fusion_tol
 
-    nopatches = 0
+    nopatches_primary = 0
+    nopatches_secondary = 0    
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
-       nopatches = nopatches +1
+       nopatches(currentPatch%anthro_disturbance_label) = &
+            nopatches(currentPatch%anthro_disturbance_label) + 1
        currentPatch => currentPatch%older
     enddo
-    !---------------------------------------------------------------------!
-    !  We only really care about fusing patches if nopatches > 1           !
-    !---------------------------------------------------------------------!
-    iterate = 1
 
     !---------------------------------------------------------------------!
-    !  Keep doing this until nopatches >= maxPatchesPerSite                         !
-    !---------------------------------------------------------------------!
+    ! iterate over anthropogenic disturbance categories
+    !---------------------------------------------------------------------!    
 
-    do while(iterate == 1)
-       !---------------------------------------------------------------------!
-       ! Calculate the biomass profile of each patch                         !
-       !---------------------------------------------------------------------!  
-       currentPatch => currentSite%youngest_patch
-       do while(associated(currentPatch))
-          call patch_pft_size_profile(currentPatch)
-          currentPatch => currentPatch%older
-       enddo
+    do i_disttype = 1, n_anthro_disturbance_categories
 
        !---------------------------------------------------------------------!
-       ! Loop round current & target (currentPatch,tpp) patches to assess combinations !
-       !---------------------------------------------------------------------!   
-       currentPatch => currentSite%youngest_patch
-       do while(associated(currentPatch))      
-          tpp => currentSite%youngest_patch
-          do while(associated(tpp))
+       !  We only really care about fusing patches if nopatches > 1           !
+       !---------------------------------------------------------------------!
 
-             if(.not.associated(currentPatch))then
-                write(fates_log(),*) 'ED: issue with currentPatch'
-             endif
-
-             if(associated(tpp).and.associated(currentPatch))then
-
-                !--------------------------------------------------------------------------------------------
-                ! The default is to fuse the patches, unless some criteria is met which keeps them separated.
-                ! there are multiple criteria which all need to be met to keep them distinct:
-                ! (a) one of them is younger than the max age at which we force fusion;
-                ! (b) there is more than a threshold (tiny) amount of biomass in at least one of the patches;
-                ! (c) for at least one pft x size class, where there is biomass in that class in at least one patch,
-                ! and the normalized difference between the patches exceeds a threshold.
-                !--------------------------------------------------------------------------------------------
-                
-                fuse_flag = 1
-                if(currentPatch%patchno /= tpp%patchno) then   !these should be the same patch
-
-                   !-----------------------------------------------------------------------------------
-                   ! check to see if both patches are older than the age at which we force them to fuse
-                   !-----------------------------------------------------------------------------------
-                   
-                   if ( tpp%age .le. max_age_of_second_oldest_patch .or. &
-                      currentPatch%age .le. max_age_of_second_oldest_patch ) then
-
-                      
-                      !---------------------------------------------------------------------------------------------------------
-                      ! the next bit of logic forces fusion of two patches which both have tiny biomass densities. without this,
-                      ! fates gives a bunch of really young patches which all have almost no biomass and so don't need to be 
-                      ! distinguished from each other. but if force_patchfuse_min_biomass is too big, it takes too long for the 
-                      ! youngest patch to build up enough biomass to be its own distinct entity, which leads to large oscillations 
-                      ! in the patch dynamics and dependent variables.
-                      !---------------------------------------------------------------------------------------------------------
-                      
-                      if(sum(currentPatch%pft_agb_profile(:,:)) > force_patchfuse_min_biomass .or. &
-                           sum(tpp%pft_agb_profile(:,:)) > force_patchfuse_min_biomass ) then
-
-                         !---------------------------------------------------------------------!
-                         ! Calculate the difference criteria for each pft and dbh class        !
-                         !---------------------------------------------------------------------!   
-
-                         do ft = 1,numpft        ! loop over pfts
-                            do z = 1,n_dbh_bins      ! loop over hgt bins 
-
-                               !----------------------------------
-                               !is there biomass in this category?
-                               !----------------------------------
-
-                               if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8 .or.  &
-                                    tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
-
-                                  !-------------------------------------------------------------------------------------
-                                  ! what is the relative difference in biomass i nthis category between the two patches?
-                                  !-------------------------------------------------------------------------------------
-
-                                  norm = abs(currentPatch%pft_agb_profile(ft,z) - &
-                                       tpp%pft_agb_profile(ft,z))/(0.5_r8 * &
-                                       &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
-
-                                  !---------------------------------------------------------------------!
-                                  ! Look for differences in profile biomass, above the minimum biomass  !
-                                  !---------------------------------------------------------------------!
-
-                                  if(norm  > profiletol)then
-
-                                     fuse_flag = 0 !do not fuse  - keep apart. 
-
-                                  endif ! profile tol           
-                               endif ! biomass(ft,z) .gt. 0
-                            enddo !ht bins
-                         enddo ! PFT
-                      endif ! sum(biomass(:,:) .gt. force_patchfuse_min_biomass 
-                   endif ! maxage
-
-                   !-------------------------------------------------------------------------!
-                   ! Call the patch fusion routine if there is not a meaningful difference   !
-                   ! any of the pft x height categories                                      !
-                   ! or both are older than forced fusion age                                !
-                   !-------------------------------------------------------------------------!
-
-                   if(fuse_flag  ==  1)then 
-                      tmpptr => currentPatch%older       
-                      call fuse_2_patches(csite, currentPatch, tpp)
-                      call fuse_cohorts(csite,tpp, bc_in)
-                      call sort_cohorts(tpp)
-                      currentPatch => tmpptr
-                   else
-                     ! write(fates_log(),*) 'patches not fused'
-                   endif
-                endif  !are both patches associated?        
-             endif    !are these different patches?   
-             tpp => tpp%older
-          enddo !tpp loop
-
-          if(associated(currentPatch))then 
-             currentPatch => currentPatch%older 
-          else
-             currentPatch => null()
-          endif !associated currentPatch
-
-       enddo ! currentPatch loop
+       iterate = 1
 
        !---------------------------------------------------------------------!
-       ! Is the number of patches larger than the maximum?                   !
-       !---------------------------------------------------------------------!   
-       nopatches = 0
-       currentPatch => currentSite%youngest_patch
-       do while(associated(currentPatch))
-          nopatches = nopatches +1
-          currentPatch => currentPatch%older
-       enddo
+       !  Keep doing this until nopatches >= maxPatchesPerSite                         !
+       !---------------------------------------------------------------------!
 
-       if(nopatches > maxPatchesPerSite)then
-          iterate = 1
-          profiletol = profiletol * patch_fusion_tolerance_relaxation_increment
+       do while(iterate == 1)
+          !---------------------------------------------------------------------!
+          ! Calculate the biomass profile of each patch                         !
+          !---------------------------------------------------------------------!  
+          currentPatch => currentSite%youngest_patch
+          do while(associated(currentPatch))
+             call patch_pft_size_profile(currentPatch)
+             currentPatch => currentPatch%older
+          enddo
 
           !---------------------------------------------------------------------!
-          ! Making profile tolerance larger means that more fusion will happen  !
-          !---------------------------------------------------------------------!        
-       else
-          iterate = 0
-       endif
+          ! Loop round current & target (currentPatch,tpp) patches to assess combinations !
+          !---------------------------------------------------------------------!   
+          currentPatch => currentSite%youngest_patch
+          do while(associated(currentPatch))      
+             tpp => currentSite%youngest_patch
+             do while(associated(tpp))
 
-    enddo !do while nopatches>maxPatchesPerSite
+                if(.not.associated(currentPatch))then
+                   write(fates_log(),*) 'ED: issue with currentPatch'
+                endif
+
+                if(associated(tpp).and.associated(currentPatch))then
+
+                   ! only fuse patches whose anthropogenic disturbance categroy matches taht of the outer loop that we are in
+                   if ( tpp%anthro_disturbance_label .eq. i_disttype .and. &
+                        currentPatch%anthro_disturbance_label .eq. i_disttype) then
+
+                      !--------------------------------------------------------------------------------------------
+                      ! The default is to fuse the patches, unless some criteria is met which keeps them separated.
+                      ! there are multiple criteria which all need to be met to keep them distinct:
+                      ! (a) one of them is younger than the max age at which we force fusion;
+                      ! (b) there is more than a threshold (tiny) amount of biomass in at least one of the patches;
+                      ! (c) for at least one pft x size class, where there is biomass in that class in at least one patch,
+                      ! and the normalized difference between the patches exceeds a threshold.
+                      !--------------------------------------------------------------------------------------------
+
+                      fuse_flag = 1
+                      if(currentPatch%patchno /= tpp%patchno) then   !these should be the same patch
+
+                         !-----------------------------------------------------------------------------------
+                         ! check to see if both patches are older than the age at which we force them to fuse
+                         !-----------------------------------------------------------------------------------
+
+                         if ( tpp%age .le. max_age_of_second_oldest_patch .or. &
+                              currentPatch%age .le. max_age_of_second_oldest_patch ) then
+
+
+                            !---------------------------------------------------------------------------------------------------------
+                            ! the next bit of logic forces fusion of two patches which both have tiny biomass densities. without this,
+                            ! fates gives a bunch of really young patches which all have almost no biomass and so don't need to be 
+                            ! distinguished from each other. but if force_patchfuse_min_biomass is too big, it takes too long for the 
+                            ! youngest patch to build up enough biomass to be its own distinct entity, which leads to large oscillations 
+                            ! in the patch dynamics and dependent variables.
+                            !---------------------------------------------------------------------------------------------------------
+
+                            if(sum(currentPatch%pft_agb_profile(:,:)) > force_patchfuse_min_biomass .or. &
+                                 sum(tpp%pft_agb_profile(:,:)) > force_patchfuse_min_biomass ) then
+
+                               !---------------------------------------------------------------------!
+                               ! Calculate the difference criteria for each pft and dbh class        !
+                               !---------------------------------------------------------------------!   
+
+                               do ft = 1,numpft        ! loop over pfts
+                                  do z = 1,n_dbh_bins      ! loop over hgt bins 
+
+                                     !----------------------------------
+                                     !is there biomass in this category?
+                                     !----------------------------------
+
+                                     if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8 .or.  &
+                                          tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
+
+                                        !-------------------------------------------------------------------------------------
+                                        ! what is the relative difference in biomass i nthis category between the two patches?
+                                        !-------------------------------------------------------------------------------------
+
+                                        norm = abs(currentPatch%pft_agb_profile(ft,z) - &
+                                             tpp%pft_agb_profile(ft,z))/(0.5_r8 * &
+                                             &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
+
+                                        !---------------------------------------------------------------------!
+                                        ! Look for differences in profile biomass, above the minimum biomass  !
+                                        !---------------------------------------------------------------------!
+
+                                        if(norm  > profiletol)then
+
+                                           fuse_flag = 0 !do not fuse  - keep apart. 
+
+                                        endif ! profile tol           
+                                     endif ! biomass(ft,z) .gt. 0
+                                  enddo !ht bins
+                               enddo ! PFT
+                            endif ! sum(biomass(:,:) .gt. force_patchfuse_min_biomass 
+                         endif ! maxage
+
+                         !-------------------------------------------------------------------------!
+                         ! Call the patch fusion routine if there is not a meaningful difference   !
+                         ! any of the pft x height categories                                      !
+                         ! or both are older than forced fusion age                                !
+                         !-------------------------------------------------------------------------!
+
+                         if(fuse_flag  ==  1)then 
+                            tmpptr => currentPatch%older       
+                            call fuse_2_patches(csite, currentPatch, tpp)
+                            call fuse_cohorts(csite,tpp, bc_in)
+                            call sort_cohorts(tpp)
+                            currentPatch => tmpptr
+                         else
+                            ! write(fates_log(),*) 'patches not fused'
+                         endif
+                      endif  !are both patches the same anthropogenic disturbance category as the disturbance type loop iterator?
+                   endif  !are both patches associated?        
+                endif    !are these different patches?   
+                tpp => tpp%older
+             enddo !tpp loop
+
+             if(associated(currentPatch))then 
+                currentPatch => currentPatch%older 
+             else
+                currentPatch => null()
+             endif !associated currentPatch
+
+          enddo ! currentPatch loop
+
+          !---------------------------------------------------------------------!
+          ! Is the number of patches larger than the maximum?                   !
+          !---------------------------------------------------------------------!   
+          nopatches(i_disttype) = 0
+          currentPatch => currentSite%youngest_patch
+          do while(associated(currentPatch))
+             if (currentPatch%anthro_disturbance_label .eq. i_disttype) then
+                nopatches(i_disttype) = nopatches(i_disttype) +1
+             endif
+             currentPatch => currentPatch%older
+          enddo
+
+          if(nopatches(i_disttype) > maxPatchesPerSite_by_disttype(i_disttype))then
+             iterate = 1
+             profiletol = profiletol * patch_fusion_tolerance_relaxation_increment
+
+             !---------------------------------------------------------------------!
+             ! Making profile tolerance larger means that more fusion will happen  !
+             !---------------------------------------------------------------------!        
+          else
+             iterate = 0
+          endif
+
+       enddo !do while nopatches>maxPatchesPerSite
+
+    end do  ! i_disttype loop
  
   end subroutine fuse_patches
 

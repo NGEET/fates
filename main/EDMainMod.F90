@@ -42,6 +42,7 @@ module EDMainMod
   use EDTypesMod               , only : do_ed_phenology
   use EDTypesMod               , only : AREA
   use FatesConstantsMod        , only : itrue,ifalse
+  use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
@@ -283,6 +284,11 @@ contains
        if( currentPatch%age  <  0._r8 )then
           write(fates_log(),*) 'negative patch age?',currentPatch%age, &
                currentPatch%patchno,currentPatch%area
+       endif
+
+       ! add age increment to secondary forest patches as well
+       if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
+          currentPatch%age_since_anthro_disturbance = currentPatch%age_since_anthro_disturbance + hlm_freq_day
        endif
 
        ! check to see if the patch has moved to the next age class
