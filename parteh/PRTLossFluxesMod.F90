@@ -548,7 +548,7 @@ contains
 
    ! ===================================================================================
    
-   subroutine MaintTurnoverSimpleRetranslocation(prt,ipft,senescent_frac)
+   subroutine MaintTurnoverSimpleRetranslocation(prt,ipft)
 
       ! ---------------------------------------------------------------------------------
       ! This subroutine removes biomass from all applicable pools due to 
@@ -569,7 +569,6 @@ contains
       
       class(prt_vartypes)  :: prt
       integer, intent(in)  :: ipft
-      real(r8), intent(in) :: senescent_frac
       
       integer  :: i_var            ! the variable index
       integer  :: element_id       ! the element associated w/ each variable
@@ -577,6 +576,11 @@ contains
       integer  :: i_pos            ! spatial position loop counter
       integer  :: aclass_sen_id    ! the index of the leaf age class dimension
                                    ! associated with the senescing pool
+      integer  :: ipos_1           ! the first index of the "position"
+                                   ! loop to cycle. For leaves, we only
+                                   ! generate maintenance fluxes from the last
+                                   ! senescing class; all other cases this 
+                                   ! is assumed to be 1.
       
       real(r8) :: turnover         ! Actual turnover removed from each
                                    ! pool [kg]
@@ -617,15 +621,15 @@ contains
 
 
       ! The last index of the leaf longevity array contains the turnover
-      ! timescale for the senescent pool
+      ! timescale for the senescent pool.
       aclass_sen_id = size(EDPftvarcon_inst%leaf_long(ipft,:))
-
+      
       ! Only EVERGREENS HAVE MAINTENANCE LEAF TURNOVER 
       ! -------------------------------------------------------------------------------------
       if ( (EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id) > nearzero ) .and. &
            (EDPftvarcon_inst%evergreen(ipft) == itrue) ) then
 
-         base_turnover(leaf_organ) = senescent_frac * hlm_freq_day / &
+         base_turnover(leaf_organ) = hlm_freq_day / &
                                      EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id)
       else
          base_turnover(leaf_organ) = 0.0_r8
@@ -670,7 +674,16 @@ contains
             call endrun(msg=errMsg(__FILE__, __LINE__))
          end if
 
-         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
+         ! Hypotheses 1 & 2 assume that the leaf pools are statified by age
+         ! We only generate turnover from the last (senescing) position
+         if( (prt_global%hyp_id .le. 2) .and. &
+             (organ_id .eq. leaf_organ) ) then
+            ipos_1 = prt_global%state_descriptor(i_var)%num_pos 
+         else
+            ipos_1 = 1
+         end if
+
+         do i_pos = ipos_1, prt_global%state_descriptor(i_var)%num_pos 
             
             turnover = (1.0_r8 - retrans) * base_turnover(organ_id) * prt%variables(i_var)%val(i_pos)
       
