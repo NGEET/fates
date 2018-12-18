@@ -1500,8 +1500,8 @@ end subroutine flush_hvars
                hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
                hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
                hio_fraction_secondary_forest_si  => this%hvars(ih_fraction_secondary_forest_si)%r81d, &
-               hio_agesince_anthrodist_si_age    => this%hvars(ih_agesince_anthrodist_si_age)%r81d, &
-               hio_secondaryforest_area_si_age  => this%hvars(ih_secondaryforest_area_si_age)%r81d, &
+               hio_agesince_anthrodist_si_age    => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
+               hio_secondaryforest_area_si_age  => this%hvars(ih_secondaryforest_area_si_age)%r82d, &
                hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
                hio_leaf_height_dist_si_height     => this%hvars(ih_leaf_height_dist_si_height)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &

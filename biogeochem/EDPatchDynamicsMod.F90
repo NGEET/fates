@@ -1563,8 +1563,7 @@ contains
 
     profiletol = ED_val_patch_fusion_tol
 
-    nopatches_primary = 0
-    nopatches_secondary = 0    
+    nopatches(1:n_anthro_disturbance_categories) = 0
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
        nopatches(currentPatch%anthro_disturbance_label) = &

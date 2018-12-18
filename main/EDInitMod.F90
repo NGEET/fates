@@ -7,6 +7,7 @@ module EDInitMod
   use FatesConstantsMod         , only : r8 => fates_r8
   use FatesConstantsMod         , only : ifalse
   use FatesConstantsMod         , only : itrue
+  use FatesConstantsMod         , only : primaryforest
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
@@ -322,7 +323,7 @@ contains
            ! make new patch...
            call create_patch(sites(s), newp, age, AREA, &
                  cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
-                 root_litter_local, bc_in(s)%nlevsoil ) 
+                 root_litter_local, bc_in(s)%nlevsoil, primaryforest ) 
            
            sitep => sites(s)
            call init_cohorts(sitep, newp, bc_in(s))
