@@ -299,7 +299,7 @@ contains
                    
                 ! Calculate sla_levleaf following the sla profile with overlying leaf area
                 ! Scale for leaf nitrogen profile
-                kn = decay_coeff_kn(ipft)
+                kn = decay_coeff_kn(ipft,currentCohort%vcmax25top)
                 ! Nscaler value at leaf level z
                 nscaler_levleaf = exp(-kn * cumulative_lai)
                 ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)

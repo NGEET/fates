@@ -347,8 +347,10 @@ contains
           call currentCohort%prt%DailyPRT()
           call currentCohort%prt%CheckMassConservation(ft,5)
 
-          ! Update the leaf biophysical rates based on leaf ages
-          ! leaf ages should be fully updated for each cohort at this point
+          ! Update the leaf biophysical rates based on proportion of leaf
+          ! mass in the different leaf age classes. Following growth
+          ! and turnover, these proportions won't change again. This
+          ! routine is also called following fusion
           call UpdateCohortBioPhysRates(currentCohort)
 
 

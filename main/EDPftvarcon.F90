@@ -862,10 +862,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
 
-    name = 'fates_leaf_long'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%leaf_long)
-
     name = 'fates_roota_par'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%roota_par)

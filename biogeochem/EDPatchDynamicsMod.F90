@@ -22,7 +22,6 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_days_per_year
   use FatesInterfaceMod    , only : numpft
-  use FatesInterfaceMod    , only : nleafage
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue

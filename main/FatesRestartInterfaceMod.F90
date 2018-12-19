@@ -16,7 +16,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceMod, only : bc_out_type
   use FatesInterfaceMod, only : nleafage
   use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
-
+  use EDCohortDynamicsMod, only : UpdateCohortBioPhysRates
   use PRTGenericMod,          only : prt_global
 
 
@@ -1799,7 +1799,17 @@ contains
                             this%rvars(ir_prt_var)%r81d(io_idx_co)                      
                    end do
                 end do
+
                 
+                
+                call UpdateCohortBioPhysRates(ccohort)
+
+                !ccohort%vcmax25top          
+                !ccohort%jmax25top
+                !ccohort%tpu25top          
+                !ccohort%kp25top
+
+
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
@@ -1820,10 +1830,6 @@ contains
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
                 ccohort%fmort        = rio_fmort_co(io_idx_co)
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
-
-                ! THE ACTUAL LEAF AGES MUST BE READ IN AFTER NEW HYDRO PR
-                ! (THAT PR HAS THE VECTOR READ-IN MACHINERY)
-                ccohort%frac_leaf_aclass(1:nleafage) = 1._r8 / real(nleafage,r8)
 
                 !Logging
                 ccohort%lmort_direct       = rio_lmort_direct_co(io_idx_co)

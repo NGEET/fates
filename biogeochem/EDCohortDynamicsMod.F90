@@ -15,6 +15,7 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : hlm_days_per_year
   use FatesInterfaceMod     , only : nleafage
   use EDPftvarcon           , only : EDPftvarcon_inst
+  use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : ncwd
@@ -26,6 +27,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : equal_leaf_aclass
   use EDTypesMod            , only : first_leaf_aclass
   use EDTypesMod            , only : nan_leaf_aclass
+  use EDTypesMod            , only : max_nleafage
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
@@ -219,7 +221,7 @@ contains
 
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions
-    call UpdateCohortBioPhysRates(currentCohort)
+    call UpdateCohortBioPhysRates(new_cohort)
 
     call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
                               new_cohort%size_class,new_cohort%size_by_pft_class)
@@ -242,11 +244,11 @@ contains
 
     new_cohort%treelai = tree_lai(bleaf, new_cohort%pft, new_cohort%c_area,    &
                                   new_cohort%n, new_cohort%canopy_layer,               &
-                                  patchptr%canopy_layer_tlai )    
+                                  patchptr%canopy_layer_tlai,new_cohort%vcmax25top )    
 
     new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, new_cohort%canopy_trim,   &
                                   new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
-                                  patchptr%canopy_layer_tlai, new_cohort%treelai )  
+                                  patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top )  
 
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
 
@@ -896,30 +898,8 @@ contains
 
                                 ! Leaf biophysical rates (use leaf mass weighting)
                                 ! -----------------------------------------------------------------
-                                leaf_c_next  = nextc%prt%GetState(leaf_organ, all_carbon_elements)*nextc%n
-                                leaf_c_curr  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)*currentCohort%n
+                                call UpdateCohortBioPhysRates(currentCohort)
 
-                                if( (leaf_c_next + leaf_c_curr) > nearzero ) then
-
-                                    currentCohort%vcmax25top = (leaf_c_curr*currentCohort%vcmax25top + &
-                                          leaf_c_next*nextc%vcmax25top)/(leaf_c_next+leaf_c_curr)
-                                    currentCohort%jmax25top  = (leaf_c_curr*currentCohort%jmax25top + &
-                                          leaf_c_next*nextc%jmax25top)/(leaf_c_next+leaf_c_curr)
-                                    currentCohort%tpu25top   = (leaf_c_curr*currentCohort%tpu25top + &
-                                          leaf_c_next*nextc%tpu25top)/(leaf_c_next+leaf_c_curr)
-                                    currentCohort%kp25top    = (leaf_c_curr*currentCohort%kp25top + &
-                                          leaf_c_next*nextc%kp25top)/(leaf_c_next+leaf_c_curr)
-
-                                else
-
-                                    currentCohort%vcmax25top = 0._r8
-                                    currentCohort%jmax25top  = 0._r8
-                                    currentCohort%tpu25top   = 0._r8
-                                    currentCohort%kp25top    = 0._r8
-
-                                end if
-                                   
-                                
                                 ! keep track of the size class bins so that we can monitor growth fluxes
                                 ! compare the values.  if they are the same, then nothing needs to be done. if not, track the diagnostic flux
                                 if (currentCohort%size_class_lasttimestep .ne. nextc%size_class_lasttimestep ) then
