@@ -90,7 +90,7 @@ module EDPhysiologyMod
   private :: seed_germination
   public :: flux_into_litter_pools
   public :: ZeroAllocationRates
-
+  
 
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
@@ -251,11 +251,11 @@ contains
 
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                                            currentCohort%n, currentCohort%canopy_layer,               &
-                                           currentPatch%canopy_layer_tlai )    
+                                           currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )    
 
           currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
                                            currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                                           currentPatch%canopy_layer_tlai, currentCohort%treelai )  
+                                           currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top )  
 
           currentCohort%nv      = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
 
@@ -692,14 +692,6 @@ contains
 
                    currentCohort%laimemory = 0.0_r8
 
-                   ! Set the leaf age class to all be in the youngest since
-                   ! phenology is pushing out new leaves (THIS ASSUMES THAT WE ARE
-                   ! STARTING FROM HAVING NO LEAVES (ie a clean flushing of leaves)
-
-                   currentCohort%frac_leaf_aclass(:) = 0._r8
-                   currentCohort%frac_leaf_aclass(1) = 1._r8
-
-
                 endif !pft phenology
              endif ! growing season 
 
@@ -753,13 +745,6 @@ contains
                          leaf_organ, store_c_transfer_frac)
 
                    currentCohort%laimemory = 0.0_r8
-
-                   ! Set the leaf age class to all be in the youngest since
-                   ! phenology is pushing out new leaves (THIS ASSUMES THAT WE ARE
-                   ! STARTING FROM HAVING NO LEAVES (ie a clean flushing of leaves)
-
-                   currentCohort%frac_leaf_aclass(:) = 0._r8
-                   currentCohort%frac_leaf_aclass(1) = 1._r8
 
                 endif !currentCohort status again?
              endif   !currentSite status
@@ -1813,9 +1798,6 @@ contains
         ! write(fates_log(),*)'cdk croot_prof: ', croot_prof
 
     end subroutine flux_into_litter_pools
-
-    ! ===================================================================================
-
 
 
 

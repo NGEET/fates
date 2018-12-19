@@ -14,6 +14,7 @@ module FatesRestartInterfaceMod
   use FatesRestartVariableMod, only : fates_restart_variable_type
   use FatesInterfaceMod, only : bc_in_type 
   use FatesInterfaceMod, only : bc_out_type
+  use FatesInterfaceMod, only : nleafage
   use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
 
   use PRTGenericMod,          only : prt_global

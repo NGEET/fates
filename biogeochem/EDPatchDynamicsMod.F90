@@ -401,8 +401,7 @@ contains
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))       
 
-             allocate(nc)             
-             allocate(nc%frac_leaf_aclass(nleafage))
+             allocate(nc)
              if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
              call InitPRTCohort(nc)
              call zero_cohort(nc)
@@ -676,7 +675,6 @@ contains
                 if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nc)
                 call nc%prt%DeallocatePRTVartypes()
                 deallocate(nc%prt)
-                deallocate(nc%frac_leaf_aclass)
                 deallocate(nc)
 
              endif
@@ -1929,7 +1927,6 @@ contains
        if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(ccohort)
        call ccohort%prt%DeallocatePRTVartypes()
        deallocate(ccohort%prt)
-       deallocate(ccohort%frac_leaf_aclass)
        deallocate(ccohort)
        ccohort => ncohort
 

@@ -89,6 +89,5 @@ contains
     end associate
     return
   end subroutine Init
-  
 
 end module FatesParameterDerivedMod

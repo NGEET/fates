@@ -47,7 +47,7 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
-
+  use FatesConstantsMod   , only : years_per_day
 
 
   implicit none
@@ -103,8 +103,8 @@ module PRTAllometricCarbonMod
   integer, parameter         :: icd               = 1   ! Only 1 coordinate per variable
 
   
-  ! This is the maximum number of leaf age pools, used for allocating scratch space
-  integer, parameter         :: max_nleafage        = 4
+  ! This is the maximum number of leaf age pools  (used for allocating scratch space)
+  integer, parameter         :: max_nleafage  = 10
 
   ! -------------------------------------------------------------------------------------
   ! This is the core type that holds this specific
@@ -328,6 +328,7 @@ contains
     real(r8) :: struct_c_flux         ! Transfer into structure at various stages [kgC]
 
     real(r8),dimension(max_nleafage) :: leaf_c0 
+
                                       ! Initial value of carbon used to determine net flux
     real(r8) :: fnrt_c0               ! during this routine
     real(r8) :: sapw_c0               ! ""   
@@ -348,7 +349,8 @@ contains
     real(r8) :: totalC                ! total carbon allocated over alometric growth step
     real(r8) :: hite_out              ! dummy height variable
 
-    integer  :: i_var                 ! local index for iterating state variables
+    integer  :: i_var                 ! index for iterating state variables
+    integer  :: i_age                 ! index for iterating leaf ages
     integer  :: nleafage              ! number of leaf age classifications
     real(r8) :: leaf_age_flux         ! carbon mass flux between leaf age classification pools
 
@@ -406,8 +408,7 @@ contains
     ! transport flux "%net_alloc" at the end.
     ! -----------------------------------------------------------------------------------
 
-    nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos
-
+    nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
     leaf_c0(1:nleafage) = leaf_c(1:nleafage)  ! Set initial leaf carbon 
     fnrt_c0 = fnrt_c                          ! Set initial fine-root carbon
@@ -427,13 +428,15 @@ contains
     ! -----------------------------------------------------------------------------------
 
     if(nleafage>1) then
-       do iage = 1,nleafage-1
-          leaf_age_flux  = leaf_c0(iage) * hlm_freq_day / EDPftvarcon_inst%leaf_long(ipft,iage)
-          leaf_c(iage)   = leaf_c(iage) - leaf_age_flux
-          leaf_c(iage+1) = leaf_c(iage+1) + leaf_age_flux
+       do i_age = 1,nleafage-1
+          if (EDPftvarcon_inst%leaf_long(ipft,i_age)>nearzero) then
+             leaf_age_flux   = leaf_c0(i_age) * years_per_day / EDPftvarcon_inst%leaf_long(ipft,i_age)
+             leaf_c(i_age)   = leaf_c(i_age) - leaf_age_flux
+             leaf_c(i_age+1) = leaf_c(i_age+1) + leaf_age_flux
+          end if
        end do
     end if
-
+    
 
     ! -----------------------------------------------------------------------------------
     ! II. Calculate target size of the biomass compartment for a given dbh.   
@@ -827,7 +830,7 @@ contains
              struct_c_flux  = struct_c_flux*flux_adj
              repro_c_flux   = repro_c_flux*flux_adj
              
-             carbon_balance = carbon_balance - leaf_c_flux
+             carbon_balance    = carbon_balance - leaf_c_flux
              leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
              
              carbon_balance = carbon_balance - fnrt_c_flux
@@ -866,8 +869,11 @@ contains
 
     ! Track the net allocations and transport from this routine
 
-    this%variables(leaf_c_id)%net_alloc(icd) = &
-         this%variables(leaf_c_id)%net_alloc(icd) + (leaf_c - leaf_c0)
+    do i_age = 1,nleafage
+       this%variables(leaf_c_id)%net_alloc(i_age) = &
+             this%variables(leaf_c_id)%net_alloc(i_age) + &
+             (leaf_c(i_age) - leaf_c0(i_age))
+    end do
 
     this%variables(fnrt_c_id)%net_alloc(icd) = &
          this%variables(fnrt_c_id)%net_alloc(icd) + (fnrt_c - fnrt_c0)
@@ -883,9 +889,6 @@ contains
     
     this%variables(struct_c_id)%net_alloc(icd) = &
          this%variables(struct_c_id)%net_alloc(icd) + (struct_c - struct_c0)
-
-
- 
 
 
 

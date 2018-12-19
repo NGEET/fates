@@ -11,6 +11,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
+  use FatesConstantsMod     , only : nearzero
   use FatesInterfaceMod     , only : hlm_days_per_year
   use FatesInterfaceMod     , only : nleafage
   use EDPftvarcon           , only : EDPftvarcon_inst
@@ -22,6 +23,9 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
+  use EDTypesMod            , only : equal_leaf_aclass
+  use EDTypesMod            , only : first_leaf_aclass
+  use EDTypesMod            , only : nan_leaf_aclass
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
@@ -79,6 +83,7 @@ module EDCohortDynamicsMod
   public :: copy_cohort
   public :: count_cohorts
   public :: InitPRTCohort
+  public :: UpdateCohortBioPhysRates
 
   logical, parameter :: debug  = .false. ! local debug flag
 
@@ -123,6 +128,7 @@ contains
                                                          ! spread crowns are in horizontal space
     integer,  intent(in)   :: leaf_aclass_init           ! how to initialized the leaf age class
                                                          ! distribution
+    integer :: iage                                      ! loop counter for leaf age classes
     type(bc_in_type), intent(in) :: bc_in                ! External boundary conditions
      
     !
@@ -130,11 +136,11 @@ contains
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
     type(ed_cohort_type), pointer :: storesmallcohort 
     type(ed_cohort_type), pointer :: storebigcohort   
-    integer :: tnull,snull                      ! are the tallest and shortest cohorts allocate
+    real(r8) :: frac_leaf_aclass(max_nleafage)   ! Fraction of leaves in each age-class
+    integer  :: tnull,snull                      ! are the tallest and shortest cohorts allocate
     !----------------------------------------------------------------------
 
     allocate(new_cohort)
-    allocate(new_cohort%frac_leaf_aclass(nleafage))
 
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
@@ -164,12 +170,12 @@ contains
     ! of this cohort
 
     if(leaf_aclass_init .eq. equal_leaf_aclass) then
-       new_cohort%frac_leaf_aclass(1:nleafage) = 1._r8 / real(nleafage,r8)
+       frac_leaf_aclass(1:nleafage) = 1._r8 / real(nleafage,r8)
     elseif(leaf_aclass_init .eq. first_leaf_aclass) then
-       new_cohort%frac_leaf_aclass(1:nleafage) = 0._r8
-       new_cohort%frac_leaf_aclass(1)          = 1._r8
+       frac_leaf_aclass(1:nleafage) = 0._r8
+       frac_leaf_aclass(1)          = 1._r8
     elseif(leaf_aclass_init .eq. nan_leaf_aclass) then
-       new_cohort%frac_leaf_aclass(1:nleafage) = nan
+       frac_leaf_aclass(1:nleafage) = nan
     else
        write(fates_log(),*) 'An unknown leaf age distribution was'
        write(fates_log(),*) 'requested during create cohort'
@@ -192,7 +198,10 @@ contains
     select case(hlm_parteh_mode)
     case (prt_carbon_allom_hyp)
 
-       call SetState(new_cohort%prt,leaf_organ, carbon12_element, bleaf)
+       do iage = 1,nleafage
+          call SetState(new_cohort%prt,leaf_organ, carbon12_element, &
+                bleaf*frac_leaf_aclass(iage),iage)
+       end do
        call SetState(new_cohort%prt,fnrt_organ, carbon12_element, bfineroot)
        call SetState(new_cohort%prt,sapw_organ, carbon12_element, bsap)
        call SetState(new_cohort%prt,store_organ, carbon12_element, bstore)
@@ -208,6 +217,9 @@ contains
 
     call new_cohort%prt%CheckInitialConditions()
 
+    ! This sets things like vcmax25top, that depend on the
+    ! leaf age fractions
+    call UpdateCohortBioPhysRates(currentCohort)
 
     call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
                               new_cohort%size_class,new_cohort%size_by_pft_class)
@@ -413,8 +425,12 @@ contains
     currentCohort%c_area             = nan ! areal extent of canopy (m2)
     currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
     currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
-    currentCohort%frac_leaf_aclass(:)= nan ! leaf age classes
-    
+
+    currentCohort%vcmax25top = nan 
+    currentCohort%jmax25top  = nan 
+    currentCohort%tpu25top   = nan 
+    currentCohort%kp25top    = nan 
+
     ! CARBON FLUXES 
     currentCohort%gpp_acc_hold       = nan ! GPP:  kgC/indiv/year
     currentCohort%gpp_tstep          = nan ! GPP:  kgC/indiv/timestep
@@ -711,7 +727,6 @@ contains
           ! Deallocate the cohort's PRT structure
           call currentCohort%prt%DeallocatePRTVartypes()
           deallocate(currentCohort%prt)
-          deallocate(currentCohort%frac_leaf_aclass)
 
           deallocate(currentCohort)
           nullify(currentCohort)
@@ -879,27 +894,29 @@ contains
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
                                       nextc%n*nextc%canopy_layer_yesterday)/newn
 
-                                ! Leaf age class fractions
-                                ! First calculate the total amount of leaf in each to enable
-                                ! a weighted average of the two
+                                ! Leaf biophysical rates (use leaf mass weighting)
                                 ! -----------------------------------------------------------------
                                 leaf_c_next  = nextc%prt%GetState(leaf_organ, all_carbon_elements)*nextc%n
                                 leaf_c_curr  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)*currentCohort%n
 
                                 if( (leaf_c_next + leaf_c_curr) > nearzero ) then
-                                   currentCohort%frac_leaf_aclass(1:nleafage) = &
-                                        (leaf_c_curr*currentCohort%frac_leaf_aclass(1:nleafage) + &
-                                        leaf_c_next*nextc%frac_leaf_aclass(1:nleafage))/(leaf_c_next+leaf_c_curr)
-                                
-                                   ! Force leaf age class to sum to unity
-                                   currentCohort%frac_leaf_aclass(1:nleafage) = &
-                                        currentCohort%frac_leaf_aclass(1:nleafage) / &
-                                        sum(currentCohort%frac_leaf_aclass(1:nleafage))
+
+                                    currentCohort%vcmax25top = (leaf_c_curr*currentCohort%vcmax25top + &
+                                          leaf_c_next*nextc%vcmax25top)/(leaf_c_next+leaf_c_curr)
+                                    currentCohort%jmax25top  = (leaf_c_curr*currentCohort%jmax25top + &
+                                          leaf_c_next*nextc%jmax25top)/(leaf_c_next+leaf_c_curr)
+                                    currentCohort%tpu25top   = (leaf_c_curr*currentCohort%tpu25top + &
+                                          leaf_c_next*nextc%tpu25top)/(leaf_c_next+leaf_c_curr)
+                                    currentCohort%kp25top    = (leaf_c_curr*currentCohort%kp25top + &
+                                          leaf_c_next*nextc%kp25top)/(leaf_c_next+leaf_c_curr)
+
                                 else
-                                   ! If there is no leaf at all... then we set
-                                   ! the age fraction to be all in the growing class
-                                   currentCohort%frac_leaf_aclass(1:nleafage) = 0._r8
-                                   currentCohort%frac_leaf_aclass(1) = 1._r8
+
+                                    currentCohort%vcmax25top = 0._r8
+                                    currentCohort%jmax25top  = 0._r8
+                                    currentCohort%tpu25top   = 0._r8
+                                    currentCohort%kp25top    = 0._r8
+
                                 end if
                                    
                                 
@@ -1032,7 +1049,6 @@ contains
                                 ! Deallocate the cohort's PRT structure
                                 call nextc%prt%DeallocatePRTVartypes()
                                 deallocate(nextc%prt)
-                                deallocate(nextc%frac_leaf_aclass)
                                 deallocate(nextc)
                                 nullify(nextc)
 
@@ -1314,8 +1330,11 @@ contains
     ! This transfers the PRT objects over.
     call n%prt%CopyPRTVartypes(o%prt)
 
-    ! Leaf age class fractions
-    n%frac_leaf_aclass(1:nleafage) = o%frac_leaf_aclass(1:nleafage)
+    ! Leaf biophysical rates
+    n%vcmax25top = o%vcmax25top
+    n%jmax25top  = o%jmax25top
+    n%tpu25top   = o%tpu25top
+    n%kp25top    = o%kp25top 
 
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
@@ -1434,6 +1453,73 @@ contains
     endif
 
   end function count_cohorts
+
+  ! ===================================================================================
+
+  subroutine UpdateCohortBioPhysRates(currentCohort)
+
+       ! --------------------------------------------------------------------------------
+       ! This routine updates the four key biophysical rates of leaves
+       ! based on the changes in a cohort's leaf age proportions
+       !
+       ! This should be called after growth.  Growth occurs
+       ! after turnover and damage states are applied to the tree.
+       ! Therefore, following growth, the leaf mass fractions
+       ! of different age classes are unchanged until the next day.
+       ! --------------------------------------------------------------------------------
+
+       type(ed_cohort_type),intent(inout) :: currentCohort
+       
+       
+       real(r8) :: frac_leaf_aclass(max_nleafage)  ! Fraction of leaves in each age-class
+       integer  :: iage                            ! loop index for leaf ages
+       integer  :: ipft                            ! plant functional type index
+
+       ! First, calculate the fraction of leaves in each age class
+       ! It is assumed that each class has the same proportion
+       ! across leaf layers
+
+       do iage = 1, nleafage
+          frac_leaf_aclass(iage) = &
+                currentCohort%prt%GetState(leaf_organ, all_carbon_elements,iage)
+       end do
+
+       ! If there are leaves, then perform proportional weighting on the four rates
+       ! We assume that leaf age does not effect the specific leaf area, so the mass
+       ! fractions are applicable to these rates
+       
+       if(sum(frac_leaf_aclass(1:nleafage))>nearzero) then
+
+          ipft = currentCohort%pft
+
+          frac_leaf_aclass(1:nleafage) =  frac_leaf_aclass(1:nleafage) / &
+                sum(frac_leaf_aclass(1:nleafage))
+          
+          currentCohort%vcmax25top = sum(EDPftvarcon_inst%vcmax25top(ipft,1:nleafage) * &
+                frac_leaf_aclass(1:nleafage))
+          
+          currentCohort%jmax25top  = sum(param_derived%jmax25top(ipft,1:nleafage) * &
+                frac_leaf_aclass(1:nleafage))
+          
+          currentCohort%tpu25top   = sum(param_derived%tpu25top(ipft,1:nleafage) * &
+                frac_leaf_aclass(1:nleafage))
+          
+          currentCohort%kp25top    = sum(param_derived%kp25top(ipft,1:nleafage) * & 
+                frac_leaf_aclass(1:nleafage))
+
+       else
+          
+          currentCohort%vcmax25top = 0._r8          
+          currentCohort%jmax25top  = 0._r8
+          currentCohort%tpu25top   = 0._r8
+          currentCohort%kp25top    = 0._r8
+
+       end if
+
+
+       return
+    end subroutine UpdateCohortBioPhysRates
+
   
   ! ============================================================================
 

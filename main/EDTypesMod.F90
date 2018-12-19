@@ -27,6 +27,9 @@ module EDTypesMod
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
+                                                  
+  integer, parameter :: max_nleafage = 4          ! This is the maximum number of leaf age pools, 
+                                                  ! used for allocating scratch space
 
   ! -------------------------------------------------------------------------------------
   ! Radiation parameters
@@ -247,11 +250,21 @@ module EDTypesMod
      real(r8) ::  resp_acc
      real(r8) ::  resp_acc_hold
 
-     real(r8),allocatable :: frac_leaf_aclass(:)       ! This array's size is defined by the
-                                                       ! number of leaf age classes. 
-                                                       ! and this defines the fraction of
-                                                       ! leaf mass in different age classes
-                                                       ! This should ALWAYS sum to 1 !!
+     ! The following four biophysical rates are assumed to be
+     ! at the canopy top, at reference temp 25C, and based on the 
+     ! leaf age weighted average of the PFT parameterized values. The last
+     ! condition is why it is dynamic and tied to the cohort
+
+     real(r8) :: vcmax25top  ! Maximum carboxylation at the cohort's top 
+                             ! at reference temperature (25C).
+     real(r8) :: jmax25top   ! canopy top: maximum electron transport 
+                             ! rate at 25C (umol electrons/m**2/s)
+     real(r8) :: tpu25top    ! canopy top: triose phosphate utilization
+                             ! rate at 25C (umol CO2/m**2/s)
+     real(r8) :: kp25top     ! canopy top: initial slope of CO2 response
+                             ! curve (C4 plants) at 25C
+
+
 
      real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/timestep
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
@@ -813,7 +826,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%resp_acc               = ', ccohort%resp_acc
      write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
-     write(fates_log(),*) 'co%frac_leaf_aclass       = ', ccohort%frac_leaf_aclass(:)
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
      write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g
      write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr

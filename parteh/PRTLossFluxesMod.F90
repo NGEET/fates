@@ -24,6 +24,7 @@ module PRTLossFluxesMod
   use FatesConstantsMod, only : i4 => fates_int
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : calloc_abs_error
+  use FatesConstantsMod, only : itrue
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log 
   use shr_log_mod      , only : errMsg => shr_log_errMsg
@@ -524,7 +525,7 @@ contains
 
    ! ====================================================================================
    
-   subroutine PRTMaintTurnover(prt,ipft,senescent_frac)
+   subroutine PRTMaintTurnover(prt,ipft)
       
       ! ---------------------------------------------------------------------------------
       ! Generic subroutine (wrapper) calling specialized routines handling
@@ -534,7 +535,7 @@ contains
       integer,intent(in)  :: ipft
       
       if ( int(EDPftvarcon_inst%turnover_retrans_mode(ipft)) == 1 ) then
-         call MaintTurnoverSimpleRetranslocation(prt,ipft,senescent_frac)
+         call MaintTurnoverSimpleRetranslocation(prt,ipft)
       else
          write(fates_log(),*) 'A maintenance/retranslocation mode was specified'
          write(fates_log(),*) 'that is unknown.'
@@ -624,7 +625,7 @@ contains
       ! timescale for the senescent pool.
       aclass_sen_id = size(EDPftvarcon_inst%leaf_long(ipft,:))
       
-      ! Only EVERGREENS HAVE MAINTENANCE LEAF TURNOVER 
+      ! Only EVERGREENS HAVE MAINTENANCE LEAF TURNOVER ?
       ! -------------------------------------------------------------------------------------
       if ( (EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id) > nearzero ) .and. &
            (EDPftvarcon_inst%evergreen(ipft) == itrue) ) then
@@ -676,9 +677,14 @@ contains
 
          ! Hypotheses 1 & 2 assume that the leaf pools are statified by age
          ! We only generate turnover from the last (senescing) position
-         if( (prt_global%hyp_id .le. 2) .and. &
-             (organ_id .eq. leaf_organ) ) then
-            ipos_1 = prt_global%state_descriptor(i_var)%num_pos 
+         if((organ_id .eq. leaf_organ)) then
+            if (prt_global%hyp_id .le. 2) then
+               ipos_1 = prt_global%state_descriptor(i_var)%num_pos 
+            else
+               write(fates_log(),*) 'Unhandled Leaf maintenance turnover condition'
+               write(fates_log(),*) 'for PARTEH hypothesis id: ',prt_global%hyp_id
+               call endrun(msg=errMsg(__FILE__, __LINE__))
+            end if
          else
             ipos_1 = 1
          end if

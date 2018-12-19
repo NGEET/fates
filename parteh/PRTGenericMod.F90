@@ -763,7 +763,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine WeightedFusePRTVartypes(this,donor_prt_obj, recipient_fuse_weight, position_id)
+  subroutine WeightedFusePRTVartypes(this,donor_prt_obj, recipient_fuse_weight)
     
     ! This subroutine fuses two PRT objects together based on a fusion weighting
     ! assigned for the recipient (the class calling this)
@@ -773,17 +773,18 @@ contains
     class(prt_vartypes), intent(in), pointer :: donor_prt_obj
     real(r8),intent(in)                      :: recipient_fuse_weight   ! This is the weighting
                                                                         ! for the recipient
-    integer,intent(in),optional              :: position_id
+!    integer,intent(in),optional              :: position_id
 
     ! Locals
     integer :: i_var    ! Loop iterator over variables
     integer :: pos_id   ! coordinate id (defaults to 1, if not position_id)
 
-    if(present(position_id)) then
-       pos_id = position_id
-
-       do i_var = 1, prt_global%num_vars
-
+    ! If no argument regarding positions is supplied, then fuse all positions
+    ! sequentially
+    do i_var = 1, prt_global%num_vars
+       
+       do pos_id = 1,prt_global%state_descriptor(i_var)%num_pos
+          
           this%variables(i_var)%val(pos_id)  = recipient_fuse_weight * this%variables(i_var)%val(pos_id) + &
                 (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%val(pos_id)
           
@@ -798,40 +799,10 @@ contains
           
           this%variables(i_var)%burned(pos_id)    = recipient_fuse_weight * this%variables(i_var)%burned(pos_id) + &
                 (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%burned(pos_id)
-
-       end do
           
-    else
-       
-       ! If no argument regarding positions is supplied, then fuse all positions
-       ! sequentially
-       do i_var = 1, prt_global%num_vars
-
-          do pos_id = 1,prt_global%state_descriptor(leaf_c_id)%num_pos
-
-             this%variables(i_var)%val(pos_id)  = recipient_fuse_weight * this%variables(i_var)%val(pos_id) + &
-                   (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%val(pos_id)
-          
-             this%variables(i_var)%val0(pos_id)  = recipient_fuse_weight * this%variables(i_var)%val0(pos_id) + &
-                   (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%val0(pos_id)
-             
-             this%variables(i_var)%net_alloc(pos_id)      = recipient_fuse_weight * this%variables(i_var)%net_alloc(pos_id) + &
-                   (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%net_alloc(pos_id)
-             
-             this%variables(i_var)%turnover(pos_id)    = recipient_fuse_weight * this%variables(i_var)%turnover(pos_id) + &
-                   (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%turnover(pos_id)
-             
-             this%variables(i_var)%burned(pos_id)    = recipient_fuse_weight * this%variables(i_var)%burned(pos_id) + &
-                   (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%burned(pos_id)
-             
-          end do
        end do
-
-    end if
-
-    
-
     end do
+
 
     this%ode_opt_step = recipient_fuse_weight * this%ode_opt_step + &
                         (1.0_r8-recipient_fuse_weight) * donor_prt_obj%ode_opt_step

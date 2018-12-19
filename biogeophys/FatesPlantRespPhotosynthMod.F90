@@ -24,12 +24,15 @@ module FATESPlantRespPhotosynthMod
    use FatesGlobals,      only : fates_log
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : itrue
+   use FatesConstantsMod, only : nearzero
    use FatesInterfaceMod, only : hlm_use_planthydro
    use FatesInterfaceMod, only : hlm_parteh_mode
    use FatesInterfaceMod, only : numpft
+   use FatesInterfaceMod, only : nleafage
    use EDTypesMod,        only : maxpft
    use EDTypesMod,        only : nlevleaf
    use EDTypesMod,        only : nclmax
+   use EDTypesMod,        only : max_nleafage
    use EDTypesMod,        only : do_fates_salinity 
    use PRTGenericMod,     only : prt_carbon_allom_hyp
    use PRTGenericMod,     only : prt_cnp_flex_allom_hyp 
@@ -156,7 +159,7 @@ contains
     real(r8) :: co2_cpoint         ! CO2 compensation point (Pa)
     real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1) 
     real(r8) :: bbb                ! Ball-Berry minimum leaf conductance (umol H2O/m**2/s)
-    real(r8) :: kn(maxpft)         ! leaf nitrogen decay coefficient
+    real(r8) :: kn                 ! leaf nitrogen decay coefficient
     real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
     real(r8) :: gb_mol             ! leaf boundary layer conductance (molar form: [umol /m**2/s])
     real(r8) :: ceair              ! vapor pressure of air, constrained (Pa)
@@ -202,8 +205,6 @@ contains
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
 
-
-    
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
     !
@@ -214,6 +215,7 @@ contains
     integer  :: cl,s,iv,j,ps,ft,ifp ! indices
     integer  :: nv                  ! number of leaf layers
     integer  :: NCL_p               ! number of canopy layers in patch
+    integer  :: iage                ! loop counter for leaf age classes
 
     ! Parameters
     ! -----------------------------------------------------------------------
@@ -313,11 +315,7 @@ contains
 
                do ft = 1,numpft
 
-                  ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
-                  ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
-                  ! (2010) Biogeosciences, 7, 1833-1859
                   
-                  kn(ft) = decay_coeff_kn(ft)
                   
 
                   ! This is probably unnecessary and already calculated
@@ -373,7 +371,7 @@ contains
 
                      ! are there any leaves of this pft in this layer?
                      if(currentPatch%canopy_mask(cl,ft) == 1)then 
-                        
+  
                         ! Loop over leaf-layers
                         do iv = 1,currentCohort%nv
                            
@@ -430,10 +428,16 @@ contains
                               if(do_fates_salinity)then
                                 btran_eff = btran_eff*currentPatch%bstress_sal_ft(ft)
                               endif 
-
                               
+                              
+                              ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
+                              ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
+                              ! (2010) Biogeosciences, 7, 1833-1859
+                              
+                              kn = decay_coeff_kn(ft,currentCohort%vcmax25top)
+
                               ! Scale for leaf nitrogen profile
-                              nscaler = exp(-kn(ft) * cumulative_lai)
+                              nscaler = exp(-kn * cumulative_lai)
                               
                               ! Leaf maintenance respiration to match the base rate used in CN
                               ! but with the new temperature functions for C3 and C4 plants.
@@ -476,14 +480,15 @@ contains
                               ! These rates are the specific rates used in the actual photosynthesis
                               ! calculations that take localized environmental effects (temperature)
                               ! into consideration.
+                              
+                              
 
                               call LeafLayerBiophysicalRates(currentPatch%ed_parsun_z(cl,ft,iv), &  ! in
                                                              ft,                                 &  ! in
-                                                             currentCohort%frac_leaf_aclass(:),  &  ! in
-                                                             EDPftvarcon_inst%vcmax25top(ft,:),  &  ! in
-                                                             param_derived%jmax25top(ft,:),      &  ! in
-                                                             param_derived%tpu25top(ft,:),       &  ! in
-                                                             param_derived%kp25top(ft,:),        &  ! in
+                                                             currentCohort%vcmax25top,           &  ! in
+                                                             currentCohort%jmax25top,            &  ! in
+                                                             currentCohort%tpu25top,             &  ! in
+                                                             currentCohort%kp25top,              &  ! in
                                                              nscaler,                            &  ! in
                                                              bc_in(s)%t_veg_pa(ifp),             &  ! in
                                                              btran_eff,                          &  ! in
@@ -1705,7 +1710,6 @@ contains
 
    subroutine LeafLayerBiophysicalRates( parsun_lsl, &
                                          ft,            &
-                                         frac_leaf_aclass, &
                                          vcmax25top_ft, &
                                          jmax25top_ft, &
                                          tpu25top_ft, &
@@ -1741,14 +1745,13 @@ contains
       real(r8), intent(in) :: parsun_lsl      ! PAR absorbed in sunlit leaves for this layer
       integer,  intent(in) :: ft              ! (plant) Functional Type Index
       real(r8), intent(in) :: nscaler         ! Scale for leaf nitrogen profile
-      real(r8), intent(in) :: frac_leaf_aclass(nleafage)  ! Fraction of leaves in each age-class
-      real(r8), intent(in) :: vcmax25top_ft(nleafage)   ! canopy top maximum rate of carboxylation at 25C 
+      real(r8), intent(in) :: vcmax25top_ft   ! canopy top maximum rate of carboxylation at 25C 
                                               ! for this pft (umol CO2/m**2/s)
-      real(r8), intent(in) :: jmax25top_ft(nleafage)    ! canopy top maximum electron transport rate at 25C 
+      real(r8), intent(in) :: jmax25top_ft    ! canopy top maximum electron transport rate at 25C 
                                               ! for this pft (umol electrons/m**2/s)
-      real(r8), intent(in) :: tpu25top_ft(nleafage)     ! canopy top triose phosphate utilization rate at 25C 
+      real(r8), intent(in) :: tpu25top_ft     ! canopy top triose phosphate utilization rate at 25C 
                                               ! for this pft (umol CO2/m**2/s)
-      real(r8), intent(in) :: co2_rcurve_islope25top_ft      ! initial slope of CO2 response curve
+      real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
                                               ! (C4 plants) at 25C, canopy top, this pft
       real(r8), intent(in) :: veg_tempk           ! vegetation temperature
       real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1) 
@@ -1809,9 +1812,11 @@ contains
          tpu               = 0._r8
          co2_rcurve_islope = 0._r8
       else                                     ! day time
-         vcmax25 = sum(vcmax25top_ft(1:nleafage) * frac_leaf_aclass(1:nleafage)) * nscaler
-         jmax25  = sum(jmax25top_ft(1:nleafage) * frac_leaf_aclass(1:nleafage)) * nscaler
-         tpu25   = sum(tpu25top_ft(1:nleafage) * frac_leaf_aclass(1:nleafage)) * nscaler
+
+         ! Vcmax25top was already calculated to derive the nscaler function
+         vcmax25 = vcmax25top_ft * nscaler
+         jmax25  = jmax25top_ft * nscaler
+         tpu25   = tpu25top_ft * nscaler
          co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
          
          ! Adjust for temperature

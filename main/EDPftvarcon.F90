@@ -9,6 +9,8 @@ module EDPftvarcon
   use EDTypesMod  ,   only : maxSWb, ivis, inir
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : itrue, ifalse
+  use FatesConstantsMod, only : years_per_day
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
 
@@ -1852,6 +1854,8 @@ contains
 
      integer :: npft     ! number of PFTs
      integer :: ipft     ! pft index
+     integer :: nleafage ! size of the leaf age class array
+     integer :: iage     ! leaf age class index
      integer :: norgans  ! size of the plant organ dimension
 
      npft = size(EDPftvarcon_inst%pft_used,1)
@@ -2031,7 +2035,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
-        end if	
+        end if
 
         ! Check if photosynthetic pathway is neither C3/C4
         ! ----------------------------------------------------------------------------------
@@ -2273,9 +2277,89 @@ contains
            end if
         end if
 
+
+        ! Check turnover time-scales
+        
+        nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
+
+        do iage = 1, nleafage
+
+           if ( EDPftvarcon_inst%leaf_long(ipft,iage)>nearzero ) then
+              
+              ! Check that leaf turnover doesn't exeed 1 day
+              if ( (years_per_day / EDPftvarcon_inst%leaf_long(ipft,iage)) > 1._r8 ) then
+                 write(fates_log(),*) 'Leaf turnover time-scale is greater than 1 day!'
+                 write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
+                 write(fates_log(),*) 'leaf_long(ipft,iage): ',EDPftvarcon_inst%leaf_long(ipft,iage),' [years]'
+                 write(fates_log(),*) 'Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+              
+              ! Check to make sure that all other age-classes for this PFT also
+              ! have non-zero entries, it wouldn't make sense otherwise
+              if ( any(EDPftvarcon_inst%leaf_long(ipft,:) <= nearzero) ) then
+                 write(fates_log(),*) 'You specified a leaf_long that is zero or'
+                 write(fates_log(),*) 'invalid for a particular age class.'
+                 write(fates_log(),*) 'Yet, other age classes for this PFT are non-zero.'
+                 write(fates_log(),*) 'this doesnt make sense.'
+                 write(fates_log(),*) 'ipft = ',ipft
+                 write(fates_log(),*) 'leaf_long(ipft,:) =  ',EDPftvarcon_inst%leaf_long(ipft,:)
+                 write(fates_log(),*) 'Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+
+           else
+              if (EDPftvarcon_inst%evergreen(ipft) .eq. itrue) then
+                 write(fates_log(),*) 'You specified zero leaf turnover: '
+                 write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
+                 write(fates_log(),*) 'leaf_long(ipft,iage): ',EDPftvarcon_inst%leaf_long(ipft,iage)
+                 write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
+                 write(fates_log(),*) 'that an evergreen would have leaf maintenance turnover'
+                 write(fates_log(),*) 'disable this error if you are ok with this'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+           end if
+        end do
+
+        if ( EDPftvarcon_inst%root_long(ipft)>nearzero ) then
+           
+           ! Check that root turnover doesn't exeed 1 day
+           if ( (years_per_day / EDPftvarcon_inst%root_long(ipft)) > 1._r8 ) then
+              write(fates_log(),*) 'Root turnover time-scale is greater than 1 day!'
+              write(fates_log(),*) 'ipft: ',ipft
+              write(fates_log(),*) 'root_long(ipft): ',EDPftvarcon_inst%root_long(ipft),' [years]'
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+           
+        else
+           if (EDPftvarcon_inst%evergreen(ipft) .eq. itrue) then
+              write(fates_log(),*) 'You specified zero root turnover: '
+              write(fates_log(),*) 'ipft: ',ipft
+              write(fates_log(),*) 'root_long(ipft): ',EDPftvarcon_inst%root_long(ipft)
+              write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
+              write(fates_log(),*) 'that an evergreen would have root maintenance turnover'
+              write(fates_log(),*) 'disable this error if you are ok with this'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+        
+        ! Check Branch turnover doesn't exceed one day
+        if ( EDPftvarcon_inst%branch_turnover(ipft)>nearzero ) then
+           
+           ! Check that branch turnover doesn't exeed 1 day
+           if ( (years_per_day / EDPftvarcon_inst%branch_turnover(ipft)) > 1._r8 ) then
+              write(fates_log(),*) 'Branch turnover time-scale is greater than 1 day!'
+              write(fates_log(),*) 'ipft: ',ipft
+              write(fates_log(),*) 'branch_turnover(ipft): ',EDPftvarcon_inst%branch_turnover(ipft),' [years]'
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+
+
      end do
-     
-     
+
 
      return
   end subroutine FatesCheckParams

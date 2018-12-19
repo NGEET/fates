@@ -879,10 +879,10 @@ data:
 
  fates_leaf_jmaxse = 495, 495 ;
 
- fates_leaf_long = 0.4, 0.4,
-                   0.4, 0.4,
-                   0.4, 0.4,
-                   0.4, 0.4 ;
+ fates_leaf_long = 0.375, 0.375,
+                   0.375, 0.375,
+                   0.375, 0.375,
+                   0.375, 0.375 ;
 
  fates_leaf_slamax = 0.0954, 0.0954 ;
 
@@ -896,10 +896,10 @@ data:
 
  fates_leaf_tpuse = 490, 490 ;
 
- fates_leaf_vcmax25top = 62, 62,
-                         54, 54,
-                         46, 46,
-                         38, 38;
+ fates_leaf_vcmax25top = 50, 50,
+                         50, 50,
+                         50, 50,
+                         50, 50;
 
  fates_leaf_vcmaxha = 65330, 65330 ;
 
