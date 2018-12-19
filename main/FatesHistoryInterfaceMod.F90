@@ -153,6 +153,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_livestem_mr_si
   integer, private :: ih_livecroot_mr_si
   integer, private :: ih_fraction_secondary_forest_si
+  integer, private :: ih_biomass_secondary_forest_si
+  integer, private :: ih_woodproduct_si
   
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
@@ -1499,9 +1501,11 @@ end subroutine flush_hvars
                hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d, &
                hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
                hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
-               hio_fraction_secondary_forest_si  => this%hvars(ih_fraction_secondary_forest_si)%r81d, &
-               hio_agesince_anthrodist_si_age    => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
-               hio_secondaryforest_area_si_age  => this%hvars(ih_secondaryforest_area_si_age)%r82d, &
+               hio_fraction_secondary_forest_si   => this%hvars(ih_fraction_secondary_forest_si)%r81d, &
+               hio_biomass_secondary_forest_si    => this%hvars(ih_biomass_secondary_forest_si)%r81d, &
+               hio_woodproduct_si                 => this%hvars(ih_woodproduct_si)%r81d, &
+               hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
+               hio_secondaryforest_area_si_age    => this%hvars(ih_secondaryforest_area_si_age)%r82d, &
                hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
                hio_leaf_height_dist_si_height     => this%hvars(ih_leaf_height_dist_si_height)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
@@ -1549,6 +1553,9 @@ end subroutine flush_hvars
          hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * g_per_kg
 
          hio_canopy_spread_si(io_si)        = sites(s)%spread
+
+         ! track total wood product accumulation at the site level
+         hio_woodproduct_si(io_si)          = sites(s)%resources_management%trunk_product_site * AREA_INV
             
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -1713,6 +1720,12 @@ end subroutine flush_hvars
                ! update total biomass per age bin
                hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
                     + total_c * ccohort%n * AREA_INV
+
+               ! track the total biomass on all secondary lands
+               if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  hio_biomass_secondary_forest_si(io_si) = hio_biomass_secondary_forest_si(io_si) + &
+                       total_c * ccohort%n * AREA_INV
+               endif
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -3236,7 +3249,18 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_fraction_secondary_forest_si )
 
-    call this%set_history_var(vname='SECONDARY_AREA_BY_AGE_SINCE_ANTHRO_DIST', units='m2/m2', &
+    call this%set_history_var(vname='WOOD_PRODUCT', units='kgC/m2', &
+         long='Total wood product from logging', use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_woodproduct_si )
+
+    call this%set_history_var(vname='SECONDARY_FOREST_BIOMASS', units='kgC/m2', &
+         long='Biomass on secondary lands (per total site area, mult by SECONDARY_FOREST_FRACTION to get per secondary forest area)',&
+         use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_biomass_secondary_forest_si )
+
+    call this%set_history_var(vname='SECONDARY_AREA_AGE_ANTHRO_DIST', units='m2/m2', &
          long='Secondary forest patch area age distribution since anthropgenic disturbance', use_default='inactive', &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_agesince_anthrodist_si_age )

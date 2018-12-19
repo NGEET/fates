@@ -358,9 +358,11 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))          
        end if
 
+       ! figure out whether the receiver patch for disturbance from this patch will be primary or secondary land
+       ! receiver patch is primary forest only if both the donor patch is primary forest and the dominant disturbance type is not logging
        if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
-            currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .and. &
-            currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire) ) then
+            (currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .or. &
+            currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire)) ) then
        
           site_areadis_primary = site_areadis_primary + currentPatch%area * currentPatch%disturbance_rate
        else
@@ -379,6 +381,7 @@ contains
        age = 0.0_r8
 
        ! create two empty patches, to absorb newly disturbed primary and secondary forest area
+       ! first create patch to receive primary forest area
        if ( site_areadis_primary .gt. 0.0_r8) then
           allocate(new_patch_primary)
           call create_patch(currentSite, new_patch_primary, age, site_areadis_primary, &
@@ -388,6 +391,7 @@ contains
           new_patch_primary%shortest => null()
        endif
 
+       ! next create patch to receive secondary forest area
        if ( site_areadis_secondary .gt. 0.0_r8) then
           allocate(new_patch_secondary)
           call create_patch(currentSite, new_patch_secondary, age, site_areadis_secondary, &
@@ -402,9 +406,10 @@ contains
        do while(associated(currentPatch))   
 
           ! figure out whether the receiver patch for disturbance from this patch will be primary or secondary land
+          ! receiver patch is primary forest only if both the donor patch is primary forest and the dominant disturbance type is not logging
           if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
-               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .and. &
-               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire) ) then
+               (currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .or. &
+               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire) ) ) then
              new_patch => new_patch_primary
           else
              new_patch => new_patch_secondary
@@ -413,11 +418,11 @@ contains
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
 
-          ! for the secondary forest case, if the dominant disturbance from this patch is non-anthropogenic,
+          ! for the case where the donating patch is secondary forest, if the dominant disturbance from this patch is non-anthropogenic,
           ! we need to average in the time-since-anthropogenic-disturbance from the donor patch into that of the receiver patch
           if ( currentPatch%anthro_disturbance_label .eq. secondaryforest .and. &
-               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .and. &
-               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire) ) then
+               (currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .or. &
+               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire) ) ) then
 
              new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
                   currentPatch%age_since_anthro_disturbance * (patch_site_areadis / site_areadis_secondary)
