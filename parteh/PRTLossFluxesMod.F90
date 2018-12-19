@@ -525,7 +525,7 @@ contains
 
    ! ====================================================================================
    
-   subroutine PRTMaintTurnover(prt,ipft)
+   subroutine PRTMaintTurnover(prt,ipft,is_drought)
       
       ! ---------------------------------------------------------------------------------
       ! Generic subroutine (wrapper) calling specialized routines handling
@@ -533,9 +533,11 @@ contains
       ! ---------------------------------------------------------------------------------
       class(prt_vartypes) :: prt
       integer,intent(in)  :: ipft
+      logical,intent(in)  :: is_drought  ! Is this plant/cohort operating in a drought
+                                         ! stress context?
       
       if ( int(EDPftvarcon_inst%turnover_retrans_mode(ipft)) == 1 ) then
-         call MaintTurnoverSimpleRetranslocation(prt,ipft)
+         call MaintTurnoverSimpleRetranslocation(prt,ipft,is_drought)
       else
          write(fates_log(),*) 'A maintenance/retranslocation mode was specified'
          write(fates_log(),*) 'that is unknown.'
@@ -549,7 +551,7 @@ contains
 
    ! ===================================================================================
    
-   subroutine MaintTurnoverSimpleRetranslocation(prt,ipft)
+   subroutine MaintTurnoverSimpleRetranslocation(prt,ipft,is_drought)
 
       ! ---------------------------------------------------------------------------------
       ! This subroutine removes biomass from all applicable pools due to 
@@ -570,6 +572,8 @@ contains
       
       class(prt_vartypes)  :: prt
       integer, intent(in)  :: ipft
+      logical, intent(in)  :: is_drought   ! Is this plant/cohort operating in a drought
+                                           ! stress context?
       
       integer  :: i_var            ! the variable index
       integer  :: element_id       ! the element associated w/ each variable
@@ -625,13 +629,20 @@ contains
       ! timescale for the senescent pool.
       aclass_sen_id = size(EDPftvarcon_inst%leaf_long(ipft,:))
       
-      ! Only EVERGREENS HAVE MAINTENANCE LEAF TURNOVER ?
+      ! Only evergreens have maintenance turnover (must also change trimming logic
+      ! if we want to change this)
       ! -------------------------------------------------------------------------------------
       if ( (EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id) > nearzero ) .and. &
            (EDPftvarcon_inst%evergreen(ipft) == itrue) ) then
 
-         base_turnover(leaf_organ) = hlm_freq_day / &
-                                     EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id)
+         if(is_drought) then
+            base_turnover(leaf_organ) = hlm_freq_day / &
+                  (EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id) * &
+                  EDPftvarcon_inst%senleaf_long_fdrought(ipft) ) 
+         else
+            base_turnover(leaf_organ) = hlm_freq_day / &
+                  EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id)
+         end if
       else
          base_turnover(leaf_organ) = 0.0_r8
       endif

@@ -340,7 +340,7 @@ contains
 
           ! Conducte Maintenance Turnover (parteh)
           call currentCohort%prt%CheckMassConservation(ft,3)
-          call PRTMaintTurnover(currentCohort%prt,ft)
+          call PRTMaintTurnover(currentCohort%prt,ft,currentSite%is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
 
           ! Conduct Growth (parteh)

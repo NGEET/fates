@@ -203,7 +203,9 @@ module EDPftvarcon
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
 
-     
+     real(r8), allocatable :: senleaf_long_fdrought(:)    ! Multiplication factor for leaf longevity of senescent 
+                                                          ! leaves during drought( 1.0 indicates no change)
+
      real(r8), allocatable :: root_long(:)                ! root turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: branch_turnover(:)          ! Turnover time for branchfall on live trees (pft) [yr]
      real(r8), allocatable :: turnover_retrans_mode(:)    ! Retranslocation method (pft)
@@ -393,6 +395,10 @@ contains
     name = 'fates_leaf_BB_slope'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_senleaf_long_fdrought'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_root_long'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -821,6 +827,10 @@ contains
     name = 'fates_leaf_BB_slope'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%BB_slope)
+
+    name = 'fates_senleaf_long_fdrought'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%senleaf_long_fdrought)
 
     name = 'fates_root_long'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1716,6 +1726,7 @@ contains
         write(fates_log(),fmt0) 'seed_rain = ',EDPftvarcon_inst%seed_rain
         write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
+        write(fates_log(),fmt0) 'senleaf_long_fdrought = ',EDPftvarcon_inst%senleaf_long_fdrought
         write(fates_log(),fmt0) 'seed_alloc_mature = ',EDPftvarcon_inst%seed_alloc_mature
         write(fates_log(),fmt0) 'seed_alloc = ',EDPftvarcon_inst%seed_alloc
         write(fates_log(),fmt0) 'woody = ',EDPftvarcon_inst%woody
@@ -2315,7 +2326,35 @@ contains
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
            end if
+
         end do
+
+        ! Check the turnover rates on the senescing leaf pool
+        if ( EDPftvarcon_inst%leaf_long(ipft,nleafage)>nearzero ) then
+           
+           ! Check that leaf turnover doesn't exeed 1 day
+           if ( (years_per_day / &
+                 (EDPftvarcon_inst%leaf_long(ipft,nleafage) * &
+                  EDPftvarcon_inst%senleaf_long_fdrought(ipft))) > 1._r8 ) then
+              write(fates_log(),*) 'Drought-senescent turnover time-scale is greater than 1 day!'
+              write(fates_log(),*) 'ipft: ',ipft
+              write(fates_log(),*) 'leaf_long(ipft,nleafage)*senleaf_long_fdrought: ', &
+                    EDPftvarcon_inst%leaf_long(ipft,nleafage)*EDPftvarcon_inst%senleaf_long_fdrought(ipft),' [years]'
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+        
+        if ( EDPftvarcon_inst%senleaf_long_fdrought(ipft)<nearzero .or. &
+             EDPftvarcon_inst%senleaf_long_fdrought(ipft)>1._r8 ) then
+           write(fates_log(),*) 'senleaf_long_fdrought(ipft) must be greater than 0 '
+           write(fates_log(),*) 'or less than or equal to 1.'
+           write(fates_log(),*) 'Set this to 1 if you want no accelerated senescence turnover'
+           write(fates_log(),*) 'ipft = ',ipft
+           write(fates_log(),*) 'senleaf_long_fdrought(ipft) = ',EDPftvarcon_inst%senleaf_long_fdrought(ipft)
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+           
 
         if ( EDPftvarcon_inst%root_long(ipft)>nearzero ) then
            

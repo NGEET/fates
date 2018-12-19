@@ -462,6 +462,9 @@ variables:
 	float fates_root_long(fates_pft) ;
 		fates_root_long:units = "yr" ;
 		fates_root_long:long_name = "root longevity (alternatively, turnover time)" ;
+	float fates_senleaf_long_fdrought(fates_pft) ;
+		fates_senleaf_long_fdrought:units = "unitless[0-1]" ;
+		fates_senleaf_long_fdrought:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;
 	float fates_roota_par(fates_pft) ;
 		fates_roota_par:units = "1/m" ;
 		fates_roota_par:long_name = "CLM rooting distribution parameter" ;
@@ -1090,6 +1093,9 @@ data:
 
  fates_rhosvis = 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 
     0.16, 0.31, 0.31, 0.31 ;
+
+ fates_senleaf_long_fdrought = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+     1.0, 1.0, 1.0, 1.0, 1.0 ;
 
  fates_root_long = 1, 2, 3, 1, 1.5, 1, 1, 1, 1.5, 1, 1, 1, 1, 1 ;
 
