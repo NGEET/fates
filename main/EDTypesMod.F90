@@ -75,7 +75,6 @@ module EDTypesMod
                                         ! its leaves and should not be trying to allocate
                                         ! towards any growth.
 
-
   ! Switches that turn on/off ED dynamics process (names are self explanatory)
   ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
   ! THEY SHOULD CORRECTLY TURN OFF OR ON THE PROCESS, BUT.. THERE ARE VARIOUS 
@@ -607,8 +606,8 @@ module EDTypesMod
 
      ! PHENOLOGY 
      real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
-     integer  ::  status                                       ! are leaves in this pixel on or off for cold decid
-     integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
+     logical  ::  is_cold                                      ! is this site/column in a cold-status where its cohorts drop leaves?
+     logical  ::  is_drought                                   ! is this site/column in a drought-status where its cohorts drop leaves?
      real(r8) ::  ncd                                          ! no chilling days:-
      real(r8) ::  last_n_days(senes)                           ! record of last 10 days temperature for senescence model. deg C
      integer  ::  leafondate                                   ! doy of leaf on:-

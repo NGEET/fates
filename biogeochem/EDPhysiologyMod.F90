@@ -496,11 +496,11 @@ contains
     !2) The leaves should not be on already
     !3) There should have been at least on chilling day in the counting period.  
     if (currentSite%ED_GDD_site > gdd_threshold)then
-       if (currentSite%status == leaves_off) then
+       if (currentSite%is_cold) then
           if (currentSite%ncd >= 1) then
-             currentSite%status = leaves_on     ! alter status of site to 'leaves on'
-                                                ! NOTE(bja, 2015-01) should leafondate = model_day to be consistent with leaf off?
-             currentSite%leafondate = t         !record leaf on date   
+             ! NOTE(bja, 2015-01) should leafondate = model_day to be consistent with leaf off?
+             currentSite%is_cold = .false.      
+             currentSite%leafondate = t         ! record leaf on date   
              if ( debug ) write(fates_log(),*) 'leaves on'
           endif !ncd
        endif !status
@@ -514,13 +514,14 @@ contains
     !1) have exceeded the number of cold days threshold
     !2) have exceeded the minimum leafon time.
     !3) The leaves should not be off already
-    !4) The day of the year should be larger than the counting period. (not sure if we need this/if it will break the restarting)
+    !4) The day of the year should be larger than the counting period. 
+    !   (not sure if we need this/if it will break the restarting)
     
     if (ncolddays > ED_val_phen_ncolddayslim)then
      if (timesinceleafon > ED_val_phen_mindayson)then
-       if (currentSite%status == leaves_on)then
-          currentSite%status = leaves_off           !alter status of site to 'leaves off'
-          currentSite%leafoffdate = hlm_model_day   !record leaf off date   
+       if (.not.currentSite%is_cold)then
+          currentSite%is_cold = .true.              ! now cold enough for leaf-off
+          currentSite%leafoffdate = hlm_model_day   ! record leaf off date   
           if ( debug ) write(fates_log(),*) 'leaves off'
        endif
     endif
@@ -528,8 +529,8 @@ contains
 
     !LEAF OFF: COLD LIFESPAN THRESHOLD
     if(timesinceleafoff > 400)then !remove leaves after a whole year when there is no 'off' period.  
-       if(currentSite%status == leaves_on)then
-          currentSite%status = leaves_off           !alter status of site to 'leaves off'
+       if(.not.currentSite%is_cold)then
+          currentSite%is_cold = .true.              ! cold enough for leaf-off
           currentSite%leafoffdate = hlm_model_day   !record leaf off date   
           if ( debug ) write(fates_log(),*) 'leaves off'
        endif
@@ -537,7 +538,7 @@ contains
 
     !-----------------Drought Phenology--------------------!
     ! Principles of drought-deciduos phenology model...
-    ! The 'dstatus' flag is 2 when leaves are on, and 1 when leaves area off. 
+    ! The 'is_drought' flag is false when leaves are on, and true when leaves area off. 
     ! The following sets those site-level flags, which are acted on in phenology_deciduos. 
     ! A* The leaves live for either the length of time the soil moisture is over the threshold 
     ! or the lifetime of the leaves, whichever is shorter. 
@@ -569,10 +570,14 @@ contains
     enddo
     currentSite%water_memory(1) = bc_in%h2o_liqvol_sl(1)   !waterstate_inst%h2osoi_vol_col(coli,1)
 
-    !In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...     
+    ! In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...      
+    ! Here we incremend how long the leaves have been off;
+    ! We set the default assumption that no time has elapsed, but if drought
+    ! status is true, then we update the time
+    ! If the leaves are off. How long have they been off? 
+    ! leaves have come on, but last year, so at a later date than now.
     timesincedleafoff = 0
-    if (currentSite%dstatus == leaves_off)then !the leaves are off. How long have they been off? 
-       !leaves have come on, but last year, so at a later date than now.
+    if ( currentSite%is_drought )then
        if (currentSite%dleafoffdate > 0.and.currentSite%dleafoffdate > t)then 
           timesincedleafoff = t + (360 - currentSite%dleafoffdate)
        else
@@ -582,7 +587,7 @@ contains
 
     timesincedleafon = 0
     !the leaves are on. How long have they been on? 
-    if (currentSite%dstatus == leaves_on)then  
+    if ( .not.currentSite%is_drought )then  
        !leaves have come on, but last year, so at a later date than now.
        if (currentSite%dleafondate > 0.and.currentSite%dleafondate > t)then 
           timesincedleafon = t + (360 - currentSite%dleafondate)
@@ -595,40 +600,40 @@ contains
     !Here, we used a window of oppurtunity to determine if we are close to the time when then leaves came on last year
     if ((t >= currentSite%dleafondate - 30.and.t <= currentSite%dleafondate + 30).or.(t > 360 - 15.and. &
          currentSite%dleafondate < 15))then ! are we in the window?
-       ! TODO: CHANGE THIS MATH, MOVE THE DENOMENATOR OUTSIDE OF THE SUM (rgk 01-2017)
-       if (sum(currentSite%water_memory(1:numWaterMem)/real(numWaterMem,r8)) &
-            >= ED_val_phen_drought_threshold.and.currentSite%dstatus == leaves_off.and.t >= 10)then 
+
+       if ( sum(currentSite%water_memory(1:numWaterMem))/real(numWaterMem,r8) &
+            >= ED_val_phen_drought_threshold .and. &
+            currentSite%is_drought .and. &
+            (t >= 10) ) then 
           ! leave some minimum time between leaf off and leaf on to prevent 'flickering'.  
           if (timesincedleafoff > ED_val_phen_doff_time)then  
-             currentSite%dstatus = leaves_on     !alter status of site to 'leaves on'
-             currentSite%dleafondate = t         !record leaf on date
+             currentSite%is_drought  = .false.     ! end the drought
+             currentSite%dleafondate = t           !record leaf on date
           endif
        endif
     endif
 
-   !we still haven't done budburst by end of window
-    if (t == currentSite%dleafondate+30.and.currentSite%dstatus == leaves_off)then 
-       currentSite%dstatus = leaves_on    ! force budburst!
-       currentSite%dleafondate = t   ! record leaf on date
+    ! we still haven't done budburst by end of window
+    if (t == currentSite%dleafondate+30 .and. currentSite%is_drought)then 
+       currentSite%is_drought = .false.  ! force budburst!
+       currentSite%dleafondate = t       ! record leaf on date
     endif
 
     !LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to the end of its useful life. A*, E*
-    if (currentSite%dstatus == leaves_on.and.t >= 10)then  !D*
+    if ( .not.currentSite%is_drought .and. (t >= 10) ) then  !D*
        !Are the leaves at the end of their lives? 
-       !FIX(RF,0401014)- this is hardwiring....
-       !FIX(RGK:changed from hard-coded pft 7 leaf lifespan to labeled constant (1 year)
        if ( timesincedleafon > canopy_leaf_lifespan )then 
-          currentSite%dstatus = leaves_off   !alter status of site to 'leaves off'
-          currentSite%dleafoffdate = t       !record leaf on date          
+          currentSite%is_drought   = .true.   !alter status of site to 'leaves off'
+          currentSite%dleafoffdate = t        !record leaf off date          
        endif
     endif
 
     !LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry, and the leaves have already been on a while... 
-    if (currentSite%dstatus == leaves_on.and.t >= 10)then  !D*
+    if ( .not.currentSite%is_drought .and. (t >= 10) ) then  !D*
        if (sum(currentSite%water_memory(1:10)/10._r8) <= ED_val_phen_drought_threshold)then 
           if (timesincedleafon > 100)then !B* Have the leaves been on for some reasonable length of time? To prevent flickering. 
-             currentSite%dstatus = leaves_off      !alter status of site to 'leaves on'
-             currentSite%dleafoffdate = t !record leaf on date           
+             currentSite%is_drought   = .true.  !alter status of site to 'leaves on'
+             currentSite%dleafoffdate = t       !record leaf on date           
           endif
        endif
     endif
@@ -675,9 +680,12 @@ contains
           store_c = currentCohort%prt%GetState(store_organ, all_carbon_elements)
           leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
 
-          !COLD LEAF ON
+          ! COLD LEAF ON
+          ! The site level flags signify that it is no-longer too cold
+          ! for leaves. Time to signal flushing
+
           if (EDPftvarcon_inst%season_decid(ipft) == 1)then
-             if (currentSite%status == leaves_on)then !we have just moved to leaves being on . 
+             if ( .not.currentSite%is_cold )then            !we have just moved to leaves being on . 
                 if (currentCohort%status_coh == leaves_off)then !Are the leaves currently off?        
                    currentCohort%status_coh = leaves_on         ! Leaves are on, so change status to 
                                                                 ! stop flow of carbon out of bstore. 
@@ -698,8 +706,11 @@ contains
                 endif !pft phenology
              endif ! growing season 
 
-             !COLD LEAF OFF
-             if (currentSite%status == leaves_off)then !past leaf drop day? Leaves still on tree?  
+             ! COLD LEAF OFF
+             ! The site level flag signifies that it is now too cold for 
+             ! deciduous leaves. Time to drop if they have not already
+
+             if (currentSite%is_cold) then 
                 if (currentCohort%status_coh == leaves_on)then ! leaves have not dropped
                    
                    ! This sets the cohort to the "leaves off" flag
@@ -722,10 +733,13 @@ contains
              endif !currentSite status
           endif  !season_decid
 
-          !DROUGHT LEAF ON
+          ! DROUGHT LEAF ON
+          ! Site level flag indicates it is no longer in drought condition
+          ! deciduous plants can flush
+
           if (EDPftvarcon_inst%stress_decid(ipft) == 1)then
              
-             if ( currentSite%dstatus == leaves_on )then 
+             if ( .not.currentSite%is_drought ) then 
 
                 ! we have just moved to leaves being on . 
                 if (currentCohort%status_coh == leaves_off)then    
@@ -752,8 +766,11 @@ contains
                 endif !currentCohort status again?
              endif   !currentSite status
 
-             !DROUGHT LEAF OFF
-             if (currentSite%dstatus == leaves_off)then        
+             ! DROUGHT LEAF OFF
+             ! Site level flag indicates a drought condition is in effect
+             ! deciduous plants should drop leaves if have not already
+
+             if ( currentSite%is_drought ) then        
                 if (currentCohort%status_coh == leaves_on)then ! leaves have not dropped
 
                    ! This sets the cohort to the "leaves off" flag
@@ -939,15 +956,17 @@ contains
        currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * &
              EDPftvarcon_inst%germination_timescale(p),max_germination)     
        !set the germination only under the growing season...c.xu
-       if (EDPftvarcon_inst%season_decid(p) == 1.and.currentSite%status == leaves_off)then 
+       if (EDPftvarcon_inst%season_decid(p) == itrue .and. currentSite%is_cold)then 
              currentPatch%seed_germination(p) = 0.0_r8
        endif
-       if (EDPftvarcon_inst%stress_decid(p) == 1.and.currentSite%dstatus == leaves_off)then
+       if (EDPftvarcon_inst%stress_decid(p) == itrue .and. currentSite%is_drought)then
              currentPatch%seed_germination(p) = 0.0_r8
        endif
     enddo
 
   end subroutine seed_germination
+
+  ! =====================================================================================
 
   subroutine recruitment( currentSite, currentPatch, bc_in )
     !
@@ -996,25 +1015,27 @@ contains
        call bdead_allom(b_agw,b_bgw,b_sapwood,ft,b_dead)
        call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_store)
 
+       ! Default assumption is that leaves are on
+       cohortstatus = leaves_on
        temp_cohort%laimemory = 0.0_r8     
-       if (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1.and.currentSite%status == leaves_off)then
+
+       ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
+       ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
+       if (EDPftvarcon_inst%season_decid(ft) == itrue .and. currentSite%is_cold)then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
+          cohortstatus = leaves_off
        endif
-       if (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == 1.and.currentSite%dstatus == leaves_off)then
+       
+       ! Or.. if the plant is drought deciduous, and the site status is flagged as 
+       ! "in a drought", then likewise, set the cohort's status to leaves_off, and remember leaf
+       ! biomass
+       if (EDPftvarcon_inst%stress_decid(ft) == itrue .and. currentSite%is_drought )then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
+          cohortstatus = leaves_off
        endif
 
-       cohortstatus = currentSite%status
-       if (EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
-          cohortstatus = currentSite%dstatus
-       endif
-
-       if (EDPftvarcon_inst%evergreen(ft) == 1) then
-          temp_cohort%laimemory   = 0._r8
-          cohortstatus = leaves_on
-       endif
 
        if (hlm_use_ed_prescribed_phys .eq. ifalse .or. EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0. ) then
           temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &

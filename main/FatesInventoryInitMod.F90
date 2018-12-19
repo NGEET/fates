@@ -25,6 +25,7 @@ module FatesInventoryInitMod
    ! FATES GLOBALS
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : pi_const
+   use FatesConstantsMod, only : itrue
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
    use FatesInterfaceMod, only : bc_in_type
@@ -34,6 +35,8 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : ed_cohort_type 
    use EDTypesMod       , only : area
    use EDTypesMod       , only : equal_leaf_aclass
+   use EDTypesMod       , only : leaves_on
+   use EDTypesMod       , only : leaves_off
    use EDPftvarcon      , only : EDPftvarcon_inst
 
 
@@ -909,28 +912,19 @@ contains
 
       call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim, b_store)
       
-      if( EDPftvarcon_inst%evergreen(c_pft) == 1) then
-         temp_cohort%laimemory = 0._r8
-         cstatus = 2
+      temp_cohort%laimemory = 0._r8
+      cstatus = leaves_on
+            
+      if( EDPftvarcon_inst%season_decid(c_pft) == itrue .and. csite%is_cold ) then
+         temp_cohort%laimemory = b_leaf
+         b_leaf  = 0._r8
+         cstatus = leaves_off
       endif
       
-      if( EDPftvarcon_inst%season_decid(c_pft) == 1 ) then !for dorment places
-         if(csite%status == 2)then 
-            temp_cohort%laimemory = 0.0_r8
-         else
-            temp_cohort%laimemory = b_leaf
-         endif
-         ! reduce biomass according to size of store, this will be recovered when elaves com on.
-         cstatus = csite%status
-      endif
-      
-      if ( EDPftvarcon_inst%stress_decid(c_pft) == 1 ) then
-         if(csite%dstatus == 2)then 
-            temp_cohort%laimemory = 0.0_r8
-         else
-            temp_cohort%laimemory = b_leaf
-         endif
-         cstatus = csite%dstatus
+      if ( EDPftvarcon_inst%stress_decid(c_pft) == itrue .and. csite%is_drought ) then
+         temp_cohort%laimemory = b_leaf
+         b_leaf  = 0._r8
+         cstatus = leaves_off
       endif
 
       ! Since spread is a canopy level calculation, we need to provide an initial guess here.
