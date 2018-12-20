@@ -126,6 +126,9 @@ variables:
 	float fates_alloc_storage_cushion(fates_pft) ;
 		fates_alloc_storage_cushion:units = "fraction" ;
 		fates_alloc_storage_cushion:long_name = "maximum size of storage C pool, relative to maximum size of leaf C pool" ;
+        float fates_allom_frbstor_repro(fates_pft) ;
+                fates_allom_frbstor_repro:units = "fraction" ;
+                fates_allom_frbstor_repro:long_name = "fraction of bstore goes to reproduction after plant dies" ;
 	float fates_allom_agb1(fates_pft) ;
 		fates_allom_agb1:units = "variable" ;
 		fates_allom_agb1:long_name = "Parameter 1 for agb allometry" ;
@@ -315,7 +318,7 @@ variables:
 		fates_hydr_rfrac_stem:units = "fraction" ;
 		fates_hydr_rfrac_stem:long_name = "fraction of total tree resistance from troot to canopy" ;
 	float fates_hydr_rs2(fates_pft) ;
-		fates_hydr_rs2:units = "mm" ;
+		fates_hydr_rs2:units = "m" ;
 		fates_hydr_rs2:long_name = "absorbing root radius" ;
 	float fates_hydr_srl(fates_pft) ;
 		fates_hydr_srl:units = "m g-1" ;
@@ -584,6 +587,9 @@ variables:
 	float fates_part_dens ;
 		fates_part_dens:units = "kg/m2" ;
 		fates_part_dens:long_name = "spitfire parameter, oven dry particle density, Table A1 Thonicke et al 2010" ;
+	float fates_soil_salinity(fates_scalar) ;
+                fates_soil_salinity:units = "ppt" ;
+                fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
 
 // global attributes:
 		:history = "This file was made from FatesPFTIndexSwapper.py \n",
@@ -692,6 +698,8 @@ data:
   "storage                                          ",
   "reproduction                                     ", 
   "structure                                        ";
+
+ fates_allom_frbstor_repro = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_alloc_storage_cushion = 2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 
     1.2, 1.2, 1.2, 1.2, 1.2 ;
@@ -1192,4 +1200,6 @@ data:
  fates_miner_total = 0.055 ;
 
  fates_part_dens = 513 ;
+
+ fates_soil_salinity = 0.4;
 }

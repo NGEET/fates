@@ -330,9 +330,9 @@ contains
                 currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year
              endif
           else
-             currentCohort%npp_acc_hold  = currentCohort%npp_acc  * dble(hlm_days_per_year)
-             currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * dble(hlm_days_per_year)
-             currentCohort%resp_acc_hold = currentCohort%resp_acc * dble(hlm_days_per_year)
+             currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
+             currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
+             currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
           endif
           
           currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
@@ -657,9 +657,9 @@ contains
 
           currentCohort%isnew=.false.
 
-          currentCohort%npp_acc_hold  = currentCohort%npp_acc  * dble(hlm_days_per_year)
-          currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * dble(hlm_days_per_year)
-          currentCohort%resp_acc_hold = currentCohort%resp_acc * dble(hlm_days_per_year)
+          currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
+          currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
+          currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
 
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
