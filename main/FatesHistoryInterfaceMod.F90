@@ -1555,7 +1555,8 @@ end subroutine flush_hvars
          hio_canopy_spread_si(io_si)        = sites(s)%spread
 
          ! track total wood product accumulation at the site level
-         hio_woodproduct_si(io_si)          = sites(s)%resources_management%trunk_product_site * AREA_INV
+         hio_woodproduct_si(io_si)          = sites(s)%resources_management%trunk_product_site &
+              * AREA_INV * g_per_kg
             
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -3249,7 +3250,7 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_fraction_secondary_forest_si )
 
-    call this%set_history_var(vname='WOOD_PRODUCT', units='kgC/m2', &
+    call this%set_history_var(vname='WOOD_PRODUCT', units='gC/m2', &
          long='Total wood product from logging', use_default='inactive', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_woodproduct_si )
