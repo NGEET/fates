@@ -172,7 +172,7 @@ contains
     ! update fragmenting pool fluxes
     call cwd_input( currentSite, currentPatch)
     call cwd_out( currentSite, currentPatch, bc_in)
-
+  
     do p = 1,numpft
        currentSite%dseed_dt(p) = currentSite%dseed_dt(p) + &
             (currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - &
@@ -792,6 +792,7 @@ contains
     type(ed_cohort_type), pointer :: currentCohort
     integer :: p
     logical :: pft_present(maxpft)
+    real(r8) :: store_c_to_repro   ! carbon sent from storage to reproduction upon death [kg/plant]
     real(r8) :: npfts_present
     !----------------------------------------------------------------------
 
@@ -822,10 +823,18 @@ contains
        currentPatch => cp_pnt
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
+
+          ! a certain fraction of bstore goes to clonal reproduction when plants die
+          store_c_to_repro = currentCohort%prt%GetState(store_organ,all_carbon_elements) * &
+                EDPftvarcon_inst%allom_frbstor_repro(currentCohort%pft)
+          
           do p = 1, numpft
              if (pft_present(p)) then
-                currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  currentCohort%seed_prod * currentCohort%n / &
-                     (currentPatch%area * npfts_present)
+		  
+                  currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
+                        (currentCohort%seed_prod * currentCohort%n - &
+                        currentCohort%dndt*store_c_to_repro) &
+                        /(currentPatch%area * npfts_present)		  
              endif
           end do
           currentCohort => currentCohort%shorter
@@ -836,8 +845,15 @@ contains
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
        p = currentCohort%pft
+
+       ! a certain fraction of bstore goes to clonal reproduction when plants die
+       store_c_to_repro = currentCohort%prt%GetState(store_organ,all_carbon_elements) * &
+             EDPftvarcon_inst%allom_frbstor_repro(p)
+       
        currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
-             currentCohort%seed_prod * currentCohort%n/currentPatch%area
+           (currentCohort%seed_prod * currentCohort%n - &
+	   currentCohort%dndt*store_c_to_repro)/currentPatch%area
+
        currentCohort => currentCohort%shorter
     enddo !cohort loop
 
@@ -913,12 +929,17 @@ contains
 
     do p = 1,numpft
        currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * &
-             EDPftvarcon_inst%germination_timescale(p),max_germination)
+             EDPftvarcon_inst%germination_timescale(p),max_germination)     
+       !set the germination only under the growing season...c.xu
+       if (EDPftvarcon_inst%season_decid(p) == 1.and.currentSite%status == 1)then 
+             currentPatch%seed_germination(p) = 0.0_r8
+       endif
+       if (EDPftvarcon_inst%stress_decid(p) == 1.and.currentSite%dstatus == 1)then
+             currentPatch%seed_germination(p) = 0.0_r8
+       endif
     enddo
 
   end subroutine seed_germination
-
-  ! ============================================================================
 
   subroutine recruitment( currentSite, currentPatch, bc_in )
     !
@@ -1134,9 +1155,8 @@ contains
                 ! the litter flux has already been counted since it captured
                 ! the losses of live trees and those flagged for death
 
-
           currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
-               (fnrt_c + store_c ) * dead_n
+               (fnrt_c + store_c*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) ) * dead_n
 
           ! Update diagnostics that track resource management
           currentSite%resources_management%delta_litter_stock  = &

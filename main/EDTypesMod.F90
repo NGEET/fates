@@ -1,6 +1,8 @@
 module EDTypesMod
 
   use FatesConstantsMod,     only : r8 => fates_r8
+  use FatesConstantsMod,     only : ifalse
+  use FatesConstantsMod,     only : itrue
   use FatesGlobals,          only : fates_log
   use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
@@ -79,7 +81,15 @@ module EDTypesMod
   ! TO-DO: THESE SHOULD BE PARAMETERS IN THE FILE OR NAMELIST - ADDING THESE
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
-  logical, parameter :: do_ed_phenology = .true.
+
+  logical, parameter :: do_ed_phenology   = .true.
+
+
+  ! Flag to turn on/off salinity effects on the effective "btran"
+  ! btran stress function.
+
+  logical, parameter :: do_fates_salinity = .false.
+
 
 
   ! This is the community level amount of spread expected in nearly-bare-ground
@@ -344,6 +354,13 @@ module EDTypesMod
      integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
+
+     logical  ::  solar_zenith_flag                           ! integer flag specifying daylight (based on zenith angle)
+     real(r8) ::  solar_zenith_angle                          ! solar zenith angle (radians)
+
+     real(r8) ::  gnd_alb_dif(maxSWb)                         ! ground albedo for diffuse rad, both bands (fraction)
+     real(r8) ::  gnd_alb_dir(maxSWb)                         ! ground albedo for direct rad, both bands (fraction)
+     
      real(r8) ::  fabd_sun_z(nclmax,maxpft,nlevleaf)          ! sun fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
      real(r8) ::  fabd_sha_z(nclmax,maxpft,nlevleaf)          ! shade fraction of direct light absorbed by each canopy 
@@ -409,7 +426,9 @@ module EDTypesMod
      ! ROOTS
      real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
      real(r8), allocatable ::  rootr_ft(:,:)                       ! fraction of water taken from each PFT and soil layer:-
-     real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-   
+     real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-
+     real(r8) ::  bstress_sal_ft(maxpft)                        ! bstress from salinity calculated seperately for each PFT:-   
+     
 
      ! DISTURBANCE 
      real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
@@ -720,6 +739,10 @@ module EDTypesMod
      write(fates_log(),*) 'pa%total_canopy_area  = ',cpatch%total_canopy_area
      write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
      write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
+     write(fates_log(),*) 'pa%solar_zenith_flag  = ',cpatch%solar_zenith_flag
+     write(fates_log(),*) 'pa%solar_zenith_angle = ',cpatch%solar_zenith_angle
+     write(fates_log(),*) 'pa%gnd_alb_dif        = ',cpatch%gnd_alb_dif(:)
+     write(fates_log(),*) 'pa%gnd_alb_dir        = ',cpatch%gnd_alb_dir(:)
      write(fates_log(),*) 'pa%c_stomata          = ',cpatch%c_stomata
      write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
      write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
