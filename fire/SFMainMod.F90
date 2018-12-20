@@ -408,8 +408,8 @@ contains
     use SFParamsMod, only  : SF_val_miner_total, &
                              SF_val_part_dens,   &
                              SF_val_miner_damp,  &
-                             SF_val_fuel_energy, &
-                             SF_val_wind_max
+                             SF_val_fuel_energy
+    
     use FatesInterfaceMod, only : hlm_current_day, hlm_current_month
 
     type(ed_site_type), intent(in), target :: currentSite
