@@ -86,9 +86,15 @@ contains
      integer             :: i_var_of_organ         ! index for all variables in
                                                    ! a given organ (mostly likely
                                                    ! synonymous with diff elements)
-     integer             :: i_cvar                 ! carbon variable index
+     integer             :: i_cvar                 ! carbon variable index for leaves
+                                                   ! or other potential organ of interest
      integer             :: i_pos                  ! spatial position index
      integer             :: i_store                ! storage variable index
+     integer             :: i_leaf_pos             ! Flush carbon into a specific
+                                                   ! leaf pool (probably 1st?)
+     integer             :: i_store_pos            ! position index for net allocation
+                                                   ! from retranslocatoin in/out
+                                                   ! of storage
      integer             :: element_id             ! global element identifier
      real(r8)            :: mass_transfer          ! The actual mass
                                                    ! removed from storage
@@ -110,6 +116,20 @@ contains
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if
 
+     if(prt_global%hyp_id .le. 2) then
+        i_leaf_pos  = 1
+        i_store_pos = 1             ! hypothesis 1/2 only have
+                                    ! 1 storage pool
+     else
+        write(fates_log(),*) 'You picked a hypothesis that has not defined'
+        write(fates_log(),*) ' how and where flushing interacts'
+        write(fates_log(),*) ' with the storage pool. specifically, '
+        write(fates_log(),*) ' if this hypothesis has multiple storage pools'
+        write(fates_log(),*) ' to pull carbon/resources from'
+        write(fates_log(),*) 'Exiting'
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+     end if
+     
 
      associate(organ_map => prt_global%organ_map)
 
@@ -144,12 +164,13 @@ contains
 
              ! Get the variable id of the storage pool for this element (carbon12)
              i_store = prt_global%sp_organ_map(store_organ,element_id)
-             
-             ! Loop over all of the coordinate ids
-             do i_pos = 1,prt_global%state_descriptor(i_var)%num_pos
+
+
+             do i_pos = 1,i_leaf_pos
                 
                 ! Calculate the mass transferred out of storage into the pool of interest
-                mass_transfer = prt%variables(i_store)%val(i_pos) * c_store_transfer_frac
+                mass_transfer = prt%variables(i_store)%val(i_store_pos) * &
+                                c_store_transfer_frac
                 
                 ! Increment the c pool of interest's allocation flux
                 prt%variables(i_var)%net_alloc(i_pos)   = &
@@ -161,17 +182,25 @@ contains
                 
                 ! Increment the storage pool's allocation flux
                 prt%variables(i_store)%net_alloc(i_pos) = &
-                     prt%variables(i_store)%net_alloc(i_pos) - mass_transfer
+                     prt%variables(i_store)%net_alloc(i_store_pos) - mass_transfer
                 
                 ! Update the storage c pool
                 prt%variables(i_store)%val(i_pos)     = &
-                     prt%variables(i_store)%val(i_pos) - mass_transfer
+                     prt%variables(i_store)%val(i_store_pos) - mass_transfer
                 
                 
              end do
           end if
        end do
-          
+
+
+       ! This is the variable index for leaf carbon
+       ! used to calculate the targets for nutrient flushing
+       i_cvar = prt_global%sp_organ_map(organ_id,carbon12_element)
+       if(i_cvar < 1) then
+          write(fates_log(),*) 'Could not determine the carbon var id during flushing'
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+       end if
 
        ! Transfer in other elements (nutrients)
        ! --------------------------------------------------------------------------------
@@ -203,9 +232,8 @@ contains
                 call endrun(msg=errMsg(__FILE__, __LINE__))
              end if
 
-
              ! Loop over all of the coordinate ids
-             do i_pos = 1,prt_global%state_descriptor(i_var)%num_pos
+             do i_pos = 1,i_leaf_pos
                 
                 ! The target quanitity for this element is based on the amount
                 ! of carbon
@@ -214,23 +242,23 @@ contains
                 sp_demand = max(0.0_r8,sp_target - prt%variables(i_var)%val(i_pos))
 
                 ! Assume that all of the storage is transferrable
-                mass_transfer = min(sp_demand, prt%variables(i_store)%val(i_pos))
+                mass_transfer = min(sp_demand, prt%variables(i_store)%val(i_store_pos))
 
                 ! Increment the pool of interest
                 prt%variables(i_var)%net_alloc(i_pos)   = &
                       prt%variables(i_var)%net_alloc(i_pos) + mass_transfer
                 
-                ! Update the c pool
+                ! Update the  pool
                 prt%variables(i_var)%val(i_pos)       = &
                       prt%variables(i_var)%val(i_pos) + mass_transfer
 
-                ! Increment the c pool of interest
-                prt%variables(i_store)%net_alloc(i_pos) = &
-                      prt%variables(i_store)%net_alloc(i_pos) - mass_transfer
+                ! Increment the store pool allocation diagnostic
+                prt%variables(i_store)%net_alloc(i_store_pos) = &
+                      prt%variables(i_store)%net_alloc(i_store_pos) - mass_transfer
                 
-                ! Update the c pool
-                prt%variables(i_store)%val(i_pos)     = &
-                      prt%variables(i_store)%val(i_pos) - mass_transfer
+                ! Update the store pool
+                prt%variables(i_store)%val(i_store_pos)     = &
+                      prt%variables(i_store)%val(i_store_pos) - mass_transfer
 
              
              end do
@@ -441,6 +469,7 @@ contains
      integer             :: i_var_of_organ      ! loop counter for all element in this organ
      integer             :: element_id          ! Element id of the turnover pool
      integer             :: store_var_id        ! Variable id of the storage pool
+     integer             :: i_store_pos         ! Position index for storage
      integer             :: i_pos               ! position index (spatial)
      real(r8)            :: retrans             ! retranslocated fraction 
      real(r8)            :: turnover_mass       ! mass sent to turnover (leaves the plant)
@@ -459,6 +488,19 @@ contains
           write(fates_log(),*) 'Exiting'
           call endrun(msg=errMsg(__FILE__, __LINE__))
           
+       end if
+
+       if(prt_global%hyp_id .le. 2) then
+          i_store_pos = 1             ! hypothesis 1/2 only have
+                                      ! 1 storage pool
+       else
+          write(fates_log(),*) 'You picked a hypothesis that has not defined'
+          write(fates_log(),*) ' how and where flushing interacts'
+          write(fates_log(),*) ' with the storage pool. specifically, '
+          write(fates_log(),*) ' if this hypothesis has multiple storage pools'
+          write(fates_log(),*) ' to pull carbon/resources from'
+          write(fates_log(),*) 'Exiting'
+          call endrun(msg=errMsg(__FILE__, __LINE__))
        end if
 
        do i_var_of_organ = 1, organ_map(organ_id)%num_vars
@@ -508,11 +550,11 @@ contains
              ! Now, since re-translocation is handled by the storage pool, 
              ! we add the re-translocated mass to it
              
-             prt%variables(store_var_id)%net_alloc(i_pos)  = &
-                  prt%variables(store_var_id)%net_alloc(i_pos) + retranslocated_mass
+             prt%variables(store_var_id)%net_alloc(i_store_pos)  = &
+                  prt%variables(store_var_id)%net_alloc(i_store_pos) + retranslocated_mass
              
-             prt%variables(store_var_id)%val(i_pos)  = &
-                  prt%variables(store_var_id)%val(i_pos) + retranslocated_mass
+             prt%variables(store_var_id)%val(i_store_pos)  = &
+                  prt%variables(store_var_id)%val(i_store_pos) + retranslocated_mass
 
           end do
           
