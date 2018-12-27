@@ -147,10 +147,10 @@ module EDTypesMod
   integer , parameter :: N_HITE_BINS          = 60         ! no. of hite bins used to distribute LAI
 
   ! COHORT TERMINATION
-  real(r8), parameter :: min_npm2       = 1.0E-7_r8               ! minimum cohort number density per m2 before termination
-  real(r8), parameter :: min_patch_area = 0.01_r8                 ! smallest allowable patch area before termination
+  real(r8), parameter :: min_npm2       = 1.0E-8_r8               ! minimum cohort number density per m2 before termination
+  real(r8), parameter :: min_patch_area = 0.001_r8                ! smallest allowable patch area before termination
   real(r8), parameter :: min_nppatch    = min_npm2*min_patch_area ! minimum number of cohorts per patch (min_npm2*min_patch_area)
-  real(r8), parameter :: min_n_safemath = 1.0E-12_r8              ! in some cases, we want to immediately remove super small
+  real(r8), parameter :: min_n_safemath = 1.0E-15_r8              ! in some cases, we want to immediately remove super small
                                                                   ! number densities of cohorts to prevent FPEs
 
   character*4 yearchar                    
