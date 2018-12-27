@@ -301,6 +301,7 @@ contains
     
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts 
+    use ChecksBalancesMod   , only : SiteCarbonStock
 
     !
     ! !ARGUMENTS:
@@ -329,10 +330,23 @@ contains
     real(r8) :: store_c              ! storage carbon [kg]
     real(r8) :: struct_c             ! structure carbon [kg]
     real(r8) :: total_c              ! total carbon of plant [kg]
+
+!  May remove at later date if carbon balances cooperate (rgk 12-18)
+!!    integer, parameter :: n_checks = 3
+!!    real(r8) :: total_stock(n_checks)
+!!    real(r8) :: biomass_stock(n_checks)
+!!    real(r8) :: litter_stock(n_checks)
+!!    real(r8) :: seed_stock(n_checks)
+    
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
+
+
+    ! Calculate the total carbon stock for error checking
+!!    call SiteCarbonStock(currentSite,total_stock(1),biomass_stock(1),litter_stock(1),seed_stock(1))
+
 
     ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch. 
     currentPatch => currentSite%youngest_patch
@@ -351,12 +365,17 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))          
        end if
 
-       site_areadis = site_areadis + currentPatch%area * currentPatch%disturbance_rate
+       ! Only create new patches that have non-negligible amount of land
+       if((currentPatch%area*currentPatch%disturbance_rate) > nearzero ) then
+          site_areadis = site_areadis + currentPatch%area * currentPatch%disturbance_rate
+       end if
+
        currentPatch => currentPatch%older     
 
     enddo ! end loop over patches. sum area disturbed for all patches. 
 
-    if (site_areadis > 0.0_r8) then  
+    if (site_areadis > nearzero) then  
+
        cwd_ag_local = 0.0_r8
        cwd_bg_local = 0.0_r8
        leaf_litter_local = 0.0_r8
@@ -377,6 +396,8 @@ contains
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
+
+          if (patch_site_areadis > nearzero) then
 
           call average_patch_properties(currentPatch, new_patch, patch_site_areadis)
           
@@ -682,6 +703,7 @@ contains
           enddo ! currentCohort 
           call sort_cohorts(currentPatch)
 
+
           !zero disturbance accumulators
           currentPatch%disturbance_rate  = 0._r8
           currentPatch%disturbance_rates = 0._r8
@@ -697,6 +719,8 @@ contains
           call fuse_cohorts(currentSite,currentPatch, bc_in)
           call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
+
+       end if
 
           currentPatch => currentPatch%younger
 
@@ -723,9 +747,29 @@ contains
 
     endif !end new_patch area 
 
+!!    call SiteCarbonStock(currentSite,total_stock(2),biomass_stock(2),litter_stock(2),seed_stock(2))
+
+!!    if( abs(total_stock(1)-total_stock(2))/total_stock(1) > 1.e-6_r8 ) then
+!!       write(fates_log(),*) 'Carbon conservation error on patch spawning [1]'
+!!       write(fates_log(),*) total_stock(1)
+!!       write(fates_log(),*) total_stock(2)
+!!       currentPatch => currentSite%youngest_patch
+!!       do while(associated(currentPatch))
+!!          write(fates_log(),*) 'age: ',currentPatch%age
+!!          write(fates_log(),*) 'rates: ',currentPatch%disturbance_rates(1:3)
+!!          currentPatch%disturbance_rate  = 0._r8
+!!          currentPatch%disturbance_rates = 0._r8
+!!
+!!          currentPatch => currentPatch%older
+!!       enddo 
+!!       call endrun(msg=errMsg(sourcefile, __LINE__))
+!!    end if
+
+
     call check_patch_area(currentSite)
     call set_patchno(currentSite)
 
+    return
   end subroutine spawn_patches
 
   ! ============================================================================
