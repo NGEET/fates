@@ -1,6 +1,8 @@
 module EDTypesMod
 
   use FatesConstantsMod,     only : r8 => fates_r8
+  use FatesConstantsMod,     only : ifalse
+  use FatesConstantsMod,     only : itrue
   use FatesGlobals,          only : fates_log
   use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
@@ -79,7 +81,14 @@ module EDTypesMod
   ! TO-DO: THESE SHOULD BE PARAMETERS IN THE FILE OR NAMELIST - ADDING THESE
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
-  logical, parameter :: do_ed_phenology = .false.
+
+  logical, parameter :: do_ed_phenology   = .true.
+
+
+  ! Flag to turn on/off salinity effects on the effective "btran"
+  ! btran stress function.
+
+  logical, parameter :: do_fates_salinity = .false.
 
 
   ! This is the community level amount of spread expected in nearly-bare-ground
@@ -416,7 +425,9 @@ module EDTypesMod
      ! ROOTS
      real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
      real(r8), allocatable ::  rootr_ft(:,:)                       ! fraction of water taken from each PFT and soil layer:-
-     real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-   
+     real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-
+     real(r8) ::  bstress_sal_ft(maxpft)                        ! bstress from salinity calculated seperately for each PFT:-   
+     
 
      ! DISTURBANCE 
      real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 

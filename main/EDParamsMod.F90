@@ -43,6 +43,7 @@ module EDParamsMod
    real(r8),protected :: ED_val_patch_fusion_tol
    real(r8),protected :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
 
+
    ! two special parameters whose size is defined in the parameter file
    real(r8),protected,allocatable :: ED_val_history_sizeclass_bin_edges(:)
    real(r8),protected,allocatable :: ED_val_history_ageclass_bin_edges(:)
@@ -87,7 +88,11 @@ module EDParamsMod
    real(r8),protected :: hydr_psicap        !  sapwood water potential at which capillary reserves exhausted (MPa)
    character(len=param_string_length),parameter :: hydr_name_psicap = "fates_hydr_psicap"
 
-
+   !Soil BGC parameters, mostly used for testing FATES when not coupled to the dynamics bgc hlm
+   ! ----------------------------------------------------------------------------------------------
+   real(r8),protected :: bgc_soil_salinity ! site-level soil salinity for FATES when not coupled to dynamic soil BGC of salinity
+   character(len=param_string_length),parameter :: bgc_name_soil_salinity= "fates_soil_salinity"      
+   
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
 
@@ -155,6 +160,8 @@ contains
     hydr_kmax_rsurf                       = nan
     hydr_psi0                             = nan
     hydr_psicap                           = nan
+    
+    bgc_soil_salinity                     = nan
 
     logging_dbhmin                        = nan
     logging_collateral_frac               = nan
@@ -260,6 +267,9 @@ contains
 
     call fates_params%RegisterParameter(name=hydr_name_psicap, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=bgc_name_soil_salinity, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names) 
 
     call fates_params%RegisterParameter(name=logging_name_dbhmin, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
@@ -378,6 +388,9 @@ contains
 
     call fates_params%RetreiveParameter(name=hydr_name_psicap, &
           data=hydr_psicap)
+	  
+    call fates_params%RetreiveParameter(name=bgc_name_soil_salinity, &
+          data=bgc_soil_salinity)	  
 
     call fates_params%RetreiveParameter(name=logging_name_dbhmin, &
           data=logging_dbhmin)
@@ -450,6 +463,7 @@ contains
 	write(fates_log(),fmt0) 'hydr_kmax_rsurf = ',hydr_kmax_rsurf  
         write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0
         write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
+        write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
         write(fates_log(),fmt0) 'logging_collateral_frac = ',logging_collateral_frac
         write(fates_log(),fmt0) 'logging_coll_under_frac = ',logging_coll_under_frac
