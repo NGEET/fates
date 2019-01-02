@@ -1372,13 +1372,7 @@ contains
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
-           rio_hydro_liqvol_shell_si   => this%rvars(ir_hydro_liqvol_shell_si)%r81d,  &
-           rio_hydro_recruit_si        => this%rvars(ir_hydro_recruit_si)%r81d, &
-           rio_hydro_dead_si           => this%rvars(ir_hydro_dead_si)%r81d, &
-           rio_hydro_growturn_err_si   => this%rvars(ir_hydro_growturn_err_si)%r81d, &
-           rio_hydro_pheno_err_si      => this%rvars(ir_hydro_pheno_err_si)%r81d, &
-           rio_hydro_hydro_err_si      => this%rvars(ir_hydro_hydro_err_si)%r81d)
+           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d)
 
 
        totalCohorts = 0
@@ -1655,17 +1649,20 @@ contains
 
           if(hlm_use_planthydro==itrue)then
 
-             rio_hydro_recruit_si(io_idx_si)      = sites(s)%si_hydr%h2oveg_recruit
-             rio_hydro_dead_si(io_idx_si)         = sites(s)%si_hydr%h2oveg_dead
-             rio_hydro_growturn_err_si(io_idx_si) = sites(s)%si_hydr%h2oveg_growturn_err
-             rio_hydro_pheno_err_si(io_idx_si)    = sites(s)%si_hydr%h2oveg_pheno_err 
-             rio_hydro_hydro_err_si(io_idx_si)    = sites(s)%si_hydr%h2oveg_hydro_err
+             ! No associate statements because there is no gaurantee these
+             ! are allocated
+
+             this%rvars(ir_hydro_recruit_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_recruit
+             this%rvars(ir_hydro_dead_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_dead
+             this%rvars(ir_hydro_growturn_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_growturn_err
+             this%rvars(ir_hydro_pheno_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_pheno_err
+             this%rvars(ir_hydro_hydro_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_hydro_err
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
              do i = 1, sites(s)%si_hydr%nlevsoi_hyd
                 ! Loop shells
                 do k = 1, nshell
-                   rio_hydro_liqvol_shell_si(io_idx_si_lyr_shell) = &
+                   this%rvars(ir_hydro_liqvol_shell_si)%r81d(io_idx_si_lyr_shell) = &
                         sites(s)%si_hydr%h2osoi_liqvol_shell(i,k)
                    io_idx_si_lyr_shell = io_idx_si_lyr_shell + 1
                 end do
@@ -2012,13 +2009,7 @@ contains
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-          rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
-          rio_hydro_liqvol_shell_si   => this%rvars(ir_hydro_liqvol_shell_si)%r81d, &
-          rio_hydro_recruit_si        => this%rvars(ir_hydro_recruit_si)%r81d, &
-          rio_hydro_dead_si           => this%rvars(ir_hydro_dead_si)%r81d, &
-          rio_hydro_growturn_err_si   => this%rvars(ir_hydro_growturn_err_si)%r81d, &
-          rio_hydro_pheno_err_si      => this%rvars(ir_hydro_pheno_err_si)%r81d, &
-          rio_hydro_hydro_err_si      => this%rvars(ir_hydro_hydro_err_si)%r81d)
+          rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d)
      
        totalcohorts = 0
      
@@ -2259,18 +2250,18 @@ contains
 
           if(hlm_use_planthydro==itrue)then
 
-             sites(s)%si_hydr%h2oveg_recruit      = rio_hydro_recruit_si(io_idx_si)
-             sites(s)%si_hydr%h2oveg_dead         = rio_hydro_dead_si(io_idx_si)
-             sites(s)%si_hydr%h2oveg_growturn_err = rio_hydro_growturn_err_si(io_idx_si)
-             sites(s)%si_hydr%h2oveg_pheno_err    = rio_hydro_pheno_err_si(io_idx_si)
-             sites(s)%si_hydr%h2oveg_hydro_err    = rio_hydro_hydro_err_si(io_idx_si)
+             sites(s)%si_hydr%h2oveg_recruit      = this%rvars(ir_hydro_recruit_si)%r81d(io_idx_si)
+             sites(s)%si_hydr%h2oveg_dead         = this%rvars(ir_hydro_dead_si)%r81d(io_idx_si)
+             sites(s)%si_hydr%h2oveg_growturn_err = this%rvars(ir_hydro_growturn_err_si)%r81d(io_idx_si)
+             sites(s)%si_hydr%h2oveg_pheno_err    = this%rvars(ir_hydro_pheno_err_si)%r81d(io_idx_si)
+             sites(s)%si_hydr%h2oveg_hydro_err    = this%rvars(ir_hydro_hydro_err_si)%r81d(io_idx_si)
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
              do i = 1, sites(s)%si_hydr%nlevsoi_hyd
                 ! Loop shells
                 do k = 1, nshell
                    sites(s)%si_hydr%h2osoi_liqvol_shell(i,k) = &
-                        rio_hydro_liqvol_shell_si(io_idx_si_lyr_shell)
+                        this%rvars(ir_hydro_liqvol_shell_si)%r81d(io_idx_si_lyr_shell)
                    io_idx_si_lyr_shell = io_idx_si_lyr_shell + 1
                 end do
              end do
@@ -2312,12 +2303,9 @@ contains
      end associate
    end subroutine get_restart_vectors
    
-  
    ! ====================================================================================
-   
 
-
- subroutine update_3dpatch_radiation(this, nsites, sites, bc_out)
+   subroutine update_3dpatch_radiation(this, nsites, sites, bc_out)
 
      ! -------------------------------------------------------------------------
      ! This subroutine populates output boundary conditions related to radiation
