@@ -408,8 +408,8 @@ contains
     use SFParamsMod, only  : SF_val_miner_total, &
                              SF_val_part_dens,   &
                              SF_val_miner_damp,  &
-                             SF_val_fuel_energy, &
-                             SF_val_wind_max
+                             SF_val_fuel_energy
+    
     use FatesInterfaceMod, only : hlm_current_day, hlm_current_month
 
     type(ed_site_type), intent(in), target :: currentSite
@@ -426,7 +426,6 @@ contains
     real(r8) beta_ratio           ! ratio of beta/beta_op
     real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
     real(r8) a,b,c,e              ! function of fuel sav
-    real(r8) wind_elev_fire                  !wind speed (m/min) at elevevation relevant for fire
 
     logical,parameter :: debug_windspeed = .false. !for debugging
 
@@ -493,21 +492,9 @@ contains
 
        ! Equation A5 in Thonicke et al. 2010
        ! phi_wind (unitless)
-       ! convert wind_elev_fire from m/min to ft/min for Rothermel ROS eqn
-       ! wind max per Lasslop et al 2014 to linearly reduce ROS for high wind speeds
-       !OLD! phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(beta_ratio**(-e))
-       if (currentPatch%effect_wspeed .le. SF_val_wind_max) then
-          wind_elev_fire = currentPatch%effect_wspeed
-          phi_wind = c * ((3.281_r8*wind_elev_fire)**b)*(beta_ratio**(-e))
-          if (debug_windspeed) write(fates_log(),*) 'SF wind LESS max ', currentPatch%effect_wspeed 
-          if (debug_windspeed) write(fates_log(),*) 'month and day', hlm_current_month, hlm_current_day             
-       else
-          !max condition 225 ft/min (FIREMIP Rabin table A10 JSBACH-Spitfire) convert to 68.577 m/min 
-          wind_elev_fire = max(0.0_r8,(68.577_r8-0.5_r8*currentPatch%effect_wspeed))
-          phi_wind = c * ((3.281_r8*wind_elev_fire)**b)*(beta_ratio**(-e))
-          if (debug_windspeed) write(fates_log(),*) 'SF wind GREATER max ', currentPatch%effect_wspeed
-          if (debug_windspeed) write(fates_log(),*) 'month and day', hlm_current_month, hlm_current_day 
-       endif 
+       ! convert current_wspeed (wind at elev relevant to fire) from m/min to ft/min for Rothermel ROS eqn
+       phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(beta_ratio**(-e))
+
 
        ! ---propagating flux----
        ! Equation A2 in Thonicke et al.2010 and Eq. 42 Rothermal 1972
