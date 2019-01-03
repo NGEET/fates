@@ -703,11 +703,6 @@ contains
           enddo ! currentCohort 
           call sort_cohorts(currentPatch)
 
-
-          !zero disturbance accumulators
-          currentPatch%disturbance_rate  = 0._r8
-          currentPatch%disturbance_rates = 0._r8
-
           !update area of donor patch
           currentPatch%area = currentPatch%area - patch_site_areadis
 
@@ -720,8 +715,12 @@ contains
           call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
 
-       end if
-
+          end if    ! if (patch_site_areadis > nearzero) then
+       
+          !zero disturbance rate trackers
+          currentPatch%disturbance_rate  = 0._r8
+          currentPatch%disturbance_rates = 0._r8
+          
           currentPatch => currentPatch%younger
 
        enddo ! currentPatch patch loop. 
