@@ -569,9 +569,6 @@ variables:
 	float fates_fdi_b ;
 		fates_fdi_b:units = "NA" ;
 		fates_fdi_b:long_name = "spitfire parameter (unknown) " ;
-	float fates_fire_wind_max ;
-		fates_fire_wind_max:units = "m/min" ;
-		fates_fire_wind_max:long_name = "maximum wind speed expected by the fire model" ;
 	float fates_fuel_energy ;
 		fates_fuel_energy:units = "kJ/kg" ;
 		fates_fuel_energy:long_name = "pitfire parameter, heat content of fuel" ;
@@ -1065,8 +1062,6 @@ data:
  fates_fdi_alpha = 0.00037 ;
 
  fates_fdi_b = 243.12 ;
-
- fates_fire_wind_max = 45.718 ;
 
  fates_fuel_energy = 18000 ;
 
