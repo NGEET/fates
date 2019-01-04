@@ -999,7 +999,7 @@ data:
 
  fates_canopy_closure_thresh = 0.8 ;
 
- fates_cohort_fusion_tol = 0.05 ;
+ fates_cohort_fusion_tol = 0.08 ;
 
  fates_comp_excln = 3 ;
 
