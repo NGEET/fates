@@ -301,7 +301,6 @@ contains
     
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts 
-    use ChecksBalancesMod   , only : SiteCarbonStock
 
     !
     ! !ARGUMENTS:
@@ -342,11 +341,6 @@ contains
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
-
-
-    ! Calculate the total carbon stock for error checking
-!!    call SiteCarbonStock(currentSite,total_stock(1),biomass_stock(1),litter_stock(1),seed_stock(1))
-
 
     ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch. 
     currentPatch => currentSite%youngest_patch
@@ -745,24 +739,6 @@ contains
        call sort_cohorts(new_patch)
 
     endif !end new_patch area 
-
-!!    call SiteCarbonStock(currentSite,total_stock(2),biomass_stock(2),litter_stock(2),seed_stock(2))
-
-!!    if( abs(total_stock(1)-total_stock(2))/total_stock(1) > 1.e-6_r8 ) then
-!!       write(fates_log(),*) 'Carbon conservation error on patch spawning [1]'
-!!       write(fates_log(),*) total_stock(1)
-!!       write(fates_log(),*) total_stock(2)
-!!       currentPatch => currentSite%youngest_patch
-!!       do while(associated(currentPatch))
-!!          write(fates_log(),*) 'age: ',currentPatch%age
-!!          write(fates_log(),*) 'rates: ',currentPatch%disturbance_rates(1:3)
-!!          currentPatch%disturbance_rate  = 0._r8
-!!          currentPatch%disturbance_rates = 0._r8
-!!
-!!          currentPatch => currentPatch%older
-!!       enddo 
-!!       call endrun(msg=errMsg(sourcefile, __LINE__))
-!!    end if
 
 
     call check_patch_area(currentSite)
