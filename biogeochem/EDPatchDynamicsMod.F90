@@ -330,14 +330,6 @@ contains
     real(r8) :: struct_c             ! structure carbon [kg]
     real(r8) :: total_c              ! total carbon of plant [kg]
 
-!  May remove at later date if carbon balances cooperate (rgk 12-18)
-!!    integer, parameter :: n_checks = 3
-!!    real(r8) :: total_stock(n_checks)
-!!    real(r8) :: biomass_stock(n_checks)
-!!    real(r8) :: litter_stock(n_checks)
-!!    real(r8) :: seed_stock(n_checks)
-    
-    !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
