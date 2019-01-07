@@ -402,15 +402,16 @@ contains
 
      !     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8 
      !      m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
-
-
+     ! or ...
+     ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * cCohort%hite ) * 1.e-4_r8
+     
      v_sapwood    = a_sapwood * z_stem
      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
      ! TRANSPORTING ROOT DEPTH & VOLUME
      !in special case where n_hypool_troot = 1, the node depth of the single troot pool
      !is the depth at which 50% total root distribution is attained
-     dcumul_rf                  = 1._r8/dble(n_hypool_troot)
+     dcumul_rf                  = 1._r8/real(n_hypool_troot,r8)
 
      do k=1,n_hypool_troot
 	cumul_rf                = dcumul_rf*k
@@ -1026,11 +1027,11 @@ contains
 		   kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                          log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
                    csite_hydr%kmax_upper_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8    
+		                       1._r8/kmax_soil_total)**(-1._r8)    
                    csite_hydr%kmax_bound_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8 
+		                       1._r8/kmax_soil_total)**(-1._r8) 
                    csite_hydr%kmax_lower_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8 
+		                       1._r8/kmax_soil_total)**(-1._r8)
                 end if
 		if(j == 1) then
                    if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
@@ -1041,11 +1042,11 @@ contains
 		      kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
                             log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
                       csite_hydr%kmax_upper_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                       1._r8/kmax_soil_total)**(-1._r8)
                       csite_hydr%kmax_bound_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                       1._r8/kmax_soil_total)**(-1._r8)
                       csite_hydr%kmax_lower_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                       1._r8/kmax_soil_total)**(-1._r8)
                    end if
                 end if
              else
@@ -2554,7 +2555,7 @@ end subroutine updateSizeDepRhizHydStates
     iterh1 = 0
     do while( iterh1 == 0 .or. ((abs(we_local) > thresh .or. supsub_flag /= 0) .and. iterh1 < maxiter) )
        dt_fac = max(imult*iterh1,1)
-       dt_fac2 = DBLE(dt_fac)
+       dt_fac2 = real(dt_fac,r8)
        dt_new = dtime/dt_fac2
 
        !! restore initial states for a fresh attempt using new sub-timesteps
@@ -4100,7 +4101,7 @@ end subroutine updateSizeDepRhizHydStates
   ! !LOCAL VARIABLES:
   !------------------------------------------------------------------------------
 
-  satfrac = (psi/psisat)**(-1/B)
+  satfrac = (psi/psisat)**(-1.0_r8/B)
 
   end subroutine swcCampbell_satfrac_from_psi
 
@@ -4438,7 +4439,7 @@ end subroutine updateSizeDepRhizHydStates
     r_out_shell(nshell) = (pi_const*l_aroot/(area*dz))**(-0.5_r8)                  ! eqn(8) S98
     if(nshell > 1) then
        do k = 1,nshell-1
-          r_out_shell(k)   = rs1*(r_out_shell(nshell)/rs1)**((k+0._r8)/nshell)  ! eqn(7) S98
+          r_out_shell(k)   = rs1*(r_out_shell(nshell)/rs1)**((real(k,r8))/real(nshell,r8))  ! eqn(7) S98
        enddo
     end if
 
