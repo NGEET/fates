@@ -948,7 +948,7 @@ contains
         anet_av_out = -lmr
         psn_out     = 0._r8
         rstoma_out  = min(rsmax0, 1._r8/bbb * cf)
-	c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
+	c13disc_z = 1.0_r8                !carbon 13 discrimination in night time carbon flux, value from CLM
         
      else ! day time (a little bit more complicated ...)
         
@@ -1166,7 +1166,7 @@ contains
            ! (leaves are off, or have reduced to 0)
            psn_out = 0._r8
            rstoma_out = min(rsmax0, 1._r8/bbb * cf)
-	   
+
 	   c13disc_z = 0.0_r8
            
         end if !is there leaf area? 
@@ -1266,7 +1266,6 @@ contains
        
     end do
     
-
     
      if (nv > 1) then     
       ! cohort%c13disc_clm as weighted mean of d13c flux at all related leave layers
@@ -1274,8 +1273,9 @@ contains
          if (sum_weight .eq. 0.0_r8) then
             c13disc_clm = 0.0
          else
-            c13disc_clm = sum(c13disc_llz(1:nv-1) * psn_llz(1:nv-1) * elai_llz(1:nv-1)) / sum_weight
-         end if
+     	    c13disc_clm = sum(c13disc_llz(1:nv-1) * psn_llz(1:nv-1) * elai_llz(1:nv-1)) / sum_weight 
+	 end if   
+
      end if
 
     ! -----------------------------------------------------------------------------------
