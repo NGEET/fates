@@ -329,7 +329,7 @@ contains
     real(r8) :: store_c              ! storage carbon [kg]
     real(r8) :: struct_c             ! structure carbon [kg]
     real(r8) :: total_c              ! total carbon of plant [kg]
-    !---------------------------------------------------------------------
+
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
@@ -351,12 +351,17 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))          
        end if
 
-       site_areadis = site_areadis + currentPatch%area * currentPatch%disturbance_rate
+       ! Only create new patches that have non-negligible amount of land
+       if((currentPatch%area*currentPatch%disturbance_rate) > nearzero ) then
+          site_areadis = site_areadis + currentPatch%area * currentPatch%disturbance_rate
+       end if
+
        currentPatch => currentPatch%older     
 
     enddo ! end loop over patches. sum area disturbed for all patches. 
 
-    if (site_areadis > 0.0_r8) then  
+    if (site_areadis > nearzero) then  
+
        cwd_ag_local = 0.0_r8
        cwd_bg_local = 0.0_r8
        leaf_litter_local = 0.0_r8
@@ -377,6 +382,8 @@ contains
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
+
+          if (patch_site_areadis > nearzero) then
 
           call average_patch_properties(currentPatch, new_patch, patch_site_areadis)
           
@@ -682,10 +689,6 @@ contains
           enddo ! currentCohort 
           call sort_cohorts(currentPatch)
 
-          !zero disturbance accumulators
-          currentPatch%disturbance_rate  = 0._r8
-          currentPatch%disturbance_rates = 0._r8
-
           !update area of donor patch
           currentPatch%area = currentPatch%area - patch_site_areadis
 
@@ -698,6 +701,12 @@ contains
           call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
 
+          end if    ! if (patch_site_areadis > nearzero) then
+       
+          !zero disturbance rate trackers
+          currentPatch%disturbance_rate  = 0._r8
+          currentPatch%disturbance_rates = 0._r8
+          
           currentPatch => currentPatch%younger
 
        enddo ! currentPatch patch loop. 
@@ -723,9 +732,11 @@ contains
 
     endif !end new_patch area 
 
+
     call check_patch_area(currentSite)
     call set_patchno(currentSite)
 
+    return
   end subroutine spawn_patches
 
   ! ============================================================================
