@@ -823,7 +823,7 @@ contains
                                      rstoma_out,        &  ! out
                                      anet_av_out,       &  ! out
 				     c13disc_z)            ! out
- 
+
     ! ------------------------------------------------------------------------------------
     ! This subroutine calculates photosynthesis and stomatal conductance within each leaf 
     ! sublayer.
