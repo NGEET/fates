@@ -8,7 +8,8 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : calloc_abs_error
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
-
+  use EDTypesMod               , only : nclmax
+  use EDTypesMod               , only : ican_upper
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type

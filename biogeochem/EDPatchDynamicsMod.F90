@@ -550,7 +550,7 @@ contains
                      nc%n * currentCohort%crownfire_mort / hlm_freq_day
                 currentSite%fmort_carbonflux(levcan) = currentSite%fmort_carbonflux(levcan) + &
                      (nc%n * currentCohort%fire_mort) * &
-                     currentCohort%b_total() * g_per_kg * days_per_sec * ha_per_m2
+                     total_c * g_per_kg * days_per_sec * ha_per_m2
 
                 ! loss of individual from fire in new patch.
                 nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
