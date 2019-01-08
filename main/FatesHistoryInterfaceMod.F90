@@ -210,6 +210,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ar_agsapm_si_scpf
   integer, private :: ih_ar_crootm_si_scpf
   integer, private :: ih_ar_frootm_si_scpf
+  
+  integer, private :: ih_c13disc_si_scpf
 
 
   ! indices to (site x scls) variables
@@ -1318,6 +1320,8 @@ end subroutine flush_hvars
     real(r8) :: npp_partition_error ! a check that the NPP partitions sum to carbon allocation
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
     real(r8) :: binbottom,bintop    ! edges of height bins
+    
+    real(r8) :: gpp_cached ! variable used to cache gpp value in previous time step; for C13 discrimination
 
     ! The following are all carbon states, turnover and net allocation flux variables
     ! the organs of relevance should be self explanatory
@@ -1444,7 +1448,9 @@ end subroutine flush_hvars
                hio_m5_si_scls          => this%hvars(ih_m5_si_scls)%r82d, &
                hio_m6_si_scls          => this%hvars(ih_m6_si_scls)%r82d, &
                hio_m7_si_scls          => this%hvars(ih_m7_si_scls)%r82d, &
-               hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &                        
+               hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &    
+	       
+	       hio_c13disc_si_scpf => this%hvars(ih_c13disc_si_scpf)%r82d, &                    
 
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_agb_si_scls          => this%hvars(ih_agb_si_scls)%r82d, &
@@ -1795,6 +1801,16 @@ end subroutine flush_hvars
                              (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
                        hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
                              ccohort%frmort*ccohort%n
+			     
+		       !C13 discrimination
+                       if(gpp_cached + ccohort%gpp_acc_hold>0._r8)then
+                           hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
+			     (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
+		       else
+		           hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
+                       endif
+			
+			     
 
                        ! basal area  [m2/ha]
                        hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
@@ -3972,6 +3988,11 @@ end subroutine flush_hvars
           long='total mortality of canopy plants by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_canopy_si_scpf )
+
+    call this%set_history_var(vname='C13disc_SCPF', units = 'per mil',               &
+         long='C13 discrimination by pft/size',use_default='inactive',           &
+         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_c13disc_si_scpf )	  
 
     call this%set_history_var(vname='BSTOR_CANOPY_SCPF', units = 'kgC/ha',          &
           long='biomass carbon in storage pools of canopy plants by pft/size', use_default='inactive', &
