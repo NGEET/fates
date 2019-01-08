@@ -1053,7 +1053,7 @@ data:
 
  fates_phen_ncolddayslim = 5 ;
 
-  fates_drying_ratio = 13000 ;
+ fates_drying_ratio = 13000 ;
 
  fates_durat_slope = -11.06 ;
 
