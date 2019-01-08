@@ -350,12 +350,17 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))          
        end if
 
-       site_areadis = site_areadis + currentPatch%area * currentPatch%disturbance_rate
+       ! Only create new patches that have non-negligible amount of land
+       if((currentPatch%area*currentPatch%disturbance_rate) > nearzero ) then
+          site_areadis = site_areadis + currentPatch%area * currentPatch%disturbance_rate
+       end if
+
        currentPatch => currentPatch%older     
 
     enddo ! end loop over patches. sum area disturbed for all patches. 
 
-    if (site_areadis > 0.0_r8) then  
+    if (site_areadis > nearzero) then  
+
        cwd_ag_local = 0.0_r8
        cwd_bg_local = 0.0_r8
        leaf_litter_local = 0.0_r8
@@ -376,6 +381,8 @@ contains
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
+
+          if (patch_site_areadis > nearzero) then
 
           call average_patch_properties(currentPatch, new_patch, patch_site_areadis)
           
@@ -543,7 +550,7 @@ contains
                      nc%n * currentCohort%crownfire_mort / hlm_freq_day
                 currentSite%fmort_carbonflux(levcan) = currentSite%fmort_carbonflux(levcan) + &
                      (nc%n * currentCohort%fire_mort) * &
-                     currentCohort%b_total() * g_per_kg * days_per_sec * ha_per_m2
+                     total_c * g_per_kg * days_per_sec * ha_per_m2
 
                 ! loss of individual from fire in new patch.
                 nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
@@ -690,10 +697,6 @@ contains
           enddo ! currentCohort 
           call sort_cohorts(currentPatch)
 
-          !zero disturbance accumulators
-          currentPatch%disturbance_rate  = 0._r8
-          currentPatch%disturbance_rates = 0._r8
-
           !update area of donor patch
           currentPatch%area = currentPatch%area - patch_site_areadis
 
@@ -706,6 +709,12 @@ contains
           call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
 
+          end if    ! if (patch_site_areadis > nearzero) then
+       
+          !zero disturbance rate trackers
+          currentPatch%disturbance_rate  = 0._r8
+          currentPatch%disturbance_rates = 0._r8
+          
           currentPatch => currentPatch%younger
 
        enddo ! currentPatch patch loop. 
@@ -731,9 +740,11 @@ contains
 
     endif !end new_patch area 
 
+
     call check_patch_area(currentSite)
     call set_patchno(currentSite)
 
+    return
   end subroutine spawn_patches
 
   ! ============================================================================
@@ -1153,14 +1164,20 @@ contains
              !not right to recalcualte dmort here.
              canopy_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * hlm_freq_day * fates_mortality_disturbance_fraction)
 
-
-
              canopy_mortality_woody_litter(p)= canopy_mortality_woody_litter(p) + &
                   canopy_dead*(struct_c + sapw_c)
              canopy_mortality_leaf_litter(p) = canopy_mortality_leaf_litter(p) + &
                   canopy_dead*leaf_c
+
+             ! Some plants upon death will transfer storage carbon to seed production
+             ! Storage carbon that is not transferred to seeds goes to root litter flux
+
              canopy_mortality_root_litter(p) = canopy_mortality_root_litter(p) + &
-                  canopy_dead*(fnrt_c + store_c)
+                  canopy_dead*(fnrt_c + store_c*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(p)) )
+
+             currentSite%seed_bank(p) = currentSite%seed_bank(p) + &
+                   canopy_dead * store_c * EDPftvarcon_inst%allom_frbstor_repro(p)/AREA
+
 
              if( hlm_use_planthydro == itrue ) then
                 call AccumulateMortalityWaterStorage(currentSite,currentCohort, canopy_dead)
@@ -1324,6 +1341,8 @@ contains
     new_patch%frac_burnt         = 0._r8  
     new_patch%total_tree_area    = 0.0_r8  
     new_patch%NCL_p              = 1
+
+   
  
   end subroutine create_patch
 
@@ -1447,6 +1466,12 @@ contains
     currentPatch%zstar                      = 0.0_r8
     currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
     currentPatch%c_lblayer                  = 0.0_r8
+
+    currentPatch%solar_zenith_flag          = .false.
+    currentPatch%solar_zenith_angle         = nan
+
+    currentPatch%gnd_alb_dir(:)             = nan
+    currentPatch%gnd_alb_dif(:)             = nan
 
   end subroutine zero_patch
 

@@ -20,27 +20,27 @@ module FATESPlantRespPhotosynthMod
    
    ! !USES:
 
-   use FatesGlobals, only      : endrun => fates_endrun
-   use FatesGlobals, only      : fates_log
+   use FatesGlobals,      only : endrun => fates_endrun
+   use FatesGlobals,      only : fates_log
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : itrue
    use FatesInterfaceMod, only : hlm_use_planthydro
    use FatesInterfaceMod, only : hlm_parteh_mode
    use FatesInterfaceMod, only : numpft
-   use EDTypesMod, only        : maxpft
-   use EDTypesMod, only        : nlevleaf
-   use EDTypesMod, only        : nclmax
-
-   use PRTGenericMod,          only : prt_carbon_allom_hyp
-   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp 
-   use PRTGenericMod,          only : all_carbon_elements
-   use PRTGenericMod,          only : nitrogen_element
-   use PRTGenericMod,          only : leaf_organ
-   use PRTGenericMod,          only : fnrt_organ
-   use PRTGenericMod,          only : sapw_organ
-   use PRTGenericMod,          only : store_organ
-   use PRTGenericMod,          only : repro_organ
-   use PRTGenericMod,          only : struct_organ
+   use EDTypesMod,        only : maxpft
+   use EDTypesMod,        only : nlevleaf
+   use EDTypesMod,        only : nclmax
+   use EDTypesMod,        only : do_fates_salinity 
+   use PRTGenericMod,     only : prt_carbon_allom_hyp
+   use PRTGenericMod,     only : prt_cnp_flex_allom_hyp 
+   use PRTGenericMod,     only : all_carbon_elements
+   use PRTGenericMod,     only : nitrogen_element
+   use PRTGenericMod,     only : leaf_organ
+   use PRTGenericMod,     only : fnrt_organ
+   use PRTGenericMod,     only : sapw_organ
+   use PRTGenericMod,     only : store_organ
+   use PRTGenericMod,     only : repro_organ
+   use PRTGenericMod,     only : struct_organ
 
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -423,7 +423,11 @@ contains
                                            
 
                               end if
-                           
+
+                              if(do_fates_salinity)then
+                                btran_eff = btran_eff*currentPatch%bstress_sal_ft(ft)
+                              endif 
+
                               
                               ! Scale for leaf nitrogen profile
                               nscaler = exp(-kn(ft) * cumulative_lai)
@@ -934,7 +938,7 @@ contains
      
      if ( parsun_lsl <= 0._r8 ) then  ! night time
 
-        anet_av_out = 0._r8
+        anet_av_out = -lmr
         psn_out     = 0._r8
         rstoma_out  = min(rsmax0, 1._r8/bbb * cf)
         
