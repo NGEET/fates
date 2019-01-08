@@ -158,14 +158,15 @@ contains
   subroutine  charecteristics_of_fuel ( currentSite )
   !*****************************************************************
 
-    use SFParamsMod, only  : SF_val_alpha_FMC, SF_val_SAV, SF_val_FBD
+    use SFParamsMod, only  : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
 
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type),  pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
-    real(r8) timeav_swc 
+    real(r8) timeav_swc
+    real(r8) SF_val_FMC(nfsc)    ! Relative fuel moisture adjusted per drying ratio
     real(r8) fuel_moisture(nfsc) ! Scaled moisture content of small litter fuels. 
     real(r8) MEF(nfsc)           ! Moisture extinction factor of fuels     integer n 
 
@@ -235,6 +236,8 @@ contains
           ! Equation 6 in Thonicke et al. 2010. across leaves,twig, small branch, and large branch
           ! dead leaves and twigs included in 1hr pool per Thonicke (2010) 
           ! Calculate fuel moisture for trunks to hold value for fuel consumption
+          SF_val_alpha_FMC(dl_sf:tr_sf) = SF_val_SAV(dl_sf:tr_sf)/SF_val_drying_ratio
+          
           fuel_moisture(dl_sf:tr_sf)  = exp(-1.0_r8 * SF_val_alpha_FMC(dl_sf:tr_sf) * currentSite%acc_NI) 
  
           if(write_SF == itrue)then

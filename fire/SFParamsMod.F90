@@ -23,7 +23,7 @@ module SFParamsMod
    real(r8),protected :: SF_val_miner_damp
    real(r8),protected :: SF_val_max_durat
    real(r8),protected :: SF_val_durat_slope
-   real(r8),protected :: SF_val_alpha_FMC(NFSC)
+   real(r8),protected :: SF_val_drying_ratio
    real(r8),protected :: SF_val_CWD_frac(NCWD)
    real(r8),protected :: SF_val_max_decomp(NFSC)
    real(r8),protected :: SF_val_SAV(NFSC)
@@ -44,7 +44,7 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_miner_damp = "fates_miner_damp"
    character(len=param_string_length),parameter :: SF_name_max_durat = "fates_max_durat"
    character(len=param_string_length),parameter :: SF_name_durat_slope = "fates_durat_slope"
-   character(len=param_string_length),parameter :: SF_name_alpha_FMC = "fates_alpha_FMC"
+   character(len=param_string_length),parameter :: SF_name_drying_ratio = "fates_drying_ratio"
    character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_CWD_frac"
    character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_max_decomp"
    character(len=param_string_length),parameter :: SF_name_SAV = "fates_SAV"
@@ -88,10 +88,10 @@ contains
     SF_val_miner_damp = nan
     SF_val_max_durat = nan
     SF_val_durat_slope = nan
+    SF_val_drying_ratio = nan
 
     SF_val_CWD_frac(:) = nan
 
-    SF_val_alpha_FMC(:) = nan
     SF_val_max_decomp(:) = nan
 
     SF_val_SAV(:) = nan
@@ -279,7 +279,7 @@ contains
     call fates_params%RegisterParameter(name=SF_name_mid_moisture_Slope, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=SF_name_alpha_FMC, dimension_shape=dimension_shape_1d, &
+    call fates_params%RegisterParameter(name=SF_name_drying_ratio, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=SF_name_max_decomp, dimension_shape=dimension_shape_1d, &
@@ -321,8 +321,8 @@ contains
     call fates_params%RetreiveParameter(name=SF_name_mid_moisture_Slope, &
          data=SF_val_mid_moisture_Slope)
 
-    call fates_params%RetreiveParameter(name=SF_name_alpha_FMC, &
-         data=SF_val_alpha_FMC)
+    call fates_params%RetreiveParameter(name=SF_name_drying_ratio, &
+         data=SF_val_drying_ratio)
 
     call fates_params%RetreiveParameter(name=SF_name_max_decomp, &
          data=SF_val_max_decomp)
