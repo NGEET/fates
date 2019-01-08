@@ -602,12 +602,9 @@ contains
       endif    !  if (.not.currentCohort%isnew .and. level == 2) then
 
       if (terminate == 1) then 
+         
           ! preserve a record of the to-be-terminated cohort for mortality accounting
-          if (currentCohort%canopy_layer .eq. 1) then
-             levcan = 1
-          else
-             levcan = 2
-          endif
+          levcan = currentCohort%canopy_layer
 
           currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
                currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
