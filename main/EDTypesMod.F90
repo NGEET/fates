@@ -237,6 +237,11 @@ module EDTypesMod
      real(r8) ::  resp_tstep         ! Autotrophic respiration (see above *)
      real(r8) ::  resp_acc
      real(r8) ::  resp_acc_hold
+     
+     ! carbon 13c discrimination
+     real(r8) ::  c13disc_clm         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/timestep
+     real(r8) ::  c13disc_acc         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/day, at the end of a day
+
 
      real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/timestep
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
