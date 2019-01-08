@@ -59,6 +59,9 @@ module EDCanopyStructureMod
   real(r8), parameter :: area_target_precision = 1.0E-11_r8  ! Area conservation must be within this tolerance
   real(r8), parameter :: area_check_precision  = 1.0E-9_r8  ! Area conservation checks must be within this tolerance
 
+  real(r8), parameter :: similar_height_tol = 1.0E-3_r8    ! I think trees that differ by 1mm
+                                                           ! can be roughly considered the same right?
+
 
   ! 10/30/09: Created by Rosie Fisher
   ! 2017/2018: Modifications and updates by Ryan Knox
@@ -328,7 +331,9 @@ contains
       integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
 
       ! !LOCAL VARIABLES:
-      type(ed_cohort_type), pointer :: currentCohort,copyc
+      type(ed_cohort_type), pointer :: currentCohort
+      type(ed_cohort_type), pointer :: copyc
+      type(ed_cohort_type), pointer :: nextc  ! The next cohort in line
       integer  :: i_cwd                  ! Index for CWD pool
       real(r8) :: cc_loss                ! cohort crown area loss in demotion (m2)
       real(r8) :: leaf_c             ! leaf carbon [kg]
@@ -343,18 +348,14 @@ contains
       real(r8) :: remainder_area_hold
       real(r8) :: sumweights
       real(r8) :: sumweights_old
-      real(r8) :: sumactual              ! for rank-ordered same-size cohorts
+      real(r8) :: sumequal              ! for rank-ordered same-size cohorts
                                          ! this tallies their excluded area
       real(r8) :: arealayer              ! the area of the current canopy layer
       integer  :: exceedance_counter        ! when seeking to rebalance demotion exceedance
                                          ! keep a loop counter to check for hangs
-      logical  :: tied_size_with_neighbor, has_taller_equalsized_neighbor
-      logical  :: found_shortest_equal_neighbor, found_tallest_equal_neighbor
+      logical  :: tied_size_with_neighbors
       type(ed_cohort_type), pointer :: cohort_tosearch_relative_to, cohort_tocompare_to
       real(r8) :: total_crownarea_of_tied_cohorts
-      real(r8) :: sumweights_equalsizebuffer
-      integer  :: whileloop_counter
-      
 
       ! First, determine how much total canopy area we have in this layer
 
@@ -369,7 +370,6 @@ contains
          ! We go in order from shortest to tallest for ranked demotion
          
          sumweights  = 0.0_r8
-         sumweights_equalsizebuffer = 0.0_r8
          currentCohort => currentPatch%shortest
          do while (associated(currentCohort))
             
@@ -394,32 +394,30 @@ contains
                   ! -----------------------------------------------------------
                   ! Rank ordered deterministic method
                   ! -----------------------------------------------------------
-
                   ! If there cohorts that have the exact same height (which is possible, really)
                   ! we don't want to unilaterally promote/demote one before the others. 
-                  ! So we promote them (as a unit)
-                  
+                  ! So we <>mote them as a unit
                   ! now we need to go through and figure out how many equal-size cohorts there are.
                   ! then we need to go through, add up the collective crown areas of all equal-sized
                   ! and equal-canopy-layer cohorts,
                   ! and then demote from each as if they were a single group
-                  !
+
                   total_crownarea_of_tied_cohorts = currentCohort%c_area
                   
                   tied_size_with_neighbors = .false.
                   nextc => currentCohort%taller
-                  do while (associated(nextc)) then
-                     if ( abs(nextc%hite - currentCohort%hite) < nearzero ) then
+                  do while (associated(nextc))
+                     if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
                         if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                            tied_size_with_neighbors = .true.
                            total_crownarea_of_tied_cohorts = &
-                                total_crownarea_of_tied_cohort + currentCohort%c_area
+                                total_crownarea_of_tied_cohorts + currentCohort%c_area
                         end if
                      else
-                        break
+                        exit
                      endif
                      nextc => nextc%taller
-                  endif
+                  end do
                   
                   if ( tied_size_with_neighbors ) then
                      
@@ -428,12 +426,11 @@ contains
                           (currentCohort%c_area/total_crownarea_of_tied_cohorts) * &
                           (demote_area - sumweights) ))
 
-                     sumactual = currentCohort%excl_weight
-                     
-                     
+                     sumequal = currentCohort%excl_weight
+
                      nextc => currentCohort%taller
-                     do while (associated(nextc)) then
-                        if ( abs(nextc%hite - currentCohort%hite) < nearzero ) then
+                     do while (associated(nextc))
+                        if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
                            if (nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                               ! now we know the total crown area of all equal-sized, 
                               ! equal-canopy-layer cohorts
@@ -441,13 +438,13 @@ contains
                                    max(0.0_r8,min(nextc%c_area, &
                                                   (nextc%c_area/total_crownarea_of_tied_cohorts) * &
                                                   (demote_area - sumweights) ))
-                              sumactual = sumactual + currentCohort%excl_weight
+                              sumequal = sumequal + currentCohort%excl_weight
                            end if
                         else
-                           break
+                           exit
                         endif
                         nextc => nextc%taller
-                     endif
+                     end do
                      
                      ! Update the current cohort pointer to the last similar cohort
                      ! Its ok if this is not in the right layer
@@ -456,16 +453,13 @@ contains
                      else
                         currentCohort => currentPatch%tallest
                      end if
-                     sumweights = sumweights + sumactual
+                     sumweights = sumweights + sumequal
 
                   else
-                     
                      currentCohort%excl_weight = &
                           max(min(currentCohort%c_area, demote_area - sumweights ), 0._r8)
                      sumweights = sumweights + currentCohort%excl_weight 
-                     
                   end if
-                  
                   
                endif
             endif
@@ -742,12 +736,16 @@ contains
       ! !LOCAL VARIABLES:
       type(ed_cohort_type), pointer :: currentCohort
       type(ed_cohort_type), pointer :: copyc
+      type(ed_cohort_type), pointer :: nextc   ! the next cohort, or used for looping
+                                               ! cohorts against the current
 
 
       real(r8) :: promote_area
       real(r8) :: newarea
       real(r8) :: sumweights
       real(r8) :: sumweights_old
+      real(r8) :: sumequal              ! for tied cohorts, the sum of weights in
+                                         ! their group
       integer  :: exceedance_counter
       real(r8) :: remainder_area
       real(r8) :: remainder_area_hold    
@@ -760,12 +758,9 @@ contains
       real(r8) :: store_c            ! storage carbon [kg]
       real(r8) :: struct_c           ! structure carbon [kg]
 
-      logical  :: tied_size_with_neighbor, has_shorter_equalsized_neighbor
-      logical  :: found_shortest_equal_neighbor, found_tallest_equal_neighbor
+      logical  :: tied_size_with_neighbors
       type(ed_cohort_type), pointer :: cohort_tosearch_relative_to, cohort_tocompare_to
       real(r8) :: total_crownarea_of_tied_cohorts
-      real(r8) :: sumweights_equalsizebuffer
-      integer  :: whileloop_counter
       
       call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
       call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr+1,arealayer_below)
@@ -819,113 +814,86 @@ contains
             ! This is the opposite of the demotion weighting... 
 
             sumweights = 0.0_r8
-            sumweights_equalsizebuffer = 0.0_r8
             currentCohort => currentPatch%tallest 
             do while (associated(currentCohort))
                call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
                     currentCohort%pft,currentCohort%c_area)
                if(currentCohort%canopy_layer == i_lyr+1)then !look at the cohorts in the canopy layer below... 
+
                   if (ED_val_comp_excln .ge. 0.0_r8 ) then
                      ! normal (stochastic) case, as above.
                      currentCohort%prom_weight = currentCohort%n*currentCohort%hite**ED_val_comp_excln
                   else
+                     
+                     ! ------------------------------------------------------------------
                      ! Rank ordered deterministic method
+                     ! If there cohorts that have the exact same height (which is possible, really)
+                     ! we don't want to unilaterally promote/demote one before the others. 
+                     ! So we <>mote them as a unit
+                     ! now we need to go through and figure out how many equal-size cohorts there are.
+                     ! then we need to go through, add up the collective crown areas of all equal-sized
+                     ! and equal-canopy-layer cohorts,
+                     ! and then demote from each as if they were a single group
+                     ! ------------------------------------------------------------------
 
-                     ! check to make sure there are no cohorts of equal size
-                     tied_size_with_neighbor = .false.
-                     if (associated(currentCohort%shorter)) then
-                        if (currentCohort%shorter%hite .eq. currentCohort%hite ) then
-                           tied_size_with_neighbor = .true.
+                     total_crownarea_of_tied_cohorts = currentCohort%c_area
+                     tied_size_with_neighbors = .false.
+                     nextc => currentCohort%shorter
+                     do while (associated(nextc))
+                        if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                           if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
+                              tied_size_with_neighbors = .true.
+                              total_crownarea_of_tied_cohorts = &
+                                   total_crownarea_of_tied_cohorts + currentCohort%c_area
+                           end if
+                        else
+                           exit
                         endif
-                     endif
-                     if (associated(currentCohort%taller)) then
-                        if (currentCohort%taller%hite .eq. currentCohort%hite ) then
-                           tied_size_with_neighbor = .true.
-                        endif
-                     endif
+                        nextc => nextc%shorter
+                     end do
 
-                     if ( tied_size_with_neighbor ) then
-                        if ( debug ) then
-                           write(fates_log(),*) 'tied_size_with_neighbor eq true in promotion phase'
-                        endif
+                     if ( tied_size_with_neighbors ) then
 
-                        ! now we need to go through and figure out how many equal-size cohorts there are.
-                        ! then we need to go through, add up the collective crown areas of all equal-sized and equal-canopy-layer cohorts,
-                        ! and then promote from each as if they were a single group
-                        !
-                        total_crownarea_of_tied_cohorts = currentCohort%c_area
-                        !
-                        ! first the "shorter" cohorts (scare-quotes because they aren't actually shorter)
-                        has_shorter_equalsized_neighbor = .false.  !  init this as false
-                        found_shortest_equal_neighbor = .false.
-                        cohort_tosearch_relative_to => currentCohort
-                        whileloop_counter = 0
-                        do while ( .not. found_shortest_equal_neighbor)
-                           whileloop_counter = whileloop_counter + 1
-                           if (associated(cohort_tosearch_relative_to%shorter)) then
-                              cohort_tocompare_to => cohort_tosearch_relative_to%shorter
-                              if (cohort_tocompare_to%hite .eq. currentCohort%hite ) then
-                                 if (cohort_tocompare_to%canopy_layer .eq. currentCohort%canopy_layer ) then
-                                    total_crownarea_of_tied_cohorts = total_crownarea_of_tied_cohorts + cohort_tocompare_to%c_area
-                                    has_shorter_equalsized_neighbor = .true.
-                                 endif
-                                 cohort_tosearch_relative_to => cohort_tocompare_to
-                              else
-                                 found_shortest_equal_neighbor = .true.
+                        currentCohort%prom_weight = &
+                             max(0.0_r8,min(currentCohort%c_area, &
+                             (currentCohort%c_area/total_crownarea_of_tied_cohorts) * &
+                             (promote_area - sumweights) ))
+                        sumequal = currentCohort%prom_weight
+
+                        nextc => currentCohort%shorter
+                        do while (associated(nextc))
+                           if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                              if (nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
+                                 ! now we know the total crown area of all equal-sized, 
+                                 ! equal-canopy-layer cohorts
+                                 nextc%prom_weight = &
+                                      max(0.0_r8,min(nextc%c_area, &
+                                                     (nextc%c_area/total_crownarea_of_tied_cohorts) * &
+                                                     (promote_area - sumweights) ))
+                                 sumequal = sumequal + currentCohort%prom_weight
                               end if
                            else
-                              found_shortest_equal_neighbor = .true.
+                              exit
                            endif
-                           if ( whileloop_counter .ge. maxCohortsPerPatch ) then
-                              ! something has gone horribly wrong and we are in an infite loop.
-                              call endrun(msg=errMsg(sourcefile, __LINE__))
-                           endif
+                           nextc => nextc%shorter
                         end do
-                        !
-                        ! then the "taller" cohorts (scare-quotes because they aren't actually taller)
-                        found_tallest_equal_neighbor = .false.
-                        cohort_tosearch_relative_to => currentCohort
-                        whileloop_counter = 0
-                        do while ( .not. found_tallest_equal_neighbor)
-                           whileloop_counter = whileloop_counter + 1
-                           if (associated(cohort_tosearch_relative_to%taller)) then
-                              cohort_tocompare_to => cohort_tosearch_relative_to%taller
-                              if (cohort_tocompare_to%hite .eq. currentCohort%hite ) then
-                                 if (cohort_tocompare_to%canopy_layer .eq. currentCohort%canopy_layer ) then
-                                    total_crownarea_of_tied_cohorts = total_crownarea_of_tied_cohorts + cohort_tocompare_to%c_area
-                                 endif
-                                 cohort_tosearch_relative_to => cohort_tocompare_to
-                              else
-                                 found_tallest_equal_neighbor = .true.
-                              end if
-                           else
-                              found_tallest_equal_neighbor = .true.
-                           endif
-                           if ( whileloop_counter .ge. maxCohortsPerPatch ) then
-                              ! something has gone horribly wrong and we are in an infite loop.
-                              call endrun(msg=errMsg(sourcefile, __LINE__))
-                           endif
-                        end do
-                        !
-                        ! now we know the total crown area of all equal-sized, equal-canopy-layer cohorts
-                        currentCohort%prom_weight = max(min(currentCohort%c_area, &
-                             (currentCohort%c_area/total_crownarea_of_tied_cohorts) * (promote_area - sumweights) ), 0._r8)
-                     else !  i.e. tied_size_with_neighbor = .false.
-                        currentCohort%prom_weight = max(min(currentCohort%c_area, &
-                             promote_area - sumweights ), 0._r8)
-                     endif
-                  endif
-                  !
-                  ! when two or more cohorts have the same size, we need to keep track of their cumulative demoted crown area
-                  ! in a separate buffer and add it once we reach the last of the equal-sized cohorts
-                  if ((ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor .and. &
-                       has_shorter_equalsized_neighbor) then
-                     sumweights_equalsizebuffer = sumweights_equalsizebuffer + currentCohort%prom_weight
-                  else if ( (ED_val_comp_excln .lt. 0.0_r8) .and. tied_size_with_neighbor) then
-                     sumweights = sumweights + currentCohort%prom_weight + sumweights_equalsizebuffer
-                     sumweights_equalsizebuffer = 0._r8
-                  else
-                     sumweights = sumweights + currentCohort%prom_weight
+                        
+                        ! Update the current cohort pointer to the last similar cohort
+                        ! Its ok if this is not in the right layer
+                        if(associated(nextc))then
+                           currentCohort => nextc%taller
+                        else
+                           currentCohort => currentPatch%shortest
+                        end if
+                        sumweights = sumweights + sumequal
+                        
+                     else
+                        currentCohort%prom_weight = &
+                             max(min(currentCohort%c_area, promote_area - sumweights ), 0._r8)
+                        sumweights = sumweights + currentCohort%prom_weight 
+                        
+                     end if
+
                   endif
                endif
                currentCohort => currentCohort%shorter  
