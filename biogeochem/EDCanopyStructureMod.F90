@@ -411,7 +411,7 @@ contains
                         if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                            tied_size_with_neighbors = .true.
                            total_crownarea_of_tied_cohorts = &
-                                total_crownarea_of_tied_cohorts + currentCohort%c_area
+                                total_crownarea_of_tied_cohorts + nextc%c_area
                         end if
                      else
                         exit
@@ -844,7 +844,7 @@ contains
                            if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                               tied_size_with_neighbors = .true.
                               total_crownarea_of_tied_cohorts = &
-                                   total_crownarea_of_tied_cohorts + currentCohort%c_area
+                                   total_crownarea_of_tied_cohorts + nextc%c_area
                            end if
                         else
                            exit
