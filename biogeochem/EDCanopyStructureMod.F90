@@ -438,7 +438,7 @@ contains
                                    max(0.0_r8,min(nextc%c_area, &
                                                   (nextc%c_area/total_crownarea_of_tied_cohorts) * &
                                                   (demote_area - sumweights) ))
-                              sumequal = sumequal + currentCohort%excl_weight
+                              sumequal = sumequal + nextc%excl_weight
                            end if
                         else
                            exit
@@ -870,7 +870,7 @@ contains
                                       max(0.0_r8,min(nextc%c_area, &
                                                      (nextc%c_area/total_crownarea_of_tied_cohorts) * &
                                                      (promote_area - sumweights) ))
-                                 sumequal = sumequal + currentCohort%prom_weight
+                                 sumequal = sumequal + nextc%prom_weight
                               end if
                            else
                               exit
