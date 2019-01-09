@@ -174,6 +174,9 @@ contains
     call fates_params%RegisterParameter(name=SF_name_durat_slope, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=SF_name_drying_ratio, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
   end subroutine SpitFireRegisterScalars
 
  !-----------------------------------------------------------------------
@@ -211,6 +214,9 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_durat_slope, &
          data=SF_val_durat_slope)
+
+    call fates_params%RetreiveParameter(name=SF_name_drying_ratio &
+         data=SF_val_drying_ratio)
 
   end subroutine SpitFireReceiveScalars
 
@@ -279,9 +285,6 @@ contains
     call fates_params%RegisterParameter(name=SF_name_mid_moisture_Slope, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=SF_name_drying_ratio, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
     call fates_params%RegisterParameter(name=SF_name_max_decomp, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
@@ -320,9 +323,6 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_mid_moisture_Slope, &
          data=SF_val_mid_moisture_Slope)
-
-    call fates_params%RetreiveParameter(name=SF_name_drying_ratio, &
-         data=SF_val_drying_ratio)
 
     call fates_params%RetreiveParameter(name=SF_name_max_decomp, &
          data=SF_val_max_decomp)
