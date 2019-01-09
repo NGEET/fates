@@ -215,7 +215,7 @@ contains
     call fates_params%RetreiveParameter(name=SF_name_durat_slope, &
          data=SF_val_durat_slope)
 
-    call fates_params%RetreiveParameter(name=SF_name_drying_ratio &
+    call fates_params%RetreiveParameter(name=SF_name_drying_ratio, &
          data=SF_val_drying_ratio)
 
   end subroutine SpitFireReceiveScalars
