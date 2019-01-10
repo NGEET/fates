@@ -18,6 +18,7 @@ module FatesInterfaceMod
    use EDTypesMod          , only : nclmax
    use EDTypesMod          , only : nlevleaf
    use EDTypesMod          , only : maxpft
+   use EDTypesMod          , only : do_fates_salinity
    use EDTypesMod          , only : ncwd
    use EDTypesMod          , only : numWaterMem
    use FatesConstantsMod   , only : r8 => fates_r8
@@ -29,10 +30,12 @@ module FatesInterfaceMod
    use EDPftvarcon         , only : FatesCheckParams
    use EDPftvarcon         , only : EDPftvarcon_inst
    use EDParamsMod         , only : FatesReportParams
+   use EDParamsMod         , only : bgc_soil_salinity
    use PRTGenericMod         , only : prt_carbon_allom_hyp
    use PRTGenericMod         , only : prt_cnp_flex_allom_hyp
    use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
    !   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
+
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -405,6 +408,9 @@ module FatesInterfaceMod
 
       ! Soil suction potential of layers in each site, negative, [mm]
       real(r8), allocatable :: smp_sl(:)
+      
+      !soil salinity of layers in each site [ppt]
+      real(r8), allocatable :: salinity_sl(:)
 
       ! Effective porosity = porosity - vol_ic, of layers in each site [-]
       real(r8), allocatable :: eff_porosity_sl(:)
@@ -583,6 +589,7 @@ module FatesInterfaceMod
    contains
       
       procedure, public :: zero_bcs
+      procedure, public :: set_bcs
 
    end type fates_interface_type
 
@@ -669,6 +676,11 @@ contains
       allocate(bc_in%watsat_sl(nlevsoil_in))
       allocate(bc_in%tempk_sl(nlevsoil_in))
       allocate(bc_in%h2o_liqvol_sl(nlevsoil_in))
+      
+      !BGC
+      if(do_fates_salinity) then
+         allocate(bc_in%salinity_sl(nlevsoil_in))	 
+      endif
 
       ! Photosynthesis
       allocate(bc_in%filter_photo_pa(maxPatchesPerSite))
@@ -809,6 +821,10 @@ contains
       this%bc_in(s)%tot_litc            = 0.0_r8
       this%bc_in(s)%snow_depth_si       = 0.0_r8
       this%bc_in(s)%frac_sno_eff_si     = 0.0_r8
+      
+      if(do_fates_salinity)then
+         this%bc_in(s)%salinity_sl(:)   = 0.0_r8
+      endif
 
       if (hlm_use_planthydro.eq.itrue) then
   
@@ -866,6 +882,34 @@ contains
 
       return
    end subroutine zero_bcs
+   
+   subroutine set_bcs(this,s)
+
+       ! --------------------------------------------------------------------------------
+       !
+       ! This subroutine is called directly from the HLM to set boundary condition not yet 
+       !     functional from hlm. This allows flexibility for model testing.
+       !
+       ! This subroutine MUST BE CALLED AFTER the FATES PFT parameter file has been read in,
+       ! and the EDPftvarcon_inst structure has been made.
+       ! This subroutine must ALSO BE CALLED BEFORE the history file dimensions
+       ! are set.
+       ! 
+       ! --------------------------------------------------------------------------------
+      implicit none
+      class(fates_interface_type), intent(inout) :: this
+      integer, intent(in) :: s
+
+      ! Input boundaries
+      ! Warning: these "z" type variables
+      ! are written only once at the beginning
+      ! so THIS ROUTINE SHOULD NOT BE CALLED AFTER
+      ! INITIALIZATION
+      if(do_fates_salinity)then
+           this%bc_in(s)%salinity_sl(:)     = bgc_soil_salinity
+      endif
+
+    end subroutine set_bcs
 
 
     ! ===================================================================================

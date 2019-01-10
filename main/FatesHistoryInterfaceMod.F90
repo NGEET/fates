@@ -1518,12 +1518,7 @@ end subroutine flush_hvars
                hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
                hio_ddbh_understory_si_scag          => this%hvars(ih_ddbh_understory_si_scag)%r82d, &
                hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
-               hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
-               hio_h2oveg_dead_si                   => this%hvars(ih_h2oveg_dead_si)%r81d, &
-               hio_h2oveg_recruit_si                => this%hvars(ih_h2oveg_recruit_si)%r81d, &
-               hio_h2oveg_growturn_err_si           => this%hvars(ih_h2oveg_growturn_err_si)%r81d, &
-               hio_h2oveg_pheno_err_si              => this%hvars(ih_h2oveg_pheno_err_si)%r81d,&
-	       hio_h2oveg_hydro_err_si              => this%hvars(ih_h2oveg_hydro_err_si)%r81d)
+               hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d)
 
                
       ! ---------------------------------------------------------------------------------
@@ -1534,7 +1529,7 @@ end subroutine flush_hvars
 
 
       ! If we don't have dynamics turned on, we just abort these diagnostics
-      !if (hlm_use_ed_st3.eq.itrue) return
+      if (hlm_use_ed_st3.eq.itrue) return
 
       ! ---------------------------------------------------------------------------------
       ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -1553,6 +1548,18 @@ end subroutine flush_hvars
          hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * g_per_kg
 
          hio_canopy_spread_si(io_si)        = sites(s)%spread
+
+         
+         ! If hydraulics are turned on, track the error terms
+         ! associated with dynamics
+
+         if(hlm_use_planthydro.eq.itrue)then
+            this%hvars(ih_h2oveg_dead_si)%r81d(io_si)         = sites(s)%si_hydr%h2oveg_dead
+            this%hvars(ih_h2oveg_recruit_si)%r81d(io_si)      = sites(s)%si_hydr%h2oveg_recruit
+            this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
+            this%hvars(ih_h2oveg_pheno_err_si)%r81d(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
+         end if
+
             
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -1858,8 +1865,10 @@ end subroutine flush_hvars
 
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n
-                       hio_lai_canopy_si_scls(io_si,scls) = hio_lai_canopy_si_scls(io_si,scls) + ccohort%n * ccohort%treelai
-                       hio_sai_canopy_si_scls(io_si,scls) = hio_sai_canopy_si_scls(io_si,scls) + ccohort%n * ccohort%treesai
+                       hio_lai_canopy_si_scls(io_si,scls) = hio_lai_canopy_si_scls(io_si,scls) + &
+		                                            ccohort%treelai*ccohort%c_area * AREA_INV
+                       hio_sai_canopy_si_scls(io_si,scls) = hio_sai_canopy_si_scls(io_si,scls) + &
+		                                            ccohort%treesai*ccohort%c_area * AREA_INV
                        hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
                             ccohort%n * ccohort%canopy_trim
                        hio_crown_area_canopy_si_scls(io_si,scls) = hio_crown_area_canopy_si_scls(io_si,scls) + &
@@ -1940,8 +1949,10 @@ end subroutine flush_hvars
 
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n
-                       hio_lai_understory_si_scls(io_si,scls) = hio_lai_understory_si_scls(io_si,scls) + ccohort%n * ccohort%treelai
-                       hio_sai_understory_si_scls(io_si,scls) = hio_sai_understory_si_scls(io_si,scls) + ccohort%n * ccohort%treesai
+                       hio_lai_understory_si_scls(io_si,scls) = hio_lai_understory_si_scls(io_si,scls) + &
+		                                                ccohort%treelai*ccohort%c_area  * AREA_INV
+                       hio_sai_understory_si_scls(io_si,scls) = hio_sai_understory_si_scls(io_si,scls) + &
+		                                                ccohort%treelai*ccohort%c_area  * AREA_INV
                        hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
                             ccohort%n * ccohort%canopy_trim
                        hio_crown_area_understory_si_scls(io_si,scls) = hio_crown_area_understory_si_scls(io_si,scls) + &
@@ -2232,14 +2243,6 @@ end subroutine flush_hvars
          sites(s)%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
          sites(s)%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
          sites(s)%root_litter_diagnostic_input_carbonflux(:) = 0._r8
-         
-	 if(hlm_use_planthydro==itrue)then 
-           hio_h2oveg_dead_si(io_si)         = sites(s)%si_hydr%h2oveg_dead
-           hio_h2oveg_recruit_si(io_si)      = sites(s)%si_hydr%h2oveg_recruit
-           hio_h2oveg_growturn_err_si(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
-           hio_h2oveg_pheno_err_si(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
-	   hio_h2oveg_hydro_err_si(io_si)    = sites(s)%si_hydr%h2oveg_hydro_err
-	 endif
          
       enddo ! site loop
       
@@ -2776,7 +2779,8 @@ end subroutine flush_hvars
           hio_lflc_scpf          => this%hvars(ih_lflc_scpf)%r82d, &                   
           hio_btran_scpf        => this%hvars(ih_btran_scpf)%r82d, &
           hio_h2oveg_si         => this%hvars(ih_h2oveg_si)%r81d, &
-          hio_nplant_si_scpf    => this%hvars(ih_nplant_si_scpf)%r82d )
+          hio_nplant_si_scpf    => this%hvars(ih_nplant_si_scpf)%r82d, &
+          hio_h2oveg_hydro_err_si    => this%hvars(ih_h2oveg_hydro_err_si)%r81d )
       
       ! Flush the relevant history variables 
       call this%flush_hvars(nc,upfreq_in=4)
@@ -2785,6 +2789,9 @@ end subroutine flush_hvars
          
          io_si  = this%iovar_map(nc)%site_index(s)
          io_pa1 = this%iovar_map(nc)%patch1_index(s)
+
+         hio_h2oveg_si(io_si)              = sites(s)%si_hydr%h2oveg
+         hio_h2oveg_hydro_err_si(io_si)    = sites(s)%si_hydr%h2oveg_hydro_err
 
          ncohort_scpf(:) = 0.0_r8  ! Counter for normalizing weighting 
                                    ! factors for cohort mean propoerties
@@ -3026,8 +3033,6 @@ end subroutine flush_hvars
                end if
             end do
          end if
-
-         hio_h2oveg_si(io_si)              = sites(s)%si_hydr%h2oveg
 
       enddo ! site loop
 
@@ -4051,13 +4056,13 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_canopy_si_scls )
 
-    call this%set_history_var(vname='LAI_CANOPY_SCLS', units = 'indiv/ha',               &
-          long='number of canopy plants by size class', use_default='active',   &
+    call this%set_history_var(vname='LAI_CANOPY_SCLS', units = 'm2/m2',               &
+          long='Leaf are index (LAI) by size class', use_default='active',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_lai_canopy_si_scls )
 
-    call this%set_history_var(vname='SAI_CANOPY_SCLS', units = 'indiv/ha',               &
-          long='number of canopy plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='SAI_CANOPY_SCLS', units = 'm2/m2',               &
+          long='stem area index(SAI) by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_sai_canopy_si_scls )
 
@@ -4635,7 +4640,7 @@ end subroutine flush_hvars
        call this%set_history_var(vname='H2OVEG_HYDRO_ERR', units = 'kg/m2',               &
              long='cumulative net borrowed (+) from plant_stored_h2o due to plant hydrodynamics', use_default='inactive',   &
              avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_hydro_err_si )
+             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_hydro_err_si )
     end if
 
     ! Must be last thing before return
