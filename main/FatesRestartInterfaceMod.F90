@@ -123,13 +123,35 @@ module FatesRestartInterfaceMod
   integer, private :: ir_root_litter_paft
   integer, private :: ir_leaf_litter_in_paft
   integer, private :: ir_root_litter_in_paft
-  integer, private :: ir_seed_bank_sift
-  integer, private :: ir_spread_si
+  
   integer, private :: ir_livegrass_pa
   integer, private :: ir_age_pa
   integer, private :: ir_area_pa
 
+  ! Site level
   integer, private :: ir_watermem_siwm
+  integer, private :: ir_seed_bank_sift
+  integer, private :: ir_spread_si
+  integer, private :: ir_recrate_sift
+  integer, private :: ir_fmortrate_cano_siscpf
+  integer, private :: ir_fmortrate_usto_siscpf
+  integer, private :: ir_imortrate_siscpf
+  integer, private :: ir_fmortrate_crown_siscpf
+  integer, private :: ir_fmortrate_cambi_siscpf
+  integer, private :: ir_termnindiv_cano_siscpf
+  integer, private :: ir_termnindiv_usto_siscpf
+  integer, private :: ir_growflx_fusion_siscpf
+  integer, private :: ir_demorate_sisc
+  integer, private :: ir_promrate_sisc
+  integer, private :: ir_termcflux_cano_si
+  integer, private :: ir_termcflux_usto_si
+  integer, private :: ir_democflux_si
+  integer, private :: ir_promcflux_si
+  integer, private :: ir_imortcflux_si
+  integer, private :: ir_fmortcflux_cano_si
+  integer, private :: ir_fmortcflux_usto_si
+
+
 
   integer, private :: ir_prt_base     ! Base index for all PRT variables
 
@@ -827,6 +849,66 @@ contains
          units='m3/m3', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_watermem_siwm )
 
+    
+    call this%set_restart_var(vname='fates_', vtype=cohort_r8, &
+         long_name='', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_recrate_sift
+
+    call this%set_restart_var(vname='fates_', vtype=cohort_r8, &
+         long_name='', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =
+
+    call this%set_restart_var(vname='fates_', vtype=cohort_r8, &
+         long_name='', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =
+
+    call this%set_restart_var(vname='fates_', vtype=cohort_r8, &
+         long_name='', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =
+
+    call this%set_restart_var(vname='fates_', vtype=cohort_r8, &
+         long_name='', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =
+
+    call this%set_restart_var(vname='fates_', vtype=cohort_r8, &
+         long_name='', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =
+
+    call this%set_restart_var(vname='fates_', vtype=cohort_r8, &
+         long_name='', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =
+
+
+
+  integer, private :: ir_recrate_sift
+  integer, private :: ir_fmortrate_cano_siscpf
+  integer, private :: ir_fmortrate_usto_siscpf
+  integer, private :: ir_imortrate_siscpf
+  integer, private :: ir_fmortrate_crown_siscpf
+  integer, private :: ir_fmortrate_cambi_siscpf
+  integer, private :: ir_termnindiv_cano_siscpf
+  integer, private :: ir_termnindiv_usto_siscpf
+  integer, private :: ir_growflx_fusion_siscpf
+  integer, private :: ir_demorate_sisc
+  integer, private :: ir_promrate_sisc
+  integer, private :: ir_termcflux_cano_si
+  integer, private :: ir_termcflux_usto_si
+  integer, private :: ir_democflux_si
+  integer, private :: ir_promcflux_si
+  integer, private :: ir_imortcflux_si
+  integer, private :: ir_fmortcflux_cano_si
+  integer, private :: ir_fmortcflux_usto_si
+
+
+
+
 
     ! Register all of the PRT states and fluxes
 
@@ -1143,7 +1225,26 @@ contains
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d )
+           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
+           rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
+           rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf), &
+           rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf), &
+           rio_imortrate_siscpf        => this%rvars(ir_imortrate_siscpf), &
+           rio_fmortrate_crown_siscpf  => this%rvars(ir_fmortrate_crown_siscpf), &
+           rio_fmortrate_cambi_siscpf  => this%rvars(ir_fmortrate_cambi_siscpf), &
+           rio_termnindiv_cano_siscpf  => this%rvars(ir_termnindiv_cano_siscpf), &
+           rio_termnindiv_usto_siscpf  => this%rvars(ir_termnindiv_usto_siscpf), &
+           rio_growflx_fusion_siscpf   => this%rvars(ir_growflx_fusion_siscpf),  &
+           rio_demorate_sisc           => this%rvars(ir_demorate_sisc), &
+           rio_promrate_sisc           => this%rvars(ir_promrate_sisc), &
+           rio_termcflux_cano_si       => this%rvars(ir_termcflux_cano_si), &
+           rio_termcflux_usto_si       => this%rvars(ir_termcflux_usto_si), &
+           rio_democflux_si            => this%rvars(ir_democflux_si), &
+           rio_promcflux_si            => this%rvars(ir_promcflux_si), &
+           rio_imortcflux_si           => this%rvars(ir_imortcflux_si), &
+           rio_fmortcflux_cano_si      => this%rvars(ir_fmortcflux_cano_si), &
+           rio_fmortcflux_usto_si      => this%rvars(ir_fmortcflux_usto_si))
+
 
        totalCohorts = 0
        
@@ -1641,6 +1742,8 @@ contains
      integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
      integer  :: io_idx_pa_ib   ! each SW radiation band per patch (pa_ib)
      integer  :: io_idx_si_wmem ! each water memory class within each site
+     integer  :: io_idx_si_scpf ! each size-class x pft index within site
+     integer  :: io_idx_si_sc   ! each size-class index within site
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1717,8 +1820,27 @@ contains
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-          rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d )
+          rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
+          rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
+          rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf), &
+          rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf), &
+          rio_imortrate_siscpf        => this%rvars(ir_imortrate_siscpf), &
+          rio_fmortrate_crown_siscpf  => this%rvars(ir_fmortrate_crown_siscpf), &
+          rio_fmortrate_cambi_siscpf  => this%rvars(ir_fmortrate_cambi_siscpf), &
+          rio_termnindiv_cano_siscpf  => this%rvars(ir_termnindiv_cano_siscpf), &
+          rio_termnindiv_usto_siscpf  => this%rvars(ir_termnindiv_usto_siscpf), &
+          rio_growflx_fusion_siscpf   => this%rvars(ir_growflx_fusion_siscpf),  &
+          rio_demorate_sisc           => this%rvars(ir_demorate_sisc), &
+          rio_promrate_sisc           => this%rvars(ir_promrate_sisc), &
+          rio_termcflux_cano_si       => this%rvars(ir_termcflux_cano_si), &
+          rio_termcflux_usto_si       => this%rvars(ir_termcflux_usto_si), &
+          rio_democflux_si            => this%rvars(ir_democflux_si), &
+          rio_promcflux_si            => this%rvars(ir_promcflux_si), &
+          rio_imortcflux_si           => this%rvars(ir_imortcflux_si), &
+          rio_fmortcflux_cano_si      => this%rvars(ir_fmortcflux_cano_si), &
+          rio_fmortcflux_usto_si      => this%rvars(ir_fmortcflux_usto_si))
      
+
        totalcohorts = 0
      
        do s = 1,nsites
@@ -1731,10 +1853,15 @@ contains
           io_idx_pa_cwd  = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
+
+          io_idx_si_scpf = io_idx_co_1st
+          io_idx_si_sc   = io_idx_co_1st
+
           
           ! read seed_bank info(site-level, but PFT-resolved)
-          do i = 1,numpft 
+          do i_pft = 1,numpft 
              sites(s)%seed_bank(i) = rio_seed_bank_sift(io_idx_co_1st+i-1)
+             sites(s)%recruitment_rate(i_pft) = rio_recrate_sift(io_idx_co_1st+i-1)
           enddo
 
           sites(s)%spread = rio_spread_si(io_idx_si) 
@@ -1915,6 +2042,39 @@ contains
              io_idx_si_wmem = io_idx_si_wmem + 1
           end do
           
+
+          ! Fill the site level diagnostics arrays
+          do i_scls = 1,nlevsclass
+             
+             do i_pft = 1, numpft
+             
+                sites(s)%fmort_rate_canopy(i_scls, i_pft)  = rio_fmortrate_cano_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_rate_ustory(i_scls, i_pft)  = rio_fmortrate_usto_siscpf(io_idx_si_scpf)
+                sites(s)%imort_rate(i_scls, i_pft)         = rio_imortrate_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_rate_crown(i_scls, i_pft)   = rio_fmortrate_crown_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_rate_cambial(i_scls, i_pft) = rio_fmortrate_cambi_siscpf(io_idx_si_scpf) 
+                sites(s)%term_nindivs_canopy(i_scls,i_pft) = rio_termnindiv_cano_siscpf(io_idx_si_scpf)
+                sites(s)%term_nindivs_ustory(i_scls,i_pft) = rio_termnindiv_usto_siscpf(io_idx_si_scpf)
+                sites(s)%growthflux_fusion(i_scls, i_pft)  = rio_growflx_fusion_siscpf(io_idx_si_scpf)
+
+                io_idx_si_scpf = io_idx_si_scpf + 1
+             end do
+
+             sites(s)%demotion_rate(i_scls)  = rio_demorate_sisc(io_idx_si_sc)
+             sites(s)%promotion_rate(i_scls) = rio_promrate_sisc(io_idx_si_sc)
+                
+             io_idx_si_sc = io_idx_si_sc + 1
+          end do
+         
+
+          sites(s)%term_carbonflux_canopy   = rio_termcflux_cano_si(io_idx_si)
+          sites(s)%term_carbonflux_ustory   = rio_termcflux_usto_si(io_idx_si)
+          sites(s)%demotion_carbonflux      = rio_democflux_si(io_idx_si)
+          sites(s)%promotion_carbonflux     = rio_promcflux_si(io_idx_si)
+          sites(s)%imort_carbonflux         = rio_imortcflux_si(io_idx_si)
+          sites(s)%fmort_carbonflux_canopy  = rio_fmortcflux_cano_si(io_idx_si)
+          sites(s)%fmort_carbonflux_ustory  = rio_fmortcflux_usto_si(io_idx_si)
+
           sites(s)%old_stock      = rio_old_stock_si(io_idx_si)
           sites(s)%status         = rio_cd_status_si(io_idx_si)
           sites(s)%dstatus        = rio_dd_status_si(io_idx_si)

@@ -605,13 +605,19 @@ module EDTypesMod
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
-        
+     
+     ! DIAGNOSTICS
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
-
-     real(r8), allocatable :: terminated_nindivs(:,:,:)          ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
-     real(r8) :: termination_carbonflux(nclmax)                  ! carbon flux from live to dead pools associated with termination mortality, per canopy level
-     real(r8) :: recruitment_rate(1:maxpft)                      ! number of individuals that were recruited into new cohorts
-     real(r8), allocatable :: demotion_rate(:)                   ! rate of individuals demoted from canopy to understory per FATES timestep
+     
+     real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
+                                                       ! were terminated this timestep, on size x pft
+     real(r8) :: term_carbonflux_canopy                ! carbon flux from live to dead pools associated 
+                                                       ! with termination mortality, per canopy level
+     real(r8) :: term_carbonflux_ustory                ! carbon flux from live to dead pools associated 
+                                                       ! with termination mortality, per canopy level
+     
+     real(r8) :: recruitment_rate(1:maxpft)            ! number of individuals that were recruited into new cohorts
+     real(r8), allocatable :: demotion_rate(:)         ! rate of individuals demoted from canopy to understory per FATES timestep
      real(r8) :: demotion_carbonflux                             ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
      real(r8), allocatable :: promotion_rate(:)                  ! rate of individuals promoted from understory to canopy per FATES timestep
      real(r8) :: promotion_carbonflux                            ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
@@ -620,7 +626,8 @@ module EDTypesMod
 
      real(r8), allocatable :: fmort_rate(:,:,:)                  ! rate of individuals killed due to fire mortality per year.  on size x pft x can-layer array 
                                                                  ! (1:nlevsclass,1:numpft,1:nclmax)
-     real(r8) :: fmort_carbonflux(nclmax)                        ! biomass of individuals killed due to fire mortality per year. [gC/m2/sec]
+     real(r8) :: fmort_carbonflux_canopy                         ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
+     real(r8) :: fmort_carbonflux_ustory                         ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
      real(r8), allocatable :: fmort_rate_cambial(:,:)            ! rate of individuals killed due to fire mortality from cambial damage per year.  on size x pft array
      real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality from crown damage per year.  on size x pft array
 
