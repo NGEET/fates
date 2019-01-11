@@ -823,6 +823,7 @@ contains
                   if (ED_val_comp_excln .ge. 0.0_r8 ) then
                      ! normal (stochastic) case, as above.
                      currentCohort%prom_weight = currentCohort%n*currentCohort%hite**ED_val_comp_excln
+                     sumweights = sumweights + currentCohort%prom_weight
                   else
                      
                      ! ------------------------------------------------------------------
