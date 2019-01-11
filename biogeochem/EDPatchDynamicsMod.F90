@@ -17,6 +17,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ifall
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
+  use EDTypesMod           , only : ican_upper
   use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
@@ -538,20 +539,35 @@ contains
 
                 levcan = currentCohort%canopy_layer 
 
-                ! before changing number densities, track total rate of trees that died due to fire, as well as from each fire mortality term
-                currentSite%fmort_rate(currentCohort%size_class, currentCohort%pft, levcan) = &
-                     currentSite%fmort_rate(currentCohort%size_class, currentCohort%pft, levcan) + &
-                     nc%n * currentCohort%fire_mort / hlm_freq_day
+                if(levcan==ican_upper) then
+                   
+                   ! before changing number densities, track total rate of trees that died 
+                   ! due to fire, as well as from each fire mortality term
+                   currentSite%fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) = &
+                         currentSite%fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) + &
+                         nc%n * currentCohort%fire_mort / hlm_freq_day
+
+                   currentSite%fmort_carbonflux_canopy = currentSite%fmort_carbonflux_canopy + &
+                         (nc%n * currentCohort%fire_mort) * &
+                         total_c * g_per_kg * days_per_sec * ha_per_m2
+                   
+                else
+                   currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) = &
+                         currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) + &
+                         nc%n * currentCohort%fire_mort / hlm_freq_day
+
+                   currentSite%fmort_carbonflux_ustory = currentSite%fmort_carbonflux_ustory + &
+                         (nc%n * currentCohort%fire_mort) * &
+                         total_c * g_per_kg * days_per_sec * ha_per_m2
+                end if
+
                 currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) = &
                      currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) + &
                      nc%n * currentCohort%cambial_mort / hlm_freq_day
                 currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) = &
                      currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) + &
                      nc%n * currentCohort%crownfire_mort / hlm_freq_day
-                currentSite%fmort_carbonflux(levcan) = currentSite%fmort_carbonflux(levcan) + &
-                     (nc%n * currentCohort%fire_mort) * &
-                     total_c * g_per_kg * days_per_sec * ha_per_m2
-
+               
                 ! loss of individual from fire in new patch.
                 nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
 

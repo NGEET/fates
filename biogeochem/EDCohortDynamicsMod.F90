@@ -21,6 +21,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
+  use EDTypesMod            , only : ican_upper
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
@@ -606,12 +607,19 @@ contains
           ! preserve a record of the to-be-terminated cohort for mortality accounting
           levcan = currentCohort%canopy_layer
 
-          currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
-               currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
-          !
-          currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
-                currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
-          
+          if(levcan==ican_upper) then
+             currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) = &
+                   currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) + currentCohort%n
+ 
+             currentSite%term_carbonflux_canopy = currentSite%term_carbonflux_canopy + &
+                   currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+          else
+             currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) = &
+                   currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) + currentCohort%n
+ 
+             currentSite%term_carbonflux_ustory = currentSite%term_carbonflux_ustory + &
+                   currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+          end if
 
           !put the litter from the terminated cohorts straight into the fragmenting pools
           if (currentCohort%n.gt.0.0_r8) then

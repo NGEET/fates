@@ -2123,24 +2123,27 @@ end subroutine flush_hvars
                i_scpf = (i_pft-1)*nlevsclass + i_scls
                !
                ! termination mortality. sum of canopy and understory indices
-               hio_m6_si_scpf(io_si,i_scpf) = sum(sites(s)%terminated_nindivs(i_scls,i_pft,1:nclmax)) * days_per_year
+               hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%term_nindivs_canopy(i_scls,i_pft) + &
+                                               sites(s)%term_nindivs_ustory(i_scls,i_pft)) * days_per_year
 
                hio_m6_si_scls(io_si,i_scls) = hio_m6_si_scls(io_si,i_scls) + &
-                     sum(sites(s)%terminated_nindivs(i_scls,i_pft,1:nclmax)) * days_per_year
+                     (sites(s)%term_nindivs_canopy(i_scls,i_pft) + &
+                      sites(s)%term_nindivs_ustory(i_scls,i_pft)) * days_per_year
+                     
 
                !
                ! add termination mortality to canopy and understory mortality
                hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
-                    sites(s)%terminated_nindivs(i_scls,i_pft,ican_upper) * days_per_year
+                    sites(s)%term_nindivs_canopy(i_scls,i_pft) * days_per_year
 
                hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
-                    sum(sites(s)%terminated_nindivs(i_scls,i_pft,ican_upper+1:nclmax)) * days_per_year
+                    sites(s)%term_nindivs_ustory(i_scls,i_pft) * days_per_year
 
                hio_mortality_canopy_si_scpf(io_si,i_scpf) = hio_mortality_canopy_si_scpf(io_si,i_scpf) + &
-                    sites(s)%terminated_nindivs(i_scls,i_pft,ican_upper) * days_per_year
+                     sites(s)%term_nindivs_canopy(i_scls,i_pft) * days_per_year
 
                hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
-                    sum(sites(s)%terminated_nindivs(i_scls,i_pft,ican_upper+1:nclmax)) * days_per_year
+                     sites(s)%term_nindivs_ustory(i_scls,i_pft) * days_per_year
 
                !
                ! imort on its own
@@ -2158,44 +2161,45 @@ end subroutine flush_hvars
                iscag = i_scls ! since imort is by definition something that only happens in newly disturbed patches, treat as such
                hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
                     sites(s)%imort_rate(i_scls, i_pft)
-               !
 
                ! fire mortality from the site-level diagnostic rates
-               hio_m5_si_scpf(io_si,i_scpf) = sum(sites(s)%fmort_rate(i_scls, i_pft,1:nclmax))
-               hio_m5_si_scls(io_si,i_scls) = hio_m5_si_scls(io_si,i_scls) + sum(sites(s)%fmort_rate(i_scls, i_pft,1:nclmax))
+               hio_m5_si_scpf(io_si,i_scpf) = sites(s)%fmort_rate_canopy(i_scls, i_pft) + &
+                     sites(s)%fmort_rate_ustory(i_scls, i_pft)
+               hio_m5_si_scls(io_si,i_scls) = hio_m5_si_scls(io_si,i_scls) + &
+                     sites(s)%fmort_rate_canopy(i_scls, i_pft) +  sites(s)%fmort_rate_ustory(i_scls, i_pft)
                !
                hio_crownfiremort_si_scpf(io_si,i_scpf) = sites(s)%fmort_rate_crown(i_scls, i_pft)
                hio_cambialfiremort_si_scpf(io_si,i_scpf) = sites(s)%fmort_rate_cambial(i_scls, i_pft)
                !
                ! fire components of overall canopy and understory mortality
                hio_mortality_canopy_si_scpf(io_si,i_scpf) = hio_mortality_canopy_si_scpf(io_si,i_scpf) + &
-                    sites(s)%fmort_rate(i_scls, i_pft,ican_upper)
+                    sites(s)%fmort_rate_canopy(i_scls, i_pft)
                hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
-                    sites(s)%fmort_rate(i_scls, i_pft,ican_upper)
+                    sites(s)%fmort_rate_canopy(i_scls, i_pft)
 
                ! the fire mortality rates for each layer are total dead, since the usable
                ! output will then normalize by the counts, we are allowed to sum over layers
                hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
-                     sum(sites(s)%fmort_rate(i_scls, i_pft,ican_upper+1:nclmax))
+                     sites(s)%fmort_rate_ustory(i_scls, i_pft)
 
                hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
-                     sum(sites(s)%fmort_rate(i_scls, i_pft,ican_upper+1:nclmax))
+                     sites(s)%fmort_rate_ustory(i_scls, i_pft)
 
                !
                ! carbon flux associated with mortality of trees dying by fire
                hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-                    sites(s)%fmort_carbonflux(ican_upper)
-
+                     sites(s)%fmort_carbonflux_canopy
+               
                hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-                     sum(sites(s)%fmort_carbonflux(ican_upper+1:nclmax))
-
+                     sites(s)%fmort_carbonflux_ustory
+               
                !
                ! for scag variables, also treat as happening in the newly-disurbed patch
 
                hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
-                    sites(s)%fmort_rate(i_scls, i_pft,ican_upper)
+                    sites(s)%fmort_rate_canopy(i_scls, i_pft)
                hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                    sum(sites(s)%fmort_rate(i_scls, i_pft,ican_upper+1:nclmax))
+                    sites(s)%fmort_rate_ustory(i_scls, i_pft)
 
                ! while in this loop, pass the fusion-induced growth rate flux to history
                hio_growthflux_fusion_si_scpf(io_si,i_scpf) = hio_growthflux_fusion_si_scpf(io_si,i_scpf) + &
@@ -2208,11 +2212,14 @@ end subroutine flush_hvars
          hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
               sites(s)%imort_carbonflux
          !
-         sites(s)%terminated_nindivs(:,:,:) = 0._r8
+         sites(s)%term_nindivs_canopy(:,:) = 0._r8
+         sites(s)%term_nindivs_ustory(:,:) = 0._r8
          sites(s)%imort_carbonflux = 0._r8
          sites(s)%imort_rate(:,:) = 0._r8
-         sites(s)%fmort_rate(:,:,:) = 0._r8
-         sites(s)%fmort_carbonflux(:) = 0._r8
+         sites(s)%fmort_rate_canopy(:,:) = 0._r8
+         sites(s)%fmort_rate_ustory(:,:) = 0._r8
+         sites(s)%fmort_carbonflux_canopy = 0._r8
+         sites(s)%fmort_carbonflux_ustory = 0._r8
          sites(s)%fmort_rate_cambial(:,:) = 0._r8
          sites(s)%fmort_rate_crown(:,:) = 0._r8
          sites(s)%growthflux_fusion(:,:) = 0._r8
@@ -2254,13 +2261,14 @@ end subroutine flush_hvars
          ! mortality-associated carbon fluxes
          
          hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-              sites(s)%termination_carbonflux(ican_upper) * g_per_kg * days_per_sec * ha_per_m2
-
+               sites(s)%term_carbonflux_canopy * g_per_kg * days_per_sec * ha_per_m2
+         
          hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-              sum(sites(s)%termination_carbonflux(ican_upper+1:nclmax)) * g_per_kg * days_per_sec * ha_per_m2
+               sites(s)%term_carbonflux_ustory * g_per_kg * days_per_sec * ha_per_m2
 
          ! and zero the site-level termination carbon flux variable
-         sites(s)%termination_carbonflux(:) = 0._r8
+         sites(s)%term_carbonflux_canopy = 0._r8
+         sites(s)%term_carbonflux_ustory = 0._r8
          !
          ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
          do i_cwd = 1, ncwd
