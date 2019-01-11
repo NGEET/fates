@@ -611,6 +611,8 @@ module EDTypesMod
      
      real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
                                                        ! were terminated this timestep, on size x pft
+     real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which 
+                                                       ! were terminated this timestep, on size x pft
      real(r8) :: term_carbonflux_canopy                ! carbon flux from live to dead pools associated 
                                                        ! with termination mortality, per canopy level
      real(r8) :: term_carbonflux_ustory                ! carbon flux from live to dead pools associated 
@@ -624,14 +626,19 @@ module EDTypesMod
      real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
      real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
 
-     real(r8), allocatable :: fmort_rate(:,:,:)                  ! rate of individuals killed due to fire mortality per year.  on size x pft x can-layer array 
-                                                                 ! (1:nlevsclass,1:numpft,1:nclmax)
+     real(r8), allocatable :: fmort_rate_canopy(:,:)             ! rate of canopy individuals killed due to fire mortality per year.  
+                                                                 ! on size x pft array  (1:nlevsclass,1:numpft)
+     real(r8), allocatable :: fmort_rate_ustory(:,:)             ! rate of understory individuals killed due to fire mortality per year.  
+                                                                 ! on size x pft array  (1:nlevsclass,1:numpft)
      real(r8) :: fmort_carbonflux_canopy                         ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
      real(r8) :: fmort_carbonflux_ustory                         ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
-     real(r8), allocatable :: fmort_rate_cambial(:,:)            ! rate of individuals killed due to fire mortality from cambial damage per year.  on size x pft array
-     real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality from crown damage per year.  on size x pft array
+     real(r8), allocatable :: fmort_rate_cambial(:,:)            ! rate of individuals killed due to fire mortality 
+                                                                 ! from cambial damage per year.  on size x pft array
+     real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality 
+                                                                 ! from crown damage per year.  on size x pft array
 
-     real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin due to fusion in a given day. on size x pft array 
+     real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin 
+                                                                 ! due to fusion in a given day. on size x pft array 
 
 
      ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
