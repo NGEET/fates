@@ -828,7 +828,7 @@ contains
                      
                      ! ------------------------------------------------------------------
                      ! Rank ordered deterministic method
-                     ! If there cohorts that have the exact same height (which is possible, really)
+                     ! If there are cohorts that have the exact same height (which is possible, really)
                      ! we don't want to unilaterally promote/demote one before the others. 
                      ! So we <>mote them as a unit
                      ! now we need to go through and figure out how many equal-size cohorts there are.
