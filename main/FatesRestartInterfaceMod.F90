@@ -851,74 +851,94 @@ contains
 
     
     call this%set_restart_var(vname='fates_recrate', vtype=cohort_r8, &
-         long_name='fates diagnostics on recruitment - site x pft', &
+         long_name='fates diagnostics on recruitment', &
          units='indiv/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_recrate_sift)
 
     call this%set_restart_var(vname='fates_fmortrate_canopy', vtype=cohort_r8, &
-         long_name='fates diagnostics on fire mortality in the canopy - site x pft', &
+         long_name='fates diagnostics on fire mortality canopy', &
          units='indiv/ha/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortrate_cano_siscpf)
 
     call this%set_restart_var(vname='fates_fmortrate_ustory', vtype=cohort_r8, &
-         long_name='fates diagnostics on fire mortality in understory - site x pft', &
+         long_name='fates diagnostics on fire mortality ustory', &
          units='indiv/ha/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortrate_usto_siscpf)
 
     call this%set_restart_var(vname='fates_imortrate', vtype=cohort_r8, &
-         long_name='fates diagnostics on impact mortality (understory only) - site x size x pft', &
+         long_name='fates diagnostics on impact mortality', &
          units='indiv/ha/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_imortrate_siscpf)
 
     call this%set_restart_var(vname='fates_fmortrate_crown', vtype=cohort_r8, &
-         long_name='fates diagnostics on fire mortality via crown scorching - site x size x pft', &
+         long_name='fates diagnostics on crown fire mortality', &
          units='indiv/ha/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortrate_crown_siscpf)
 
     call this%set_restart_var(vname='fates_fmortrate_cambi', vtype=cohort_r8, &
-         long_name='fates diagnostics on fire mortality via cambial damage - site x size x pft', &
+         long_name='fates diagnostics on fire cambial mortality', &
          units='indiv/ha/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortrate_cambi_siscpf)
 
     call this%set_restart_var(vname='fates_termn_canopy', vtype=cohort_r8, &
-         long_name='fates diagnostics on termination mortality in the canopy - site x size x pft', &
+         long_name='fates diagnostics on termin mortality canopy', &
          units='indiv/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_termnindiv_cano_siscpf)
 
     call this%set_restart_var(vname='fates_termn_ustory', vtype=cohort_r8, &
-         long_name='fates diagnostics on termination mortality in the understory - site x size x pft', &
+         long_name='fates diagnostics on term mortality ustory', &
          units='indiv/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_termnindiv_usto_siscpf)
 
     call this%set_restart_var(vname='fates_growflx_fusion', vtype=cohort_r8, &
-         long_name='fates diag: rate of indivs moving into a size class bin due to fusion', &
+         long_name='fates diag: rate of indivs moving via fusion', &
          units='indiv/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_growflx_fusion_siscpf)
     
     call this%set_restart_var(vname='fates_demorate', vtype=cohort_r8, &
-         long_name='fates diagnoatic rate of indivs demoted from canopy to understory', &
+         long_name='fates diagnoatic rate of indivs demoted', &
          units='indiv/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_demorate_sisc)
 
     call this%set_restart_var(vname='fates_promrate', vtype=cohort_r8, &
-         long_name='fates diagnostic rate of indivs demoted from canopy to understory', &
+         long_name='fates diagnostic rate of indivs promoted', &
          units='indiv/ha/da', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_promrate_sisc)
 
-    call this%set_restart_var(vname='fates_imortcflux', vtype=cohort_r8, &
-         long_name='biomass of individuals killed due to impact mortality per year', &
+    call this%set_restart_var(vname='fates_imortcflux', vtype=site_r8, &
+         long_name='biomass of indivs killed due to impact mort', &
          units='kgC/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_imortcflux_si)
  
-   call this%set_restart_var(vname='fates_fmortcflux_canopy', vtype=cohort_r8, &
-         long_name='fates diagnostic biomass of canopy indivs killed due to fire per year', &
+   call this%set_restart_var(vname='fates_fmortcflux_canopy', vtype=site_r8, &
+         long_name='fates diagnostic biomass of canopy fire', &
          units='gC/m2/sec', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortcflux_cano_si)
 
-    call this%set_restart_var(vname='fates_fmortcflux_canopy', vtype=cohort_r8, &
-         long_name='fates diagnostic biomass of understory indivs killed due to fire per year', &
+    call this%set_restart_var(vname='fates_fmortcflux_ustory', vtype=site_r8, &
+         long_name='fates diagnostic biomass of understory fire', &
          units='gC/m2/sec', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortcflux_usto_si)
+
+    call this%set_restart_var(vname='fates_termcflux_canopy', vtype=site_r8, &
+         long_name='fates diagnostic term carbon flux canopy', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_termcflux_cano_si )
+
+   call this%set_restart_var(vname='fates_termcflux_ustory', vtype=site_r8, &
+         long_name='fates diagnostic term carbon flux understory', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_termcflux_usto_si )
+
+   call this%set_restart_var(vname='fates_democflux', vtype=site_r8, &
+         long_name='fates diagnostic demotion carbon flux', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_democflux_si )
+
+   call this%set_restart_var(vname='fates_promcflux', vtype=site_r8, &
+         long_name='fates diagnostic promotion carbon flux ', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_promcflux_si )
 
 
 
@@ -1470,7 +1490,7 @@ contains
           enddo ! cpatch do while
           
 
-                    ! Fill the site level diagnostics arrays
+          ! Fill the site level diagnostics arrays
           do i_scls = 1, nlevsclass
              
              do i_pft = 1, numpft
