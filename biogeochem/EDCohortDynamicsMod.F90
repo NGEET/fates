@@ -21,6 +21,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
+  use EDTypesMod            , only : ican_upper
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
@@ -602,19 +603,23 @@ contains
       endif    !  if (.not.currentCohort%isnew .and. level == 2) then
 
       if (terminate == 1) then 
+         
           ! preserve a record of the to-be-terminated cohort for mortality accounting
-          if (currentCohort%canopy_layer .eq. 1) then
-             levcan = 1
-          else
-             levcan = 2
-          endif
+          levcan = currentCohort%canopy_layer
 
-          currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
-               currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
-          !
-          currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
-                currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
-          
+          if(levcan==ican_upper) then
+             currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) = &
+                   currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) + currentCohort%n
+ 
+             currentSite%term_carbonflux_canopy = currentSite%term_carbonflux_canopy + &
+                   currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+          else
+             currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) = &
+                   currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) + currentCohort%n
+ 
+             currentSite%term_carbonflux_ustory = currentSite%term_carbonflux_ustory + &
+                   currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+          end if
 
           !put the litter from the terminated cohorts straight into the fragmenting pools
           if (currentCohort%n.gt.0.0_r8) then
@@ -927,7 +932,6 @@ contains
                                    currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
                                    currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
                                    currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
-                                   currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
                                    currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                    ! logging mortality, Yi Xu
@@ -1303,7 +1307,6 @@ contains
     ! Mortality diagnostics
     n%cmort = o%cmort
     n%bmort = o%bmort
-    n%fmort = o%fmort
     n%hmort = o%hmort
     n%frmort = o%frmort
 
