@@ -580,12 +580,12 @@ module EDTypesMod
      real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
      integer  ::  status                                       ! are leaves in this pixel on or off for cold decid
      integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
-     real(r8) ::  ncd                                          ! no chilling days:-
+     integer  ::  ncd                                          ! no chilling days:-
      real(r8) ::  last_n_days(senes)                           ! record of last 10 days temperature for senescence model. deg C
-     integer  ::  leafondate                                   ! doy of leaf on:-
-     integer  ::  leafoffdate                                  ! doy of leaf off:-
-     integer  ::  dleafondate                                  ! doy of leaf on drought:-
-     integer  ::  dleafoffdate                                 ! doy of leaf on drought:-
+     integer  ::  cleafondate                                  ! model date (day integer) of leaf on (cold):-
+     integer  ::  cleafoffdate                                 ! model date (day integer) of leaf off (cold):-
+     integer  ::  dleafondate                                  ! model date (day integer) of leaf on drought:-
+     integer  ::  dleafoffdate                                 ! model date (day integer) of leaf on drought:-
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
      !SEED BANK

@@ -406,10 +406,13 @@ contains
     !
     ! !LOCAL VARIABLES:
 
-    integer  :: t            ! day of year
-    integer  :: ncolddays    ! no days underneath the threshold for leaf drop
+    integer  :: model_day_int       ! integer model day 1 - inf
+    integer  :: ncolddays           ! no days underneath the threshold for leaf drop
     integer  :: i
-    integer  :: timesincedleafon,timesincedleafoff,timesinceleafon,timesinceleafoff
+    integer  :: dayssincedleafon    ! Days since drought-decid leaf-on started
+    integer  :: dayssincedleafoff   ! Days since drought-decid leaf-off started
+    integer  :: dayssincecleafon    ! Days since cold-decid leaf-on started
+    integer  :: dayssincecleafoff   ! Days since cold-decid leaf-off started
     integer  :: refdate
     integer  :: curdate
     
@@ -417,22 +420,32 @@ contains
     integer  :: mon                      ! month (1, ..., 12)
     integer  :: day                      ! day of month (1, ..., 31)
     integer  :: sec                      ! seconds of the day
-
+    real(r8) :: mean_10day_liqvol    ! mean liquid volume (m3/m3) over last 10 days
     real(r8) :: leaf_c                       ! leaf carbon [kg]
     real(r8) :: fnrt_c               ! fineroot carbon [kg]
     real(r8) :: sapw_c               ! sapwood carbon [kg]
     real(r8) :: store_c              ! storage carbon [kg]
     real(r8) :: struct_c             ! structure carbon [kg]
 
-    real(r8) :: gdd_threshold
-    integer  :: ncdstart     ! beginning of counting period for chilling degree days.
-    integer  :: gddstart     ! beginning of counting period for growing degree days.
-    real(r8) :: temp_in_C    ! daily averaged temperature in celcius
+    real(r8) :: gdd_threshold ! GDD accumulation function, 
+                              ! which also depends on chilling days.
+    integer  :: ncdstart      ! beginning of counting period for chilling degree days.
+    integer  :: gddstart      ! beginning of counting period for growing degree days.
+    real(r8) :: temp_in_C     ! daily averaged temperature in celcius
 
     real(r8), parameter :: canopy_leaf_lifespan = 365.0_r8    ! Mean lifespan canopy leaves
                                                               ! FIX(RGK 07/10/17)
                                                               ! This is a band-aid on unusual code
-                                                              
+    
+    ! This is the minimum number of days that the site must be in a "leaf-on"
+    ! status in order to start evaluating soil drying to trigger an off state
+    ! this prevents "flicker"
+    integer, parameter :: leafon_min_flicker = 100
+    
+ 
+    ! This is the integer model day. The first day of the simulation is 1, and it
+    ! continues monotonically, indefinitely
+    model_day_int = nint(hlm_model_day)
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
@@ -440,7 +453,6 @@ contains
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725 
     !Parameters, default from from SDGVM model of senesence
 
-    t  = hlm_day_of_year
     temp_in_C = bc_in%t_veg24_si - tfrz
 
     !-----------------Cold Phenology--------------------!              
@@ -448,24 +460,23 @@ contains
     !Zero growing degree and chilling day counters
     if (currentSite%lat > 0)then
        ncdstart = 270  !Northern Hemisphere begining November
-       gddstart = 1    !Northern Hemisphere begining January
+       gddstart = 1    !Northern Hemisphere begining January  (RGK: NOT EARLIER?)
     else
        ncdstart = 120  !Southern Hemisphere beginning May
        gddstart = 181  !Northern Hemisphere begining July
     endif
     
-    ! FIX(SPM,032414) - this will only work for the first year, no?
-    if (t == ncdstart)then
-       currentSite%ncd = 0._r8
+    if (hlm_day_of_year == ncdstart)then
+       currentSite%ncd = 0
     endif
 
     !Accumulate growing/chilling days after start of counting period
     if (temp_in_C  <  ED_val_phen_chiltemp)then
-       currentSite%ncd = currentSite%ncd + 1.0_r8
+       currentSite%ncd = currentSite%ncd + 1
     endif
 
     !GDD accumulation function, which also depends on chilling days.
-    gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*currentSite%ncd)
+    gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%ncd,r8))
 
     !Accumulate temperature of last 10 days.
     currentSite%last_n_days(2:senes) =  currentSite%last_n_days(1:senes-1)
@@ -481,7 +492,7 @@ contains
     ! Here is where we do the GDD accumulation calculation
     !
     ! reset GDD on set dates
-    if (t == gddstart)then
+    if (hlm_day_of_year == gddstart)then
        currentSite%ED_GDD_site = 0._r8
     endif
     !
@@ -490,8 +501,12 @@ contains
        currentSite%ED_GDD_site = currentSite%ED_GDD_site + bc_in%t_veg24_si - tfrz
     endif
     
+    
+    ! HLM model day is the total number of days since simulation start
+    ! The leafoffdate and leafondates are all recorded in this unit
 
-    timesinceleafoff = hlm_model_day - currentSite%leafoffdate
+    dayssincecleafoff = model_day_int - currentSite%cleafoffdate
+
     !LEAF ON: COLD DECIDUOUS. Needs to
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
@@ -500,14 +515,13 @@ contains
        if (currentSite%status == 1) then
           if (currentSite%ncd >= 1) then
              currentSite%status = 2     !alter status of site to 'leaves on'
-             ! NOTE(bja, 2015-01) should leafondate = model_day to be consistent with leaf off?
-             currentSite%leafondate = t !record leaf on date   
+             currentSite%cleafondate = model_day_int  
              if ( debug ) write(fates_log(),*) 'leaves on'
           endif !ncd
        endif !status
     endif !GDD
 
-    timesinceleafon = hlm_model_day - currentSite%leafondate
+    dayssincecleafon = model_day_int - currentSite%cleafondate
 
 
     !LEAF OFF: COLD THRESHOLD
@@ -515,23 +529,24 @@ contains
     !1) have exceeded the number of cold days threshold
     !2) have exceeded the minimum leafon time.
     !3) The leaves should not be off already
-    !4) The day of the year should be larger than the counting period. (not sure if we need this/if it will break the restarting)
+    !4) The day of the year should be larger than the counting period. 
+    !   (not sure if we need this/if it will break the restarting)
     
     if (ncolddays > ED_val_phen_ncolddayslim)then
-     if (timesinceleafon > ED_val_phen_mindayson)then
+     if (dayssincecleafon > ED_val_phen_mindayson)then
        if (currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = hlm_model_day   !record leaf off date   
+          currentSite%cleafoffdate = hlm_model_day   !record leaf off date   
           if ( debug ) write(fates_log(),*) 'leaves off'
        endif
     endif
     endif
 
     !LEAF OFF: COLD LIFESPAN THRESHOLD
-    if(timesinceleafoff > 400)then !remove leaves after a whole year when there is no 'off' period.  
+    if(dayssincecleafoff > 400)then !remove leaves after a whole year when there is no 'off' period.  
        if(currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = hlm_model_day   !record leaf off date   
+          currentSite%cleafoffdate = hlm_model_day   !record leaf off date   
           if ( debug ) write(fates_log(),*) 'leaves off'
        endif
     endif
@@ -545,93 +560,103 @@ contains
     ! B*: If the soil is only wet for a very short time, then the leaves stay on for 100 days
     ! C*: The leaves are only permitted to come ON for a 60 day window around when they last came on, 
     ! to prevent 'flickering' on in response to wet season storms
-    ! D*: We don't allow anything to happen in the first ten days to allow the water memory window to come into equlibirum. 
-    ! E*: If the soil is always wet, the leaves come on at the beginning of the window, and then last for their lifespan. 
+    ! D*: We don't allow anything to happen in the first ten days to allow the water memory window 
+    ! to come into equlibirium. 
+    ! E*: If the soil is always wet, the leaves come on at the beginning of the window, and then 
+    ! last for their lifespan. 
     ! ISSUES
     ! 1. It's not clear what water content we should track. Here we are tracking the top layer, 
-    ! but we probably should track something like BTRAN,
-    ! but BTRAN is defined for each PFT, and there could potentially be more than one stress-dec PFT.... ?
-    ! 2. In the beginning, the window is set at an arbitrary time of the year, so the leaves might come on 
-    ! in the dry season, using up stored reserves
-    ! for the stress-dec plants, and potentially killing them. To get around this, we need to read in the 
-    ! 'leaf on' date from some kind of start-up file
+    ! but we probably should track something like BTRAN, but BTRAN is defined for each PFT, 
+    ! and there could potentially be more than one stress-dec PFT.... ?
+    ! 2. In the beginning, the window is set at an arbitrary time of the year, so the leaves 
+    ! might come on in the dry season, using up stored reserves
+    ! for the stress-dec plants, and potentially killing them. To get around this, 
+    ! we need to read in the 'leaf on' date from some kind of start-up file
     ! but we would need that to happen for every resolution, etc. 
-    ! 3. Will this methodology properly kill off the stress-dec trees where there is no water stress? 
-    ! What about where the wet period coincides with the
-    ! warm period? We would just get them overlapping with the cold-dec trees, even though that isn't appropriate.... 
-    ! Why don't the drought deciduous trees grow
-    ! in the North? Is cold decidousness maybe even the same as drought deciduosness there (and so does this 
+    ! 3. Will this methodology properly kill off the stress-dec trees where there is no
+    ! water stress? What about where the wet period coincides with the warm period? 
+    ! We would just get them overlapping with the cold-dec trees, even though that isn't appropriate
+    ! Why don't the drought deciduous trees grow in the North? 
+    ! Is cold decidousness maybe even the same as drought deciduosness there (and so does this 
     ! distinction actually matter??).... 
 
-    !Accumulate surface water memory of last 10 days.
-
+    ! Accumulate surface water memory of last 10 days.
+    ! Liquid volume in ground layer (m3/m3)
     do i = 1,numWaterMem-1 !shift memory along one
        currentSite%water_memory(numWaterMem+1-i) = currentSite%water_memory(numWaterMem-i)
     enddo
-    currentSite%water_memory(1) = bc_in%h2o_liqvol_sl(1)   !waterstate_inst%h2osoi_vol_col(coli,1)
+    currentSite%water_memory(1) = bc_in%h2o_liqvol_sl(1) 
 
-    !In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...     
-    timesincedleafoff = 0
-    if (currentSite%dstatus == 1)then !the leaves are off. How long have they been off? 
-       !leaves have come on, but last year, so at a later date than now.
-       if (currentSite%dleafoffdate > 0.and.currentSite%dleafoffdate > t)then 
-          timesincedleafoff = t + (360 - currentSite%dleafoffdate)
-       else
-          timesincedleafoff = t - currentSite%dleafoffdate    
-       endif
+    ! Calculate the mean water content over the last 10 days (m3/m3)
+    mean_10day_liqvol = sum(currentSite%water_memory(1:numWaterMem))/real(numWaterMem,r8)
+
+    ! In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...     
+    dayssincedleafoff = 0
+    if (currentSite%dstatus == 1)then 
+       dayssincedleafoff = model_day_int - currentSite%dleafoffdate
     endif
-
-    timesincedleafon = 0
+    
+    dayssincedleafon = 0
     !the leaves are on. How long have they been on? 
-    if (currentSite%dstatus == 2)then  
-       !leaves have come on, but last year, so at a later date than now.
-       if (currentSite%dleafondate > 0.and.currentSite%dleafondate > t)then 
-          timesincedleafon = t + (360 - currentSite%dleafondate)
-       else
-          timesincedleafon = t - currentSite%dleafondate      
-       endif
+    if (currentSite%dstatus == 2)then
+       dayssincedleafon = model_day_int - currentSite%dleafondate 
     endif
 
-    !LEAF ON: DROUGHT DECIDUOUS WETNESS
-    !Here, we used a window of oppurtunity to determine if we are close to the time when then leaves came on last year
-    if ((t >= currentSite%dleafondate - 30.and.t <= currentSite%dleafondate + 30).or.(t > 360 - 15.and. &
-         currentSite%dleafondate < 15))then ! are we in the window?
-       ! TODO: CHANGE THIS MATH, MOVE THE DENOMENATOR OUTSIDE OF THE SUM (rgk 01-2017)
-       if (sum(currentSite%water_memory(1:numWaterMem)/real(numWaterMem,r8)) &
-            >= ED_val_phen_drought_threshold.and.currentSite%dstatus == 1.and.t >= 10)then 
-          ! leave some minimum time between leaf off and leaf on to prevent 'flickering'.  
-          if (timesincedleafoff > ED_val_phen_doff_time)then  
-             currentSite%dstatus = 2     !alter status of site to 'leaves on'
-             currentSite%dleafondate = t   !record leaf on date
+    ! LEAF ON: DROUGHT DECIDUOUS WETNESS
+    ! Here, we used a window of oppurtunity to determine if we are 
+    ! close to the time when then leaves came on last year
+    
+    ! Has it been ...
+    ! a) a year, plus or minus 1 month since we last had leaf-on? 
+    ! b) Has there also been at least a nominaly short amount of "leaf-off"
+    ! c) is the model day at least > 10 (let soil water spin-up)
+    ! Note that cold-starts begin in the "leaf-on"
+    ! status
+    if ( (currentSite%dstatus == 1) .and. &
+          (model_day_int > 10) .and. &
+          (dayssincedleafon > 365-30 .and. dayssinceleafon < 365+30 ) .and. &
+          (dayssincedleafoff > ED_val_phen_doff_time) ) then
+
+       ! If leaves are off, and have been off for at least a few days
+       ! and the time is consistent with the correct
+       ! time window... test if the moisture conditions allow for leaf-on
+       
+       if ( mean_10day_liqvol >= ED_val_phen_drought_threshold ) then
+          currentSite%dstatus     = 2              ! set status to leaf-on
+          currentSite%dleafondate = model_day_int  ! save the model day we start flushing
           endif
        endif
     endif
 
-   !we still haven't done budburst by end of window
-    if (t == currentSite%dleafondate+30.and.currentSite%dstatus == 1)then 
-       currentSite%dstatus = 2    ! force budburst!
-       currentSite%dleafondate = t   ! record leaf on date
+    ! If we still haven't done budburst by end of window
+    ! force it!
+    if ( (currentSite%dstatus == 1) .and. &
+         (model_day_int >= currentSite%dleafondate+365+30) ) then
+       currentSite%dstatus     = 2               ! force budburst!
+       currentSite%dleafondate = model_day_int   ! record leaf on date
     endif
 
-    !LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to the end of its useful life. A*, E*
-    if (currentSite%dstatus == 2.and.t >= 10)then  !D*
-       !Are the leaves at the end of their lives? 
-       !FIX(RF,0401014)- this is hardwiring....
-       !FIX(RGK:changed from hard-coded pft 7 leaf lifespan to labeled constant (1 year)
-       if ( timesincedleafon > canopy_leaf_lifespan )then 
-          currentSite%dstatus = 1         !alter status of site to 'leaves on'
-          currentSite%dleafoffdate = t    !record leaf on date          
+    ! LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to 
+    ! the end of its useful life. A*, E*  
+    ! i.e. Are the leaves rouhgly at the end of their lives? 
+
+    if ( (currentSite%dstatus == 2) .and. & 
+         
+         (dayssincedleafon > canopy_leaf_lifespan) )then 
+          currentSite%dstatus      = 1             !alter status of site to 'leaves on'
+          currentSite%dleafoffdate = model_day_int !record leaf on date          
        endif
     endif
 
-    !LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry, and the leaves have already been on a while... 
-    if (currentSite%dstatus == 2.and.t >= 10)then  !D*
-       if (sum(currentSite%water_memory(1:10)/10._r8) <= ED_val_phen_drought_threshold)then 
-          if (timesincedleafon > 100)then !B* Have the leaves been on for some reasonable length of time? To prevent flickering. 
-             currentSite%dstatus = 1      !alter status of site to 'leaves on'
-             currentSite%dleafoffdate = t !record leaf on date           
-          endif
-       endif
+    ! LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry, 
+    ! and the leaves have already been on a while... 
+
+    if ( (currentSite%dstatus == 2) .and. &
+         (model_day_int > 10) .and. &
+         (mean_10day_liqvol <= ED_val_phen_drought_threshold) .and. &
+         (dayssincedleafon > ED_val_phen_mindayson) ) then 
+       currentSite%dstatus = 1      !alter status of site to 'leaves on'
+       currentSite%dleafoffdate = hlm_day_of_year !record leaf on date           
     endif
 
     call phenology_leafonoff(currentSite)

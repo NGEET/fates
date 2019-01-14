@@ -560,7 +560,7 @@ contains
          long_name='status flag for drought deciduous plants', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dd_status_si )
 
-    call this%set_restart_var(vname='fates_chilling_days', vtype=site_r8, &
+    call this%set_restart_var(vname='fates_chilling_days', vtype=site_int, &
          long_name='chilling day counter', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nchill_days_si )
 
@@ -1425,7 +1425,7 @@ contains
            rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
            rio_cd_status_si            => this%rvars(ir_cd_status_si)%r81d, &
            rio_dd_status_si            => this%rvars(ir_dd_status_si)%r81d, &
-           rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%r81d, &
+           rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
            rio_leafondate_si           => this%rvars(ir_leafondate_si)%r81d, &
            rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%r81d, &
            rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%r81d, &
@@ -1783,8 +1783,8 @@ contains
           rio_cd_status_si(io_idx_si)    = sites(s)%status
           rio_dd_status_si(io_idx_si)    = sites(s)%dstatus
           rio_nchill_days_si(io_idx_si)  = sites(s)%ncd 
-          rio_leafondate_si(io_idx_si)   = sites(s)%leafondate
-          rio_leafoffdate_si(io_idx_si)  = sites(s)%leafoffdate
+          rio_leafondate_si(io_idx_si)   = sites(s)%cleafondate
+          rio_leafoffdate_si(io_idx_si)  = sites(s)%cleafoffdate
           rio_dleafondate_si(io_idx_si)  = sites(s)%dleafondate
           rio_dleafoffdate_si(io_idx_si) = sites(s)%dleafoffdate
           rio_acc_ni_si(io_idx_si)       = sites(s)%acc_NI
@@ -2121,7 +2121,7 @@ contains
           rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%r81d, &
           rio_dd_status_si            => this%rvars(ir_dd_status_si)%r81d, &
-          rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%r81d, &
+          rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
           rio_leafondate_si           => this%rvars(ir_leafondate_si)%r81d, &
           rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%r81d, &
           rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%r81d, &
@@ -2500,8 +2500,8 @@ contains
           sites(s)%status         = rio_cd_status_si(io_idx_si)
           sites(s)%dstatus        = rio_dd_status_si(io_idx_si)
           sites(s)%ncd            = rio_nchill_days_si(io_idx_si)
-          sites(s)%leafondate     = rio_leafondate_si(io_idx_si)
-          sites(s)%leafoffdate    = rio_leafoffdate_si(io_idx_si)
+          sites(s)%cleafondate    = rio_leafondate_si(io_idx_si)
+          sites(s)%cleafoffdate   = rio_leafoffdate_si(io_idx_si)
           sites(s)%dleafondate    = rio_dleafondate_si(io_idx_si)
           sites(s)%dleafoffdate   = rio_dleafoffdate_si(io_idx_si)
           sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)

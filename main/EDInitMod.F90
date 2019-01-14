@@ -7,6 +7,7 @@ module EDInitMod
   use FatesConstantsMod         , only : r8 => fates_r8
   use FatesConstantsMod         , only : ifalse
   use FatesConstantsMod         , only : itrue
+  use FatesConstantsMod         , only : fates_unset_int
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
@@ -108,12 +109,12 @@ contains
     site_in%status           = 0    ! are leaves in this pixel on or off?
     site_in%dstatus          = 0
     site_in%ED_GDD_site      = nan  ! growing degree days
-    site_in%ncd              = nan  ! no chilling days
+    site_in%ncd              = fates_unset_int
     site_in%last_n_days(:)   = 999  ! record of last 10 days temperature for senescence model.
-    site_in%leafondate       = 999  ! doy of leaf on
-    site_in%leafoffdate      = 999  ! doy of leaf off
-    site_in%dleafondate      = 999  ! doy of leaf on drought
-    site_in%dleafoffdate     = 999  ! doy of leaf on drought
+    site_in%cleafondate      = fates_unset_int  ! doy of leaf on
+    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off
+    site_in%dleafondate      = fates_unset_int  ! doy of leaf on drought
+    site_in%dleafoffdate     = fates_unset_int  ! doy of leaf on drought
     site_in%water_memory(:)  = nan
 
 
@@ -183,7 +184,7 @@ contains
     real(r8) :: leafon
     real(r8) :: leafoff
     real(r8) :: stat
-    real(r8) :: NCD
+    integer  :: NCD
     real(r8) :: GDD
     real(r8) :: dstat
     real(r8) :: acc_NI
@@ -194,7 +195,7 @@ contains
 
     if ( hlm_is_restart == ifalse ) then
        !initial guess numbers for site condition.
-       NCD      = 0.0_r8
+       NCD      = 0
        GDD      = 30.0_r8
        leafon   = 100.0_r8
        leafoff  = 300.0_r8
@@ -207,7 +208,7 @@ contains
 
     else ! assignements for restarts
 
-       NCD      = 1.0_r8 ! NCD should be 1 on restart
+       NCD      = 1       ! NCD should be 1 on restart (RGK-PHEN: ?)
        GDD      = 0.0_r8
        leafon   = 0.0_r8
        leafoff  = 0.0_r8
@@ -222,8 +223,8 @@ contains
 
     do s = 1,nsites
        sites(s)%ncd          = NCD
-       sites(s)%leafondate   = leafon
-       sites(s)%leafoffdate  = leafoff
+       sites(s)%cleafondate  = leafon
+       sites(s)%cleafoffdate = leafoff
        sites(s)%dleafoffdate = dleafoff
        sites(s)%dleafondate  = dleafon
        sites(s)%ED_GDD_site  = GDD
