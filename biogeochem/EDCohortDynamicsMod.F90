@@ -8,6 +8,7 @@ module EDCohortDynamicsMod
   use FatesGlobals          , only : fates_log
   use FatesInterfaceMod     , only : hlm_freq_day
   use FatesInterfaceMod     , only : bc_in_type
+  use FatesInterfaceMod     , only : hlm_use_planthydro
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
@@ -31,6 +32,9 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
+  use FatesPlantHydraulicsMod, only : UpdateTreeHydrNodes
+  use FatesPlantHydraulicsMod, only : UpdateTreeHydrLenVolCond
+  use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
@@ -98,6 +102,13 @@ contains
     !
     ! !DESCRIPTION:
     ! create new cohort
+    ! There are 4 places this is called
+    ! 1) Initializing new cohorts at the beginning of a cold-start simulation
+    ! 2) Initializing new recruits during dynamics
+    ! 3) Initializing new cohorts at the beginning of a inventory read
+    ! 4) Initializing new cohorts during restart
+    !
+    ! It is assumed that in the first 3, this is called with a reasonable amount of starter information.
     !
     ! !USES:
     !
@@ -125,7 +136,8 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
     type(ed_cohort_type), pointer :: storesmallcohort 
-    type(ed_cohort_type), pointer :: storebigcohort   
+    type(ed_cohort_type), pointer :: storebigcohort  
+    integer :: nlevsoi_hyd                      ! number of hydraulically active soil layers 
     integer :: tnull,snull                      ! are the tallest and shortest cohorts allocate
     !----------------------------------------------------------------------
 
@@ -242,12 +254,31 @@ contains
     new_cohort%isnew = .true.
 
     if( hlm_use_planthydro.eq.itrue ) then
-       call InitHydrCohort(CurrentSite,new_cohort)
-       call updateSizeDepTreeHydProps(CurrentSite,new_cohort, bc_in) 
-       call initTreeHydStates(CurrentSite,new_cohort, bc_in)
+
+       nlevsoi_hyd = currentSite%si_hydr%nlevsoi_hyd
+
+       ! This allocates array spaces
+       call InitHydrCohort(currentSite,new_cohort)
+
+       ! This calculates node heights
+       call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
+                                new_cohort%hite,nlevsoi_hyd,bc_in)
+
+       ! This calculates volumes, lengths and max conductances
+       call UpdateTreeHydrLenVolCond(new_cohort,nlevsoi_hyd,bc_in)
+       
+       ! Since this is a newly initialized plant, we set the previous compartment-size
+       ! equal to the ones we just calculated.
+       call SavePreviousCompartmentVolumes(new_cohort%co_hydr)
+       
+       ! This comes up with starter suctions and then water contents
+       ! based on the soil values
+       call initTreeHydStates(currentSite,new_cohort, bc_in)
+
        if(recruitstatus==1)then
-          new_cohort%co_hydr%is_newly_recuited = .true.
+          new_cohort%co_hydr%is_newly_recruited = .true.
        endif
+
     endif
     
     call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
@@ -607,6 +638,9 @@ contains
           ! preserve a record of the to-be-terminated cohort for mortality accounting
           levcan = currentCohort%canopy_layer
 
+          if( hlm_use_planthydro == itrue ) &
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort,currentCohort%n)
+
           if(levcan==ican_upper) then
              currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) = &
                    currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) + currentCohort%n
@@ -734,6 +768,7 @@ contains
      real(r8) :: newn
      real(r8) :: diff
      real(r8) :: dynamic_fusion_tolerance
+     real(r8) :: leaf_c             ! leaf carbon [kg]
 
      integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
      real(r8) :: larger_n, smaller_n
@@ -850,8 +885,11 @@ contains
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
+				      
 
-                                if(hlm_use_planthydro.eq.itrue) call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)
+                                if(hlm_use_planthydro.eq.itrue) then			  					  				  
+				    call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
+				 endif
 
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
@@ -980,7 +1018,18 @@ contains
                                 endif
                                 
                                 ! At this point, nothing should be pointing to current Cohort
-                                if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
+				! update hydraulics quantities that are functions of hite & biomasses
+				! deallocate the hydro structure of nextc
+                                if (hlm_use_planthydro.eq.itrue) then				    
+				    call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+				          currentCohort%pft,currentCohort%c_area)
+                                    leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                                    currentCohort%treelai = tree_lai(leaf_c,             &
+                                       currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+                                       currentCohort%canopy_layer, currentPatch%canopy_layer_tlai )			    
+				   call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)  				   
+				   call DeallocateHydrCohort(nextc)
+				endif
 
                                 ! Deallocate the cohort's PRT structure
                                 call nextc%prt%DeallocatePRTVartypes()
