@@ -946,7 +946,7 @@ contains
         anet_av_out = -lmr
         psn_out     = 0._r8
         rstoma_out  = min(rsmax0, 1._r8/bbb * cf)
-	c13disc_z = 1.0_r8                !carbon 13 discrimination in night time carbon flux, value from CLM
+	c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
         
      else ! day time (a little bit more complicated ...)
         
