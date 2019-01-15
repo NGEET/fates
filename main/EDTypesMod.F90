@@ -115,7 +115,7 @@ module EDTypesMod
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter :: external_recruitment = 0          ! external recruitment flag 1=yes  
-  integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
+  integer , parameter :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter :: dinc_ed              = 1.0_r8     ! size of VAI bins (LAI+SAI)  [CHANGE THIS NAME WITH NEXT INTERFACE
                                                            ! UPDATE]
   integer , parameter :: N_DIST_TYPES         = 3          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
@@ -581,7 +581,7 @@ module EDTypesMod
      integer  ::  status                                       ! are leaves in this pixel on or off for cold decid
      integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
      integer  ::  ncd                                          ! no chilling days:-
-     real(r8) ::  last_n_days(senes)                           ! record of last 10 days temperature for senescence model. deg C
+     real(r8) ::  vegtemp_memory(num_vegtemp_mem)              ! record of last 10 days temperature for senescence model. deg C
      integer  ::  cleafondate                                  ! model date (day integer) of leaf on (cold):-
      integer  ::  cleafoffdate                                 ! model date (day integer) of leaf off (cold):-
      integer  ::  dleafondate                                  ! model date (day integer) of leaf on drought:-

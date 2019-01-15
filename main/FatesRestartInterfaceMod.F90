@@ -141,6 +141,7 @@ module FatesRestartInterfaceMod
 
   ! Site level
   integer, private :: ir_watermem_siwm
+  integer, private :: ir_vegtempmem_siwm
   integer, private :: ir_seed_bank_sift
   integer, private :: ir_spread_si
   integer, private :: ir_recrate_sift
@@ -961,6 +962,10 @@ contains
          units='m3/m3', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_watermem_siwm )
 
+    call this%set_restart_var(vname='fates_vegtemp_memory', vtype=cohort_r8, &
+         long_name='last 10 days of 24-hour vegetation temperature, by site x day-index', &
+         units='m3/m3', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_vegtempmem_siwm )
     
     call this%set_restart_var(vname='fates_recrate', vtype=cohort_r8, &
          long_name='fates diagnostics on recruitment', &
@@ -1402,6 +1407,7 @@ contains
     integer  :: io_idx_si_lyr_shell ! site - layer x shell index
     integer  :: io_idx_si_scpf ! each size-class x pft index within site
     integer  :: io_idx_si_sc   ! each size-class index within site
+    integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1488,6 +1494,7 @@ contains
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
+           rio_vegtempmem_siwm         => this%rvars(ir_vegtempmem_siwm)%r81d, &
            rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
            rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
            rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
@@ -1531,6 +1538,7 @@ contains
           io_idx_pa_cwd  = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
+          io_idx_si_vtmem = io_idx_co_1st
 
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
@@ -1815,6 +1823,11 @@ contains
              io_idx_si_wmem = io_idx_si_wmem + 1
           end do
 
+          do i = 1, num_vegtemp_mem
+             rio_vegtempmem_siwm( io_idx_si_vtmem ) = sites(s)%vegtemp_memory(i)
+             io_idx_si_vtmem = io_idx_si_vtmem + 1
+          end do
+
           ! -----------------------------------------------------------------------------
           ! Set site-level hydraulics arrays
           ! -----------------------------------------------------------------------------
@@ -1938,7 +1951,7 @@ contains
           ! restart file
           !
           
-          sites(s)%ncd = 0.0_r8
+          sites(s)%ncd = 0
 
           if ( rio_npatch_si(io_idx_si)<0 .or. rio_npatch_si(io_idx_si) > 10000 ) then
              write(fates_log(),*) 'a column was expected to contain a valid number of patches'
@@ -2103,6 +2116,7 @@ contains
      integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
      integer  :: io_idx_pa_ib   ! each SW radiation band per patch (pa_ib)
      integer  :: io_idx_si_wmem ! each water memory class within each site
+     integer  :: io_idx_si_vtmem ! counter for vegetation temp memory
      integer  :: io_idx_si_lyr_shell ! site - layer x shell index
      integer  :: io_idx_si_scpf ! each size-class x pft index within site
      integer  :: io_idx_si_sc   ! each size-class index within site
@@ -2216,6 +2230,7 @@ contains
           io_idx_pa_cwd  = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
+          io_idx_si_vtmem = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -2433,6 +2448,11 @@ contains
           do i = 1,numWaterMem
              sites(s)%water_memory(i) = rio_watermem_siwm( io_idx_si_wmem )
              io_idx_si_wmem = io_idx_si_wmem + 1
+          end do
+
+           do i = 1, num_vegtemp_mem
+              sites(s)%vegtemp_memory(i) = rio_vegtempmem_siwm( io_idx_si_vtmem )
+              io_idx_si_vtmem = io_idx_si_vtmem + 1
           end do
 
           ! -----------------------------------------------------------------------------

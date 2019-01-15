@@ -29,7 +29,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : external_recruitment
   use EDTypesMod          , only : ncwd
   use EDTypesMod          , only : nlevleaf
-  use EDTypesMod          , only : senes
+  use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod          , only : dump_cohort
@@ -408,18 +408,12 @@ contains
 
     integer  :: model_day_int       ! integer model day 1 - inf
     integer  :: ncolddays           ! no days underneath the threshold for leaf drop
-    integer  :: i
+    integer  :: i_wmem              ! Loop counter for water mem days
+    integer  :: i_tmem              ! Loop counter for veg temp mem days
     integer  :: dayssincedleafon    ! Days since drought-decid leaf-on started
     integer  :: dayssincedleafoff   ! Days since drought-decid leaf-off started
     integer  :: dayssincecleafon    ! Days since cold-decid leaf-on started
     integer  :: dayssincecleafoff   ! Days since cold-decid leaf-off started
-    integer  :: refdate
-    integer  :: curdate
-    
-    integer  :: yr                       ! year (0, ...)
-    integer  :: mon                      ! month (1, ..., 12)
-    integer  :: day                      ! day of month (1, ..., 31)
-    integer  :: sec                      ! seconds of the day
     real(r8) :: mean_10day_liqvol    ! mean liquid volume (m3/m3) over last 10 days
     real(r8) :: leaf_c                       ! leaf carbon [kg]
     real(r8) :: fnrt_c               ! fineroot carbon [kg]
@@ -449,7 +443,6 @@ contains
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
-
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725 
     !Parameters, default from from SDGVM model of senesence
 
@@ -479,12 +472,12 @@ contains
     gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%ncd,r8))
 
     !Accumulate temperature of last 10 days.
-    currentSite%last_n_days(2:senes) =  currentSite%last_n_days(1:senes-1)
-    currentSite%last_n_days(1) = temp_in_C                                      
+    currentSite%vegtemp_memory(2:num_vegtemp_mem) = currentSite%vegtemp_memory(1:num_vegtemp_mem-1)
+    currentSite%vegtemp_memory(1) = temp_in_C
     !count number of days for leaves off
     ncolddays = 0
-    do i = 1,senes
-       if (currentSite%last_n_days(i) < ED_val_phen_coldtemp)then
+    do i_tmem = 1,num_vegtemp_mem
+       if (currentSite%vegtemp_memory(i_tmem) < ED_val_phen_coldtemp)then
           ncolddays = ncolddays + 1
        endif
     enddo
@@ -501,7 +494,6 @@ contains
        currentSite%ED_GDD_site = currentSite%ED_GDD_site + bc_in%t_veg24_si - tfrz
     endif
     
-    
     ! HLM model day is the total number of days since simulation start
     ! The leafoffdate and leafondates are all recorded in this unit
 
@@ -510,15 +502,13 @@ contains
     !LEAF ON: COLD DECIDUOUS. Needs to
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
-    !3) There should have been at least on chilling day in the counting period.  
-    if (currentSite%ED_GDD_site > gdd_threshold)then
-       if (currentSite%status == 1) then
-          if (currentSite%ncd >= 1) then
-             currentSite%status = 2     !alter status of site to 'leaves on'
-             currentSite%cleafondate = model_day_int  
-             if ( debug ) write(fates_log(),*) 'leaves on'
-          endif !ncd
-       endif !status
+    !3) There should have been at least one chilling day in the counting period.  
+    if ( (currentSite%status == 1)                 .and. &
+         (currentSite%ED_GDD_site > gdd_threshold) .and. &
+         (currentSite%ncd >= 1) )                  then
+       currentSite%status = 2     !alter status of site to 'leaves on'
+       currentSite%cleafondate = model_day_int  
+       if ( debug ) write(fates_log(),*) 'leaves on'
     endif !GDD
 
     dayssincecleafon = model_day_int - currentSite%cleafondate
@@ -529,26 +519,28 @@ contains
     !1) have exceeded the number of cold days threshold
     !2) have exceeded the minimum leafon time.
     !3) The leaves should not be off already
-    !4) The day of the year should be larger than the counting period. 
-    !   (not sure if we need this/if it will break the restarting)
-    
-    if (ncolddays > ED_val_phen_ncolddayslim)then
-     if (dayssincecleafon > ED_val_phen_mindayson)then
-       if (currentSite%status == 2)then
-          currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%cleafoffdate = hlm_model_day   !record leaf off date   
-          if ( debug ) write(fates_log(),*) 'leaves off'
-       endif
-    endif
-    endif
+    !4) The day of simulation should be larger than the counting period. 
 
+    
+    if ( (currentSite%status == 2)              .and. &
+         (model_day_int > num_vegtemp_mem)      .and. &
+         (ncolddays > ED_val_phen_ncolddayslim) .and. &
+         (dayssincecleafon > ED_val_phen_mindayson) )then
+       
+       currentSite%status = 1        !alter status of site to 'leaves on'
+       currentSite%cleafoffdate = model_day_int   !record leaf off date   
+
+       if ( debug ) write(fates_log(),*) 'leaves off'
+    endif
+    
     !LEAF OFF: COLD LIFESPAN THRESHOLD
-    if(dayssincecleafoff > 400)then !remove leaves after a whole year when there is no 'off' period.  
-       if(currentSite%status == 2)then
-          currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%cleafoffdate = hlm_model_day   !record leaf off date   
-          if ( debug ) write(fates_log(),*) 'leaves off'
-       endif
+    if( (currentSite%status == 2)  .and. &
+        (dayssincecleafoff > 400)) then !remove leaves after a whole year when there is no 'off' period.  
+       
+       currentSite%status = 1        !alter status of site to 'leaves on'
+       currentSite%cleafoffdate = model_day_int   !record leaf off date   
+       
+       if ( debug ) write(fates_log(),*) 'leaves off'
     endif
 
     !-----------------Drought Phenology--------------------!
@@ -582,8 +574,8 @@ contains
 
     ! Accumulate surface water memory of last 10 days.
     ! Liquid volume in ground layer (m3/m3)
-    do i = 1,numWaterMem-1 !shift memory along one
-       currentSite%water_memory(numWaterMem+1-i) = currentSite%water_memory(numWaterMem-i)
+    do i_wmem = 1,numWaterMem-1 !shift memory along one
+       currentSite%water_memory(numWaterMem+1-i_wmem) = currentSite%water_memory(numWaterMem-i_wmem)
     enddo
     currentSite%water_memory(1) = bc_in%h2o_liqvol_sl(1) 
 
@@ -613,8 +605,8 @@ contains
     ! Note that cold-starts begin in the "leaf-on"
     ! status
     if ( (currentSite%dstatus == 1) .and. &
-          (model_day_int > 10) .and. &
-          (dayssincedleafon > 365-30 .and. dayssinceleafon < 365+30 ) .and. &
+          (model_day_int > numWaterMem) .and. &
+          (dayssincedleafon > 365-30 .and. dayssincedleafon < 365+30 ) .and. &
           (dayssincedleafoff > ED_val_phen_doff_time) ) then
 
        ! If leaves are off, and have been off for at least a few days
@@ -624,7 +616,6 @@ contains
        if ( mean_10day_liqvol >= ED_val_phen_drought_threshold ) then
           currentSite%dstatus     = 2              ! set status to leaf-on
           currentSite%dleafondate = model_day_int  ! save the model day we start flushing
-          endif
        endif
     endif
 
@@ -641,11 +632,9 @@ contains
     ! i.e. Are the leaves rouhgly at the end of their lives? 
 
     if ( (currentSite%dstatus == 2) .and. & 
-         
          (dayssincedleafon > canopy_leaf_lifespan) )then 
           currentSite%dstatus      = 1             !alter status of site to 'leaves on'
           currentSite%dleafoffdate = model_day_int !record leaf on date          
-       endif
     endif
 
     ! LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry, 
@@ -1054,7 +1043,7 @@ contains
        endif
 
        if (temp_cohort%n > 0.0_r8 )then
-          if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
+          if ( debug ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
 	  !constrain the number of individual based on rhyzosphere water availability
 	  if( hlm_use_planthydro.eq.itrue ) then
 	      call carea_allom(temp_cohort%dbh,temp_cohort%n,currentSite%spread, &

@@ -110,13 +110,13 @@ contains
     site_in%dstatus          = 0
     site_in%ED_GDD_site      = nan  ! growing degree days
     site_in%ncd              = fates_unset_int
-    site_in%last_n_days(:)   = 999  ! record of last 10 days temperature for senescence model.
+   
     site_in%cleafondate      = fates_unset_int  ! doy of leaf on
     site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off
     site_in%dleafondate      = fates_unset_int  ! doy of leaf on drought
     site_in%dleafoffdate     = fates_unset_int  ! doy of leaf on drought
     site_in%water_memory(:)  = nan
-
+    site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
 
     ! SEED
     site_in%seed_bank(:)     = 0._r8
@@ -231,6 +231,7 @@ contains
 
        if ( hlm_is_restart == ifalse ) then
           sites(s)%water_memory(1:numWaterMem) = watermem
+          sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
        end if
 
        sites(s)%status = stat
