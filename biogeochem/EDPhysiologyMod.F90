@@ -431,11 +431,6 @@ contains
                                                               ! FIX(RGK 07/10/17)
                                                               ! This is a band-aid on unusual code
     
-    ! This is the minimum number of days that the site must be in a "leaf-on"
-    ! status in order to start evaluating soil drying to trigger an off state
-    ! this prevents "flicker"
-    integer, parameter :: leafon_min_flicker = 100
-    
  
     ! This is the integer model day. The first day of the simulation is 1, and it
     ! continues monotonically, indefinitely
@@ -453,7 +448,7 @@ contains
     !Zero growing degree and chilling day counters
     if (currentSite%lat > 0)then
        ncdstart = 270  !Northern Hemisphere begining November
-       gddstart = 1    !Northern Hemisphere begining January  (RGK: NOT EARLIER?)
+       gddstart = 1    !Northern Hemisphere begining January  
     else
        ncdstart = 120  !Southern Hemisphere beginning May
        gddstart = 181  !Northern Hemisphere begining July
@@ -535,6 +530,7 @@ contains
     
     !LEAF OFF: COLD LIFESPAN THRESHOLD
     if( (currentSite%status == 2)  .and. &
+          ! (RGK-PHEN: REPLACE WITH canopy_leaf_lifespan?)
         (dayssincecleafoff > 400)) then !remove leaves after a whole year when there is no 'off' period.  
        
        currentSite%status = 1        !alter status of site to 'leaves on'
@@ -631,6 +627,12 @@ contains
     ! the end of its useful life. A*, E*  
     ! i.e. Are the leaves rouhgly at the end of their lives? 
 
+    ! (RGK-PHEN) SHOULD THIS BE REMOVED OR MODIFIED?
+    ! I FEEL LIKE THERE SHOULD BE SOME OTHER MECHANISM IN PLACE HERE
+    ! DROUGHT DECIDUOUS TREES THAT NEVER EXPERIENCE DROUGHT 
+    ! MEDIATED LEAF DROP SHOULD  BE UNFAIRLY COMPETITIVE RIGHT?
+    ! PERHAPS THIS CAN BE ADDRESSED BY LEAF-AGE BINS...
+
     if ( (currentSite%dstatus == 2) .and. & 
          (dayssincedleafon > canopy_leaf_lifespan) )then 
           currentSite%dstatus      = 1             !alter status of site to 'leaves on'
@@ -641,7 +643,7 @@ contains
     ! and the leaves have already been on a while... 
 
     if ( (currentSite%dstatus == 2) .and. &
-         (model_day_int > 10) .and. &
+         (model_day_int > numWaterMem) .and. &
          (mean_10day_liqvol <= ED_val_phen_drought_threshold) .and. &
          (dayssincedleafon > ED_val_phen_mindayson) ) then 
        currentSite%dstatus = 1      !alter status of site to 'leaves on'

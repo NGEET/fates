@@ -158,7 +158,9 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_h2oveg_growturn_err_si
   integer, private :: ih_h2oveg_pheno_err_si
   integer, private :: ih_h2oveg_hydro_err_si
-    
+  integer, private :: ih_site_cstatus_si
+  integer, private :: ih_site_dstatus_si
+
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
   integer, private :: ih_gpp_si_scpf
@@ -1523,7 +1525,9 @@ end subroutine flush_hvars
                hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
                hio_ddbh_understory_si_scag          => this%hvars(ih_ddbh_understory_si_scag)%r82d, &
                hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
-               hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d)
+               hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
+               hio_site_cstatus_si                  => this%hvars(ih_site_cstatus_si)%r81d, &
+               hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d )
 
                
       ! ---------------------------------------------------------------------------------
@@ -1554,7 +1558,10 @@ end subroutine flush_hvars
 
          hio_canopy_spread_si(io_si)        = sites(s)%spread
 
-         
+         ! Update the site statuses (stati?)
+         hio_site_cstatus_si(io_si)   = real(sites(s)%status,r8)
+         hio_site_dstatus_si(io_si)   = real(sites(s)%dstatus,r8)
+
          ! If hydraulics are turned on, track the error terms
          ! associated with dynamics
 
@@ -3210,6 +3217,18 @@ end subroutine flush_hvars
          long='area occupied by woody plants', use_default='active',            &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_area_treespread_pa)
+
+    call this%set_history_var(vname='SITE_COLD_STATUS', units='1,2', &
+          long='Site level cold status, 1=too cold for leaves, 2=not-too cold',  &
+          use_default='active',                                                  &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+          ivar=ivar, initialize=initialize_variables, index = ih_site_cstatus_si)
+
+    call this%set_history_var(vname='SITE_DROUGHT_STATUS', units='1,2', &
+          long='Site level drought status, 1=too dry for leaves, 2=not-too dry', &
+          use_default='active',                                                  &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+          ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si)
 
     call this%set_history_var(vname='CANOPY_SPREAD', units='0-1',               &
          long='Scaling factor between tree basal area and canopy area',         &

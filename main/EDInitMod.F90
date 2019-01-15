@@ -17,7 +17,8 @@ module EDInitMod
   use EDPatchDynamicsMod        , only : create_patch
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod                , only : ncwd
-  use EDTypesMod                , only : nuMWaterMem
+  use EDTypesMod                , only : numWaterMem
+  use EDTypesMod                , only : num_vegtemp_mem
   use EDTypesMod                , only : maxpft
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
@@ -181,24 +182,25 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  :: s
-    real(r8) :: leafon
-    real(r8) :: leafoff
+   
     real(r8) :: stat
     integer  :: NCD
     real(r8) :: GDD
     real(r8) :: dstat
     real(r8) :: acc_NI
-    real(r8) :: watermem
-    integer  :: dleafoff
-    integer  :: dleafon
+    real(r8) :: watermem 
+    real(r8) :: cleafon    ! DOY for cold-decid leaf-on, initial guess
+    real(r8) :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
+    integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
+    integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
     !----------------------------------------------------------------------
 
     if ( hlm_is_restart == ifalse ) then
        !initial guess numbers for site condition.
        NCD      = 0
        GDD      = 30.0_r8
-       leafon   = 100.0_r8
-       leafoff  = 300.0_r8
+       cleafon  = 100.0_r8
+       cleafoff = 300.0_r8
        stat     = 2
        acc_NI   = 0.0_r8
        dstat    = 2
@@ -210,8 +212,8 @@ contains
 
        NCD      = 1       ! NCD should be 1 on restart (RGK-PHEN: ?)
        GDD      = 0.0_r8
-       leafon   = 0.0_r8
-       leafoff  = 0.0_r8
+       cleafon  = 0.0_r8
+       cleafoff = 0.0_r8
        stat     = 1
        acc_NI   = 0.0_r8
        dstat    = 2
@@ -223,8 +225,8 @@ contains
 
     do s = 1,nsites
        sites(s)%ncd          = NCD
-       sites(s)%cleafondate  = leafon
-       sites(s)%cleafoffdate = leafoff
+       sites(s)%cleafondate  = cleafon
+       sites(s)%cleafoffdate = cleafoff
        sites(s)%dleafoffdate = dleafoff
        sites(s)%dleafondate  = dleafon
        sites(s)%ED_GDD_site  = GDD

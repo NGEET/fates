@@ -141,7 +141,7 @@ module FatesRestartInterfaceMod
 
   ! Site level
   integer, private :: ir_watermem_siwm
-  integer, private :: ir_vegtempmem_siwm
+  integer, private :: ir_vegtempmem_sitm
   integer, private :: ir_seed_bank_sift
   integer, private :: ir_spread_si
   integer, private :: ir_recrate_sift
@@ -553,32 +553,32 @@ contains
          flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_oldstock_si )
 
-    call this%set_restart_var(vname='fates_cold_dec_status', vtype=site_r8, &
-         long_name='status flag for cold deciduous plants', units='unitless', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_cold_dec_status', vtype=site_int, &
+         long_name='status flag for cold deciduous plants', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cd_status_si )
 
-    call this%set_restart_var(vname='fates_drought_dec_status', vtype=site_r8, &
-         long_name='status flag for drought deciduous plants', units='unitless', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_drought_dec_status', vtype=site_int, &
+         long_name='status flag for drought deciduous plants', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dd_status_si )
 
     call this%set_restart_var(vname='fates_chilling_days', vtype=site_int, &
-         long_name='chilling day counter', units='unitless', flushval = flushzero, &
+         long_name='chilling day counter', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nchill_days_si )
 
-    call this%set_restart_var(vname='fates_leafondate', vtype=site_r8, &
-         long_name='the day of year for leaf on', units='day of year', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_leafondate', vtype=site_int, &
+         long_name='the day of year for leaf on', units='day of year', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafondate_si )
 
-    call this%set_restart_var(vname='fates_leafoffdate', vtype=site_r8, &
-         long_name='the day of year for leaf off', units='day of year', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_leafoffdate', vtype=site_int, &
+         long_name='the day of year for leaf off', units='day of year', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafoffdate_si )
 
-    call this%set_restart_var(vname='fates_drought_leafondate', vtype=site_r8, &
-         long_name='the day of year for drought based leaf-on', units='day of year', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_drought_leafondate', vtype=site_int, &
+         long_name='the day of year for drought based leaf-on', units='day of year', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafondate_si )
 
-    call this%set_restart_var(vname='fates_drought_leafoffdate', vtype=site_r8, &
-         long_name='the day of year for drought based leaf-off', units='day of year', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_drought_leafoffdate', vtype=site_int, &
+         long_name='the day of year for drought based leaf-off', units='day of year', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafoffdate_si )
 
     call this%set_restart_var(vname='fates_acc_nesterov_id', vtype=site_r8, &
@@ -965,7 +965,7 @@ contains
     call this%set_restart_var(vname='fates_vegtemp_memory', vtype=cohort_r8, &
          long_name='last 10 days of 24-hour vegetation temperature, by site x day-index', &
          units='m3/m3', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_vegtempmem_siwm )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_vegtempmem_sitm )
     
     call this%set_restart_var(vname='fates_recrate', vtype=cohort_r8, &
          long_name='fates diagnostics on recruitment', &
@@ -1379,6 +1379,7 @@ contains
    use EDTypesMod, only : ncwd
    use EDTypesMod, only : maxSWb
    use EDTypesMod, only : numWaterMem
+   use EDTypesMod, only : num_vegtemp_mem
 
     ! Arguments
     class(fates_restart_interface_type)             :: this
@@ -1429,13 +1430,13 @@ contains
 
     associate( rio_npatch_si           => this%rvars(ir_npatch_si)%int1d, &
            rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
-           rio_cd_status_si            => this%rvars(ir_cd_status_si)%r81d, &
-           rio_dd_status_si            => this%rvars(ir_dd_status_si)%r81d, &
+           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
+           rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
            rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
-           rio_leafondate_si           => this%rvars(ir_leafondate_si)%r81d, &
-           rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%r81d, &
-           rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%r81d, &
-           rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%r81d, &
+           rio_leafondate_si           => this%rvars(ir_leafondate_si)%int1d, &
+           rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%int1d, &
+           rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%int1d, &
+           rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%int1d, &
            rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
            rio_nep_timeintegrated_si   => this%rvars(ir_nep_timeintegrated_si)%r81d, &
@@ -1494,7 +1495,7 @@ contains
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
-           rio_vegtempmem_siwm         => this%rvars(ir_vegtempmem_siwm)%r81d, &
+           rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
            rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
            rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
            rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
@@ -1824,7 +1825,7 @@ contains
           end do
 
           do i = 1, num_vegtemp_mem
-             rio_vegtempmem_siwm( io_idx_si_vtmem ) = sites(s)%vegtemp_memory(i)
+             rio_vegtempmem_sitm( io_idx_si_vtmem ) = sites(s)%vegtemp_memory(i)
              io_idx_si_vtmem = io_idx_si_vtmem + 1
           end do
 
@@ -2083,6 +2084,7 @@ contains
      use FatesInterfaceMod, only : numpft
      use FatesInterfaceMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
+     use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
 
      ! !ARGUMENTS:
@@ -2133,13 +2135,13 @@ contains
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
           rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
-          rio_cd_status_si            => this%rvars(ir_cd_status_si)%r81d, &
-          rio_dd_status_si            => this%rvars(ir_dd_status_si)%r81d, &
+          rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
+          rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
           rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
-          rio_leafondate_si           => this%rvars(ir_leafondate_si)%r81d, &
-          rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%r81d, &
-          rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%r81d, &
-          rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%r81d, &
+          rio_leafondate_si           => this%rvars(ir_leafondate_si)%int1d, &
+          rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%int1d, &
+          rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%int1d, &
+          rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%int1d, &
           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
           rio_nep_timeintegrated_si   => this%rvars(ir_nep_timeintegrated_si)%r81d, &
@@ -2198,6 +2200,7 @@ contains
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
+          rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
           rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
           rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
           rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
@@ -2450,9 +2453,9 @@ contains
              io_idx_si_wmem = io_idx_si_wmem + 1
           end do
 
-           do i = 1, num_vegtemp_mem
-              sites(s)%vegtemp_memory(i) = rio_vegtempmem_siwm( io_idx_si_vtmem )
-              io_idx_si_vtmem = io_idx_si_vtmem + 1
+          do i = 1, num_vegtemp_mem
+             sites(s)%vegtemp_memory(i) = rio_vegtempmem_sitm( io_idx_si_vtmem )
+             io_idx_si_vtmem = io_idx_si_vtmem + 1
           end do
 
           ! -----------------------------------------------------------------------------
