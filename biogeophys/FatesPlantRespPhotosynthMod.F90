@@ -1263,10 +1263,11 @@ contains
        ! Dark respiration
        ! [umolC/m2leaf/s] * [m2 leaf]    (This is the cohort group sum)
        rdark = rdark + lmr_llz(il) * cohort_layer_eleaf_area
-       
+
     end do
     
     
+
      if (nv > 1) then     
       ! cohort%c13disc_clm as weighted mean of d13c flux at all related leave layers
       sum_weight = sum(psn_llz(1:nv-1) * elai_llz(1:nv-1))
@@ -1277,6 +1278,7 @@ contains
 	 end if   
 
      end if
+
 
     ! -----------------------------------------------------------------------------------
     ! We DO NOT normalize g_sb_laweight.
