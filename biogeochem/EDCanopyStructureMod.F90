@@ -25,7 +25,7 @@ module EDCanopyStructureMod
   use FatesInterfaceMod     , only : hlm_days_per_year
   use FatesInterfaceMod     , only : hlm_use_planthydro
   use FatesInterfaceMod     , only : numpft
-  use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort
+  use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
 
   use PRTGenericMod,          only : leaf_organ
@@ -587,6 +587,7 @@ contains
                   ! demoted to the understory
                   
                   allocate(copyc)
+
                   call InitPRTCohort(copyc)
                   if( hlm_use_planthydro.eq.itrue ) then
                      call InitHydrCohort(currentSite,copyc)
@@ -1011,6 +1012,7 @@ contains
                   elseif ( cc_gain > nearzero .and. cc_gain < currentCohort%c_area) then
                      
                      allocate(copyc)
+
                      call InitPRTCohort(copyc)
                      if( hlm_use_planthydro.eq.itrue ) then
                         call InitHydrCohort(CurrentSite,copyc)
@@ -1920,6 +1922,7 @@ contains
 
      ! If hydraulics is turned on, update the amount of water bound in vegetation
      if (hlm_use_planthydro.eq.itrue) then
+        call RecruitWaterStorage(nsites,sites,bc_out)
         call UpdateH2OVeg(nsites,sites,bc_out)
      end if
 
