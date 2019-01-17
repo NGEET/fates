@@ -22,6 +22,14 @@ module FatesHistoryVariableType
                                      ! 1 = dynamics "dyn" (daily)
                                      ! 2 = production "prod" (prob model tstep)
      real(r8)             :: flushval
+     integer              :: set_nonfates ! This is a flag that tells the host
+                                          ! what to do with the non-fates
+                                          ! entities that may be in parallel with
+                                          ! fates sites (for intance lakes)
+                                          ! its up to the interface to interpret the flag
+                                          ! but 0 should map to 0.0
+                                          ! and 1 should map to an ignore flag if possible
+
      integer :: dim_kinds_index
      ! Pointers (only one of these is allocated per variable)
      real(r8), pointer     :: r81d(:)
@@ -39,7 +47,7 @@ module FatesHistoryVariableType
 contains
 
   subroutine Init(this, vname, units, long, use_default, &
-       vtype, avgflag, flushval, upfreq, num_dim_kinds, dim_kinds, dim_bounds)
+       vtype, avgflag, flushval, set_nonfates, upfreq, num_dim_kinds, dim_kinds, dim_bounds)
 
     use FatesIODimensionsMod, only : fates_io_dimension_type
 
@@ -61,6 +69,7 @@ contains
     character(len=*), intent(in) :: use_default
     character(len=*), intent(in) :: vtype
     character(len=*), intent(in) :: avgflag
+    real(r8), intent(in) :: set_nonfates
     real(r8), intent(in) :: flushval ! If the type is an int we will round with nint
     integer, intent(in) :: upfreq
     integer, intent(in) :: num_dim_kinds
@@ -76,6 +85,7 @@ contains
     this%use_default = use_default
     this%vtype = vtype
     this%avgflag = avgflag
+    this%set_nonfates = set_nonfates
     this%flushval = flushval
     this%upfreq = upfreq
 

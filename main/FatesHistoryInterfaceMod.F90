@@ -402,7 +402,11 @@ module FatesHistoryInterfaceMod
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter :: fates_history_num_dimensions = 16
   integer, parameter :: fates_history_num_dim_kinds = 18
-  
+
+  ! These flags are used to help specify what to do with non-fates
+  ! locations in the host model
+  integer, parameter :: zero_flag   = 0
+  integer, parameter :: ignore_flag = 1
 
   
   ! This structure is allocated by thread, and must be calculated after the FATES
@@ -1050,7 +1054,7 @@ end subroutine flush_hvars
   ! =====================================================================================
    
   subroutine set_history_var(this, vname, units, long, use_default, avgflag, vtype, &
-       hlms, flushval, upfreq, ivar, initialize, index)
+       hlms, flushval, upfreq, ivar, initialize, index, set_nonfates)
 
     use FatesUtilsMod, only     : check_hlm_list
     use FatesInterfaceMod, only : hlm_name
@@ -1075,10 +1079,23 @@ end subroutine flush_hvars
                                            ! explict name (for fast reference during update)
                                            ! A zero is passed back when the variable is
                                            ! not used
+    
+    integer, intent(in), optional :: set_nonfates     ! If this flag is not present
+                                                      ! it is assumed that non-fates
+                                                      ! columns in the host model
+                                                      ! (or any entity parallel with columns)
+                                                      ! are set to zero.
+                                                      ! If this is present, then the
+                                                      ! value is treated as a flag
+                                                      ! (0 = 0._r8)
+                                                      ! (1 = ignore)
+
+
 
     ! locals
     integer :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
     integer :: ityp
+    integer :: nonfates              ! non-optional 
 
     logical :: write_var
 
@@ -1088,9 +1105,15 @@ end subroutine flush_hvars
        index = ivar    
        
        if (initialize) then
+          if(present(set_nonfates_in)) then
+             nonfates = set_nonfates_in
+          else
+             nonfates = zero_flag
+          end if
+
           call this%hvars(ivar)%Init(vname, units, long, use_default, &
-               vtype, avgflag, flushval, upfreq, fates_history_num_dim_kinds, this%dim_kinds, &
-               this%dim_bounds)
+               vtype, avgflag, flushval, nonfates, upfreq, &
+               fates_history_num_dim_kinds, this%dim_kinds, this%dim_bounds)
        end if
     else
        index = 0
@@ -3222,13 +3245,15 @@ end subroutine flush_hvars
           long='Site level cold status, 1=too cold for leaves, 2=not-too cold',  &
           use_default='active',                                                  &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-          ivar=ivar, initialize=initialize_variables, index = ih_site_cstatus_si)
+          ivar=ivar, initialize=initialize_variables, index = ih_site_cstatus_si, &
+          set_nonfates=ignore_flag)
 
     call this%set_history_var(vname='SITE_DROUGHT_STATUS', units='1,2', &
           long='Site level drought status, 1=too dry for leaves, 2=not-too dry', &
           use_default='active',                                                  &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-          ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si)
+          ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si, &
+          set_nonfates=ignore_flag)
 
     call this%set_history_var(vname='CANOPY_SPREAD', units='0-1',               &
          long='Scaling factor between tree basal area and canopy area',         &
