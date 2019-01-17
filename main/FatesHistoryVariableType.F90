@@ -69,7 +69,7 @@ contains
     character(len=*), intent(in) :: use_default
     character(len=*), intent(in) :: vtype
     character(len=*), intent(in) :: avgflag
-    real(r8), intent(in) :: set_nonfates
+    integer, intent(in) :: set_nonfates
     real(r8), intent(in) :: flushval ! If the type is an int we will round with nint
     integer, intent(in) :: upfreq
     integer, intent(in) :: num_dim_kinds

@@ -1105,8 +1105,8 @@ end subroutine flush_hvars
        index = ivar    
        
        if (initialize) then
-          if(present(set_nonfates_in)) then
-             nonfates = set_nonfates_in
+          if(present(set_nonfates)) then
+             nonfates = set_nonfates
           else
              nonfates = zero_flag
           end if
