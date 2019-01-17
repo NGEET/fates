@@ -1450,7 +1450,7 @@ end subroutine flush_hvars
                hio_m7_si_scls          => this%hvars(ih_m7_si_scls)%r82d, &
                hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &    
 	       
-	       hio_c13disc_si_scpf => this%hvars(ih_c13disc_si_scpf)%r82d, &                    
+	       hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &                    
 
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_agb_si_scls          => this%hvars(ih_agb_si_scls)%r82d, &
@@ -1758,6 +1758,8 @@ end subroutine flush_hvars
 
                   associate( scpf => ccohort%size_by_pft_class, &
                              scls => ccohort%size_class )
+			     
+		    gpp_cached = hio_gpp_si_scpf(io_si,scpf)
 
                     hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
                                                        n_perm2*ccohort%gpp_acc_hold  ! [kgC/m2/yr]
@@ -1803,7 +1805,7 @@ end subroutine flush_hvars
                              ccohort%frmort*ccohort%n
 			     
 		       !C13 discrimination
-                       if(gpp_cached + ccohort%gpp_acc_hold>0._r8)then
+                       if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
                            hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
 			     (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
 		       else

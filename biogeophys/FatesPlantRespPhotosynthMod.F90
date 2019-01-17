@@ -1166,6 +1166,7 @@ contains
            ! (leaves are off, or have reduced to 0)
            psn_out = 0._r8
            rstoma_out = min(rsmax0, 1._r8/bbb * cf)
+	   
 	   c13disc_z = 0.0_r8
            
         end if !is there leaf area? 
@@ -1265,6 +1266,7 @@ contains
        
     end do
     
+
     
      if (nv > 1) then     
       ! cohort%c13disc_clm as weighted mean of d13c flux at all related leave layers
