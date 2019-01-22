@@ -413,20 +413,22 @@ contains
        ! loop round all the patches that contribute surviving indivduals and litter pools to the new patch.     
        do while(associated(currentPatch))   
 
-          ! figure out whether the receiver patch for disturbance from this patch will be primary or secondary land
-          ! receiver patch is primary forest only if both the donor patch is primary forest and the dominant disturbance type is not logging
-          if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
-               (currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .or. &
-               currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire) ) ) then
-             new_patch => new_patch_primary
-          else
-             new_patch => new_patch_secondary
-          endif
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
           
           if (patch_site_areadis > nearzero ) then
+
+
+             ! figure out whether the receiver patch for disturbance from this patch will be primary or secondary land
+             ! receiver patch is primary forest only if both the donor patch is primary forest and the dominant disturbance type is not logging
+             if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
+                  (currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifall) .or. &
+                  currentPatch%disturbance_rates(dtype_ilog) .lt. currentPatch%disturbance_rates(dtype_ifire) ) ) then
+                new_patch => new_patch_primary
+             else
+                new_patch => new_patch_secondary
+             endif
 
 
              ! for the case where the donating patch is secondary forest, if the dominant disturbance from this patch is non-anthropogenic,
