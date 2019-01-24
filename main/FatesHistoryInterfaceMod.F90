@@ -1581,7 +1581,7 @@ end subroutine flush_hvars
       ! Flush arrays to values defined by %flushval (see registry entry in
       ! subroutine define_history_vars()
       ! ---------------------------------------------------------------------------------
-      !! call this%flush_hvars(nc,upfreq_in=1)
+      call this%flush_hvars(nc,upfreq_in=1)
 
 
       ! If we don't have dynamics turned on, we just abort these diagnostics
@@ -3307,49 +3307,49 @@ end subroutine flush_hvars
     call this%set_history_var(vname='SITE_GDD', units='degC',  &
          long='site level growing degree days',                &
          use_default='active',                                                 &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_gdd_si, &
          set_nonfates=ignore_flag)
     
     call this%set_history_var(vname='SITE_NCOLDDAYS', units = 'days', &
          long='site level number of cold days', &
          use_default='active',                                                 &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_site_ncolddays_si, &
          set_nonfates=ignore_flag)
 
     call this%set_history_var(vname='SITE_DAYSINCE_COLDLEAFOFF', units='days', &
          long='site level days elapsed since cold leaf drop', &
          use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_cleafoff_si, &
          set_nonfates=ignore_flag)
 
     call this%set_history_var(vname='SITE_DAYSINCE_COLDLEAFON', units='days', &
          long='site level days elapsed since cold leaf flush', &
          use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_cleafon_si, &
          set_nonfates=ignore_flag)
 
     call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFOFF', units='days', &
          long='site level days elapsed since drought leaf drop', &
          use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_dleafoff_si, &
          set_nonfates=ignore_flag)
     
     call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFON', units='days', &
          long='site level days elapsed since drought leaf flush', &
          use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_dleafon_si, &
          set_nonfates=ignore_flag)
 
     call this%set_history_var(vname='SITE_MEANLIQVOL_DROUGHTPHEN', units='m3/m3', &
          long='site level mean liquid water volume for drought phen', &
          use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_meanliqvol_si, &
          set_nonfates=ignore_flag)
 
