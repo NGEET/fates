@@ -10,6 +10,8 @@ module FatesHistoryInterfaceMod
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
   use EDTypesMod               , only : ican_upper
+  use EDTypesMod               , only : numWaterMem
+  use EDTypesMod               , only : num_vegtemp_mem
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -19,8 +21,10 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceMod        , only : numpft
   use FatesInterfaceMod        , only : hlm_freq_day
   use EDParamsMod              , only : ED_val_comp_excln
+  use EDParamsMod              , only : ED_val_phen_coldtemp
   use FatesInterfaceMod        , only : nlevsclass, nlevage
   use FatesInterfaceMod        , only : nlevheight
+  use FatesInterfaceMod        , only : hlm_model_day
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -160,6 +164,14 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_h2oveg_hydro_err_si
   integer, private :: ih_site_cstatus_si
   integer, private :: ih_site_dstatus_si
+  integer, private :: ih_gdd_si
+  integer, private :: ih_site_ncolddays_si
+  integer, private :: ih_cleafoff_si
+  integer, private :: ih_cleafon_si
+  integer, private :: ih_dleafoff_si
+  integer, private :: ih_dleafon_si
+  integer, private :: ih_meanliqvol_si
+
 
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
@@ -1335,6 +1347,10 @@ end subroutine flush_hvars
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
+    integer  :: i_tmem        ! iterator for veg temp bins
+    integer  :: ncolddays     ! number of days below cold threshold over counting period
+    integer  :: model_day_int ! integer model day from reference 
+    
     
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -1550,7 +1566,14 @@ end subroutine flush_hvars
                hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
                hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
                hio_site_cstatus_si                  => this%hvars(ih_site_cstatus_si)%r81d, &
-               hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d )
+               hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d, &
+               hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
+               hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
+               hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
+               hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
+               hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
+               hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
+               hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d )
 
                
       ! ---------------------------------------------------------------------------------
@@ -1562,6 +1585,8 @@ end subroutine flush_hvars
 
       ! If we don't have dynamics turned on, we just abort these diagnostics
       if (hlm_use_ed_st3.eq.itrue) return
+
+      model_day_int = nint(hlm_model_day)
 
       ! ---------------------------------------------------------------------------------
       ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -1584,6 +1609,29 @@ end subroutine flush_hvars
          ! Update the site statuses (stati?)
          hio_site_cstatus_si(io_si)   = real(sites(s)%status,r8)
          hio_site_dstatus_si(io_si)   = real(sites(s)%dstatus,r8)
+
+         !count number of days for leaves off
+         if(model_day_int>num_vegtemp_mem)then
+            ncolddays = 0
+            do i_tmem = 1,num_vegtemp_mem
+               if (sites(s)%vegtemp_memory(i_tmem) < ED_val_phen_coldtemp)then
+                  ncolddays = ncolddays + 1
+               endif
+            enddo
+            hio_site_ncolddays_si(io_si) = real(ncolddays,r8)
+         end if
+            
+         hio_gdd_si(io_si)      = sites(s)%ed_gdd_site
+         hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
+         hio_cleafon_si(io_si)  = real(model_day_int - sites(s)%cleafondate,r8)
+         hio_dleafoff_si(io_si) = real(model_day_int - sites(s)%dleafoffdate,r8)
+         hio_dleafon_si(io_si)  = real(model_day_int - sites(s)%dleafondate,r8)
+
+         if(model_day_int>numWaterMem)then
+            hio_meanliqvol_si(io_si) = &
+                 sum(sites(s)%water_memory(1:numWaterMem))/real(numWaterMem,r8)
+         end if
+
 
          ! If hydraulics are turned on, track the error terms
          ! associated with dynamics
@@ -3254,6 +3302,55 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
           ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si, &
           set_nonfates=ignore_flag)
+
+    call this%set_history_var(vname='SITE_GDD', units='degC',  &
+         long='site level growing degree days',                &
+         use_default='active',                                                 &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_gdd_si, &
+         set_nonfates=ignore_flag)
+    
+    call this%set_history_var(vname='SITE_NCOLDDAYS', units = 'days', &
+         long='site level number of cold days', &
+         use_default='active',                                                 &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_site_ncolddays_si, &
+         set_nonfates=ignore_flag)
+
+    call this%set_history_var(vname='SITE_DAYSINCE_COLDLEAFOFF', units='days', &
+         long='site level days elapsed since cold leaf drop', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_cleafoff_si, &
+         set_nonfates=ignore_flag)
+
+    call this%set_history_var(vname='SITE_DAYSINCE_COLDLEAFON', units='days', &
+         long='site level days elapsed since cold leaf flush', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_cleafon_si, &
+         set_nonfates=ignore_flag)
+
+    call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFOFF', units='days', &
+         long='site level days elapsed since drought leaf drop', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_dleafoff_si, &
+         set_nonfates=ignore_flag)
+    
+    call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFON', units='days', &
+         long='site level days elapsed since drought leaf flush', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_dleafon_si, &
+         set_nonfates=ignore_flag)
+
+    call this%set_history_var(vname='SITE_MEANLIQVOL_DROUGHTPHEN', units='m3/m3', &
+         long='site level mean liquid water volume for drought phen', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_meanliqvol_si, &
+         set_nonfates=ignore_flag)
 
     call this%set_history_var(vname='CANOPY_SPREAD', units='0-1',               &
          long='Scaling factor between tree basal area and canopy area',         &
