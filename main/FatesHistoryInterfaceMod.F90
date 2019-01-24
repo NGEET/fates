@@ -6,6 +6,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : fates_long_string_length
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : calloc_abs_error
+  use FatesConstantsMod        , only : clm_spval
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
@@ -1580,7 +1581,7 @@ end subroutine flush_hvars
       ! Flush arrays to values defined by %flushval (see registry entry in
       ! subroutine define_history_vars()
       ! ---------------------------------------------------------------------------------
-      call this%flush_hvars(nc,upfreq_in=1)
+      !! call this%flush_hvars(nc,upfreq_in=1)
 
 
       ! If we don't have dynamics turned on, we just abort these diagnostics
@@ -3292,14 +3293,14 @@ end subroutine flush_hvars
     call this%set_history_var(vname='SITE_COLD_STATUS', units='1,2', &
           long='Site level cold status, 1=too cold for leaves, 2=not-too cold',  &
           use_default='active',                                                  &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
           ivar=ivar, initialize=initialize_variables, index = ih_site_cstatus_si, &
           set_nonfates=ignore_flag)
 
     call this%set_history_var(vname='SITE_DROUGHT_STATUS', units='1,2', &
           long='Site level drought status, 1=too dry for leaves, 2=not-too dry', &
           use_default='active',                                                  &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
           ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si, &
           set_nonfates=ignore_flag)
 

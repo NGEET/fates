@@ -18,6 +18,12 @@ module FatesConstantsMod
   ! Unset and various other 'special' values
   integer, parameter :: fates_unset_int = -9999
 
+  ! special value for real data (history ignore val)
+  real(fates_r8), parameter ::  clm_spval = 1.e36_fates_r8
+
+  ! special value for integer data
+  integer , parameter :: clm_ispval = -9999
+
   
   ! Integer equivalent of true  (in case some compilers dont auto convert)
   integer, parameter :: itrue = 1
