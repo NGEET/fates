@@ -464,6 +464,7 @@ contains
     endif
 
     !GDD accumulation function, which also depends on chilling days.
+    !  -68 + 638 * (-0.001 * ncd) 
     gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%ncd,r8))
 
     !Accumulate temperature of last 10 days.
@@ -498,9 +499,12 @@ contains
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
     !3) There should have been at least one chilling day in the counting period.  
+
+    ! (currentSite%ncd >= 1)                    .and. &
+
     if ( (currentSite%status == 1)                 .and. &
          (currentSite%ED_GDD_site > gdd_threshold) .and. &
-         (currentSite%ncd >= 1) )                  then
+         (dayssinceleafoff > ED_val_phen_mindayson))  then
        currentSite%status = 2     !alter status of site to 'leaves on'
        currentSite%cleafondate = model_day_int  
        if ( debug ) write(fates_log(),*) 'leaves on'
@@ -529,15 +533,15 @@ contains
     endif
     
     !LEAF OFF: COLD LIFESPAN THRESHOLD
-    if( (currentSite%status == 2)  .and. &
-          ! (RGK-PHEN: REPLACE WITH canopy_leaf_lifespan?)
-        (dayssincecleafoff > 400)) then !remove leaves after a whole year when there is no 'off' period.  
+!!    if( (currentSite%status == 2)  .and. &
+!!          ! (RGK-PHEN: REPLACE WITH canopy_leaf_lifespan?)
+!!        (dayssincecleafoff > 400)) then !remove leaves after a whole year when there is no 'off' period.  
        
-       currentSite%status = 1        !alter status of site to 'leaves on'
-       currentSite%cleafoffdate = model_day_int   !record leaf off date   
+!!       currentSite%status = 1        !alter status of site to 'leaves on'
+!!       currentSite%cleafoffdate = model_day_int   !record leaf off date   
        
-       if ( debug ) write(fates_log(),*) 'leaves off'
-    endif
+!!       if ( debug ) write(fates_log(),*) 'leaves off'
+!!    endif
 
     !-----------------Drought Phenology--------------------!
     ! Principles of drought-deciduos phenology model...
