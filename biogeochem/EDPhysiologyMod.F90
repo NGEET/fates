@@ -500,11 +500,10 @@ contains
     !2) The leaves should not be on already
     !3) There should have been at least one chilling day in the counting period.  
 
-    ! (currentSite%ncd >= 1)                    .and. &
-
-    if ( (currentSite%status == 1)                 .and. &
+    if ( (currentSite%status == 1 .or. currentSite%status == 0) .and. &
          (currentSite%ED_GDD_site > gdd_threshold) .and. &
-         (dayssinceleafoff > ED_val_phen_mindayson))  then
+         (currentSite%ncd >= 1)                    .and. &
+         (dayssincecleafoff > ED_val_phen_mindayson))  then
        currentSite%status = 2     !alter status of site to 'leaves on'
        currentSite%cleafondate = model_day_int  
        if ( debug ) write(fates_log(),*) 'leaves on'
@@ -526,22 +525,27 @@ contains
          (ncolddays > ED_val_phen_ncolddayslim) .and. &
          (dayssincecleafon > ED_val_phen_mindayson) )then
        
-       currentSite%status = 1        !alter status of site to 'leaves on'
+       currentSite%ED_GDD_site  = 0._r8 ! The equations for Botta et al
+                                        ! are for calculations of 
+                                        ! first flush, but if we dont
+                                        ! clear this value, it will cause
+                                        ! leaves to flush later in the year
+       currentSite%status       = 1     !alter status of site to 'leaves on'
        currentSite%cleafoffdate = model_day_int   !record leaf off date   
 
        if ( debug ) write(fates_log(),*) 'leaves off'
     endif
     
     !LEAF OFF: COLD LIFESPAN THRESHOLD
-!!    if( (currentSite%status == 2)  .and. &
-!!          ! (RGK-PHEN: REPLACE WITH canopy_leaf_lifespan?)
-!!        (dayssincecleafoff > 400)) then !remove leaves after a whole year when there is no 'off' period.  
+    if( (currentSite%status == 2)  .and. &
+          ! (RGK-PHEN: REPLACE WITH canopy_leaf_lifespan?)
+        (dayssincecleafoff > 400)) then !remove leaves after a whole year when there is no 'off' period.  
+
+       currentSite%status = 0                     ! alter status of site to "not-cold deciduous"
+       currentSite%cleafoffdate = model_day_int   ! record leaf off date   
        
-!!       currentSite%status = 1        !alter status of site to 'leaves on'
-!!       currentSite%cleafoffdate = model_day_int   !record leaf off date   
-       
-!!       if ( debug ) write(fates_log(),*) 'leaves off'
-!!    endif
+       if ( debug ) write(fates_log(),*) 'leaves off'
+    endif
 
     !-----------------Drought Phenology--------------------!
     ! Principles of drought-deciduos phenology model...
@@ -639,7 +643,7 @@ contains
 
     if ( (currentSite%dstatus == 2) .and. & 
          (dayssincedleafon > canopy_leaf_lifespan) )then 
-          currentSite%dstatus      = 1             !alter status of site to 'leaves on'
+          currentSite%dstatus      = 1             !alter status of site to 'leaves off'
           currentSite%dleafoffdate = model_day_int !record leaf on date          
     endif
 
@@ -650,7 +654,7 @@ contains
          (model_day_int > numWaterMem) .and. &
          (mean_10day_liqvol <= ED_val_phen_drought_threshold) .and. &
          (dayssincedleafon > ED_val_phen_mindayson) ) then 
-       currentSite%dstatus = 1      !alter status of site to 'leaves on'
+       currentSite%dstatus = 1      !alter status of site to 'leaves off'
        currentSite%dleafoffdate = hlm_day_of_year !record leaf on date           
     endif
 
@@ -720,7 +724,7 @@ contains
              endif ! growing season 
 
              !COLD LEAF OFF
-             if (currentSite%status == 1)then !past leaf drop day? Leaves still on tree?  
+             if (currentSite%status == 1 .or. currentSite%status == 0)then !past leaf drop day? Leaves still on tree?  
                 if (currentCohort%status_coh == 2)then ! leaves have not dropped
                    
                    ! This sets the cohort to the "leaves off" flag
