@@ -107,8 +107,8 @@ contains
     site_in%total_burn_flux_to_atm = 0._r8
 
     ! PHENOLOGY 
-    site_in%status           = 0    ! are leaves in this pixel on or off?
-    site_in%dstatus          = 0
+    site_in%status           = fates_unset_int    ! are leaves in this pixel on or off?
+    site_in%dstatus          = fates_unset_int
     site_in%ED_GDD_site      = nan  ! growing degree days
     site_in%ncd              = fates_unset_int
    
@@ -200,10 +200,10 @@ contains
        NCD      = 0
        GDD      = 30.0_r8
        cleafon  = 100.0_r8
-       cleafoff = 300.0_r8
-       stat     = 2
+       cleafoff = 300.0_r8 
+       stat     = 2                ! Leaves are on
        acc_NI   = 0.0_r8
-       dstat    = 2
+       dstat    = 2                ! Leaves are on
        dleafoff = 300
        dleafon  = 100
        watermem = 0.5_r8
@@ -214,7 +214,7 @@ contains
        GDD      = 0.0_r8
        cleafon  = 0.0_r8
        cleafoff = 0.0_r8
-       stat     = 1
+       stat     = 1       
        acc_NI   = 0.0_r8
        dstat    = 2
        dleafoff = 300

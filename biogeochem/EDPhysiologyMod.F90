@@ -499,6 +499,9 @@ contains
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
     !3) There should have been at least one chilling day in the counting period.  
+    !   this prevents tropical or warm climate plants that are "cold-deciduous"
+    !   from ever re-flushing after they have reached their maximum age (thus
+    !   preventing them from competing
 
     if ( (currentSite%status == 1 .or. currentSite%status == 0) .and. &
          (currentSite%ED_GDD_site > gdd_threshold) .and. &
@@ -536,9 +539,13 @@ contains
        if ( debug ) write(fates_log(),*) 'leaves off'
     endif
     
-    !LEAF OFF: COLD LIFESPAN THRESHOLD
+    ! LEAF OFF: COLD LIFESPAN THRESHOLD
+    ! NOTE: Some areas of the planet will never generate a cold day
+    ! and thus %ncd will never go from zero to 1.  The following logic
+    ! when coupled with this fact will essentially prevent cold-deciduous
+    ! plants from re-emerging in areas without at least some cold days
+
     if( (currentSite%status == 2)  .and. &
-          ! (RGK-PHEN: REPLACE WITH canopy_leaf_lifespan?)
         (dayssincecleafoff > 400)) then !remove leaves after a whole year when there is no 'off' period.  
 
        currentSite%status = 0                     ! alter status of site to "not-cold deciduous"

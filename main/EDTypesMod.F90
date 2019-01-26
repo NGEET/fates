@@ -579,6 +579,10 @@ module EDTypesMod
      ! PHENOLOGY 
      real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
      integer  ::  status                                       ! are leaves in this pixel on or off for cold decid
+                                                               ! 0 = this site has not experienced a cold period over at least
+                                                               !     400 days, leaves are dropped and flagged as non-cold region
+                                                               ! 1 = this site is in a cold-state where leaves should have fallen
+                                                               ! 2 = this site is in a warm-state where leaves are allowed to flush
      integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
      integer  ::  ncd                                          ! no chilling days:-
      real(r8) ::  vegtemp_memory(num_vegtemp_mem)              ! record of last 10 days temperature for senescence model. deg C
