@@ -617,7 +617,7 @@ contains
     ! status
     if ( (currentSite%dstatus == 1) .and. &
           (model_day_int > numWaterMem) .and. &
-          (dayssincedleafon > 365-30 .and. dayssincedleafon < 365+30 ) .and. &
+          (dayssincedleafon >= 365-30 .and. dayssincedleafon =< 365+30 ) .and. &
           (dayssincedleafoff > ED_val_phen_doff_time) ) then
 
        ! If leaves are off, and have been off for at least a few days
@@ -660,7 +660,7 @@ contains
     if ( (currentSite%dstatus == 2) .and. &
          (model_day_int > numWaterMem) .and. &
          (mean_10day_liqvol <= ED_val_phen_drought_threshold) .and. &
-         (dayssincedleafon > ED_val_phen_mindayson) ) then 
+         (dayssincedleafon > 100 ) ) then 
        currentSite%dstatus = 1      !alter status of site to 'leaves off'
        currentSite%dleafoffdate = hlm_day_of_year !record leaf on date           
     endif

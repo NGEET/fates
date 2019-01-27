@@ -1067,7 +1067,7 @@ end subroutine flush_hvars
   ! =====================================================================================
    
   subroutine set_history_var(this, vname, units, long, use_default, avgflag, vtype, &
-       hlms, flushval, upfreq, ivar, initialize, index, set_nonfates)
+       hlms, flushval, upfreq, ivar, initialize, index)
 
     use FatesUtilsMod, only     : check_hlm_list
     use FatesInterfaceMod, only : hlm_name
@@ -1093,17 +1093,6 @@ end subroutine flush_hvars
                                            ! A zero is passed back when the variable is
                                            ! not used
     
-    integer, intent(in), optional :: set_nonfates     ! If this flag is not present
-                                                      ! it is assumed that non-fates
-                                                      ! columns in the host model
-                                                      ! (or any entity parallel with columns)
-                                                      ! are set to zero.
-                                                      ! If this is present, then the
-                                                      ! value is treated as a flag
-                                                      ! (0 = 0._r8)
-                                                      ! (1 = ignore)
-
-
 
     ! locals
     integer :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
@@ -1118,14 +1107,8 @@ end subroutine flush_hvars
        index = ivar    
        
        if (initialize) then
-          if(present(set_nonfates)) then
-             nonfates = set_nonfates
-          else
-             nonfates = zero_flag
-          end if
-
           call this%hvars(ivar)%Init(vname, units, long, use_default, &
-               vtype, avgflag, flushval, nonfates, upfreq, &
+               vtype, avgflag, flushval, upfreq, &
                fates_history_num_dim_kinds, this%dim_kinds, this%dim_bounds)
        end if
     else
@@ -3294,64 +3277,55 @@ end subroutine flush_hvars
           long='Site level cold status, 1=too cold for leaves, 2=not-too cold',  &
           use_default='active',                                                  &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
-          ivar=ivar, initialize=initialize_variables, index = ih_site_cstatus_si, &
-          set_nonfates=ignore_flag)
+          ivar=ivar, initialize=initialize_variables, index = ih_site_cstatus_si )
 
     call this%set_history_var(vname='SITE_DROUGHT_STATUS', units='1,2', &
           long='Site level drought status, 1=too dry for leaves, 2=not-too dry', &
           use_default='active',                                                  &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
-          ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si, &
-          set_nonfates=ignore_flag)
+          ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si)
 
     call this%set_history_var(vname='SITE_GDD', units='degC',  &
          long='site level growing degree days',                &
          use_default='active',                                                 &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_gdd_si, &
-         set_nonfates=ignore_flag)
+         ivar=ivar, initialize=initialize_variables, index = ih_gdd_si)
     
     call this%set_history_var(vname='SITE_NCOLDDAYS', units = 'days', &
          long='site level number of cold days', &
          use_default='active',                                                 &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_site_ncolddays_si, &
-         set_nonfates=ignore_flag)
+         ivar=ivar, initialize=initialize_variables, index = ih_site_ncolddays_si)
 
     call this%set_history_var(vname='SITE_DAYSINCE_COLDLEAFOFF', units='days', &
          long='site level days elapsed since cold leaf drop', &
          use_default='active',                                                  &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_cleafoff_si, &
-         set_nonfates=ignore_flag)
+         ivar=ivar, initialize=initialize_variables, index = ih_cleafoff_si)
 
     call this%set_history_var(vname='SITE_DAYSINCE_COLDLEAFON', units='days', &
          long='site level days elapsed since cold leaf flush', &
          use_default='active',                                                  &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_cleafon_si, &
-         set_nonfates=ignore_flag)
+         ivar=ivar, initialize=initialize_variables, index = ih_cleafon_si) 
 
     call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFOFF', units='days', &
          long='site level days elapsed since drought leaf drop', &
          use_default='active',                                                  &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_dleafoff_si, &
-         set_nonfates=ignore_flag)
+         ivar=ivar, initialize=initialize_variables, index = ih_dleafoff_si)
     
     call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFON', units='days', &
          long='site level days elapsed since drought leaf flush', &
          use_default='active',                                                  &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_dleafon_si, &
-         set_nonfates=ignore_flag)
+         ivar=ivar, initialize=initialize_variables, index = ih_dleafon_si)
 
     call this%set_history_var(vname='SITE_MEANLIQVOL_DROUGHTPHEN', units='m3/m3', &
          long='site level mean liquid water volume for drought phen', &
          use_default='active',                                                  &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_meanliqvol_si, &
-         set_nonfates=ignore_flag)
+         ivar=ivar, initialize=initialize_variables, index = ih_meanliqvol_si)
 
     call this%set_history_var(vname='CANOPY_SPREAD', units='0-1',               &
          long='Scaling factor between tree basal area and canopy area',         &
