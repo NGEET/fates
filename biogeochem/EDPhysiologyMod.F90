@@ -594,16 +594,16 @@ contains
     mean_10day_liqvol = sum(currentSite%water_memory(1:numWaterMem))/real(numWaterMem,r8)
 
     ! In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...     
-    dayssincedleafoff = 0
-    if (currentSite%dstatus == 1)then 
-       dayssincedleafoff = model_day_int - currentSite%dleafoffdate
-    endif
+    !    dayssincedleafoff = 0
+    !if (currentSite%dstatus == 1 .or. currentSite%dstatus == 0)then 
+    dayssincedleafoff = model_day_int - currentSite%dleafoffdate
+    !endif
     
-    dayssincedleafon = 0
+    !dayssincedleafon = 0
     !the leaves are on. How long have they been on? 
-    if (currentSite%dstatus == 2)then
-       dayssincedleafon = model_day_int - currentSite%dleafondate 
-    endif
+    !if (currentSite%dstatus == 2 .or. currentSite%dstatus == 3)then
+    dayssincedleafon = model_day_int - currentSite%dleafondate 
+    !endif
 
     ! LEAF ON: DROUGHT DECIDUOUS WETNESS
     ! Here, we used a window of oppurtunity to determine if we are 
@@ -615,9 +615,9 @@ contains
     ! c) is the model day at least > 10 (let soil water spin-up)
     ! Note that cold-starts begin in the "leaf-on"
     ! status
-    if ( (currentSite%dstatus == 1) .and. &
+    if ( (currentSite%dstatus == 1 .or. currentSite%dstatus == 0) .and. &
           (model_day_int > numWaterMem) .and. &
-          (dayssincedleafon >= 365-30 .and. dayssincedleafon =< 365+30 ) .and. &
+          (dayssincedleafon >= 365-30 .and. dayssincedleafon <= 365+30 ) .and. &
           (dayssincedleafoff > ED_val_phen_doff_time) ) then
 
        ! If leaves are off, and have been off for at least a few days
@@ -632,9 +632,9 @@ contains
 
     ! If we still haven't done budburst by end of window
     ! force it!
-    if ( (currentSite%dstatus == 1) .and. &
-         (model_day_int >= currentSite%dleafondate+365+30) ) then
-       currentSite%dstatus     = 2               ! force budburst!
+    if ( (currentSite%dstatus == 1 .or. currentSite%dstatus == 0) .and. &
+         (dayssincedleafon > 365+30) ) then
+       currentSite%dstatus     = 3               ! force budburst!
        currentSite%dleafondate = model_day_int   ! record leaf on date
     endif
 
@@ -648,16 +648,16 @@ contains
     ! MEDIATED LEAF DROP SHOULD  BE UNFAIRLY COMPETITIVE RIGHT?
     ! PERHAPS THIS CAN BE ADDRESSED BY LEAF-AGE BINS...
 
-    if ( (currentSite%dstatus == 2) .and. & 
+    if ( (currentSite%dstatus == 2 .or. currentSite%dstatus == 3 ) .and. & 
          (dayssincedleafon > canopy_leaf_lifespan) )then 
-          currentSite%dstatus      = 1             !alter status of site to 'leaves off'
+          currentSite%dstatus      = 0             !alter status of site to 'leaves off'
           currentSite%dleafoffdate = model_day_int !record leaf on date          
     endif
 
     ! LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry, 
     ! and the leaves have already been on a while... 
 
-    if ( (currentSite%dstatus == 2) .and. &
+    if ( (currentSite%dstatus == 2 .or. currentSite%dstatus == 3 ) .and. &
          (model_day_int > numWaterMem) .and. &
          (mean_10day_liqvol <= ED_val_phen_drought_threshold) .and. &
          (dayssincedleafon > 100 ) ) then 
@@ -756,7 +756,7 @@ contains
           !DROUGHT LEAF ON
           if (EDPftvarcon_inst%stress_decid(ipft) == 1)then
              
-             if (currentSite%dstatus == 2)then 
+             if (currentSite%dstatus == 2 .or. currentSite%dstatus == 3 )then 
 
                 ! we have just moved to leaves being on . 
                 if (currentCohort%status_coh == 1)then    
@@ -784,7 +784,7 @@ contains
              endif   !currentSite status
 
              !DROUGHT LEAF OFF
-             if (currentSite%dstatus == 1)then        
+             if (currentSite%dstatus == 1 .or. currentSite%dstatus == 0)then        
                 if (currentCohort%status_coh == 2)then ! leaves have not dropped
 
                    ! This sets the cohort to the "leaves off" flag
@@ -970,11 +970,13 @@ contains
        currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * &
              EDPftvarcon_inst%germination_timescale(p),max_germination)     
        !set the germination only under the growing season...c.xu
-       if (EDPftvarcon_inst%season_decid(p) == 1.and.currentSite%status == 1)then 
-             currentPatch%seed_germination(p) = 0.0_r8
+       if ( (EDPftvarcon_inst%season_decid(p) == 1) .and. &
+            (currentSite%status <= 1)) then
+          currentPatch%seed_germination(p) = 0.0_r8
        endif
-       if (EDPftvarcon_inst%stress_decid(p) == 1.and.currentSite%dstatus == 1)then
-             currentPatch%seed_germination(p) = 0.0_r8
+       if ( (EDPftvarcon_inst%stress_decid(p) == 1) .and. & 
+            (currentSite%dstatus <= 1)) then
+          currentPatch%seed_germination(p) = 0.0_r8
        endif
     enddo
 
@@ -1032,11 +1034,13 @@ contains
        call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_store)
 
        temp_cohort%laimemory = 0.0_r8     
-       if (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
+       if ( (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1) .and. &
+            (currentSite%status <= 1)) then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
        endif
-       if (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == 1.and.currentSite%dstatus == 1)then
+       if ( (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == 1) .and. &
+            (currentSite%dstatus <= 1)) then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
        endif

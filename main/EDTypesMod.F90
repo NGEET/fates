@@ -584,6 +584,10 @@ module EDTypesMod
                                                                ! 1 = this site is in a cold-state where leaves should have fallen
                                                                ! 2 = this site is in a warm-state where leaves are allowed to flush
      integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
+                                                               ! 0 = leaves off due to time exceedance
+                                                               ! 1 = leaves off due to moisture avail
+                                                               ! 2 = leaves on due to moisture avail
+                                                               ! 3 = leaves on due to time exceedance
      integer  ::  ncd                                          ! no chilling days:-
      real(r8) ::  vegtemp_memory(num_vegtemp_mem)              ! record of last 10 days temperature for senescence model. deg C
      integer  ::  cleafondate                                  ! model date (day integer) of leaf on (cold):-
