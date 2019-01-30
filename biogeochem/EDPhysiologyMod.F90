@@ -602,7 +602,7 @@ contains
     ! date to start, so if that is in the future, set it to last year
 
     if (model_day_int < currentSite%dleafoffdate) then
-       dayssincedleafoff = model_day_in - (currentSite%dleafoffdate-365)
+       dayssincedleafoff = model_day_int - (currentSite%dleafoffdate-365)
     else
        dayssincedleafoff = model_day_int - currentSite%dleafoffdate
     endif
