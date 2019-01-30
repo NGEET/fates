@@ -1199,7 +1199,7 @@ contains
     icohort => pcc ! assign address to icohort local name  
     !place in the correct place in the linked list of heights 
     !begin by finding cohort that is just taller than the new cohort 
-    tsp = icohort%dbh
+    tsp = icohort%hite
 
     current => pshortest
     exitloop = 0
@@ -1207,7 +1207,7 @@ contains
     !taller than tree being considered and return its pointer 
     if (associated(current)) then
        do while (associated(current).and.exitloop == 0)
-          if (current%dbh < tsp) then
+          if (current%hite < tsp) then
              current => current%taller   
           else
              exitloop = 1 
