@@ -596,14 +596,25 @@ contains
     ! In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...     
     !    dayssincedleafoff = 0
     !if (currentSite%dstatus == 1 .or. currentSite%dstatus == 0)then 
-    dayssincedleafoff = model_day_int - currentSite%dleafoffdate
-    !endif
+
+    ! Calculate days since leaves have come off, but make a provision
+    ! for the first year of simulation, we have to assume a leaf drop
+    ! date to start, so if that is in the future, set it to last year
+
+    if (model_day_int < currentSite%dleafoffdate) then
+       dayssincedleafoff = model_day_in - (currentSite%dleafoffdate-365)
+    else
+       dayssincedleafoff = model_day_int - currentSite%dleafoffdate
+    endif
     
     !dayssincedleafon = 0
     !the leaves are on. How long have they been on? 
     !if (currentSite%dstatus == 2 .or. currentSite%dstatus == 3)then
-    dayssincedleafon = model_day_int - currentSite%dleafondate 
-    !endif
+    if (model_day_int < currentSite%dleafondate) then
+       dayssincedleafon = model_day_int - (currentSite%dleafondate-365)
+    else
+       dayssincedleafon = model_day_int - currentSite%dleafondate 
+    endif
 
     ! LEAF ON: DROUGHT DECIDUOUS WETNESS
     ! Here, we used a window of oppurtunity to determine if we are 
