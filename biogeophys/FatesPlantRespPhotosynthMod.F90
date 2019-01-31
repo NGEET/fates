@@ -947,7 +947,7 @@ contains
      
      if ( parsun_lsl <= 0._r8 ) then  ! night time
 
-        anet_av_out = 0._r8
+        anet_av_out = -lmr
         psn_out     = 0._r8
         rstoma_out  = min(rsmax0, 1._r8/bbb * cf)
         

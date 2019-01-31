@@ -20,7 +20,9 @@ module EDTypesMod
   
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
-  integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
+  integer, parameter :: ican_ustory = 2           ! Nominal index for diagnostics that refer
+                                                  ! to understory layers (all layers that
+                                                  ! are not the top canopy layer)
 
   integer, parameter :: nlevleaf = 40             ! number of leaf layers in canopy layer
   integer, parameter :: maxpft = 15               ! maximum number of PFTs allowed
@@ -93,7 +95,6 @@ module EDTypesMod
   logical, parameter :: do_fates_salinity = .false.
 
 
-
   ! This is the community level amount of spread expected in nearly-bare-ground
   ! and inventory starting modes.
   ! These are used to initialize only. These values will scale between
@@ -147,10 +148,11 @@ module EDTypesMod
   integer , parameter :: N_HITE_BINS          = 60         ! no. of hite bins used to distribute LAI
 
   ! COHORT TERMINATION
-  real(r8), parameter :: min_npm2       = 1.0E-8_r8               ! minimum cohort number density per m2 before termination
-  real(r8), parameter :: min_patch_area = 0.001_r8                ! smallest allowable patch area before termination
+
+  real(r8), parameter :: min_npm2       = 1.0E-7_r8               ! minimum cohort number density per m2 before termination
+  real(r8), parameter :: min_patch_area = 0.01_r8                 ! smallest allowable patch area before termination
   real(r8), parameter :: min_nppatch    = min_npm2*min_patch_area ! minimum number of cohorts per patch (min_npm2*min_patch_area)
-  real(r8), parameter :: min_n_safemath = 1.0E-15_r8              ! in some cases, we want to immediately remove super small
+  real(r8), parameter :: min_n_safemath = 1.0E-12_r8              ! in some cases, we want to immediately remove super small
                                                                   ! number densities of cohorts to prevent FPEs
 
   character*4 yearchar                    
@@ -290,7 +292,6 @@ module EDTypesMod
      real(r8) ::  bmort                                  ! background mortality rate        n/year
      real(r8) ::  cmort                                  ! carbon starvation mortality rate n/year
      real(r8) ::  hmort                                  ! hydraulic failure mortality rate n/year
-     real(r8) ::  fmort                                  ! fire mortality                   n/year
      real(r8) ::  frmort                                 ! freezing mortality               n/year
 
       ! Logging Mortality Rate 
@@ -315,8 +316,8 @@ module EDTypesMod
 
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
-     real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char:-
-     real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch:-
+     real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char (conditional on the tree being subjected to the fire)
+     real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch (conditional on the tree being subjected to the fire)
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
 
      ! Hydraulics
@@ -632,19 +633,41 @@ module EDTypesMod
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
-        
+     
+     ! DIAGNOSTICS
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
-
-     real(r8), allocatable :: terminated_nindivs(:,:,:) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
-     real(r8) :: termination_carbonflux(2)                     ! carbon flux from live to dead pools associated with termination mortality, per canopy level
-     real(r8) :: recruitment_rate(1:maxpft)                     ! number of individuals that were recruited into new cohorts
-     real(r8), allocatable :: demotion_rate(:)                ! rate of individuals demoted from canopy to understory per FATES timestep
-     real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
-     real(r8), allocatable :: promotion_rate(:)               ! rate of individuals promoted from understory to canopy per FATES timestep
-     real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
+     
+     real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
+                                                       ! were terminated this timestep, on size x pft
+     real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which 
+                                                       ! were terminated this timestep, on size x pft
+     real(r8) :: term_carbonflux_canopy                ! carbon flux from live to dead pools associated 
+                                                       ! with termination mortality, per canopy level
+     real(r8) :: term_carbonflux_ustory                ! carbon flux from live to dead pools associated 
+                                                       ! with termination mortality, per canopy level
+     
+     real(r8) :: recruitment_rate(1:maxpft)            ! number of individuals that were recruited into new cohorts
+     real(r8), allocatable :: demotion_rate(:)         ! rate of individuals demoted from canopy to understory per FATES timestep
+     real(r8) :: demotion_carbonflux                             ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
+     real(r8), allocatable :: promotion_rate(:)                  ! rate of individuals promoted from understory to canopy per FATES timestep
+     real(r8) :: promotion_carbonflux                            ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
      real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
      real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
-     real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin due to fusion in a given day. on size x pft array 
+
+     real(r8), allocatable :: fmort_rate_canopy(:,:)             ! rate of canopy individuals killed due to fire mortality per year.  
+                                                                 ! on size x pft array  (1:nlevsclass,1:numpft)
+     real(r8), allocatable :: fmort_rate_ustory(:,:)             ! rate of understory individuals killed due to fire mortality per year.  
+                                                                 ! on size x pft array  (1:nlevsclass,1:numpft)
+     real(r8) :: fmort_carbonflux_canopy                         ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
+     real(r8) :: fmort_carbonflux_ustory                         ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+     real(r8), allocatable :: fmort_rate_cambial(:,:)            ! rate of individuals killed due to fire mortality 
+                                                                 ! from cambial damage per year.  on size x pft array
+     real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality 
+                                                                 ! from crown damage per year.  on size x pft array
+
+     real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin 
+                                                                 ! due to fusion in a given day. on size x pft array 
+
 
      ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
      real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
@@ -837,7 +860,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area
      write(fates_log(),*) 'co%cmort                  = ', ccohort%cmort
      write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
-     write(fates_log(),*) 'co%fmort                  = ', ccohort%fmort
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
@@ -852,8 +874,29 @@ module EDTypesMod
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
      write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
+     if (associated(ccohort%co_hydr) ) then
+        call dump_cohort_hydr(ccohort)
+     endif 
      write(fates_log(),*) '----------------------------------------'
      return
   end subroutine dump_cohort
+
+  ! =====================================================================================
+  
+  subroutine dump_cohort_hydr(ccohort)
+
+
+     type(ed_cohort_type),intent(in),target :: ccohort
+     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+     ccohort_hydr => ccohort%co_hydr
+     
+     write(fates_log(),*) '--------------------------------------------'
+     write(fates_log(),*) ' Dumping Cohort Plant Hydraulic Information '
+     write(fates_log(),*) 'ccohort_hydr%th_aroot(:) = ', ccohort_hydr%th_aroot(:)
+     write(fates_log(),*) 'ccohort_hydr%v_aroot_layer_init(:) = ', ccohort_hydr%v_aroot_layer_init(:)
+     write(fates_log(),*) 'ccohort_hydr%v_aroot_layer(:) = ', ccohort_hydr%v_aroot_layer(:)
+     write(fates_log(),*) '--------------------------------------------'
+     return
+  end subroutine dump_cohort_hydr
 
 end module EDTypesMod

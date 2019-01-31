@@ -8,6 +8,7 @@ module EDCohortDynamicsMod
   use FatesGlobals          , only : fates_log
   use FatesInterfaceMod     , only : hlm_freq_day
   use FatesInterfaceMod     , only : bc_in_type
+  use FatesInterfaceMod     , only : hlm_use_planthydro
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
@@ -28,6 +29,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : first_leaf_aclass
   use EDTypesMod            , only : nan_leaf_aclass
   use EDTypesMod            , only : max_nleafage
+  use EDTypesMod            , only : ican_upper
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
@@ -37,6 +39,10 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
+  use FatesPlantHydraulicsMod, only : UpdateTreeHydrNodes
+  use FatesPlantHydraulicsMod, only : UpdateTreeHydrLenVolCond
+  use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
+  use FatesPlantHydraulicsMod, only : ConstrainRecruitNumber
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
@@ -103,6 +109,20 @@ contains
                            bsap, bdead, bstore, laimemory, status, recruitstatus,ctrim, &
                            clayer, spread, leaf_aclass_init, bc_in)
 
+    !
+    ! !DESCRIPTION:
+    ! create new cohort
+    ! There are 4 places this is called
+    ! 1) Initializing new cohorts at the beginning of a cold-start simulation
+    ! 2) Initializing new recruits during dynamics
+    ! 3) Initializing new cohorts at the beginning of a inventory read
+    ! 4) Initializing new cohorts during restart
+    !
+    ! It is assumed that in the first 3, this is called with a reasonable amount of starter information.
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS    
 
     type(ed_site_type), intent(inout),   target :: currentSite
     type(ed_patch_type), intent(inout), pointer :: patchptr
@@ -140,6 +160,8 @@ contains
     type(ed_cohort_type), pointer :: storebigcohort   
     real(r8) :: frac_leaf_aclass(max_nleafage)   ! Fraction of leaves in each age-class
     integer  :: tnull,snull                      ! are the tallest and shortest cohorts allocate
+    integer :: nlevsoi_hyd                       ! number of hydraulically active soil layers 
+
     !----------------------------------------------------------------------
 
     allocate(new_cohort)
@@ -279,12 +301,39 @@ contains
     new_cohort%isnew = .true.
 
     if( hlm_use_planthydro.eq.itrue ) then
-       call InitHydrCohort(CurrentSite,new_cohort)
-       call updateSizeDepTreeHydProps(CurrentSite,new_cohort, bc_in) 
-       call initTreeHydStates(CurrentSite,new_cohort, bc_in)
+
+       nlevsoi_hyd = currentSite%si_hydr%nlevsoi_hyd
+
+       ! This allocates array spaces
+       call InitHydrCohort(currentSite,new_cohort)
+
+       ! This calculates node heights
+       call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
+                                new_cohort%hite,nlevsoi_hyd,bc_in)
+
+       ! This calculates volumes, lengths and max conductances
+       call UpdateTreeHydrLenVolCond(new_cohort,nlevsoi_hyd,bc_in)
+       
+       ! Since this is a newly initialized plant, we set the previous compartment-size
+       ! equal to the ones we just calculated.
+       call SavePreviousCompartmentVolumes(new_cohort%co_hydr)
+       
+       ! This comes up with starter suctions and then water contents
+       ! based on the soil values
+       call initTreeHydStates(currentSite,new_cohort, bc_in)
+
        if(recruitstatus==1)then
-          new_cohort%co_hydr%is_newly_recuited = .true.
+          new_cohort%co_hydr%is_newly_recruited = .true.
+
+          ! If plant hydraulics is active, we must constrain the
+          ! number density of the new recruits based on the moisture
+          ! available to be subsumed in the new plant tissues.
+          ! So we go through the process of pre-initializing the hydraulic
+          ! states in the temporary cohort, to calculate this new number density
+
+          call ConstrainRecruitNumber(currentSite,new_cohort, bc_in)
        endif
+
     endif
     
     call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
@@ -645,19 +694,26 @@ contains
       endif    !  if (.not.currentCohort%isnew .and. level == 2) then
 
       if (terminate == 1) then 
+         
           ! preserve a record of the to-be-terminated cohort for mortality accounting
-          if (currentCohort%canopy_layer .eq. 1) then
-             levcan = 1
-          else
-             levcan = 2
-          endif
+          levcan = currentCohort%canopy_layer
 
-          currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
-               currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
-          !
-          currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
-                currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
-          
+          if( hlm_use_planthydro == itrue ) &
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort,currentCohort%n)
+
+          if(levcan==ican_upper) then
+             currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) = &
+                   currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) + currentCohort%n
+ 
+             currentSite%term_carbonflux_canopy = currentSite%term_carbonflux_canopy + &
+                   currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+          else
+             currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) = &
+                   currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) + currentCohort%n
+ 
+             currentSite%term_carbonflux_ustory = currentSite%term_carbonflux_ustory + &
+                   currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+          end if
 
           !put the litter from the terminated cohorts straight into the fragmenting pools
           if (currentCohort%n.gt.0.0_r8) then
@@ -773,6 +829,7 @@ contains
      real(r8) :: leaf_c_next  ! Leaf carbon * plant density of current (for weighting)
      real(r8) :: leaf_c_curr  ! Leaf carbon * plant density of next (for weighting)
      real(r8) :: dynamic_fusion_tolerance
+     real(r8) :: leaf_c             ! leaf carbon [kg]
 
      integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
      real(r8) :: larger_n, smaller_n
@@ -889,8 +946,11 @@ contains
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
+				      
 
-                                if(hlm_use_planthydro.eq.itrue) call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)
+                                if(hlm_use_planthydro.eq.itrue) then			  					  				  
+				    call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
+				 endif
 
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
@@ -975,7 +1035,6 @@ contains
                                    currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
                                    currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
                                    currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
-                                   currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
                                    currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                    ! logging mortality, Yi Xu
@@ -1024,7 +1083,19 @@ contains
                                 endif
                                 
                                 ! At this point, nothing should be pointing to current Cohort
-                                if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
+				! update hydraulics quantities that are functions of hite & biomasses
+				! deallocate the hydro structure of nextc
+                                if (hlm_use_planthydro.eq.itrue) then				    
+				    call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+				          currentCohort%pft,currentCohort%c_area)
+                                    leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                                    currentCohort%treelai = tree_lai(leaf_c,             &
+                                       currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+                                       currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+                                       currentCohort%vcmax25top  )			    
+				   call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)  				   
+				   call DeallocateHydrCohort(nextc)
+				endif
 
                                 ! Deallocate the cohort's PRT structure
                                 call nextc%prt%DeallocatePRTVartypes()
@@ -1193,7 +1264,7 @@ contains
     icohort => pcc ! assign address to icohort local name  
     !place in the correct place in the linked list of heights 
     !begin by finding cohort that is just taller than the new cohort 
-    tsp = icohort%dbh
+    tsp = icohort%hite
 
     current => pshortest
     exitloop = 0
@@ -1201,7 +1272,7 @@ contains
     !taller than tree being considered and return its pointer 
     if (associated(current)) then
        do while (associated(current).and.exitloop == 0)
-          if (current%dbh < tsp) then
+          if (current%hite < tsp) then
              current => current%taller   
           else
              exitloop = 1 
@@ -1355,7 +1426,6 @@ contains
     ! Mortality diagnostics
     n%cmort = o%cmort
     n%bmort = o%bmort
-    n%fmort = o%fmort
     n%hmort = o%hmort
     n%frmort = o%frmort
 

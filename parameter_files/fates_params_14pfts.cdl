@@ -408,6 +408,9 @@ variables:
 	float fates_mort_hf_sm_threshold(fates_pft) ;
 		fates_mort_hf_sm_threshold:units = "unitless" ;
 		fates_mort_hf_sm_threshold:long_name = "soil moisture (btran units) at which drought mortality begins for non-hydraulic model" ;
+	float fates_mort_hf_flc_threshold(fates_pft) ;
+		fates_mort_hf_flc_threshold:units = "fraction" ;
+		fates_mort_hf_flc_threshold:long_name = "plant fractional loss of conductivity at which drought mortality begins for hydraulic model" ;		
 	float fates_mort_scalar_coldstress(fates_pft) ;
 		fates_mort_scalar_coldstress:units = "1/yr" ;
 		fates_mort_scalar_coldstress:long_name = "maximum mortality rate from cold stress" ;
@@ -528,9 +531,6 @@ variables:
 	float fates_z0mr(fates_pft) ;
 		fates_z0mr:units = "unitless" ;
 		fates_z0mr:long_name = "Ratio of momentum roughness length to canopy top height" ;
-	float fates_alpha_FMC(fates_litterclass) ;
-		fates_alpha_FMC:units = "NA" ;
-		fates_alpha_FMC:long_name = "spitfire parameter related to fuel moisture content, Equation 6 Thonicke et al 2010" ;
 	float fates_FBD(fates_litterclass) ;
 		fates_FBD:units = "NA" ;
 		fates_FBD:long_name = "spitfire parameter related to fuel bulk density, see SFMain.F90" ;
@@ -561,6 +561,9 @@ variables:
 	float fates_CWD_frac(fates_NCWD) ;
 		fates_CWD_frac:units = "fraction" ;
 		fates_CWD_frac:long_name = "fraction of woody (bdead+bsw) biomass destined for CWD pool" ;
+	float fates_drying_ratio ;
+		fates_drying_ratio:units = "NA" ;
+		fates_drying_ratio:long_name = "spitfire parameter, fire drying ratio for fuel moisture, alpha_FMC EQ 6 Thonicke et al 2010" ;		
 	float fates_durat_slope ;
 		fates_durat_slope:units = "NA" ;
 		fates_durat_slope:long_name = "spitfire parameter, fire max duration slope, Equation 14 Thonicke et al 2010" ;
@@ -573,9 +576,6 @@ variables:
 	float fates_fdi_b ;
 		fates_fdi_b:units = "NA" ;
 		fates_fdi_b:long_name = "spitfire parameter (unknown) " ;
-	float fates_fire_wind_max ;
-		fates_fire_wind_max:units = "m/min" ;
-		fates_fire_wind_max:long_name = "maximum wind speed expected by the fire model" ;
 	float fates_fuel_energy ;
 		fates_fuel_energy:units = "kJ/kg" ;
 		fates_fuel_energy:long_name = "pitfire parameter, heat content of fuel" ;
@@ -1057,7 +1057,10 @@ data:
 
  fates_mort_hf_sm_threshold = 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 
     1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06 ;
-
+    
+ fates_mort_hf_flc_threshold = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+    0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ;
+    
  fates_mort_scalar_coldstress = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
 
  fates_mort_scalar_cstarvation = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
@@ -1172,8 +1175,6 @@ data:
  fates_z0mr = 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 
     0.055, 0.055, 0.055, 0.055, 0.055 ;
 
- fates_alpha_FMC = 0.0050769, 0.001, 0.0002754, 7.54e-05, 1.54e-05, 999 ;
-
  fates_FBD = 4, 15.4, 16.8, 19.6, 999, 4 ;
 
  fates_low_moisture_Coeff = 1.15, 1.12, 1.09, 0.98, 0.8, 1.15 ;
@@ -1194,6 +1195,8 @@ data:
 
  fates_CWD_frac = 0.045, 0.075, 0.21, 0.67 ;
 
+ fates_drying_ratio = 13000 ;
+
  fates_durat_slope = -11.06 ;
 
  fates_fdi_a = 17.62 ;
@@ -1201,8 +1204,6 @@ data:
  fates_fdi_alpha = 0.00037 ;
 
  fates_fdi_b = 243.12 ;
-
- fates_fire_wind_max = 45.718 ;
 
  fates_fuel_energy = 18000 ;
 
