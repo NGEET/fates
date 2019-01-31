@@ -6,7 +6,7 @@ dimensions:
 	fates_history_size_bins = 13 ;
 	fates_hydr_organs = 4 ;
 	fates_prt_organs  = 6 ;
-	fates_leafage_class = 4;
+	fates_leafage_class = 2;
 	fates_litterclass = 6 ;
 	fates_pft = 2 ;
 	fates_scalar = 1 ;
@@ -880,10 +880,9 @@ data:
 
  fates_leaf_jmaxse = 495, 495 ;
 
- fates_leaf_long = 0.375, 0.375,
-                   0.375, 0.375,
-                   0.375, 0.375,
-                   0.375, 0.375 ;
+ fates_leaf_long = 0.75, 0.75,
+                   0.75, 0.75 ;
+
 
  fates_leaf_slamax = 0.0954, 0.0954 ;
 
@@ -898,8 +897,6 @@ data:
  fates_leaf_tpuse = 490, 490 ;
 
  fates_leaf_vcmax25top = 50, 50,
-                         50, 50,
-                         50, 50,
                          50, 50;
 
  fates_leaf_vcmaxha = 65330, 65330 ;
