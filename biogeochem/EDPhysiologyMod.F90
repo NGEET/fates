@@ -638,6 +638,7 @@ contains
        if ( mean_10day_liqvol >= ED_val_phen_drought_threshold ) then
           currentSite%dstatus     = 2              ! set status to leaf-on
           currentSite%dleafondate = model_day_int  ! save the model day we start flushing
+          dayssincedleafon        = 0
        endif
     endif
 
@@ -647,6 +648,7 @@ contains
          (dayssincedleafon > 365+30) ) then
        currentSite%dstatus     = 3               ! force budburst!
        currentSite%dleafondate = model_day_int   ! record leaf on date
+       dayssincedleafon        = 0
     endif
 
     ! LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to 
