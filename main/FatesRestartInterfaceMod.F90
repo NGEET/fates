@@ -677,8 +677,8 @@ contains
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
 
-    call this%set_restart_var(vname='fates_canopy_layer', vtype=cohort_r8, &
-         long_name='ed cohort - canopy_layer', units='unitless', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_canopy_layer', vtype=cohort_int, &
+         long_name='ed cohort - canopy_layer', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_co )
 
     call this%set_restart_var(vname='fates_canopy_layer_yesterday', vtype=cohort_r8, &
@@ -1448,7 +1448,7 @@ contains
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
            rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
-           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
@@ -2155,7 +2155,7 @@ contains
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
           rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
-          rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+          rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &

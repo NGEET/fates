@@ -663,7 +663,7 @@ contains
             endif
          endif
 
-         ! In the third canopy layer
+         ! Outside the maximum canopy layer
          if (currentCohort%canopy_layer > nclmax ) then 
            terminate = 1
            if ( debug ) then
