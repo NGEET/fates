@@ -2294,10 +2294,6 @@ contains
                    end do
                 end do
 
-                
-                
-                call UpdateCohortBioPhysRates(ccohort)
-
                 !ccohort%vcmax25top          
                 !ccohort%jmax25top
                 !ccohort%tpu25top          
@@ -2334,6 +2330,9 @@ contains
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
+
+                call UpdateCohortBioPhysRates(ccohort)
+
 
                 ! Initialize Plant Hydraulics
 
