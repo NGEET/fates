@@ -1242,7 +1242,7 @@ contains
 
              currentCohort%treelai = tree_lai(leaf_c,             &
                   currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                  currentCohort%canopy_layer, currentPatch%canopy_layer_tlai )
+                  currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
              canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
                   
@@ -1417,11 +1417,11 @@ contains
 
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                                            currentCohort%n, currentCohort%canopy_layer,               &
-                                           currentPatch%canopy_layer_tlai )    
+                                           currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )    
 
           currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
                                            currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                                           currentPatch%canopy_layer_tlai, currentCohort%treelai )  
+                                           currentPatch%canopy_layer_tlai, currentCohort%treelai ,currentCohort%vcmax25top)  
 
           currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area 
           currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  

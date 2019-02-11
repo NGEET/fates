@@ -33,6 +33,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : recruitment
   use EDPhysiologyMod          , only : trim_canopy
   use EDPhysiologyMod          , only : ZeroAllocationRates
+  use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use SFMainMod                , only : fire_model 
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use EDtypesMod               , only : ncwd
@@ -337,11 +338,21 @@ contains
           
           currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
+          ! Conducte Maintenance Turnover (parteh)
           call currentCohort%prt%CheckMassConservation(ft,3)
-          call PRTMaintTurnover(currentCohort%prt,ft)
+          call PRTMaintTurnover(currentCohort%prt,ft,currentSite%is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
+
+          ! Conduct Growth (parteh)
           call currentCohort%prt%DailyPRT()
           call currentCohort%prt%CheckMassConservation(ft,5)
+
+          ! Update the leaf biophysical rates based on proportion of leaf
+          ! mass in the different leaf age classes. Following growth
+          ! and turnover, these proportions won't change again. This
+          ! routine is also called following fusion
+          call UpdateCohortBioPhysRates(currentCohort)
+
 
           ! Transfer all reproductive tissues into seed production
           call PRTReproRelease(currentCohort%prt,repro_organ,carbon12_element, &

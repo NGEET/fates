@@ -12,6 +12,7 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : hlm_freq_day
   use FatesInterfaceMod, only    : hlm_day_of_year
   use FatesInterfaceMod, only    : numpft
+  use FatesInterfaceMod, only    : nleafage
   use FatesInterfaceMod, only    : hlm_use_planthydro
   use FatesInterfaceMod, only    : hlm_parteh_mode
   use FatesConstantsMod, only    : r8 => fates_r8
@@ -33,6 +34,10 @@ module EDPhysiologyMod
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod          , only : dump_cohort
+  use EDTypesMod          , only : first_leaf_aclass
+  use EDTypesMod          , only : leaves_on
+  use EDTypesMod          , only : leaves_off
+  use EDTypesMod          , only : min_n_safemath
 
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
@@ -40,11 +45,6 @@ module EDPhysiologyMod
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
-  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
-  use FatesPlantHydraulicsMod  , only : initTreeHydStates
-  use FatesPlantHydraulicsMod  , only : InitHydrCohort
-  use FatesPlantHydraulicsMod  , only : ConstrainRecruitNumber
-  use FatesPlantHydraulicsMod  , only : DeallocateHydrCohort
   
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : calloc_abs_error
@@ -94,7 +94,7 @@ module EDPhysiologyMod
   private :: seed_germination
   public :: flux_into_litter_pools
   public :: ZeroAllocationRates
-
+  
 
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
@@ -255,11 +255,11 @@ contains
 
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                                            currentCohort%n, currentCohort%canopy_layer,               &
-                                           currentPatch%canopy_layer_tlai )    
+                                           currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )    
 
           currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
                                            currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                                           currentPatch%canopy_layer_tlai, currentCohort%treelai )  
+                                           currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top )  
 
           currentCohort%nv      = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
 
@@ -303,7 +303,7 @@ contains
                    
                 ! Calculate sla_levleaf following the sla profile with overlying leaf area
                 ! Scale for leaf nitrogen profile
-                kn = decay_coeff_kn(ipft)
+                kn = decay_coeff_kn(ipft,currentCohort%vcmax25top)
                 ! Nscaler value at leaf level z
                 nscaler_levleaf = exp(-kn * cumulative_lai)
                 ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
@@ -332,9 +332,12 @@ contains
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
+
                    ! Leaf cost at leaf level z accounting for sla profile
                    currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
-                        EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
+                        sum(EDPftvarcon_inst%leaf_long(ipft,:))*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
+                   
+                   
                    if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
@@ -497,11 +500,11 @@ contains
     !2) The leaves should not be on already
     !3) There should have been at least on chilling day in the counting period.  
     if (currentSite%ED_GDD_site > gdd_threshold)then
-       if (currentSite%status == 1) then
+       if (currentSite%is_cold) then
           if (currentSite%ncd >= 1) then
-             currentSite%status = 2     !alter status of site to 'leaves on'
              ! NOTE(bja, 2015-01) should leafondate = model_day to be consistent with leaf off?
-             currentSite%leafondate = t !record leaf on date   
+             currentSite%is_cold = .false.      
+             currentSite%leafondate = t         ! record leaf on date   
              if ( debug ) write(fates_log(),*) 'leaves on'
           endif !ncd
        endif !status
@@ -515,13 +518,14 @@ contains
     !1) have exceeded the number of cold days threshold
     !2) have exceeded the minimum leafon time.
     !3) The leaves should not be off already
-    !4) The day of the year should be larger than the counting period. (not sure if we need this/if it will break the restarting)
+    !4) The day of the year should be larger than the counting period. 
+    !   (not sure if we need this/if it will break the restarting)
     
     if (ncolddays > ED_val_phen_ncolddayslim)then
      if (timesinceleafon > ED_val_phen_mindayson)then
-       if (currentSite%status == 2)then
-          currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = hlm_model_day   !record leaf off date   
+       if (.not.currentSite%is_cold)then
+          currentSite%is_cold = .true.              ! now cold enough for leaf-off
+          currentSite%leafoffdate = hlm_model_day   ! record leaf off date   
           if ( debug ) write(fates_log(),*) 'leaves off'
        endif
     endif
@@ -529,8 +533,8 @@ contains
 
     !LEAF OFF: COLD LIFESPAN THRESHOLD
     if(timesinceleafoff > 400)then !remove leaves after a whole year when there is no 'off' period.  
-       if(currentSite%status == 2)then
-          currentSite%status = 1        !alter status of site to 'leaves on'
+       if(.not.currentSite%is_cold)then
+          currentSite%is_cold = .true.              ! cold enough for leaf-off
           currentSite%leafoffdate = hlm_model_day   !record leaf off date   
           if ( debug ) write(fates_log(),*) 'leaves off'
        endif
@@ -538,7 +542,7 @@ contains
 
     !-----------------Drought Phenology--------------------!
     ! Principles of drought-deciduos phenology model...
-    ! The 'dstatus' flag is 2 when leaves are on, and 1 when leaves area off. 
+    ! The 'is_drought' flag is false when leaves are on, and true when leaves area off. 
     ! The following sets those site-level flags, which are acted on in phenology_deciduos. 
     ! A* The leaves live for either the length of time the soil moisture is over the threshold 
     ! or the lifetime of the leaves, whichever is shorter. 
@@ -570,10 +574,14 @@ contains
     enddo
     currentSite%water_memory(1) = bc_in%h2o_liqvol_sl(1)   !waterstate_inst%h2osoi_vol_col(coli,1)
 
-    !In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...     
+    ! In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...      
+    ! Here we incremend how long the leaves have been off;
+    ! We set the default assumption that no time has elapsed, but if drought
+    ! status is true, then we update the time
+    ! If the leaves are off. How long have they been off? 
+    ! leaves have come on, but last year, so at a later date than now.
     timesincedleafoff = 0
-    if (currentSite%dstatus == 1)then !the leaves are off. How long have they been off? 
-       !leaves have come on, but last year, so at a later date than now.
+    if ( currentSite%is_drought )then
        if (currentSite%dleafoffdate > 0.and.currentSite%dleafoffdate > t)then 
           timesincedleafoff = t + (360 - currentSite%dleafoffdate)
        else
@@ -583,7 +591,7 @@ contains
 
     timesincedleafon = 0
     !the leaves are on. How long have they been on? 
-    if (currentSite%dstatus == 2)then  
+    if ( .not.currentSite%is_drought )then  
        !leaves have come on, but last year, so at a later date than now.
        if (currentSite%dleafondate > 0.and.currentSite%dleafondate > t)then 
           timesincedleafon = t + (360 - currentSite%dleafondate)
@@ -596,40 +604,40 @@ contains
     !Here, we used a window of oppurtunity to determine if we are close to the time when then leaves came on last year
     if ((t >= currentSite%dleafondate - 30.and.t <= currentSite%dleafondate + 30).or.(t > 360 - 15.and. &
          currentSite%dleafondate < 15))then ! are we in the window?
-       ! TODO: CHANGE THIS MATH, MOVE THE DENOMENATOR OUTSIDE OF THE SUM (rgk 01-2017)
-       if (sum(currentSite%water_memory(1:numWaterMem)/real(numWaterMem,r8)) &
-            >= ED_val_phen_drought_threshold.and.currentSite%dstatus == 1.and.t >= 10)then 
+
+       if ( sum(currentSite%water_memory(1:numWaterMem))/real(numWaterMem,r8) &
+            >= ED_val_phen_drought_threshold .and. &
+            currentSite%is_drought .and. &
+            (t >= 10) ) then 
           ! leave some minimum time between leaf off and leaf on to prevent 'flickering'.  
           if (timesincedleafoff > ED_val_phen_doff_time)then  
-             currentSite%dstatus = 2     !alter status of site to 'leaves on'
-             currentSite%dleafondate = t   !record leaf on date
+             currentSite%is_drought  = .false.     ! end the drought
+             currentSite%dleafondate = t           !record leaf on date
           endif
        endif
     endif
 
-   !we still haven't done budburst by end of window
-    if (t == currentSite%dleafondate+30.and.currentSite%dstatus == 1)then 
-       currentSite%dstatus = 2    ! force budburst!
-       currentSite%dleafondate = t   ! record leaf on date
+    ! we still haven't done budburst by end of window
+    if (t == currentSite%dleafondate+30 .and. currentSite%is_drought)then 
+       currentSite%is_drought = .false.  ! force budburst!
+       currentSite%dleafondate = t       ! record leaf on date
     endif
 
     !LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to the end of its useful life. A*, E*
-    if (currentSite%dstatus == 2.and.t >= 10)then  !D*
+    if ( .not.currentSite%is_drought .and. (t >= 10) ) then  !D*
        !Are the leaves at the end of their lives? 
-       !FIX(RF,0401014)- this is hardwiring....
-       !FIX(RGK:changed from hard-coded pft 7 leaf lifespan to labeled constant (1 year)
        if ( timesincedleafon > canopy_leaf_lifespan )then 
-          currentSite%dstatus = 1         !alter status of site to 'leaves on'
-          currentSite%dleafoffdate = t    !record leaf on date          
+          currentSite%is_drought   = .true.   !alter status of site to 'leaves off'
+          currentSite%dleafoffdate = t        !record leaf off date          
        endif
     endif
 
     !LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry, and the leaves have already been on a while... 
-    if (currentSite%dstatus == 2.and.t >= 10)then  !D*
+    if ( .not.currentSite%is_drought .and. (t >= 10) ) then  !D*
        if (sum(currentSite%water_memory(1:10)/10._r8) <= ED_val_phen_drought_threshold)then 
           if (timesincedleafon > 100)then !B* Have the leaves been on for some reasonable length of time? To prevent flickering. 
-             currentSite%dstatus = 1      !alter status of site to 'leaves on'
-             currentSite%dleafoffdate = t !record leaf on date           
+             currentSite%is_drought   = .true.  !alter status of site to 'leaves on'
+             currentSite%dleafoffdate = t       !record leaf on date           
           endif
        endif
     endif
@@ -676,12 +684,15 @@ contains
           store_c = currentCohort%prt%GetState(store_organ, all_carbon_elements)
           leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
 
-          !COLD LEAF ON
+          ! COLD LEAF ON
+          ! The site level flags signify that it is no-longer too cold
+          ! for leaves. Time to signal flushing
+
           if (EDPftvarcon_inst%season_decid(ipft) == 1)then
-             if (currentSite%status == 2)then !we have just moved to leaves being on . 
-                if (currentCohort%status_coh == 1)then !Are the leaves currently off?        
-                   currentCohort%status_coh = 2    ! Leaves are on, so change status to 
-                                                   ! stop flow of carbon out of bstore. 
+             if ( .not.currentSite%is_cold )then            !we have just moved to leaves being on . 
+                if (currentCohort%status_coh == leaves_off)then !Are the leaves currently off?        
+                   currentCohort%status_coh = leaves_on         ! Leaves are on, so change status to 
+                                                                ! stop flow of carbon out of bstore. 
                    
                    if(store_c>nearzero) then
                       store_c_transfer_frac = &
@@ -699,12 +710,15 @@ contains
                 endif !pft phenology
              endif ! growing season 
 
-             !COLD LEAF OFF
-             if (currentSite%status == 1)then !past leaf drop day? Leaves still on tree?  
-                if (currentCohort%status_coh == 2)then ! leaves have not dropped
+             ! COLD LEAF OFF
+             ! The site level flag signifies that it is now too cold for 
+             ! deciduous leaves. Time to drop if they have not already
+
+             if (currentSite%is_cold) then 
+                if (currentCohort%status_coh == leaves_on)then ! leaves have not dropped
                    
                    ! This sets the cohort to the "leaves off" flag
-                   currentCohort%status_coh  = 1
+                   currentCohort%status_coh  = leaves_off
 
                    ! Remember what the lai was (leaf mass actually) was for next year
                    ! the same amount back on in the spring...
@@ -717,23 +731,27 @@ contains
 
                    call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                          leaf_organ, leaf_drop_fraction)
-               
+                   
+
                 endif !leaf status
              endif !currentSite status
           endif  !season_decid
 
-          !DROUGHT LEAF ON
+          ! DROUGHT LEAF ON
+          ! Site level flag indicates it is no longer in drought condition
+          ! deciduous plants can flush
+
           if (EDPftvarcon_inst%stress_decid(ipft) == 1)then
              
-             if (currentSite%dstatus == 2)then 
+             if ( .not.currentSite%is_drought ) then 
 
                 ! we have just moved to leaves being on . 
-                if (currentCohort%status_coh == 1)then    
+                if (currentCohort%status_coh == leaves_off)then    
 
                    !is it the leaf-on day? Are the leaves currently off?    
 
-                   currentCohort%status_coh = 2    ! Leaves are on, so change status to 
-                                                   ! stop flow of carbon out of bstore. 
+                   currentCohort%status_coh = leaves_on    ! Leaves are on, so change status to 
+                                                           ! stop flow of carbon out of bstore. 
 
                    if(store_c>nearzero) then
                       store_c_transfer_frac = &
@@ -752,12 +770,15 @@ contains
                 endif !currentCohort status again?
              endif   !currentSite status
 
-             !DROUGHT LEAF OFF
-             if (currentSite%dstatus == 1)then        
-                if (currentCohort%status_coh == 2)then ! leaves have not dropped
+             ! DROUGHT LEAF OFF
+             ! Site level flag indicates a drought condition is in effect
+             ! deciduous plants should drop leaves if have not already
+
+             if ( currentSite%is_drought ) then        
+                if (currentCohort%status_coh == leaves_on)then ! leaves have not dropped
 
                    ! This sets the cohort to the "leaves off" flag
-                   currentCohort%status_coh      = 1   
+                   currentCohort%status_coh      = leaves_off
                    
                    ! Remember what the lai (leaf mass actually) was for next year
                    currentCohort%laimemory   = leaf_c
@@ -939,15 +960,17 @@ contains
        currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * &
              EDPftvarcon_inst%germination_timescale(p),max_germination)     
        !set the germination only under the growing season...c.xu
-       if (EDPftvarcon_inst%season_decid(p) == 1.and.currentSite%status == 1)then 
+       if (EDPftvarcon_inst%season_decid(p) == itrue .and. currentSite%is_cold)then 
              currentPatch%seed_germination(p) = 0.0_r8
        endif
-       if (EDPftvarcon_inst%stress_decid(p) == 1.and.currentSite%dstatus == 1)then
+       if (EDPftvarcon_inst%stress_decid(p) == itrue .and. currentSite%is_drought)then
              currentPatch%seed_germination(p) = 0.0_r8
        endif
     enddo
 
   end subroutine seed_germination
+
+  ! =====================================================================================
 
   subroutine recruitment( currentSite, currentPatch, bc_in )
     !
@@ -979,10 +1002,6 @@ contains
 
     allocate(temp_cohort) ! create temporary cohort
     call zero_cohort(temp_cohort)
-    if( hlm_use_planthydro.eq.itrue ) then
-	call InitHydrCohort(CurrentSite,temp_cohort)
-    endif
-    call InitPRTCohort(temp_cohort)
 
     do ft = 1,numpft
 
@@ -1000,25 +1019,27 @@ contains
        call bdead_allom(b_agw,b_bgw,b_sapwood,ft,b_dead)
        call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_store)
 
+       ! Default assumption is that leaves are on
+       cohortstatus = leaves_on
        temp_cohort%laimemory = 0.0_r8     
-       if (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
+
+       ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
+       ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
+       if (EDPftvarcon_inst%season_decid(ft) == itrue .and. currentSite%is_cold)then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
+          cohortstatus = leaves_off
        endif
-       if (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == 1.and.currentSite%dstatus == 1)then
+       
+       ! Or.. if the plant is drought deciduous, and the site status is flagged as 
+       ! "in a drought", then likewise, set the cohort's status to leaves_off, and remember leaf
+       ! biomass
+       if (EDPftvarcon_inst%stress_decid(ft) == itrue .and. currentSite%is_drought )then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
+          cohortstatus = leaves_off
        endif
 
-       cohortstatus = currentSite%status
-       if (EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
-          cohortstatus = currentSite%dstatus
-       endif
-
-       if (EDPftvarcon_inst%evergreen(ft) == 1) then
-          temp_cohort%laimemory   = 0._r8
-          cohortstatus = 2      
-       endif
 
        if (hlm_use_ed_prescribed_phys .eq. ifalse .or. EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0. ) then
           temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
@@ -1028,62 +1049,34 @@ contains
           temp_cohort%n        = currentPatch%area * EDPftvarcon_inst%prescribed_recruitment(ft) * hlm_freq_day
        endif
 
-       if (temp_cohort%n > 0.0_r8 )then
+       ! Only bother allocating a new cohort if there is a reasonable amount of it
+       if (temp_cohort%n > min_n_safemath )then
           if ( debug ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
-	  !constrain the number of individual based on rhyzosphere water availability
-	  if( hlm_use_planthydro.eq.itrue ) then
-	      call carea_allom(temp_cohort%dbh,temp_cohort%n,currentSite%spread, &
-				          ft,temp_cohort%c_area)
-	      if(associated(currentPatch%shortest)) then
-	         temp_cohort%canopy_layer =  currentPatch%shortest%canopy_layer
-	      else
-	         temp_cohort%canopy_layer = 1
-	      endif		
-	      temp_cohort%pft = ft
-	      select case(hlm_parteh_mode)
-                case (prt_carbon_allom_hyp)
 
-                  call SetState(temp_cohort%prt,leaf_organ, carbon12_element, b_leaf)
-                  call SetState(temp_cohort%prt,fnrt_organ, carbon12_element, b_fineroot)
-                  call SetState(temp_cohort%prt,sapw_organ, carbon12_element, b_sapwood)
-                  call SetState(temp_cohort%prt,store_organ, carbon12_element, b_store)
-                  call SetState(temp_cohort%prt,struct_organ, carbon12_element, b_dead)
-                  call SetState(temp_cohort%prt,repro_organ , carbon12_element, 0.0_r8)
+          call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+               b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &  
+               temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
+               currentSite%spread, first_leaf_aclass, bc_in)
 
-              end select
-              temp_cohort%treelai = tree_lai(b_leaf, ft,&
-				             temp_cohort%c_area,temp_cohort%n, &
-                                             temp_cohort%canopy_layer,currentPatch%canopy_layer_tlai)	      
-              call updateSizeDepTreeHydProps(CurrentSite,temp_cohort, bc_in) 
-              call initTreeHydStates(CurrentSite,temp_cohort, bc_in)
- 	      call ConstrainRecruitNumber(currentSite,temp_cohort, bc_in)
-	  endif
-	  if(temp_cohort%n > 0.0_r8) then
-            call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-                b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &  
-                temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
-                currentSite%spread, bc_in)
-            ! keep track of how many individuals were recruited for passing to history
-            currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
-	    ! modify the carbon balance accumulators to take into account the different way of defining recruitment
-            ! add prescribed rates as an input C flux, and the recruitment that would have otherwise occured as an output flux
-            ! (since the carbon associated with them effectively vanishes)
-	    ! check the water for hydraulics
-	    if (hlm_use_ed_prescribed_phys .ne. ifalse .and. EDPftvarcon_inst%prescribed_recruitment(ft) .ge. 0. ) then
-              currentSite%flux_in = currentSite%flux_in + temp_cohort%n * &
-                (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
-              currentSite%flux_out = currentSite%flux_out + currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day
-	    endif 
-	    
-	  endif 
+          ! Note that if hydraulics is on, the number of cohorts may had changed due to hydraulic constraints.
+          ! This constaint is applied during "create_cohort" subroutine.
+          
+          ! keep track of how many individuals were recruited for passing to history
+          currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
+          
+          ! modify the carbon balance accumulators to take into account the different way of defining recruitment
+          ! add prescribed rates as an input C flux, and the recruitment that would have otherwise occured as an output flux
+          ! (since the carbon associated with them effectively vanishes)
+          ! check the water for hydraulics
+          if (hlm_use_ed_prescribed_phys .ne. ifalse .and. EDPftvarcon_inst%prescribed_recruitment(ft) .ge. 0. ) then
+             currentSite%flux_in = currentSite%flux_in + temp_cohort%n * &
+                  (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
+             currentSite%flux_out = currentSite%flux_out + currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day
+          endif
 
        endif
     enddo  !pft loop
-    !deallocate the temporatory cohort
-    if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(temp_cohort)
-    !Deallocate the cohort's PRT structure
-    call temp_cohort%prt%DeallocatePRTVartypes()
-    deallocate(temp_cohort%prt)
+
     deallocate(temp_cohort) ! delete temporary cohort
 
   end subroutine recruitment
@@ -1843,9 +1836,6 @@ contains
         ! write(fates_log(),*)'cdk croot_prof: ', croot_prof
 
     end subroutine flux_into_litter_pools
-
-    ! ===================================================================================
-
 
 
 
