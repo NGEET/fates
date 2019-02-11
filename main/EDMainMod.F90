@@ -265,6 +265,7 @@ contains
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
+    logical  :: is_drought            ! logical for if the plant (site) is in a drought state
     
     !-----------------------------------------------------------------------
 
@@ -338,9 +339,14 @@ contains
           
           currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
-          ! Conducte Maintenance Turnover (parteh)
+          ! Conduct Maintenance Turnover (parteh)
           call currentCohort%prt%CheckMassConservation(ft,3)
-          call PRTMaintTurnover(currentCohort%prt,ft,currentSite%is_drought)
+          if(currentSite%dstatus>1) then
+             is_drought = .false.
+          else
+             is_drought = .true.
+          end if
+          call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
 
           ! Conduct Growth (parteh)
