@@ -16,7 +16,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceMod, only : bc_out_type
   use FatesInterfaceMod, only : hlm_use_planthydro
   use FatesInterfaceMod, only : fates_maxElementsPerSite
-  use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
+  use EDCohortDynamicsMod, only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,  only : nshell
   use FatesHydraulicsMemMod,  only : n_hypool_ag
   use FatesHydraulicsMemMod,  only : n_hypool_troot
@@ -678,8 +678,8 @@ contains
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
 
-    call this%set_restart_var(vname='fates_canopy_layer', vtype=cohort_r8, &
-         long_name='ed cohort - canopy_layer', units='unitless', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_canopy_layer', vtype=cohort_int, &
+         long_name='ed cohort - canopy_layer', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_co )
 
     call this%set_restart_var(vname='fates_canopy_layer_yesterday', vtype=cohort_r8, &
@@ -1455,7 +1455,7 @@ contains
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
            rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
-           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
@@ -1786,10 +1786,8 @@ contains
           rio_fmortcflux_cano_si(io_idx_si) = sites(s)%fmort_carbonflux_canopy
           rio_fmortcflux_usto_si(io_idx_si) = sites(s)%fmort_carbonflux_ustory
 
-
-
           rio_old_stock_si(io_idx_si)    = sites(s)%old_stock
-          rio_cd_status_si(io_idx_si)    = sites(s)%status
+          rio_cd_status_si(io_idx_si)    = sites(s)%cstatus
           rio_dd_status_si(io_idx_si)    = sites(s)%dstatus
           rio_nchill_days_si(io_idx_si)  = sites(s)%ncd 
           rio_leafondate_si(io_idx_si)   = sites(s)%cleafondate
@@ -1797,7 +1795,7 @@ contains
           rio_dleafondate_si(io_idx_si)  = sites(s)%dleafondate
           rio_dleafoffdate_si(io_idx_si) = sites(s)%dleafoffdate
           rio_acc_ni_si(io_idx_si)       = sites(s)%acc_NI
-          rio_gdd_si(io_idx_si)          = sites(s)%ED_GDD_site
+          rio_gdd_si(io_idx_si)          = sites(s)%grow_deg_days 
           
           ! Carbon Balance and Checks
           rio_nep_timeintegrated_si(io_idx_si) = sites(s)%nep_timeintegrated 
@@ -1881,6 +1879,7 @@ contains
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : ncwd
      use EDTypesMod,           only : maxSWb
+     use EDTypesMod,           only : nan_leaf_aclass
      use FatesInterfaceMod,    only : fates_maxElementsPerPatch
      
      use EDTypesMod,           only : maxpft
@@ -2010,8 +2009,8 @@ contains
                    new_cohort%taller   => prev_cohort
                    prev_cohort%shorter => new_cohort
                 end if
-                
-                ! Ever cohort added takes over as shortest
+
+                ! Every cohort added takes over as shortest
                 newp%shortest => new_cohort
                 
                 ! Initialize the PRT environment (allocate/choose hypothesis only)
@@ -2160,7 +2159,7 @@ contains
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
           rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
-          rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+          rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
@@ -2301,7 +2300,12 @@ contains
                    end do
                 end do
 
-                
+                !ccohort%vcmax25top          
+                !ccohort%jmax25top
+                !ccohort%tpu25top          
+                !ccohort%kp25top
+
+
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
@@ -2332,6 +2336,9 @@ contains
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
+
+                call UpdateCohortBioPhysRates(ccohort)
+
 
                 ! Initialize Plant Hydraulics
 
@@ -2520,7 +2527,10 @@ contains
           sites(s)%fmort_carbonflux_ustory  = rio_fmortcflux_usto_si(io_idx_si)
 
           sites(s)%old_stock      = rio_old_stock_si(io_idx_si)
-          sites(s)%status         = rio_cd_status_si(io_idx_si)
+          
+          ! Site level phenology status flags
+
+          sites(s)%cstatus        = rio_cd_status_si(io_idx_si)
           sites(s)%dstatus        = rio_dd_status_si(io_idx_si)
           sites(s)%ncd            = rio_nchill_days_si(io_idx_si)
           sites(s)%cleafondate    = rio_leafondate_si(io_idx_si)
@@ -2528,7 +2538,7 @@ contains
           sites(s)%dleafondate    = rio_dleafondate_si(io_idx_si)
           sites(s)%dleafoffdate   = rio_dleafoffdate_si(io_idx_si)
           sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
-          sites(s)%ED_GDD_site    = rio_gdd_si(io_idx_si)
+          sites(s)%grow_deg_days  = rio_gdd_si(io_idx_si)
 
           ! Carbon Balance and Checks
           sites(s)%nep_timeintegrated   = rio_nep_timeintegrated_si(io_idx_si)

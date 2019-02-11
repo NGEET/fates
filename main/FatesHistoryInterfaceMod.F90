@@ -1605,7 +1605,7 @@ end subroutine flush_hvars
             hio_site_ncolddays_si(io_si) = real(ncolddays,r8)
          end if
             
-         hio_gdd_si(io_si)      = sites(s)%ed_gdd_site
+         hio_gdd_si(io_si)      = sites(s)%grow_deg_days
          hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
          hio_cleafon_si(io_si)  = real(model_day_int - sites(s)%cleafondate,r8)
          hio_dleafoff_si(io_si) = real(model_day_int - sites(s)%dleafoffdate,r8)

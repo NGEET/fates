@@ -23,10 +23,14 @@ module EDInitMod
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
   use EDTypesMod                , only : init_spread_inventory
+  use EDTypesMod                , only : first_leaf_aclass
+  use EDTypesMod                , only : leaves_on
+  use EDTypesMod                , only : leaves_off
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
   use FatesInterfaceMod         , only : numpft
+  use FatesInterfaceMod         , only : nleafage
   use ChecksBalancesMod         , only : SiteCarbonStock
   use FatesInterfaceMod         , only : nlevsclass
   use FatesAllometryMod         , only : h2d_allom
@@ -107,9 +111,10 @@ contains
     site_in%total_burn_flux_to_atm = 0._r8
 
     ! PHENOLOGY 
-    site_in%status           = fates_unset_int    ! are leaves in this pixel on or off?
+
+    site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
     site_in%dstatus          = fates_unset_int
-    site_in%ED_GDD_site      = nan  ! growing degree days
+    site_in%grow_deg_days    = nan  ! growing degree days
     site_in%ncd              = fates_unset_int
    
     site_in%cleafondate      = fates_unset_int  ! doy of leaf on
@@ -182,11 +187,10 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  :: s
-   
-    real(r8) :: stat
+    integer  :: cstat      ! cold status phenology flag
     integer  :: NCD
     real(r8) :: GDD
-    real(r8) :: dstat
+    integer  :: dstat      ! drought status phenology flag
     real(r8) :: acc_NI
     real(r8) :: watermem 
     real(r8) :: cleafon    ! DOY for cold-decid leaf-on, initial guess
@@ -195,56 +199,46 @@ contains
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
     !----------------------------------------------------------------------
 
+
+    ! If this is not a restart, we need to start with some reasonable
+    ! starting points. If this is a restart, we leave the values
+    ! as unset ints and reals, and let the restart values be read in
+    ! after this routine
+
     if ( hlm_is_restart == ifalse ) then
-       !initial guess numbers for site condition.
+
        NCD      = 0
        GDD      = 30.0_r8
        cleafon  = 100.0_r8
        cleafoff = 300.0_r8 
-       stat     = 2                ! Leaves are on
+       cstat    = 2                ! Leaves are on
        acc_NI   = 0.0_r8
        dstat    = 2                ! Leaves are on
        dleafoff = 300
        dleafon  = 100
        watermem = 0.5_r8
 
-    else ! assignements for restarts
-
-       NCD      = 1       ! NCD should be 1 on restart (RGK-PHEN: ?)
-       GDD      = 0.0_r8
-       cleafon  = 0.0_r8
-       cleafoff = 0.0_r8
-       stat     = 1       
-       acc_NI   = 0.0_r8
-       dstat    = 2
-       dleafoff = 300
-       dleafon  = 100
-       watermem = 0.5_r8
-
-    endif
-
-    do s = 1,nsites
-       sites(s)%ncd          = NCD
-       sites(s)%cleafondate  = cleafon
-       sites(s)%cleafoffdate = cleafoff
-       sites(s)%dleafoffdate = dleafoff
-       sites(s)%dleafondate  = dleafon
-       sites(s)%ED_GDD_site  = GDD
-
-       if ( hlm_is_restart == ifalse ) then
+       do s = 1,nsites
+          sites(s)%ncd           = NCD
+          sites(s)%cleafondate   = cleafon
+          sites(s)%cleafoffdate  = cleafoff
+          sites(s)%dleafoffdate  = dleafoff
+          sites(s)%dleafondate   = dleafon
+          sites(s)%grow_deg_days = GDD
+          
           sites(s)%water_memory(1:numWaterMem) = watermem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
-       end if
+          
+          sites(s)%cstatus = cstat
+          sites(s)%dstatus = dstat
+          
+          sites(s)%acc_NI     = acc_NI
+          sites(s)%frac_burnt = 0.0_r8
+          sites(s)%old_stock  = 0.0_r8
+          
+       end do
 
-       sites(s)%status = stat
-       !start off with leaves off to initialise
-       sites(s)%dstatus= dstat
-       
-       sites(s)%acc_NI     = acc_NI
-       sites(s)%frac_burnt = 0.0_r8
-       sites(s)%old_stock  = 0.0_r8
-
-    end do
+    end if
 
     return
   end subroutine set_site_properties
@@ -436,37 +430,27 @@ contains
 
        call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, b_store)
 
-
-       if( EDPftvarcon_inst%evergreen(pft) == 1) then
-          temp_cohort%laimemory = 0._r8
-          cstatus = 2
+       temp_cohort%laimemory = 0._r8
+       cstatus = leaves_on
+       
+       if( EDPftvarcon_inst%season_decid(pft) == itrue .and. site_in%is_cold ) then
+          temp_cohort%laimemory = b_leaf
+          b_leaf = 0._r8
+          cstatus = leaves_off
        endif
-
-       if( EDPftvarcon_inst%season_decid(pft) == 1 ) then !for dorment places
-          if(site_in%status == 2)then 
-             temp_cohort%laimemory = 0.0_r8
-          else
-             temp_cohort%laimemory = b_leaf
-          endif
-          ! reduce biomass according to size of store, this will be recovered when elaves com on.
-          cstatus = site_in%status
-       endif
-
-       if ( EDPftvarcon_inst%stress_decid(pft) == 1 ) then
-          if(site_in%dstatus == 2)then 
-             temp_cohort%laimemory = 0.0_r8
-          else
-             temp_cohort%laimemory = b_leaf
-          endif
-          cstatus = site_in%dstatus
+       
+       if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. site_in%is_drought ) then
+          temp_cohort%laimemory = b_leaf
+          b_leaf = 0._r8
+          cstatus = leaves_off
        endif
 
        if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             b_leaf, b_fineroot, b_sapwood, b_dead, b_store, & 
-            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
-
+            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, &
+            site_in%spread, first_leaf_aclass, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 

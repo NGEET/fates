@@ -6,6 +6,7 @@ dimensions:
 	fates_history_size_bins = 13 ;
 	fates_hydr_organs = 4 ;
 	fates_prt_organs  = 6 ;
+	fates_leafage_class = 2;
 	fates_litterclass = 6 ;
 	fates_pft = 2 ;
 	fates_scalar = 1 ;
@@ -171,6 +172,9 @@ variables:
 	float fates_allom_stmode(fates_pft) ;
 		fates_allom_stmode:units = "index" ;
 		fates_allom_stmode:long_name = "storage allometry function index" ;
+	float fates_allom_frbstor_repro(fates_pft) ;
+		fates_allom_frbstor_repro:units = "fraction" ;
+		fates_allom_frbstor_repro:long_name = "fraction of bstore goes to reproduction after plant dies" ;
 	float fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr-1" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
@@ -284,7 +288,7 @@ variables:
 	float fates_leaf_jmaxse(fates_pft) ;
 		fates_leaf_jmaxse:units = "J/mol/K" ;
 		fates_leaf_jmaxse:long_name = "entropy term for jmax" ;
-	float fates_leaf_long(fates_pft) ;
+ 	float fates_leaf_long(fates_leafage_class, fates_pft) ;
 		fates_leaf_long:units = "yr" ;
 		fates_leaf_long:long_name = "Leaf longevity (ie turnover timescale)" ;
 	float fates_leaf_slamax(fates_pft) ;
@@ -305,7 +309,7 @@ variables:
 	float fates_leaf_tpuse(fates_pft) ;
 		fates_leaf_tpuse:units = "J/mol/K" ;
 		fates_leaf_tpuse:long_name = "entropy term for tpu" ;
-	float fates_leaf_vcmax25top(fates_pft) ;
+	float fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
 	float fates_leaf_vcmaxha(fates_pft) ;
@@ -587,6 +591,10 @@ variables:
 	float fates_part_dens ;
 		fates_part_dens:units = "kg/m2" ;
 		fates_part_dens:long_name = "spitfire parameter, oven dry particle density, Table A1 Thonicke et al 2010" ;
+	float fates_soil_salinity(fates_scalar) ;
+		fates_soil_salinity:units = "ppt" ;
+		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;		
+
 
 // global attributes:
                 :history = "This file was made from FatesPFTIndexSwapper.py \n",
@@ -755,6 +763,8 @@ data:
 
  fates_allom_stmode = 1, 1 ;
 
+ fates_allom_frbstor_repro = 0.0, 0.0;
+
  fates_branch_turnover = 50, 50 ;
 
  fates_prt_nitr_stoich_p1 = 
@@ -873,7 +883,8 @@ data:
 
  fates_leaf_jmaxse = 495, 495 ;
 
- fates_leaf_long = 1.5, 1.5 ;
+ fates_leaf_long = 0.75, 0.75,
+                   0.75, 0.75 ;
 
  fates_leaf_slamax = 0.0954, 0.0954 ;
 
@@ -887,7 +898,8 @@ data:
 
  fates_leaf_tpuse = 490, 490 ;
 
- fates_leaf_vcmax25top = 50, 50 ;
+ fates_leaf_vcmax25top = 50, 50, 
+                         50, 50;
 
  fates_leaf_vcmaxha = 65330, 65330 ;
 
@@ -1074,4 +1086,6 @@ data:
  fates_miner_total = 0.055 ;
 
  fates_part_dens = 513 ;
+
+ fates_soil_salinity = 0.4 ;
 }
