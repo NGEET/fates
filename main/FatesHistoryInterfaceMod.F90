@@ -126,8 +126,6 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_c_stomata_si
   integer, private :: ih_c_lblayer_si
   integer, private :: ih_fire_c_to_atm_si
-  integer, private :: ih_ed_to_bgc_this_edts_si
-  integer, private :: ih_ed_to_bgc_last_edts_si
   integer, private :: ih_totecosysc_si
   integer, private :: ih_totecosysc_old_si
   integer, private :: ih_totedc_si
@@ -1591,7 +1589,7 @@ end subroutine flush_hvars
          hio_canopy_spread_si(io_si)        = sites(s)%spread
 
          ! Update the site statuses (stati?)
-         hio_site_cstatus_si(io_si)   = real(sites(s)%status,r8)
+         hio_site_cstatus_si(io_si)   = real(sites(s)%cstatus,r8)
          hio_site_dstatus_si(io_si)   = real(sites(s)%dstatus,r8)
 
          !count number of days for leaves off

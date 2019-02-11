@@ -998,7 +998,7 @@ contains
              EDPftvarcon_inst%germination_timescale(p),max_germination)     
        !set the germination only under the growing season...c.xu
        if ( (EDPftvarcon_inst%season_decid(p) == 1) .and. &
-            (currentSite%status <= 1)) then
+            (currentSite%cstatus <= 1)) then
           currentPatch%seed_germination(p) = 0.0_r8
        endif
        if ( (EDPftvarcon_inst%stress_decid(p) == 1) .and. & 

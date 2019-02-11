@@ -915,13 +915,13 @@ contains
       temp_cohort%laimemory = 0._r8
       cstatus = leaves_on
             
-      if( EDPftvarcon_inst%season_decid(c_pft) == itrue .and. csite%is_cold ) then
+      if( EDPftvarcon_inst%season_decid(c_pft) == itrue .and. csite%cstatus < 2 ) then
          temp_cohort%laimemory = b_leaf
          b_leaf  = 0._r8
          cstatus = leaves_off
       endif
       
-      if ( EDPftvarcon_inst%stress_decid(c_pft) == itrue .and. csite%is_drought ) then
+      if ( EDPftvarcon_inst%stress_decid(c_pft) == itrue .and. csite%dstatus < 2) then
          temp_cohort%laimemory = b_leaf
          b_leaf  = 0._r8
          cstatus = leaves_off
