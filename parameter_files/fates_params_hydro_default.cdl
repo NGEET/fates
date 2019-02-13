@@ -25,6 +25,9 @@ variables:
 	float fates_SAV(fates_litterclass) ;
 		fates_SAV:units = "NA" ;
 		fates_SAV:long_name = "spitfire parameter related to surface area to volume ratio, see SFMain.F90" ;
+	float fates_alpha_FMC(fates_litterclass) ;
+		fates_alpha_FMC:units = "NA" ;
+		fates_alpha_FMC:long_name = "spitfire parameter related to fuel moisture content, Equation 6 Thonicke et al 2010" ;
 	float fates_history_height_bin_edges(fates_history_height_bins) ;
 		fates_history_height_bin_edges:units = "m" ;
 		fates_history_height_bin_edges:long_name = "Lower edges for height bins used in height-resolved history output" ;
@@ -171,7 +174,7 @@ variables:
 		fates_allom_stmode:long_name = "storage allometry function index" ;
 	float fates_allom_frbstor_repro(fates_pft) ;
 		fates_allom_frbstor_repro:units = "fraction" ;
-		fates_allom_frbstor_repro:long_name = "fraction of bstore goes to reproduction after plant dies" ;		
+		fates_allom_frbstor_repro:long_name = "fraction of bstore goes to reproduction after plant dies" ;
 	float fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr-1" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
@@ -285,7 +288,7 @@ variables:
 	float fates_leaf_jmaxse(fates_pft) ;
 		fates_leaf_jmaxse:units = "J/mol/K" ;
 		fates_leaf_jmaxse:long_name = "entropy term for jmax" ;
-	float fates_leaf_long(fates_leafage_class, fates_pft) ;
+ 	float fates_leaf_long(fates_leafage_class, fates_pft) ;
 		fates_leaf_long:units = "yr" ;
 		fates_leaf_long:long_name = "Leaf longevity (ie turnover timescale)" ;
 	float fates_leaf_slamax(fates_pft) ;
@@ -347,7 +350,7 @@ variables:
 		fates_mort_hf_sm_threshold:long_name = "soil moisture (btran units) at which drought mortality begins for non-hydraulic model" ;
 	float fates_mort_hf_flc_threshold(fates_pft) ;
 		fates_mort_hf_flc_threshold:units = "fraction" ;
-		fates_mort_hf_flc_threshold:long_name = "plant fractional loss of conductivity at which drought mortality begins for hydraulic model" ;			
+		fates_mort_hf_flc_threshold:long_name = "plant fractional loss of conductivity at which drought mortality begins for hydraulic model" ;	
 	float fates_mort_scalar_coldstress(fates_pft) ;
 		fates_mort_scalar_coldstress:units = "1/yr" ;
 		fates_mort_scalar_coldstress:long_name = "maximum mortality rate from cold stress" ;
@@ -405,9 +408,6 @@ variables:
 	float fates_root_long(fates_pft) ;
 		fates_root_long:units = "yr" ;
 		fates_root_long:long_name = "root longevity (alternatively, turnover time)" ;
-	float fates_senleaf_long_fdrought(fates_pft) ;
-		fates_senleaf_long_fdrought:units = "unitless[0-1]" ;
-		fates_senleaf_long_fdrought:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;
 	float fates_roota_par(fates_pft) ;
 		fates_roota_par:units = "1/m" ;
 		fates_roota_par:long_name = "CLM rooting distribution parameter" ;
@@ -561,9 +561,6 @@ variables:
 	float fates_phen_ncolddayslim(fates_scalar) ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
-	float fates_drying_ratio ;
-		fates_drying_ratio:units = "NA" ;
-		fates_drying_ratio:long_name = "spitfire parameter, fire drying ratio for fuel moisture, alpha_FMC EQ 6 Thonicke et al 2010" ;
 	float fates_durat_slope ;
 		fates_durat_slope:units = "NA" ;
 		fates_durat_slope:long_name = "spitfire parameter, fire max duration slope, Equation 14 Thonicke et al 2010" ;
@@ -576,6 +573,9 @@ variables:
 	float fates_fdi_b ;
 		fates_fdi_b:units = "NA" ;
 		fates_fdi_b:long_name = "spitfire parameter (unknown) " ;
+	float fates_fire_wind_max ;
+		fates_fire_wind_max:units = "m/min" ;
+		fates_fire_wind_max:long_name = "maximum wind speed expected by the fire model" ;
 	float fates_fuel_energy ;
 		fates_fuel_energy:units = "kJ/kg" ;
 		fates_fuel_energy:long_name = "pitfire parameter, heat content of fuel" ;
@@ -594,6 +594,7 @@ variables:
 	float fates_soil_salinity(fates_scalar) ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;		
+
 
 // global attributes:
                 :history = "This file was made from FatesPFTIndexSwapper.py \n",
@@ -617,6 +618,8 @@ data:
  fates_FBD = 4, 15.4, 16.8, 19.6, 999, 4 ;
 
  fates_SAV = 66, 13, 3.58, 0.98, 0.2, 66 ;
+
+ fates_alpha_FMC = 0.0050769, 0.001, 0.0002754, 7.54e-05, 1.54e-05, 999 ;
 
  fates_history_height_bin_edges = 0, 0.1, 0.3, 1, 3, 10 ;
 
@@ -748,7 +751,7 @@ data:
 
  fates_allom_l2fr = 1, 1 ;
 
- fates_allom_la_per_sa_int = 1000.0, 1000.0 ;
+ fates_allom_la_per_sa_int = 0.8, 0.8 ;
 
  fates_allom_la_per_sa_slp = 0.0, 0.0 ;
 
@@ -759,7 +762,7 @@ data:
  fates_allom_smode = 1, 1 ;
 
  fates_allom_stmode = 1, 1 ;
- 
+
  fates_allom_frbstor_repro = 0.0, 0.0;
 
  fates_branch_turnover = 50, 50 ;
@@ -767,10 +770,10 @@ data:
  fates_prt_nitr_stoich_p1 = 
   0.033, 0.033,
   0.024, 0.024,	
-  0.0047, 0.0047,
-  0.0047, 0.0047,
+  0.0000047, 0.0000047,
+  0.0000047, 0.0000047,
   0.0, 0.0, 
-  0.0047, 0.0047;
+  0.0000047, 0.0000047;
 
  fates_prt_nitr_stoich_p2 = 
   _, _,
@@ -883,7 +886,6 @@ data:
  fates_leaf_long = 0.75, 0.75,
                    0.75, 0.75 ;
 
-
  fates_leaf_slamax = 0.0954, 0.0954 ;
 
  fates_leaf_slatop = 0.012, 0.012 ;
@@ -896,7 +898,7 @@ data:
 
  fates_leaf_tpuse = 490, 490 ;
 
- fates_leaf_vcmax25top = 50, 50,
+ fates_leaf_vcmax25top = 50, 50, 
                          50, 50;
 
  fates_leaf_vcmaxha = 65330, 65330 ;
@@ -961,8 +963,6 @@ data:
 
  fates_rhosvis = 0.16, 0.16 ;
 
- fates_senleaf_long_fdrought = 1.0, 1.0 ;
-
  fates_root_long = 1, 1 ;
 
  fates_roota_par = 7, 7 ;
@@ -1011,7 +1011,7 @@ data:
 
  fates_canopy_closure_thresh = 0.8 ;
 
- fates_cohort_fusion_tol = 0.08 ;
+ fates_cohort_fusion_tol = 0.05 ;
 
  fates_comp_excln = 3 ;
 
@@ -1067,8 +1067,6 @@ data:
 
  fates_phen_ncolddayslim = 5 ;
 
- fates_drying_ratio = 13000 ;
-
  fates_durat_slope = -11.06 ;
 
  fates_fdi_a = 17.62 ;
@@ -1076,6 +1074,8 @@ data:
  fates_fdi_alpha = 0.00037 ;
 
  fates_fdi_b = 243.12 ;
+
+ fates_fire_wind_max = 45.718 ;
 
  fates_fuel_energy = 18000 ;
 
@@ -1086,6 +1086,6 @@ data:
  fates_miner_total = 0.055 ;
 
  fates_part_dens = 513 ;
- 
+
  fates_soil_salinity = 0.4 ;
 }

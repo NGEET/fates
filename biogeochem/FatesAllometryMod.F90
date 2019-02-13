@@ -117,6 +117,7 @@ module FatesAllometryMod
   public :: decay_coeff_kn
   public :: StructureResetOfDH ! Method to set DBH to sync with structure biomass
   public :: CheckIntegratedAllometries
+  public :: CrownDepth
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
                                ! root profiles
 
@@ -549,7 +550,7 @@ contains
 
   ! =====================================================================================
 
-  real(r8) function tree_lai( leaf_c, pft, c_area, nplant, cl, canopy_lai)
+  real(r8) function tree_lai( leaf_c, pft, c_area, nplant, cl, canopy_lai, vcmax25top)
 
     ! -----------------------------------------------------------------------------------
     ! LAI of individual trees is a function of the total leaf area and the total 
@@ -564,6 +565,8 @@ contains
     integer, intent(in)  :: cl                        ! canopy layer index
     real(r8), intent(in) :: canopy_lai(nclmax)        ! total leaf area index of 
                                                       ! each canopy layer
+    real(r8), intent(in) :: vcmax25top                ! maximum carboxylation rate at canopy
+                                                      ! top, ref 25C
 
     ! !LOCAL VARIABLES:
     real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
@@ -600,7 +603,7 @@ contains
        end if
 
        ! Coefficient for exponential decay of 1/sla with canopy depth:
-       kn = decay_coeff_kn(pft)
+       kn = decay_coeff_kn(pft,vcmax25top)
 
        ! take PFT-level maximum SLA value, even if under a thick canopy (which has units of m2/gC),
        ! and put into units of m2/kgC
@@ -676,7 +679,7 @@ contains
 
   ! ============================================================================
 
-  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, canopy_lai, treelai )
+  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, canopy_lai, treelai, vcmax25top )
 
     ! ============================================================================
     !  SAI of individual trees is a function of the LAI of individual trees
@@ -691,13 +694,15 @@ contains
     real(r8), intent(in) :: canopy_lai(nclmax) ! total leaf area index of 
                                                ! each canopy layer
     real(r8), intent(in) :: treelai            ! tree LAI for checking purposes only
+    real(r8), intent(in) :: vcmax25top         ! maximum carboxylation rate at top of crown
+                                               
 
     real(r8)             :: target_bleaf
     real(r8)             :: target_lai
 
     call bleaf(dbh,pft,canopy_trim,target_bleaf)
 
-    target_lai = tree_lai( target_bleaf, pft, c_area, nplant, cl, canopy_lai) 
+    target_lai = tree_lai( target_bleaf, pft, c_area, nplant, cl, canopy_lai, vcmax25top) 
 
     tree_sai   =  EDPftvarcon_inst%allom_sai_scaler(pft) * target_lai
 
@@ -1843,6 +1848,33 @@ contains
     return
   end subroutine h2d_martcano
 
+  ! =====================================================================================
+
+
+  subroutine CrownDepth(height,crown_depth)
+
+    ! -----------------------------------------------------------------------------------
+    ! This routine returns the depth of a plant's crown.  Which is the length
+    ! from the bottom of the crown to the top in the vertical dimension.
+    ! 
+    ! This code may be used as a wrapper if different hypotheses are wished to be
+    ! optioned.
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8),intent(in)  :: height   ! The height of the plant   [m]
+    real(r8),intent(out) :: crown_depth ! The depth of the crown [m]
+    
+    ! Alternative Hypothesis:
+    ! crown depth from Poorter, Bongers & Bongers
+    ! crown_depth = exp(-1.169_r8)*cCohort%hite**1.098_r8   
+    
+    crown_depth               = min(height,0.1_r8)
+    
+    return
+ end subroutine CrownDepth
+
+
+
   ! =============================================================================
   ! Specific diameter to crown area allometries
   ! =============================================================================
@@ -2081,7 +2113,7 @@ contains
   ! =====================================================================================
 
   
-  real(r8) function decay_coeff_kn(pft)
+  real(r8) function decay_coeff_kn(pft,vcmax25top)
     
     ! ---------------------------------------------------------------------------------
     ! This function estimates the decay coefficient used to estimate vertical
@@ -2095,6 +2127,8 @@ contains
     
     !ARGUMENTS
     integer, intent(in) :: pft
+    real(r8),intent(in) :: vcmax25top
+
     
     !LOCAL VARIABLES
     ! -----------------------------------------------------------------------------------
@@ -2103,7 +2137,7 @@ contains
     ! kn = 0.11. Here, we derive kn from vcmax25 as in Lloyd et al 
     ! (2010) Biogeosciences, 7, 1833-1859
     
-    decay_coeff_kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
+    decay_coeff_kn = exp(0.00963_r8 * vcmax25top - 2.43_r8)
     
     return
   end function decay_coeff_kn
@@ -2156,7 +2190,7 @@ contains
      ! of the diameter increment
      counter = 0
      step_frac = step_frac0
-     do while( (bdead-bt_dead) > calloc_abs_error )
+     do while( (bdead-bt_dead) > calloc_abs_error .and. dbt_dead_dd>0.0_r8)
 
         ! vulnerable to div0
         dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
