@@ -497,10 +497,23 @@ contains
        currentSite%grow_deg_days = currentSite%grow_deg_days + bc_in%t_veg24_si - tfrz
     endif
     
-    ! HLM model day is the total number of days since simulation start
-    ! The leafoffdate and leafondates are all recorded in this unit
+    ! Calculate the number of days since the leaves last came on 
+    ! and off. If this is the beginning of the simulation, that day might
+    ! not had occured yet, so set it to last year to get things rolling
 
-    dayssincecleafoff = model_day_int - currentSite%cleafoffdate
+    if (model_day_int < currentSite%cleafoffdate) then
+       dayssincecleafoff = model_day_int - (currentSite%cleafoffdate - 365)
+    else
+       dayssincecleafoff = model_day_int - currentSite%cleafoffdate
+    end if
+
+    if (model_day_int < currentSite%cleafondate) then
+       dayssincecleafon = model_day_int - (currentSite%cleafondate-365)
+    else
+       dayssincecleafon = model_day_int - currentSite%cleafondate
+    end if
+
+
 
     !LEAF ON: COLD DECIDUOUS. Needs to
     !1) have exceeded the growing degree day threshold 
@@ -519,7 +532,7 @@ contains
        if ( debug ) write(fates_log(),*) 'leaves on'
     endif !GDD
 
-    dayssincecleafon = model_day_int - currentSite%cleafondate
+
 
 
     !LEAF OFF: COLD THRESHOLD
