@@ -676,17 +676,32 @@ contains
        endif
     endif
 
-    
-    ! If we still haven't done budburst by end of window
-    ! force it!
+    ! LEAF ON: DROUGHT DECIDUOUS TIME EXCEEDANCE
+    ! If we still haven't done budburst by end of window, then force it
 
-    if ( (currentSite%dstatus == 1 .or. currentSite%dstatus == 0) .and. &
-         (dayssincedleafon > 365+30) .and. &
-         (dayssincedleafoff > min_daysoff_dforcedflush ) then
-       currentSite%dstatus     = 3               ! force budburst!
-       currentSite%dleafondate = model_day_int   ! record leaf on date
-       dayssincedleafon        = 0
-    endif
+    ! If the status is 1, it means this site currently has 
+    ! leaves off due to actual moisture limitations. 
+    ! So we trigger bud-burst at the end of the month since 
+    ! last year's bud-burst.
+
+    if( currentSite%dstatus == 1 ) then
+       if ( dayssincedleafon > 365+30 ) then
+          currentSite%dstatus     = 3               ! force budburst!
+          currentSite%dleafondate = model_day_int   ! record leaf on date
+          dayssincedleafon        = 0
+       end if
+    end if
+
+    ! But if leaves are off due to time, then we enforce
+    ! a longer cool-down (because this is a perrenially wet system)
+
+    if(currentSite%dstatus == 0 ) then
+       if (dayssincedleafoff > min_daysoff_dforcedflush) then
+          currentSite%dstatus     = 3               ! force budburst!
+          currentSite%dleafondate = model_day_int   ! record leaf on date
+          dayssincedleafon        = 0
+       end if
+    end if
 
     ! LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to 
     ! the end of its useful life. A*, E*  
