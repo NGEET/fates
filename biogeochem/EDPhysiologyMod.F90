@@ -430,12 +430,18 @@ contains
     integer  :: gddstart          ! beginning of counting period for growing degree days.
     real(r8) :: temp_in_C         ! daily averaged temperature in celcius
 
-    real(r8), parameter :: canopy_leaf_lifespan = 365.0_r8    ! Mean lifespan canopy leaves
-                                                              ! FIX(RGK 07/10/17)
-                                                              ! This is a band-aid on unusual code
-    
-    real(r8),parameter :: dphen_soil_depth = 0.1              ! Use liquid soil water that is
-                                                              ! closest to this depth [m]
+    integer, parameter :: canopy_leaf_lifespan = 365    ! Maximum lifespan of drought decid leaves
+
+    integer, parameter :: min_daysoff_dforcedflush = 70 ! THis is the number of days that must had elapsed
+                                                        ! since leaves had dropped, in order to forcably
+                                                        ! flush leaves again.  This does not impact flushing
+                                                        ! due to real moisture constraints, and will prevent
+                                                        ! drought deciduous in perennially wet environments
+                                                        ! that have been forced to drop their leaves, from
+                                                        ! flushing them back immediately.
+
+    real(r8),parameter :: dphen_soil_depth = 0.1        ! Use liquid soil water that is
+                                                        ! closest to this depth [m]
  
     ! This is the integer model day. The first day of the simulation is 1, and it
     ! continues monotonically, indefinitely
@@ -670,10 +676,13 @@ contains
        endif
     endif
 
+    
     ! If we still haven't done budburst by end of window
     ! force it!
+
     if ( (currentSite%dstatus == 1 .or. currentSite%dstatus == 0) .and. &
-         (dayssincedleafon > 365+30) ) then
+         (dayssincedleafon > 365+30) .and. &
+         (dayssincedleafoff > min_daysoff_dforcedflush ) then
        currentSite%dstatus     = 3               ! force budburst!
        currentSite%dleafondate = model_day_int   ! record leaf on date
        dayssincedleafon        = 0
@@ -682,12 +691,6 @@ contains
     ! LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to 
     ! the end of its useful life. A*, E*  
     ! i.e. Are the leaves rouhgly at the end of their lives? 
-
-    ! (RGK-PHEN) SHOULD THIS BE REMOVED OR MODIFIED?
-    ! I FEEL LIKE THERE SHOULD BE SOME OTHER MECHANISM IN PLACE HERE
-    ! DROUGHT DECIDUOUS TREES THAT NEVER EXPERIENCE DROUGHT 
-    ! MEDIATED LEAF DROP SHOULD  BE UNFAIRLY COMPETITIVE RIGHT?
-    ! PERHAPS THIS CAN BE ADDRESSED BY LEAF-AGE BINS...
 
     if ( (currentSite%dstatus == 2 .or. currentSite%dstatus == 3 ) .and. & 
          (dayssincedleafon > canopy_leaf_lifespan) )then 
@@ -702,8 +705,8 @@ contains
          (model_day_int > numWaterMem) .and. &
          (mean_10day_liqvol <= ED_val_phen_drought_threshold) .and. &
          (dayssincedleafon > 100 ) ) then 
-       currentSite%dstatus = 1      !alter status of site to 'leaves off'
-       currentSite%dleafoffdate = hlm_day_of_year !record leaf on date           
+       currentSite%dstatus = 1                  ! alter status of site to 'leaves off'
+       currentSite%dleafoffdate = model_day_int ! record leaf on date           
     endif
 
     call phenology_leafonoff(currentSite)
