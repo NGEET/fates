@@ -424,6 +424,7 @@ contains
     real(r8) :: store_c           ! storage carbon [kg]
     real(r8) :: struct_c          ! structure carbon [kg]
     real(r8) :: gdd_threshold     ! GDD accumulation function,
+    integer  :: ilayer_swater     ! Layer index for soil water
                                   ! which also depends on chilling days.
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
@@ -433,10 +434,17 @@ contains
                                                               ! FIX(RGK 07/10/17)
                                                               ! This is a band-aid on unusual code
     
+    real(r8),parameter :: dphen_soil_depth = 0.1              ! Use liquid soil water that is
+                                                              ! closest to this depth [m]
  
     ! This is the integer model day. The first day of the simulation is 1, and it
     ! continues monotonically, indefinitely
     model_day_int = nint(hlm_model_day)
+
+
+    ! Use the following layer index to calculate drought conditions
+    ilayer_swater = minloc(abs(bc_in%z_sisl(:)-dphen_soil_depth),dim=1)
+
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
@@ -568,6 +576,7 @@ contains
     if( (currentSite%cstatus == 2)  .and. &
         (dayssincecleafoff > 400)) then           ! remove leaves after a whole year 
                                                   ! when there is no 'off' period.  
+       currentSite%grow_deg_days  = 0._r8
 
        currentSite%cstatus = 0                    ! alter status of site to "not-cold deciduous"
        currentSite%cleafoffdate = model_day_int   ! record leaf off date   
@@ -609,7 +618,7 @@ contains
     do i_wmem = 1,numWaterMem-1 !shift memory along one
        currentSite%water_memory(numWaterMem+1-i_wmem) = currentSite%water_memory(numWaterMem-i_wmem)
     enddo
-    currentSite%water_memory(1) = bc_in%h2o_liqvol_sl(1) 
+    currentSite%water_memory(1) = bc_in%h2o_liqvol_sl(ilayer_swater) 
 
     ! Calculate the mean water content over the last 10 days (m3/m3)
     mean_10day_liqvol = sum(currentSite%water_memory(1:numWaterMem))/real(numWaterMem,r8)
