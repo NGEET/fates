@@ -118,6 +118,7 @@ module FatesAllometryMod
   public :: decay_coeff_kn
   public :: StructureResetOfDH ! Method to set DBH to sync with structure biomass
   public :: CheckIntegratedAllometries
+  public :: CrownDepth
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
                                ! root profiles
 
@@ -1876,6 +1877,33 @@ contains
     return
   end subroutine h2d_martcano
 
+  ! =====================================================================================
+
+
+  subroutine CrownDepth(height,crown_depth)
+
+    ! -----------------------------------------------------------------------------------
+    ! This routine returns the depth of a plant's crown.  Which is the length
+    ! from the bottom of the crown to the top in the vertical dimension.
+    ! 
+    ! This code may be used as a wrapper if different hypotheses are wished to be
+    ! optioned.
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8),intent(in)  :: height   ! The height of the plant   [m]
+    real(r8),intent(out) :: crown_depth ! The depth of the crown [m]
+    
+    ! Alternative Hypothesis:
+    ! crown depth from Poorter, Bongers & Bongers
+    ! crown_depth = exp(-1.169_r8)*cCohort%hite**1.098_r8   
+    
+    crown_depth               = min(height,0.1_r8)
+    
+    return
+ end subroutine CrownDepth
+
+
+
   ! =============================================================================
   ! Specific diameter to crown area allometries
   ! =============================================================================
@@ -2194,7 +2222,7 @@ contains
      ! of the diameter increment
      counter = 0
      step_frac = step_frac0
-     do while( (bdead-bt_dead) > calloc_abs_error )
+     do while( (bdead-bt_dead) > calloc_abs_error .and. dbt_dead_dd>0.0_r8)
 
         ! vulnerable to div0
         dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd

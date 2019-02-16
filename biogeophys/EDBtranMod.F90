@@ -25,6 +25,7 @@ module EDBtranMod
    
    public :: btran_ed
    public :: get_active_suction_layers
+   public :: check_layer_water
    
 contains 
    
