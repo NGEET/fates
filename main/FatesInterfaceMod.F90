@@ -249,11 +249,11 @@ module FatesInterfaceMod
    !
    ! -------------------------------------------------------------------------------------
 
-   integer, protected :: numpft       ! The total number of PFTs defined in the simulation
-   integer, protected :: nlevsclass   ! The total number of cohort size class bins output to history
-   integer, protected :: nlevage      ! The total number of patch age bins output to history
-   integer, protected :: nlevheight   ! The total number of height bins output to history
-   
+   integer, protected :: numpft        ! The total number of PFTs defined in the simulation
+   integer, protected :: nlevsclass    ! The total number of cohort size class bins output to history
+   integer, protected :: nlevage       ! The total number of patch age bins output to history
+   integer, protected :: nlevheight    ! The total number of height bins output to history
+   integer, protected :: nleafage      ! The total number of leaf age classes
 
    ! -------------------------------------------------------------------------------------
    ! Structured Boundary Conditions (SITE/PATCH SCALE)
@@ -965,8 +965,18 @@ contains
             write(fates_log(), *) 'FatesInterfaceMod.F90:maxpft accordingly'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         
 
+         ! Identify the number of leaf age-classes
+         
+         if( (lbound(EDPftvarcon_inst%leaf_long(:,:),dim=2) .eq. 0) .or. &
+             (ubound(EDPftvarcon_inst%leaf_long(:,:),dim=2) .eq. 0) ) then
+            write(fates_log(), *) 'While assessing the number of FATES leaf age classes,'
+            write(fates_log(), *) 'The second dimension of leaf_long was 0?'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         else
+            nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
+         end if
+         
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          

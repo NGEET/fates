@@ -28,3 +28,14 @@ https://github.com/E3SM-Project/E3SM
 https://github.com/ESCOMP/cesm
 https://github.com/ESCOMP/ctsm
 
+
+## Important Note About Host-Models and Compatible Branches:
+------------------------------------------------------------
+
+The FATES and E3SM teams maintain compatability of the NGEET/FATES master branch with the **E3SM master** branch. When changes to the FATES API force compatability updates with E3SM, there may be some modest lag time.
+
+The FATES team maintains compatability of the NGEET/FATES master branch with the **CTSM fates_next_api** branch.  Since the FATES team uses this branch for its internal testing, this compatability is tightly (immediately) maintained and these two should always be in sync.  However, CTSM master may become out of sync with FATES master for large periods (months) of time.
+
+
+
+

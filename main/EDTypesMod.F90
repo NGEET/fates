@@ -16,19 +16,22 @@ module EDTypesMod
   save
 
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
-  integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts per patch
+  integer, parameter :: maxCohortsPerPatch = 100  ! maximum number of cohorts per patch
   
-  integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
+  integer, parameter :: nclmax = 3                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for diagnostics that refer
                                                   ! to understory layers (all layers that
                                                   ! are not the top canopy layer)
 
-  integer, parameter :: nlevleaf = 40             ! number of leaf layers in canopy layer
+  integer, parameter :: nlevleaf = 20             ! number of leaf layers in canopy layer
   integer, parameter :: maxpft = 15               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
+                                                  
+  integer, parameter :: max_nleafage = 4          ! This is the maximum number of leaf age pools, 
+                                                  ! used for allocating scratch space
 
   ! -------------------------------------------------------------------------------------
   ! Radiation parameters
@@ -73,7 +76,6 @@ module EDTypesMod
   integer, parameter :: leaves_off = 1  ! Flag specifying that a deciduous plant has dropped
                                         ! its leaves and should not be trying to allocate
                                         ! towards any growth.
-
 
   ! Switches that turn on/off ED dynamics process (names are self explanatory)
   ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
@@ -146,6 +148,7 @@ module EDTypesMod
   integer , parameter :: N_HITE_BINS          = 60         ! no. of hite bins used to distribute LAI
 
   ! COHORT TERMINATION
+
   real(r8), parameter :: min_npm2       = 1.0E-7_r8               ! minimum cohort number density per m2 before termination
   real(r8), parameter :: min_patch_area = 0.01_r8                 ! smallest allowable patch area before termination
   real(r8), parameter :: min_nppatch    = min_npm2*min_patch_area ! minimum number of cohorts per patch (min_npm2*min_patch_area)
@@ -156,6 +159,16 @@ module EDTypesMod
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
+
+  
+  ! Leaf age class initialization schemes
+  integer, parameter :: nan_leaf_aclass = 0     ! initialize leaf age classes as undefined
+                                                ! (used when copying)
+  integer, parameter :: equal_leaf_aclass = 1   ! initialize leaf age classes equal
+                                                ! (used for inventory initialization)
+  integer, parameter :: first_leaf_aclass = 2   ! initialize leaf age classes as all in
+                                                ! youngest class (used for recruitment)
+
 
  !************************************
   !** COHORT type structure          **
@@ -237,6 +250,22 @@ module EDTypesMod
      real(r8) ::  resp_tstep         ! Autotrophic respiration (see above *)
      real(r8) ::  resp_acc
      real(r8) ::  resp_acc_hold
+
+     ! The following four biophysical rates are assumed to be
+     ! at the canopy top, at reference temp 25C, and based on the 
+     ! leaf age weighted average of the PFT parameterized values. The last
+     ! condition is why it is dynamic and tied to the cohort
+
+     real(r8) :: vcmax25top  ! Maximum carboxylation at the cohort's top 
+                             ! at reference temperature (25C).
+     real(r8) :: jmax25top   ! canopy top: maximum electron transport 
+                             ! rate at 25C (umol electrons/m**2/s)
+     real(r8) :: tpu25top    ! canopy top: triose phosphate utilization
+                             ! rate at 25C (umol CO2/m**2/s)
+     real(r8) :: kp25top     ! canopy top: initial slope of CO2 response
+                             ! curve (C4 plants) at 25C
+
+
 
      real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/timestep
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
@@ -578,8 +607,8 @@ module EDTypesMod
 
      ! PHENOLOGY 
      real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
-     integer  ::  status                                       ! are leaves in this pixel on or off for cold decid
-     integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
+     logical  ::  is_cold                                      ! is this site/column in a cold-status where its cohorts drop leaves?
+     logical  ::  is_drought                                   ! is this site/column in a drought-status where its cohorts drop leaves?
      real(r8) ::  ncd                                          ! no chilling days:-
      real(r8) ::  last_n_days(senes)                           ! record of last 10 days temperature for senescence model. deg C
      integer  ::  leafondate                                   ! doy of leaf on:-

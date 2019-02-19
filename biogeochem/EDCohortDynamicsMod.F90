@@ -15,7 +15,9 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesInterfaceMod     , only : hlm_days_per_year
+  use FatesInterfaceMod     , only : nleafage
   use EDPftvarcon           , only : EDPftvarcon_inst
+  use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : ncwd
@@ -24,6 +26,10 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
+  use EDTypesMod            , only : equal_leaf_aclass
+  use EDTypesMod            , only : first_leaf_aclass
+  use EDTypesMod            , only : nan_leaf_aclass
+  use EDTypesMod            , only : max_nleafage
   use EDTypesMod            , only : ican_upper
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
@@ -37,6 +43,7 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : UpdateTreeHydrNodes
   use FatesPlantHydraulicsMod, only : UpdateTreeHydrLenVolCond
   use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
+  use FatesPlantHydraulicsMod, only : ConstrainRecruitNumber
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
@@ -67,7 +74,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
 
-
+  use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
 
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -85,6 +92,7 @@ module EDCohortDynamicsMod
   public :: copy_cohort
   public :: count_cohorts
   public :: InitPRTCohort
+  public :: UpdateCohortBioPhysRates
 
   logical, parameter :: debug  = .false. ! local debug flag
 
@@ -104,8 +112,9 @@ contains
 
   !-------------------------------------------------------------------------------------!
 
-  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh, bleaf, bfineroot, bsap, &
-                           bdead, bstore, laimemory, status, recruitstatus,ctrim, clayer, spread, bc_in)
+  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh, bleaf, bfineroot, &
+                           bsap, bdead, bstore, laimemory, status, recruitstatus,ctrim, &
+                           clayer, spread, leaf_aclass_init, bc_in)
 
     !
     ! !DESCRIPTION:
@@ -121,32 +130,45 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS    
+
     type(ed_site_type), intent(inout),   target :: currentSite
     type(ed_patch_type), intent(inout), pointer :: patchptr
-    integer,  intent(in)   :: pft       ! Cohort Plant Functional Type
-    integer,  intent(in)   :: clayer    ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
-    integer,  intent(in)   :: status    ! growth status of plant  (2 = leaves on , 1 = leaves off)
-    integer,  intent(in)   :: recruitstatus    ! recruit status of plant  (1 = recruitment , 0 = other)
-    real(r8), intent(in)   :: nn        ! number of individuals in cohort per 'area' (10000m2 default)
-    real(r8), intent(in)   :: hite      ! height: meters
-    real(r8), intent(in)   :: dbh       ! dbh: cm
-    real(r8), intent(in)   :: bleaf     ! biomass in leaves: kgC
-    real(r8), intent(in)   :: bfineroot ! biomass in fineroots: kgC
-    real(r8), intent(in)   :: bsap      ! biomass in sapwood: kgC
-    real(r8), intent(in)   :: bdead     ! total dead biomass: kGC per indiv
-    real(r8), intent(in)   :: bstore    ! stored carbon: kGC per indiv
-    real(r8), intent(in)   :: laimemory ! target leaf biomass- set from previous year: kGC per indiv
-    real(r8), intent(in)   :: ctrim     ! What is the fraction of the maximum leaf biomass that we are targeting? :-
-    real(r8), intent(in)   :: spread    ! The community assembly effects how spread crowns are in horizontal space
-    type(bc_in_type), intent(in) :: bc_in ! External boundary conditions
+    integer,  intent(in)   :: pft                        ! Cohort Plant Functional Type
+    integer,  intent(in)   :: clayer                     ! canopy status of cohort 
+                                                         ! (1 = canopy, 2 = understorey, etc.)
+    integer,  intent(in)   :: status                     ! growth status of plant  
+                                                         ! (2 = leaves on , 1 = leaves off)
+    integer,  intent(in)   :: recruitstatus              ! recruit status of plant  
+                                                         ! (1 = recruitment , 0 = other)
+    real(r8), intent(in)   :: nn                         ! number of individuals in cohort 
+                                                         ! per 'area' (10000m2 default)
+    real(r8), intent(in)   :: hite                       ! height: meters
+    real(r8), intent(in)   :: dbh                        ! dbh: cm
+    real(r8), intent(in)   :: bleaf                      ! biomass in leaves: kgC
+    real(r8), intent(in)   :: bfineroot                  ! biomass in fineroots: kgC
+    real(r8), intent(in)   :: bsap                       ! biomass in sapwood: kgC
+    real(r8), intent(in)   :: bdead                      ! total dead biomass: kGC per indiv
+    real(r8), intent(in)   :: bstore                     ! stored carbon: kGC per indiv
+    real(r8), intent(in)   :: laimemory                  ! target leaf biomass- set from 
+                                                         ! previous year: kGC per indiv
+    real(r8), intent(in)   :: ctrim                      ! What is the fraction of the maximum 
+                                                         ! leaf biomass that we are targeting?
+    real(r8), intent(in)   :: spread                     ! The community assembly effects how 
+                                                         ! spread crowns are in horizontal space
+    integer,  intent(in)   :: leaf_aclass_init           ! how to initialized the leaf age class
+                                                         ! distribution
+    integer :: iage                                      ! loop counter for leaf age classes
+    type(bc_in_type), intent(in) :: bc_in                ! External boundary conditions
      
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
     type(ed_cohort_type), pointer :: storesmallcohort 
-    type(ed_cohort_type), pointer :: storebigcohort  
-    integer :: nlevsoi_hyd                      ! number of hydraulically active soil layers 
-    integer :: tnull,snull                      ! are the tallest and shortest cohorts allocate
+    type(ed_cohort_type), pointer :: storebigcohort   
+    real(r8) :: frac_leaf_aclass(max_nleafage)   ! Fraction of leaves in each age-class
+    integer  :: tnull,snull                      ! are the tallest and shortest cohorts allocate
+    integer :: nlevsoi_hyd                       ! number of hydraulically active soil layers 
+
     !----------------------------------------------------------------------
 
     allocate(new_cohort)
@@ -173,6 +195,24 @@ contains
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
 
+    
+    ! All newly initialized cohorts start off with an assumption
+    ! about leaf age (depending on what is calling the initialization
+    ! of this cohort
+
+    if(leaf_aclass_init .eq. equal_leaf_aclass) then
+       frac_leaf_aclass(1:nleafage) = 1._r8 / real(nleafage,r8)
+    elseif(leaf_aclass_init .eq. first_leaf_aclass) then
+       frac_leaf_aclass(1:nleafage) = 0._r8
+       frac_leaf_aclass(1)          = 1._r8
+    elseif(leaf_aclass_init .eq. nan_leaf_aclass) then
+       frac_leaf_aclass(1:nleafage) = nan
+    else
+       write(fates_log(),*) 'An unknown leaf age distribution was'
+       write(fates_log(),*) 'requested during create cohort'
+       write(fates_log(),*) 'leaf_aclass_init: ',leaf_aclass_init
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
 
     ! Initialize the Plant allocative Reactive Transport (PaRT) module
     ! Choose from one of the extensible hypotheses (EH)
@@ -189,7 +229,10 @@ contains
     select case(hlm_parteh_mode)
     case (prt_carbon_allom_hyp)
 
-       call SetState(new_cohort%prt,leaf_organ, carbon12_element, bleaf)
+       do iage = 1,nleafage
+          call SetState(new_cohort%prt,leaf_organ, carbon12_element, &
+                bleaf*frac_leaf_aclass(iage),iage)
+       end do
        call SetState(new_cohort%prt,fnrt_organ, carbon12_element, bfineroot)
        call SetState(new_cohort%prt,sapw_organ, carbon12_element, bsap)
        call SetState(new_cohort%prt,store_organ, carbon12_element, bstore)
@@ -205,6 +248,9 @@ contains
 
     call new_cohort%prt%CheckInitialConditions()
 
+    ! This sets things like vcmax25top, that depend on the
+    ! leaf age fractions
+    call UpdateCohortBioPhysRates(new_cohort)
 
     call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
                               new_cohort%size_class,new_cohort%size_by_pft_class)
@@ -227,11 +273,11 @@ contains
 
     new_cohort%treelai = tree_lai(bleaf, new_cohort%pft, new_cohort%c_area,    &
                                   new_cohort%n, new_cohort%canopy_layer,               &
-                                  patchptr%canopy_layer_tlai )    
+                                  patchptr%canopy_layer_tlai,new_cohort%vcmax25top )    
 
     new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, new_cohort%canopy_trim,   &
                                   new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
-                                  patchptr%canopy_layer_tlai, new_cohort%treelai )  
+                                  patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top )  
 
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
 
@@ -285,6 +331,14 @@ contains
 
        if(recruitstatus==1)then
           new_cohort%co_hydr%is_newly_recruited = .true.
+
+          ! If plant hydraulics is active, we must constrain the
+          ! number density of the new recruits based on the moisture
+          ! available to be subsumed in the new plant tissues.
+          ! So we go through the process of pre-initializing the hydraulic
+          ! states in the temporary cohort, to calculate this new number density
+
+          call ConstrainRecruitNumber(currentSite,new_cohort, bc_in)
        endif
 
     endif
@@ -383,7 +437,7 @@ contains
     !  Make all the cohort variables NaN so they aren't used before defined.   
     !
     ! !USES:
-    use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
+
     use FatesConstantsMod, only : fates_unset_int
 
     !
@@ -429,6 +483,11 @@ contains
     currentCohort%c_area             = nan ! areal extent of canopy (m2)
     currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
     currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
+
+    currentCohort%vcmax25top = nan 
+    currentCohort%jmax25top  = nan 
+    currentCohort%tpu25top   = nan 
+    currentCohort%kp25top    = nan 
 
     ! CARBON FLUXES 
     currentCohort%gpp_acc_hold       = nan ! GPP:  kgC/indiv/year
@@ -611,7 +670,7 @@ contains
             endif
          endif
 
-         ! In the third canopy layer
+         ! Outside the maximum canopy layer
          if (currentCohort%canopy_layer > nclmax ) then 
            terminate = 1
            if ( debug ) then
@@ -753,7 +812,6 @@ contains
      !
      ! !USES:
      use EDParamsMod , only :  ED_val_cohort_fusion_tol
-     use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
      !
      ! !ARGUMENTS   
      type (ed_site_type), intent(inout),  target :: currentSite 
@@ -775,6 +833,8 @@ contains
      integer  :: nocohorts
      real(r8) :: newn
      real(r8) :: diff
+     real(r8) :: leaf_c_next  ! Leaf carbon * plant density of current (for weighting)
+     real(r8) :: leaf_c_curr  ! Leaf carbon * plant density of next (for weighting)
      real(r8) :: dynamic_fusion_tolerance
      real(r8) :: dbh
      real(r8) :: leaf_c             ! leaf carbon [kg]
@@ -959,7 +1019,11 @@ contains
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
                                       nextc%n*nextc%canopy_layer_yesterday)/newn
-                                
+
+                                ! Leaf biophysical rates (use leaf mass weighting)
+                                ! -----------------------------------------------------------------
+                                call UpdateCohortBioPhysRates(currentCohort)
+
                                 ! keep track of the size class bins so that we can monitor growth fluxes
                                 ! compare the values.  if they are the same, then nothing needs to be done. if not, track the diagnostic flux
                                 if (currentCohort%size_class_lasttimestep .ne. nextc%size_class_lasttimestep ) then
@@ -1091,7 +1155,8 @@ contains
                                     leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                                     currentCohort%treelai = tree_lai(leaf_c,             &
                                        currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                                       currentCohort%canopy_layer, currentPatch%canopy_layer_tlai )			    
+                                       currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+                                       currentCohort%vcmax25top  )			    
 				   call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)  				   
 				   call DeallocateHydrCohort(nextc)
 				endif
@@ -1099,7 +1164,6 @@ contains
                                 ! Deallocate the cohort's PRT structure
                                 call nextc%prt%DeallocatePRTVartypes()
                                 deallocate(nextc%prt)
-
                                 deallocate(nextc)
                                 nullify(nextc)
 
@@ -1264,7 +1328,7 @@ contains
     icohort => pcc ! assign address to icohort local name  
     !place in the correct place in the linked list of heights 
     !begin by finding cohort that is just taller than the new cohort 
-    tsp = icohort%dbh
+    tsp = icohort%hite
 
     current => pshortest
     exitloop = 0
@@ -1272,7 +1336,7 @@ contains
     !taller than tree being considered and return its pointer 
     if (associated(current)) then
        do while (associated(current).and.exitloop == 0)
-          if (current%dbh < tsp) then
+          if (current%hite < tsp) then
              current => current%taller   
           else
              exitloop = 1 
@@ -1380,7 +1444,12 @@ contains
 
     ! This transfers the PRT objects over.
     call n%prt%CopyPRTVartypes(o%prt)
-    
+
+    ! Leaf biophysical rates
+    n%vcmax25top = o%vcmax25top
+    n%jmax25top  = o%jmax25top
+    n%tpu25top   = o%tpu25top
+    n%kp25top    = o%kp25top 
 
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
@@ -1498,6 +1567,73 @@ contains
     endif
 
   end function count_cohorts
+
+  ! ===================================================================================
+
+  subroutine UpdateCohortBioPhysRates(currentCohort)
+
+       ! --------------------------------------------------------------------------------
+       ! This routine updates the four key biophysical rates of leaves
+       ! based on the changes in a cohort's leaf age proportions
+       !
+       ! This should be called after growth.  Growth occurs
+       ! after turnover and damage states are applied to the tree.
+       ! Therefore, following growth, the leaf mass fractions
+       ! of different age classes are unchanged until the next day.
+       ! --------------------------------------------------------------------------------
+
+       type(ed_cohort_type),intent(inout) :: currentCohort
+       
+       
+       real(r8) :: frac_leaf_aclass(max_nleafage)  ! Fraction of leaves in each age-class
+       integer  :: iage                            ! loop index for leaf ages
+       integer  :: ipft                            ! plant functional type index
+
+       ! First, calculate the fraction of leaves in each age class
+       ! It is assumed that each class has the same proportion
+       ! across leaf layers
+
+       do iage = 1, nleafage
+          frac_leaf_aclass(iage) = &
+                currentCohort%prt%GetState(leaf_organ, all_carbon_elements,iage)
+       end do
+
+       ! If there are leaves, then perform proportional weighting on the four rates
+       ! We assume that leaf age does not effect the specific leaf area, so the mass
+       ! fractions are applicable to these rates
+       
+       if(sum(frac_leaf_aclass(1:nleafage))>nearzero) then
+
+          ipft = currentCohort%pft
+
+          frac_leaf_aclass(1:nleafage) =  frac_leaf_aclass(1:nleafage) / &
+                sum(frac_leaf_aclass(1:nleafage))
+          
+          currentCohort%vcmax25top = sum(EDPftvarcon_inst%vcmax25top(ipft,1:nleafage) * &
+                frac_leaf_aclass(1:nleafage))
+          
+          currentCohort%jmax25top  = sum(param_derived%jmax25top(ipft,1:nleafage) * &
+                frac_leaf_aclass(1:nleafage))
+          
+          currentCohort%tpu25top   = sum(param_derived%tpu25top(ipft,1:nleafage) * &
+                frac_leaf_aclass(1:nleafage))
+          
+          currentCohort%kp25top    = sum(param_derived%kp25top(ipft,1:nleafage) * & 
+                frac_leaf_aclass(1:nleafage))
+
+       else
+          
+          currentCohort%vcmax25top = 0._r8          
+          currentCohort%jmax25top  = 0._r8
+          currentCohort%tpu25top   = 0._r8
+          currentCohort%kp25top    = 0._r8
+
+       end if
+
+
+       return
+    end subroutine UpdateCohortBioPhysRates
+
   
   ! ============================================================================
 

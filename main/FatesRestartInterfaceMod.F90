@@ -16,7 +16,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceMod, only : bc_out_type
   use FatesInterfaceMod, only : hlm_use_planthydro
   use FatesInterfaceMod, only : fates_maxElementsPerSite
-  use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
+  use EDCohortDynamicsMod, only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,  only : nshell
   use FatesHydraulicsMemMod,  only : n_hypool_ag
   use FatesHydraulicsMemMod,  only : n_hypool_troot
@@ -552,12 +552,12 @@ contains
          flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_oldstock_si )
 
-    call this%set_restart_var(vname='fates_cold_dec_status', vtype=site_r8, &
-         long_name='status flag for cold deciduous plants', units='unitless', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_cold_dec_status', vtype=site_int, &
+         long_name='status flag for cold deciduous plants', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cd_status_si )
 
-    call this%set_restart_var(vname='fates_drought_dec_status', vtype=site_r8, &
-         long_name='status flag for drought deciduous plants', units='unitless', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_drought_dec_status', vtype=site_int, &
+         long_name='status flag for drought deciduous plants', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dd_status_si )
 
     call this%set_restart_var(vname='fates_chilling_days', vtype=site_r8, &
@@ -677,8 +677,8 @@ contains
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
 
-    call this%set_restart_var(vname='fates_canopy_layer', vtype=cohort_r8, &
-         long_name='ed cohort - canopy_layer', units='unitless', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_canopy_layer', vtype=cohort_int, &
+         long_name='ed cohort - canopy_layer', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_co )
 
     call this%set_restart_var(vname='fates_canopy_layer_yesterday', vtype=cohort_r8, &
@@ -1422,9 +1422,9 @@ contains
 
 
     associate( rio_npatch_si           => this%rvars(ir_npatch_si)%int1d, &
-           rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
-           rio_cd_status_si            => this%rvars(ir_cd_status_si)%r81d, &
-           rio_dd_status_si            => this%rvars(ir_dd_status_si)%r81d, &
+           rio_old_stock_si             => this%rvars(ir_oldstock_si)%r81d, &
+           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
+           rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
            rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%r81d, &
            rio_leafondate_si           => this%rvars(ir_leafondate_si)%r81d, &
            rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%r81d, &
@@ -1448,7 +1448,7 @@ contains
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
            rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
-           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
@@ -1780,8 +1780,18 @@ contains
 
 
           rio_old_stock_si(io_idx_si)    = sites(s)%old_stock
-          rio_cd_status_si(io_idx_si)    = sites(s)%status
-          rio_dd_status_si(io_idx_si)    = sites(s)%dstatus
+
+          if(sites(s)%is_cold) then
+             rio_cd_status_si(io_idx_si) = itrue
+          else
+             rio_cd_status_si(io_idx_si) = ifalse
+          end if
+          if(sites(s)%is_drought) then
+             rio_dd_status_si(io_idx_si) = itrue
+          else
+             rio_dd_status_si(io_idx_si) = ifalse
+          end if
+
           rio_nchill_days_si(io_idx_si)  = sites(s)%ncd 
           rio_leafondate_si(io_idx_si)   = sites(s)%leafondate
           rio_leafoffdate_si(io_idx_si)  = sites(s)%leafoffdate
@@ -1867,6 +1877,7 @@ contains
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : ncwd
      use EDTypesMod,           only : maxSWb
+     use EDTypesMod,           only : nan_leaf_aclass
      use FatesInterfaceMod,    only : fates_maxElementsPerPatch
      
      use EDTypesMod,           only : maxpft
@@ -1996,8 +2007,8 @@ contains
                    new_cohort%taller   => prev_cohort
                    prev_cohort%shorter => new_cohort
                 end if
-                
-                ! Ever cohort added takes over as shortest
+
+                ! Every cohort added takes over as shortest
                 newp%shortest => new_cohort
                 
                 ! Initialize the PRT environment (allocate/choose hypothesis only)
@@ -2119,8 +2130,8 @@ contains
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
           rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
-          rio_cd_status_si            => this%rvars(ir_cd_status_si)%r81d, &
-          rio_dd_status_si            => this%rvars(ir_dd_status_si)%r81d, &
+          rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
+          rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
           rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%r81d, &
           rio_leafondate_si           => this%rvars(ir_leafondate_si)%r81d, &
           rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%r81d, &
@@ -2144,7 +2155,7 @@ contains
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
           rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
-          rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+          rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
@@ -2283,7 +2294,12 @@ contains
                    end do
                 end do
 
-                
+                !ccohort%vcmax25top          
+                !ccohort%jmax25top
+                !ccohort%tpu25top          
+                !ccohort%kp25top
+
+
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
@@ -2314,6 +2330,9 @@ contains
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
+
+                call UpdateCohortBioPhysRates(ccohort)
+
 
                 ! Initialize Plant Hydraulics
 
@@ -2497,8 +2516,29 @@ contains
           sites(s)%fmort_carbonflux_ustory  = rio_fmortcflux_usto_si(io_idx_si)
 
           sites(s)%old_stock      = rio_old_stock_si(io_idx_si)
-          sites(s)%status         = rio_cd_status_si(io_idx_si)
-          sites(s)%dstatus        = rio_dd_status_si(io_idx_si)
+          
+          ! Site level phenology status flags
+          if(rio_cd_status_si(io_idx_si) .eq. itrue) then
+             sites(s)%is_cold         = .true.
+          elseif(rio_cd_status_si(io_idx_si) .eq. ifalse) then
+             sites(s)%is_cold         = .false.
+          else
+             write(fates_log(),*) 'An invalid site level cold stress status was found'
+             write(fates_log(),*) 'io_idx_si = ',io_idx_si
+             write(fates_log(),*) 'rio_cd_status_si(io_idx_si) = ',rio_cd_status_si(io_idx_si)
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          if(rio_dd_status_si(io_idx_si) .eq. itrue)then
+             sites(s)%is_drought      = .true.
+          elseif(rio_dd_status_si(io_idx_si) .eq. ifalse) then
+             sites(s)%is_drought      = .false.
+          else
+             write(fates_log(),*) 'An invalid site level drought stress status was found'
+             write(fates_log(),*) 'io_idx_si = ',io_idx_si
+             write(fates_log(),*) 'rio_dd_status_si(io_idx_si) = ',rio_dd_status_si(io_idx_si)
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
           sites(s)%ncd            = rio_nchill_days_si(io_idx_si)
           sites(s)%leafondate     = rio_leafondate_si(io_idx_si)
           sites(s)%leafoffdate    = rio_leafoffdate_si(io_idx_si)

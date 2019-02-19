@@ -407,7 +407,7 @@ contains
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))       
 
-             allocate(nc)             
+             allocate(nc)
              if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
              call InitPRTCohort(nc)
              call zero_cohort(nc)
