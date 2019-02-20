@@ -21,6 +21,7 @@ module FatesInterfaceMod
    use EDTypesMod          , only : do_fates_salinity
    use EDTypesMod          , only : ncwd
    use EDTypesMod          , only : numWaterMem
+   use EDTypesMod          , only : numlevsoil_max
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesConstantsMod   , only : itrue,ifalse
    use FatesGlobals        , only : fates_global_verbose
@@ -651,6 +652,15 @@ contains
 
 
       bc_in%nlevsoil   = nlevsoil_in
+
+      if(nlevsoil_inn > numlevsoil_max) then
+         write(fates_log(), *) 'The number of soil layers imposed by the host model'
+         write(fates_log(), *) 'is larger than what we have allocated in our static'
+         write(fates_log(), *) 'arrays. Please increase the size of numlevsoil_max'
+         write(fates_log(), *) 'found in EDTypesMod.F90'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
       bc_in%nlevdecomp = nlevdecomp_in
 
       allocate(bc_in%zi_sisl(0:nlevsoil_in))

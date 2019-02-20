@@ -49,7 +49,9 @@ module EDPatchDynamicsMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTLossFluxesMod,       only : PRTBurnLosses
-
+  use FatesInterfaceMod,      only : hlm_parteh_mode
+  use PRTGenericMod,          only : prt_carbon_allom_hyp   
+  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -1283,8 +1285,7 @@ contains
   end subroutine mortality_litter_fluxes
 
   ! ============================================================================
-  subroutine create_patch(currentSite, new_patch, age, areap,cwd_ag_local,cwd_bg_local, &
-       leaf_litter_local,root_litter_local,nlevsoil)
+  subroutine create_patch(currentSite, new_patch, age, areap, nlevsoil)
     !
     ! !DESCRIPTION:
     !  Set default values for creating a new patch
@@ -1296,10 +1297,6 @@ contains
     type(ed_patch_type), intent(inout), target :: new_patch
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
-    real(r8), intent(in) :: cwd_ag_local(:)      ! initial value of above ground coarse woody debris. KgC/m2
-    real(r8), intent(in) :: cwd_bg_local(:)      ! initial value of below ground coarse woody debris. KgC/m2
-    real(r8), intent(in) :: root_litter_local(:) ! initial value of root litter. KgC/m2
-    real(r8), intent(in) :: leaf_litter_local(:) ! initial value of leaf litter. KgC/m2
     integer, intent(in)  :: nlevsoil             ! number of soil layers
     !
     ! !LOCAL VARIABLES:
@@ -1315,6 +1312,23 @@ contains
     allocate(new_patch%sabs_dif(hlm_numSWb))
     allocate(new_patch%rootfr_ft(numpft,nlevsoil))
     allocate(new_patch%rootr_ft(numpft,nlevsoil))
+
+    ! Litter
+
+    allocate(currentPatch%litt_c)
+    currentPatch%litt_c%InitAllocate(numpft,numlevsoil)
+    currentPatch%litt_c%ZeroFlux()
+   
+
+    if( hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+       allocate(currentPatch%litt_n)
+       allocate(currentPatch%litt_p)
+       currentPatch%litt_n%InitAllocate(numpft,numlevsoil)
+       currentPatch%litt_p%InitAllocate(numpft,numlevsoil)
+       currentPatch%litt_n%ZeroFlux()
+       currentPatch%litt_p%ZeroFlux()
+    end if
+
     
     call zero_patch(new_patch) !The nan value in here is not working??
 
@@ -1426,20 +1440,10 @@ contains
     currentPatch%disturbance_rates          = 0._r8 
     currentPatch%disturbance_rate           = 0._r8 
 
-    ! LITTER
-    currentPatch%cwd_ag(:)                  = 0.0_r8 ! above ground coarse woody debris gc/m2. 
-    currentPatch%cwd_bg(:)                  = 0.0_r8 ! below ground coarse woody debris
-    currentPatch%root_litter(:)             = 0.0_r8 ! In new disturbed patches, loops over donors to increment total, needs zero here
-    currentPatch%leaf_litter(:)             = 0.0_r8 ! In new disturbed patches, loops over donors to increment total, needs zero here
 
-    ! Cold-start initialized patches should have no litter flux in/out as they have not undergone any time.
-    ! Litter fluxes in/out also need to be initialized to zero for newly disturbed patches, as they
-    ! will incorporate the fluxes from donors over a loop, and need an initialization
 
-    currentPatch%leaf_litter_in(:)  = 0.0_r8 ! As a newly created patch with no age, there is no flux in
-    currentPatch%leaf_litter_out(:) = 0.0_r8 ! As a newly created patch with no age, no frag or decomp has happened yet
-    currentPatch%root_litter_in(:)  = 0.0_r8 ! As a newly created patch with no age, there is no flux in
-    currentPatch%root_litter_out(:) = 0.0_r8 ! As a newly created patch with no age, no frag or decomp has happened yet
+
+
 
     ! FIRE
     currentPatch%fuel_eff_moist             = 0.0_r8 ! average fuel moisture content of the ground fuel 

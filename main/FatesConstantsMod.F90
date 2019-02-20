@@ -18,6 +18,7 @@ module FatesConstantsMod
   ! Unset and various other 'special' values
   integer, parameter :: fates_unset_int = -9999
 
+  real(fates_r8), parameter :: fates_unset_real = -9.9e32_fates_r8
   
   ! Integer equivalent of true  (in case some compilers dont auto convert)
   integer, parameter :: itrue = 1

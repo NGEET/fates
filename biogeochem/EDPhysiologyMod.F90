@@ -25,6 +25,7 @@ module EDPhysiologyMod
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : decay_coeff_kn
 
+  use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
   use EDTypesMod          , only : external_recruitment
@@ -89,7 +90,7 @@ module EDPhysiologyMod
   private :: cwd_input
   private :: cwd_out
   private :: fragmentation_scaler
-  private :: seeds_in
+  private :: SeedsIn
   private :: seed_decay
   private :: seed_germination
   public :: flux_into_litter_pools
@@ -158,27 +159,22 @@ contains
     integer c,p
     !----------------------------------------------------------------------
 
-    currentPatch%leaf_litter_in(:)   = 0.0_r8
-    currentPatch%root_litter_in(:)   = 0.0_r8
-    currentPatch%dleaf_litter_dt(:)  = 0.0_r8
-    currentPatch%droot_litter_dt(:)  = 0.0_r8
-    currentPatch%leaf_litter_out(:)  = 0.0_r8
-    currentPatch%root_litter_out(:)  = 0.0_r8
-    currentPatch%cwd_AG_in(:)        = 0.0_r8
-    currentPatch%cwd_BG_in(:)        = 0.0_r8
-    currentPatch%cwd_AG_out(:)       = 0.0_r8
-    currentPatch%cwd_BG_out(:)       = 0.0_r8
-    currentPatch%seeds_in(:)         = 0.0_r8  
-    currentPatch%seed_decay(:)       = 0.0_r8
-    currentPatch%seed_germination(:) = 0.0_r8
+
+    ! Zero all litter fluxes for carbon
+    
+    currentPatch%litt_c%zero_flux()
+   
 
     ! update seed fluxes 
-    call seeds_in(currentSite, currentPatch)
+    !    call SeedsIn(currentSite, currentPatch)
     call seed_decay(currentSite, currentPatch)
     call seed_germination(currentSite, currentPatch)
 
-    ! update fragmenting pool fluxes
-    call cwd_input( currentSite, currentPatch)
+    ! Send fluxes from newly created litter into the litter pools
+    call CWDInput( currentSite, currentPatch,currentPatch%litt_c, all_carbon_elements, bc_in)
+    
+    call SeedDecayToFines(currentPatch%litt_c)
+
     call cwd_out( currentSite, currentPatch, bc_in)
   
     do p = 1,numpft
@@ -198,6 +194,24 @@ contains
        currentPatch%droot_litter_dt(p) = currentPatch%root_litter_in(p) - &
              currentPatch%root_litter_out(p) 
     enddo
+
+    ! If we have Nitrogen and Phosphorous active
+
+    if( hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+       
+       currentPatch%litt_n%zero_flux()
+       currentPatch%litt_p%zero_flux()
+
+       
+
+
+
+
+
+    end if
+
+
+
 
   end subroutine non_canopy_derivs
 
@@ -802,109 +816,156 @@ contains
   end subroutine phenology_leafonoff
 
 
-  ! ============================================================================
-  subroutine seeds_in( currentSite, cp_pnt )
-    !
-    ! !DESCRIPTION:
-    !  Flux from plants into seed pool. 
-    !
+  ! =====================================================================================
+
+  subroutine SeedsIn( currentSite, element_id, bc_in )
+
+    ! -----------------------------------------------------------------------------------
+    ! Flux from plants into the seed pool. 
+    ! It is assumed that allocation to seed on living pools has already been calculated
+    ! at the daily time step.
+    ! -----------------------------------------------------------------------------------
+
+
     ! !USES:
     use EDTypesMod, only : AREA
     use EDTypesMod, only : homogenize_seed_pfts
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type), intent(inout), target :: cp_pnt ! seeds go to these patches.
-    !
-    ! !LOCAL VARIABLES:
-    type(ed_patch_type),  pointer :: currentPatch
+    integer,intent(in)                         :: element_id
+    type(bc_in_type), intent(in)               :: bc_in
+
+
+    type(ed_patch_type), pointer  :: currentPatch
+    type(litter_type), pointer    :: litt
     type(ed_cohort_type), pointer :: currentCohort
-    integer :: p
+
+    integer :: pft
     logical :: pft_present(maxpft)
-    real(r8) :: store_c_to_repro   ! carbon sent from storage to reproduction upon death [kg/plant]
+    real(r8) :: store_m_to_repro   ! mass sent from storage to reproduction upon death [kg/plant]
     real(r8) :: npfts_present
-    !----------------------------------------------------------------------
-
-    currentPatch => cp_pnt
-   
-    currentPatch%seeds_in(:) = 0.0_r8
-
+    
+    real(r8) :: site_seedrain(maxpft)  ! This is the sum of seed-rain for the site [kg/site/day]
+    
+    
+    !------------------------------------------------------------------------------------
+    
     if ( homogenize_seed_pfts ) then
-       ! special mode to remove intergenerational filters on PFT existence: each PFT seeds all PFTs
-       ! first loop over all patches and cohorts to see what and how many PFTs are present on this site
+
+       ! special mode to remove intergenerational filters on PFT 
+       ! existence: each PFT seeds all PFTs first loop over all patches 
+       ! and cohorts to see what and how many PFTs are present on this site
+
        pft_present(:) = .false.
        npfts_present =  0._r8
-       currentPatch => currentSite%oldest_patch
-       do while(associated(currentPatch))
-          currentCohort => currentPatch%tallest
+       patch_ptr => currentSite%oldest_patch
+       do while(associated(patch_ptr))
+          currentCohort => patch_ptr%tallest
           do while (associated(currentCohort))
-             p = currentCohort%pft
-             if (.not. pft_present(p)) then
-                pft_present(p) = .true.
+             pft = currentCohort%pft
+             if (.not. pft_present(pft)) then
+                pft_present(pft) = .true.
                 npfts_present = npfts_present + 1._r8
              endif
              currentCohort => currentCohort%shorter
           enddo !cohort loop                        
-          currentPatch => currentPatch%younger
+          patch_ptr => patch_ptr%younger
        enddo ! patch loop
        
        ! now calculate the homogenized seed flux into each PFT pool
-       currentPatch => cp_pnt
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
 
           ! a certain fraction of bstore goes to clonal reproduction when plants die
-          store_c_to_repro = currentCohort%prt%GetState(store_organ,all_carbon_elements) * &
-                EDPftvarcon_inst%allom_frbstor_repro(currentCohort%pft)
+          store_m_to_repro = -currentCohort%prt%GetState(store_organ,element_id) * &
+               EDPftvarcon_inst%allom_frbstor_repro(currentCohort%pft) * currentCohort%dndt
           
           do p = 1, numpft
              if (pft_present(p)) then
 		  
-                  currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
-                        (currentCohort%seed_prod * currentCohort%n - &
-                        currentCohort%dndt*store_c_to_repro) &
-                        /(currentPatch%area * npfts_present)		  
+                currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
+                     (currentCohort%seed_prod * currentCohort%n + store_m_to_repro) &
+                     /(currentPatch%area * npfts_present)
              endif
           end do
           currentCohort => currentCohort%shorter
        enddo !cohort loop                  
     else
-
-    ! normal case: each PFT seeds its own type
-    currentCohort => currentPatch%tallest
-    do while (associated(currentCohort))
-       p = currentCohort%pft
-
-       ! a certain fraction of bstore goes to clonal reproduction when plants die
-       store_c_to_repro = currentCohort%prt%GetState(store_organ,all_carbon_elements) * &
-             EDPftvarcon_inst%allom_frbstor_repro(p)
        
-       currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
-           (currentCohort%seed_prod * currentCohort%n - &
-	   currentCohort%dndt*store_c_to_repro)/currentPatch%area
 
-       currentCohort => currentCohort%shorter
-    enddo !cohort loop
+       site_seed_rain(:) = 0._r8
 
-    endif
+       ! Loop over all patches and sum up the seed input for each PFT
+       currentPatch => currentSite%oldest_patch
+       do while (associated(currentPatch))
+          
+          
+          currentCohort => currentPatch%tallest
+          do while (associated(currentCohort))
+             
+             pft = currentCohort%pft
+             
+             ! a certain fraction of bstore might go to clonal reproduction when plants die
 
-    currentPatch => currentSite%oldest_patch
+             store_m_to_repro = - currentCohort%prt%GetState(store_organ,element_id) * &
+                  EDPftvarcon_inst%allom_frbstor_repro(pft)*currentCohort%dndt
 
-    do while(associated(currentPatch))
-       if (external_recruitment == 1) then !external seed rain - needed to prevent extinction  
-          do p = 1,numpft
-           currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
-                 EDPftvarcon_inst%seed_rain(p) !KgC/m2/year
-           currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + &
-                 EDPftvarcon_inst%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
-          enddo
-       endif
-       currentPatch => currentPatch%younger
-    enddo
 
-  end subroutine seeds_in
+             ! Transfer reproductive tissues from "on-plant" to the litter pool
+             ! Transfer all reproductive tissues into seed production
+             call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
+                  1.0_r8, seed_prod)
+             
+             site_seed_rain(pft) = site_seed_rain(pft) +  &
+                  (seed_prod * currentCohort%n + store_m_to_repro)
+             
+             currentCohort => currentCohort%shorter
+          enddo !cohort loop
+          
+          currentPatch => currentPatch%younger
+       end do
+
+       ! Loop over all patches again and disperse the mixed seeds into the input flux
+       ! arrays 
+
+       ! Loop over all patches and sum up the seed input for each PFT
+       currentPatch => currentSite%oldest_patch
+       do while (associated(currentPatch))
+          
+          select case(element_id)
+          case(carbon12_element)
+             litt => currentPatch%litt_c
+          case(nitrogen_element)
+             litt => currentPatch%litt_n
+          case(phosphorus_element)
+             litt => currentPatch%litt_p
+          case default
+             write(fates_log(),*) 'An invalid element was passed'
+             write(fates_log(),*) 'to the seed input flux scheme'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end select
+             
+          do pft = 1,numpft
+             litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
+          end do
+
+          ! External seed rain (user parameterized)
+          if(external_recruitment == 1) then !external seed rain - needed to prevent extinction  
+             do pft = 1,numpft
+                litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + &
+                     EDPftvarcon_inst%seed_rain(pft)/days_per_year
+             end do
+          end if
+          
+          currentPatch => currentPatch%younger
+       end do
+    end if
+    return
+  end subroutine SeedsIn
   
   ! ============================================================================
+
   subroutine seed_decay( currentSite, currentPatch )
     !
     ! !DESCRIPTION:
@@ -1082,7 +1143,9 @@ contains
   end subroutine recruitment
 
   ! ============================================================================
-  subroutine CWD_Input( currentSite, currentPatch)
+
+  subroutine CWDInput( currentSite, currentPatch, litt, element_id, bc_in)
+
     !
     ! !DESCRIPTION:
     ! Generate litter fields from turnover.  
@@ -1094,6 +1157,11 @@ contains
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type),intent(inout), target :: currentPatch
+    type(dead_type),intent(inout),target      :: litt
+    integer,intent(in)                        :: element_id
+    type(bc_in_type), intent(in)              :: bc_in
+
+
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: currentCohort
@@ -1103,175 +1171,237 @@ contains
     real(r8) :: dead_n_ilogging ! indirect understory dead-tree density (logging)
     real(r8) :: dead_n_natural  ! understory dead density not associated
                                 ! with direct logging
-    real(r8) :: leaf_c          ! leaf carbon [kg]
-    real(r8) :: fnrt_c
-    real(r8) :: sapw_c
-    real(r8) :: struct_c
-    real(r8) :: store_c
-    real(r8) :: leaf_c_turnover ! leaf turnover [kg]
-    real(r8) :: fnrt_c_turnover
-    real(r8) :: sapw_c_turnover
-    real(r8) :: struct_c_turnover
-    real(r8) :: store_c_turnover
+
+    real(r8) :: leaf_m          ! mass of the element of interest in the 
+                                ! leaf  [kg]
+    real(r8) :: fnrt_m
+    real(r8) :: sapw_m
+    real(r8) :: struct_m
+    real(r8) :: store_m
+    real(r8) :: leaf_m_turnover ! leaf turnover [kg]
+    real(r8) :: fnrt_m_turnover
+    real(r8) :: sapw_m_turnover
+    real(r8) :: struct_m_turnover
+    real(r8) :: store_m_turnover
+    real(r8) :: bg_cwd_tot        ! Total below-ground coarse woody debris
+                                  ! input flux
+    real(r8) :: root_fines_tot    ! Total below-ground fine root coarse
+                                  ! woody debris
 
     real(r8) :: trunk_product   ! carbon flux into trunk products kgC/day/site
     integer  :: pft
+    integer  :: numlevsoil              ! Actual number of soil layers
+    real(r8) :: rootfr(numlevsoil_max)  ! Fractional root mass profile
     !----------------------------------------------------------------------
 
     ! ================================================        
     ! Other direct litter fluxes happen in phenology and in spawn_patches. 
     ! ================================================   
 
+    numlevsoil = bc_in%nlevsoil
+
     currentCohort => currentPatch%shortest
 
     do while(associated(currentCohort))
       pft = currentCohort%pft        
 
-      leaf_c_turnover   = currentCohort%prt%GetTurnover(leaf_organ,all_carbon_elements)
-      store_c_turnover  = currentCohort%prt%GetTurnover(store_organ,all_carbon_elements)
-      fnrt_c_turnover   = currentCohort%prt%GetTurnover(fnrt_organ,all_carbon_elements)
-      sapw_c_turnover   = currentCohort%prt%GetTurnover(sapw_organ,all_carbon_elements)
-      struct_c_turnover = currentCohort%prt%GetTurnover(struct_organ,all_carbon_elements)
+      leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id)
+      store_m_turnover  = currentCohort%prt%GetTurnover(store_organ,element_id)
+      fnrt_m_turnover   = currentCohort%prt%GetTurnover(fnrt_organ,element_id)
+      sapw_m_turnover   = currentCohort%prt%GetTurnover(sapw_organ,element_id)
+      struct_m_turnover = currentCohort%prt%GetTurnover(struct_organ,element_id)
 
-      leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
-      store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
-      fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
-      sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
-      struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
+      leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
+      store_m         = currentCohort%prt%GetState(store_organ,element_id)
+      fnrt_m          = currentCohort%prt%GetState(fnrt_organ,element_id)
+      sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
+      struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
 
       ! ================================================        
-      ! Litter from tissue turnover. KgC/m2/year
+      ! Litter from tissue turnover. Kg/m2/year
       ! ================================================   
 
-      currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
-           leaf_c_turnover * currentCohort%n/currentPatch%area/hlm_freq_day
+      litt%leaf_fines_in(ipft) = litt%leaf_fines_in(ipft) + & 
+           leaf_m_turnover * currentCohort%n/currentPatch%area/hlm_freq_day
+
+
+      ! -----------------------------------------------------------------------------
+      ! This is the rooting profile.  rootfr(:)  This array will calculate root
+      ! mass as far down as the soil column goes.  It is possible
+      ! that the active layers are not as deep as the roots go.
+      ! That is ok, the roots in the active layers will be talied up and
+      ! normalized.
+      ! -----------------------------------------------------------------------------
       
-      currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
-           (fnrt_c_turnover + store_c_turnover ) * &
+      rootfr(:)     = 0._r8
+             
+      ! This generates a rooting profile over the whole soil column for the plant
+      ! Note that we are calling for the root fractions in the biomass
+      ! for litter context, and not the hydrologic uptake context.  Also,
+      ! note that 
+      
+      call set_root_fraction(rootfr(1:numlevsoil), pft, &
+                             bc_in%zi_sisl, lowerb=lbound(bc_in%zi_sisl,1), &
+                             icontext=i_biomass_rootprof_context)
+      root_fines_tot = (fnrt_m_turnover + store_m_turnover ) * &
            currentCohort%n/currentPatch%area/hlm_freq_day
       
+      do ilyr = 1, numlevsoil
+         litt%root_fines_in(ipft,ilyr) = litt%root_fines_in(ipft,ilyr) + &
+              rootfr(ilyr) * root_fines_tot
+      end do
       
-      !daily leaf loss needs to be scaled up to the annual scale here. 
-
       ! ---------------------------------------------------------------------------------
       ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
       ! ---------------------------------------------------------------------------------
       
       do c = 1,ncwd
-         currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + &
-              (sapw_c_turnover + struct_c_turnover)/hlm_freq_day   * &
+         litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
+              (sapw_m_turnover + struct_m_turnover)/hlm_freq_day   * &
               SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area * &
-              EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
-
-         currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + &
-              (sapw_c_turnover + struct_c_turnover)/hlm_freq_day * &
+              EDPftvarcon_inst%allom_agb_frac(pft)
+         
+         bg_cwd_tot = (sapw_m_turnover + struct_m_turnover)/hlm_freq_day * &
               SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area * &
-              (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+              (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
+         
+         do ilyr = 1, numlevsoil
+            litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + bg_cwd_tot * rootfr(ilyr)
+         end do
+         
       enddo
+      
+      ! ---------------------------------------------------------------------------------
+      ! Litter fluxes for non-disturbance inducing  mortality. Kg/m2/year
+      ! ---------------------------------------------------------------------------------
 
-      !if (currentCohort%canopy_layer > 1)then   
+      ! Total number of dead understory (n/m2)
+      dead_n = -1.0_r8 * currentCohort%dndt / currentPatch%area
 
-          ! ================================================        
-          ! Litter fluxes for understorey  mortality. KgC/m2/year
-          ! ================================================
-
-          ! Total number of dead understory (n/m2)
-          dead_n = -1.0_r8 * currentCohort%dndt / currentPatch%area
-
-          ! Total number of dead understory from direct logging
-          ! (it is possible that large harvestable trees are in the understory)
-          dead_n_dlogging = ( currentCohort%lmort_direct) * &
-               currentCohort%n/hlm_freq_day/currentPatch%area
+      ! Total number of dead understory from direct logging
+      ! (it is possible that large harvestable trees are in the understory)
+      dead_n_dlogging = ( currentCohort%lmort_direct) * &
+           currentCohort%n/hlm_freq_day/currentPatch%area
           
-          ! Total number of dead understory from indirect logging
-          dead_n_ilogging = ( currentCohort%lmort_collateral + currentCohort%lmort_infra) * &
-                currentCohort%n/hlm_freq_day/currentPatch%area
+      ! Total number of dead understory from indirect logging
+      dead_n_ilogging = ( currentCohort%lmort_collateral + currentCohort%lmort_infra) * &
+           currentCohort%n/hlm_freq_day/currentPatch%area
           
-          dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
+      dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
 
           
-          currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
-               (leaf_c)* dead_n
-                ! %n has not been updated due to mortality yet, thus
-                ! the litter flux has already been counted since it captured
-                ! the losses of live trees and those flagged for death
+      litt%leaf_fines_in(pft) = litt%leaf_fines_in(pft) + (leaf_m)* dead_n
 
-          currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
-               (fnrt_c + store_c*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) ) * dead_n
+      ! %n has not been updated due to mortality yet, thus
+      ! the litter flux has already been counted since it captured
+      ! the losses of live trees and those flagged for death
+      
+      root_fines_tot =  dead_n * (fnrt_m + &
+           store_m*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) )
+      
+      do ilyr = 1, numlevsoil
+         litt%root_fines_in(pft,ilyr) = litt%root_fines_in(pft,ilyr) + &
+              root_fines_tot * rootfr(ilyr)
+      end do
 
-          ! Update diagnostics that track resource management
-          currentSite%resources_management%delta_litter_stock  = &
-                currentSite%resources_management%delta_litter_stock + &
-                (leaf_c + fnrt_c + store_c ) * &
-                (dead_n_ilogging+dead_n_dlogging) * & 
-                hlm_freq_day * currentPatch%area
+      ! If this is call is for carbon, then update
+      ! some of the resource management diagnostics
 
-          ! Update diagnostics that track resource management
-          currentSite%resources_management%delta_biomass_stock = &
-                currentSite%resources_management%delta_biomass_stock + &
-                (leaf_c + fnrt_c + store_c ) * & 
-                (dead_n_ilogging+dead_n_dlogging) * & 
-                hlm_freq_day * currentPatch%area
+      if( (element_id .eq. all_carbon_elements) .or. &
+          (element_id .eq. carbon12_element) ) then
 
-          if( hlm_use_planthydro == itrue ) then
-             !call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_n)
-             call AccumulateMortalityWaterStorage(currentSite,currentCohort,&
-                                                  -1.0_r8 * currentCohort%dndt * hlm_freq_day)
-          end if
+         ! Update diagnostics that track resource management
+         currentSite%resources_management%delta_litter_stock  = &
+              currentSite%resources_management%delta_litter_stock + &
+              (leaf_m + fnrt_m + store_m ) * &
+              (dead_n_ilogging+dead_n_dlogging) * & 
+              hlm_freq_day * currentPatch%area
+         
+         ! Update diagnostics that track resource management
+         currentSite%resources_management%delta_biomass_stock = &
+              currentSite%resources_management%delta_biomass_stock + &
+              (leaf_c + fnrt_c + store_c ) * & 
+              (dead_n_ilogging+dead_n_dlogging) * & 
+              hlm_freq_day * currentPatch%area
+      end if
+
+      if( hlm_use_planthydro == itrue ) then
+         !call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_n)
+         call AccumulateMortalityWaterStorage(currentSite,currentCohort,&
+              -1.0_r8 * currentCohort%dndt * hlm_freq_day)
+      end if
           
 
-          do c = 1,ncwd
-             
-             currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + (struct_c + sapw_c) * & 
-                   SF_val_CWD_frac(c) * dead_n * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+      ! Track CWD inputs from mortal plants
+      
+      do c = 1,ncwd
 
-             ! Send AGB component of boles from non direct-logging activities to AGB litter pool
-             if (c==ncwd) then
-                
-                currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (struct_c + sapw_c) * & 
-                     SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
-                     EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
-                
-             else
+         ! Below-ground 
+         
+         bg_cwd_tot = (struct_m + sapw_m) * & 
+              SF_val_CWD_frac(c) * dead_n * &
+              (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
+         
+         do ilyr = 1, numlevsoil
+            litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + rootfr(ilyr) * bg_cwd_tot
+         end do
 
-                currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (struct_c + sapw_c) * & 
-                     SF_val_CWD_frac(c) * dead_n  * &
-                     EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+         ! The bole of the plant is the last index of the cwd array. So any harvesting
+         ! mortality is diverted away from above-ground CWD and sent to harvest
+         ! and flux out.
+         ! Send AGB component of boles from non direct-logging activities 
+         ! to AGB litter pool
 
-                ! Send AGB component of boles from direct-logging activities to export/harvest pool
-                ! Generate trunk product (kgC/day/site)
-                trunk_product =  (struct_c + sapw_c) * &
-                      SF_val_CWD_frac(c) * dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                      hlm_freq_day * currentPatch%area
-                
-                currentSite%flux_out = currentSite%flux_out + trunk_product
+         if (c==ncwd) then
+            
+            litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * & 
+                 SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
+                 EDPftvarcon_inst%allom_agb_frac(pft)
+            
+            ! Send AGB component of boles from direct-logging activities to export/harvest pool
+            ! Generate trunk product (kg/day/m2)
+            trunk_product =  (struct_m + sapw_m) * &
+                 SF_val_CWD_frac(c) * dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(pft) * &
+                 hlm_freq_day 
+            
+            litt%exported = litt%exported + trunk_product
+            
+            ! Update diagnostics that track resource management
+            currentSite%resources_management%trunk_product_site = &
+                 currentSite%resources_management%trunk_product_site + &
+                 trunk_product * currentPatch%area
 
-                ! Update diagnostics that track resource management
-                currentSite%resources_management%trunk_product_site  = &
-                      currentSite%resources_management%trunk_product_site + &
-                      trunk_product
-                ! Update diagnostics that track resource management
-                currentSite%resources_management%trunk_product_site  = &
-                      currentSite%resources_management%trunk_product_site + &
-                      trunk_product
-             end if
+            ! Update diagnostics that track resource management
+            currentSite%resources_management%trunk_product_site = &
+                 currentSite%resources_management%trunk_product_site + &
+                 trunk_product * currentPatch%area
 
-             ! Update diagnostics that track resource management
-             currentSite%resources_management%delta_litter_stock  = &
-                   currentSite%resources_management%delta_litter_stock + &
-                   (struct_c + sapw_c) * &
-                   SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * & 
-                   hlm_freq_day * currentPatch%area
-             ! Update diagnostics that track resource management
-             currentSite%resources_management%delta_biomass_stock = &
-                   currentSite%resources_management%delta_biomass_stock + &
-                   (struct_c + sapw_c) * &
-                   SF_val_CWD_frac(c) * dead_n * & 
-                   hlm_freq_day * currentPatch%area
+            
+         else
+
+            litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * & 
+                 SF_val_CWD_frac(c) * dead_n  * &
+                 EDPftvarcon_inst%allom_agb_frac(pft)
+
+         end if
+         
+         ! Update diagnostics that track resource management
+         currentSite%resources_management%delta_litter_stock  = &
+              currentSite%resources_management%delta_litter_stock + &
+              (struct_m + sapw_m) * &
+              SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * & 
+              hlm_freq_day * currentPatch%area
+         
+         ! Update diagnostics that track resource management
+         currentSite%resources_management%delta_biomass_stock = &
+              currentSite%resources_management%delta_biomass_stock + &
+              (struct_m + sapw_m) * &
+              SF_val_CWD_frac(c) * dead_n * & 
+              hlm_freq_day * currentPatch%area
              
              if (currentPatch%cwd_AG_in(c) < 0.0_r8)then
                 write(fates_log(),*) 'negative CWD in flux',currentPatch%cwd_AG_in(c), &
-                      (struct_c + sapw_c), dead_n
+                      (struct_m + sapw_m), dead_n
              endif
 
           end do
@@ -1284,14 +1414,27 @@ contains
        
        currentCohort => currentCohort%taller
     enddo  ! end loop over cohorts 
+    
+  end subroutine CWDInput
 
+  ! =====================================================================================
+
+  subroutine SeedDecayToFines(litt)
+    
+    ! Add decaying seeds to the leaf litter
+    ! -----------------------------------------------------------------------------------
+    
     do p = 1,numpft
-       currentPatch%leaf_litter_in(p) = currentPatch%leaf_litter_in(p) + currentPatch%seed_decay(p) !KgC/m2/yr
+       litt%leaf_fines_in(p) = litt%leaf_fines_in(p) + litt%seed_decay(p)
     enddo
-
-  end subroutine CWD_Input
+    
+    
+    return
+  end subroutine SeedDecayToFines
+  
 
   ! ============================================================================
+
   subroutine fragmentation_scaler( currentPatch, bc_in) 
     !
     ! !DESCRIPTION:

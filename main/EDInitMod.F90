@@ -40,6 +40,9 @@ module EDInitMod
   use FatesAllometryMod         , only : bdead_allom
   use FatesAllometryMod         , only : bstore_allom
 
+  use FatesInterfaceMod,      only : hlm_parteh_mode
+  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
 
@@ -286,11 +289,6 @@ contains
 
      ! List out some nominal patch values that are used for Near Bear Ground initializations
      ! as well as initializing inventory
-     ! ---------------------------------------------------------------------------------------------
-     cwd_ag_local(:)      = 0.0_r8 !ED_val_init_litter -- arbitrary value for litter pools. kgC m-2
-     cwd_bg_local(:)      = 0.0_r8 !ED_val_init_litter
-     leaf_litter_local(:) = 0.0_r8
-     root_litter_local(:) = 0.0_r8
      age                  = 0.0_r8
      ! ---------------------------------------------------------------------------------------------
 
@@ -337,10 +335,17 @@ contains
            sites(s)%oldest_patch   => newp
 
            ! make new patch...
-           call create_patch(sites(s), newp, age, AREA, &
-                 cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
-                 root_litter_local, bc_in(s)%nlevsoil ) 
+           call create_patch(sites(s), newp, age, area, bc_in(s)%nlevsoil)
            
+           ! Initialize the litter pools of the patch
+           ! Note that soil litter (ie dead roots) is initialized
+           ! uniformly here. This pool is discretized by depth
+           newp%litt_c%InitConditions(0._r8,0._r8,0._r8,0._r8)
+           if( hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+              newp%litt_n%InitConditions(0._r8,0._r8,0._r8,0._r8)
+              newp%litt_p%InitConditions(0._r8,0._r8,0._r8,0._r8)
+           end if
+
            sitep => sites(s)
            call init_cohorts(sitep, newp, bc_in(s))
 

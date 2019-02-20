@@ -115,6 +115,10 @@ module EDTypesMod
 
   integer, parameter :: numWaterMem           = 10         ! watermemory saved as site level var
 
+  integer, parameter :: numlevsoil_max        = 30         ! This is scratch space used for static arrays
+                                                           ! The actual number of soil layers should not exceed this
+
+
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter :: external_recruitment = 0          ! external recruitment flag 1=yes  
   integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
@@ -282,7 +286,7 @@ module EDTypesMod
 
      ! ALLOCATION
 
-     real(r8) ::  seed_prod                              ! reproduction seed and clonal: KgC/indiv/year
+     !real(r8) ::  seed_prod                              ! reproduction seed and clonal: KgC/indiv/day
 
 
      !MORTALITY
@@ -443,11 +447,6 @@ module EDTypesMod
      real(r8),allocatable ::  sabs_dif(:)                                 ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
 
-     !SEED BANK
-     real(r8) :: seeds_in(maxpft)                               ! seed production KgC/m2/year
-     real(r8) :: seed_decay(maxpft)                             ! seed decay in KgC/m2/year
-     real(r8) :: seed_germination(maxpft)                       ! germination rate of seed pool in KgC/m2/year
-
      ! PHOTOSYNTHESIS       
 
      real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
@@ -465,31 +464,14 @@ module EDTypesMod
                                                                    !                       3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
 
-     ! LITTER AND COARSE WOODY DEBRIS 
-     ! Pools of litter (non respiring) 
-     real(r8) ::  cwd_ag(ncwd)                                     ! above ground coarse wood debris litter that does not respire. KgC/m2
-     real(r8) ::  cwd_bg(ncwd)                                     ! below ground coarse wood debris litter that does not respire. KgC/m2
-     real(r8) ::  leaf_litter(maxpft)                           ! above ground leaf litter that does not respire. KgC/m2
-     real(r8) ::  root_litter(maxpft)                           ! below ground fine root litter that does not respire. KgC/m2
 
-     ! Fluxes of litter (non respiring) 
-     real(r8) :: fragmentation_scaler                              ! Scale rate of litter fragmentation. 0 to 1.
-     real(r8) :: cwd_ag_in(ncwd)                                   ! Flux into CWD_AG from turnover and mortality KgC/m2/y
-     real(r8) :: cwd_bg_in(ncwd)                                   ! Flux into cwd_bg from root turnover and mortality KgC/m2/y
-     real(r8) :: cwd_ag_out(ncwd)                                  ! Flux out of AG CWD into AG litter KgC/m2/y
-     real(r8) :: cwd_bg_out(ncwd)                                  ! Flux out of BG CWD into BG litter KgC/m2/
+     ! Litter and Coarse Woody Debris
 
+     type(dead_vartype), pointer :: litt_c     ! Litter (leaf,fnrt and CWD) for carbon
+     type(dead_vartype), pointer :: litt_n     ! Litter (leaf,nfrt and CWD) for nitrogen
+     type(dead_vartype), pointer :: litt_p     ! Litter (leaf,fnrt and CWD) for phosphorous
 
-     real(r8) :: leaf_litter_in(maxpft)                         ! Flux in  to AG leaf litter from leaf turnover and mortality KgC/m2/y
-     real(r8) :: leaf_litter_out(maxpft)                        ! Flux out of AG leaf litter from fragmentation KgC/m2/y
-     real(r8) :: root_litter_in(maxpft)                         ! Flux in  to BG root litter from leaf turnover and mortality KgC/m2/y
-     real(r8) :: root_litter_out(maxpft)                        ! Flux out of BG root from fragmentation KgC/m2/y
-
-     ! Derivatives of litter (non respiring) 
-     real(r8) ::  dcwd_AG_dt(ncwd)                                 ! rate of change of above ground CWD in each size class: KgC/m2/year. 
-     real(r8) ::  dcwd_BG_dt(ncwd)                                 ! rate of change of below ground CWD in each size class: KgC/m2/year. 
-     real(r8) ::  dleaf_litter_dt(maxpft)                       ! rate of change of leaf litter in each size class: KgC/m2/year. 
-     real(r8) ::  droot_litter_dt(maxpft)                       ! rate of change of root litter in each size class: KgC/m2/year. 
+     real(r8) :: fragmentation_scaler          ! Scale rate of litter fragmentation. 0 to 1.
 
      real(r8) ::  repro(maxpft)                                 ! allocation to reproduction per PFT : KgC/m2
 
@@ -620,7 +602,7 @@ module EDTypesMod
      !SEED BANK
      real(r8) :: seed_bank(maxpft)                              ! seed pool in KgC/m2
      real(r8) :: dseed_dt(maxpft)                               ! change in seed pool in KgC/m2/year
-     real(r8) :: seed_rain_flux(maxpft)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
+
 
      ! FIRE
      real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 

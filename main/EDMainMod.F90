@@ -268,13 +268,6 @@ contains
     
     !-----------------------------------------------------------------------
 
-    small_no = 0.0000000000_r8  ! Obviously, this is arbitrary.  RF - changed to zero
-
-    currentSite%dseed_dt(:)       = 0._r8
-    currentSite%seed_rain_flux(:) = 0._r8  
-
-    
-    
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))
@@ -354,11 +347,6 @@ contains
           call UpdateCohortBioPhysRates(currentCohort)
 
 
-          ! Transfer all reproductive tissues into seed production
-          call PRTReproRelease(currentCohort%prt,repro_organ,carbon12_element, &
-                               1.0_r8, currentCohort%seed_prod)
-          currentCohort%seed_prod =  currentCohort%seed_prod / hlm_freq_day
-
           ! This cohort has grown, it is no longer "new"
           currentCohort%isnew = .false.
           
@@ -386,9 +374,26 @@ contains
           currentCohort => currentCohort%taller
 
        enddo
-      
-       call non_canopy_derivs( currentSite, currentPatch, bc_in)
 
+       currentPatch => currentPatch%older
+    end do
+    
+    
+    ! With growth and mortality rates now calculated we can determine the seed rain
+    ! fluxes. However, because this is potentially a cross-patch mixing model
+    ! we will calculate this is a group
+
+    call SeedsIn(currentSite,bc_in)
+
+
+    ! Call the other litter fluxes
+    
+    currentPatch => currentSite%youngest_patch
+    do while(associated(currentPatch))
+
+
+       call non_canopy_derivs( currentSite, currentPatch, bc_in)
+       
        !update state variables simultaneously according to derivatives for this time period. 
 
        ! first update the litter variables that are tracked at the patch level
@@ -403,13 +408,15 @@ contains
        enddo
 
        do c = 1,ncwd
-          if(currentPatch%cwd_ag(c)<small_no)then
-            write(fates_log(),*) 'negative CWD_AG', currentPatch%cwd_ag(c),CurrentSite%lat,currentSite%lon
-            currentPatch%cwd_ag(c) = small_no
+          if(currentPatch%cwd_ag(c)<-nearzero)then
+             write(fates_log(),*) 'negative CWD_AG', currentPatch%cwd_ag(c),CurrentSite%lat,currentSite%lon
+             write(fates_log(),*) 'aborting'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
-          if(currentPatch%cwd_bg(c)<small_no)then
-            write(fates_log(),*) 'negative CWD_BG', currentPatch%cwd_bg(c),CurrentSite%lat,CurrentSite%lon
-            currentPatch%cwd_bg(c) = small_no
+          if(currentPatch%cwd_bg(c)<-nearzero)then
+             write(fates_log(),*) 'negative CWD_BG', currentPatch%cwd_bg(c),CurrentSite%lat,CurrentSite%lon
+             write(fates_log(),*) 'aborting'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
        enddo
 
