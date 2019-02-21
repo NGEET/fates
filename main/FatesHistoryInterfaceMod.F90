@@ -53,25 +53,27 @@ module FatesHistoryInterfaceMod
   ! as distinct classes such as PFTs or fuel size bins, there are multiple different dimensions in
   ! which it is possible to output history variables to better understand what's going on.
   !
-  ! a key point is that, while the number of patches or cohorts can in principle be large, and the age
-  ! and size indices of a given patch or cohort can be finely resolved, we collapse these continuously-
-  ! varying indices into bins of time-invariant width for the purposes of history outputting.  This is
-  ! because a given patch or cohort may not persist across a given interval of history averaging, so
-  ! it is better to output all patches of cohorts whose index is within a given interval along the size
-  ! or age bin.
+  ! a key point is that, while the number of patches or cohorts can in principle be large, and 
+  ! the age and size indices of a given patch or cohort can be finely resolved, we collapse these 
+  ! continuously varying indices into bins of time-invariant width for the purposes of history 
+  ! outputting.  This is because a given patch or cohort may not persist across a given interval
+  ! of history averaging, so it is better to output all patches of cohorts whose index is within 
+  ! a given interval along the size or age bin.
   !
-  ! Another particularity of the issue of FATES shifting its subgrid structure frequently and possibly having
-  ! multiple (or zero) patches or cohorts within a given bin is that, if you want to output an average
-  ! quantities across some dimension, such as a mean carbon flux across patch area of a given age, in general
-  ! it is better to output both the numerator and denominator of the averaging calculation separately,
-  ! rather than the average itself, and then calculate the average in post-processing. So, e.g.
-  ! this means outputting both the patch area and the product of the flux within each patch and the patch area
-  ! as separate variables.  Doing this allows conservation even when the weights are changing rapidly and
-  ! simplifies the logic when the number of patches or cohorts may be anywhere from zero to a large number.
+  ! Another particularity of the issue of FATES shifting its subgrid structure frequently 
+  ! and possibly having multiple (or zero) patches or cohorts within a given bin is that, if you
+  ! want to output an average quantities across some dimension, such as a mean carbon flux across 
+  ! patch area of a given age, in general it is better to output both the numerator and denominator
+  ! of the averaging calculation separately, rather than the average itself, and then calculate 
+  ! the average in post-processing. So, e.g. this means outputting both the patch area and the 
+  ! product of the flux within each patch and the patch area as separate variables.  Doing this 
+  ! allows conservation even when the weights are changing rapidly and simplifies the logic when
+  ! the number of patches or cohorts may be anywhere from zero to a large number.
   !
-  ! So what this means is that anything that is disaggregated at the patch area requires outputting the patch age
-  ! distribution (in units of patch area / site area) as the denominator of the average and then calculating the numerator of
-  ! the average as XXX times the patch area so (so in units of XXX * patch area / site area). For cohort-level quantities,
+  ! So what this means is that anything that is disaggregated at the patch area requires 
+  ! outputting the patch age distribution (in units of patch area / site area) as the denominator
+  ! of the average and then calculating the numerator of the average as XXX times the patch 
+  ! area so (so in units of XXX * patch area / site area). For cohort-level quantities,
   ! this requires outputting the number density (in units of individuals per site area), etc.
   !
   ! For reference, some standardized abbreviations of the FATES dimensions are listed here:
@@ -94,15 +96,18 @@ module FatesHistoryInterfaceMod
   ! A recipe for adding a new history variable to this module:
   ! (1) decide what time frequency it makes sense to update the variable at, and what dimension(s)
   !     you want to output the variable on
-  ! (2) add the ih_ integer variable in the immediately following section of the module.  Use the suffix as outlined
-  !     above for the dimension you are using.
-  ! (3) define a corresponding hio_ variable by associating it to the ih_ variable in the associate section
-  !     of the subroutine that corresponds to the time-updating frequency that you've chosen
-  !     (i.e. if half-hourly, then work in subroutine update_history_prod; if daily, then work in subroutine update_history_dyn)
-  ! (4) within that subroutine, add the logic that passes the information from the fates-native variable
-  !     (possibly on a patch or cohort structure) to the history hio_ variable that you've associated to.
-  ! (5) add the variable name, metadata, units, dimension, updating frequency, the ih_ variable index, etc via a call
-  !     to the set_history_var method in the subroutine define_history_vars.
+  ! (2) add the ih_ integer variable in the immediately following section of the module.  
+  !     use the suffix as outlined above for the dimension you are using.
+  ! (3) define a corresponding hio_ variable by associating it to the ih_ variable 
+  !     in the associate section of the subroutine that corresponds to the time-updating 
+  !     frequency that you've chosen
+  !     (i.e. if half-hourly, then work in subroutine update_history_prod; if daily, 
+  !     then work in subroutine update_history_dyn)
+  ! (4) within that subroutine, add the logic that passes the information from the 
+  !     fates-native variable (possibly on a patch or cohort structure) to the history 
+  !     hio_ variable that you've associated to.
+  ! (5) add the variable name, metadata, units, dimension, updating frequency, the ih_ variable 
+  !     index, etc via a call to the set_history_var method in the subroutine define_history_vars.
   !
   
   ! Indices to 1D Patch variables
