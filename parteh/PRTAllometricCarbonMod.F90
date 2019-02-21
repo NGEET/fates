@@ -23,6 +23,7 @@ module PRTAllometricCarbonMod
   use PRTGenericMod , only  : repro_organ
   use PRTGenericMod , only  : struct_organ
   use PRTGenericMod , only  : un_initialized
+  use PRTGenericMod , only  : prt_carbon_allom_hyp
 
   use FatesAllometryMod   , only : bleaf
   use FatesAllometryMod   , only : bsap_allom
@@ -46,6 +47,7 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
+  use FatesConstantsMod   , only : years_per_day
 
 
   implicit none
@@ -100,6 +102,9 @@ module PRTAllometricCarbonMod
   ! -------------------------------------------------------------------------------------
   integer, parameter         :: icd               = 1   ! Only 1 coordinate per variable
 
+  
+  ! This is the maximum number of leaf age pools  (used for allocating scratch space)
+  integer, parameter         :: max_nleafage  = 10
 
   ! -------------------------------------------------------------------------------------
   ! This is the core type that holds this specific
@@ -171,6 +176,8 @@ contains
      ! 
      ! -----------------------------------------------------------------------------------
 
+     integer :: nleafage
+
      allocate(prt_global_ac)
      
      ! The "state descriptor" object holds things like the names, the symbols, the units
@@ -181,13 +188,32 @@ contains
 
      prt_global_ac%hyp_name = 'Allometric Carbon Only'
      
+     prt_global_ac%hyp_id = prt_carbon_allom_hyp
+
      ! Set mapping tables to zero
      call prt_global_ac%ZeroGlobal()
 
-     ! Register the variables. Each variable must be associated with a global identifier
-     ! for an organ and species.
+     
+     ! The number of leaf age classes can be determined from the parameter file,
+     ! notably the size of the leaf-longevity parameter's second dimension.
+     ! This is the same value in FatesInterfaceMod.F90
 
-     call prt_global_ac%RegisterVarInGlobal(leaf_c_id,"Leaf Carbon","leaf_c",leaf_organ,carbon12_element,icd)
+     nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
+     
+     if(nleafage>max_nleafage) then
+        write(fates_log(),*) 'The allometric carbon PARTEH hypothesis'
+        write(fates_log(),*) 'sets a maximum number of leaf age classes'
+        write(fates_log(),*) 'used for scratch space. The model wants'
+        write(fates_log(),*) 'exceed that. Simply increase max_nleafage'
+        write(fates_log(),*) 'found in parteh/PRTAllometricCarbonMod.F90'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
+     ! Register the variables. Each variable must be associated with a global identifier
+     ! for an organ and species.  Leaves are a little special in that they are discretized
+     ! further by age class.  Although the code works fine if this collapses to 1.
+
+     call prt_global_ac%RegisterVarInGlobal(leaf_c_id,"Leaf Carbon","leaf_c",leaf_organ,carbon12_element,nleafage)
      call prt_global_ac%RegisterVarInGlobal(fnrt_c_id,"Fine Root Carbon","fnrt_c",fnrt_organ,carbon12_element,icd)
      call prt_global_ac%RegisterVarInGlobal(sapw_c_id,"Sapwood Carbon","sapw_c",sapw_organ,carbon12_element,icd)
      call prt_global_ac%RegisterVarInGlobal(store_c_id,"Storage Carbon","store_c",store_organ,carbon12_element,icd)
@@ -301,7 +327,9 @@ contains
     real(r8) :: repro_c_flux          ! Transfer into reproduction at the final stage [kgC]
     real(r8) :: struct_c_flux         ! Transfer into structure at various stages [kgC]
 
-    real(r8) :: leaf_c0               ! Initial value of carbon used to determine net flux
+    real(r8),dimension(max_nleafage) :: leaf_c0 
+
+                                      ! Initial value of carbon used to determine net flux
     real(r8) :: fnrt_c0               ! during this routine
     real(r8) :: sapw_c0               ! ""   
     real(r8) :: store_c0              ! ""
@@ -321,7 +349,10 @@ contains
     real(r8) :: totalC                ! total carbon allocated over alometric growth step
     real(r8) :: hite_out              ! dummy height variable
 
-    integer  :: i_var                 ! local index for iterating state variables
+    integer  :: i_var                 ! index for iterating state variables
+    integer  :: i_age                 ! index for iterating leaf ages
+    integer  :: nleafage              ! number of leaf age classifications
+    real(r8) :: leaf_age_flux         ! carbon mass flux between leaf age classification pools
 
 
     ! Integegrator variables c_pool is "mostly" carbon variables, it also includes
@@ -333,15 +364,21 @@ contains
     logical,dimension(n_integration_vars)  :: c_mask     ! Mask of active pools during integration
 
     integer , parameter :: max_substeps = 300            ! Maximum allowable iterations
+
     real(r8), parameter :: max_trunc_error = 1.0_r8      ! Maximum allowable truncation error
+
     integer,  parameter :: ODESolve = 2                  ! 1=RKF45,  2=Euler
+
+    integer,  parameter :: iexp_leaf = 1                 ! index 1 is the expanding (i.e. youngest)
+                                                         ! leaf age class, and therefore
+                                                         ! all new allocation goes into that pool
 
     real(r8) ::  intgr_params(num_bc_in)                 ! The boundary conditions to this routine,
                                                          ! are pressed into an array that is also
                                                          ! passed to the integrators
 
     associate( & 
-          leaf_c   => this%variables(leaf_c_id)%val(icd), &
+          leaf_c   => this%variables(leaf_c_id)%val, &
           fnrt_c   => this%variables(fnrt_c_id)%val(icd), &
           sapw_c   => this%variables(sapw_c_id)%val(icd), &
           store_c  => this%variables(store_c_id)%val(icd), &
@@ -371,13 +408,35 @@ contains
     ! transport flux "%net_alloc" at the end.
     ! -----------------------------------------------------------------------------------
 
-    leaf_c0 = leaf_c         ! Set initial leaf carbon 
-    fnrt_c0 = fnrt_c         ! Set initial fine-root carbon
-    sapw_c0 = sapw_c         ! Set initial sapwood carbon
-    store_c0 = store_c       ! Set initial storage carbon 
-    repro_c0 = repro_c       ! Set initial reproductive carbon
-    struct_c0 = struct_c     ! Set initial structural carbon
+    nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
+    leaf_c0(1:nleafage) = leaf_c(1:nleafage)  ! Set initial leaf carbon 
+    fnrt_c0 = fnrt_c                          ! Set initial fine-root carbon
+    sapw_c0 = sapw_c                          ! Set initial sapwood carbon
+    store_c0 = store_c                        ! Set initial storage carbon 
+    repro_c0 = repro_c                        ! Set initial reproductive carbon
+    struct_c0 = struct_c                      ! Set initial structural carbon
+
+    
+    ! -----------------------------------------------------------------------------------
+    ! If we have more than one leaf age classification, allow
+    ! some leaf biomass to transition to the older classes.  NOTE! This is not handling
+    ! losses due to turnover (ie. flux from the oldest senescing class). This is only
+    ! internal.
+    ! (rgk 12-15-2018: Have Chonggang confirm that aging should not be restricted
+    ! to evergreens)
+    ! -----------------------------------------------------------------------------------
+
+    if(nleafage>1) then
+       do i_age = 1,nleafage-1
+          if (EDPftvarcon_inst%leaf_long(ipft,i_age)>nearzero) then
+             leaf_age_flux   = leaf_c0(i_age) * years_per_day / EDPftvarcon_inst%leaf_long(ipft,i_age)
+             leaf_c(i_age)   = leaf_c(i_age) - leaf_age_flux
+             leaf_c(i_age+1) = leaf_c(i_age+1) + leaf_age_flux
+          end if
+       end do
+    end if
+    
 
     ! -----------------------------------------------------------------------------------
     ! II. Calculate target size of the biomass compartment for a given dbh.   
@@ -441,7 +500,7 @@ contains
     
     if( EDPftvarcon_inst%evergreen(ipft) ==1 ) then
        leaf_c_demand   = max(0.0_r8, &
-             EDPftvarcon_inst%leaf_stor_priority(ipft)*this%variables(leaf_c_id)%turnover(icd))
+             EDPftvarcon_inst%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
     else
        leaf_c_demand   = 0.0_r8
     end if
@@ -460,8 +519,9 @@ contains
                          max(0.0_r8,(store_c+carbon_balance)* &
                          (leaf_c_demand/total_c_demand)))
        
-       carbon_balance = carbon_balance - leaf_c_flux
-       leaf_c         = leaf_c + leaf_c_flux
+       ! Add carbon to the youngest age pool (i.e iexp_leaf = index 1)
+       carbon_balance    = carbon_balance   - leaf_c_flux
+       leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
 
        ! If we are testing b4b, then we pay this even if we don't have the carbon
        fnrt_c_flux = min(fnrt_c_demand, &
@@ -503,7 +563,7 @@ contains
     !        carbon balance is guaranteed to be >=0 beyond this point
     ! -----------------------------------------------------------------------------------
     
-    leaf_c_demand   = max(0.0_r8,(target_leaf_c - leaf_c))
+    leaf_c_demand   = max(0.0_r8,(target_leaf_c - sum(leaf_c(1:nleafage))))
     fnrt_c_demand   = max(0.0_r8,(target_fnrt_c - fnrt_c))
 
     total_c_demand = leaf_c_demand + fnrt_c_demand
@@ -513,7 +573,7 @@ contains
        leaf_c_flux    = min(leaf_c_demand, &
                         carbon_balance*(leaf_c_demand/total_c_demand))
        carbon_balance = carbon_balance - leaf_c_flux
-       leaf_c         = leaf_c + leaf_c_flux
+       leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
        
        fnrt_c_flux    = min(fnrt_c_demand, &
                             carbon_balance*(fnrt_c_demand/total_c_demand))
@@ -530,7 +590,7 @@ contains
     ! -----------------------------------------------------------------------------------
     if( carbon_balance > nearzero ) then
 
-       leaf_below_target  = max(target_leaf_c - leaf_c,0.0_r8)
+       leaf_below_target  = max(target_leaf_c - sum(leaf_c(1:nleafage)),0.0_r8)
        fnrt_below_target  = max(target_fnrt_c - fnrt_c,0.0_r8)
        sapw_below_target  = max(target_sapw_c - sapw_c,0.0_r8)
        store_below_target = max(target_store_c - store_c,0.0_r8)
@@ -553,10 +613,10 @@ contains
           end if
 
           carbon_balance               = carbon_balance - leaf_c_flux
-          leaf_c                       = leaf_c + leaf_c_flux
+          leaf_c(iexp_leaf)            = leaf_c(iexp_leaf) + leaf_c_flux
           
           carbon_balance               = carbon_balance - fnrt_c_flux
-          fnrt_c                      = fnrt_c + fnrt_c_flux
+          fnrt_c                       = fnrt_c + fnrt_c_flux
           
           carbon_balance               = carbon_balance - sapw_c_flux
           sapw_c                       = sapw_c + sapw_c_flux
@@ -622,7 +682,7 @@ contains
           end if
 
 
-          call TargetAllometryCheck(leaf_c, fnrt_c, sapw_c, &
+          call TargetAllometryCheck(sum(leaf_c(1:nleafage)), fnrt_c, sapw_c, &
                                     store_c, struct_c,       &
                                     target_leaf_c, target_fnrt_c, &
                                     target_sapw_c, target_store_c, target_struct_c, &
@@ -657,7 +717,7 @@ contains
                                                  ! large and thus won't accumulate such large
                                                  ! errors, we always mask as true.
 
-       c_pool(leaf_c_id)   = leaf_c
+       c_pool(leaf_c_id)   = sum(leaf_c(1:nleafage))
        c_pool(fnrt_c_id)   = fnrt_c
        c_pool(sapw_c_id)   = sapw_c
        c_pool(store_c_id)  = store_c
@@ -732,7 +792,7 @@ contains
              write(fates_log(),*) 'carbon_balance',carbon_balance
              write(fates_log(),*) 'deltaC',deltaC
              write(fates_log(),*) 'totalC',totalC
-             write(fates_log(),*) 'leaf:',grow_leaf,target_leaf_c,target_leaf_c - leaf_c
+             write(fates_log(),*) 'leaf:',grow_leaf,target_leaf_c,target_leaf_c - sum(leaf_c(:))
              write(fates_log(),*) 'fnrt:',grow_fnrt,target_fnrt_c,target_fnrt_c - fnrt_c
              write(fates_log(),*) 'sap:',grow_sapw,target_sapw_c, target_sapw_c - sapw_c
              write(fates_log(),*) 'store:',grow_store,target_store_c,target_store_c - store_c
@@ -751,7 +811,7 @@ contains
           if( (totalC < calloc_abs_error) .and. (step_pass) )then
 
              ierr           = 0
-             leaf_c_flux    = c_pool(leaf_c_id)   - leaf_c
+             leaf_c_flux    = c_pool(leaf_c_id)   - sum(leaf_c(1:nleafage))
              fnrt_c_flux    = c_pool(fnrt_c_id)   - fnrt_c
              sapw_c_flux    = c_pool(sapw_c_id)   - sapw_c
              store_c_flux   = c_pool(store_c_id)  - store_c
@@ -770,8 +830,8 @@ contains
              struct_c_flux  = struct_c_flux*flux_adj
              repro_c_flux   = repro_c_flux*flux_adj
              
-             carbon_balance = carbon_balance - leaf_c_flux
-             leaf_c         = leaf_c + leaf_c_flux
+             carbon_balance    = carbon_balance - leaf_c_flux
+             leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
              
              carbon_balance = carbon_balance - fnrt_c_flux
              fnrt_c         = fnrt_c + fnrt_c_flux
@@ -809,8 +869,11 @@ contains
 
     ! Track the net allocations and transport from this routine
 
-    this%variables(leaf_c_id)%net_alloc(icd) = &
-         this%variables(leaf_c_id)%net_alloc(icd) + (leaf_c - leaf_c0)
+    do i_age = 1,nleafage
+       this%variables(leaf_c_id)%net_alloc(i_age) = &
+             this%variables(leaf_c_id)%net_alloc(i_age) + &
+             (leaf_c(i_age) - leaf_c0(i_age))
+    end do
 
     this%variables(fnrt_c_id)%net_alloc(icd) = &
          this%variables(fnrt_c_id)%net_alloc(icd) + (fnrt_c - fnrt_c0)
@@ -826,9 +889,6 @@ contains
     
     this%variables(struct_c_id)%net_alloc(icd) = &
          this%variables(struct_c_id)%net_alloc(icd) + (struct_c - struct_c0)
-
-
- 
 
 
 

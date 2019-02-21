@@ -22,10 +22,14 @@ module EDInitMod
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
   use EDTypesMod                , only : init_spread_inventory
+  use EDTypesMod                , only : first_leaf_aclass
+  use EDTypesMod                , only : leaves_on
+  use EDTypesMod                , only : leaves_off
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
   use FatesInterfaceMod         , only : numpft
+  use FatesInterfaceMod         , only : nleafage
   use ChecksBalancesMod         , only : SiteCarbonStock
   use FatesInterfaceMod         , only : nlevsclass
   use FatesAllometryMod         , only : h2d_allom
@@ -106,8 +110,8 @@ contains
     site_in%total_burn_flux_to_atm = 0._r8
 
     ! PHENOLOGY 
-    site_in%status           = 0    ! are leaves in this pixel on or off?
-    site_in%dstatus          = 0
+    site_in%is_cold          = .false.    ! Is cold deciduous leaf-off triggered?
+    site_in%is_drought       = .false.    ! Is drought deciduous leaf-off triggered?
     site_in%ED_GDD_site      = nan  ! growing degree days
     site_in%ncd              = nan  ! no chilling days
     site_in%last_n_days(:)   = 999  ! record of last 10 days temperature for senescence model.
@@ -183,10 +187,10 @@ contains
     integer  :: s
     real(r8) :: leafon
     real(r8) :: leafoff
-    real(r8) :: stat
+    logical  :: stat
     real(r8) :: NCD
     real(r8) :: GDD
-    real(r8) :: dstat
+    logical  :: dstat
     real(r8) :: acc_NI
     real(r8) :: watermem
     integer  :: dleafoff
@@ -199,9 +203,9 @@ contains
        GDD      = 30.0_r8
        leafon   = 100.0_r8
        leafoff  = 300.0_r8
-       stat     = 2
+       stat     = .false.
        acc_NI   = 0.0_r8
-       dstat    = 2
+       dstat    = .false.
        dleafoff = 300
        dleafon  = 100
        watermem = 0.5_r8
@@ -212,9 +216,9 @@ contains
        GDD      = 0.0_r8
        leafon   = 0.0_r8
        leafoff  = 0.0_r8
-       stat     = 1
+       stat     = .false.
        acc_NI   = 0.0_r8
-       dstat    = 2
+       dstat    = .false.
        dleafoff = 300
        dleafon  = 100
        watermem = 0.5_r8
@@ -233,9 +237,8 @@ contains
           sites(s)%water_memory(1:numWaterMem) = watermem
        end if
 
-       sites(s)%status = stat
-       !start off with leaves off to initialise
-       sites(s)%dstatus= dstat
+       sites(s)%is_cold    = stat
+       sites(s)%is_drought = dstat
        
        sites(s)%acc_NI     = acc_NI
        sites(s)%frac_burnt = 0.0_r8
@@ -433,37 +436,27 @@ contains
 
        call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, b_store)
 
-
-       if( EDPftvarcon_inst%evergreen(pft) == 1) then
-          temp_cohort%laimemory = 0._r8
-          cstatus = 2
+       temp_cohort%laimemory = 0._r8
+       cstatus = leaves_on
+       
+       if( EDPftvarcon_inst%season_decid(pft) == itrue .and. site_in%is_cold ) then
+          temp_cohort%laimemory = b_leaf
+          b_leaf = 0._r8
+          cstatus = leaves_off
        endif
-
-       if( EDPftvarcon_inst%season_decid(pft) == 1 ) then !for dorment places
-          if(site_in%status == 2)then 
-             temp_cohort%laimemory = 0.0_r8
-          else
-             temp_cohort%laimemory = b_leaf
-          endif
-          ! reduce biomass according to size of store, this will be recovered when elaves com on.
-          cstatus = site_in%status
-       endif
-
-       if ( EDPftvarcon_inst%stress_decid(pft) == 1 ) then
-          if(site_in%dstatus == 2)then 
-             temp_cohort%laimemory = 0.0_r8
-          else
-             temp_cohort%laimemory = b_leaf
-          endif
-          cstatus = site_in%dstatus
+       
+       if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. site_in%is_drought ) then
+          temp_cohort%laimemory = b_leaf
+          b_leaf = 0._r8
+          cstatus = leaves_off
        endif
 
        if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             b_leaf, b_fineroot, b_sapwood, b_dead, b_store, & 
-            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
-
+            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, &
+            site_in%spread, first_leaf_aclass, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 
