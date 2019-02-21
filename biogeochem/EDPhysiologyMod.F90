@@ -432,7 +432,7 @@ contains
 
     integer, parameter :: canopy_leaf_lifespan = 365    ! Maximum lifespan of drought decid leaves
 
-    integer, parameter :: min_daysoff_dforcedflush = 70 ! THis is the number of days that must had elapsed
+    integer, parameter :: min_daysoff_dforcedflush = 30 ! THis is the number of days that must had elapsed
                                                         ! since leaves had dropped, in order to forcably
                                                         ! flush leaves again.  This does not impact flushing
                                                         ! due to real moisture constraints, and will prevent
