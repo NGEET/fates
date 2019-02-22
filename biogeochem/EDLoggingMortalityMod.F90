@@ -151,7 +151,7 @@ contains
 
    ! ======================================================================================
 
-   subroutine LoggingMortality_frac( pft_i, dbh, lmort_direct,lmort_collateral,lmort_infra )
+   subroutine LoggingMortality_frac( pft_i, dbh, lmort_direct,lmort_collateral,lmort_infra,l_degrad )
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
@@ -159,6 +159,7 @@ contains
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
+      real(r8), intent(out) :: l_degrad         ! fraction of trees that are not killed but suffer from forest degradation (i.e. they are moved to newly-anthro-disturbed secondary forest patch)
 
       ! Parameters
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates
@@ -171,15 +172,19 @@ contains
             if (dbh >= logging_dbhmin ) then
                lmort_direct = logging_direct_frac * adjustment
                lmort_collateral = logging_collateral_frac * adjustment
+               l_degrad = 0._r8
             else
                lmort_direct = 0.0_r8 
                lmort_collateral = 0.0_r8
+               l_degrad = logging_collateral_frac * adjustment
             end if
            
             if (dbh >= logging_dbhmax_infra) then
                lmort_infra      = 0.0_r8
+               l_degrad         = logging_mechanical_frac * adjustment
             else
                lmort_infra      = logging_mechanical_frac * adjustment
+               l_degrad         = 0.0_r8
             end if
             !damage rates for size class < & > threshold_size need to be specified seperately
 
@@ -190,11 +195,13 @@ contains
             lmort_direct    = 0.0_r8
             lmort_collateral = 0.0_r8
             lmort_infra      = 0.0_r8
+            l_degrad         = 0.0_r8
          end if
       else 
          lmort_direct    = 0.0_r8
          lmort_collateral = 0.0_r8
          lmort_infra      = 0.0_r8
+         l_degrad         = 0.0_r8
       end if
 
    end subroutine LoggingMortality_frac

@@ -117,6 +117,7 @@ contains
     real(r8) :: lmort_direct
     real(r8) :: lmort_collateral
     real(r8) :: lmort_infra
+    real(r8) :: l_degrad         ! fraction of trees that are not killed but suffer from forest degradation (i.e. they are moved to newly-anthro-disturbed secondary forest patch)
 
     integer  :: threshold_sizeclass
 
@@ -145,12 +146,12 @@ contains
           currentCohort%frmort = frmort
 
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, &
-                lmort_direct,lmort_collateral,lmort_infra )
+                lmort_direct,lmort_collateral,lmort_infra,l_degrad )
          
           currentCohort%lmort_direct    = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
           currentCohort%lmort_infra      = lmort_infra
-
+          currentCohort%l_degrad         = l_degrad
           
           currentCohort => currentCohort%taller
        end do
