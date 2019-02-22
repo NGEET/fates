@@ -470,6 +470,7 @@ module EDTypesMod
                                                                    !                       2) fire: fraction/day 
                                                                    !                       3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
+     real(r8) ::  fract_ldist_not_harvested                        ! fraction of logged area that is canopy trees that weren't harvested
 
      ! LITTER AND COARSE WOODY DEBRIS 
      ! Pools of litter (non respiring) 

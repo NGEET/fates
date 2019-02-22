@@ -118,7 +118,7 @@ contains
     real(r8) :: lmort_collateral
     real(r8) :: lmort_infra
     real(r8) :: l_degrad         ! fraction of trees that are not killed but suffer from forest degradation (i.e. they are moved to newly-anthro-disturbed secondary forest patch)
-
+    real(r8) :: dist_rate_ldist_notharvested
     integer  :: threshold_sizeclass
 
     !----------------------------------------------------------------------------------------------
@@ -168,6 +168,8 @@ contains
        currentPatch%disturbance_rates(dtype_ifall) = 0.0_r8
        currentPatch%disturbance_rates(dtype_ilog)  = 0.0_r8
        currentPatch%disturbance_rates(dtype_ifire) = 0.0_r8
+
+       dist_rate_ldist_notharvested = 0.0_r8
        
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))   
@@ -183,12 +185,21 @@ contains
              currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                    min(1.0_r8, currentCohort%lmort_direct +                         & 
                                currentCohort%lmort_collateral +                      &
-                               currentCohort%lmort_infra ) *                         &
+                               currentCohort%lmort_infra +                           &
+                               currentCohort%l_degrad ) *                            &
                                currentCohort%c_area/currentPatch%area
+             
+             ! Non-harvested part of the logging disturbance rate
+             dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + currentCohort%l_degrad * currentCohort%c_area/currentPatch%area
              
           endif
           currentCohort => currentCohort%taller
        enddo !currentCohort
+
+       ! fraction of the logging disturbance rate that is non-harvested
+       if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
+          currentPatch%fract_ldist_not_harvested = dist_rate_ldist_notharvested / currentPatch%disturbance_rates(dtype_ilog)
+       endif
 
        ! Fire Disturbance Rate
        ! Fudge - fires can't burn the whole patch, as this causes /0 errors.
@@ -247,6 +258,7 @@ contains
                 currentCohort%lmort_direct    = 0.0_r8
                 currentCohort%lmort_collateral = 0.0_r8
                 currentCohort%lmort_infra      = 0.0_r8
+                currentCohort%l_degrad         = 0.0_r8
              end if
  
              ! This may be counter-intuitive, but the diagnostic fire-mortality rate
@@ -270,6 +282,7 @@ contains
                 currentCohort%lmort_direct    = 0.0_r8
                 currentCohort%lmort_collateral = 0.0_r8
                 currentCohort%lmort_infra      = 0.0_r8
+                currentCohort%l_degrad         = 0.0_r8
              end if
              currentCohort => currentCohort%taller
           enddo !currentCohort
@@ -514,6 +527,7 @@ contains
                       nc%lmort_direct     = nan
                       nc%lmort_collateral = nan
                       nc%lmort_infra      = nan
+                      nc%l_degrad         = nan
                       
                    else
                       ! small trees 
@@ -649,22 +663,26 @@ contains
                    ! If this cohort is in the upper canopy. It generated 
                    if(currentCohort%canopy_layer == 1)then
                       
-                      ! Trees generating this disturbance are not there by definition
-                      nc%n            = 0.0_r8 
+                      ! calculate the survivorship of disturbed trees because non-harvested
+                      nc%n            = (fractcurrentCohort%l_degrad / (currentCohort%l_degrad + &
+                           currentCohort%lmort_direct + currentCohort%lmort_collateral + currentCohort%lmort_infra) ) * &
+                           currentCohort%n * patch_site_areadis/currentPatch%area
                       
                       ! Reduce counts in the existing/donor patch according to the logging rate
                       currentCohort%n = currentCohort%n * (1.0_r8 - min(1.0_r8,(currentCohort%lmort_direct +    &
                            currentCohort%lmort_collateral + &
                            currentCohort%lmort_infra)))
 
-                      ! The mortality diagnostics are set to nan because the cohort should dissappear
-                      nc%cmort            = nan
-                      nc%hmort            = nan
-                      nc%bmort            = nan
-                      nc%frmort           = nan
-                      nc%lmort_direct     = nan
-                      nc%lmort_collateral = nan
-                      nc%lmort_infra      = nan
+                      nc%cmort            = currentCohort%cmort
+                      nc%hmort            = currentCohort%hmort
+                      nc%bmort            = currentCohort%bmort
+                      nc%frmort           = currentCohort%frmort
+                      nc%dmort            = currentCohort%dmort
+
+                      ! since these are the ones that weren't logged, set the logging mortality rates as zero
+                      nc%lmort_direct     = 0._r8
+                      nc%lmort_collateral = 0._r8
+                      nc%lmort_infra      = 0._r8
                       
                    else
                       
@@ -686,9 +704,9 @@ contains
                          ! the number density.
                          currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) = &
                               currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) + &
-                              nc%n * logging_coll_under_frac / hlm_freq_day
+                              nc%n * currentPatch%fract_ldist_not_harvested * logging_coll_under_frac / hlm_freq_day
                          currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
-                              (nc%n * logging_coll_under_frac/ hlm_freq_day ) * &
+                              (nc%n * currentPatch%fract_ldist_not_harvested * logging_coll_under_frac/ hlm_freq_day ) * &
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
                          
                          
@@ -696,7 +714,7 @@ contains
                          
                          ! remaining of understory plants of those that are knocked over by the overstorey trees dying...  
                          ! LOGGING SURVIVORSHIP OF UNDERSTORY PLANTS IS SET AS A NEW PARAMETER in the fatesparameter files 
-                         nc%n = nc%n * (1.0_r8 - logging_coll_under_frac)
+                         nc%n = nc%n * (1.0_r8 - currentPatch%fract_ldist_not_harvested * logging_coll_under_frac)
                          
                          ! Step 3: Reduce the number count of cohorts in the original/donor/non-disturbed patch 
                          !         to reflect the area change
@@ -791,6 +809,7 @@ contains
           !zero disturbance rate trackers
           currentPatch%disturbance_rate  = 0._r8
           currentPatch%disturbance_rates = 0._r8
+          currentPatch%fract_ldist_not_harvested = 0._r8
           
           currentPatch => currentPatch%younger
           
@@ -1515,7 +1534,8 @@ contains
 
     ! DISTURBANCE 
     currentPatch%disturbance_rates          = 0._r8 
-    currentPatch%disturbance_rate           = 0._r8 
+    currentPatch%disturbance_rate           = 0._r8
+    currentPatch%fract_ldist_not_harvested  = 0._r8
 
     ! LITTER
     currentPatch%cwd_ag(:)                  = 0.0_r8 ! above ground coarse woody debris gc/m2. 
