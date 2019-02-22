@@ -467,9 +467,7 @@ module EDTypesMod
 
      ! Litter and Coarse Woody Debris
 
-     type(dead_vartype), pointer :: litt_c     ! Litter (leaf,fnrt and CWD) for carbon
-     type(dead_vartype), pointer :: litt_n     ! Litter (leaf,nfrt and CWD) for nitrogen
-     type(dead_vartype), pointer :: litt_p     ! Litter (leaf,fnrt and CWD) for phosphorous
+     type(dead_vartype), pointer :: litter(:)  ! Litter (leaf,fnrt,CWD and seeds) for different elements
 
      real(r8) :: fragmentation_scaler          ! Scale rate of litter fragmentation. 0 to 1.
 
@@ -523,9 +521,9 @@ module EDTypesMod
      real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
 
      !debug variables
-     real(r8) ::  delta_litter_stock
-     real(r8) ::  delta_biomass_stock
-     real(r8) ::  delta_individual
+     real(r8) ::  delta_litter_stock                       ! kgC/site = kgC/ha
+     real(r8) ::  delta_biomass_stock                      ! kgC/site
+     real(r8) ::  delta_individual                         ! 
   
   end type ed_resources_management_type
 

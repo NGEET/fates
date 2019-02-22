@@ -58,7 +58,7 @@ module EDCohortDynamicsMod
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : nitrogen_element
-  use PRTGenericMod,          only : phosphorous_element
+  use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ

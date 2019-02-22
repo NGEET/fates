@@ -28,7 +28,7 @@ module FatesCohortWrapMod
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : nitrogen_element
-  use PRTGenericMod,          only : phosphorous_element
+  use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
@@ -92,14 +92,14 @@ module FatesCohortWrapMod
 
      real(r8) :: daily_carbon_gain        ! 
      real(r8) :: daily_nitrogen_gain      !
-     real(r8) :: daily_phosphorous_gain   !
+     real(r8) :: daily_phosphorus_gain   !
      real(r8) :: daily_r_grow             !
      real(r8) :: daily_r_maint            !
      real(r8) :: daily_r_maint_demand          !
      real(r8) :: accum_r_maint_deficit  !
      real(r8) :: carbon_root_exudate           !
      real(r8) :: nitrogen_root_exudate         !
-     real(r8) :: phosphorous_root_exudate      !
+     real(r8) :: phosphorus_root_exudate      !
 
      
      ! Multi-species, multi-pool Reactive Transport 
@@ -139,14 +139,14 @@ contains
        ccohort%ddbhdt                   = -999.9_r8
        ccohort%daily_carbon_gain        = -999.9_r8
        ccohort%daily_nitrogen_gain      = -999.9_r8
-       ccohort%daily_phosphorous_gain   = -999.9_r8
+       ccohort%daily_phosphorus_gain   = -999.9_r8
        ccohort%daily_r_grow             = -999.9_r8
        ccohort%daily_r_maint            = -999.9_r8
        ccohort%daily_r_maint_demand     = -999.9_r8
        ccohort%accum_r_maint_deficit    = -999.9_r8
        ccohort%carbon_root_exudate      = -999.9_r8
        ccohort%nitrogen_root_exudate    = -999.9_r8
-       ccohort%phosphorous_root_exudate = -999.9_r8
+       ccohort%phosphorus_root_exudate = -999.9_r8
     end do
 
     return
@@ -298,18 +298,18 @@ contains
        call SetState(ccohort%prt,struct_organ , nitrogen_element, struct_n)
        call SetState(ccohort%prt,repro_organ , nitrogen_element, repro_n)
 
-       call SetState(ccohort%prt,leaf_organ, phosphorous_element, leaf_p)
-       call SetState(ccohort%prt,fnrt_organ, phosphorous_element, fnrt_p)
-       call SetState(ccohort%prt,sapw_organ, phosphorous_element, sapw_p)
-       call SetState(ccohort%prt,store_organ, phosphorous_element, store_p)
-       call SetState(ccohort%prt,struct_organ , phosphorous_element, struct_p)
-       call SetState(ccohort%prt,repro_organ , phosphorous_element, repro_p)
+       call SetState(ccohort%prt,leaf_organ, phosphorus_element, leaf_p)
+       call SetState(ccohort%prt,fnrt_organ, phosphorus_element, fnrt_p)
+       call SetState(ccohort%prt,sapw_organ, phosphorus_element, sapw_p)
+       call SetState(ccohort%prt,store_organ, phosphorus_element, store_p)
+       call SetState(ccohort%prt,struct_organ , phosphorus_element, struct_p)
+       call SetState(ccohort%prt,repro_organ , phosphorus_element, repro_p)
        
        ! Register In/Out Boundary Conditions
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval   = ccohort%dbh)
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdc,bc_rval = ccohort%daily_carbon_gain)
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn,bc_rval = ccohort%daily_nitrogen_gain)
-       call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp,bc_rval = ccohort%daily_phosphorous_gain)
+       call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp,bc_rval = ccohort%daily_phosphorus_gain)
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def, bc_rval = ccohort%accum_r_maint_deficit) 
 
        ! Register Input only BC's
@@ -320,7 +320,7 @@ contains
        ! Register Output Boundary Conditions
        call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootcexude,bc_rval = ccohort%carbon_root_exudate)
        call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootnexude,bc_rval = ccohort%nitrogen_root_exudate)
-       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootpexude,bc_rval = ccohort%phosphorous_root_exudate)
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootpexude,bc_rval = ccohort%phosphorus_root_exudate)
        call ccohort%prt%RegisterBCOut(acnp_bc_out_id_growresp,bc_rval = ccohort%daily_r_grow )
 
     
@@ -334,7 +334,7 @@ contains
   ! =====================================================================================
 
   subroutine WrapDailyPRT(ipft,daily_carbon_gain,canopy_trim,flush_c,drop_frac_c,leaf_status, &
-       daily_nitrogen_gain, daily_phosphorous_gain,daily_r_maint_demand )
+       daily_nitrogen_gain, daily_phosphorus_gain,daily_r_maint_demand )
     
     implicit none
     ! Arguments
@@ -345,7 +345,7 @@ contains
     real(r8),intent(in)    :: drop_frac_c
     integer,intent(in)     :: leaf_status
     real(r8), intent(in), optional :: daily_nitrogen_gain
-    real(r8), intent(in), optional :: daily_phosphorous_gain
+    real(r8), intent(in), optional :: daily_phosphorus_gain
     real(r8), intent(in), optional :: daily_r_maint_demand
 
     type(ed_cohort_type), pointer :: ccohort
@@ -379,7 +379,7 @@ contains
        prt_global => prt_global_acnp
        ccohort%daily_carbon_gain      = daily_carbon_gain
        ccohort%daily_nitrogen_gain    = daily_nitrogen_gain
-       ccohort%daily_phosphorous_gain = daily_phosphorous_gain
+       ccohort%daily_phosphorus_gain = daily_phosphorus_gain
        ccohort%accum_r_maint_deficit  = ccohort%accum_r_maint_deficit + &
                                         daily_r_maint_demand 
 
@@ -457,7 +457,7 @@ contains
                                  leaf_p, fnrt_p, sapw_p, store_p, struct_p, repro_p, &
                                  leaf_pturn, fnrt_pturn, sapw_pturn, store_pturn, struct_pturn, &
                                  crown_area, &
-                                 carbon_root_exudate, nitrogen_root_exudate, phosphorous_root_exudate, &
+                                 carbon_root_exudate, nitrogen_root_exudate, phosphorus_root_exudate, &
                                  growth_resp )
     
     implicit none
@@ -504,7 +504,7 @@ contains
 
     real(r8),intent(out)   :: carbon_root_exudate
     real(r8),intent(out)   :: nitrogen_root_exudate
-    real(r8),intent(out)   :: phosphorous_root_exudate
+    real(r8),intent(out)   :: phosphorus_root_exudate
     real(r8),intent(out)   :: growth_resp
     
     real(r8),intent(out)   :: crown_area
@@ -549,18 +549,18 @@ contains
     store_nturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=nitrogen_element)
     struct_nturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=nitrogen_element)
 
-    leaf_p = ccohort%prt%GetState(organ_id=leaf_organ, species_id=phosphorous_element)
-    fnrt_p = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=phosphorous_element)
-    sapw_p = ccohort%prt%GetState(organ_id=sapw_organ, species_id=phosphorous_element)
-    store_p = ccohort%prt%GetState(organ_id=store_organ, species_id=phosphorous_element)
-    struct_p = ccohort%prt%GetState(organ_id=struct_organ, species_id=phosphorous_element)
-    repro_p = ccohort%prt%GetState(organ_id=repro_organ, species_id=phosphorous_element)
+    leaf_p = ccohort%prt%GetState(organ_id=leaf_organ, species_id=phosphorus_element)
+    fnrt_p = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=phosphorus_element)
+    sapw_p = ccohort%prt%GetState(organ_id=sapw_organ, species_id=phosphorus_element)
+    store_p = ccohort%prt%GetState(organ_id=store_organ, species_id=phosphorus_element)
+    struct_p = ccohort%prt%GetState(organ_id=struct_organ, species_id=phosphorus_element)
+    repro_p = ccohort%prt%GetState(organ_id=repro_organ, species_id=phosphorus_element)
     
-    leaf_pturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=phosphorous_element)
-    fnrt_pturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=phosphorous_element)
-    sapw_pturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=phosphorous_element)
-    store_pturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=phosphorous_element)
-    struct_pturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=phosphorous_element)
+    leaf_pturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=phosphorus_element)
+    fnrt_pturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=phosphorus_element)
+    sapw_pturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=phosphorus_element)
+    store_pturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=phosphorus_element)
+    struct_pturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=phosphorus_element)
 
     growth_resp = ccohort%daily_r_grow
 
@@ -568,7 +568,7 @@ contains
 
     carbon_root_exudate = ccohort%carbon_root_exudate
     nitrogen_root_exudate = ccohort%nitrogen_root_exudate
-    phosphorous_root_exudate = ccohort%phosphorous_root_exudate
+    phosphorus_root_exudate = ccohort%phosphorus_root_exudate
 
     return
  end subroutine WrapQueryDiagnostics

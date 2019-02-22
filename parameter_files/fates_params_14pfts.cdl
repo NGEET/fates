@@ -222,11 +222,11 @@ variables:
 
 	float fates_prt_phos_stoich_p1(fates_prt_organs,fates_pft) ;
 		fates_prt_phos_stoich_p1:units = "(gP/gC)" ;
-		fates_prt_phos_stoich_p1:long_name = "phosphorous stoichiometry, parameter 1" ;
+		fates_prt_phos_stoich_p1:long_name = "phosphorus stoichiometry, parameter 1" ;
 
 	float fates_prt_phos_stoich_p2(fates_prt_organs,fates_pft) ;
 		fates_prt_phos_stoich_p2:units = "(gP/gC)" ;
-		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2" ;
+		fates_prt_phos_stoich_p2:long_name = "phosphorus stoichiometry, parameter 2" ;
 
 	float fates_prt_alloc_priority(fates_prt_organs,fates_pft) ;
 		fates_prt_alloc_priority:units = "index (0-fates_prt_organs)" ;
@@ -250,7 +250,7 @@ variables:
 
 	float fates_turnover_phos_retrans(fates_prt_organs,fates_pft) ;
 		fates_turnover_phos_retrans:units = "-" ;
-		fates_turnover_phos_retrans:long_name = "retranslocation fraction of phosphorous in turnover, parameter 1" ;
+		fates_turnover_phos_retrans:long_name = "retranslocation fraction of phosphorus in turnover, parameter 1" ;
 
 	float fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;

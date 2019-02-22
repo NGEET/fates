@@ -13,7 +13,7 @@ module PRTLossFluxesMod
   use PRTGenericMod, only : carbon13_element
   use PRTGenericMod, only : carbon14_element
   use PRTGenericMod, only : nitrogen_element
-  use PRTGenericMod, only : phosphorous_element
+  use PRTGenericMod, only : phosphorus_element
   use PRTGenericMod, only : un_initialized
   use PRTGenericMod, only : check_initialized
   use PRTGenericMod, only : num_organ_types
@@ -222,7 +222,7 @@ contains
              
              if( element_id == nitrogen_element ) then
                 target_stoich = EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
-             else if( element_id == phosphorous_element ) then
+             else if( element_id == phosphorus_element ) then
                 target_stoich = EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
              else
                 write(fates_log(),*) ' Trying to calculate nutrient flushing target'
@@ -513,7 +513,7 @@ contains
              retrans = EDPftvarcon_inst%turnover_carb_retrans(ipft,organ_id)
           else if( element_id == nitrogen_element ) then
              retrans = EDPftvarcon_inst%turnover_nitr_retrans(ipft,organ_id)
-          else if( element_id == phosphorous_element ) then
+          else if( element_id == phosphorus_element ) then
              retrans = EDPftvarcon_inst%turnover_phos_retrans(ipft,organ_id)
           else
              write(fates_log(),*) 'Please add a new re-translocation clause to your '
@@ -700,7 +700,7 @@ contains
             retrans = EDPftvarcon_inst%turnover_carb_retrans(ipft,organ_id)
          else if( element_id == nitrogen_element ) then
             retrans = EDPftvarcon_inst%turnover_nitr_retrans(ipft,organ_id)
-         else if( element_id == phosphorous_element ) then
+         else if( element_id == phosphorus_element ) then
             retrans = EDPftvarcon_inst%turnover_phos_retrans(ipft,organ_id)
          else
             write(fates_log(),*) 'Please add a new re-translocation clause to your '

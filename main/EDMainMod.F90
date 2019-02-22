@@ -261,6 +261,7 @@ contains
 
     integer  :: c                     ! Counter for litter size class 
     integer  :: ft                    ! Counter for PFT
+    integer  :: il                    ! Counter for litter element type (c,n,p,etc)
     real(r8) :: small_no              ! to circumvent numerical errors that cause negative values of things that can't be negative
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
@@ -271,6 +272,12 @@ contains
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))
+
+
+       ! Zero all fluxes into and out of the litter pools
+       do il = 1, size(currentPatch%litter,dim=1)
+          call currentPatch%litter(il)%zero_flux()
+       end if
 
        currentPatch%age = currentPatch%age + hlm_freq_day
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
@@ -379,63 +386,36 @@ contains
     end do
     
     
+    if( hlm_use_planthydro == itrue ) then
+       currentPatch => currentSite%youngest_patch
+       do while(associated(currentPatch))
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort))
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort,&
+                   -1.0_r8 * currentCohort%dndt * hlm_freq_day)
+             currentCohort => currentCohort%taller
+          enddo  ! end loop over cohorts 
+          currentPatch => currentPatch%older
+       end do
+    end if
+    
+
     ! With growth and mortality rates now calculated we can determine the seed rain
     ! fluxes. However, because this is potentially a cross-patch mixing model
     ! we will calculate this is a group
 
-    call SeedsIn(currentSite,bc_in)
-
-
-    ! Call the other litter fluxes
+    call SeedIn(currentSite,bc_in)
+    
+    ! Calculate all other litter fluxes
     
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
-
-
-       call non_canopy_derivs( currentSite, currentPatch, bc_in)
+     
+       call LitterFluxes( currentSite, currentPatch, bc_in)
        
        !update state variables simultaneously according to derivatives for this time period. 
 
-       ! first update the litter variables that are tracked at the patch level
-       do c = 1,ncwd
-          currentPatch%cwd_ag(c) =  currentPatch%cwd_ag(c) + currentPatch%dcwd_ag_dt(c)* hlm_freq_day
-          currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* hlm_freq_day
-       enddo
-
-       do ft = 1,numpft
-          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* hlm_freq_day
-          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* hlm_freq_day
-       enddo
-
-       do c = 1,ncwd
-          if(currentPatch%cwd_ag(c)<-nearzero)then
-             write(fates_log(),*) 'negative CWD_AG', currentPatch%cwd_ag(c),CurrentSite%lat,currentSite%lon
-             write(fates_log(),*) 'aborting'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          endif
-          if(currentPatch%cwd_bg(c)<-nearzero)then
-             write(fates_log(),*) 'negative CWD_BG', currentPatch%cwd_bg(c),CurrentSite%lat,CurrentSite%lon
-             write(fates_log(),*) 'aborting'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          endif
-       enddo
-
-       do ft = 1,numpft
-          if(currentPatch%leaf_litter(ft)<small_no)then
-            write(fates_log(),*) 'negative leaf litter numerical error', &
-                  currentPatch%leaf_litter(ft),CurrentSite%lat,CurrentSite%lon,&
-            currentPatch%dleaf_litter_dt(ft),currentPatch%leaf_litter_in(ft), &
-            currentPatch%leaf_litter_out(ft),currentpatch%age
-            currentPatch%leaf_litter(ft) = small_no
-          endif
-          if(currentPatch%root_litter(ft)<small_no)then
-               write(fates_log(),*) 'negative root litter numerical error', currentPatch%root_litter(ft), &
-               currentPatch%droot_litter_dt(ft)* hlm_freq_day, &
-               CurrentSite%lat,CurrentSite%lon
-            currentPatch%root_litter(ft) = small_no
-          endif
-       enddo
-
+       call IntegrateLitter(currentPatch )
      
        ! update cohort number. This needs to happen after the CWD_input and seed_input calculations as they 
        ! assume the pre-mortality currentCohort%n. 

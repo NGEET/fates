@@ -195,8 +195,8 @@ module EDPftvarcon
 
      real(r8), allocatable :: prt_nitr_stoich_p1(:,:)   ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
      real(r8), allocatable :: prt_nitr_stoich_p2(:,:)   ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
-     real(r8), allocatable :: prt_phos_stoich_p1(:,:)   ! Parameter 1 for phosphorous stoichiometry (pft x organ) 
-     real(r8), allocatable :: prt_phos_stoich_p2(:,:)   ! Parameter 2 for phosphorous stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_phos_stoich_p1(:,:)   ! Parameter 1 for phosphorus stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_phos_stoich_p2(:,:)   ! Parameter 2 for phosphorus stoichiometry (pft x organ) 
      real(r8), allocatable :: prt_alloc_priority(:,:)   ! Allocation priority for each organ (pft x organ) [integer 0-6]
 
      ! Turnover related things
@@ -213,7 +213,7 @@ module EDPftvarcon
 
      real(r8), allocatable :: turnover_carb_retrans(:,:)  ! carbon re-translocation fraction (pft x organ)
      real(r8), allocatable :: turnover_nitr_retrans(:,:)  ! nitrogen re-translocation fraction (pft x organ)
-     real(r8), allocatable :: turnover_phos_retrans(:,:)  ! phosphorous re-translocation fraction (pft x organ)
+     real(r8), allocatable :: turnover_phos_retrans(:,:)  ! phosphorus re-translocation fraction (pft x organ)
 
      ! Parameters dimensioned by PFT and leaf age
      real(r8), allocatable :: leaf_long(:,:)              ! Leaf turnover time (longevity) (pft x age-class)
@@ -1915,6 +1915,7 @@ contains
         write(fates_log(),*) 'Exiting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
+
 
      
      do ipft = 1,npft

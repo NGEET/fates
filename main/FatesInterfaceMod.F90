@@ -30,6 +30,7 @@ module FatesInterfaceMod
    use EDPftvarcon         , only : FatesReportPFTParams
    use EDPftvarcon         , only : FatesCheckParams
    use EDPftvarcon         , only : EDPftvarcon_inst
+   use SFParamsMod         , only : SpitFireCheckParams
    use EDParamsMod         , only : FatesReportParams
    use EDParamsMod         , only : bgc_soil_salinity
    use PRTGenericMod         , only : prt_carbon_allom_hyp
@@ -1646,7 +1647,8 @@ contains
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
       call FatesCheckParams(masterproc,hlm_parteh_mode)
-      
+      call SpitFireCheckParams(masterproc)
+
       return
    end subroutine FatesReportParameters
 

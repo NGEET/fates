@@ -99,7 +99,7 @@ module PRTGenericMod
   integer, parameter :: carbon13_element    = 2
   integer, parameter :: carbon14_element    = 3
   integer, parameter :: nitrogen_element    = 4
-  integer, parameter :: phosphorous_element = 5
+  integer, parameter :: phosphorus_element = 5
   integer, parameter :: potassium_element   = 6
 
   !  The following elements are just placeholders. In the future
@@ -302,7 +302,7 @@ module PRTGenericMod
   ! world.
   !   
   !              
-  !                   | carbon | nitrogen | phosphorous | .... |
+  !                   | carbon | nitrogen | phosphorus  | .... |
   !                   ------------------------------------------
   !    leaf           |        |          |             |      |
   !    fine-root      |        |          |             |      |

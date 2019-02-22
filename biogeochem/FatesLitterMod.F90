@@ -30,12 +30,14 @@ module FatesLittMod
    implicit none
    private
    
-   integer,  parameter :: ncwd = 4          ! number of coarse woody debris pools (twig,s branch,l branch, trunk)
-   
-
    type litt_vartype
+
       
       ! This object is allocated for each element (C, N, P, etc) that we wish to track.
+
+      integer              :: element_id               ! This element ID should
+                                                       ! be associated with the element
+                                                       ! types listed in parteh/PRTGenericMod.F90
 
       ! Prognostic variables (litter and coarse woody debris)
 
@@ -76,12 +78,16 @@ module FatesLittMod
       real(r8),allocatable :: seed_germ(:)           ! kg/m2/day
 
 
-      ! Flux out from exporting (harvesting ?)
+      ! Flux out from exporting (harvesting, seed eflux?)
       real(r8) :: exported                             ! kg/m2/day
 
 
       ! Flux (in/out ... transfer) from seed to litter
       real(r8),allocatable :: seed_decay(:)            ! kg/m2/day
+
+
+      
+
 
     contains
       
@@ -222,27 +228,27 @@ contains
     
     class(litt_vartype) :: this
     
-    this%ag_cwd_in(:)            = 0._r8
-    this%bg_cwd_in(:,:)          = 0._r8
-    this%leaf_fines_in(:)       = 0._r8
-    this%root_fines_in(:,:)     = 0._r8
-    this%seed_in_local(:)             = 0._r8
-    this%seed_in_extern(:)      = 0._r8
+    this%ag_cwd_in(:)         = 0._r8
+    this%bg_cwd_in(:,:)       = 0._r8
+    this%leaf_fines_in(:)     = 0._r8
+    this%root_fines_in(:,:)   = 0._r8
+    this%seed_in_local(:)     = 0._r8
+    this%seed_in_extern(:)    = 0._r8
 
-    this%ag_cwd_frag(:)        = 0._r8
-    this%bg_cwd_frag(:,:)      = 0._r8
+    this%ag_cwd_frag(:)       = 0._r8
+    this%bg_cwd_frag(:,:)     = 0._r8
     this%leaf_fines_frag(:)   = 0._r8
     this%root_fines_frag(:,:) = 0._r8
     
-    this%ag_cwd_burn(:)        = 0._r8
-    this%bg_cwd_burn(:,:)      = 0._r8
+    this%ag_cwd_burn(:)       = 0._r8
+    this%bg_cwd_burn(:,:)     = 0._r8
     this%leaf_fines_burn(:)   = 0._r8
     this%root_fines_burn(:,:) = 0._r8
 
     this%seed_germ(:)         = 0._r8
     this%seed_decay(:)        = 0._r8
 
-    this%exported = 0._r8
+    this%exported             = 0._r8
     
     return
   end subroutine ZeroFlux

@@ -5,6 +5,8 @@ module SFParamsMod
    use FatesConstantsMod , only: r8 => fates_r8
    use EDtypesMod        , only: NFSC,NCWD
    use FatesParametersInterface, only : param_string_length
+   use FatesGlobals,   only : fates_log
+   use FatesGlobals,   only : endrun => fates_endrun
 
    implicit none
    save
@@ -56,8 +58,12 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_mid_moisture_Coeff = "fates_mid_moisture_Coeff"
    character(len=param_string_length),parameter :: SF_name_mid_moisture_Slope = "fates_mid_moisture_Slope"
 
+   character(len=*), parameter, private :: sourcefile = &
+         __FILE__
+
    public :: SpitFireRegisterParams
    public :: SpitFireReceiveParams
+   public :: SpitFireCheckParams
 
    private :: SpitFireParamsInit
    private :: SpitFireRegisterScalars
@@ -70,6 +76,38 @@ module SFParamsMod
    private :: SpitFireReceiveNFSC
   
 contains
+
+  ! =====================================================================================
+
+  subroutine SpitFireCheckParams(is_master)
+
+     ! ----------------------------------------------------------------------------------
+     !
+     ! This subroutine performs logical checks on user supplied parameters.  It cross
+     ! compares various parameters and will fail if they don't make sense.  
+     ! Examples:
+     ! Decomposition rates should not be less than zero or greater than 1
+     ! -----------------------------------------------------------------------------------
+
+     logical, intent(in) :: is_master    ! Only log if this is the master proc
+
+
+     integer :: c      ! debris type loop counter
+
+     if(.not.is_master) return
+     
+     ! Move these checks to initialization
+     do c = 1,nsfc
+        if ( SF_val_max_decomp(c) < 0._r8 .or. SF_val_max_decomp(c) > 1.0_r8) then
+           write(fates_log(),*) 'Decomposition rates should be >0 and <1'
+           write(fates_log(),*) 'c = ',c,' SF_val_max_decomp(c) = ',SF_val_max_decomp(c)
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+     end do
+
+     return
+  end subroutine SpitFireCheckParams
+
   !-----------------------------------------------------------------------
   subroutine SpitFireParamsInit()
     ! Initialize all parameters to nan to ensure that we get valid
