@@ -175,16 +175,15 @@ contains
                l_degrad = 0._r8
             else
                lmort_direct = 0.0_r8 
-               lmort_collateral = 0.0_r8
-               l_degrad = logging_collateral_frac * adjustment
+               lmort_collateral = 0.0_r8  !!!CDK note: this should really be logging_collateral_frac * adjustment.  keeping as-is for now fr consistency.
+               l_degrad = logging_direct_frac * adjustment
             end if
            
             if (dbh >= logging_dbhmax_infra) then
                lmort_infra      = 0.0_r8
-               l_degrad         = logging_mechanical_frac * adjustment
+               l_degrad         = l_degrad + logging_mechanical_frac * adjustment
             else
                lmort_infra      = logging_mechanical_frac * adjustment
-               l_degrad         = 0.0_r8
             end if
             !damage rates for size class < & > threshold_size need to be specified seperately
 

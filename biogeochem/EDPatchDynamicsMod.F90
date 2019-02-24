@@ -664,14 +664,15 @@ contains
                    if(currentCohort%canopy_layer == 1)then
                       
                       ! calculate the survivorship of disturbed trees because non-harvested
-                      nc%n            = (fractcurrentCohort%l_degrad / (currentCohort%l_degrad + &
-                           currentCohort%lmort_direct + currentCohort%lmort_collateral + currentCohort%lmort_infra) ) * &
-                           currentCohort%n * patch_site_areadis/currentPatch%area
+                      nc%n = currentCohort%n * currentCohort%l_degrad
+                      ! nc%n            = (currentCohort%l_degrad / (currentCohort%l_degrad + &
+                      !      currentCohort%lmort_direct + currentCohort%lmort_collateral + currentCohort%lmort_infra) ) * &
+                      !      currentCohort%n * patch_site_areadis/currentPatch%area
                       
                       ! Reduce counts in the existing/donor patch according to the logging rate
                       currentCohort%n = currentCohort%n * (1.0_r8 - min(1.0_r8,(currentCohort%lmort_direct +    &
                            currentCohort%lmort_collateral + &
-                           currentCohort%lmort_infra)))
+                           currentCohort%lmort_infra + currentCohort%l_degrad)))
 
                       nc%cmort            = currentCohort%cmort
                       nc%hmort            = currentCohort%hmort

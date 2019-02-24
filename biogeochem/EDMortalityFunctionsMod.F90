@@ -197,7 +197,8 @@ contains
     call LoggingMortality_frac(ipft, currentCohort%dbh, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
-                               currentCohort%lmort_infra )
+                               currentCohort%lmort_infra,                        &
+                               currentCohort%l_degrad)
 
     if (currentCohort%canopy_layer > 1)then 
        
