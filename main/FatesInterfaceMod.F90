@@ -22,6 +22,8 @@ module FatesInterfaceMod
    use EDTypesMod          , only : ncwd
    use EDTypesMod          , only : numWaterMem
    use EDTypesMod          , only : numlevsoil_max
+   use EDTypesMod          , only : num_elements
+   use EDTypesMod          , only : element_list
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesConstantsMod   , only : itrue,ifalse
    use FatesGlobals        , only : fates_global_verbose
@@ -35,6 +37,9 @@ module FatesInterfaceMod
    use EDParamsMod         , only : bgc_soil_salinity
    use PRTGenericMod         , only : prt_carbon_allom_hyp
    use PRTGenericMod         , only : prt_cnp_flex_allom_hyp
+   use PRTGenericMod         , only : carbon12_element
+   use PRTGenericMod         , only : nitrogen_element
+   use PRTGenericMod         , only : phosphorus_element
    use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
    !   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
 
@@ -1658,14 +1663,29 @@ contains
    
      ! Initialize the Plant Allocation and Reactive Transport
      ! global functions and mapping tables
+     ! Also associate the elements defined in PARTEH with a list in FATES
+     ! "element_list" is useful because it allows the fates side of the code
+     ! to loop through elements, and call the correct PARTEH interfaces
+     ! automatically.
      
      select case(hlm_parteh_mode)
      case(prt_carbon_allom_hyp)
+
+        num_elements = 1
+        allocate(element_list(num_elements))
+        element_list(1) = carbon12_element
+        
 
         call InitPRTGlobalAllometricCarbon()
 
      case(prt_cnp_flex_allom_hyp)
         
+        num_elements = 3
+        allocate(element_list(num_elements))
+        element_list(1) = carbon12_element
+        element_list(2) = nitrogen_element
+        element_list(3) = phosphorus_element
+
         !call InitPRTGlobalAllometricCNP()
         write(fates_log(),*) 'You specified the allometric CNP mode'
         write(fates_log(),*) 'with relaxed target stoichiometry.'

@@ -890,7 +890,7 @@ contains
   end subroutine average_patch_properties
 
   ! ============================================================================
-  subroutine fire_litter_fluxes(currentSite, cp_target, new_patch_target, patch_site_areadis)
+  subroutine fire_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
     !
     ! !DESCRIPTION:
     !  CWD pool burned by a fire. 
@@ -904,108 +904,157 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(inout), target :: currentSite
-    type(ed_patch_type) , intent(inout), target :: cp_target
-    type(ed_patch_type) , intent(inout), target :: new_patch_target
+    type(ed_patch_type) , intent(inout), target :: currentPatch
+    type(ed_patch_type) , intent(inout), target :: new_patch
     real(r8)            , intent(inout)         :: patch_site_areadis
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type) , pointer :: currentPatch
-    type(ed_patch_type) , pointer :: new_patch
+
     type(ed_cohort_type), pointer :: currentCohort
+
     real(r8) :: bcroot               ! amount of below ground coarse root per cohort  kgC. (goes into CWD_BG)
     real(r8) :: bstem                ! amount of above ground stem biomass per cohort  kgC.(goes into CWG_AG)
     real(r8) :: dead_tree_density    ! no trees killed by fire per m2
     reaL(r8) :: burned_litter        ! amount of each litter pool burned by fire.  kgC/m2/day
-    real(r8) :: burned_leaves       ! amount of tissue consumed by fire for leaves. KgC/individual/day
+    real(r8) :: burned_leaves        ! amount of tissue consumed by fire for leaves. KgC/individual/day
     real(r8) :: leaf_burn_frac       ! fraction of leaves burned 
-    real(r8) :: leaf_c               ! leaf carbon [kg]
-    real(r8) :: fnrt_c               ! fineroot carbon [kg]
-    real(r8) :: sapw_c               ! sapwood carbon [kg]
-    real(r8) :: store_c              ! storage carbon [kg]
-    real(r8) :: struct_c             ! structure carbon [kg]
-    integer  :: c, p 
+    real(r8) :: leaf_m               ! leaf mass [kg]
+    real(r8) :: fnrt_m               ! fineroot mass [kg]
+    real(r8) :: sapw_m               ! sapwood mass [kg]
+    real(r8) :: store_m              ! storage mass [kg]
+    real(r8) :: struct_m             ! structure mass [kg]
+    real(r8) :: rootfr(numlevsoil_max) ! Fractional root mass profile
+    integer  :: c, pft
     !---------------------------------------------------------------------
 
-    !check that total area is not exceeded. 
-    currentPatch => cp_target
-    new_patch => new_patch_target
 
     if ( currentPatch%fire  ==  1 ) then !only do this if there was a fire in this actual patch. 
-       patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate ! how much land is disturbed in this donor patch? 
 
-       !************************************/ 
-       !PART 1)  Burn the fractions of existing litter in the new patch that were consumed by the fire. 
-       !************************************/ 
-       do c = 1,ncwd
-          burned_litter = new_patch%cwd_ag(c) * patch_site_areadis/new_patch%area * &
-                currentPatch%burnt_frac_litter(c+1) !kG/m2/day
-          new_patch%cwd_ag(c) = new_patch%cwd_ag(c) - burned_litter
-          currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
-          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + &
-                burned_litter * new_patch%area !kG/site/day
-       enddo
+       ! how much land is disturbed in this donor patch? 
+       patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
+       
 
-       do p = 1,numpft
-          burned_litter = new_patch%leaf_litter(p) * patch_site_areadis/new_patch%area * &
-                currentPatch%burnt_frac_litter(dl_sf)
-          new_patch%leaf_litter(p) = new_patch%leaf_litter(p) - burned_litter
-          currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
-          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + &
-                burned_litter * new_patch%area !kG/site/day
-      enddo
+       if (hlm_use_planthydro == itrue) then
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort))
+             dead_tree_density  = (currentCohort%fire_mort * &
+                                   currentCohort%n*patch_site_areadis/currentPatch%area) / area
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_tree_density*AREA)
+          end do
+       end if
 
-       !************************************/     
-       !PART 2) Put unburned parts of plants that died in the fire into the litter pool of new and old patches 
-       ! This happens BEFORE the plant numbers have been updated. So we are working with the 
-       ! pre-fire population of plants, which is the right way round. 
-       !************************************/ 
-       currentCohort => currentPatch%shortest
-       do while(associated(currentCohort))
-          p = currentCohort%pft
+       ! --------------------------------------------------------------------------------
+       ! PART 1)  Burn the fractions of existing litter in the new patch that were 
+       !          consumed by the fire. Update the litter pools.
+       !
+       ! 
+       ! Also, tally up site-level export fluxes  [kg/site/day]
+       !
+       ! The site_mass%flux_out structure is used for checking mass balances 
+       ! intermittently through the dynamics call
+       !
+       ! The site_mass%burn_flux_to_atm stucture is used for checking the 
+       ! long-term error accumulations diagnostics, and for passing mass back to 
+       ! the calling model
+       ! --------------------------------------------------------------------------------
 
-          if(EDPftvarcon_inst%woody(p) == 1)then !DEAD (FROM FIRE) TREES
-             !************************************/ 
-             ! Number of trees that died because of the fire, per m2 of ground. 
-             ! Divide their litter into the four litter streams, and spread evenly across ground surface. 
-             !************************************/  
+       do il = 1,num_elements
+          
+          elemend_id = element_list(il)
+          site_mass => currentSite%mass_balance(il)
+          curr_litt => currentPatch%litter(il)   ! Litter pool of "current" patch
+          new_litt  => new_patch%litter(il)      ! Litter pool of "new" patch
 
-             sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-             struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-             leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
-             store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
+          
+          do c = 1,ncwd
              
-             ! stem biomass per tree
-             bstem  = (sapw_c + struct_c) * EDPftvarcon_inst%allom_agb_frac(p)
-             ! coarse root biomass per tree
-             bcroot = (sapw_c + struct_c) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p) )
-             ! density of dead trees per m2. 
-             dead_tree_density  = (currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area) / AREA  
+             ! Mass of burned CWD litter [kg/m2]
+             burned_litter = new_litt%ag_cwd(c) * &
+                             patch_site_areadis/new_patch%area * &
+                             currentPatch%burnt_frac_litter(c+1)
              
-             if( hlm_use_planthydro == itrue ) then
-                call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_tree_density*AREA)
-             end if
-
-             ! Unburned parts of dead tree pool. 
-             ! Unburned leaves and roots    
+             new_litt%ag_cwd(c)         = new_litt%ag_cwd(c) - burned_litter
+             site_mass%flux_out         = site_mass%flux_out + burned_litter * new_patch%area
+             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + &
+                                          burned_litter * new_patch%area
+          enddo
+          
+          do pft = 1,numpft
              
-             new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + dead_tree_density * leaf_c * (1.0_r8-currentCohort%fraction_crown_burned)
+             ! Mass of burned leaf litter [kg/m2]
+             burned_litter = new_litt%leaf_litter(pft) * &
+                             patch_site_areadis/new_patch%area * &
+                             currentPatch%burnt_frac_litter(dl_sf)
 
-             new_patch%root_litter(p) = new_patch%root_litter(p) + dead_tree_density * (fnrt_c+store_c)
+             new_litt%leaf_fines(pft)   = new_litt%leaf_fines(pft) - burned_litter
+             site_mass%flux_out         = site_mass%flux_out + burned_litter * new_patch%area
+             site_mass%burn_flux_to_atm = site_mass%total_burn_flux_to_atm + &
+                                          burned_litter * new_patch%area
+          enddo
+          
+          ! -----------------------------------------------------------------------------
+          ! PART 2) Put unburned parts of plants that died in the fire into the litter 
+          ! pool of new and old patches. This happens BEFORE the plant numbers have been 
+          ! updated. So we are working with the pre-fire population of plants, which is 
+          ! the right way round. 
+          ! ------------------------------------------------------------------------------
 
-             currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + dead_tree_density * &
-                   leaf_c * (1.0_r8-currentCohort%fraction_crown_burned)
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort))
+             pft = currentCohort%pft
+             
+             if(EDPftvarcon_inst%woody(pft) == 1) then !DEAD (FROM FIRE) TREES
+                
+                ! Number of trees that died because of the fire, per m2 of ground. 
+                ! Divide their litter into the four litter streams, and spread 
+                ! evenly across ground surface. 
+                ! -----------------------------------------------------------------------
+                
+                sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
+                struct_m = currentCohort%prt%GetState(struct_organ, element_id)
+                leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
+                fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
+                store_m  = currentCohort%prt%GetState(store_organ, element_id)
+             
+                ! stem biomass per tree
+                bstem  = (sapw_m + struct_m) * EDPftvarcon_inst%allom_agb_frac(p)
+                ! coarse root biomass per tree
+                bcroot = (sapw_m + struct_m) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p) )
+                ! density of dead trees per m2. 
+                dead_tree_density  = (currentCohort%fire_mort * &
+                                      currentCohort%n*patch_site_areadis/currentPatch%area) / area
+                
+                ! Unburned parts of dead tree pool. 
+                ! Unburned leaves and roots    
+                
+                ! Update leaf litter in new patch
+                new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + dead_tree_density * &
+                     leaf_m * (1.0_r8-currentCohort%fraction_crown_burned)
+
+                ! Update leaf litter in donor patch
+                curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + dead_tree_density * &
+                     leaf_m * (1.0_r8-currentCohort%fraction_crown_burned)
+
+
+                rootfr(:)     = 0._r8
+                call set_root_fraction(rootfr(1:numlevsoil), pft, &
+                             bc_in%zi_sisl, lowerb=lbound(bc_in%zi_sisl,1), &
+                             icontext=i_biomass_rootprof_context)
+                
+                new_litt%root_fines(pft,:) = new_litt%root_fines(pft,:) + dead_tree_density * (fnrt_m+store_m)
+                
+                
 
              currentPatch%root_litter(p) = currentPatch%root_litter(p) + dead_tree_density * &
-                  (fnrt_c + store_c)
+                  (fnrt_m + store_m)
 
              ! track as diagnostic fluxes
              currentSite%leaf_litter_diagnostic_input_carbonflux(p) = currentSite%leaf_litter_diagnostic_input_carbonflux(p) + &
-                  leaf_c * (1.0_r8-currentCohort%fraction_crown_burned) * currentCohort%fire_mort * currentCohort%n * &
+                  leaf_m * (1.0_r8-currentCohort%fraction_crown_burned) * currentCohort%fire_mort * currentCohort%n * &
                   hlm_days_per_year / AREA
 
              currentSite%root_litter_diagnostic_input_carbonflux(p) = currentSite%root_litter_diagnostic_input_carbonflux(p) + &
-                  (fnrt_c + store_c) * (1.0_r8-currentCohort%fraction_crown_burned) * currentCohort%fire_mort * &
+                  (fnrt_m + store_m) * (1.0_r8-currentCohort%fraction_crown_burned) * currentCohort%fire_mort * &
                   currentCohort%n * hlm_days_per_year / AREA
       
              ! below ground coarse woody debris from burned trees
@@ -1085,22 +1134,22 @@ contains
        currentCohort => new_patch%shortest
        do while(associated(currentCohort))
 
-          sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
+          leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
 
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
 
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-             burned_leaves = leaf_c * currentCohort%fraction_crown_burned
+             burned_leaves = leaf_m * currentCohort%fraction_crown_burned
           else
-             burned_leaves = leaf_c * currentPatch%burnt_frac_litter(6)
+             burned_leaves = leaf_m * currentPatch%burnt_frac_litter(6)
           endif
 
           if (burned_leaves > 0.0_r8) then
 
              ! Remove burned leaves from the pool
-             if(leaf_c>nearzero) then
-                leaf_burn_frac = burned_leaves/leaf_c
+             if(leaf_m>nearzero) then
+                leaf_burn_frac = burned_leaves/leaf_m
              else
                 leaf_burn_frac = 0.0_r8
              end if

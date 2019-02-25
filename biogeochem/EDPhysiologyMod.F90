@@ -39,6 +39,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
   use EDTypesMod          , only : min_n_safemath
+  use EDTypesMod          , only : num_elements
 
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
@@ -141,7 +142,7 @@ contains
 
   ! ============================================================================
 
-  subroutine LitterFluxes( currentSite, currentPatch, bc_in )
+  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in )
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -171,7 +172,7 @@ contains
     call fragmentation_scaler(currentPatch, bc_in)
 
 
-    do il = 1, size(currentPatch%litter,dim=1)
+    do il = 1, num_elements
        
        litt => currentPatch%litter(il)
 
@@ -196,81 +197,89 @@ contains
      
      
     return
-  end subroutine LitterFluxes
+  end subroutine PreDisturbanceLitterFluxes
 
   ! =====================================================================================
 
-  subroutine IntegrateLitter()
+  subroutine PreDisturbanceIntegrateLitter(currentPatch)
 
-     
+    ! -----------------------------------------------------------------------------------
+    !
+    ! This step applies the litter fluxes to the prognostic state variables. 
+    ! This procedure is called in response to fluxes generated from:
+    ! 1) seed rain, 
+    ! 2) non-disturbance generating turnover
+    ! 3) litter fall from living plants
+    ! 4) fragmentation
+    !
+    ! This routine does NOT accomodate the litter fluxes associated with 
+    ! disturbance generation.  That will happen after this call.
+    ! Fluxes associated with FIRE also happen after this step.
+    !
+    ! All states are in units kg/m2
+    ! All fluxes are in units kg/m2/day
+    ! The integration step is 1 day, thus time is implied
+    !
+    ! -----------------------------------------------------------------------------------
+
+    ! Arguments
+    type(ed_patch_type),intent(inout),target :: currentPatch
 
 
-     do p = 1,numpft
-        currentSite%dseed_dt(p) = currentSite%dseed_dt(p) + &
-              (currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - &
-              currentPatch%seed_germination(p)) * currentPatch%area/AREA
-     enddo
-     
-     do c = 1,ncwd
-        currentPatch%dcwd_AG_dt(c) = currentPatch%cwd_AG_in(c) - currentPatch%cwd_AG_out(c) 
-        currentPatch%dcwd_BG_dt(c) = currentPatch%cwd_BG_in(c) - currentPatch%cwd_BG_out(c) 
-     enddo
-     
-     do p = 1,numpft
-        currentPatch%dleaf_litter_dt(p) = currentPatch%leaf_litter_in(p) - &
-              currentPatch%leaf_litter_out(p) 
-        currentPatch%droot_litter_dt(p) = currentPatch%root_litter_in(p) - &
-              currentPatch%root_litter_out(p) 
-     enddo
+    ! Locals
+    type(litt_vartype), pointer :: litt 
+    integer :: il          ! Loop counter for litter element type
+    integer :: pft         ! pft loop counter
+    integer :: c           ! CWD loop counter
 
-     ! first update the litter variables that are tracked at the patch level
+
+    do il = 1, num_elements
+       
+       litt => currentPatch%litter(il)
+       
+       
+       ! Update the bank of viable seeds
+       ! -----------------------------------------------------------------------------------
+       
+       do pft = 1,numpft
+          litt%seed(pft) = litt%seed(pft) &
+               + litt%seed_in_local(pft)  &
+               + litt%seed_in_extern(pft) &
+               - litt%seed_decay(pft)     &
+               - litt%seed_germination(pft)
+       enddo
+       
+       ! Update the Coarse Woody Debris pools (above and below)
+       ! -----------------------------------------------------------------------------------
+       
        do c = 1,ncwd
-          currentPatch%cwd_ag(c) =  currentPatch%cwd_ag(c) + currentPatch%dcwd_ag_dt(c)* hlm_freq_day
-          currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* hlm_freq_day
+          litt%ag_cwd(c) = litt%ag_cwd(c)  + litt%ag_cwd_in(c) - litt%ag_cwd_frag(c)
+          litt%bg_cwd(c,:) =  currentPatch%bg_cwd(c,:) &
+            + litt%bg_cwd_in(c,:) &
+            - litt%bg_cwd_frac(c,:)
        enddo
-
-       do ft = 1,numpft
-          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* hlm_freq_day
-          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* hlm_freq_day
+    
+       ! Update the fine litter pools from leaves and fine-roots
+       ! -----------------------------------------------------------------------------------
+       
+       do pft = 1,numpft
+          litt%leaf_fines(pft) = litt%leaf_fines(pft) &
+               + litt%leaf_fines_in(pft)              &
+               - litt%leaf_fines_frag(pft)
+          litt%root_fines(pft,:) = litt%root_fines(pft,:) &
+               + litt%root_fines_in(pft,:)                &
+               - litt%root_fines_frag(pft,:)
        enddo
-
-       do c = 1,ncwd
-          if(currentPatch%cwd_ag(c)<-nearzero)then
-             write(fates_log(),*) 'negative CWD_AG', currentPatch%cwd_ag(c),CurrentSite%lat,currentSite%lon
-             write(fates_log(),*) 'aborting'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          endif
-          if(currentPatch%cwd_bg(c)<-nearzero)then
-             write(fates_log(),*) 'negative CWD_BG', currentPatch%cwd_bg(c),CurrentSite%lat,CurrentSite%lon
-             write(fates_log(),*) 'aborting'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          endif
-       enddo
-
-       do ft = 1,numpft
-          if(currentPatch%leaf_litter(ft)<small_no)then
-            write(fates_log(),*) 'negative leaf litter numerical error', &
-                  currentPatch%leaf_litter(ft),CurrentSite%lat,CurrentSite%lon,&
-            currentPatch%dleaf_litter_dt(ft),currentPatch%leaf_litter_in(ft), &
-            currentPatch%leaf_litter_out(ft),currentpatch%age
-            currentPatch%leaf_litter(ft) = small_no
-          endif
-          if(currentPatch%root_litter(ft)<small_no)then
-               write(fates_log(),*) 'negative root litter numerical error', currentPatch%root_litter(ft), &
-               currentPatch%droot_litter_dt(ft)* hlm_freq_day, &
-               CurrentSite%lat,CurrentSite%lon
-            currentPatch%root_litter(ft) = small_no
-          endif
-       enddo
+       
+    end do     ! litter element loop
+       
+    return
+  end subroutine PreDisturbanceIntegrateLitter
 
 
-
-  end subroutine IntegrateLitter
-
-
-
-
+       
   ! ============================================================================
+
   subroutine trim_canopy( currentSite )
     !
     ! !DESCRIPTION:
@@ -903,9 +912,7 @@ contains
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
     !------------------------------------------------------------------------------------
 
-    n_litt_types = size(currentSite%oldest_patch%litter,dim=1)
-    
-    do il = 1, n_litt_types
+    do il = 1, num_elements
        
        site_seed_rain(:) = 0._r8
        
@@ -1068,6 +1075,7 @@ contains
     ! !LOCAL VARIABLES:
     integer :: ft
     type (ed_cohort_type) , pointer :: temp_cohort
+    type (litter_type), pointer     :: litt          ! The litter object (carbon right now)
     integer :: cohortstatus
     integer,parameter :: recruitstatus = 1 !weather it the new created cohorts is recruited or initialized
     real(r8) :: b_leaf
@@ -1120,9 +1128,11 @@ contains
           cohortstatus = leaves_off
        endif
 
+       ! This is somewhat (hacky), carbon12_element is index 1
+       litt => currentPatch%litter(carbon12_element)
 
        if (hlm_use_ed_prescribed_phys .eq. ifalse .or. EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0. ) then
-          temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
+          temp_cohort%n           = currentPatch%area * litt%seed_germ(ft) &
                / (b_dead+b_leaf+b_fineroot+b_sapwood+b_store)
        else
           ! prescribed recruitment rates. number per sq. meter per year
@@ -1151,7 +1161,7 @@ contains
           if (hlm_use_ed_prescribed_phys .ne. ifalse .and. EDPftvarcon_inst%prescribed_recruitment(ft) .ge. 0. ) then
              currentSite%flux_in = currentSite%flux_in + temp_cohort%n * &
                   (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
-             currentSite%flux_out = currentSite%flux_out + currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day
+             currentSite%flux_out = currentSite%flux_out + currentPatch%area * litt%seed_germ(ft)
           endif
 
        endif

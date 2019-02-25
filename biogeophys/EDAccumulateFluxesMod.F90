@@ -84,17 +84,10 @@ contains
                 ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
                 ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
                 
-                !----- THE FOLLOWING IS ONLY IMPLEMENTED TEMPORARILY FOR B4B reproducibility
-                !----- ALSO, THERE IS NO REASON TO USE THE ISNEW FLAG HERE
-                if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
-                   n_perm2   = ccohort%n/AREA
-                else
-                   n_perm2   = 0.0_r8
-                endif
-                if ( .not. ccohort%isnew ) then
-                   sites(s)%npp = sites(s)%npp + ccohort%npp_tstep * n_perm2 * 1.e3_r8 / dt_time
-                endif
-
+                n_perm2      = ccohort%n/AREA
+                
+                sites(s)%npp = sites(s)%npp + ccohort%npp_tstep * n_perm2 * 1.e3_r8 / dt_time
+                
                 do iv=1,ccohort%nv
                    if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
                       ccohort%year_net_uptake(iv) = 0._r8

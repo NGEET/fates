@@ -87,6 +87,7 @@ contains
     allocate(site_in%fmort_rate_cambial(1:nlevsclass,1:numpft))
     allocate(site_in%fmort_rate_crown(1:nlevsclass,1:numpft))
     allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
+    allocate(site_in%mass_balance(1:num_elements))
 
     !
     end subroutine init_site_vars

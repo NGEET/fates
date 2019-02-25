@@ -16,6 +16,15 @@ module FatesLittMod
   ! soil-biogeochemical model (NOT FATES) to handle decomposition.
   ! -------------------------------------------------------------------------------------
 
+
+   ! To-do:
+   ! 0) Update the initialization sequence to use
+   !    the array style, and also set the element_id
+   ! 1) Add the state integration step
+   ! 2) Evaluate how we are handling disturbance
+   ! 3) Add root fraction variable to each cohort?
+
+
    
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : i4 => fates_int
@@ -66,12 +75,15 @@ module FatesLittMod
       real(r8),allocatable ::  leaf_fines_frag(:)    ! kg/m2/day
       real(r8),allocatable ::  root_fines_frag(:,:)  ! kg/m2/day
 
-      ! Fluxes out - burned
-
-      real(r8)             ::  ag_cwd_burn(ncwd)     ! kg/m2/day
-      real(r8),allocatable ::  bg_cwd_burn(:,:)      ! kg/m2/day
-      real(r8),allocatable ::  leaf_fines_burn(:)    ! kg/m2/day
-      real(r8),allocatable ::  root_fines_burn(:,:)  ! kg/m2/day
+      ! Fluxes out from burning are not tracked here
+      ! because this process changes the size of the patch
+      ! as well, and the unit fluxes that would be tracked
+      ! here are convoluted
+      
+      !real(r8)             ::  ag_cwd_burn_atm(ncwd)     ! kg/m2/day
+      !real(r8),allocatable ::  bg_cwd_burn_atm(:,:)      ! kg/m2/day
+      !real(r8),allocatable ::  leaf_fines_burn_atm(:)    ! kg/m2/day
+      !real(r8),allocatable ::  root_fines_burn_atm(:,:)  ! kg/m2/day
 
 
       ! Fluxes out - germination
