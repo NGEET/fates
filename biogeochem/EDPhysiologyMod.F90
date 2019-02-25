@@ -916,6 +916,8 @@ contains
        
        site_seed_rain(:) = 0._r8
        
+       site_mass => currentSite%mass_balance(il)
+
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
@@ -958,7 +960,25 @@ contains
        
        ! Loop over all patches again and disperse the mixed seeds into the input flux
        ! arrays 
-       
+
+       ! If there is forced external seed rain, we calculate the input mass flux
+       ! from the different elements, usung the seed optimal stoichiometry
+       ! for non-carbon
+       select case(element_id)
+       case(carbon12_element)
+          seed_stoich = 1._r8
+       case(nitrogen_element)
+          seed_stoich = EDPftvarcon_inst%prt_nitr_stoich_p2(pft,repro_organ)
+       case(phosphorus_element)
+          seed_stoich = EDPftvarcon_inst%prt_phos_stoich_p2(pft,repro_organ)
+       case default
+          write(fates_log(), *) 'undefined element specified'
+          write(fates_log(), *) 'while defining forced external seed mass flux'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end select
+          
+          
+
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
@@ -969,8 +989,13 @@ contains
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
              
              ! Seed input from external sources (user param seed rain, or dispersal model)
-             litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + &
-                   EDPftvarcon_inst%seed_rain(pft)/days_per_year
+             
+             seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_rain(pft)/days_per_year
+ 
+             litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
+
+             site_mass%seed_influx = site_mass%seed_influx + seed_in_external
+
           enddo
           
           
@@ -1375,17 +1400,6 @@ contains
                  EDPftvarcon_inst%allom_agb_frac(pft)
 
          end if
-         
-         if( (element_id .eq. all_carbon_elements) .or. &
-                (element_id .eq. carbon12_element) ) then
-
-            
-         end if
-         
-         if (litt%ag_cwd_in(c) < 0.0_r8)then
-            write(fates_log(),*) 'negative CWD in flux',litt%ag_cwd_in(c), &
-                  (struct_m + sapw_m), dead_n
-         endif
          
       end do
 

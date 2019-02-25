@@ -105,9 +105,6 @@ contains
             currentPatch => currentPatch%younger
          end do ! patch loop
          
-         ! calculate NEP and NBP fluxes
-         site_mass%nep = site_mass%npp - bc_in(s)%tot_het_resp
-         site_mass%nbp = site_mass%npp - ( bc_in(s)%tot_het_resp + site_mass%fire_c_to_atm )
          
          ! FATES stocks
          site_mass%totfatesc = site_mass%ed_litter_stock + site_mass%cwd_stock + &
@@ -190,7 +187,6 @@ contains
             sites(s)%totecosysc_old       = sites(s)%totecosysc
             sites(s)%totfatesc_old        = sites(s)%totfatesc
             sites(s)%totbgcc_old          = sites(s)%totbgcc
-            sites(s)%nep_timeintegrated   = 0._r8
             sites(s)%hr_timeintegrated    = 0._r8
             sites(s)%npp_timeintegrated   = 0._r8
             !
@@ -205,7 +201,6 @@ contains
       endif
       
       do s = 1,nsites
-         sites(s)%nep_timeintegrated = sites(s)%nep_timeintegrated + sites(s)%nep * dtime
          sites(s)%hr_timeintegrated  = sites(s)%hr_timeintegrated  + bc_in(s)%tot_het_resp * dtime
          sites(s)%npp_timeintegrated = sites(s)%npp_timeintegrated + sites(s)%npp * dtime
       end do
@@ -218,16 +213,32 @@ contains
          
             do s = 1,nsites
                
-               ! NBP can only be updated when dynamics level information is available
-               sites(s)%nbp_integrated  = sites(s)%nep_timeintegrated - &
-                    sites(s)%fire_c_to_atm * SHR_CONST_CDAY + &
-                    sites(s)%tot_seed_rain_flux * SHR_CONST_CDAY
-
-               site_mass%ingr_flux_in_fates = site_mass%ingr_flux_in_fates &
-                    + 
-               
-               
                site_mass => sites(s)%mass_balance(il)
+               
+               if(element_list(il) .eq. carbon12_type) then
+                  
+                  site_mass%flux_in_fates = sites(s)%npp_timeintegrated
+
+               else
+                  write(fates_log(),*) 'Please add daily integrated nutrient fluxes'
+                  write(fates_log(),*) 'to the site level input mass balance'
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
+                  
+               ! Add in litter input fluxes
+               currentPatch => sites(s)%oldest_patch 
+               do while(associated(currentPatch))
+                  litt => currentPatch%litter(il)
+                  ! kg/day
+                  site_mass%flux_in_fates = site_mass%flux_in_fates + &
+                        sum(litt%seed_in_extern(:),dim=1)*currentPatch%area
+                  currentPatch => currentPatch%younger
+               end do
+                     
+               site_mass%flux_out_fates = 
+               site_mass%flux_out_fates = sites(s)%fates_to_bgc_this_ts*SHR_CONST_CDAY
+               
+               
                
                ! "err_fates", the total mass discrepancy between the change
                !              in the total stock from one day to the next, and
@@ -235,7 +246,7 @@ contains
                !              over the course of that day
 
                site_mass%err_fates = &
-                    (site_mass%stock_fates - site_mass%stock_fates_old)  & ! This is the change in total stock
+                    (site_mass%stock_fates - site_mass%old_stock_fates)  & ! This is the change in total stock
                     + site_mass%intgr_flux_in_fates &
                     - site_mass%intgr_flux_out_fates
                
@@ -268,7 +279,6 @@ contains
             sites(s)%totecosysc_old = sites(s)%totecosysc
             sites(s)%totfatesc_old  = sites(s)%totfatesc
             sites(s)%totbgcc_old    = sites(s)%totbgcc
-            sites(s)%nep_timeintegrated = 0._r8
             sites(s)%npp_timeintegrated = 0._r8
             sites(s)%hr_timeintegrated = 0._r8
 

@@ -542,6 +542,7 @@ module EDTypesMod
      ! loosing or creating mass from one timestep to the next.
      ! This type is supposed to be allocated for each element we simulate 
      ! (e.g. carbon12_element, etc)
+     ! Note that the unit of "site", is nominally equivalent to 1 hectare
      ! ----------------------------------------------------------------------------------
 
 
@@ -553,24 +554,38 @@ module EDTypesMod
      real(r8) :: old_stock ! remember biomass stock from last time  [Kg/site]
 
 
-     ! Group 2: These assess total error accumulated as the simulation persists
+     ! Group 2: Total error accumulated as the simulation persists
      
-     real(r8) :: cbal_err_fates      ! Total mass balance error for FATES processes     [g/m2/s]
-     real(r8) :: cbal_err_bgc        ! Total mass balance error for BGC (HLM) processes [g/m2/s]
-     real(r8) :: cbal_err_tot        ! Total mass balance error for all land processes  [g/m2/s]
+     real(r8) :: err_fates      ! Total mass balance error for FATES processes     [kg/site]
+     real(r8) :: err_bgc        ! Total mass balance error for BGC (HLM) processes [kg/site]
+     real(r8) :: err_tot        ! Total mass balance error for all land processes  [kg/site]
 
-     real(r8) :: totfates_stock_old  ! Total FATES mass at the site from last call to balance check     [g/m2]
-     real(r8) :: totbgc_stock_old    ! Total BGC mass at the site from last call to balance check       [g/m2] 
-     real(r8) :: totecosys_stock_old ! Total ecosystem mass at the site from last call to balance check [g/m2]
+     real(r8) :: stock_fates     ! Total FATES mass at the site during current balance check     [kg/site]
+     real(r8) :: stock_bgc       ! Total BGC mass at the site during current balance check       [kg/site] 
+     real(r8) :: stock_toteco    ! Total ecosystem mass at the site during current balance check [kg/site]
+     
+     real(r8) :: old_stock_fates     ! Total FATES mass at the site from last call to balance check     [kg/site]
+     real(r8) :: old_stock_bgc       ! Total BGC mass at the site from last call to balance check       [kg/site] 
+     real(r8) :: old_stock_toteco    ! Total ecosystem mass at the site from last call to balance check [kg/site]
+
+     real(r8) :: flux_in_fates       ! Total mass flux into fates from all external sources   [kg/site/day]
+     real(r8) :: flux_out_fates      ! Total mass flux out of fates to all externals    
+                                     ! (bgc model, atm, human-dimension,etc)                  [kg/site/day]
+     
+
+     ! Group 3: Sub-components of the total site level mass fluxes
+
+     real(r8) :: seed_influx      ! Total mass of external seed rain into fates site [kg/site/day]
+     real(r8) :: seed_outflux     ! Total mass of seeds exported outside of fates site [kg/site/day]
+                                  ! (this is not used currently, placeholder, rgk feb-2019)
+
+     real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
 
 
-
-
-     real(r8) :: tot_seed_rain_flux ! [gC/m2/s] total flux of carbon from seed rain
-     real(r8) :: fire_c_to_atm      ! total fire carbon loss to atmosphere [gC/m2/s]
-     real(r8) :: ed_litter_stock    ! litter in [gC/m2]
-     real(r8) :: cwd_stock          ! coarse woody debris [gC/m2]
-     real(r8) :: biomass_stock      ! total biomass at the column level in [gC / m2]
+     !real(r8) :: ed_litter_stock    ! litter in [gC/m2]
+     !real(r8) :: cwd_stock          ! coarse woody debris [gC/m2]
+     !real(r8) :: biomass_stock      ! total biomass at the column level in [gC / m2]
+     
      real(r8) :: totfatesc          ! Total FATES carbon at the site, including vegetation, CWD, seeds, 
                                     ! and FATES portion of litter [gC/m2] 
      real(r8) :: totbgcc            ! Total BGC carbon at the site, including litter, and soil pools [gC/m2] 
@@ -586,7 +601,7 @@ module EDTypesMod
      real(r8) :: cbal_err_bgc                                 ! [gC/m2/s]  total carbon balance error for BGC (HLM) processes
      real(r8) :: cbal_err_tot                                 ! [gC/m2/s]  total carbon balance error for all land processes
 
-  end type mass_balance
+  end type site_mass_balance_type
 
 
 
@@ -620,10 +635,8 @@ module EDTypesMod
                                     ! integrates to total carbon change [gC/m2/s]
 
 
-     real(r8) :: nep_timeintegrated                           ! Net ecosystem production accumulated over model time-steps [gC/m2]
-     real(r8) :: hr_timeintegrated                            ! Heterotrophic respiration accumulated over model time-steps [gC/m2]
-     real(r8) :: npp_timeintegrated                           ! Net primary production accumulated over model time-steps [gC/m2]
-     real(r8) :: nbp_integrated                               ! Net biosphere production accumulated over model time-steps [gC/m2]
+     real(r8) :: hr_timeintegrated        ! Heterotrophic respiration accumulated over model time-steps [kgC/site]
+     real(r8) :: npp_timeintegrated       ! Net primary production accumulated over model time-steps [kgC/site]
 
 
      ! PHENOLOGY 

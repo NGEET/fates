@@ -23,7 +23,10 @@ module FatesLittMod
    ! 1) Add the state integration step
    ! 2) Evaluate how we are handling disturbance
    ! 3) Add root fraction variable to each cohort?
-
+   ! 4) Tracking site level mass balances, where should the new litter structure 
+   !    help in tracking that sort of thing? 
+   ! 5) Add a routine that performs all of the site-level mass balance
+   !    integrations from daily sources?
 
    
    use FatesConstantsMod, only : r8 => fates_r8
