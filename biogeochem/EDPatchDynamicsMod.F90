@@ -145,7 +145,7 @@ contains
           currentCohort%hmort = hmort
           currentCohort%frmort = frmort
 
-          call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, &
+          call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
                 lmort_direct,lmort_collateral,lmort_infra,l_degrad )
          
           currentCohort%lmort_direct    = lmort_direct
@@ -190,7 +190,8 @@ contains
                                currentCohort%c_area/currentPatch%area
              
              ! Non-harvested part of the logging disturbance rate
-             dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + currentCohort%l_degrad * currentCohort%c_area/currentPatch%area
+             dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + currentCohort%l_degrad * &
+                  currentCohort%c_area/currentPatch%area
              
           endif
           currentCohort => currentCohort%taller
@@ -198,7 +199,8 @@ contains
 
        ! fraction of the logging disturbance rate that is non-harvested
        if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
-          currentPatch%fract_ldist_not_harvested = dist_rate_ldist_notharvested / currentPatch%disturbance_rates(dtype_ilog)
+          currentPatch%fract_ldist_not_harvested = dist_rate_ldist_notharvested / &
+               currentPatch%disturbance_rates(dtype_ilog)
        endif
 
        ! Fire Disturbance Rate

@@ -151,11 +151,13 @@ contains
 
    ! ======================================================================================
 
-   subroutine LoggingMortality_frac( pft_i, dbh, lmort_direct,lmort_collateral,lmort_infra,l_degrad )
+   subroutine LoggingMortality_frac( pft_i, dbh, canopy_layer, lmort_direct, &
+        lmort_collateral, lmort_infra, l_degrad )
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
+      integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
@@ -171,11 +173,9 @@ contains
 
             if (dbh >= logging_dbhmin ) then
                lmort_direct = logging_direct_frac * adjustment
-               lmort_collateral = logging_collateral_frac * adjustment
                l_degrad = 0._r8
             else
                lmort_direct = 0.0_r8 
-               lmort_collateral = 0.0_r8  !!!CDK note: this should really be logging_collateral_frac * adjustment.  keeping as-is for now fr consistency.
                l_degrad = logging_direct_frac * adjustment
             end if
            
@@ -187,8 +187,11 @@ contains
             end if
             !damage rates for size class < & > threshold_size need to be specified seperately
 
-            ! Collateral damage to smaller plants below the direct logging size threshold
+            ! Collateral damage to smaller plants below the canopy layer
             ! will be applied via "understory_death" via the disturbance algorithm
+            if (canopy_layer .eq. 1) then
+               lmort_collateral = logging_collateral_frac * adjustment
+            endif
 
          else
             lmort_direct    = 0.0_r8
