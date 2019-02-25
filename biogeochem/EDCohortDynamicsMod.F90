@@ -494,6 +494,9 @@ contains
     currentCohort%resp_acc_hold      = nan ! RESP: kgC/indiv/year
     currentCohort%resp_tstep         = nan ! RESP: kgC/indiv/timestep
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
+    
+    currentCohort%c13disc_clm        = nan ! C13 discrimination, per mil at indiv/timestep
+    currentCohort%c13disc_acc        = nan ! C13 discrimination, per mil at indiv/timestep at indiv/daily at the end of a day
 
     !RESPIRATION
     currentCohort%rdark              = nan
@@ -584,6 +587,8 @@ contains
     currentcohort%prom_weight        = 0._r8
     currentcohort%crownfire_mort     = 0._r8
     currentcohort%cambial_mort       = 0._r8
+    currentCohort%c13disc_clm        = 0._r8 
+    currentCohort%c13disc_acc        = 0._r8
     
   end subroutine zero_cohort
 
@@ -930,6 +935,15 @@ contains
                                 
                                 currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                       + nextc%n*nextc%canopy_trim)/newn
+				
+				! c13disc_acc calculation; weighted mean by GPP
+				if ((currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc) .eq. 0.0_r8) then
+				     currentCohort%c13disc_acc = 0.0_r8
+				else  
+				     currentCohort%c13disc_acc = (currentCohort%n * currentCohort%gpp_acc * currentCohort%c13disc_acc +   &
+				     	                          nextc%n * nextc%gpp_acc * nextc%c13disc_acc)/    &
+					                           (currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc)
+				endif				
 
                                 ! -----------------------------------------------------------------
                                 ! If fusion pushed structural biomass to be larger than
@@ -1404,6 +1418,10 @@ contains
     n%resp_acc_hold   = o%resp_acc_hold
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
+
+    ! C13 discrimination
+    n%c13disc_clm   = o%c13disc_clm
+    n%c13disc_acc   = o%c13disc_acc
 
     !RESPIRATION
     n%rdark           = o%rdark
