@@ -535,7 +535,32 @@ module EDTypesMod
   end type ed_resources_management_type
 
 
-  type site_mass_balance_type
+
+
+  type site_masscheck_incr_type
+
+     ! ----------------------------------------------------------------------------------
+     ! This type is used for accounting purposes to ensure that we are not
+     ! loosing or creating mass. This type is supposed to be allocated for each element 
+     ! we simulate (e.g. carbon12_element, etc)
+     ! Note that the unit of "site", is nominally equivalent to 1 hectare
+     !
+     ! This set of mass checks are for INCREMENTAL checks during the dynamics step.
+     ! ----------------------------------------------------------------------------------
+     
+     real(r8) :: flux_in   ! mass enter fates domain                [Kg/site]
+     real(r8) :: flux_out  ! mass leaving fates domain              [Kg/site]
+     real(r8) :: old_stock ! remember biomass stock from last time  [Kg/site]
+
+  contains
+     
+     procedure :: ZeroMassCheckIncrState
+     procedure :: ZeroMassCheckIncrFlux
+     
+  end type site_masscheck_incr_type
+  
+  
+  type site_masscheck_type
 
      ! ----------------------------------------------------------------------------------
      ! This type is used purely for accounting purposes to ensure that we are not
@@ -543,19 +568,11 @@ module EDTypesMod
      ! This type is supposed to be allocated for each element we simulate 
      ! (e.g. carbon12_element, etc)
      ! Note that the unit of "site", is nominally equivalent to 1 hectare
+     ! 
+     ! This set of checks is performed for fates and the bgc model and is a more
+     ! encompasing test performed at the end of the day.
      ! ----------------------------------------------------------------------------------
 
-
-     ! Group 1: These check the mass fluxes error at intermediate points throughout
-     ! the fates dynamics call sequence
-
-     real(r8) :: flux_in   ! mass enter fates domain                [Kg/site]
-     real(r8) :: flux_out  ! mass leaving fates domain              [Kg/site]
-     real(r8) :: old_stock ! remember biomass stock from last time  [Kg/site]
-
-
-     ! Group 2: Total error accumulated as the simulation persists
-     
      real(r8) :: err_fates      ! Total mass balance error for FATES processes     [kg/site]
      real(r8) :: err_bgc        ! Total mass balance error for BGC (HLM) processes [kg/site]
      real(r8) :: err_tot        ! Total mass balance error for all land processes  [kg/site]
@@ -587,10 +604,11 @@ module EDTypesMod
 
    contains
      
-     procedure :: ZeroSiteMassBalance
+     procedure :: ZeroMassCheckState
+     procedure :: ZeroMassCheckFlux
      
      
-  end type site_mass_balance_type
+  end type site_masscheck_type
 
 
 
@@ -629,6 +647,38 @@ module EDTypesMod
     return
   end subroutine ZeroSiteMassBalance
 
+  subroutine ZeroSiteMassBalanceFlux(this)
+
+    class(site_mass_balance_type),intent(inout) :: this
+    
+    this%flux_in    = 0._r8
+    this%flux_out   = 0._r8
+    this%old_stock  = 0._r8
+    
+    this%err_fates  = 0._r8
+    this%err_bgc  = 0._r8
+    this%err_tot  = 0._r8
+
+    this%stock_fates  = 0._r8
+    this%stock_bgc  = 0._r8
+    
+    this%old_stock_fates  = 0._r8
+    this%old_stock_bgc  = 0._r8
+
+    this%flux_fates_to_bgc  = 0._r8
+    this%flux_fates_to_hd  = 0._r8
+    this%flux_fates_to_atm  = 0._r8
+    this%flux_fates_to_usr  = 0._r8
+    this%flux_fates_to_bgc_last  = 0._r8
+    
+    this%seed_influx  = 0._r8
+    this%seed_outflux  = 0._r8
+        
+    this%burn_flux_to_atm  = 0._r8
+
+    return
+  end subroutine ZeroSiteMassBalanceFlux
+  
 
   !************************************
   !** Site type structure           **
