@@ -109,8 +109,6 @@ contains
     site_in%oldest_patch     => null() ! pointer to oldest patch at the site
     site_in%youngest_patch   => null() ! pointer to yngest patch at the site
     
-    ! DISTURBANCE
-    site_in%total_burn_flux_to_atm = 0._r8
 
     ! PHENOLOGY 
     site_in%is_cold          = .false.    ! Is cold deciduous leaf-off triggered?
@@ -133,8 +131,13 @@ contains
     site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
 
     ! BGC Balance Checks
-    site_in%fates_to_bgc_this_ts = 0.0_r8
-    site_in%fates_to_bgc_last_ts = 0.0_r8
+
+    site_in%total_burn_flux_to_atm = 0._r8
+
+    do il=1,num_elements
+       call site_in%mass_balance%ZeroSiteMassBalance()
+    end do
+       
 
     ! termination and recruitment info
     site_in%term_nindivs_canopy(:,:) = 0._r8
@@ -175,7 +178,7 @@ contains
   end subroutine zero_site
 
   ! ============================================================================
-  subroutine set_site_properties( nsites, sites)
+  subroutine set_site_properties( nsites, sites, bc_in)
     !
     ! !DESCRIPTION:
     !
@@ -185,6 +188,8 @@ contains
 
     integer, intent(in)                        :: nsites
     type(ed_site_type) , intent(inout), target :: sites(nsites)
+    type(bc_in_type), intent(in)               :: bc_in(nsites)
+
     !
     ! !LOCAL VARIABLES:
     integer  :: s
@@ -245,12 +250,15 @@ contains
        
        sites(s)%acc_NI     = acc_NI
        sites(s)%frac_burnt = 0.0_r8
-       sites(s)%old_stock  = 0.0_r8
+
+       ! The mass balance accounting variables will be initialized
+       ! after we have initialized a distribution of vegetation
 
     end do
 
     return
   end subroutine set_site_properties
+
 
   ! ============================================================================
   subroutine init_patches( nsites, sites, bc_in)

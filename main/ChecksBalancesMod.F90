@@ -19,9 +19,58 @@ module ChecksBalancesMod
    public :: SummarizeNetFluxes
    public :: FATES_BGC_Carbon_Balancecheck
    public :: SiteCarbonStock
+   public :: InitMassBalanceColdStart
 
 contains
    
+  subroutine InitMassBalanceColdStart(sites,bc_in)
+    
+    ! arguments
+    type(ed_site_type), intent(inout), target :: sites(:)
+    type(bc_in_type), intent(in)              :: bc_in(:)
+
+    ! locals
+    type(mass_balance_type),pointer :: site_mass
+    integer :: il
+    integer :: s
+    
+    do il = 1,num_elements
+
+       do s = 1,size(sites(:),dim=1)
+          
+          site_mass => sites(s)%mass_balance
+          
+          call SiteMassStock(currentSite,il,total_stock,biomass_stock,litter_stock,seed_stock)
+          site_mass%stock_fates     = total_stock
+          site_mass%stock_fates_old = total_stock
+          
+          select case(element_list(il))
+          case(carbon12_type)
+             
+             site_mass%stock_bgc     = bc_in(s)%tot_somc +  bc_in(s)%tot_litc
+             site_mass%stock_bgc_old = site_mass%stock_bgc
+
+          case(nitrogen_type)
+             write(fates_log(),*) 'Initial conditions for BGC nitrogen must be provided'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          case(phosphorus_type)
+             write(fates_log(),*) 'Initial conditions for BGC nitrogen must be provided'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          case default
+             write(fates_log(),*) 'An element type was specified that DNE while'
+             write(fates_log(),*) 'passing in the total mass in the BGC model'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end select
+          
+       end do
+       
+    end do
+    
+    return
+  end subroutine InitMassBalanceColdStart  
+
+
+
    !------------------------------------------------------------------------
    
    subroutine SummarizeNetFluxes( nsites, sites, bc_in, is_beg_day )
@@ -50,104 +99,72 @@ contains
       !
       ! !LOCAL VARIABLES:
       integer :: s
-      
-      type (ed_patch_type)  , pointer :: currentPatch
-      type (ed_cohort_type) , pointer :: currentCohort
-      real(r8) :: n_perm2     ! individuals per m2 of the whole column
-      
-
-      do il = 1,num_elements
-
-      do s = 1,nsites
-         
-         site_mass => sites(s)%mass_balance(il)
-         
-         
-         site_mass%fire_c_to_atm   = 0._r8    ! REMOVE THIS VARIABLE?
-         site_mass%ed_litter_stock = 0._r8
-         site_mass%cwd_stock       = 0._r8
-         site_mass%biomass_stock   = 0._r8
-         
-         ! map ed site-level fire fluxes to clm column fluxes
-         site_mass%fire_c_to_atm = site_mass%total_burn_flux_to_atm / &
-               ( AREA * SHR_CONST_CDAY * 1.e3_r8)
-         
-         currentPatch => sites(s)%oldest_patch
-         do while(associated(currentPatch))
-            
-            ! map litter, CWD, and seed pools to column level
-            site_mass%cwd_stock = site_mass%cwd_stock + &
-                  (currentPatch%area / AREA) * &
-                  (sum(currentPatch%cwd_ag)+sum(currentPatch%cwd_bg)) * 1.e3_r8
-            
-            site_mass%ed_litter_stock = site_mass%ed_litter_stock + &
-                  (currentPatch%area / AREA) * &
-                  (sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter)) * 1.e3_r8
-            
-            currentCohort => currentPatch%tallest
-            do while(associated(currentCohort))
-               ! for quantities that are natively at column level or higher, 
-               ! calculate plant density using whole area (for grid cell averages)
-               n_perm2   = currentCohort%n/AREA                    
-               
-               ! map biomass pools to column level
-               site_mass%biomass_stock = site_mass%biomass_stock + &
-                     ( currentCohort%prt%GetState(struct_organ,all_carbon_elements) + &
-                       currentCohort%prt%GetState(sapw_organ,all_carbon_elements) + &
-                       currentCohort%prt%GetState(leaf_organ,all_carbon_elements) + &
-                       currentCohort%prt%GetState(fnrt_organ,all_carbon_elements) + &
-                       currentCohort%prt%GetState(store_organ,all_carbon_elements) + &
-                       currentCohort%prt%GetState(repro_organ,all_carbon_elements) ) &
-                       * n_perm2 * g_per_kg
-               
-               currentCohort => currentCohort%shorter
-            enddo !currentCohort
-            currentPatch => currentPatch%younger
-         end do ! patch loop
-         
-         
-         ! FATES stocks
-         site_mass%totfatesc = site_mass%ed_litter_stock + site_mass%cwd_stock + &
-               (sum(site_mass%seed_bank) * 1.e3_r8) + site_mass%biomass_stock
-         
-         ! BGC stocks (used for error checking, totlitc should be zero?)
-         site_mass%totbgcc = bc_in(s)%tot_somc +  bc_in(s)%tot_litc
-         
-         ! Total Ecosystem Carbon Stocks
-         site_mass%totecosysc = site_mass%totfatesc + site_mass%totbgcc
-         
-      end do
+      type (litter_type), pointer    :: litt
+      type (ed_patch_type), pointer  :: currentPatch
+      type (ed_cohort_type), pointer :: currentCohort
       
       ! in FATES timesteps, because of offset between when ED and BGC reconcile the gain 
       ! and loss of litterfall carbon, (i.e. FATES reconciles it instantly, while BGC 
       ! reconciles it incrementally over the subsequent day) calculate the total 
       ! ED -> BGC flux and keep track of the last day's info for balance checking purposes
+
+      do s = 1,nsites
+         sites(s)%hr_timeintegrated  = sites(s)%hr_timeintegrated  + bc_in(s)%tot_het_resp * dtime
+         sites(s)%npp_timeintegrated = sites(s)%npp_timeintegrated + sites(s)%npp * dtime
+      end do
+      
       if ( is_beg_day ) then
-         !
-         do s = 1,nsites
-            ! order of operations in the next to lines is quite important ;)
-            site_mass%fates_to_bgc_last_ts = site_mass%fates_to_bgc_this_ts
-            site_mass%fates_to_bgc_this_ts = 0._r8
-            site_mass%tot_seed_rain_flux   = 0._r8
+
+         do il = 1,num_elements
             
-            currentPatch => sites(s)%oldest_patch
-            do while(associated(currentPatch))
-               !
-               site_mass%fates_to_bgc_this_ts = site_mass%fates_to_bgc_this_ts + &
-                     (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
-                     sum(currentPatch%leaf_litter_out) + &
-                     sum(currentPatch%root_litter_out)) * &
-                     ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
-               !
-               site_mass%tot_seed_rain_flux = site_mass%tot_seed_rain_flux + &
-                     sum(site_mass%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
-               !
-               currentPatch => currentPatch%younger
-            end do !currentPatch
+            do s = 1,nsites
+               
+               ! order of operations in the next to lines is quite important ;)
+               
+               site_mass%flux_fates_to_bgc_last = site_mass%flux_fates_to_bgc
+               site_mass%flux_fates_to_bgc = 0._r8
+               site_mass%flux_fates_to_atm = 0._r8
+               site_mass%flux_fates_to_usr = 0._r8
+               site_mass%flux_fates_to_hd  = 0._r8
+               
+               
+               currentPatch => sites(s)%oldest_patch
+               do while(associated(currentPatch))
+                  
+                  litt => currentPatch%litter(il)
+                  
+                  ! Fluxes from FATES to the BGC model
+                  ! (litter fragmentation) 
+                  ! (exudation and nurtient uptake are handled in different timesteps)
+                  
+                  site_mass%flux_fates_to_bgc = site_mass%flux_fates_to_bgc + &
+                       (sum(litt%ag_cwd_frag(:),dim=1) + &
+                       sum(sum(litt%bg_cwd_frag(:,:),dim=1),dim=1) + &
+                       sum(litt%leaf_fines_frag(:),dim=1) + &
+                       sum(sum(litt%root_fines_frag(:,:),dim=1),dim=1))*currentPatch%area
+                  
+                  ! Fluxes from fates to the atmosphere 
+                  ! (burning and seed outflux)
+                  site_mass%flux_fates_to_atm = site_mass%flux_fates_to_atm + &
+                       site_mass%burn_flux_to_atm + &
+                       site_mass%seed_outflux_atm - &
+                       site_mass%seed_influx_atm
+
+                  ! Fluxes from fates to the user source/sinks
+                  site_mass%flux_fates_to_usr = site_mass%flux_fates_to_usr - &
+                       sum(litt%seed_in_extern(:),dim=1)*currentPatch%area
+                  
+                  ! Fluxes from fates to human-dimensions (ie wood harvesting)
+                  site_mass%flux_fates_to_hd = site_mass%flux_fates_to_hd + &
+                       litt%harvesting*curentPatch%area
+                  
+                  
+                  currentPatch => currentPatch%younger
+               end do !currentPatch
+            end do
          end do
       endif
-
-      end do
+      
       return
    end subroutine SummarizeNetFluxes
    
@@ -175,6 +192,7 @@ contains
       integer                                 , intent(in)    :: nstep  ! time-step index
       
       ! !LOCAL VARIABLES:
+      type(site_mass_balance_type), pointer :: site_mass
       real(r8) :: error_tolerance = 1.e-6_r8
       integer  :: s
       
@@ -183,27 +201,31 @@ contains
 
       if (nstep .le. 1) then
          ! when starting up the model, initialize the integrator variables
-         do s = 1,nsites
-            sites(s)%totecosysc_old       = sites(s)%totecosysc
-            sites(s)%totfatesc_old        = sites(s)%totfatesc
-            sites(s)%totbgcc_old          = sites(s)%totbgcc
-            sites(s)%hr_timeintegrated    = 0._r8
-            sites(s)%npp_timeintegrated   = 0._r8
-            !
-            ! also initialize the ed-BGC flux variables
-            sites(s)%fates_to_bgc_this_ts = 0._r8
-            sites(s)%fates_to_bgc_last_ts = 0._r8
-            !
-            sites(s)%cbal_err_fates = 0._r8
-            sites(s)%cbal_err_bgc   = 0._r8
-            sites(s)%cbal_err_tot = 0._r8
-         end do
-      endif
-      
-      do s = 1,nsites
-         sites(s)%hr_timeintegrated  = sites(s)%hr_timeintegrated  + bc_in(s)%tot_het_resp * dtime
-         sites(s)%npp_timeintegrated = sites(s)%npp_timeintegrated + sites(s)%npp * dtime
-      end do
+         
+         do il = 1, num_elements
+            
+            do s = 1,nsites
+               
+               site_mass => sites(s)%mass_balance(il)
+               
+               
+               sites(s)%totecosysc_old       = sites(s)%totecosysc
+               sites(s)%totfatesc_old        = sites(s)%totfatesc
+               sites(s)%totbgcc_old          = sites(s)%totbgcc
+               sites(s)%hr_timeintegrated    = 0._r8
+               sites(s)%npp_timeintegrated   = 0._r8
+               !
+               ! also initialize the ed-BGC flux variables
+               sites(s)%fates_to_bgc_this_ts = 0._r8
+               sites(s)%fates_to_bgc_last_ts = 0._r8
+               !
+               sites(s)%cbal_err_fates = 0._r8
+               sites(s)%cbal_err_bgc   = 0._r8
+               sites(s)%cbal_err_tot = 0._r8
+            end do
+         endif
+         
+  
       
       ! If this is on the dynamics time-step, then we calculate the balance checks
       
@@ -234,11 +256,9 @@ contains
                         sum(litt%seed_in_extern(:),dim=1)*currentPatch%area
                   currentPatch => currentPatch%younger
                end do
-                     
+
                site_mass%flux_out_fates = 
                site_mass%flux_out_fates = sites(s)%fates_to_bgc_this_ts*SHR_CONST_CDAY
-               
-               
                
                ! "err_fates", the total mass discrepancy between the change
                !              in the total stock from one day to the next, and

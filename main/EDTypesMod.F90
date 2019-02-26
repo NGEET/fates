@@ -562,16 +562,20 @@ module EDTypesMod
 
      real(r8) :: stock_fates     ! Total FATES mass at the site during current balance check     [kg/site]
      real(r8) :: stock_bgc       ! Total BGC mass at the site during current balance check       [kg/site] 
-     real(r8) :: stock_toteco    ! Total ecosystem mass at the site during current balance check [kg/site]
      
      real(r8) :: old_stock_fates     ! Total FATES mass at the site from last call to balance check     [kg/site]
      real(r8) :: old_stock_bgc       ! Total BGC mass at the site from last call to balance check       [kg/site] 
-     real(r8) :: old_stock_toteco    ! Total ecosystem mass at the site from last call to balance check [kg/site]
 
-     real(r8) :: flux_in_fates       ! Total mass flux into fates from all external sources   [kg/site/day]
-     real(r8) :: flux_out_fates      ! Total mass flux out of fates to all externals    
-                                     ! (bgc model, atm, human-dimension,etc)                  [kg/site/day]
+     real(r8) :: flux_fates_to_bgc   ! Total mass flux from fates to BGC                                  [kg/site/day]
+     real(r8) :: flux_fates_to_hd    ! Total mass flux from fates to Human Dimension model (wood harvest) [kg/site/day]
+     real(r8) :: flux_fates_to_atm   ! Total mass flux from fates to the atmosphere                       [kg/site/day]
+     real(r8) :: flux_fates_to_usr   ! Total mass flux from fates to arbitrary user source/sink
+                                     ! (i.e. this contains user external defined seed-rain)               [kg/site/day]
      
+     real(r8) :: flux_fates_to_bgc_last   ! Total mass flux out of fates to all externals    
+                                          ! (bgc model, atm, human-dimension,etc)                  [kg/site/day]
+
+
 
      ! Group 3: Sub-components of the total site level mass fluxes
 
@@ -581,28 +585,49 @@ module EDTypesMod
 
      real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
 
-
-     !real(r8) :: ed_litter_stock    ! litter in [gC/m2]
-     !real(r8) :: cwd_stock          ! coarse woody debris [gC/m2]
-     !real(r8) :: biomass_stock      ! total biomass at the column level in [gC / m2]
+   contains
      
-     real(r8) :: totfatesc          ! Total FATES carbon at the site, including vegetation, CWD, seeds, 
-                                    ! and FATES portion of litter [gC/m2] 
-     real(r8) :: totbgcc            ! Total BGC carbon at the site, including litter, and soil pools [gC/m2] 
-     real(r8) :: totecosysc         ! Total ecosystem C at the site, including vegetation, 
-                                    ! CWD, litter (from HLM and FATES), and soil pools [gC/m2]
+     procedure :: ZeroSiteMassBalance
      
      
-     
-     real(r8) :: fates_to_bgc_this_ts                         ! total flux of carbon from FATES to BGC models on current timestep [gC/m2/s] 
-     real(r8) :: fates_to_bgc_last_ts                         ! total flux of carbon from FATES to BGC models on previous timestep [gC/m2/s] 
-     
-     real(r8) :: cbal_err_fates                               ! [gC/m2/s]  total carbon balance error for FATES processes
-     real(r8) :: cbal_err_bgc                                 ! [gC/m2/s]  total carbon balance error for BGC (HLM) processes
-     real(r8) :: cbal_err_tot                                 ! [gC/m2/s]  total carbon balance error for all land processes
-
   end type site_mass_balance_type
 
+
+
+
+  ! =====================================================================================
+
+  subroutine ZeroSiteMassBalance(this)
+
+    class(site_mass_balance_type),intent(inout) :: this
+    
+    this%flux_in    = 0._r8
+    this%flux_out   = 0._r8
+    this%old_stock  = 0._r8
+    
+    this%err_fates  = 0._r8
+    this%err_bgc  = 0._r8
+    this%err_tot  = 0._r8
+
+    this%stock_fates  = 0._r8
+    this%stock_bgc  = 0._r8
+    
+    this%old_stock_fates  = 0._r8
+    this%old_stock_bgc  = 0._r8
+
+    this%flux_fates_to_bgc  = 0._r8
+    this%flux_fates_to_hd  = 0._r8
+    this%flux_fates_to_atm  = 0._r8
+    this%flux_fates_to_usr  = 0._r8
+    this%flux_fates_to_bgc_last  = 0._r8
+    
+    this%seed_influx  = 0._r8
+    this%seed_outflux  = 0._r8
+        
+    this%burn_flux_to_atm  = 0._r8
+
+    return
+  end subroutine ZeroSiteMassBalance
 
 
   !************************************

@@ -985,16 +985,14 @@ contains
 
           litt => currentPatch%litter(il)
           do pft = 1,numpft
+
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
              
              ! Seed input from external sources (user param seed rain, or dispersal model)
-             
              seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_rain(pft)/days_per_year
- 
+             
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
-
-             site_mass%seed_influx = site_mass%seed_influx + seed_in_external
 
           enddo
           

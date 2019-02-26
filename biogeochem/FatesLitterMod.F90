@@ -93,16 +93,12 @@ module FatesLittMod
       real(r8),allocatable :: seed_germ(:)           ! kg/m2/day
 
 
-      ! Flux out from exporting (harvesting, seed eflux?)
-      real(r8) :: exported                             ! kg/m2/day
+      ! Flux out from harvesting 
+      real(r8) :: harvesting             ! kg/m2/day
 
 
       ! Flux (in/out ... transfer) from seed to litter
       real(r8),allocatable :: seed_decay(:)            ! kg/m2/day
-
-
-      
-
 
     contains
       
