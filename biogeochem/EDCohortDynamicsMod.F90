@@ -12,6 +12,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
+  use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesInterfaceMod     , only : hlm_days_per_year
   use FatesInterfaceMod     , only : nleafage
@@ -98,6 +99,12 @@ module EDCohortDynamicsMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
+
+  integer, parameter, private :: conserve_crownarea_and_number_not_dbh = 1
+  integer, parameter, private :: conserve_dbh_and_number_not_crownarea = 2
+
+  integer, parameter, private :: cohort_fusion_conservation_method = conserve_crownarea_and_number_not_dbh
+  
   ! 10/30/09: Created by Rosie Fisher
   !-------------------------------------------------------------------------------------!
 
@@ -829,6 +836,7 @@ contains
      real(r8) :: leaf_c_next  ! Leaf carbon * plant density of current (for weighting)
      real(r8) :: leaf_c_curr  ! Leaf carbon * plant density of next (for weighting)
      real(r8) :: dynamic_fusion_tolerance
+     real(r8) :: dbh
      real(r8) :: leaf_c             ! leaf carbon [kg]
 
      integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
@@ -895,6 +903,7 @@ contains
                              if( currentCohort%isnew.eqv.nextc%isnew ) then
 
                                 newn = currentCohort%n + nextc%n
+
                                 fusion_took_place = 1         
 
                                 if ( fuse_debug .and. currentCohort%isnew ) then
@@ -918,31 +927,86 @@ contains
 
 
                                 ! Fuse all mass pools
-                                call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, currentCohort%n/newn )
+                                call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, &
+                                                                               currentCohort%n/newn )
 
                                 currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                       + nextc%n*nextc%laimemory)/newn
 
-                                currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
-                                      + nextc%n*nextc%dbh)/newn
-
-                                call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
-                                
                                 currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                       + nextc%n*nextc%canopy_trim)/newn
 
-                                ! -----------------------------------------------------------------
-                                ! If fusion pushed structural biomass to be larger than
-                                ! the allometric target value derived by diameter, we
-                                ! then increase diameter and height until the allometric 
-                                ! target matches actual bdead. (if it is the other way around
-                                ! we then just let the carbon pools grow to fill-out allometry)
-                                ! -----------------------------------------------------------------
-                                
-                                if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
-                                   call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,all_carbon_elements), currentCohort%pft, &
-                                         currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
-                                end if
+                                select case(cohort_fusion_conservation_method)
+                                   !
+                                   ! -----------------------------------------------------------------
+                                   ! Because cohort fusion is an unavoidable but non-physical process,
+                                   ! and because of the various nonlinear allometric relationships,
+                                   ! it isn't possible to simultaneously conserve all of the allometric
+                                   ! relationships during cohort fusion.  We will always conserve carbon,
+                                   ! but there are choices to made about what else to conserve or not.
+                                   ! In particular, there is a choice to be made of conservation amongst
+                                   ! the number density, stem diameter, and crown area. Below,
+                                   ! some different conservation relationships can be chosen during fusion.
+                                   ! -----------------------------------------------------------------
+                                   !
+                                case(conserve_crownarea_and_number_not_dbh)
+                                   !
+                                   ! -----------------------------------------------------------------
+                                   ! conserve total crown area during the fusion step, and then calculate
+                                   ! dbh of the fused cohort as that which conserves both crown area and
+                                   ! the dbh to crown area allometry.  dbh will be updated in the next
+                                   ! growth step in the (likely) event that dbh to structural iomass
+                                   ! allometry is exceeded. if using a capped crown area allometry and
+                                   ! above the cap, then calculate as the weighted average of fusing
+                                   ! cohorts' dbh
+                                   ! -----------------------------------------------------------------
+                                   !
+                                   currentCohort%c_area = currentCohort%c_area + nextc%c_area
+                                   !
+                                   call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
+                                        currentCohort%c_area,inverse=.true.)
+                                   !
+                                   if (abs(dbh-fates_unset_r8)<nearzero) then
+                                      currentCohort%dbh = (currentCohort%n*currentCohort%dbh         &
+                                           + nextc%n*nextc%dbh)/newn
+                                   else
+                                      currentCohort%dbh = dbh
+                                   endif
+                                   !
+                                   call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+                                   !
+                                case(conserve_dbh_and_number_not_crownarea)
+                                   !
+                                   ! -----------------------------------------------------------------
+                                   ! Here we conserve the mean stem diameter of the trees in the cohorts
+                                   ! rather than the crown area of the cohort
+                                   ! -----------------------------------------------------------------
+                                   !
+                                   currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
+                                        + nextc%n*nextc%dbh)/newn
+                                   !
+                                   call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+                                   !
+                                   ! -----------------------------------------------------------------
+                                   ! If fusion pushed structural biomass to be larger than
+                                   ! the allometric target value derived by diameter, we
+                                   ! then increase diameter and height until the allometric
+                                   ! target matches actual bdead. (if it is the other way around
+                                   ! we then just let the carbon pools grow to fill out allometry)
+                                   ! -----------------------------------------------------------------
+                                   !
+                                   if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
+                                      call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,all_carbon_elements), currentCohort%pft, &
+                                           currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+                                   end if
+                                   !
+                                   call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
+                                        currentCohort%c_area,inverse=.false.)
+                                   !
+                                case(default)
+                                    write(fates_log(),*) 'FATES: Invalid choice for cohort_fusion_conservation_method'
+                                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                                end select
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
