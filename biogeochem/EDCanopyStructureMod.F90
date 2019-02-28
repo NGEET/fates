@@ -56,8 +56,14 @@ module EDCanopyStructureMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
   
-  real(r8), parameter :: area_target_precision = 1.0E-11_r8  ! Area conservation must be within this tolerance
-  real(r8), parameter :: area_check_precision  = 1.0E-9_r8  ! Area conservation checks must be within this tolerance
+  real(r8), parameter :: area_target_precision = 1.0E-11_r8  ! Area conservation
+                                                             ! will attempt to reduce errors
+                                                             ! below this level
+  
+  real(r8), parameter :: area_check_precision  = 1.0E-6_r8     ! Area conservation checks must 
+                                                               ! be within this absolute tolerance
+  real(r8), parameter :: area_check_rel_precision = 1.0E-3_r8  ! Area conservation checks must
+                                                               ! be within this relative tolerance
 
   real(r8), parameter :: similar_height_tol = 1.0E-3_r8    ! I think trees that differ by 1mm
                                                            ! can be roughly considered the same right?
@@ -242,7 +248,8 @@ contains
             area_not_balanced = .false.
             do i_lyr = 1,z
                call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
-               if( (arealayer(i_lyr)-currentPatch%area)/currentPatch%area  >  area_check_precision )then
+               if( ((arealayer(i_lyr)-currentPatch%area)/currentPatch%area  >  area_check_rel_precision) .or. &
+                   ((arealayer(i_lyr)-currentPatch%area) > area_check_precision )  ) then
                   area_not_balanced = .true.
                endif
             enddo
@@ -258,6 +265,7 @@ contains
                do i_lyr = 1,z
                   write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer(i_lyr)
                   write(fates_log(),*) 'rel error: ',(arealayer(i_lyr)-currentPatch%area)/currentPatch%area
+                  write(fates_log(),*) 'abs error: ',arealayer(i_lyr)-currentPatch%area
                enddo
                write(fates_log(),*) 'lat:',currentSite%lat
                write(fates_log(),*) 'lon:',currentSite%lon
@@ -363,7 +371,7 @@ contains
 
       demote_area = arealayer - currentPatch%area
       
-      if ( demote_area/currentPatch%area > area_target_precision ) then
+      if ( demote_area > nearzero ) then
          
          ! Is this layer currently over-occupied? 
          ! In that case, we need to work out which cohorts to demote. 
@@ -493,7 +501,7 @@ contains
             enddo
 
             exceedance_counter = 0
-            do while(remainder_area/demote_area > area_target_precision )
+            do while(remainder_area > area_target_precision )
                
                ! Keep attempting to add exceedance to members that have not
                ! lost more area than they started with..
@@ -527,6 +535,13 @@ contains
                         if( currentCohort%excl_weight < (currentCohort%c_area-nearzero) ) then
                            sumweights = sumweights + currentCohort%excl_weight
                         end if
+
+                     elseif(currentCohort%excl_weight > (currentCohort%c_area+area_target_precision) ) then
+                        write(fates_log(),*) 'more area than the cohort wants to be domoted'
+                        write(fates_log(),*) 'loss:',currentCohort%excl_weight
+                        write(fates_log(),*) 'existing area:',currentCohort%c_area
+                        write(fates_log(),*) 'excess: ',currentCohort%excl_weight - currentCohort%c_area
+                        call endrun(msg=errMsg(sourcefile, __LINE__))
                      end if
                   end if
                   currentCohort => currentCohort%shorter 
@@ -542,7 +557,7 @@ contains
                   write(fates_log(),*) 'remainder_area:',remainder_area
                   call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
-
+               
             end do
 
          end if
@@ -629,6 +644,7 @@ contains
                   write(fates_log(),*) 'more area than the cohort has is being demoted'
                   write(fates_log(),*) 'loss:',cc_loss
                   write(fates_log(),*) 'existing area:',currentCohort%c_area
+                  write(fates_log(),*) 'excess: ',cc_loss - currentCohort%c_area
                   call endrun(msg=errMsg(sourcefile, __LINE__))
 
                end if
@@ -702,7 +718,8 @@ contains
          
          call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
          
-         if ( abs(arealayer - currentPatch%area)/arealayer > area_target_precision ) then
+         if ( (abs(arealayer - currentPatch%area)/arealayer > area_check_rel_precision ) .or. &
+              (abs(arealayer - currentPatch%area) > area_check_precision) ) then
             write(fates_log(),*) 'demotion did not trim area within tolerance'
             write(fates_log(),*) 'arealayer:',arealayer
             write(fates_log(),*) 'patch%area:',currentPatch%area
@@ -712,7 +729,7 @@ contains
 
          
       end if
-
+      
       return
    end subroutine DemoteFromLayer
 
@@ -770,7 +787,7 @@ contains
       ! how much do we need to gain?
       promote_area    =  currentPatch%area - arealayer_current 
 
-      if( promote_area/currentPatch%area > area_target_precision ) then
+      if( promote_area > nearzero ) then
          
          if(arealayer_below <= promote_area ) then
          
@@ -930,7 +947,7 @@ contains
                enddo
 
                exceedance_counter = 0
-               do while(remainder_area/promote_area > area_target_precision ) 
+               do while(remainder_area > area_target_precision ) 
                   
                   sumweights = 0.0_r8
                   remainder_area_hold = remainder_area
@@ -1076,14 +1093,14 @@ contains
 
             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
             
-            if ( abs(arealayer_current - currentPatch%area)/arealayer_current &
-                 > area_target_precision ) then
+            if ((abs(arealayer_current - currentPatch%area)/arealayer_current > area_check_rel_precision ) .or. &
+                (abs(arealayer_current - currentPatch%area) > area_check_precision) ) then
                write(fates_log(),*) 'promotion did not bring area within tolerance'
                write(fates_log(),*) 'arealayer:',arealayer_current
                write(fates_log(),*) 'patch%area:',currentPatch%area
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
-
+            
          end if
          
       end if
