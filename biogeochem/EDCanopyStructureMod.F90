@@ -548,7 +548,7 @@ contains
                
                area_res = demote_area - area_res
                
-               scale_factor_res = area_residual / scale_factor_res
+               scale_factor_res = area_res / scale_factor_res
 
                currentCohort => currentPatch%tallest
                do while (associated(currentCohort))  
@@ -574,6 +574,24 @@ contains
             end if
          
          end if
+
+
+         ! lets perform a check and see if the demotions meet the demand
+         sumweights = 0._r8
+         currentCohort => currentPatch%tallest
+         do while (associated(currentCohort))    
+            sumweights = sumweights + currentCohort%excl_weight
+            currentCohort => currentCohort%shorter
+         end do
+         
+         if (abs(sumweights - demote_area) > area_check_precision ) then
+            write(fates_log(),*) 'demotions dont add up'
+            write(fates_log(),*) 'sum demotions: ',sumweights
+            write(fates_log(),*) 'area needed to be demoted: ',demote_area
+            write(fates_log(),*) 'excess: ',sumweights - demote_area
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
 
          ! Weights have been calculated. Now move them to the lower layer
          
@@ -1002,7 +1020,7 @@ contains
                   
                   area_res = promote_area - area_res
                   
-                  scale_factor_res = area_residual / scale_factor_res
+                  scale_factor_res = area_res / scale_factor_res
                   
                   currentCohort => currentPatch%tallest
                   do while (associated(currentCohort))  
@@ -1029,7 +1047,23 @@ contains
                
             end if
 
-         
+
+            ! lets perform a check and see if the promotions meet the demand
+            sumweights = 0._r8
+            currentCohort => currentPatch%tallest
+            do while (associated(currentCohort))    
+               sumweights = sumweights + currentCohort%prom_weight
+               currentCohort => currentCohort%shorter
+            end do
+
+            if (abs(sumweights - promote_area) > area_check_precision ) then
+               write(fates_log(),*) 'promotions dont add up'
+               write(fates_log(),*) 'sum promotions: ',sumweights
+               write(fates_log(),*) 'area needed to be promoted: ',promote_area
+               write(fates_log(),*) 'excess: ',sumweights - promote_area
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+
             currentCohort => currentPatch%tallest
             do while (associated(currentCohort))      
                
