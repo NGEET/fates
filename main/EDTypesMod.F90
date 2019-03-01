@@ -24,7 +24,7 @@ module EDTypesMod
                                                   ! to understory layers (all layers that
                                                   ! are not the top canopy layer)
 
-  integer, parameter :: nlevleaf = 20             ! number of leaf layers in canopy layer
+  integer, parameter :: nlevleaf = 30             ! number of leaf layers in canopy layer
   integer, parameter :: maxpft = 15               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
