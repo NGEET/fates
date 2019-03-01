@@ -932,11 +932,13 @@ contains
    ! quantum efficiency, used only for C4 (mol CO2 / mol photons) (index 0)
    real(r8),parameter,dimension(0:1) :: quant_eff = [0.05_r8,0.0_r8]
 
-   ! empirical curvature parameter for ac, aj photosynthesis co-limitation
-   real(r8),parameter,dimension(0:1) :: theta_cj  = [0.80_r8,0.98_r8]
+   ! empirical curvature parameter for ac, aj photosynthesis co-limitation. 
+   ! Changed theta_cj and theta_ip to 0.999 to effectively remove smoothing logic 
+   ! following Anthony Walker's findings from MAAT. 
+   real(r8),parameter,dimension(0:1) :: theta_cj  = [0.999_r8,0.999_r8]
 
    ! empirical curvature parameter for ap photosynthesis co-limitation
-   real(r8),parameter :: theta_ip = 0.95_r8
+   real(r8),parameter :: theta_ip = 0.999_r8
 
    associate( bb_slope  => EDPftvarcon_inst%BB_slope)    ! slope of BB relationship
 
