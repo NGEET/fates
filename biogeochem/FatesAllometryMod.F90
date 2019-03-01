@@ -90,6 +90,7 @@ module FatesAllometryMod
   use FatesConstantsMod, only : cm2_per_m2
   use FatesConstantsMod, only : kg_per_Megag
   use FatesConstantsMod, only : calloc_abs_error
+  use FatesConstantsMod, only : fates_unset_r8
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
@@ -449,15 +450,22 @@ contains
   ! Generic crown area allometry wrapper
   ! ============================================================================
   
-  subroutine carea_allom(d,nplant,site_spread,ipft,c_area)
+  subroutine carea_allom(dbh,nplant,site_spread,ipft,c_area,inverse)
      
-     real(r8),intent(in)    :: d           ! plant diameter [cm]
-     real(r8),intent(in)    :: site_spread ! site level spread factor (crowdedness)
-     real(r8),intent(in)    :: nplant      ! number of plants [1/ha]
-     integer(i4),intent(in) :: ipft        ! PFT index
-     real(r8),intent(out)   :: c_area      ! crown area per cohort (m2)
+     real(r8),intent(inout) :: dbh          ! plant diameter at breast (reference) height [cm]
+     real(r8),intent(in)    :: site_spread  ! site level spread factor (crowdedness)
+     real(r8),intent(in)    :: nplant       ! number of plants [1/ha]
+     integer(i4),intent(in) :: ipft         ! PFT index
+     real(r8),intent(inout) :: c_area       ! crown area per cohort (m2)
+     logical,optional,intent(in) :: inverse ! if true, calculate dbh from crown area 
+                                            ! instead of crown area from dbh
 
-     real(r8)               :: d_eff     ! Effective diameter (cm)
+     real(r8)               :: dbh_eff      ! Effective diameter (cm)
+     logical                :: do_inverse   ! local copy of the inverse argument
+                                            ! defaults to false
+     logical                :: capped_allom ! if we are using an allometry that caps
+                                            ! crown area at height, we need to make
+                                            ! special considerations
      
      associate( dbh_maxh    => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
                 allom_lmode => EDPftvarcon_inst%allom_lmode(ipft),  &
@@ -466,24 +474,49 @@ contains
                 d2ca_min    => EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft), &
                 d2ca_max    => EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft))
        
+       if( .not. present(inverse) ) then 
+          do_inverse = .false.
+       else
+          do_inverse = inverse
+          if (do_inverse) then
+             c_area = c_area / nplant
+          endif
+       endif
+
        select case(int(allom_lmode))
        case(1)
-          d_eff = min(d,dbh_maxh)
-          call carea_2pwr(d_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+          dbh_eff = min(dbh,dbh_maxh)
+          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          capped_allom = .true.
        case(2)   ! "2par_pwr")
-          call carea_2pwr(d,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+          call carea_2pwr(dbh,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          capped_allom = .false.
        case(3)
-          d_eff = min(d,dbh_maxh)
-          call carea_2pwr(d_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+          dbh_eff = min(dbh,dbh_maxh)
+          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          capped_allom = .true.
        case DEFAULT
-         write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
+          write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
                allom_lmode
-         write(fates_log(),*) 'Aborting'
-         call endrun(msg=errMsg(sourcefile, __LINE__))
-      end select
+          write(fates_log(),*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end select
+       
 
-      c_area = c_area * nplant
+       if (capped_allom .and. do_inverse) then
+          if (dbh_eff .lt. dbh_maxh) then
+             dbh = dbh_eff
+          else
+             ! In this situation, we are signaling to the
+             ! calling routine that we we cannot calculate
+             ! dbh from crown area, because we have already
+             ! hit the area cap, and the two are not proportional
+             ! anymore.  hopefully, the calling routine has an alternative
+             dbh = fates_unset_r8
+          endif
+       endif
 
+       c_area = c_area * nplant
 
     end associate
     return
@@ -1880,20 +1913,21 @@ contains
   ! =============================================================================
 
   
-  subroutine carea_2pwr(d,spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+  subroutine carea_2pwr(dbh,spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,inverse)
 
      ! ============================================================================
      ! Calculate area of ground covered by entire cohort. (m2)
      ! Function of DBH (cm) canopy spread (m/cm) and number of individuals. 
      ! ============================================================================
 
-     real(r8),intent(in) :: d           ! diameter [cm]
+     real(r8),intent(inout) :: dbh      ! diameter at breast (refernce) height [cm]
      real(r8),intent(in) :: spread      ! site level relative spread score [0-1]
      real(r8),intent(in) :: d2bl_p2     ! parameter 2 in the diameter->bleaf allometry (exponent)
      real(r8),intent(in) :: d2bl_ediff  ! area difference factor in the diameter-bleaf allometry (exponent)
      real(r8),intent(in) :: d2ca_min    ! minimum diameter to crown area scaling factor
      real(r8),intent(in) :: d2ca_max    ! maximum diameter to crown area scaling factor
-     real(r8),intent(out) :: c_area     ! crown area for one plant [m2]
+     real(r8),intent(inout) :: c_area   ! crown area for one plant [m2]
+     logical,intent(in)  :: inverse     ! if true, calculate dbh from crown area rather than its reverse
      
      real(r8)            :: crown_area_to_dbh_exponent
      real(r8)            :: spreadterm  ! Effective 2bh to crown area scaling factor
@@ -1917,7 +1951,11 @@ contains
     
      spreadterm = spread * d2ca_max + (1._r8 - spread) * d2ca_min
      
-     c_area = spreadterm * d ** crown_area_to_dbh_exponent
+     if ( .not. inverse) then
+        c_area = spreadterm * dbh ** crown_area_to_dbh_exponent
+     else
+        dbh = (c_area / spreadterm) ** (1./crown_area_to_dbh_exponent)
+     endif
      
   end subroutine carea_2pwr
   

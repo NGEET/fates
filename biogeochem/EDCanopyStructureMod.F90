@@ -512,7 +512,6 @@ contains
             ! the total amount to demote
             scale_factor = demote_area/scale_factor
             
-
             if(scale_factor <= scale_factor_min) then
 
                ! Trivial case, all of the demotion fractions
@@ -541,6 +540,7 @@ contains
                enddo
                
             else
+
 
                ! Non-trivial case, at least 1 cohort's demotion
                ! rate would exceed its area, given the trivial scale factor
