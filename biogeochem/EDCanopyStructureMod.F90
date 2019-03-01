@@ -398,8 +398,11 @@ contains
                if (ED_val_comp_excln .ge. 0.0_r8 ) then
                   
                   ! ----------------------------------------------------------
-                  ! normal (stochastic) case. weight cohort demotion by 
-                  ! inverse size to a constant power
+                  ! Stochastic method.
+                  ! Weight cohort demotion by inverse size to a constant power.
+                  ! In this hypothesis, it is assumed that even the tallest
+                  ! cohorts have a chance (although smaller) of being forced
+                  ! to the understory.
                   ! ----------------------------------------------------------
 
                   currentCohort%excl_weight = 1._r8 / (currentCohort%hite**ED_val_comp_excln)
@@ -510,13 +513,13 @@ contains
             ! This is the factor by which we need to multiply
             ! the demotion probabilities, so the sum result equals
             ! the total amount to demote
+
             scale_factor = demote_area/scale_factor
             
 
             if(scale_factor <= scale_factor_min) then
 
-               ! Trivial case, all of the demotion fractions
-               ! are less than 1.
+               ! Trivial case, all of the demotion fractions are less than 1.
 
                currentCohort => currentPatch%tallest
                do while (associated(currentCohort))
@@ -588,7 +591,7 @@ contains
          end if
 
 
-         ! lets perform a check and see if the demotions meet the demand
+         ! perform a check and see if the demotions meet the demand
          sumweights = 0._r8
          currentCohort => currentPatch%tallest
          do while (associated(currentCohort))    
@@ -907,7 +910,11 @@ contains
                if(currentCohort%canopy_layer == i_lyr+1)then !look at the cohorts in the canopy layer below... 
 
                   if (ED_val_comp_excln .ge. 0.0_r8 ) then
-                     ! normal (stochastic) case, as above.
+
+                     ! ------------------------------------------------------------------
+                     ! Stochastic case, as above (in demotion portion of code)
+                     ! ------------------------------------------------------------------
+
                      currentCohort%prom_weight = currentCohort%hite**ED_val_comp_excln
                      sumweights = sumweights + currentCohort%prom_weight
                   else
@@ -991,6 +998,7 @@ contains
             ! And then a few rounds where we pre-calculate the promotion areas
             ! and adjust things if the promoted area wants to be greater than
             ! what is available.
+
             if (ED_val_comp_excln .ge. 0.0_r8 ) then
                
                scale_factor_min  = 1.e10_r8
@@ -1028,7 +1036,7 @@ contains
                      
                         if((currentCohort%prom_weight > (currentCohort%c_area+area_target_precision)) .or. &
                               (currentCohort%prom_weight < 0._r8)  ) then
-                           write(fates_log(),*) 'exclusion area too big (1)'
+                           write(fates_log(),*) 'promotion area too big (1)'
                            write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
                            write(fates_log(),*) 'currentCohort%prom_weight: ',currentCohort%prom_weight
                            write(fates_log(),*) 'excess: ',currentCohort%prom_weight - currentCohort%c_area
@@ -1071,7 +1079,7 @@ contains
                         
                         if((currentCohort%prom_weight > (currentCohort%c_area+area_target_precision)) .or. &
                               (currentCohort%prom_weight < 0._r8)  ) then
-                           write(fates_log(),*) 'exclusion area error (2)'
+                           write(fates_log(),*) 'promotion area error (2)'
                            write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
                            write(fates_log(),*) 'currentCohort%prom_weight: ',currentCohort%prom_weight
                            write(fates_log(),*) 'excess: ',currentCohort%prom_weight - currentCohort%c_area
