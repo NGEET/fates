@@ -103,7 +103,7 @@ module EDCohortDynamicsMod
   integer, parameter, private :: conserve_crownarea_and_number_not_dbh = 1
   integer, parameter, private :: conserve_dbh_and_number_not_crownarea = 2
 
-  integer, parameter, private :: cohort_fusion_conservation_method = conserve_dbh_and_number_not_crownarea
+  integer, parameter, private :: cohort_fusion_conservation_method = conserve_crownarea_and_number_not_dbh
   
   ! 10/30/09: Created by Rosie Fisher
   !-------------------------------------------------------------------------------------!
