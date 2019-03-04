@@ -744,8 +744,18 @@ contains
        write(fates_log(),*) 'The leaf and stem are predicted for a cohort, maxed out the array size'
        write(fates_log(),*) 'lai: ',treelai
        write(fates_log(),*) 'sai: ',tree_sai
+       write(fates_log(),*) 'target_lai: ',target_lai
        write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
        write(fates_log(),*) 'nlevleaf,dinc_ed,nlevleaf*dinc_ed :',nlevleaf,dinc_ed,nlevleaf*dinc_ed
+       write(fates_log(),*) 'pft: ',pft
+       write(fates_log(),*) 'n: ',nplant
+       write(fates_log(),*) 'c_area: ',c_area
+       write(fates_log(),*) 'dbh: ',dbh
+       write(fates_log(),*) 'canopy_trim: ',canopy_trim
+       write(fates_log(),*) 'target_bleaf: ',target_bleaf
+       write(fates_log(),*) 'canopy layer: ',cl
+       write(fates_log(),*) 'canopy_tlai: ',canopy_lai(:)
+       write(fates_log(),*) 'vcmax25top: ',vcmax25top
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     
