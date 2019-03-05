@@ -46,8 +46,70 @@ module FatesHistoryInterfaceMod
   ! These variables hold the index of the history output structure so we don't
   ! have to constantly do name lookup when we want to populate the dataset
   ! These indices are set during "define_history_vars()" call to "set_history_var()"
-  ! during the initialize phase.  Definitions are not provide, for an explanation of
+  ! during the initialize phase.  Definitions are not provided, for an explanation of
   ! the variable go to its registry.  (IH_ signifies "index history")
+  !
+  ! Because of the complex sub-gridscale structure of FATES, in which multiple patches and cohorts
+  ! exist within a gridcell, along with vertical gradients within and between canopy layers, as well
+  ! as distinct classes such as PFTs or fuel size bins, there are multiple different dimensions in
+  ! which it is possible to output history variables to better understand what's going on.
+  !
+  ! a key point is that, while the number of patches or cohorts can in principle be large, and 
+  ! the age and size indices of a given patch or cohort can be finely resolved, we collapse these 
+  ! continuously varying indices into bins of time-invariant width for the purposes of history 
+  ! outputting.  This is because a given patch or cohort may not persist across a given interval
+  ! of history averaging, so it is better to output all patches of cohorts whose index is within 
+  ! a given interval along the size or age bin.
+  !
+  ! Another particularity of the issue of FATES shifting its subgrid structure frequently 
+  ! and possibly having multiple (or zero) patches or cohorts within a given bin is that, if you
+  ! want to output an average quantities across some dimension, such as a mean carbon flux across 
+  ! patch area of a given age, in general it is better to output both the numerator and denominator
+  ! of the averaging calculation separately, rather than the average itself, and then calculate 
+  ! the average in post-processing. So, e.g. this means outputting both the patch area and the 
+  ! product of the flux within each patch and the patch area as separate variables.  Doing this 
+  ! allows conservation even when the weights are changing rapidly and simplifies the logic when
+  ! the number of patches or cohorts may be anywhere from zero to a large number.
+  !
+  ! So what this means is that anything that is disaggregated at the patch area requires 
+  ! outputting the patch age distribution (in units of patch area / site area) as the denominator
+  ! of the average and then calculating the numerator of the average as XXX times the patch 
+  ! area so (so in units of XXX * patch area / site area). For cohort-level quantities,
+  ! this requires outputting the number density (in units of individuals per site area), etc.
+  !
+  ! For reference, some standardized abbreviations of the FATES dimensions are listed here:
+  ! scls = size-class dimension
+  ! pft  = the pft dimension
+  ! age  = the age bin dimension
+  ! height = the height bin dimension
+  ! cwdsc  = the coarse woody debris size class dimension
+  ! 
+  ! Since the netcdf interface can only handle variables with a certain number of dimensions,
+  ! we have create some "multiplexed" dimensions that combine two or more dimensions into a
+  ! single dimension.  Examples of these are the following:
+  ! scpf = size class x PFT
+  ! cnlf = canopy layer x leaf layer
+  ! cnlfpft = canopy layer x leaf layer x PFT
+  ! scag = size class bin x age bin
+  ! scagpft = size class bin x age bin x PFT
+  ! agepft  = age bin x PFT
+  !
+  ! A recipe for adding a new history variable to this module:
+  ! (1) decide what time frequency it makes sense to update the variable at, and what dimension(s)
+  !     you want to output the variable on
+  ! (2) add the ih_ integer variable in the immediately following section of the module.  
+  !     use the suffix as outlined above for the dimension you are using.
+  ! (3) define a corresponding hio_ variable by associating it to the ih_ variable 
+  !     in the associate section of the subroutine that corresponds to the time-updating 
+  !     frequency that you've chosen
+  !     (i.e. if half-hourly, then work in subroutine update_history_prod; if daily, 
+  !     then work in subroutine update_history_dyn)
+  ! (4) within that subroutine, add the logic that passes the information from the 
+  !     fates-native variable (possibly on a patch or cohort structure) to the history 
+  !     hio_ variable that you've associated to.
+  ! (5) add the variable name, metadata, units, dimension, updating frequency, the ih_ variable 
+  !     index, etc via a call to the set_history_var method in the subroutine define_history_vars.
+  !
   
   ! Indices to 1D Patch variables
 
@@ -164,7 +226,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_h2oveg_hydro_err_si
     
 
-  ! Indices to (site x scpf) variables
+
+  ! Indices to (site x scpf [multiplexed size- and age- bins]) variables
   integer, private :: ih_nplant_si_scpf
   integer, private :: ih_gpp_si_scpf
   integer, private :: ih_npp_totl_si_scpf
@@ -215,9 +278,11 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ar_agsapm_si_scpf
   integer, private :: ih_ar_crootm_si_scpf
   integer, private :: ih_ar_frootm_si_scpf
+  
+  integer, private :: ih_c13disc_si_scpf
 
 
-  ! indices to (site x scls) variables
+  ! indices to (site x scls [size class bins]) variables
   integer, private :: ih_ba_si_scls
   integer, private :: ih_nplant_si_scls
   integer, private :: ih_nplant_canopy_si_scls
@@ -1326,6 +1391,8 @@ end subroutine flush_hvars
     real(r8) :: npp_partition_error ! a check that the NPP partitions sum to carbon allocation
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
     real(r8) :: binbottom,bintop    ! edges of height bins
+    
+    real(r8) :: gpp_cached ! variable used to cache gpp value in previous time step; for C13 discrimination
 
     ! The following are all carbon states, turnover and net allocation flux variables
     ! the organs of relevance should be self explanatory
@@ -1452,7 +1519,9 @@ end subroutine flush_hvars
                hio_m5_si_scls          => this%hvars(ih_m5_si_scls)%r82d, &
                hio_m6_si_scls          => this%hvars(ih_m6_si_scls)%r82d, &
                hio_m7_si_scls          => this%hvars(ih_m7_si_scls)%r82d, &
-               hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &                        
+               hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &    
+	       hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &                    
+
 
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_agb_si_scls          => this%hvars(ih_agb_si_scls)%r82d, &
@@ -1789,6 +1858,8 @@ end subroutine flush_hvars
 
                   associate( scpf => ccohort%size_by_pft_class, &
                              scls => ccohort%size_class )
+			     
+		    gpp_cached = hio_gpp_si_scpf(io_si,scpf)
 
                     hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
                                                        n_perm2*ccohort%gpp_acc_hold  ! [kgC/m2/yr]
@@ -1832,6 +1903,17 @@ end subroutine flush_hvars
                              (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
                        hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
                              ccohort%frmort*ccohort%n
+			     
+		       !C13 discrimination
+                       if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
+
+                           hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
+			     (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
+		       else
+		           hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
+                       endif
+			
+			     
 
                        ! basal area  [m2/ha]
                        hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
@@ -4035,6 +4117,11 @@ end subroutine flush_hvars
           long='total mortality of canopy plants by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_canopy_si_scpf )
+
+    call this%set_history_var(vname='C13disc_SCPF', units = 'per mil',               &
+         long='C13 discrimination by pft/size',use_default='inactive',           &
+         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_c13disc_si_scpf )	  
 
     call this%set_history_var(vname='BSTOR_CANOPY_SCPF', units = 'kgC/ha',          &
           long='biomass carbon in storage pools of canopy plants by pft/size', use_default='inactive', &
