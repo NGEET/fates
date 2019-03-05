@@ -614,25 +614,25 @@ data:
 
  fates_history_ageclass_bin_edges = 0, 1, 2, 5, 10, 20, 50 ;
 
- fates_FBD = 4, 15.4, 16.8, 19.6, 999, 4 ;
+ fates_FBD = 15.4, 16.8, 19.6, 999, 4, 4 ;
 
- fates_SAV = 66, 13, 3.58, 0.98, 0.2, 66 ;
+ fates_SAV = 13, 3.58, 0.98, 0.2, 66, 66 ;
 
  fates_history_height_bin_edges = 0, 0.1, 0.3, 1, 3, 10 ;
 
- fates_low_moisture_Coeff = 1.15, 1.12, 1.09, 0.98, 0.8, 1.15 ;
+ fates_low_moisture_Coeff = 1.12, 1.09, 0.98, 0.8, 1.15, 1.15 ;
 
- fates_low_moisture_Slope = 0.62, 0.62, 0.72, 0.85, 0.8, 0.62 ;
+ fates_low_moisture_Slope = 0.62, 0.72, 0.85, 0.8, 0.62, 0.62 ;
 
- fates_max_decomp = 1, 0.52, 0.383, 0.383, 0.19, 999 ;
+ fates_max_decomp = 0.52, 0.383, 0.383, 0.19, 999, 1 ;
 
- fates_mid_moisture = 0.8, 0.72, 0.51, 0.38, 1, 0.8 ;
+ fates_mid_moisture = 0.72, 0.51, 0.38, 1, 0.8, 0.8 ;
 
- fates_mid_moisture_Coeff = 3.2, 2.35, 1.47, 1.06, 0.8, 3.2 ;
+ fates_mid_moisture_Coeff = 2.35, 1.47, 1.06, 0.8, 3.2, 3.2 ;
 
- fates_mid_moisture_Slope = 3.2, 2.35, 1.47, 1.06, 0.8, 3.2 ;
+ fates_mid_moisture_Slope = 2.35, 1.47, 1.06, 0.8, 3.2, 3.2 ;
 
- fates_min_moisture = 0.24, 0.18, 0.12, 0, 0, 0.24 ;
+ fates_min_moisture = 0.18, 0.12, 0, 0, 0.24, 0.24 ;
 
  fates_hydr_avuln_node =
   2, 2,
