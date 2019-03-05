@@ -1022,6 +1022,13 @@ contains
                                    call endrun(msg=errMsg(sourcefile, __LINE__))
                                 end select
 
+
+                                ! Perform check on LAI (specifically, see if LAI is greater than target)
+                                call check_lai(leaf_c, currentCohort%dbh,currentCohort%pft, currentCohort%c_area, &
+                                     currentCohort%n, currentCohort%canopy_layer,               &
+                                     currentPatch%canopy_layer_tlai,currentCohort%vcmax25top, 0 )
+
+
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
 				      
