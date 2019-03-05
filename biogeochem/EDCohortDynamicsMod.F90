@@ -277,7 +277,7 @@ contains
 
     new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, new_cohort%canopy_trim,   &
                                   new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
-                                  patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top )  
+                                  patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top,2 )  
 
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
 
@@ -1022,11 +1022,16 @@ contains
                                    call endrun(msg=errMsg(sourcefile, __LINE__))
                                 end select
 
+                                
+                                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
 
-                                ! Perform check on LAI (specifically, see if LAI is greater than target)
-                                call check_lai(leaf_c, currentCohort%dbh,currentCohort%pft, currentCohort%c_area, &
-                                     currentCohort%n, currentCohort%canopy_layer,               &
-                                     currentPatch%canopy_layer_tlai,currentCohort%vcmax25top, 0 )
+                                currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+                                               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+                                               currentCohort%vcmax25top)
+                                currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+                                               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                                               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,1 ) 
+
 
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &

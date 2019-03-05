@@ -712,7 +712,8 @@ contains
 
   ! ============================================================================
 
-  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, canopy_lai, treelai, vcmax25top )
+  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, &
+                              canopy_lai, treelai, vcmax25top, call_id )
 
     ! ============================================================================
     !  SAI of individual trees is a function of the LAI of individual trees
@@ -728,7 +729,8 @@ contains
                                                ! each canopy layer
     real(r8), intent(in) :: treelai            ! tree LAI for checking purposes only
     real(r8), intent(in) :: vcmax25top         ! maximum carboxylation rate at top of crown
-                                               
+    integer,intent(in)   :: call_id            ! flag specifying where this is called
+                                               ! from
 
     real(r8)             :: target_bleaf
     real(r8)             :: target_lai
@@ -748,6 +750,7 @@ contains
        write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
        write(fates_log(),*) 'nlevleaf,dinc_ed,nlevleaf*dinc_ed :',nlevleaf,dinc_ed,nlevleaf*dinc_ed
        write(fates_log(),*) 'pft: ',pft
+       write(fates_log(),*) 'call id: ',call_id
        write(fates_log(),*) 'n: ',nplant
        write(fates_log(),*) 'c_area: ',c_area
        write(fates_log(),*) 'dbh: ',dbh
