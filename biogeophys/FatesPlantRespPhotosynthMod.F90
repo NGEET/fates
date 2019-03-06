@@ -309,28 +309,6 @@ contains
                                            gb_mol,                   & ! out
                                            ceair)                      ! out
 
-               ! Part V.  Pre-process some variables that are PFT dependent
-               ! but not environmentally dependent
-               ! ------------------------------------------------------------------------
-
-               do ft = 1,numpft
-
-                  
-                  
-
-                  ! This is probably unnecessary and already calculated
-                  ! ALSO, THIS ROOTING PROFILE IS USED TO CALCULATE RESPIRATION
-                  ! YET IT USES THE PROFILE THAT IS CONSISTENT WITH WATER UPTAKE
-                  ! AND NOT THE PROFILE WE USE FOR DECOMPOSITION
-                  ! SEEMS LIKE THE LATTER WOULD BE MORE APPROPRIATE, RIGHT? (RGK 05-2018)
-                  call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
-                       bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
-                       icontext = i_hydro_rootprof_context)
-                  
-               end do !ft 
-
-               
-
                ! ------------------------------------------------------------------------
                ! Part VI: Loop over all leaf layers.
                ! The concept of leaf layers is a result of the radiative transfer scheme.
@@ -647,7 +625,7 @@ contains
                      do j = 1,bc_in(s)%nlevsoil
                         tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
-                              fnrt_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
+                              fnrt_n * ED_val_base_mr_20 * tcsoi * currentCohort%root_fr(j) * maintresp_reduction_factor
                      enddo
                      
                      ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
@@ -659,7 +637,7 @@ contains
                            tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
                                  live_croot_n * ED_val_base_mr_20 * tcsoi * &
-                                 currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
+                                 currentCohort%root_fr(j) * maintresp_reduction_factor
                         enddo
                      else
                         currentCohort%livecroot_mr = 0._r8    

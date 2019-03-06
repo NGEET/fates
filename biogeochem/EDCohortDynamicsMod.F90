@@ -92,7 +92,8 @@ module EDCohortDynamicsMod
   public :: count_cohorts
   public :: InitPRTCohort
   public :: UpdateCohortBioPhysRates
-
+  public :: DeallocateCohort
+  
   logical, parameter :: debug  = .false. ! local debug flag
 
   character(len=*), parameter, private :: sourcefile = &
@@ -166,13 +167,16 @@ contains
 
     allocate(new_cohort)
 
+    ! Allocate dynamic memory in each cohort
+    allocate(new_cohort%root_fr(bc_in%nlevsoil))
+
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
 
     !**********************/
     ! Define cohort state variable
     !**********************/
- 
+
     new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
                                               ! bogus value for the time being (RGK-012017)
 
@@ -189,6 +193,10 @@ contains
     new_cohort%laimemory    = laimemory
 
     
+
+    
+
+
     ! All newly initialized cohorts start off with an assumption
     ! about leaf age (depending on what is calling the initialization
     ! of this cohort
@@ -240,6 +248,14 @@ contains
     ! -----------------------------------------------------------------------------------
 
     call new_cohort%prt%CheckInitialConditions()
+
+    ! Initialize the rooting depth fractions
+    ! This could be based on all sorts of stuff, like size
+    ! or perhaps mass balance dynamics
+    
+    call set_root_fraction(new_cohort%root_fr(:), pft, &
+          bc_in%zi_sisl(:), i_biomass_rootprof_context )
+    
 
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions
@@ -461,7 +477,7 @@ contains
     currentCohort%size_class         = fates_unset_int  ! size class index
     currentCohort%size_class_lasttimestep = fates_unset_int  ! size class index
     currentCohort%size_by_pft_class  = fates_unset_int  ! size by pft classification index
-
+    currentCohort%root_fr(:)         = nan
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm                            
     currentCohort%hite               = nan ! height: meters                   
@@ -779,13 +795,8 @@ contains
              shorterCohort%taller => tallerCohort
           endif
           
-          ! At this point, nothing should be pointing to current Cohort
-          if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
 
-          ! Deallocate the cohort's PRT structure
-          call currentCohort%prt%DeallocatePRTVartypes()
-          deallocate(currentCohort%prt)
-
+          call DeallocateCohort(currentCohort)
           deallocate(currentCohort)
           nullify(currentCohort)
           
@@ -796,6 +807,32 @@ contains
   end subroutine terminate_cohorts
 
   !-------------------------------------------------------------------------------------!
+
+  subroutine DeallocateCohort(currentCohort)
+
+     ! ----------------------------------------------------------------------------------
+     ! This subroutine deallocates all dynamic memory and objects
+     ! inside the cohort structure.  This DOES NOT deallocate
+     ! the cohort structure itself.
+     ! ----------------------------------------------------------------------------------
+     
+     type(ed_cohort_type),intent(inout) :: currentCohort
+     
+     ! At this point, nothing should be pointing to current Cohort
+     if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
+     
+     ! Deallocate the cohort's PRT structures
+     call currentCohort%prt%DeallocatePRTVartypes()
+     
+     ! Deallocate the PRT object
+     deallocate(currentCohort%prt)
+     
+     ! Deallocate any dynamic arrays
+     deallocate(currentCohort%root_fr)
+     
+     return
+  end subroutine DeallocateCohort
+  
 
   subroutine fuse_cohorts(currentSite, currentPatch, bc_in)  
 
@@ -1094,12 +1131,9 @@ contains
                                        currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
                                        currentCohort%vcmax25top  )			    
 				   call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)  				   
-				   call DeallocateHydrCohort(nextc)
-				endif
-
-                                ! Deallocate the cohort's PRT structure
-                                call nextc%prt%DeallocatePRTVartypes()
-                                deallocate(nextc%prt)
+                                endif
+    
+                                call DeallocateCohort(nextc)
                                 deallocate(nextc)
                                 nullify(nextc)
 

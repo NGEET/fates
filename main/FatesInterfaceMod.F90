@@ -293,11 +293,17 @@ module FatesInterfaceMod
       real(r8),allocatable :: dz_sisl(:)         ! layer thickness (m)
       real(r8),allocatable :: z_sisl(:)          ! layer depth (m)
 
-      
-
-
       ! Decomposition Layer Structure
-      real(r8), allocatable :: dz_decomp_sisl(:)
+      real(r8), allocatable :: dz_decomp_sisl(:) ! This should match dz_sisl(), unless
+                                                 ! only one layer is chosen, in that
+                                                 ! case, it has its own depth, which
+                                                 ! has traditionally been 1 meter
+
+      integer,allocatable  :: decomp_id(:)       ! The decomposition layer index that each
+                                                 ! soil layer maps to. This will either
+                                                 ! be equivalent (ie integer ascending)
+                                                 ! Or, all will be 1.
+      
 
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
@@ -659,7 +665,7 @@ contains
 
       bc_in%nlevsoil   = nlevsoil_in
 
-      if(nlevsoil_inn > numlevsoil_max) then
+      if(nlevsoil_in > numlevsoil_max) then
          write(fates_log(), *) 'The number of soil layers imposed by the host model'
          write(fates_log(), *) 'is larger than what we have allocated in our static'
          write(fates_log(), *) 'arrays. Please increase the size of numlevsoil_max'
@@ -669,10 +675,31 @@ contains
 
       bc_in%nlevdecomp = nlevdecomp_in
 
+
+      if (hlm_use_versoilc == itrue) then
+         if(bc_in%nlevdecomp .ne. bc_in%nlevsoil) then
+            write(fates_log(), *) 'The host has signaled a vertically resolved'
+            write(fates_log(), *) 'soil decomposition model. Therefore, the '
+            write(fates_log(), *) 'total number of soil layers should equal the'
+            write(fates_log(), *) 'total number of decomposition layers.'
+            write(fates_log(), *) 'nlevdecomp: ',bc_in%nlevdecomp
+            write(fates_log(), *) 'nlevsoil: ',bc_in%nlevsoil
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+      else
+         if(bc_in%nlevdecomp .ne. 1)then
+            write(fates_log(), *) 'The host has signaled a non-vertically resolved'
+            write(fates_log(), *) 'soil decomposition model. Therefore, the '
+            write(fates_log(), *) 'total number of decomposition layers should be 1.'
+            write(fates_log(), *) 'nlevdecomp: ',bc_in%nlevdecomp
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+      end if
+
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
       allocate(bc_in%z_sisl(nlevsoil_in))
-
+      allocate(bc_in%decomp_id(nlevsoil_in))
       allocate(bc_in%dz_decomp_sisl(nlevdecomp_in))
 
       ! Vegetation Dynamics
@@ -805,14 +832,6 @@ contains
       integer, intent(in) :: s
 
       ! Input boundaries
-      ! Warning: these "z" type variables
-      ! are written only once at the beginning
-      ! so THIS ROUTINE SHOULD NOT BE CALLED AFTER
-      ! INITIALIZATION
-      this%bc_in(s)%zi_sisl(:)     = 0.0_r8
-      this%bc_in(s)%dz_sisl(:)     = 0.0_r8
-      this%bc_in(s)%z_sisl(:)      = 0.0_r8
-      this%bc_in(s)%dz_decomp_sisl = 0.0_r8
       
       this%bc_in(s)%t_veg24_si     = 0.0_r8
       this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8

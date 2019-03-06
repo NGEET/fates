@@ -1923,7 +1923,7 @@ contains
   
   ! =========================================================================
 
-  subroutine set_root_fraction(root_fraction, ft, zi, lowerb, icontext )
+  subroutine set_root_fraction(root_fraction, ft, zi, icontext )
     !
     ! !DESCRIPTION:
     !  Calculates the fractions of the root biomass in each layer for each pft. 
@@ -1935,10 +1935,9 @@ contains
 
     !
     ! !ARGUMENTS
-    real(r8),intent(inout) :: root_fraction(:)
-    integer, intent(in)    :: ft
-    real(r8),intent(in)    :: zi(lowerb:)
-    integer,intent(in)     :: lowerb
+    real(r8),intent(inout) :: root_fraction(:) ! Normalized profile
+    integer, intent(in)    :: ft               ! functional typpe
+    real(r8),intent(in)    :: zi(:)            ! Center of depth [m]
     integer,intent(in)     :: icontext
 
     ! Parameters
