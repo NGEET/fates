@@ -1394,9 +1394,9 @@ contains
     
     do c = 1,ncwd  
        currentPatch%cwd_ag_out(c)      = max(0.0_r8,   currentPatch%cwd_ag(c) * &
-            SF_val_max_decomp(c+1) * currentPatch%fragmentation_scaler )  
+            SF_val_max_decomp(c) * currentPatch%fragmentation_scaler )  
        currentPatch%cwd_bg_out(c)      = max(0.0_r8,   currentPatch%cwd_bg(c) * &
-            SF_val_max_decomp(c+1) * currentPatch%fragmentation_scaler )
+            SF_val_max_decomp(c) * currentPatch%fragmentation_scaler )
     enddo
 
     ! this is the rate at which dropped leaves stop being part of the burnable pool and begin to be part of the 
