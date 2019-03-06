@@ -1177,7 +1177,7 @@ data:
 
  fates_low_moisture_Slope = 0.62, 0.72, 0.85, 0.8, 0.62, 0.62 ;
 
- fates_max_decomp = 0.383, 0.383, 0.19, 999, 0.52, 1 ;
+ fates_max_decomp = 0.52, 0.383, 0.383, 0.19, 1, 999 ;
 
  fates_mid_moisture = 0.72, 0.51, 0.38, 1, 0.8, 0.8 ;
 
