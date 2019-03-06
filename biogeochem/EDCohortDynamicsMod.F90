@@ -49,7 +49,7 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : bfineroot
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : carea_allom
-  use FatesAllometryMod  , only : StructureResetOfDH
+  use FatesAllometryMod  , only : ForceDBH
   use FatesAllometryMod  , only : tree_lai, tree_sai
 
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
@@ -103,7 +103,7 @@ module EDCohortDynamicsMod
   integer, parameter, private :: conserve_crownarea_and_number_not_dbh = 1
   integer, parameter, private :: conserve_dbh_and_number_not_crownarea = 2
 
-  integer, parameter, private :: cohort_fusion_conservation_method = conserve_dbh_and_number_not_crownarea
+  integer, parameter, private :: cohort_fusion_conservation_method = conserve_crownarea_and_number_not_dbh
   
   ! 10/30/09: Created by Rosie Fisher
   !-------------------------------------------------------------------------------------!
@@ -1010,8 +1010,10 @@ contains
                                    ! -----------------------------------------------------------------
                                    !
                                    if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
-                                      call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,all_carbon_elements), currentCohort%pft, &
-                                           currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+                                      call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
+                                           currentCohort%dbh, currentCohort%hite, &
+                                           bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+
                                    end if
                                    !
                                    call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&

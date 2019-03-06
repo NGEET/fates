@@ -91,6 +91,7 @@ module FatesAllometryMod
   use FatesConstantsMod, only : kg_per_Megag
   use FatesConstantsMod, only : calloc_abs_error
   use FatesConstantsMod, only : fates_unset_r8
+  use FatesConstantsMod, only : itrue
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
@@ -116,7 +117,8 @@ module FatesAllometryMod
   public :: carea_allom   ! Generic crown area wrapper
   public :: bstore_allom  ! Generic maximum storage carbon wrapper
   public :: decay_coeff_kn
-  public :: StructureResetOfDH ! Method to set DBH to sync with structure biomass
+  public :: ForceDBH      ! Method to set DBH to sync with structure
+                          ! or fineroot biomass
   public :: CheckIntegratedAllometries
   public :: CrownDepth
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
@@ -731,7 +733,7 @@ contains
     real(r8), intent(in) :: vcmax25top         ! maximum carboxylation rate at top of crown
     integer,intent(in)   :: call_id            ! flag specifying where this is called
                                                ! from
-
+    real(r8)             :: h
     real(r8)             :: target_bleaf
     real(r8)             :: target_lai
 
@@ -741,8 +743,10 @@ contains
 
     tree_sai   =  EDPftvarcon_inst%allom_sai_scaler(pft) * target_lai
 
-
     if( (treelai + tree_sai) > (nlevleaf*dinc_ed) )then
+
+       call h_allom(dbh,pft,h)
+
        write(fates_log(),*) 'The leaf and stem are predicted for a cohort, maxed out the array size'
        write(fates_log(),*) 'lai: ',treelai
        write(fates_log(),*) 'sai: ',tree_sai
@@ -753,7 +757,8 @@ contains
        write(fates_log(),*) 'call id: ',call_id
        write(fates_log(),*) 'n: ',nplant
        write(fates_log(),*) 'c_area: ',c_area
-       write(fates_log(),*) 'dbh: ',dbh
+       write(fates_log(),*) 'dbh: ',dbh,' dbh_max: ',EDPftvarcon_inst%allom_dbh_maxheight(pft)
+       write(fates_log(),*) 'h: ',h
        write(fates_log(),*) 'canopy_trim: ',canopy_trim
        write(fates_log(),*) 'target_bleaf: ',target_bleaf
        write(fates_log(),*) 'canopy layer: ',cl
@@ -2195,90 +2200,140 @@ contains
 
   ! =====================================================================================
 
-  subroutine StructureResetOfDH( bdead, ipft, canopy_trim, d, h )
+  subroutine ForceDBH( ipft, canopy_trim, d, h, bdead, bfnrt )
 
      ! =========================================================================
-     ! This subroutine estimates the diameter based on the structural biomass
-     ! using the allometric functions. Since allometry is specified with diameter
+     ! This subroutine estimates the diameter based on either the structural biomass
+     ! (if woody) or the fine root biomass (if a grass) using the allometric 
+     ! functions. Since allometry is specified with diameter
      ! as the independant variable, we must do this through a search algorithm.
      ! Here, we keep searching until the difference between actual structure and
      ! the predicted structure based on the searched diameter is within a tolerance.
-     ! T
      ! ============================================================================
 
      use FatesConstantsMod     , only : calloc_abs_error
      ! Arguments
 
-     real(r8),intent(in)           :: bdead ! actual bdead [kgC]
+
      integer(i4),intent(in)        :: ipft  ! PFT index
      real(r8),intent(in)           :: canopy_trim
      real(r8),intent(inout)        :: d     ! plant diameter [cm]
      real(r8),intent(out)          :: h     ! plant height
+     real(r8),intent(in),optional  :: bdead ! Structural biomass
+     real(r8),intent(in),optional  :: bfnrt ! Fine root biomass
+
      
      ! Locals
      real(r8)  :: bt_sap,dbt_sap_dd  ! target sap wood at current d
      real(r8)  :: bt_agw,dbt_agw_dd  ! target AG wood at current d
      real(r8)  :: bt_bgw,dbt_bgw_dd  ! target BG wood at current d
      real(r8)  :: bt_dead,dbt_dead_dd ! target struct wood at current d
+     real(r8)  :: bt_fnrt,dbt_fnrt_dd ! target fineroot at current d
      real(r8)  :: at_sap              ! sapwood area (dummy) m2
      real(r8)  :: dd                  ! diameter increment for each step
      real(r8)  :: d_try               ! trial diameter
      real(r8)  :: bt_dead_try         ! trial structure biomasss
      real(r8)  :: dbt_dead_dd_try     ! trial structural derivative
+     real(r8)  :: bt_fnrt_try         ! trial fineroot biomass
+     real(r8)  :: dbt_fnrt_dd_try        ! trial fineroot derivative
      real(r8)  :: step_frac           ! step fraction
      integer   :: counter 
      real(r8), parameter :: step_frac0  = 0.9_r8
      integer, parameter  :: max_counter = 200
+     
+     ! Do reduce "if" calls, we break this call into two parts
+     if ( EDPftvarcon_inst%woody(ipft) == itrue ) then
 
-     call bsap_allom(d,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
-     call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
-     call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
-     call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
-                      dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
-
-     ! This calculates a diameter increment based on the difference
-     ! in structural mass and the target mass, and sets it to a fraction
-     ! of the diameter increment
-     counter = 0
-     step_frac = step_frac0
-     do while( (bdead-bt_dead) > calloc_abs_error .and. dbt_dead_dd>0.0_r8)
-
-        ! vulnerable to div0
-        dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
-        d_try = d + dd
-        
-        call bsap_allom(d_try,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
-        call bagw_allom(d_try,ipft,bt_agw,dbt_agw_dd)
-        call bbgw_allom(d_try,ipft,bt_bgw,dbt_bgw_dd)
-        call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead_try, dbt_agw_dd, &
-              dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd_try)
-
-        ! Prevent overshooting
-        if(bt_dead_try > (bdead+calloc_abs_error)) then
-           step_frac = step_frac*0.5_r8
-        else
-           step_frac = step_frac0
-           d         = d_try
-           bt_dead   = bt_dead_try
-           dbt_dead_dd = dbt_dead_dd_try
-        end if
-        counter = counter + 1
-        if (counter>max_counter) then
-           write(fates_log(),*) 'Having trouble converging on dbh reset'
+        if(.not.present(bdead)) then
+           write(fates_log(),*) 'woody plants must use structure for dbh reset'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-     end do
+        
+        call bsap_allom(d,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
+        call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
+        call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
+        call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
+             dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
+
+        ! This calculates a diameter increment based on the difference
+        ! in structural mass and the target mass, and sets it to a fraction
+        ! of the diameter increment
+        counter = 0
+        step_frac = step_frac0
+        do while( (bdead-bt_dead) > calloc_abs_error .and. dbt_dead_dd>0.0_r8)
+           
+           ! vulnerable to div0
+           dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
+           d_try = d + dd
+        
+           call bsap_allom(d_try,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
+           call bagw_allom(d_try,ipft,bt_agw,dbt_agw_dd)
+           call bbgw_allom(d_try,ipft,bt_bgw,dbt_bgw_dd)
+           call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead_try, dbt_agw_dd, &
+                dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd_try)
+           
+           ! Prevent overshooting
+           if(bt_dead_try > (bdead+calloc_abs_error)) then
+              step_frac = step_frac*0.5_r8
+           else
+              step_frac = step_frac0
+              d         = d_try
+              bt_dead   = bt_dead_try
+              dbt_dead_dd = dbt_dead_dd_try
+           end if
+           counter = counter + 1
+           if (counter>max_counter) then
+              write(fates_log(),*) 'Having trouble converging on dbh reset'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end do
+        
+
+     else
+
+        if(.not.present(bfnrt)) then
+           write(fates_log(),*) 'grasses must use fine-root for dbh reset'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        call bfineroot(d,ipft,canopy_trim,bt_fnrt,dbt_fnrt_dd)
+
+        counter = 0
+        step_frac = step_frac0
+        do while( (bfnrt-bt_fnrt) > calloc_abs_error .and. dbt_fnrt_dd>0.0_r8)
+
+           dd    = step_frac*(bfnrt-bt_fnrt)/dbt_fnrt_dd
+           d_try = d + dd
+           
+           call bfineroot(d_try,ipft,canopy_trim,bt_fnrt_try,dbt_fnrt_dd_try)
+
+           ! Prevent overshooting                                                                                           
+           if(bt_fnrt_try > (bfnrt+calloc_abs_error)) then
+              step_frac = step_frac*0.5_r8
+           else
+              step_frac = step_frac0
+              d         = d_try
+              bt_fnrt   = bt_fnrt_try
+              dbt_fnrt_dd = dbt_fnrt_dd_try
+           end if
+           counter = counter + 1
+           if (counter>max_counter) then
+              write(fates_log(),*) 'Having trouble converging on dbh reset'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end do
+
+     end if
 
      call h_allom(d,ipft,h)
      if(counter>10)then
-        write(fates_log(),*) 'dbh counter: ',counter
+        write(fates_log(),*) 'dbh counter: ',counter,EDPftvarcon_inst%woody(ipft)
      end if
 
-     ! At this point, the diameter, height and their target structural biomass
-     ! should be pretty close to and greater than actual
+     
 
      return
-  end subroutine StructureResetOfDH
+  end subroutine ForceDBH
 
   ! =========================================================================
   

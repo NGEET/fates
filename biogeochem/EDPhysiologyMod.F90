@@ -60,7 +60,6 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : bbgw_allom
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
-  use FatesAllometryMod  , only : StructureResetOfDH
   
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : leaf_organ
