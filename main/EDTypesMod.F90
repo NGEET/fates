@@ -317,7 +317,6 @@ module EDTypesMod
                                                                 ! photosynthesis m2 veg / m2 of canopy area (patch without bare ground)
      real(r8) ::  total_canopy_area                                ! area that is covered by vegetation : m2
      real(r8) ::  total_tree_area                                  ! area that is covered by woody vegetation : m2
-     real(r8) ::  bare_frac_area                                   ! bare soil in this patch expressed as a fraction of the total soil surface.
      real(r8) ::  zstar                                            ! height of smallest canopy tree -- only meaningful in "strict PPA" mode
 
      real(r8) :: c_stomata                                    ! Mean stomatal conductance of all leaves in the patch   [umol/m2/s]
@@ -729,7 +728,6 @@ contains
      write(fates_log(),*) 'pa%ncl_p              = ',cpatch%ncl_p
      write(fates_log(),*) 'pa%total_canopy_area  = ',cpatch%total_canopy_area
      write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
-     write(fates_log(),*) 'pa%bare_frac_area     = ',cpatch%bare_frac_area
      write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
      write(fates_log(),*) 'pa%c_stomata          = ',cpatch%c_stomata
      write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
