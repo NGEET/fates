@@ -21,6 +21,12 @@ module EDSurfaceRadiationMod
   use EDTypesMod        , only : maxSWb
   use EDTypesMod        , only : nclmax
   use EDTypesMod        , only : nlevleaf
+  use EDTypesMod        , only : n_rad_stream_types
+  use EDTypesMod        , only : idiffuse
+  use EDTypesMod        , only : idirect
+  use EDTypesMod        , only : ivis
+  use EDTypesMod        , only : inir
+  use EDTypesMod        , only : ipar
   use EDCanopyStructureMod, only: calc_areaindex
   use FatesGlobals      , only : fates_log
   
@@ -38,10 +44,6 @@ module EDSurfaceRadiationMod
   
   real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
         (/ 0.80_r8, 0.55_r8 /)
-
-  ! INTERF-TODO: THIS NEEDS SOME CONSISTENCY AND SHOULD BE SET IN THE INTERFACE
-  ! WITH OTHER DIMENSIONS
-  integer, parameter :: ipar = 1          ! The band index for PAR
 
 contains
    
@@ -125,7 +127,8 @@ contains
             rhos         =>    EDPftvarcon_inst%rhos                     , & ! Input:  [real(r8) (:)   ] stem reflectance: 1=vis, 2=nir
             taul         =>    EDPftvarcon_inst%taul                     , & ! Input:  [real(r8) (:)   ] leaf transmittance: 1=vis, 2=nir
             taus         =>    EDPftvarcon_inst%taus                     , & ! Input:  [real(r8) (:)   ] stem transmittance: 1=vis, 2=nir
-            xl           =>    EDPftvarcon_inst%xl)                          ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem orientation index
+            xl           =>    EDPftvarcon_inst%xl                       , & ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem orientation index
+            clumping_index  => EDPftvarcon_inst%clumping_index)              ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem clumping index
             
 !            albd         =>    surfalb_inst%albd_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (direct) (USED IN LND2ATM,BALANCE_CHECK)
 !            albi         =>    surfalb_inst%albi_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (diffuse) (LND2ATM,BALANCE_CHECK)
@@ -157,6 +160,12 @@ contains
               currentPatch%fabi_sha_z (:,:,:) = 0._r8
               currentPatch%fabd       (:)     = 0._r8
               currentPatch%fabi       (:)     = 0._r8
+
+              ! zero diagnostic radiation profiles
+              currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+              currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+              currentPatch%nrmlzd_parprof_dir_z(:,:,:) = 0._r8
+              currentPatch%nrmlzd_parprof_dif_z(:,:,:) = 0._r8
 
               if(bc_in(s)%filter_vegzen_pa(ifp))then
 
@@ -207,9 +216,10 @@ contains
                        end do !ft
                     end do !L
 
-                    do radtype = 1,2 !do this once for one unit of diffuse, and once for one unit of direct radiation
+                    !do this once for one unit of diffuse, and once for one unit of direct radiation
+                    do radtype = 1, n_rad_stream_types 
                        do ib = 1,hlm_numSWb
-                          if (radtype == 1) then
+                          if (radtype == idirect) then
                              ! Set the hypothetical driving radiation. We do this once for a single unit of direct and
                              ! once for a single unit of diffuse radiation.
                              forc_dir(ifp,ib) = 1.00_r8
@@ -251,7 +261,7 @@ contains
                           phi2b(ifp,ft) = 0.877_r8 * (1._r8 - 2._r8*phi1b(ifp,ft)) !0 = horiz leaves, 1 - vert leaves.
                           gdir(ifp) = phi1b(ifp,ft) + phi2b(ifp,ft) * sin(sb)
                           !how much direct light penetrates a singleunit of lai?
-                          k_dir(ft) = gdir(ifp) / sin(sb)
+                          k_dir(ft) = clumping_index(ft) * gdir(ifp) / sin(sb)
                        end do !FT
                        
                        do L = 1,currentPatch%NCL_p !start at the top canopy layer (1 is the top layer.)
@@ -270,8 +280,9 @@ contains
                                 do iv = 1,currentPatch%nrad(L,ft)
                                    do j = 1,9
                                       angle = (5._r8 + (j - 1) * 10._r8) * 3.142 / 180._r8
-                                      gdir(ifp) = phi1b(ifp,ft) + phi2b(ifp,ft) * sin(angle) !This line is redundant FIX(RF,032414). 
-                                      tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) + exp(-gdir(ifp) / sin(angle) * &
+                                      gdir(ifp) = phi1b(ifp,ft) + phi2b(ifp,ft) * sin(angle)
+                                      tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) + exp(-clumping_index(ft) * &
+                                           gdir(ifp) / sin(angle) * &
                                            (currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv))) * &
                                            sin(angle)*cos(angle)
                                    end do
@@ -666,6 +677,7 @@ contains
                           abs_rad(ib) = 0._r8
                           tr_soili = 0._r8
                           tr_soild = 0._r8
+
                           do L = 1, currentPatch%NCL_p !working from the top down.
                              abs_dir_z(:,:) = 0._r8
                              abs_dif_z(:,:) = 0._r8
@@ -697,9 +709,9 @@ contains
                                    ! Absorbed radiation, shaded and sunlit portions of leaf layers
                                    !here we get one unit of diffuse radiation... how much of
                                    !it is absorbed?
-                                   if (ib == 1) then ! only set the absorbed PAR for the visible light band. 
+                                   if (ib == ivis) then ! only set the absorbed PAR for the visible light band. 
                                       do iv = 1, currentPatch%nrad(L,ft)
-                                         if (radtype==1) then
+                                         if (radtype==idirect) then
                                             if ( debug ) then
                                                write(fates_log(),*) 'EDsurfAlb 730 ',Abs_dif_z(ft,iv),currentPatch%f_sun(L,ft,iv)
                                                write(fates_log(),*) 'EDsurfAlb 731 ', currentPatch%fabd_sha_z(L,ft,iv), &
@@ -733,8 +745,9 @@ contains
                                    end if
                                    ! Solar radiation absorbed by vegetation and sunlit/shaded leaves
                                    do iv = 1,currentPatch%nrad(L,ft)
-                                      if (radtype == 1)then
-                                         currentPatch%fabd(ib) = currentPatch%fabd(ib) + Abs_dir_z(ft,iv)+Abs_dif_z(ft,iv)
+                                      if (radtype == idirect)then
+                                         currentPatch%fabd(ib) = currentPatch%fabd(ib) + &
+                                                                 Abs_dir_z(ft,iv)+Abs_dif_z(ft,iv)
                                          ! bc_out(s)%fabd_parb(ifp,ib) = currentPatch%fabd(ib)
                                       else
                                          currentPatch%fabi(ib) = currentPatch%fabi(ib) + Abs_dif_z(ft,iv)
@@ -743,7 +756,7 @@ contains
                                    end do
                                    ! Albefor
                                    if (L==1)then !top canopy layer.
-                                      if (radtype == 1)then
+                                      if (radtype == idirect)then
                                          bc_out(s)%albd_parb(ifp,ib) = bc_out(s)%albd_parb(ifp,ib) + &
                                               Dif_up(L,ft,1) * ftweight(L,ft,1)
                                       else
@@ -751,9 +764,28 @@ contains
                                               Dif_up(L,ft,1) * ftweight(L,ft,1)
                                       end if
                                    end if
+
+                                   ! pass normalized PAR profiles for use in diagnostic averaging for history fields
+                                   if (ib == ivis) then ! only diagnose PAR profiles for the visible band
+                                      do iv = 1, currentPatch%nrad(L,ft)
+                                         currentPatch%nrmlzd_parprof_pft_dir_z(radtype,L,ft,iv) = &
+                                              forc_dir(ifp,ib) * tr_dir_z(L,ft,iv)
+                                         currentPatch%nrmlzd_parprof_pft_dif_z(radtype,L,ft,iv) = &
+                                              Dif_dn(L,ft,iv) + Dif_up(L,ft,iv)
+                                         !
+                                         currentPatch%nrmlzd_parprof_dir_z(radtype,L,iv) = &
+                                              currentPatch%nrmlzd_parprof_dir_z(radtype,L,iv) + &
+                                              (forc_dir(ifp,ib) * tr_dir_z(L,ft,iv)) * &
+                                              (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
+                                         currentPatch%nrmlzd_parprof_dif_z(radtype,L,iv) = &
+                                              currentPatch%nrmlzd_parprof_dif_z(radtype,L,iv) + &
+                                              (Dif_dn(L,ft,iv) + Dif_up(L,ft,iv)) * &
+                                              (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
+                                      end do
+                                   end if ! ib = visible
                                 end if ! present
                              end do !ft
-                             if (radtype == 1)then
+                             if (radtype == idirect)then
                                 bc_out(s)%fabd_parb(ifp,ib) = currentPatch%fabd(ib)
                              else
                                 bc_out(s)%fabi_parb(ifp,ib) = currentPatch%fabi(ib)
@@ -770,7 +802,7 @@ contains
                                 tr_soild = tr_soild + forc_dir(ifp,ib) * weighted_dir_tr(L-1) * (1.0_r8-sum(ftweight(L,1:numpft,1)))
                              endif
                              
-                             if (radtype == 1)then
+                             if (radtype == idirect)then
                                 currentPatch%tr_soil_dir(ib) = tr_soild
                                 currentPatch%tr_soil_dir_dif(ib) = tr_soili
                                 currentPatch%sabs_dir(ib)     = abs_rad(ib)
@@ -790,7 +822,7 @@ contains
                           !==============================================================================!
                           ! Total radiation balance: absorbed = incoming - outgoing
                           
-                          if (radtype == 1)then
+                          if (radtype == idirect)then
                              error = abs(currentPatch%sabs_dir(ib) - (currentPatch%tr_soil_dir(ib) * &
                                   (1.0_r8-bc_in(s)%albgr_dir_rb(ib)) + &
                                   currentPatch%tr_soil_dir_dif(ib) * (1.0_r8-bc_in(s)%albgr_dif_rb(ib))))
@@ -816,7 +848,7 @@ contains
                              endif
                           endif
                           
-                          if (radtype == 1)then
+                          if (radtype == idirect)then
                              error = (forc_dir(ifp,ib) + forc_dif(ifp,ib)) - &
                                   (bc_out(s)%fabd_parb(ifp,ib)  + bc_out(s)%albd_parb(ifp,ib) + currentPatch%sabs_dir(ib))
                           else
@@ -836,7 +868,7 @@ contains
                              enddo
                           enddo
                           
-                          if (radtype == 1)then
+                          if (radtype == idirect)then
                              !here we are adding a within-ED radiation scheme tolerance, and then adding the diffrence onto the albedo
                              !it is important that the lower boundary for this is ~1000 times smaller than the tolerance in surface albedo. 
                              if (abs(error)  >  1.e-9_r8 .and. abs(error) < 0.15_r8)then
@@ -885,7 +917,7 @@ contains
                                 bc_out(s)%albi_parb(ifp,ib) = bc_out(s)%albi_parb(ifp,ib) + error
                              end if
                              
-                             if (radtype == 1)then
+                             if (radtype == idirect)then
                                 error = (forc_dir(ifp,ib) + forc_dif(ifp,ib)) - &
                                      (bc_out(s)%fabd_parb(ifp,ib)  + bc_out(s)%albd_parb(ifp,ib) + currentPatch%sabs_dir(ib))
                              else
@@ -959,6 +991,11 @@ contains
 
           sunlai  = 0._r8
           shalai  = 0._r8
+
+          cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
+          cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
+          cpatch%parprof_dir_z(:,:) = 0._r8
+          cpatch%parprof_dif_z(:,:) = 0._r8
 
           ! Loop over patches to calculate laisun_z and laisha_z for each layer.
           ! Derive canopy laisun, laisha, and fsun from layer sums.
@@ -1047,6 +1084,36 @@ contains
                end do !iv
             end do !FT
          end do !CL
+
+         ! output the actual PAR profiles through the canopy for diagnostic purposes
+         
+         do CL = 1, cpatch%NCL_p
+            do FT = 1,numpft
+               do iv = 1, cpatch%nrad(CL,ft)
+                  cpatch%parprof_pft_dir_z(CL,FT,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
+                       cpatch%nrmlzd_parprof_pft_dir_z(idirect,CL,FT,iv)) + &
+                       (bc_in(s)%solai_parb(ifp,ipar) * &
+                       cpatch%nrmlzd_parprof_pft_dir_z(idiffuse,CL,FT,iv))
+                  cpatch%parprof_pft_dif_z(CL,FT,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
+                       cpatch%nrmlzd_parprof_pft_dif_z(idirect,CL,FT,iv)) + &
+                       (bc_in(s)%solai_parb(ifp,ipar) * &
+                       cpatch%nrmlzd_parprof_pft_dif_z(idiffuse,CL,FT,iv))
+               end do ! iv
+            end do    ! FT
+         end do       ! CL
+
+         do CL = 1, cpatch%NCL_p
+            do iv = 1, maxval(cpatch%nrad(CL,:))
+               cpatch%parprof_dir_z(CL,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
+                    cpatch%nrmlzd_parprof_dir_z(idirect,CL,iv)) + &
+                    (bc_in(s)%solai_parb(ifp,ipar) * &
+                    cpatch%nrmlzd_parprof_dir_z(idiffuse,CL,iv))
+               cpatch%parprof_dif_z(CL,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
+                    cpatch%nrmlzd_parprof_dif_z(idirect,CL,iv)) + &
+                    (bc_in(s)%solai_parb(ifp,ipar) * &
+                    cpatch%nrmlzd_parprof_dif_z(idiffuse,CL,iv))
+            end do    ! iv
+         end do       ! CL
          
          cpatch => cpatch%younger
       enddo
