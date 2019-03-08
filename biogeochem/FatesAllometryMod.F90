@@ -1808,8 +1808,8 @@ contains
     ! !ARGUMENTS
     real(r8),intent(inout) :: root_fraction(:)
     integer, intent(in)    :: ft
-    real(r8),intent(in)    :: zi(lowerb:)
     integer,intent(in)     :: lowerb
+    real(r8),intent(in)    :: zi(lowerb:)
     integer,intent(in)     :: icontext
 
     ! Parameters
