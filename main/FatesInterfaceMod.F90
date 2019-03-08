@@ -24,6 +24,7 @@ module FatesInterfaceMod
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
    use EDPftvarcon         , only : FatesReportPFTParams
+   use EDPftvarcon         , only : FatesCheckParams
    use EDPftvarcon         , only : EDPftvarcon_inst
    use EDParamsMod         , only : FatesReportParams
 
@@ -1522,7 +1523,7 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
-      
+      call FatesCheckParams(masterproc)
       
       return
    end subroutine FatesReportParameters

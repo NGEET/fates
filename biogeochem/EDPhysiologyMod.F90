@@ -872,14 +872,8 @@ contains
     integer , parameter :: max_substeps = 300
     real(r8), parameter :: max_trunc_error = 1.0_r8
     integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
-    real(r8), parameter :: global_branch_turnover = 0.0_r8 ! Temporary branch turnover setting
-                                                           ! Branch-turnover control will be 
-                                                           ! introduced in a later PR
-
 
     ipft = currentCohort%pft
-
-    EDPftvarcon_inst%branch_turnover(ipft) = global_branch_turnover
 
     ! Initialize seed production
     currentCohort%seed_prod  = 0.0_r8
@@ -973,35 +967,6 @@ contains
              currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
     end if
 
-    ! -----------------------------------------------------------------------------------
-    ! III(a). Calculate the maintenance turnover demands 
-    !       Pre-check, make sure phenology is mutually exclusive and at least one chosen
-    !       (MOVE THIS TO THE PARAMETER READ-IN SECTION)
-    ! -----------------------------------------------------------------------------------
-
-    if (EDPftvarcon_inst%evergreen(ipft) == 1) then
-       if (EDPftvarcon_inst%season_decid(ipft) == 1)then 
-          write(fates_log(),*) 'PFT # ',ipft,' was specified as being both evergreen'
-          write(fates_log(),*) '       and seasonally deciduous, impossible, aborting'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-       if (EDPftvarcon_inst%stress_decid(ipft) == 1)then 
-          write(fates_log(),*) 'PFT # ',ipft,' was specified as being both evergreen'
-          write(fates_log(),*) '       and stress deciduous, impossible, aborting'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-    end if
-    if (EDPftvarcon_inst%stress_decid(ipft) /= 1 .and. &
-        EDPftvarcon_inst%season_decid(ipft) /= 1 .and. &
-        EDPftvarcon_inst%evergreen(ipft)    /= 1) then
-       write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
-       write(fates_log(),*) 'phenology habits, ie == 1'
-       write(fates_log(),*) 'stress_decid: ',EDPftvarcon_inst%stress_decid(ipft)
-       write(fates_log(),*) 'season_decid: ',EDPftvarcon_inst%season_decid(ipft)
-       write(fates_log(),*) 'evergreen: ',EDPftvarcon_inst%evergreen(ipft)
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-    
 
     ! -----------------------------------------------------------------------------------
     ! III(b). Calculate the maintenance turnover demands 
@@ -1460,7 +1425,7 @@ contains
         if (dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
            repro_fraction = EDPftvarcon_inst%seed_alloc(ipft)
         else
-           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft)
+           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%seed_alloc_mature(ipft)
         end if
 
         dCdx = 0.0_r8
