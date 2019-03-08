@@ -193,9 +193,12 @@ contains
           endif
 
           call bleaf(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bl)
-          call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
 
-          bfr_per_bleaf = tar_bfr/tar_bl
+          if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+             ! only query fine root biomass if using a fine root allometric model that takes leaf trim into account
+             call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
+             bfr_per_bleaf = tar_bfr/tar_bl
+          endif
 
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1,nlevleaf
@@ -207,18 +210,27 @@ contains
 
 
                    currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
-                        bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+
+                   if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+                      ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
+                      ! to the leaf increment; otherwise do not.
+                      currentCohort%leaf_cost = currentCohort%leaf_cost + &
+                           1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                           bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   endif
 
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(ipft)* &
                         EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
-                   currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
-                        bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+                      ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
+                      ! to the leaf increment; otherwise do not.
+                      currentCohort%leaf_cost = currentCohort%leaf_cost + &
+                           1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                           bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   endif
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif

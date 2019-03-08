@@ -107,10 +107,8 @@ module FatesAllometryMod
   public :: StructureResetOfDH ! Method to set DBH to sync with structure biomass
   public :: CheckIntegratedAllometries
 
-
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
-
 
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
@@ -621,7 +619,7 @@ contains
     real(r8) :: slascaler
     
     select case(int(EDPftvarcon_inst%allom_fmode(ipft)))
-    case(1) ! "constant proportionality with bleaf"
+    case(1) ! "constant proportionality with TRIMMED target bleaf"
        
        call blmax_allom(d,ipft,blmax,dblmaxdd)
        call bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
@@ -629,6 +627,15 @@ contains
        if(present(dbfrdd))then
           dbfrdd = dbfrmaxdd * canopy_trim
        end if
+    case(2) ! "constant proportionality with UNTRIMMED target bleaf"
+       
+       call blmax_allom(d,ipft,blmax,dblmaxdd)
+       call bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
+       bfr    = bfrmax
+       if(present(dbfrdd))then
+          dbfrdd = dbfrmaxdd
+       end if
+
     case DEFAULT 
        write(fates_log(),*) 'An undefined fine root allometry was specified: ', &
             EDPftvarcon_inst%allom_fmode(ipft)
