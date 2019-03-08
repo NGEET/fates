@@ -1538,7 +1538,7 @@ contains
     !  Keep doing this until nopatches >= maxPatchesPerSite                         !
     !---------------------------------------------------------------------!
 
-    do while(iterate == 1)
+    do while(iterate == 1 .and. nopatches>1)
        !---------------------------------------------------------------------!
        ! Calculate the biomass profile of each patch                         !
        !---------------------------------------------------------------------!  
@@ -1555,10 +1555,6 @@ contains
        do while(associated(currentPatch))      
           tpp => currentSite%youngest_patch
           do while(associated(tpp))
-
-             if(.not.associated(currentPatch))then
-                write(fates_log(),*) 'ED: issue with currentPatch'
-             endif
 
              if(associated(tpp).and.associated(currentPatch))then
 
@@ -1893,11 +1889,15 @@ contains
           ! a discrete patch for very young patches
           ! However, if the patch to be fused is excessivlely small, then fuse
           ! at all costs.  If it is not fused, it will make
-
+          if ( currentPatch%area <= min_patch_area_forced ) &
+               write(fates_log(),*) 'small area: ',currentPatch%area,currentSite%lat,currentSite%lon
 
           if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
                currentPatch%area <= min_patch_area_forced ) then
              
+             if ( currentPatch%area <= min_patch_area_forced ) &
+                  write(fates_log(),*) 'small area(2): ',currentPatch%area,currentSite%lat,currentSite%lon
+
              if(associated(currentPatch%older) )then
                 
                 if(debug) &
@@ -1905,11 +1905,17 @@ contains
                      currentPatch%area, &
                      currentPatch%older%area
                 
+                if ( currentPatch%area <= min_patch_area_forced ) &
+                     write(fates_log(),*) 'small area(3): ',currentPatch%area,currentSite%lat,currentSite%lon
+
                 ! We set a pointer to this patch, because
                 ! it will be returned by the subroutine as de-referenced
                 
                 olderPatch => currentPatch%older
                 call fuse_2_patches(currentSite, olderPatch, currentPatch)
+                
+                if ( currentPatch%area <= min_patch_area_forced ) &
+                     write(fates_log(),*) 'small area(4): ',currentPatch%area,currentSite%lat,currentSite%lon
                 
                 ! The fusion process has updated the "older" pointer on currentPatch
                 ! for us.
@@ -1923,17 +1929,31 @@ contains
                       write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
                       currentPatch%area
                 
+                if ( currentPatch%area <= min_patch_area_forced ) &
+                     write(fates_log(),*) 'small area(5): ',currentPatch%area,currentSite%lat,currentSite%lon
+
                 youngerPatch => currentPatch%younger
                 call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                 
+                if ( currentPatch%area <= min_patch_area_forced ) &
+                     write(fates_log(),*) 'small area(6): ',currentPatch%area,currentSite%lat,currentSite%lon
+
                 ! The fusion process has updated the "younger" pointer on currentPatch
                 
              endif
           endif
        endif
-          
-       currentPatch => currentPatch%older
        
+       ! It is possible that an incredibly small patch just fused into another incredibly
+       ! small patch, resulting in an incredibly small patch.  It is also possible that this
+       ! resulting incredibly small patch is the oldest patch.  If this was true than
+       ! we would had been at the end of the loop, and left with an incredibly small patch.
+       ! Think this is impossible? No, this really happens, especially when we have fires.
+       ! So, we don't move forward until we have merged enough area into this thing.
+
+       if(currentPatch%area > min_patch_area_forced)then
+          currentPatch => currentPatch%older
+       end if
     enddo
     
     !check area is not exceeded
