@@ -112,7 +112,7 @@ contains
       integer, parameter :: diag_nlevleaf = min(nlevleaf,max_diag_nlevleaf)  ! for diagnostics, write a small number of leaf layers
 
       real(r8) :: denom
-      real(r8) :: lai_reduction(2)
+      real(r8) :: lai_reduction(nclmax)
 
       integer  :: fp,iv,s      ! array indices
       integer  :: ib               ! waveband number
