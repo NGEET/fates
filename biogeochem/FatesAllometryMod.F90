@@ -430,7 +430,7 @@ contains
      real(r8),intent(in)    :: site_spread ! site level spread factor (crowdedness)
      real(r8),intent(in)    :: nplant      ! number of plants [1/ha]
      integer(i4),intent(in) :: ipft        ! PFT index
-     real(r8),intent(out)   :: c_area       ! crown area per plant (m2)
+     real(r8),intent(out)   :: c_area      ! crown area per cohort (m2)
 
      real(r8)               :: d_eff     ! Effective diameter (cm)
      

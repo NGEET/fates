@@ -241,7 +241,7 @@ contains
     currentCohort%br                 = nan ! fine root biomass: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2      
     currentCohort%sai                = nan ! stem area index of cohort   m2/m2
-    currentCohort%gscan              = nan ! Stomatal resistance of cohort. 
+    currentCohort%g_sb_laweight      = nan ! Total leaf conductance of cohort (stomata+blayer) weighted by leaf-area [m/s]*[m2]
     currentCohort%canopy_trim        = nan ! What is the fraction of the maximum leaf biomass that we are targeting? :-
     currentCohort%leaf_cost          = nan ! How much does it cost to maintain leaves: kgC/m2/year-1
     currentCohort%excl_weight        = nan ! How much of this cohort is demoted each year, as a proportion of all cohorts:-
@@ -362,7 +362,7 @@ contains
     currentcohort%npp_acc_hold       = 0._r8 
     currentcohort%gpp_acc_hold       = 0._r8  
     currentcohort%dmort              = 0._r8 
-    currentcohort%gscan              = 0._r8 
+    currentcohort%g_sb_laweight      = 0._r8 
     currentcohort%treesai            = 0._r8  
     currentCohort%lmort_direct       = 0._r8
     currentCohort%lmort_infra        = 0._r8
@@ -1112,7 +1112,7 @@ contains
     n%br              = o%br
     n%lai             = o%lai                         
     n%sai             = o%sai  
-    n%gscan           = o%gscan
+    n%g_sb_laweight   = o%g_sb_laweight
     n%leaf_cost       = o%leaf_cost
     n%canopy_layer    = o%canopy_layer
     n%canopy_layer_yesterday    = o%canopy_layer_yesterday
