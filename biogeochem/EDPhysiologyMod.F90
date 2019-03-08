@@ -72,7 +72,7 @@ module EDPhysiologyMod
   public :: flux_into_litter_pools
 
 
-  logical, parameter :: DEBUG  = .false. ! local debug flag
+  logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
@@ -225,7 +225,7 @@ contains
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft))then
 
-                      if ( DEBUG ) then
+                      if ( debug ) then
                          write(fates_log(),*) 'trimming leaves', &
                                currentCohort%canopy_trim,currentCohort%leaf_cost
                       endif
@@ -250,7 +250,7 @@ contains
              currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)
           endif 
 
-          if ( DEBUG ) then
+          if ( debug ) then
              write(fates_log(),*) 'trimming',currentCohort%canopy_trim
           endif
          
@@ -373,7 +373,7 @@ contains
              currentSite%status = 2     !alter status of site to 'leaves on'
              ! NOTE(bja, 2015-01) should leafondate = model_day to be consistent with leaf off?
              currentSite%leafondate = t !record leaf on date   
-             if ( DEBUG ) write(fates_log(),*) 'leaves on'
+             if ( debug ) write(fates_log(),*) 'leaves on'
           endif !ncd
        endif !status
     endif !GDD
@@ -393,7 +393,7 @@ contains
        if (currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
           currentSite%leafoffdate = hlm_model_day   !record leaf off date   
-          if ( DEBUG ) write(fates_log(),*) 'leaves off'
+          if ( debug ) write(fates_log(),*) 'leaves off'
        endif
     endif
     endif
@@ -403,7 +403,7 @@ contains
        if(currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
           currentSite%leafoffdate = hlm_model_day   !record leaf off date   
-          if ( DEBUG ) write(fates_log(),*) 'leaves off'
+          if ( debug ) write(fates_log(),*) 'leaves off'
        endif
     endif
 
@@ -554,11 +554,11 @@ contains
                    endif
 
 
-                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 1 ',currentCohort%bstore
+                   if ( debug ) write(fates_log(),*) 'EDPhysMod 1 ',currentCohort%bstore
 
                    currentCohort%bstore = currentCohort%bstore - currentCohort%bl  ! Drain store
 
-                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 2 ',currentCohort%bstore
+                   if ( debug ) write(fates_log(),*) 'EDPhysMod 2 ',currentCohort%bstore
 
                    currentCohort%laimemory = 0.0_r8
 
@@ -594,11 +594,11 @@ contains
                     currentCohort%bl = currentCohort%bstore * store_output
                     endif
 
-                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 3 ',currentCohort%bstore
+                   if ( debug ) write(fates_log(),*) 'EDPhysMod 3 ',currentCohort%bstore
 
                    currentCohort%bstore = currentCohort%bstore - currentCohort%bl ! empty store
 
-                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 4 ',currentCohort%bstore
+                   if ( debug ) write(fates_log(),*) 'EDPhysMod 4 ',currentCohort%bstore
 
                    currentCohort%laimemory = 0.0_r8
 
@@ -1677,7 +1677,7 @@ contains
 
 
        if (temp_cohort%n > 0.0_r8 )then
-          if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
+          if ( debug ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
           call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                 b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
                 temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
