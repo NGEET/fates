@@ -82,6 +82,7 @@ contains
     use FatesParameterDerivedMod, only : param_derived
     use EDPatchDynamicsMod, only: set_root_fraction
     use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
+    use FatesAllometryMod, only : bleaf, storage_fraction_of_target
 
 
     ! ARGUMENTS:
@@ -159,6 +160,9 @@ contains
                                    ! nitrogen content (kgN/plant)
     real(r8) :: froot_n            ! Fine root nitrogen content (kgN/plant)
     real(r8) :: gccanopy_pa        ! Patch level canopy stomatal conductance  [mmol m-2 s-1]
+    real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration when storage pools are low
+    real(r8) :: b_leaf             ! leaf biomass kgC
+    real(r8) :: frac               ! storage pool as a fraction of target leaf biomass
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -320,6 +324,10 @@ contains
                      ft = currentCohort%pft
                      cl = currentCohort%canopy_layer
                      
+                     call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,b_leaf)
+                     call storage_fraction_of_target(b_leaf, currentCohort%bstore, frac)
+                     call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
+                          maintresp_reduction_factor)
 
                      ! are there any leaves of this pft in this layer?
                      if(currentPatch%canopy_mask(cl,ft) == 1)then 
@@ -468,6 +476,7 @@ contains
                                                         currentCohort%treelai,                 & !in
                                                         currentCohort%treesai,                 & !in
                                                         bc_in(s)%rb_pa(ifp),                   & !in
+                                                        maintresp_reduction_factor,            & !in
                                                         currentCohort%gscan,                   & !out
                                                         currentCohort%gpp_tstep,               & !out
                                                         currentCohort%rdark)                     !out
@@ -521,7 +530,7 @@ contains
                      if (woody(ft) == 1) then
                         tcwood = q10**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
                         ! kgC/s = kgN * kgC/kgN/s
-                        currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood
+                        currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood * maintresp_reduction_factor
                      else
                         currentCohort%livestem_mr  = 0._r8
                      end if
@@ -533,7 +542,7 @@ contains
                      do j = 1,hlm_numlevsoil
                         tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
-                              froot_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
+                              froot_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
                      enddo
                      
                      ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
@@ -545,7 +554,7 @@ contains
                            tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
                                  live_croot_n * ED_val_base_mr_20 * tcsoi * &
-                                 currentPatch%rootfr_ft(ft,j)
+                                 currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
                         enddo
                      else
                         currentCohort%livecroot_mr = 0._r8    
@@ -1016,6 +1025,7 @@ contains
                                         treelai,     & ! in   currentCohort%treelai
                                         treesai,     & ! in   currentCohort%treesai
                                         rb,          & ! in   bc_in(s)%rb_pa(ifp)
+                                        maintresp_reduction_factor, & ! in 
                                         gscan,       & ! out  currentCohort%gscan
                                         gpp,         & ! out  currentCohort%gpp_tstep
                                         rdark)         ! out  currentCohort%rdark
@@ -1043,7 +1053,7 @@ contains
     real(r8), intent(in) :: treelai          ! m2/m2
     real(r8), intent(in) :: treesai          ! m2/m2
     real(r8), intent(in) :: rb               ! boundary layer resistance (s/m)
-    
+    real(r8), intent(in) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration
     real(r8), intent(out) :: gscan      ! Canopy conductance of the cohort m/s
     real(r8), intent(out) :: gpp        ! GPP (kgC/indiv/s)
     real(r8), intent(out) :: rdark      ! Dark Leaf Respiration (kgC/indiv/s)
@@ -1078,6 +1088,8 @@ contains
        rdark = rdark + sum(lmr_llz(1:nv-1) * elai_llz(1:nv-1)) * tree_area 
        gscan = gscan + sum((1.0_r8/(rs_llz(1:nv-1) + rb ))) * tree_area 
     end if
+
+    rdark = rdark * maintresp_reduction_factor
     
     ! Convert dark respiration and GPP from umol/plant/s to kgC/plant/s
     
@@ -1630,5 +1642,53 @@ contains
       
       return
     end subroutine LeafLayerBiophysicalRates
+
+    subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)
+
+      ! This subroutine reduces maintenance respiration rates when storage pool is low.  The premise
+      ! of this is that mortality of plants increases when storage is low because they are not able
+      ! to repair tissues, generate defense compounds, etc.  This reduction is reflected in a reduced
+      ! maintenance demand.  The output of this function takes the form of a curve between 0 and 1, 
+      ! and the curvature of the function is determined by a parameter.
+
+      ! Uses
+      use EDPftvarcon         , only : EDPftvarcon_inst 
+
+      ! Arguments
+      ! ------------------------------------------------------------------------------
+      real(r8), intent(in) :: frac      ! ratio of storage to target leaf biomass
+      integer,  intent(in) :: pft       ! what pft is this cohort?
+      real(r8), intent(out) :: maintresp_reduction_factor  ! the factor by which to reduce maintenance respiration
+
+      ! --------------------------------------------------------------------------------
+      ! Parameters are at the PFT level:
+      ! fates_maintresp_reduction_curvature controls the curvature of this.  
+      ! If this parameter is zero, then there is no reduction until the plant dies at storage = 0.
+      ! If this parameter is one, then there is a linear reduction in respiration below the storage point.
+      ! Intermediate values will give some (concave-downwards) curvature.  
+      !
+      ! maintresp_reduction_intercept controls the maximum amount of throttling.  
+      ! zero means no throttling at any point, so it turns this mechanism off completely and so 
+      ! allows an entire cohort to die via negative carbon-induced termination mortality.
+      ! one means complete throttling, so no maintenance respiration at all, when out of carbon.
+      ! ---------------------------------------------------------------------------------
+      
+       if( frac .lt. 1._r8 )then
+          if ( EDPftvarcon_inst%maintresp_reduction_curvature(pft) .ne. 1._r8 ) then
+             maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
+                  EDPftvarcon_inst%maintresp_reduction_intercept(pft) * &
+                  (1._r8 - EDPftvarcon_inst%maintresp_reduction_curvature(pft)**frac) &
+                  / (1._r8-EDPftvarcon_inst%maintresp_reduction_curvature(pft))
+          else  ! avoid nan answer for linear case
+             maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
+                  EDPftvarcon_inst%maintresp_reduction_intercept(pft) * frac
+          endif
+             
+       else
+          maintresp_reduction_factor = 1._r8
+       endif
+
+
+    end subroutine lowstorage_maintresp_reduction
 
  end module FATESPlantRespPhotosynthMod

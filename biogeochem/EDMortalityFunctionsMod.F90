@@ -12,6 +12,7 @@ module EDMortalityFunctionsMod
    use EDTypesMod            , only : ed_patch_type
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesAllometryMod     , only : bleaf
+   use FatesAllometryMod     , only : storage_fraction_of_target
    use FatesInterfaceMod     , only : bc_in_type
    use FatesInterfaceMod     , only : hlm_use_ed_prescribed_phys
    use FatesInterfaceMod     , only : hlm_freq_day
@@ -56,7 +57,7 @@ contains
     real(r8),intent(out) :: frmort ! freezing stress mortality
 
     real(r8) :: frac  ! relativised stored carbohydrate
-    real(r8) :: b_leaf ! leaf biomass kgC
+    real(r8) :: b_leaf ! target leaf biomass kgC
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
     real(r8) :: temp_dep           ! Temp. function (freezing mortality)
     real(r8) :: temp_in_C          ! Daily averaged temperature in Celcius
@@ -84,11 +85,11 @@ contains
     ! Carbon Starvation induced mortality.
     if ( cohort_in%dbh  >  0._r8 ) then
        call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%canopy_trim,b_leaf)
-       if( b_leaf > 0._r8 .and. cohort_in%bstore <= b_leaf )then
-          frac = cohort_in%bstore/ b_leaf
+       call storage_fraction_of_target(b_leaf, cohort_in%bstore, frac)
+       if( frac .lt. 1._r8) then
           cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
                (1.0_r8 - frac))
-        else
+       else
           cmort = 0.0_r8
        endif
 

@@ -175,7 +175,7 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_fcap_node(:,:)   ! fraction of (1-resid_node) that is capillary in source
      real(r8), allocatable :: hydr_pinot_node(:,:)  ! osmotic potential at full turgor
      real(r8), allocatable :: hydr_kmax_node(:,:)   ! maximum xylem conductivity per unit conducting xylem area
-
+     
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
