@@ -965,11 +965,11 @@ contains
 		   kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                          log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
                    csite_hydr%kmax_upper_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8    
+		                       1._r8/kmax_soil_total)**(-1)
                    csite_hydr%kmax_bound_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8 
+		                       1._r8/kmax_soil_total)**(-1)
                    csite_hydr%kmax_lower_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8 
+		                       1._r8/kmax_soil_total)**(-1)
                 end if
 		if(j == 1) then
                    if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
@@ -980,11 +980,11 @@ contains
 		      kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
                             log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
                       csite_hydr%kmax_upper_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                       1._r8/kmax_soil_total)**(-1)
                       csite_hydr%kmax_bound_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                       1._r8/kmax_soil_total)**(-1)
                       csite_hydr%kmax_lower_shell_1D(k) = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**-1._r8
+		                       1._r8/kmax_soil_total)**(-1)
                    end if
                 end if
              else
