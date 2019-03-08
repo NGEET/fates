@@ -629,21 +629,12 @@ contains
                
                check_elai = check_elai / currentPatch%total_canopy_area
                elai       = calc_areaindex(currentPatch,'elai')
-               
-               ! Perform a check on the effective leaf area normalization
-
-               if ( abs(elai - check_elai ) > 1.0e-10 ) then
-                  write(fates_log(),*) 'The patch level ELAI does not match the integrated value'
-                  write(fates_log(),*) ' passed back from ScaleLeafLayerFluxtoCohort'
-                  call endrun(msg=errMsg(sourcefile, __LINE__))
-               end if
-
 
                ! Normalize canopy total conductance by the effective LAI
                ! The value here was integrated over each cohort x leaf layer
                ! and was weighted by m2 of effective leaf area for each layer
                
-               if(elai>tiny(elai)) then
+               if(check_elai>tiny(check_elai)) then
                   
                   ! Normalize the leaf-area weighted canopy conductance
                   ! The denominator is the total effective leaf area in the canopy,
@@ -653,8 +644,6 @@ contains
                   if( g_sb_leaves > (1._r8/rsmax0) ) then 
                      
                      ! Combined mean leaf resistance is the inverse of mean leaf conductance
-                     
-                     
                      r_sb_leaves  = 1.0_r8/g_sb_leaves
                      
                      if (r_sb_leaves<bc_in(s)%rb_pa(ifp)) then
@@ -686,7 +675,6 @@ contains
                   currentPatch%c_stomata  = cf / r_stomata
                   
                else
-                  
                   
                   ! But this will prevent it from using an unintialized value
                   bc_out(s)%rssun_pa(ifp) = rsmax0
