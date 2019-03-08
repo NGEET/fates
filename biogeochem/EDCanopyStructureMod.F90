@@ -60,9 +60,9 @@ module EDCanopyStructureMod
                                                              ! will attempt to reduce errors
                                                              ! below this level
   
-  real(r8), parameter :: area_check_precision  = 1.0E-6_r8     ! Area conservation checks must 
+  real(r8), parameter :: area_check_precision  = 1.0E-7_r8     ! Area conservation checks must 
                                                                ! be within this absolute tolerance
-  real(r8), parameter :: area_check_rel_precision = 1.0E-3_r8  ! Area conservation checks must
+  real(r8), parameter :: area_check_rel_precision = 1.0E-4_r8  ! Area conservation checks must
                                                                ! be within this relative tolerance
 
   real(r8), parameter :: similar_height_tol = 1.0E-3_r8    ! I think trees that differ by 1mm
@@ -796,6 +796,7 @@ contains
             write(fates_log(),*) 'patch%area:',currentPatch%area
             write(fates_log(),*) 'ilayer: ',i_lyr
             write(fates_log(),*) 'bias:',arealayer - currentPatch%area
+            write(fates_log(),*) 'rel bias:',(arealayer - currentPatch%area)/arealayer
             write(fates_log(),*) 'demote_area:',demote_area
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if

@@ -12,6 +12,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : maxPatchesPerSite
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area
+  use EDTypesMod           , only : min_patch_area_forced
   use EDTypesMod           , only : nclmax
   use EDTypesMod           , only : maxpft
   use EDTypesMod           , only : dtype_ifall
@@ -1887,7 +1888,15 @@ contains
        
        if(currentPatch%area <= min_patch_area)then
           
-          if ( .not.associated(currentPatch,currentSite%youngest_patch) ) then
+          ! Even if the patch area is small, avoid fusing it into its neighbor
+          ! if it is the youngest of all patches. We do this in attempts to maintain
+          ! a discrete patch for very young patches
+          ! However, if the patch to be fused is excessivlely small, then fuse
+          ! at all costs.  If it is not fused, it will make
+
+
+          if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
+               currentPatch%area <= min_patch_area_forced ) then
              
              if(associated(currentPatch%older) )then
                 
@@ -1908,7 +1917,7 @@ contains
                 ! This logic checks to make sure that the younger patch is not the youngest
                 ! patch. As mentioned earlier, we try not to fuse it.
                 
-             elseif( .not. associated(currentPatch%younger,currentSite%youngest_patch) ) then
+             elseif( associated(currentPatch%younger) ) then
                 
                 if(debug) &
                       write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
@@ -1928,16 +1937,9 @@ contains
     enddo
     
     !check area is not exceeded
-    areatot = 0._r8
-    currentPatch => currentSite%oldest_patch
-    do while(associated(currentPatch))
-       areatot = areatot + currentPatch%area
-       currentPatch => currentPatch%younger
-       if((areatot-area) > 0.0000001_r8)then
-          write(fates_log(),*) 'ED: areatot too large. end terminate', areatot
-       endif
-    enddo
+    call check_patch_area( currentSite )
 
+    return
   end subroutine terminate_patches
 
   ! =====================================================================================
