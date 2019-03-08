@@ -14,7 +14,6 @@
 # =======================================================================================
 # =======================================================================================
 
-import numpy as np
 import os
 from scipy.io import netcdf as nc
 import argparse
@@ -33,6 +32,7 @@ def main():
     #
     parser.add_argument('--var','--variable', dest='varname', type=str, help="What variable to modify? Required.", required=True)
     parser.add_argument('--pft','--PFT', dest='pftnum', type=int, help="PFT number to modify. If this is missing, will assume a global variable.")
+    parser.add_argument('--allPFTs', '--allpfts', dest='allpfts', help="apply to all PFT indices", action="store_true")
     parser.add_argument('--fin', '--input', dest='inputfname', type=str, help="Input filename.  Required.", required=True)
     parser.add_argument('--fout','--output', dest='outputfname', type=str, help="Output filename.  Required.", required=True)
     parser.add_argument('--val', '--value', dest='val', type=float, help="New value of PFT variable.  Required.", required=True)
@@ -55,7 +55,7 @@ def main():
         ### check to make sure that, if a PFT is specified, the variable has a PFT dimension, and if not, then it doesn't. and also that shape is reasonable.
         ndim_file = len(var.dimensions)
         ispftvar = False
-        # for purposes of current stat eof this script, assume 1D 
+        # for purposes of current state of this script, assume 1D 
         if ndim_file > 1:
             raise ValueError('variable dimensionality is too high for this script')
         if ndim_file < 1:
@@ -70,8 +70,10 @@ def main():
                 pftdim = None
             else:
                 raise ValueError('variable is not on either the PFT or scalar dimension')
-        if args.pftnum == None and ispftvar:
+        if (args.pftnum == None and ispftvar) and not args.allpfts:
             raise ValueError('pft value is missing but variable has pft dimension.')
+        if (args.pftnum != None) and args.allpfts:
+            raise ValueError("can't specify both a PFT number and the argument allPFTs.")
         if args.pftnum != None and not ispftvar:
             raise ValueError('pft value is present but variable does not have pft dimension.')
         if args.pftnum != None and ispftvar:
@@ -81,6 +83,11 @@ def main():
                 if not args.silent:
                     print('replacing prior value of variable '+args.varname+', for PFT '+str(args.pftnum)+', which was '+str(var[args.pftnum-1])+', with new value of '+str(args.val))
                 var[args.pftnum-1] = args.val
+        elif args.allpfts and ispftvar:
+            if pftdim == 0:
+                if not args.silent:
+                    print('replacing prior values of variable '+args.varname+', for all PFTs, which were '+str(var[:])+', with new value of '+str(args.val))
+                var[:] = args.val            
         elif args.pftnum == None and not ispftvar:
             if not args.silent:
                 print('replacing prior value of variable '+args.varname+', which was '+str(var[:])+', with new value of '+str(args.val))
