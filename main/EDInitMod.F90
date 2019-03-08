@@ -305,7 +305,8 @@ contains
            ! make new patch...
            call create_patch(sites(s), newp, age, AREA, &
                  cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
-                 root_litter_local) 
+                 root_litter_local, bc_in(s)%nlevsoil ) 
+           
            sitep => sites(s)
            call init_cohorts(sitep, newp, bc_in(s))
 

@@ -253,7 +253,7 @@ contains
 
             call create_patch(sites(s), newpatch, age_init, area_init, &
                   cwd_ag_init, cwd_bg_init, &
-                  leaf_litter_init, root_litter_init )
+                  leaf_litter_init, root_litter_init, bc_in(s)%nlevsoil )
 
             if( inv_format_list(invsite) == 1 ) then
                call set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)

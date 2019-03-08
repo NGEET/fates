@@ -1485,7 +1485,7 @@ contains
              ! make new patch
              call create_patch(sites(s), newp, patch_age, area, &
                   cwd_ag_local, cwd_bg_local,  &
-                  leaf_litter_local, root_litter_local) 
+                  leaf_litter_local, root_litter_local,bc_in(s)%nlevsoil ) 
              
              ! give this patch a unique patch number
              newp%patchno = idx_pa
