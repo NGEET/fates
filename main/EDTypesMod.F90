@@ -110,8 +110,8 @@ module EDTypesMod
 
 
   ! MODEL PARAMETERS
-  real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
-  real(r8), parameter :: AREA_INV             = 1.0e-4_r8  ! Inverse of the notion area (faster math)
+  real(r8), parameter :: area                 = 10000.0_r8 ! Notional area of simulated forest m2
+  real(r8), parameter :: area_inv             = 1.0e-4_r8  ! Inverse of the notion area (faster math)
 
   integer, parameter :: numWaterMem           = 10         ! watermemory saved as site level var
 
@@ -738,9 +738,6 @@ module EDTypesMod
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.
-     real(r8) ::  total_burn_flux_to_atm                       ! total carbon burnt to the atmosphere in this day. KgC/site
-     real(r8) ::  cwd_ag_burned(ncwd)
-     real(r8) ::  leaf_litter_burned(maxpft)
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr

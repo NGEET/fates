@@ -61,7 +61,8 @@ module FatesLittMod
       real(r8),allocatable ::  seed(:)                 ! the seed pool (viable)          kg/m2
 
 
-      ! Fluxes in - dying trees / seed rain
+      ! Fluxes in - dying trees / seed rain 
+      ! (does not include disturbance fluxes)
       
       real(r8)             ::  ag_cwd_in(ncwd)         ! kg/m2/day
       real(r8),allocatable ::  bg_cwd_in(:,:)          ! kg/m2/day
