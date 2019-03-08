@@ -17,6 +17,8 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : hlm_parteh_mode
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
+  use FatesConstantsMod, only    : g_per_kg
+  use FatesConstantsMod, only    : days_per_sec
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
@@ -1635,56 +1637,47 @@ contains
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(:)
-    type(bc_out_type)       , intent(inout)           :: bc_out(:)
-    !
+    type(bc_out_type)       , intent(inout)         :: bc_out(:)
+
     ! !LOCAL VARIABLES:
-    type (ed_patch_type)  , pointer :: currentPatch
-    type (ed_cohort_type) , pointer :: currentCohort
-    type(ed_site_type), pointer :: cs
+    type (ed_patch_type),  pointer :: currentPatch
+    type (ed_cohort_type), pointer :: currentCohort
     real(r8),dimension(:), pointer :: flux_cel_si
     real(r8),dimension(:), pointer :: flux_lab_si
     real(r8),dimension(:), pointer :: flux_lig_si
-
-    integer p,ci,j,s
-    real(r8) time_convert    ! from year to seconds
-    real(r8) mass_convert    ! ED uses kg, CLM uses g
-    integer           :: begp,endp
-    integer           :: begc,endc                                    !bounds 
-
-    !------------------------------------------------------------------------
-    ! The following scratch arrays are allocated for maximum possible
-    ! pft and layer usage
-    
-    real(r8) :: cinput_rootfr(1:maxpft, 1:hlm_numlevgrnd)
-    real(r8) :: croot_prof_perpatch(1:hlm_numlevgrnd)
-    real(r8) :: surface_prof(1:hlm_numlevgrnd)
-    integer  :: ft
-    integer  :: nlev_eff_decomp
-    real(r8) :: rootfr_tot(1:maxpft)
-    real(r8) :: biomass_bg_ft(1:maxpft)
-    real(r8) :: surface_prof_tot
+    type(litter_type),     pointer :: litt
+     
+    real(r8) :: surface_prof(1:hlm_numlevgrnd) ! this array is used to distribute
+                                               ! fragmented litter on the surface
+                                               ! into the soil/decomposition
+                                               ! layers. It exponentially decays
+    real(r8) :: surface_prof_tot ! normalizes the surface_prof array
+    integer  :: ft               ! PFT number
+    integer  :: nlev_eff_soil    ! number of effective soil layers
+    integer  :: nlev_eff_decomp  ! number of effective decomp layers
+    real(r8) :: area_frac        ! fraction of site's area of current patch
     real(r8) :: z_decomp         ! Used for calculating depth midpoints of decomp layers
-    real(r8) :: delta
-    real(r8) :: leaf_c
-    real(r8) :: store_c
-    real(r8) :: fnrt_c
-    real(r8) :: sapw_c
-    real(r8) :: struct_c
-    real(r8) :: sum_surface_prof
+    integer  :: s                ! Site index
+    integer  :: il               ! Element index (C,N,P,etc)
+    integer  :: j                ! Soil layer index
+    integer  :: id               ! Decomposition layer index
+    integer  :: ic               ! CWD type index
 
     ! NOTE(rgk, 201705) this parameter was brought over from SoilBiogeochemVerticalProfile
     ! how steep profile is for surface components (1/ e_folding depth) (1/m) 
     real(r8),  parameter :: surfprof_exp  = 10.
 
-    real(r8) :: leaf_prof(1:nsites, 1:hlm_numlevgrnd)
-    real(r8) :: froot_prof(1:nsites,  1:maxpft, 1:hlm_numlevgrnd)
-    real(r8) :: croot_prof(1:nsites, 1:hlm_numlevgrnd)
-    real(r8) :: stem_prof(1:nsites, 1:hlm_numlevgrnd)
-
     do s = 1,nsites
 
-       nlev_eff_decomp = max(bc_in(s)%max_rooting_depth_index_col, 1)
-       
+       ! This is the number of effective soil layers to transfer from
+       nlev_eff_soil   = max(bc_in(s)%max_rooting_depth_index_col, 1)
+
+       ! The decomposition layers are most likely the exact same layers
+       ! as the soil layers (same depths also), unless it is a simplified
+       ! single layer case, where nlevdecomp = 1
+
+       nlev_eff_decomp = min(bc_in(s)%nlevdecomp,nlev_eff_soil)
+
        ! define a single shallow surface profile for surface additions 
        ! (leaves, stems, and N deposition). This sends the above ground
        ! mass into the soil pools using an exponential depth decay function.
@@ -1695,20 +1688,23 @@ contains
        
        surface_prof(:) = 0._r8
        z_decomp = 0._r8
-       do j = 1,bc_in(s)%nlevdecomp
-          z_decomp = z_decomp+0.5*bc_in(s)%dz_decomp_sisl(j)
-          surface_prof(j) = exp(-surfprof_exp * z_decomp) *  bc_in(s)%dz_decomp_sisl(j)
-          z_decomp = z_decomp+0.5*bc_in(s)%dz_decomp_sisl(j)
+       do id = 1,nlev_eff_decomp
+          z_decomp = z_decomp+0.5*bc_in(s)%dz_decomp_sisl(id)
+          surface_prof(id) = exp(-surfprof_exp * z_decomp) *  bc_in(s)%dz_decomp_sisl(id)
+          z_decomp = z_decomp+0.5*bc_in(s)%dz_decomp_sisl(id)
        end do
        surface_prof_tot = sum(surface_prof)
-       do j = 1,bc_in(s)%nlevdecomp
-          surface_prof(j) = surface_prof(j)/surface_prof_tot
+       do id = 1,nlev_eff_decomp
+          surface_prof(id) = surface_prof(id)/surface_prof_tot
        end do
 
-       
+       ! Loop over the different elements. 
        do il = 1, num_elements
-          
-          ! Zero out the flux arrays
+
+          ! Zero out the boundary flux arrays
+          ! Make a pointer to the cellulose, labile and lignan
+          ! flux partitions.
+
           select case (element_list(il))
           case (carbon12_element)
              bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
@@ -1736,29 +1732,31 @@ contains
           currentPatch => sites(s)%oldest_patch
           do while (associated(currentPatch))
              
+             ! Set a pointer to the litter object
+             ! for the current element on the current
+             ! patch
              litt       => currentPatch%litter(il)
-             element_id = litt%element_id
              area_frac  = currentPatch%area/area
              
-             do ci = 1, ncwd
+             do ic = 1, ncwd
                 
-                do id = 1,bc_in(s)%nlevdecomp
+                do id = 1,nlev_eff_decomp
                    flux_cel_si(id) = flux_cel_si(id) + &
-                         litt%ag_cwd_frag(ci) * ED_val_cwd_fcel * area_frac * surface_prof(id)
+                         litt%ag_cwd_frag(ic) * ED_val_cwd_fcel * area_frac * surface_prof(id)
                    
                    flux_lig_si(id) = flux_lig_si(id) & 
-                         litt%ag_cwd_frag(ci) * ED_val_cwd_flig * area_frac * surface_prof(id)
+                         litt%ag_cwd_frag(ic) * ED_val_cwd_flig * area_frac * surface_prof(id)
                 end do
                    
-                do j = 1, nlev_eff_decomp
+                do j = 1, nlev_eff_soil
                    
                    id = bc_in(s)%decomp_id(j)  ! Map from soil layer to decomp layer
                    
                    flux_cel_si(id) = flux_cel_si(id) + &
-                         litt%bg_cwd_frag(ci,j) * ED_val_cwd_fcel * area_frac
+                         litt%bg_cwd_frag(ic,j) * ED_val_cwd_fcel * area_frac
                    
                    flux_lig_si(id) = flux_lig_si(id) + &
-                         litt%bg_cwd_frag(ci,j) * ED_val_cwd_flig * area_frac
+                         litt%bg_cwd_frag(ic,j) * ED_val_cwd_flig * area_frac
                    
                 end do
              end do
@@ -1766,8 +1764,8 @@ contains
              ! leaf and fine root fragmentation fluxes
              do ft = 1,numpft
                 
-                do id = 1,bc_in(s)%nlevdecomp
-
+                do id = 1,nlev_eff_decomp
+                   
                    flux_lab_si(id) = flux_lab_si(id) + &
                          litt%leaf_fines_frag(ft) * EDPftvarcon_inst%lf_flab(ft) * &
                          area_frac* surface_prof(id)
@@ -1782,7 +1780,7 @@ contains
 
                 end do
 
-                do j = 1, nlev_eff_decomp
+                do j = 1, nlev_eff_soil
                    
                    id = bc_in(s)%decomp_id(j)
                    
@@ -1801,12 +1799,15 @@ contains
           end do
           
           ! Normalize all masses over the decomposition layer's depth
-          ! AND PERFORM TIME AND MASS CONVERSIONS ... (CHECK UNITS)
+          ! Convert from kg/m2/day -> g/m3/s
 
-          do id = 1,bc_in(s)%nlevdecomp
-             flux_cel_si(id) = flux_cel_si(id) / bc_in(s)%dz_decomp_sisl(id)
-             flux_lig_si(id) = flux_lig_si(id) / bc_in(s)%dz_decomp_sisl(id)
-             flux_lab_si(id) = flux_lab_si(id) / bc_in(s)%dz_decomp_sisl(id)
+          do id = 1,nlev_eff_decomp
+             flux_cel_si(id) = days_per_sec * g_per_kg * &
+                               flux_cel_si(id) / bc_in(s)%dz_decomp_sisl(id)
+             flux_lig_si(id) = days_per_sec * g_per_kg * &
+                               flux_lig_si(id) / bc_in(s)%dz_decomp_sisl(id)
+             flux_lab_si(id) = days_per_sec * g_per_kg * &
+                               flux_lab_si(id) / bc_in(s)%dz_decomp_sisl(id)
           end do
 
        end do  ! do elements

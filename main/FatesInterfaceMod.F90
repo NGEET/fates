@@ -41,6 +41,7 @@ module FatesInterfaceMod
    use PRTGenericMod         , only : nitrogen_element
    use PRTGenericMod         , only : phosphorus_element
    use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
+
    !   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
 
 
@@ -521,19 +522,18 @@ module FatesInterfaceMod
       real(r8), allocatable :: ftii_parb(:,:)
 
 
-      ! litterfall fluxes of C from FATES patches to BGC columns
-
-      ! total labile    litter coming from ED. gC/m3/s
-      real(r8), allocatable :: FATES_c_to_litr_lab_c_col(:)      
-
-      !total cellulose litter coming from ED. gC/m3/s
-      real(r8), allocatable :: FATES_c_to_litr_cel_c_col(:)      
+      ! Mass fluxes to BGC from fragmentation of litter into decomposing pools
       
-      !total lignin    litter coming from ED. gC/m3/s
-      real(r8), allocatable :: FATES_c_to_litr_lig_c_col(:)      
-
+      real(r8), allocatable :: litt_flux_cel_c_si(:) ! cellulose carbon litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lig_c_si(:) ! lignan carbon litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lab_c_si(:) ! labile carbon litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_cel_n_si(:) ! cellulose nitrogen litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lig_n_si(:) ! lignan nitrogen litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lab_n_si(:) ! labile nitrogen litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_cel_p_si(:) ! cellulose phosphorus litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignan phosphorus litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
       
-
       ! Canopy Structure
 
       real(r8), allocatable :: elai_pa(:)  ! exposed leaf area index
@@ -795,10 +795,29 @@ contains
       allocate(bc_out%ftid_parb(maxPatchesPerSite,hlm_numSWb))
       allocate(bc_out%ftii_parb(maxPatchesPerSite,hlm_numSWb))
 
-      ! biogeochemistry
-      allocate(bc_out%FATES_c_to_litr_lab_c_col(nlevdecomp_in))
-      allocate(bc_out%FATES_c_to_litr_cel_c_col(nlevdecomp_in))
-      allocate(bc_out%FATES_c_to_litr_lig_c_col(nlevdecomp_in))
+      ! Fates -> BGC fragmentation mass fluxes
+      select case(hlm_parteh_mode) 
+      case(prt_carbon_allom_hyp)
+         allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
+      case(prt_cnp_flex_allom_hyp) 
+         allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_cel_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_cel_p_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_p_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_p_si(nlevdecomp_in))
+      case default
+         write(fates_log(), *) 'An unknown parteh hypothesis was passed'
+         write(fates_log(), *) 'to the site level output boundary conditions'
+         write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+
 
       ! Canopy Structure
       allocate(bc_out%elai_pa(maxPatchesPerSite))
@@ -882,9 +901,30 @@ contains
       this%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
 
-      this%bc_out(s)%FATES_c_to_litr_lab_c_col(:) = 0.0_r8
-      this%bc_out(s)%FATES_c_to_litr_cel_c_col(:) = 0.0_r8
-      this%bc_out(s)%FATES_c_to_litr_lig_c_col(:) = 0.0_r8
+      ! Fates -> BGC fragmentation mass fluxes
+      select case(hlm_parteh_mode) 
+      case(prt_carbon_allom_hyp)
+         this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+      case(prt_cnp_flex_allom_hyp) 
+         this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
+      case default
+         write(fates_log(), *) 'An unknown parteh hypothesis was passed'
+         write(fates_log(), *) 'while zeroing output boundary conditions'
+         write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+
+
 
       this%bc_out(s)%rssun_pa(:)     = 0.0_r8
       this%bc_out(s)%rssha_pa(:)     = 0.0_r8
