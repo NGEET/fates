@@ -1317,9 +1317,7 @@ contains
     !---------------------------------------------------------------------
 
 
-    canopy_mortality_woody_litter(:) = 0.0_r8 ! mortality generated litter. KgC/m2/day
-    canopy_mortality_leaf_litter(:)  = 0.0_r8
-    canopy_mortality_root_litter(:)  = 0.0_r8
+   
 
     nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
     
@@ -1330,11 +1328,15 @@ contains
        cur_litt  => currentPatch%litter(il)   ! Litter pool of "current" patch
        new_litt  => newPatch%litter(il)       ! Litter pool of "new" patch
 
+       ! mortality generated litter. Kg/m2/day
+       canopy_mortality_woody_litter(:) = 0.0_r8
+       canopy_mortality_leaf_litter(:)  = 0.0_r8 
+       canopy_mortality_root_litter(:)  = 0.0_r8
 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))       
           pft = currentCohort%pft
-          
+   
           sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
           struct_m = currentCohort%prt%GetState(struct_organ, element_id)
           leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
