@@ -49,6 +49,7 @@ module FatesPlantHydraulicsMod
 
    use FatesInterfaceMod  , only : hlm_use_planthydro
 
+   use FatesAllometryMod, only    : bsap_allom
    
    use FatesHydraulicsMemMod, only: ed_site_hydr_type
    use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
@@ -281,6 +282,8 @@ contains
     real(r8) :: sla                          ! specific leaf area                                                    [cm2/g]
     real(r8) :: depth_canopy                 ! crown (canopy) depth                                                  [m]
     real(r8) :: dz_canopy                    ! vertical canopy discretization                                        [m]
+    real(r8) :: a_sapwood_target             ! sapwood cross-section area at reference height, at target biomass     [m2]
+    real(r8) :: bsw_target                   ! sapwood carbon, at target                                             [kgC]
     real(r8) :: a_leaf_tot                   ! total leaf area                                                       [m2/indiv]
     real(r8) :: b_canopy_carb                ! total leaf (canopy) biomass in carbon units                           [kgC/indiv]
     real(r8) :: b_canopy_biom                ! total leaf (canopy) biomass in dry wt units                           [kg/indiv]
@@ -375,7 +378,18 @@ contains
      b_stem_biom  = b_stem_carb * C2B                               ! kg DM
      v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8) !BOC...may be needed for testing/comparison w/ v_sapwood
      a_leaf_tot   = b_canopy_carb * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
-     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8            ! m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
+
+     call bsap_allom(cCohort%dbh,cCohort%pft,cCohort%canopy_trim,a_sapwood_target,bsw_target)
+     
+     a_sapwood = a_sapwood_target
+
+     ! or ....
+     ! a_sapwood = a_sapwood_target * ccohort%bsw / bsw_target
+
+     !     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8 
+     !      m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
+
+
      v_sapwood    = a_sapwood * z_stem
      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 

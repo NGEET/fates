@@ -354,6 +354,7 @@ contains
     real(r8) :: b_leaf     ! biomass in leaves [kgC]
     real(r8) :: b_fineroot ! biomass in fine roots [kgC]
     real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
+    real(r8) :: a_sapwood  ! area in sapwood (dummy) [m2]
     integer, parameter :: rstatus = 0
 
     !----------------------------------------------------------------------
@@ -391,7 +392,7 @@ contains
        call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,b_fineroot)
 
        ! Calculate sapwood biomass
-       call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,b_sapwood)
+       call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapwood,b_sapwood)
        
        call bdead_allom( b_agw, b_bgw, b_sapwood, pft, temp_cohort%bdead )
 

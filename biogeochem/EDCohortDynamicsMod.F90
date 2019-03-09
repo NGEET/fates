@@ -30,7 +30,6 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
-  use FatesAllometryMod  , only : bsap_allom
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
   use FatesAllometryMod  , only : h_allom
