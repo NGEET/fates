@@ -9,6 +9,8 @@ module EDPftvarcon
   use EDTypesMod  ,   only : maxSWb, ivis, inir
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : itrue, ifalse
+  use FatesConstantsMod, only : years_per_day
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
 
@@ -81,8 +83,7 @@ module EDPftvarcon
                                                      ! decreases light interception
      real(r8), allocatable :: c3psn(:)               ! index defining the photosynthetic 
                                                      ! pathway C4 = 0,  C3 = 1
-     real(r8), allocatable :: vcmax25top(:)          ! maximum carboxylation rate of Rub. at 25C, 
-                                                     ! canopy top [umol CO2/m^2/s]
+    
      real(r8), allocatable :: smpso(:)               ! Soil water potential at full stomatal opening 
                                                      ! (non-HYDRO mode only) [mm]
      real(r8), allocatable :: smpsc(:)               ! Soil water potential at full stomatal closure 
@@ -203,7 +204,9 @@ module EDPftvarcon
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
 
-     real(r8), allocatable :: leaf_long(:)                ! Leaf turnover time (longevity) (pft)             [yr]
+     real(r8), allocatable :: senleaf_long_fdrought(:)    ! Multiplication factor for leaf longevity of senescent 
+                                                          ! leaves during drought( 1.0 indicates no change)
+
      real(r8), allocatable :: root_long(:)                ! root turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: branch_turnover(:)          ! Turnover time for branchfall on live trees (pft) [yr]
      real(r8), allocatable :: turnover_retrans_mode(:)    ! Retranslocation method (pft)
@@ -212,7 +215,14 @@ module EDPftvarcon
      real(r8), allocatable :: turnover_nitr_retrans(:,:)  ! nitrogen re-translocation fraction (pft x organ)
      real(r8), allocatable :: turnover_phos_retrans(:,:)  ! phosphorous re-translocation fraction (pft x organ)
 
+     ! Parameters dimensioned by PFT and leaf age
+     real(r8), allocatable :: leaf_long(:,:)              ! Leaf turnover time (longevity) (pft x age-class)
+                                                          ! If there is >1 class, it is the longevity from
+                                                          ! one class to the next [yr]
      
+     real(r8), allocatable :: vcmax25top(:,:)             ! maximum carboxylation rate of Rub. at 25C, 
+                                                          ! canopy top [umol CO2/m^2/s].  Dimensioned by 
+                                                          ! leaf age-class
      ! Plant Hydraulic Parameters
      ! ---------------------------------------------------------------------------------------------
 
@@ -247,6 +257,8 @@ module EDPftvarcon
      procedure, private :: Receive_PFT_hydr_organs 
      procedure, private :: Register_PFT_prt_organs
      procedure, private :: Receive_PFT_prt_organs
+     procedure, private :: Register_PFT_leafage
+     procedure, private :: Receive_PFT_leafage
      procedure, private :: Register_PFT_numrad
      procedure, private :: Receive_PFT_numrad
   end type EDPftvarcon_type
@@ -289,6 +301,7 @@ contains
     call this%Register_PFT_nvariants(fates_params)
     call this%Register_PFT_hydr_organs(fates_params)
     call this%Register_PFT_prt_organs(fates_params)
+    call this%Register_PFT_leafage(fates_params)
     
   end subroutine Register
 
@@ -307,6 +320,7 @@ contains
     call this%Receive_PFT_nvariants(fates_params)
     call this%Receive_PFT_hydr_organs(fates_params)
     call this%Receive_PFT_prt_organs(fates_params)
+    call this%Receive_PFT_leafage(fates_params)
 
   end subroutine Receive
 
@@ -383,6 +397,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_senleaf_long_fdrought'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_root_long'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -424,10 +442,6 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_leaf_slatop'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_long'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -473,10 +487,6 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_leaf_c3psn'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_vcmax25top'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -823,6 +833,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%BB_slope)
 
+    name = 'fates_senleaf_long_fdrought'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%senleaf_long_fdrought)
+
     name = 'fates_root_long'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%root_long)
@@ -862,10 +876,6 @@ contains
     name = 'fates_leaf_slatop'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
-
-    name = 'fates_leaf_long'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%leaf_long)
 
     name = 'fates_roota_par'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -910,10 +920,6 @@ contains
     name = 'fates_leaf_c3psn'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%c3psn)
-
-    name = 'fates_leaf_vcmax25top'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%vcmax25top)
 
     name = 'fates_smpso'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1412,6 +1418,64 @@ contains
   end subroutine Receive_PFT_nvariants
 
   ! -----------------------------------------------------------------------
+
+  subroutine Register_PFT_leafage(this, fates_params)
+
+    use FatesParametersInterface, only : fates_parameters_type, param_string_length
+    use FatesParametersInterface, only : max_dimensions, dimension_name_leaf_age
+    use FatesParametersInterface, only : dimension_name_pft, dimension_shape_2d
+    
+    implicit none
+
+    class(EDPftvarcon_type), intent(inout) :: this
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    integer, parameter :: dim_lower_bound(2) = (/ lower_bound_pft, lower_bound_general /)
+    character(len=param_string_length) :: dim_names(2)
+    character(len=param_string_length) :: name
+
+    dim_names(1) = dimension_name_pft
+    dim_names(2) = dimension_name_leaf_age
+
+    name = 'fates_leaf_long'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_leaf_vcmax25top'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+
+    return
+  end subroutine Register_PFT_leafage
+
+  ! =====================================================================================
+
+  subroutine Receive_PFT_leafage(this, fates_params)
+     
+     use FatesParametersInterface, only : fates_parameters_type
+     use FatesParametersInterface, only : param_string_length
+     
+     implicit none
+     
+     class(EDPftvarcon_type), intent(inout) :: this
+     class(fates_parameters_type), intent(inout) :: fates_params
+     
+     character(len=param_string_length) :: name
+
+     name = 'fates_leaf_long'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%leaf_long)
+     
+     name = 'fates_leaf_vcmax25top'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%vcmax25top)
+
+     return
+   end subroutine Receive_PFT_leafage
+
+  ! =====================================================================================
+
   
   subroutine Register_PFT_prt_organs(this, fates_params)
 
@@ -1671,6 +1735,7 @@ contains
         write(fates_log(),fmt0) 'seed_rain = ',EDPftvarcon_inst%seed_rain
         write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
+        write(fates_log(),fmt0) 'senleaf_long_fdrought = ',EDPftvarcon_inst%senleaf_long_fdrought
         write(fates_log(),fmt0) 'seed_alloc_mature = ',EDPftvarcon_inst%seed_alloc_mature
         write(fates_log(),fmt0) 'seed_alloc = ',EDPftvarcon_inst%seed_alloc
         write(fates_log(),fmt0) 'woody = ',EDPftvarcon_inst%woody
@@ -1806,6 +1871,8 @@ contains
 
      integer :: npft     ! number of PFTs
      integer :: ipft     ! pft index
+     integer :: nleafage ! size of the leaf age class array
+     integer :: iage     ! leaf age class index
      integer :: norgans  ! size of the plant organ dimension
 
      npft = size(EDPftvarcon_inst%pft_used,1)
@@ -1985,7 +2052,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
-        end if	
+        end if
 
         ! Check if photosynthetic pathway is neither C3/C4
         ! ----------------------------------------------------------------------------------
@@ -2227,9 +2294,117 @@ contains
            end if
         end if
 
+
+        ! Check turnover time-scales
+        
+        nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
+
+        do iage = 1, nleafage
+
+           if ( EDPftvarcon_inst%leaf_long(ipft,iage)>nearzero ) then
+              
+              ! Check that leaf turnover doesn't exeed 1 day
+              if ( (years_per_day / EDPftvarcon_inst%leaf_long(ipft,iage)) > 1._r8 ) then
+                 write(fates_log(),*) 'Leaf turnover time-scale is greater than 1 day!'
+                 write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
+                 write(fates_log(),*) 'leaf_long(ipft,iage): ',EDPftvarcon_inst%leaf_long(ipft,iage),' [years]'
+                 write(fates_log(),*) 'Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+              
+              ! Check to make sure that all other age-classes for this PFT also
+              ! have non-zero entries, it wouldn't make sense otherwise
+              if ( any(EDPftvarcon_inst%leaf_long(ipft,:) <= nearzero) ) then
+                 write(fates_log(),*) 'You specified a leaf_long that is zero or'
+                 write(fates_log(),*) 'invalid for a particular age class.'
+                 write(fates_log(),*) 'Yet, other age classes for this PFT are non-zero.'
+                 write(fates_log(),*) 'this doesnt make sense.'
+                 write(fates_log(),*) 'ipft = ',ipft
+                 write(fates_log(),*) 'leaf_long(ipft,:) =  ',EDPftvarcon_inst%leaf_long(ipft,:)
+                 write(fates_log(),*) 'Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+
+           else
+              if (EDPftvarcon_inst%evergreen(ipft) .eq. itrue) then
+                 write(fates_log(),*) 'You specified zero leaf turnover: '
+                 write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
+                 write(fates_log(),*) 'leaf_long(ipft,iage): ',EDPftvarcon_inst%leaf_long(ipft,iage)
+                 write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
+                 write(fates_log(),*) 'that an evergreen would have leaf maintenance turnover'
+                 write(fates_log(),*) 'disable this error if you are ok with this'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+           end if
+
+        end do
+
+        ! Check the turnover rates on the senescing leaf pool
+        if ( EDPftvarcon_inst%leaf_long(ipft,nleafage)>nearzero ) then
+           
+           ! Check that leaf turnover doesn't exeed 1 day
+           if ( (years_per_day / &
+                 (EDPftvarcon_inst%leaf_long(ipft,nleafage) * &
+                  EDPftvarcon_inst%senleaf_long_fdrought(ipft))) > 1._r8 ) then
+              write(fates_log(),*) 'Drought-senescent turnover time-scale is greater than 1 day!'
+              write(fates_log(),*) 'ipft: ',ipft
+              write(fates_log(),*) 'leaf_long(ipft,nleafage)*senleaf_long_fdrought: ', &
+                    EDPftvarcon_inst%leaf_long(ipft,nleafage)*EDPftvarcon_inst%senleaf_long_fdrought(ipft),' [years]'
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+        
+        if ( EDPftvarcon_inst%senleaf_long_fdrought(ipft)<nearzero .or. &
+             EDPftvarcon_inst%senleaf_long_fdrought(ipft)>1._r8 ) then
+           write(fates_log(),*) 'senleaf_long_fdrought(ipft) must be greater than 0 '
+           write(fates_log(),*) 'or less than or equal to 1.'
+           write(fates_log(),*) 'Set this to 1 if you want no accelerated senescence turnover'
+           write(fates_log(),*) 'ipft = ',ipft
+           write(fates_log(),*) 'senleaf_long_fdrought(ipft) = ',EDPftvarcon_inst%senleaf_long_fdrought(ipft)
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+           
+
+        if ( EDPftvarcon_inst%root_long(ipft)>nearzero ) then
+           
+           ! Check that root turnover doesn't exeed 1 day
+           if ( (years_per_day / EDPftvarcon_inst%root_long(ipft)) > 1._r8 ) then
+              write(fates_log(),*) 'Root turnover time-scale is greater than 1 day!'
+              write(fates_log(),*) 'ipft: ',ipft
+              write(fates_log(),*) 'root_long(ipft): ',EDPftvarcon_inst%root_long(ipft),' [years]'
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+           
+        else
+           if (EDPftvarcon_inst%evergreen(ipft) .eq. itrue) then
+              write(fates_log(),*) 'You specified zero root turnover: '
+              write(fates_log(),*) 'ipft: ',ipft
+              write(fates_log(),*) 'root_long(ipft): ',EDPftvarcon_inst%root_long(ipft)
+              write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
+              write(fates_log(),*) 'that an evergreen would have root maintenance turnover'
+              write(fates_log(),*) 'disable this error if you are ok with this'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+        
+        ! Check Branch turnover doesn't exceed one day
+        if ( EDPftvarcon_inst%branch_turnover(ipft)>nearzero ) then
+           
+           ! Check that branch turnover doesn't exeed 1 day
+           if ( (years_per_day / EDPftvarcon_inst%branch_turnover(ipft)) > 1._r8 ) then
+              write(fates_log(),*) 'Branch turnover time-scale is greater than 1 day!'
+              write(fates_log(),*) 'ipft: ',ipft
+              write(fates_log(),*) 'branch_turnover(ipft): ',EDPftvarcon_inst%branch_turnover(ipft),' [years]'
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+
+
      end do
-     
-     
+
 
      return
   end subroutine FatesCheckParams
