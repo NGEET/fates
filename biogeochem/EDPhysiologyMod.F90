@@ -1029,7 +1029,7 @@ contains
        endif
 
        if (temp_cohort%n > 0.0_r8 )then
-          if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
+          if ( debug ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
 	  !constrain the number of individual based on rhyzosphere water availability
 	  if( hlm_use_planthydro.eq.itrue ) then
 	      call carea_allom(temp_cohort%dbh,temp_cohort%n,currentSite%spread, &
