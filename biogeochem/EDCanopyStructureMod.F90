@@ -1678,7 +1678,7 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
            
-           if(DEBUG) then
+           if(debug) then
               write(fates_log(),*) 'imprecise patch areas in update_hlm_dynamics',total_patch_area
            end if
            
