@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 # =======================================================================================
 
 pft_dim_name = 'fates_pft'
+prt_dim_name = 'fates_prt_organs'
 
 
 class timetype:   
@@ -161,19 +162,23 @@ def main(argv):
 
         # Idenfity if this variable has pft dimension
         pft_dim_found = -1
+        prt_dim_found = -1
         pft_dim_len   = len(fp_in.variables.get(key).dimensions)
 
         for idim, name in enumerate(fp_in.variables.get(key).dimensions):
             # Manipulate data 
             if(name==pft_dim_name):
                 pft_dim_found = idim
-            
+            if(name==prt_dim_name):
+                prt_dim_found = idim
+
+
         # Copy over the input data
         # Tedious, but I have to permute through all combinations of dimension position
         if( pft_dim_len == 0 ):
             out_var = fp_out.createVariable(key,'f',(fp_in.variables.get(key).dimensions))
             out_var.assignValue(float(fp_in.variables.get(key).data))
-        elif(pft_dim_found==-1):
+        elif( (pft_dim_found==-1) & (prt_dim_found==-1) ):
             out_var = fp_out.createVariable(key,'f',(fp_in.variables.get(key).dimensions))
             out_var[:] = in_var[:]
         elif( (pft_dim_found==0) & (pft_dim_len==1) ):           # 1D fates_pft
@@ -183,8 +188,9 @@ def main(argv):
                 tmp_out[id] = fp_in.variables.get(key).data[ipft-1]
             out_var[:] = tmp_out
 
-
-        elif( (pft_dim_found==1) & (pft_dim_len==2) ):           # 2D hdyro_organ - fate_pft
+        # 2D   hydro_organ - fates_pft
+        # or.. prt_organ - fates_pft
+        elif( (pft_dim_found==1) & (pft_dim_len==2) ):           
             out_var = fp_out.createVariable(key,'f',(fp_in.variables.get(key).dimensions))
             dim2_len = fp_in.dimensions.get(fp_in.variables.get(key).dimensions[0])
             tmp_out  = np.zeros([dim2_len,num_pft_out])
@@ -199,6 +205,12 @@ def main(argv):
             out_var[:] = np.empty([num_pft_out,dim2_len], dtype="S{}".format(dim2_len))
             for id,ipft in enumerate(donor_pft_indices):
                 out_var[id] = fp_in.variables.get(key).data[ipft-1]
+
+        
+        elif( (prt_dim_found==0) & (pft_dim_len==2) ):          # fates_prt_organs - string_length
+            out_var = fp_out.createVariable(key,'c',(fp_in.variables.get(key).dimensions))
+            out_var[:] = in_var[:]
+
 
         else:
             print('This variable has a dimensioning that we have not considered yet.')
