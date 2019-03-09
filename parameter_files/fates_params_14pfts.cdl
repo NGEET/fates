@@ -524,9 +524,6 @@ variables:
 	float fates_z0mr(fates_pft) ;
 		fates_z0mr:units = "unitless" ;
 		fates_z0mr:long_name = "Ratio of momentum roughness length to canopy top height" ;
-	float fates_alpha_FMC(fates_litterclass) ;
-		fates_alpha_FMC:units = "NA" ;
-		fates_alpha_FMC:long_name = "spitfire parameter related to fuel moisture content, Equation 6 Thonicke et al 2010" ;
 	float fates_FBD(fates_litterclass) ;
 		fates_FBD:units = "NA" ;
 		fates_FBD:long_name = "spitfire parameter related to fuel bulk density, see SFMain.F90" ;
@@ -557,6 +554,9 @@ variables:
 	float fates_CWD_frac(fates_NCWD) ;
 		fates_CWD_frac:units = "fraction" ;
 		fates_CWD_frac:long_name = "fraction of woody (bdead+bsw) biomass destined for CWD pool" ;
+	float fates_drying_ratio ;
+		fates_drying_ratio:units = "NA" ;
+		fates_drying_ratio:long_name = "spitfire parameter, fire drying ratio for fuel moisture, alpha_FMC EQ 6 Thonicke et al 2010" ;		
 	float fates_durat_slope ;
 		fates_durat_slope:units = "NA" ;
 		fates_durat_slope:long_name = "spitfire parameter, fire max duration slope, Equation 14 Thonicke et al 2010" ;
@@ -1156,8 +1156,6 @@ data:
  fates_z0mr = 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 
     0.055, 0.055, 0.055, 0.055, 0.055 ;
 
- fates_alpha_FMC = 0.0050769, 0.001, 0.0002754, 7.54e-05, 1.54e-05, 999 ;
-
  fates_FBD = 4, 15.4, 16.8, 19.6, 999, 4 ;
 
  fates_low_moisture_Coeff = 1.15, 1.12, 1.09, 0.98, 0.8, 1.15 ;
@@ -1177,6 +1175,8 @@ data:
  fates_SAV = 66, 13, 3.58, 0.98, 0.2, 66 ;
 
  fates_CWD_frac = 0.045, 0.075, 0.21, 0.67 ;
+
+ fates_drying_ratio = 13000 ;
 
  fates_durat_slope = -11.06 ;
 
