@@ -203,7 +203,7 @@ module EDPftvarcon
 
      ! PFT Dimension
      real(r8), allocatable :: hydr_p_taper(:)       ! xylem taper exponent
-     real(r8), allocatable :: hydr_rs2(:)           ! absorbing root radius (mm)
+     real(r8), allocatable :: hydr_rs2(:)           ! absorbing root radius (m)
      real(r8), allocatable :: hydr_srl(:)           ! specific root length (m g-1)
      real(r8), allocatable :: hydr_rfrac_stem(:)    ! fraction of total tree resistance from troot to canopy
      real(r8), allocatable :: hydr_avuln_gs(:)      ! shape parameter for stomatal control of water vapor exiting leaf 

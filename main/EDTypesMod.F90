@@ -82,6 +82,20 @@ module EDTypesMod
   logical, parameter :: do_ed_phenology = .true.
 
 
+  ! This is the community level amount of spread expected in nearly-bare-ground
+  ! and inventory starting modes.
+  ! These are used to initialize only. These values will scale between
+  ! the PFT defined maximum and minimum crown area scaing parameters.
+  !
+  ! A value of 1 indicates that
+  ! plants should have crown areas at maximum spread for their size and PFT.
+  ! A value of 0 means that they have the least amount of spread for their
+  ! size and PFT.
+  
+  real(r8), parameter :: init_spread_near_bare_ground = 1.0_r8
+  real(r8), parameter :: init_spread_inventory        = 0.0_r8
+
+
   ! MODEL PARAMETERS
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
   real(r8), parameter :: AREA_INV             = 1.0e-4_r8  ! Inverse of the notion area (faster math)
@@ -132,7 +146,7 @@ module EDTypesMod
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
 
-  !************************************
+ !************************************
   !** COHORT type structure          **
   !************************************
   type ed_cohort_type
@@ -182,6 +196,7 @@ module EDTypesMod
                                                          ! type classification. We also maintain this in the main cohort memory
                                                          ! because we don't want to continually re-calculate the cohort's position when
                                                          ! performing size diagnostics at high-frequency calls
+     integer ::  size_class_lasttimestep                 ! size class of the cohort at the end of the previous timestep (used for calculating growth flux)
 
 
      ! CARBON FLUXES 
@@ -329,6 +344,13 @@ module EDTypesMod
      integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
+
+     logical  ::  solar_zenith_flag                           ! integer flag specifying daylight (based on zenith angle)
+     real(r8) ::  solar_zenith_angle                          ! solar zenith angle (radians)
+
+     real(r8) ::  gnd_alb_dif(maxSWb)                         ! ground albedo for diffuse rad, both bands (fraction)
+     real(r8) ::  gnd_alb_dir(maxSWb)                         ! ground albedo for direct rad, both bands (fraction)
+     
      real(r8) ::  fabd_sun_z(nclmax,maxpft,nlevleaf)          ! sun fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
      real(r8) ::  fabd_sha_z(nclmax,maxpft,nlevleaf)          ! shade fraction of direct light absorbed by each canopy 
@@ -582,6 +604,7 @@ module EDTypesMod
      real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
      real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
      real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
+     real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin due to fusion in a given day. on size x pft array 
 
      ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
      real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
@@ -704,6 +727,10 @@ module EDTypesMod
      write(fates_log(),*) 'pa%total_canopy_area  = ',cpatch%total_canopy_area
      write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
      write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
+     write(fates_log(),*) 'pa%solar_zenith_flag  = ',cpatch%solar_zenith_flag
+     write(fates_log(),*) 'pa%solar_zenith_angle = ',cpatch%solar_zenith_angle
+     write(fates_log(),*) 'pa%gnd_alb_dif        = ',cpatch%gnd_alb_dif(:)
+     write(fates_log(),*) 'pa%gnd_alb_dir        = ',cpatch%gnd_alb_dir(:)
      write(fates_log(),*) 'pa%c_stomata          = ',cpatch%c_stomata
      write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
      write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate

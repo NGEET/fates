@@ -197,7 +197,7 @@ contains
                             cpatch%rootr_ft(ft,j) * pftgs(ft)/sum_pftgs
                     else
                        bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
-                            cpatch%rootr_ft(ft,j) * 1._r8/dble(numpft)
+                            cpatch%rootr_ft(ft,j) * 1._r8/real(numpft,r8)
                     end if
                  enddo
               enddo

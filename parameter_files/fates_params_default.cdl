@@ -258,7 +258,7 @@ variables:
 		fates_hydr_rfrac_stem:units = "fraction" ;
 		fates_hydr_rfrac_stem:long_name = "fraction of total tree resistance from troot to canopy" ;
 	float fates_hydr_rs2(fates_pft) ;
-		fates_hydr_rs2:units = "mm" ;
+		fates_hydr_rs2:units = "m" ;
 		fates_hydr_rs2:long_name = "absorbing root radius" ;
 	float fates_hydr_srl(fates_pft) ;
 		fates_hydr_srl:units = "m g-1" ;
@@ -657,10 +657,10 @@ data:
   -2.25, -2.25 ;
 
  fates_hydr_pinot_node =
-  -999, -999,
-  -999, -999,
-  -999, -999,
-  -999, -999 ;
+  -1.465984, -1.465984,
+  -1.228070, -1.228070,
+  -1.228070, -1.228070,
+  -1.043478, -1.043478 ;
 
  fates_hydr_pitlp_node =
   -1.67, -1.67,
@@ -1004,7 +1004,7 @@ data:
 
  fates_fire_nignitions = 15 ;
  
- fates_hydr_kmax_rsurf = 0.001;
+ fates_hydr_kmax_rsurf = 20;
 
  fates_hydr_psi0 = 0 ;
 
