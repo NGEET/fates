@@ -93,7 +93,6 @@ module EDTypesMod
   logical, parameter :: do_fates_salinity = .false.
 
 
-
   ! This is the community level amount of spread expected in nearly-bare-ground
   ! and inventory starting modes.
   ! These are used to initialize only. These values will scale between
@@ -846,8 +845,29 @@ module EDTypesMod
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
      write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
+     if (associated(ccohort%co_hydr) ) then
+        call dump_cohort_hydr(ccohort)
+     endif 
      write(fates_log(),*) '----------------------------------------'
      return
   end subroutine dump_cohort
+
+  ! =====================================================================================
+  
+  subroutine dump_cohort_hydr(ccohort)
+
+
+     type(ed_cohort_type),intent(in),target :: ccohort
+     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+     ccohort_hydr => ccohort%co_hydr
+     
+     write(fates_log(),*) '--------------------------------------------'
+     write(fates_log(),*) ' Dumping Cohort Plant Hydraulic Information '
+     write(fates_log(),*) 'ccohort_hydr%th_aroot(:) = ', ccohort_hydr%th_aroot(:)
+     write(fates_log(),*) 'ccohort_hydr%v_aroot_layer_init(:) = ', ccohort_hydr%v_aroot_layer_init(:)
+     write(fates_log(),*) 'ccohort_hydr%v_aroot_layer(:) = ', ccohort_hydr%v_aroot_layer(:)
+     write(fates_log(),*) '--------------------------------------------'
+     return
+  end subroutine dump_cohort_hydr
 
 end module EDTypesMod

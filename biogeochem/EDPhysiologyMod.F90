@@ -13,12 +13,13 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : hlm_day_of_year
   use FatesInterfaceMod, only    : numpft
   use FatesInterfaceMod, only    : hlm_use_planthydro
+  use FatesInterfaceMod, only    : hlm_parteh_mode
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
-  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
+  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts,InitPRTCohort
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : decay_coeff_kn
@@ -39,6 +40,12 @@ module EDPhysiologyMod
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
+  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
+  use FatesPlantHydraulicsMod  , only : initTreeHydStates
+  use FatesPlantHydraulicsMod  , only : InitHydrCohort
+  use FatesPlantHydraulicsMod  , only : ConstrainRecruitNumber
+  use FatesPlantHydraulicsMod  , only : DeallocateHydrCohort
+  
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : calloc_abs_error
 
@@ -54,7 +61,8 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod  , only : StructureResetOfDH
-
+  
+  use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : leaf_organ
   use PRTGenericMod, only : all_carbon_elements
   use PRTGenericMod, only : carbon12_element
@@ -971,6 +979,10 @@ contains
 
     allocate(temp_cohort) ! create temporary cohort
     call zero_cohort(temp_cohort)
+    if( hlm_use_planthydro.eq.itrue ) then
+	call InitHydrCohort(CurrentSite,temp_cohort)
+    endif
+    call InitPRTCohort(temp_cohort)
 
     do ft = 1,numpft
 
@@ -1014,28 +1026,64 @@ contains
        else
           ! prescribed recruitment rates. number per sq. meter per year
           temp_cohort%n        = currentPatch%area * EDPftvarcon_inst%prescribed_recruitment(ft) * hlm_freq_day
-          ! modify the carbon balance accumulators to take into account the different way of defining recruitment
-          ! add prescribed rates as an input C flux, and the recruitment that would have otherwise occured as an output flux
-          ! (since the carbon associated with them effectively vanishes)
-          currentSite%flux_in = currentSite%flux_in + temp_cohort%n * &
-                (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
-          currentSite%flux_out = currentSite%flux_out + currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day
        endif
 
        if (temp_cohort%n > 0.0_r8 )then
-          if ( debug ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
-          call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+          if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
+	  !constrain the number of individual based on rhyzosphere water availability
+	  if( hlm_use_planthydro.eq.itrue ) then
+	      call carea_allom(temp_cohort%dbh,temp_cohort%n,currentSite%spread, &
+				          ft,temp_cohort%c_area)
+	      if(associated(currentPatch%shortest)) then
+	         temp_cohort%canopy_layer =  currentPatch%shortest%canopy_layer
+	      else
+	         temp_cohort%canopy_layer = 1
+	      endif		
+	      temp_cohort%pft = ft
+	      select case(hlm_parteh_mode)
+                case (prt_carbon_allom_hyp)
+
+                  call SetState(temp_cohort%prt,leaf_organ, carbon12_element, b_leaf)
+                  call SetState(temp_cohort%prt,fnrt_organ, carbon12_element, b_fineroot)
+                  call SetState(temp_cohort%prt,sapw_organ, carbon12_element, b_sapwood)
+                  call SetState(temp_cohort%prt,store_organ, carbon12_element, b_store)
+                  call SetState(temp_cohort%prt,struct_organ, carbon12_element, b_dead)
+                  call SetState(temp_cohort%prt,repro_organ , carbon12_element, 0.0_r8)
+
+              end select
+              temp_cohort%treelai = tree_lai(b_leaf, ft,&
+				             temp_cohort%c_area,temp_cohort%n, &
+                                             temp_cohort%canopy_layer,currentPatch%canopy_layer_tlai)	      
+              call updateSizeDepTreeHydProps(CurrentSite,temp_cohort, bc_in) 
+              call initTreeHydStates(CurrentSite,temp_cohort, bc_in)
+ 	      call ConstrainRecruitNumber(currentSite,temp_cohort, bc_in)
+	  endif
+	  if(temp_cohort%n > 0.0_r8) then
+            call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                 b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &  
                 temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
                 currentSite%spread, bc_in)
-
-
-          ! keep track of how many individuals were recruited for passing to history
-          currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
+            ! keep track of how many individuals were recruited for passing to history
+            currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
+	    ! modify the carbon balance accumulators to take into account the different way of defining recruitment
+            ! add prescribed rates as an input C flux, and the recruitment that would have otherwise occured as an output flux
+            ! (since the carbon associated with them effectively vanishes)
+	    ! check the water for hydraulics
+	    if (hlm_use_ed_prescribed_phys .ne. ifalse .and. EDPftvarcon_inst%prescribed_recruitment(ft) .ge. 0. ) then
+              currentSite%flux_in = currentSite%flux_in + temp_cohort%n * &
+                (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
+              currentSite%flux_out = currentSite%flux_out + currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day
+	    endif 
+	    
+	  endif 
 
        endif
     enddo  !pft loop
-
+    !deallocate the temporatory cohort
+    if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(temp_cohort)
+    !Deallocate the cohort's PRT structure
+    call temp_cohort%prt%DeallocatePRTVartypes()
+    deallocate(temp_cohort%prt)
     deallocate(temp_cohort) ! delete temporary cohort
 
   end subroutine recruitment
@@ -1173,7 +1221,9 @@ contains
                 hlm_freq_day * currentPatch%area
 
           if( hlm_use_planthydro == itrue ) then
-             call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_n)
+             !call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_n)
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort,&
+                                                  -1.0_r8 * currentCohort%dndt * hlm_freq_day)
           end if
           
 

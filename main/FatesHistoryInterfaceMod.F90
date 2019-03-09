@@ -152,7 +152,13 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_froot_mr_si
   integer, private :: ih_livestem_mr_si
   integer, private :: ih_livecroot_mr_si
-  
+  integer, private :: ih_h2oveg_si
+  integer, private :: ih_h2oveg_dead_si
+  integer, private :: ih_h2oveg_recruit_si
+  integer, private :: ih_h2oveg_growturn_err_si
+  integer, private :: ih_h2oveg_pheno_err_si
+  integer, private :: ih_h2oveg_hydro_err_si
+    
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
   integer, private :: ih_gpp_si_scpf
@@ -314,6 +320,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_errh2o_scpf
   integer, private :: ih_tran_scpf
   integer, private :: ih_rootuptake_scpf
+  integer, private :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
   integer, private :: ih_rootuptake01_scpf
   integer, private :: ih_rootuptake02_scpf
   integer, private :: ih_rootuptake03_scpf
@@ -1546,6 +1553,18 @@ end subroutine flush_hvars
          hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * g_per_kg
 
          hio_canopy_spread_si(io_si)        = sites(s)%spread
+
+         
+         ! If hydraulics are turned on, track the error terms
+         ! associated with dynamics
+
+         if(hlm_use_planthydro.eq.itrue)then
+            this%hvars(ih_h2oveg_dead_si)%r81d(io_si)         = sites(s)%si_hydr%h2oveg_dead
+            this%hvars(ih_h2oveg_recruit_si)%r81d(io_si)      = sites(s)%si_hydr%h2oveg_recruit
+            this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
+            this%hvars(ih_h2oveg_pheno_err_si)%r81d(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
+         end if
+
             
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -2285,7 +2304,7 @@ end subroutine flush_hvars
          sites(s)%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
          sites(s)%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
          sites(s)%root_litter_diagnostic_input_carbonflux(:) = 0._r8
-
+         
       enddo ! site loop
       
     end associate
@@ -2717,7 +2736,7 @@ end subroutine flush_hvars
             hio_c_stomata_si(io_si) = 0._r8
             hio_c_lblayer_si(io_si) = 0._r8
          end if
-         
+	 
       enddo ! site loop
 
     end associate
@@ -2738,7 +2757,7 @@ end subroutine flush_hvars
                                      ed_patch_type,  &
                                      AREA
 
-    use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
+    use FatesHydraulicsMemMod, only : ed_cohort_hydr_type, nshell
     use EDTypesMod           , only : maxpft
 
     
@@ -2757,6 +2776,7 @@ end subroutine flush_hvars
     integer  :: io_pa1   ! The first patch index in the IO array for each site
     integer  :: ft               ! functional type index
     integer  :: scpf
+    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
@@ -2766,6 +2786,8 @@ end subroutine flush_hvars
     real(r8) :: number_fraction_rate
     integer  :: ipa2     ! patch incrementer
     integer  :: iscpf    ! index of the scpf group
+    integer  :: j        ! soil layer index
+    integer  :: k        ! rhizosphere shell index
 
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -2800,6 +2822,7 @@ end subroutine flush_hvars
           hio_rootuptake08_scpf => this%hvars(ih_rootuptake08_scpf)%r82d, &
           hio_rootuptake09_scpf => this%hvars(ih_rootuptake09_scpf)%r82d, &
           hio_rootuptake10_scpf => this%hvars(ih_rootuptake10_scpf)%r82d, &
+          hio_h2osoi_shsl       => this%hvars(ih_h2osoi_si_scagpft)%r82d, &
           hio_sapflow_scpf      => this%hvars(ih_sapflow_scpf)%r82d, &
           hio_iterh1_scpf       => this%hvars(ih_iterh1_scpf)%r82d, &          
           hio_iterh2_scpf       => this%hvars(ih_iterh2_scpf)%r82d, &           
@@ -2816,7 +2839,9 @@ end subroutine flush_hvars
           hio_sflc_scpf          => this%hvars(ih_sflc_scpf)%r82d, &                     
           hio_lflc_scpf          => this%hvars(ih_lflc_scpf)%r82d, &                   
           hio_btran_scpf        => this%hvars(ih_btran_scpf)%r82d, &
-          hio_nplant_si_scpf    => this%hvars(ih_nplant_si_scpf)%r82d )
+          hio_h2oveg_si         => this%hvars(ih_h2oveg_si)%r81d, &
+          hio_nplant_si_scpf    => this%hvars(ih_nplant_si_scpf)%r82d, &
+          hio_h2oveg_hydro_err_si    => this%hvars(ih_h2oveg_hydro_err_si)%r81d )
       
       ! Flush the relevant history variables 
       call this%flush_hvars(nc,upfreq_in=4)
@@ -2825,6 +2850,9 @@ end subroutine flush_hvars
          
          io_si  = this%iovar_map(nc)%site_index(s)
          io_pa1 = this%iovar_map(nc)%patch1_index(s)
+
+         hio_h2oveg_si(io_si)              = sites(s)%si_hydr%h2oveg
+         hio_h2oveg_hydro_err_si(io_si)    = sites(s)%si_hydr%h2oveg_hydro_err
 
          ncohort_scpf(:) = 0.0_r8  ! Counter for normalizing weighting 
                                    ! factors for cohort mean propoerties
@@ -3050,6 +3078,14 @@ end subroutine flush_hvars
             cpatch => cpatch%younger
          end do !patch loop
 
+         io_shsl = 0
+         do j=1,sites(s)%si_hydr%nlevsoi_hyd
+           do k=1, nshell
+             io_shsl = io_shsl + 1
+             hio_h2osoi_shsl(io_si,io_shsl) = sites(s)%si_hydr%h2osoi_liqvol_shell(j,k)
+           end do
+	 end do
+                  
          if(hlm_use_ed_st3.eq.ifalse) then
             do scpf=1,nlevsclass*numpft
                if( abs(hio_nplant_si_scpf(io_si, scpf)-ncohort_scpf(scpf)) > 1.0E-8_r8 ) then
@@ -4555,6 +4591,11 @@ end subroutine flush_hvars
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake10_scpf )
 
+       call this%set_history_var(vname='FATES_H2OSOI_COL_SHSL', units='m3/m3', &
+             long='volumetric soil moisture by layer and shell', use_default='inactive', &
+             avgflag='A', vtype=site_scagpft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_h2osoi_si_scagpft )
+       
        call this%set_history_var(vname='FATES_SAPFLOW_COL_SCPF', units='kg/indiv/s', &
              long='individual sap flow rate', use_default='inactive', &
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
@@ -4642,6 +4683,35 @@ end subroutine flush_hvars
 !             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
 !             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_laroot_scpf)
 
+       call this%set_history_var(vname='H2OVEG', units = 'kg/m2',               &
+             long='water stored inside vegetation tissues (leaf, stem, roots)', use_default='inactive',   &
+             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_si )
+
+       call this%set_history_var(vname='H2OVEG_DEAD', units = 'kg/m2',               &
+             long='cumulative plant_stored_h2o in dead biomass due to mortality', use_default='inactive',   &
+             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_dead_si )
+
+       call this%set_history_var(vname='H2OVEG_RECRUIT', units = 'kg/m2',               &
+             long='amount of water in new recruits', use_default='inactive',   &
+             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_recruit_si )
+    
+       call this%set_history_var(vname='H2OVEG_GROWTURN_ERR', units = 'kg/m2',               &
+             long='cumulative net borrowed (+) or lost (-) from plant_stored_h2o due to combined growth & turnover', use_default='inactive',   &
+             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_growturn_err_si )
+    
+       call this%set_history_var(vname='H2OVEG_PHENO_ERR', units = 'kg/m2',               &
+             long='cumulative net borrowed (+) from plant_stored_h2o due to leaf emergence', use_default='inactive',   &
+             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_pheno_err_si )
+	     
+       call this%set_history_var(vname='H2OVEG_HYDRO_ERR', units = 'kg/m2',               &
+             long='cumulative net borrowed (+) from plant_stored_h2o due to plant hydrodynamics', use_default='inactive',   &
+             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_hydro_err_si )
     end if
 
     ! Must be last thing before return
