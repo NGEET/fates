@@ -1003,7 +1003,7 @@ contains
                                    call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
                                         currentCohort%c_area,inverse=.false.)
                                    !
-                                case(default)
+                                case default
                                     write(fates_log(),*) 'FATES: Invalid choice for cohort_fusion_conservation_method'
                                    call endrun(msg=errMsg(sourcefile, __LINE__))
                                 end select
