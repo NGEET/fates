@@ -849,8 +849,7 @@ contains
 
      logical, parameter :: fuse_debug = .false.   ! This debug is over-verbose
                                                  ! and gets its own flag
-     real(r8) :: next_c_area
-     real(r8) :: curr_c_area
+
      !----------------------------------------------------------------------
 
      !set initial fusion tolerance
@@ -942,15 +941,15 @@ contains
                                 currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                       + nextc%n*nextc%canopy_trim)/newn
 				
-				! c13disc_acc calculation; weighted mean by GPP
-				if ((currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc) .eq. 0.0_r8) then
-				     currentCohort%c13disc_acc = 0.0_r8
-				else  
-				     currentCohort%c13disc_acc = (currentCohort%n * currentCohort%gpp_acc * currentCohort%c13disc_acc +   &
-				     	                          nextc%n * nextc%gpp_acc * nextc%c13disc_acc)/    &
-					                           (currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc)
-				endif				
-
+                                ! c13disc_acc calculation; weighted mean by GPP
+                                if ((currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc) .eq. 0.0_r8) then
+                                    currentCohort%c13disc_acc = 0.0_r8
+                                else  
+                                    currentCohort%c13disc_acc = (currentCohort%n * currentCohort%gpp_acc * currentCohort%c13disc_acc +   &
+                                          nextc%n * nextc%gpp_acc * nextc%c13disc_acc)/    &
+                                          (currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc)
+                                endif
+                                
                                 select case(cohort_fusion_conservation_method)
                                    !
                                    ! -----------------------------------------------------------------
@@ -978,14 +977,14 @@ contains
                                    !
                                    call carea_allom(currentCohort%dbh,currentCohort%n, &
                                          currentSite%spread,currentCohort%pft,&
-                                         curr_c_area,inverse=.false.)
-
+                                         currentCohort%c_area,inverse=.false.)
+                                   
                                    call carea_allom(nextc%dbh,nextc%n, &
                                          currentSite%spread,nextc%pft,&
-                                         next_c_area,inverse=.false.)
+                                         nextc%c_area,inverse=.false.)
                                    
-                                   !currentCohort%c_area = currentCohort%c_area + nextc%c_area
-                                   currentCohort%c_area = curr_c_area + next_c_area
+                                   currentCohort%c_area = currentCohort%c_area + nextc%c_area
+
                                    !
                                    call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
                                         currentCohort%c_area,inverse=.true.)
