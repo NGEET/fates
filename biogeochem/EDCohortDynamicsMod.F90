@@ -844,7 +844,8 @@ contains
 
      logical, parameter :: fuse_debug = .false.   ! This debug is over-verbose
                                                  ! and gets its own flag
-
+     real(r8) :: next_c_area
+     real(r8) :: curr_c_area
      !----------------------------------------------------------------------
 
      !set initial fusion tolerance
@@ -961,7 +962,16 @@ contains
                                    ! cohorts' dbh
                                    ! -----------------------------------------------------------------
                                    !
-                                   currentCohort%c_area = currentCohort%c_area + nextc%c_area
+                                   call carea_allom(currentCohort%dbh,currentCohort%n, &
+                                         currentSite%spread,currentCohort%pft,&
+                                         curr_c_area,inverse=.false.)
+
+                                   call carea_allom(nextc%dbh,nextc%n, &
+                                         currentSite%spread,nextc%pft,&
+                                         next_c_area,inverse=.false.)
+                                   
+                                   !currentCohort%c_area = currentCohort%c_area + nextc%c_area
+                                   currentCohort%c_area = curr_c_area + next_c_area
                                    !
                                    call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
                                         currentCohort%c_area,inverse=.true.)
@@ -969,6 +979,17 @@ contains
                                    if (abs(dbh-fates_unset_r8)<nearzero) then
                                       currentCohort%dbh = (currentCohort%n*currentCohort%dbh         &
                                            + nextc%n*nextc%dbh)/newn
+
+                                      if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
+                                          call StructureResetOfDH( &
+                                                currentCohort%prt%GetState(struct_organ,all_carbon_elements), &
+                                                currentCohort%pft, &
+                                                currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+                                      end if
+                                      !
+                                      call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
+                                            currentCohort%c_area,inverse=.false.)
+                                      
                                    else
                                       currentCohort%dbh = dbh
                                    endif
@@ -1013,8 +1034,8 @@ contains
 				      
 
                                 if(hlm_use_planthydro.eq.itrue) then			  					  				  
-				    call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
-				 endif
+                                    call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
+                                endif
 
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
