@@ -994,10 +994,11 @@ contains
                                            + nextc%n*nextc%dbh)/newn
 
                                       if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
-                                          call StructureResetOfDH( &
-                                                currentCohort%prt%GetState(struct_organ,all_carbon_elements), &
-                                                currentCohort%pft, &
-                                                currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+
+                                          call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
+                                           currentCohort%dbh, currentCohort%hite, &
+                                           bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+
                                       end if
                                       !
                                       call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
