@@ -488,17 +488,20 @@ contains
        
     else
 
-       ! Target fine-root biomass and deriv. according to 
-       ! allometry and trimming [kgC]
-       call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
+       ! Target leaf biomass according to allometry and trimming
+       call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
 
-       if( (fnrt_c - target_fnrt_c ) > calloc_abs_error ) then
+
+       if( ( sum(leaf_c) - target_leaf_c ) > calloc_abs_error ) then
           
-          call ForceDBH( ipft, canopy_trim, dbh, hite_out, bfnrt=fnrt_c )
+          call ForceDBH( ipft, canopy_trim, dbh, hite_out, bl=sum(leaf_c) )
        
-          target_fnrt_c = fnrt_c
+          target_leaf_c = sum(leaf_c)
    
        end if
+
+       ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
+       call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
 
        ! Target sapwood biomass according to allometry and trimming [kgC]
        call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
@@ -512,9 +515,6 @@ contains
        ! Target total dead (structrual) biomass and [kgC]
        call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
        
-       ! Target leaf biomass according to allometry and trimming
-       call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
-
        ! Target storage carbon [kgC]
        call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
 

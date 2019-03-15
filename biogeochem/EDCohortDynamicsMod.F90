@@ -838,8 +838,9 @@ contains
      integer  :: nocohorts
      real(r8) :: newn
      real(r8) :: diff
-     real(r8) :: leaf_c_next  ! Leaf carbon * plant density of current (for weighting)
-     real(r8) :: leaf_c_curr  ! Leaf carbon * plant density of next (for weighting)
+     real(r8) :: leaf_c_next   ! Leaf carbon * plant density of current (for weighting)
+     real(r8) :: leaf_c_curr   ! Leaf carbon * plant density of next (for weighting)
+     real(r8) :: leaf_c_target 
      real(r8) :: dynamic_fusion_tolerance
      real(r8) :: dbh
      real(r8) :: leaf_c             ! leaf carbon [kg]
@@ -935,6 +936,10 @@ contains
                                 call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, &
                                                                                currentCohort%n/newn )
 
+                                ! Leaf biophysical rates (use leaf mass weighting)
+                                ! -----------------------------------------------------------------
+                                call UpdateCohortBioPhysRates(currentCohort)
+
                                 currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                       + nextc%n*nextc%laimemory)/newn
 
@@ -996,8 +1001,8 @@ contains
                                       if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
 
                                           call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
-                                           currentCohort%dbh, currentCohort%hite, &
-                                           bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+                                               currentCohort%dbh, currentCohort%hite, &
+                                               bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
 
                                       end if
                                       !
@@ -1007,6 +1012,7 @@ contains
                                    else
                                       currentCohort%dbh = dbh
                                    endif
+
                                    !
                                    call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
                                    !
@@ -1045,14 +1051,29 @@ contains
                                    call endrun(msg=errMsg(sourcefile, __LINE__))
                                 end select
 
-                                
-                                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
 
-                                currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+                                ! If fusion forces the actual leaf biomass to be unreasonably
+                                ! greater than the target (ie 25%), reset the DBH
+
+!                                call bleaf(currentCohort%dbh,currentCohort%pft, &
+!                                     currentCohort%canopy_trim,leaf_c_target)
+                                
+                                leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+
+!                                if (leaf_c > leaf_c_target*1.25_r8) then
+!                                   call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
+!                                        currentCohort%dbh, currentCohort%hite, &
+!                                        bl = leaf_c)
+!                                   call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft, &
+!                                        currentCohort%c_area,inverse=.false.)
+!                                end if
+
+
+                                currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, newn, &
                                                currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
                                                currentCohort%vcmax25top)
                                 currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                                               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                                               currentCohort%c_area, newn, currentCohort%canopy_layer, &
                                                currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,1 ) 
 
 
@@ -1069,9 +1090,6 @@ contains
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
                                       nextc%n*nextc%canopy_layer_yesterday)/newn
 
-                                ! Leaf biophysical rates (use leaf mass weighting)
-                                ! -----------------------------------------------------------------
-                                call UpdateCohortBioPhysRates(currentCohort)
 
                                 ! keep track of the size class bins so that we can monitor growth fluxes
                                 ! compare the values.  if they are the same, then nothing needs to be done. if not, track the diagnostic flux

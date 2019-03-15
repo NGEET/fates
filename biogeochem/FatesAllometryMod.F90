@@ -2200,11 +2200,11 @@ contains
 
   ! =====================================================================================
 
-  subroutine ForceDBH( ipft, canopy_trim, d, h, bdead, bfnrt )
+  subroutine ForceDBH( ipft, canopy_trim, d, h, bdead, bl )
 
      ! =========================================================================
      ! This subroutine estimates the diameter based on either the structural biomass
-     ! (if woody) or the fine root biomass (if a grass) using the allometric 
+     ! (if woody) or the leaf biomass using the allometric 
      ! functions. Since allometry is specified with diameter
      ! as the independant variable, we must do this through a search algorithm.
      ! Here, we keep searching until the difference between actual structure and
@@ -2220,7 +2220,7 @@ contains
      real(r8),intent(inout)        :: d     ! plant diameter [cm]
      real(r8),intent(out)          :: h     ! plant height
      real(r8),intent(in),optional  :: bdead ! Structural biomass
-     real(r8),intent(in),optional  :: bfnrt ! Fine root biomass
+     real(r8),intent(in),optional  :: bl    ! Leaf biomass
 
      
      ! Locals
@@ -2228,14 +2228,14 @@ contains
      real(r8)  :: bt_agw,dbt_agw_dd  ! target AG wood at current d
      real(r8)  :: bt_bgw,dbt_bgw_dd  ! target BG wood at current d
      real(r8)  :: bt_dead,dbt_dead_dd ! target struct wood at current d
-     real(r8)  :: bt_fnrt,dbt_fnrt_dd ! target fineroot at current d
+     real(r8)  :: bt_leaf,dbt_leaf_dd ! target leaf at current d
      real(r8)  :: at_sap              ! sapwood area (dummy) m2
      real(r8)  :: dd                  ! diameter increment for each step
      real(r8)  :: d_try               ! trial diameter
      real(r8)  :: bt_dead_try         ! trial structure biomasss
      real(r8)  :: dbt_dead_dd_try     ! trial structural derivative
-     real(r8)  :: bt_fnrt_try         ! trial fineroot biomass
-     real(r8)  :: dbt_fnrt_dd_try        ! trial fineroot derivative
+     real(r8)  :: bt_leaf_try         ! trial leaf biomass
+     real(r8)  :: dbt_leaf_dd_try     ! trial leaf derivative
      real(r8)  :: step_frac           ! step fraction
      integer   :: counter 
      real(r8), parameter :: step_frac0  = 0.9_r8
@@ -2291,30 +2291,30 @@ contains
 
      else
 
-        if(.not.present(bfnrt)) then
-           write(fates_log(),*) 'grasses must use fine-root for dbh reset'
+        if(.not.present(bl)) then
+           write(fates_log(),*) 'grasses must use leaf for dbh reset'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
-        call bfineroot(d,ipft,canopy_trim,bt_fnrt,dbt_fnrt_dd)
+        call bleaf(d,ipft,canopy_trim,bt_leaf,dbt_leaf_dd)
 
         counter = 0
         step_frac = step_frac0
-        do while( (bfnrt-bt_fnrt) > calloc_abs_error .and. dbt_fnrt_dd>0.0_r8)
+        do while( (bl-bt_leaf) > calloc_abs_error .and. dbt_leaf_dd>0.0_r8)
 
-           dd    = step_frac*(bfnrt-bt_fnrt)/dbt_fnrt_dd
+           dd    = step_frac*(bl-bt_leaf)/dbt_leaf_dd
            d_try = d + dd
            
-           call bfineroot(d_try,ipft,canopy_trim,bt_fnrt_try,dbt_fnrt_dd_try)
+           call bleaf(d_try,ipft,canopy_trim,bt_leaf_try,dbt_leaf_dd_try)
 
            ! Prevent overshooting                                                                                           
-           if(bt_fnrt_try > (bfnrt+calloc_abs_error)) then
+           if(bt_leaf_try > (bl+calloc_abs_error)) then
               step_frac = step_frac*0.5_r8
            else
               step_frac = step_frac0
               d         = d_try
-              bt_fnrt   = bt_fnrt_try
-              dbt_fnrt_dd = dbt_fnrt_dd_try
+              bt_leaf   = bt_leaf_try
+              dbt_leaf_dd = dbt_leaf_dd_try
            end if
            counter = counter + 1
            if (counter>max_counter) then
