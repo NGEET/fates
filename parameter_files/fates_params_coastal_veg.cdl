@@ -339,6 +339,12 @@ variables:
 	float fates_mort_bmort(fates_pft) ;
 		fates_mort_bmort:units = "1/yr" ;
 		fates_mort_bmort:long_name = "background mortality rate" ;
+	float fates_mort_phmort_rate(fates_pft) ;
+		fates_mort_phmort_rate:units = "1/yr" ;
+		fates_mort_phmort_rate:long_name = "phenoloy mortality rate for grass" ;	
+	float fates_mort_phmort_size_threshold(fates_pft) ;
+		fates_mort_phmort_size_threshold:units = "cm" ;
+		fates_mort_phmort_size_threshold:long_name = "the dbh size above which will lead to phenology-related mortality" ;				
 	float fates_mort_freezetol(fates_pft) ;
 		fates_mort_freezetol:units = "NA" ;
 		fates_mort_freezetol:long_name = "minimum temperature tolerance (NOT USED)" ;
@@ -908,6 +914,10 @@ data:
  fates_maintresp_reduction_intercept = 1, 1 ;
 
  fates_mort_bmort = 0.9, 0.9 ;
+ 
+ fates_mort_phmort_rate = 1.0, 1.0;
+ 
+ fates_mort_phmort_size_threshold = 0.2, 0.2;
 
  fates_mort_freezetol = -25, -25 ;
 
