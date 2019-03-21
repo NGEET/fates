@@ -1862,7 +1862,7 @@ end subroutine flush_hvars
                        !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort+ ccohort%phmort) * ccohort%n
 
                        hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort +c cohort%phmort) * ccohort%n + &
+                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort +ccohort%phmort) * ccohort%n + &
 			    (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                             ccohort%n * sec_per_day * days_per_year
 
