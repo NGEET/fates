@@ -4,6 +4,7 @@ module ChecksBalancesMod
    use shr_const_mod,          only : SHR_CONST_CDAY
    use EDtypesMod,             only : ed_site_type,ed_patch_type,ed_cohort_type
    use EDTypesMod,             only : AREA
+   use EDTypesMod,             only : site_masscheck_type
    use FatesConstantsMod,      only : g_per_kg
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : leaf_organ
@@ -30,7 +31,7 @@ contains
     type(bc_in_type), intent(in)              :: bc_in(:)
 
     ! locals
-    type(mass_balance_type),pointer :: site_mass
+    type(site_masscheck_type),pointer :: site_mass
     integer :: il
     integer :: s
     
@@ -41,6 +42,7 @@ contains
           site_mass => sites(s)%mass_balance
           
           call SiteMassStock(currentSite,il,total_stock,biomass_stock,litter_stock,seed_stock)
+
           site_mass%stock_fates     = total_stock
           site_mass%stock_fates_old = total_stock
           
@@ -192,7 +194,7 @@ contains
       integer                                 , intent(in)    :: nstep  ! time-step index
       
       ! !LOCAL VARIABLES:
-      type(site_mass_balance_type), pointer :: site_mass
+      type(site_site_masscheck_type), pointer :: site_mass
       real(r8) :: error_tolerance = 1.e-6_r8
       integer  :: s
       
@@ -343,9 +345,9 @@ contains
         ! Total non-seed litter in [kg]
         litter_stock = litter_stock + currentPatch%area * &
              (sum(litt%ag_cwd)                  + &
-              sum(sum(litt%bg_cwd,dim=1),dim=1) + &
+              sum(sum(litt%bg_cwd,dim=1)) + &
               sum(litt%leaf_fines)              + &
-              sum(sum(litt%root_fines,dim=1),dim=1))
+              sum(sum(litt%root_fines,dim=1)))
 
         ! Total mass of viable seeds in [kg]
         seed_stock = seed_stock + currentPatch%area * sum(litt%seed)

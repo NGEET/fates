@@ -566,11 +566,15 @@ contains
        
        call SiteMassStock(currentSite,il,total_stock,biomass_stock,litter_stock,seed_stock)
 
-       site_mass => currentSite%mass_balance
-
+       site_mass => currentSite%mass_balance(il)
+       
        change_in_stock = total_stock - site_mass%old_stock  
 
-       net_flux        = site_mass%flux_in - site_mass%flux_out
+       flux_in  = site_mass%seed_influx + site_mass%plant_uptake
+       flux_out = site_mass%wood_product + site_mass%burn_flux_to_atm + site_mass%seed_outflux
+       
+
+       net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)   
        
        if(change_in_stock>0.0)then
@@ -644,10 +648,6 @@ contains
           
        endif
     
-       site_mass%flux_in   = 0.0_r8
-       site_mass%flux_out  = 0.0_r8  
-       site_mass%old_stock = total_stock
-       
     end do
     
   end subroutine TotalBalanceCheck

@@ -130,12 +130,9 @@ contains
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
 
-    ! BGC Balance Checks
-
-    site_in%total_burn_flux_to_atm = 0._r8
-
     do il=1,num_elements
-       call site_in%mass_balance%ZeroSiteMassBalance()
+       ! Zero the state variables used for checking mass conservation
+       call site_in%mass_balance%ZeroMassCheckState()
     end do
        
 
@@ -316,11 +313,16 @@ contains
 
         call initialize_sites_by_inventory(nsites,sites,bc_in)
 
+        
+
         do s = 1, nsites
 
            ! For carbon balance checks, we need to initialize the 
            ! total carbon stock
-           call SiteCarbonStock(sites(s),sites(s)%old_stock,biomass_stock,litter_stock,seed_stock)
+            do il=1,num_elements
+              call SiteMassStock(sites(s),il,sites(s)%mass_balance%old_stock, &
+                   biomass_stock,litter_stock,seed_stock)
+           end do
            
         enddo
      else
@@ -346,22 +348,26 @@ contains
            ! make new patch...
            call create_patch(sites(s), newp, age, area, bc_in(s)%nlevsoil)
            
-           ! Initialize the litter pools of the patch
-           ! Note that soil litter (ie dead roots) is initialized
-           ! uniformly here. This pool is discretized by depth
-           newp%litt_c%InitConditions(0._r8,0._r8,0._r8,0._r8)
-           if( hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-              newp%litt_n%InitConditions(0._r8,0._r8,0._r8,0._r8)
-              newp%litt_p%InitConditions(0._r8,0._r8,0._r8,0._r8)
-           end if
-
+           ! Initialize the litter pools to zero, these
+           ! pools will be populated by looping over the existing patches
+           ! and transfering in mass
+           do il=1,num_elements
+              call newp%litter(il)%InitConditions(init_leaf_fines=0._r8, &
+                   init_root_fines=0._r8, &
+                   init_ag_cwd=0._r8, &
+                   init_bg_cwd=0._r8, &
+                   init_seed=0._r8)
+           end do
+           
            sitep => sites(s)
            call init_cohorts(sitep, newp, bc_in(s))
-
+           
            ! For carbon balance checks, we need to initialize the 
            ! total carbon stock
-           call SiteCarbonStock(sites(s),sites(s)%old_stock,biomass_stock,litter_stock,seed_stock)
-
+           do il=1,num_elements
+              call SiteMassStock(sites(s),il,sites(s)%mass_balance%old_stock, &
+                   biomass_stock,litter_stock,seed_stock)
+           end do
         enddo
 
      end if

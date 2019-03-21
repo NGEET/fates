@@ -461,7 +461,7 @@ contains
       ! This portion is known as "trunk_product_site
 
 
-      currentSite%flux_out = currentSite%flux_out + trunk_product_site
+      currentSite%wood_product = currentSite%wood_product + trunk_product_site
 
       currentSite%resources_management%trunk_product_site  = &
            currentSite%resources_management%trunk_product_site + &

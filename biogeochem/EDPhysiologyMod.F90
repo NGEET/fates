@@ -202,7 +202,18 @@ contains
        nlev_eff_decomp = max(bc_in(s)%max_rooting_depth_index_col, 1)
        call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
 
-     end do
+
+       site_mass => currentSite%mass_balance(il)
+       
+       ! Seeds entering externally [kg/site]
+       site_mass%seed_in = site_mass%seed_in + sum(litt%seed_in_extern(:))*currentPatch%area
+       
+       ! Fragmentation flux to soil decomposition model [kg/site]
+       site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
+            ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
+            sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag))
+       
+    end do
      
      
     return
@@ -240,12 +251,13 @@ contains
     integer :: il          ! Loop counter for litter element type
     integer :: pft         ! pft loop counter
     integer :: c           ! CWD loop counter
-
+    integer :: nlevsoil    ! number of soil layers
+    integer :: ilyr        ! soil layer loop counter
 
     do il = 1, num_elements
        
        litt => currentPatch%litter(il)
-       
+       nlevsoil = size(litt%bg_cwd,dim=2)
        
        ! Update the bank of viable seeds
        ! -----------------------------------------------------------------------------------
@@ -263,10 +275,12 @@ contains
        
        do c = 1,ncwd
           litt%ag_cwd(c) = litt%ag_cwd(c)  + litt%ag_cwd_in(c) - litt%ag_cwd_frag(c)
-          litt%bg_cwd(c,:) =  currentPatch%bg_cwd(c,:) &
-            + litt%bg_cwd_in(c,:) &
-            - litt%bg_cwd_frac(c,:)
-       enddo
+          do ilyr=1,nlevsoil
+             litt%bg_cwd(c,ilyr) =  currentPatch%bg_cwd(c,ilyr) &
+                  + litt%bg_cwd_in(c,ilyr) &
+                  - litt%bg_cwd_frac(c,ilyr)
+          enddo
+       end do
     
        ! Update the fine litter pools from leaves and fine-roots
        ! -----------------------------------------------------------------------------------
@@ -275,10 +289,12 @@ contains
           litt%leaf_fines(pft) = litt%leaf_fines(pft) &
                + litt%leaf_fines_in(pft)              &
                - litt%leaf_fines_frag(pft)
-          litt%root_fines(pft,:) = litt%root_fines(pft,:) &
-               + litt%root_fines_in(pft,:)                &
-               - litt%root_fines_frag(pft,:)
-       enddo
+          do ilyr=1,nlevsoil
+             litt%root_fines(pft,ilyr) = litt%root_fines(pft,ilyr) &
+                  + litt%root_fines_in(pft,ilyr)      &
+                  - litt%root_fines_frag(pft,ilyr)
+          enddo
+       end do
        
     end do     ! litter element loop
        
@@ -1002,6 +1018,8 @@ contains
              seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_rain(pft)/days_per_year
              
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
+
+             site_mass%seed_influx = site_mass%seed_influx + seed_in_external*currentPatch%area
 
           enddo
           

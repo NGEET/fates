@@ -260,6 +260,15 @@ contains
                   cwd_ag_init, cwd_bg_init, &
                   leaf_litter_init, root_litter_init, bc_in(s)%nlevsoil )
 
+            do il=1,num_elements
+               call newpatch%litter(il)%InitConditions(init_leaf_fines=0._r8, &
+                    init_root_fines=0._r8, &
+                    init_ag_cwd=0._r8, &
+                    init_bg_cwd=0._r8, &
+                    init_seed=0._r8)
+            end do
+            
+
             if( inv_format_list(invsite) == 1 ) then
                call set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
             end if

@@ -1858,6 +1858,7 @@ contains
     type (ed_cohort_type), pointer :: storebigcohort  
     integer                        :: c,p          !counters for pft and litter size class. 
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
+    integer                        :: il           ! loop counting index for elements
     type(ed_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
     type(ed_patch_type), pointer   :: olderp       ! pointer to the patch older than donor
     real(r8)                       :: inv_sum_area ! Inverse of the sum of the two patches areas
@@ -1870,30 +1871,11 @@ contains
     rp%age = (dp%age * dp%area + rp%age * rp%area) * inv_sum_area
 
     rp%age_class = get_age_class_index(rp%age)
-
-
-    do c = 1,ncwd
-       rp%cwd_ag(c) = (dp%cwd_ag(c)*dp%area + rp%cwd_ag(c)*rp%area) * inv_sum_area
-       rp%cwd_bg(c) = (dp%cwd_bg(c)*dp%area + rp%cwd_bg(c)*rp%area) * inv_sum_area
-    enddo
     
-    do p = 1,numpft 
-       rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area) * inv_sum_area
-       rp%seed_decay(p)       = (rp%seed_decay(p)*rp%area + dp%seed_decay(p)*dp%area) * inv_sum_area
-       rp%seed_germination(p) = (rp%seed_germination(p)*rp%area + dp%seed_germination(p)*dp%area) * inv_sum_area
+    do il = 1,num_elements
+       call rp%litter(il)%FuseLitter(rp%area,dp%area,dp%litter(il),nlevsoil)
+    end do
 
-       rp%leaf_litter(p)      = (dp%leaf_litter(p)*dp%area + rp%leaf_litter(p)*rp%area) * inv_sum_area
-       rp%root_litter(p)      = (dp%root_litter(p)*dp%area + rp%root_litter(p)*rp%area) * inv_sum_area
-
-       rp%root_litter_out(p)  = (dp%root_litter_out(p)*dp%area + rp%root_litter_out(p)*rp%area) * inv_sum_area
-       rp%leaf_litter_out(p)  = (dp%leaf_litter_out(p)*dp%area + rp%leaf_litter_out(p)*rp%area) * inv_sum_area
-
-       rp%root_litter_in(p)   = (dp%root_litter_in(p)*dp%area + rp%root_litter_in(p)*rp%area) * inv_sum_area
-       rp%leaf_litter_in(p)   = (dp%leaf_litter_in(p)*dp%area + rp%leaf_litter_in(p)*rp%area) * inv_sum_area
-
-       rp%dleaf_litter_dt(p)  = (dp%dleaf_litter_dt(p)*dp%area + rp%dleaf_litter_dt(p)*rp%area) * inv_sum_area
-       rp%droot_litter_dt(p)  = (dp%droot_litter_dt(p)*dp%area + rp%droot_litter_dt(p)*rp%area) * inv_sum_area
-    enddo
     
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area

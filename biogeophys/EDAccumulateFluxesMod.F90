@@ -54,13 +54,32 @@ contains
     integer :: c  ! clm/alm column
     integer :: s  ! ed site
     integer :: ifp ! index fates patch
+    integer :: c12_id
     real(r8):: n_perm2
+    type(site_masscheck_type),pointer :: site_cmass ! point to carbon12
+                                                    ! mass balance
     !----------------------------------------------------------------------
+
+
+    ! For tracking the carbon mass balance
+    select case(hlm_parteh_mode)
+    case(prt_carbon_allom_hyp)
+       c12_id = 1
+    case(prt_cnp_flex_allom_hyp)
+       c12_id = 1
+    case DEFAULT
+       write(fates_log(),*) 'An uknown PRT module was specified while'
+       write(fates_log(),*) 'Updating the FATES site level NPP mass balance'
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
     
     do s = 1, nsites
        
        ifp = 0
-       sites(s)%npp = 0.0_r8
+       site_cmass => sites(s)%mass_balance(c12_id)
+
+       
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
           ifp = ifp+1
@@ -87,7 +106,11 @@ contains
                 n_perm2      = ccohort%n/AREA
                 
                 sites(s)%npp = sites(s)%npp + ccohort%npp_tstep * n_perm2 * 1.e3_r8 / dt_time
-                
+
+                ! Accumulate to [kgc/site]
+                site_cmass%gpp_acc  = site_cmass%gpp_acc  + ccohort%gpp_tstep * ccohort%n
+                site_cmass%resp_acc = site_cmass%resp_acc + ccohort%resp_tstep * ccohort%n
+
                 do iv=1,ccohort%nv
                    if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
                       ccohort%year_net_uptake(iv) = 0._r8

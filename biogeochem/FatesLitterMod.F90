@@ -94,10 +94,6 @@ module FatesLittMod
       real(r8),allocatable :: seed_germ(:)           ! kg/m2/day
 
 
-      ! Flux out from harvesting 
-      real(r8) :: harvesting             ! kg/m2/day
-
-
       ! Flux (in/out ... transfer) from seed to litter
       real(r8),allocatable :: seed_decay(:)            ! kg/m2/day
 
@@ -106,6 +102,8 @@ module FatesLittMod
       procedure,non_overridable :: InitAllocate
       procedure,non_overridable :: DeallocateLitt
       procedure,non_overridable :: InitConditions
+      procedure,non_overridable :: FuseLitter
+      procedure,non_overridable :: CopyLitter
       procedure,non_overridable :: ZeroFlux
       
    end type litt_vartype
@@ -116,6 +114,84 @@ module FatesLittMod
 
    
 contains
+
+  subroutine FuseLitter(this,self_area,donor_area,donor_litt)
+
+    class(litt_vartype) :: this
+    real(r8),intent(in)           :: self_area
+    real(r8),intent(in)           :: donor_area
+    type(litt_vartype),intent(in) :: donor_litt
+
+
+    ! locals
+    integer  :: nlevsoil
+    integer  :: c
+    integer  :: pft
+    integer  :: ilyr
+    real(r8) :: self_weight
+    real(r8) :: donor_weight
+    
+
+    nlevsoil = size(this%bg_cwd,dim=2)
+    
+    self_weight  = self_area /(donor_area+self_area)
+    donor_weight = 1._r8 - self_weight
+
+    
+    do c=1,ncwd
+       this%ag_cwd(c)      = this%ag_cwd(c) *self_weight +  &
+                             donor_litt%ag_cwd(c) * donor_weight
+       this%ag_cwd_in(c)   = this%ag_cwd_in(c) *self_weight + &
+                             donor_litt%ag_cwd_in(c) * donor_weight
+       this%ag_cwd_frag(c) = this%ag_cwd_frag(c) *self_weight + &
+                             donor_litt%ag_cwd_frag(c) * donor_weight
+       do ilyr = 1,nlevsoil
+          this%bg_cwd(c,ilyr)      = this%bg_cwd(c,ilyr) * self_weight + &
+                                     donor_litt%bg_cwd(c,ilyr) * donor_weight
+          this%bg_cwd_in(c,ilyr)   = this%bg_cwd_in(c,ilyr) * self_weight + &
+                                     donor_litt%bg_cwd_in(c,ilyr) * donor_weight
+          this%bg_cwd_frag(c,ilyr) = this%bg_cwd_frag(c,ilyr) * self_weight + &
+                                     donor_litt%bg_cwd_frag(c,ilyr) * donor_weight
+       end do
+    end do
+    
+    
+    do pft=1,numpft
+       this%leaf_fines(pft)      = this%leaf_fines(pft) * self_weight + &
+                                   donor_litt%leaf_fines(pft) * donor_weight
+       this%seed(pft)            = this%seed(pft) * self_weight + &
+                                   donor_litt%seed(pft) * donor_weight
+       this%leaf_fines_in(pft)   = this%leaf_fines_in(pft) * self_weight + &
+                                   donor_litt%leaf_fines_in(pft) * donor_weight
+       this%seed_in_local(pft)   = this%seed_in_local(pft) * self_weight + &
+                                   donor_litt%seed_in_local(pft) * donor_weight
+       this%seed_in_extern(pft)  = this%seed_in_extern(pft) * self_weight + &
+                                   donor_litt%seed_in_extern(pft) * donor_weight
+       this%leaf_fines_frag(pft) = this%leaf_fines_frag(pft) * self_weight + &
+                                   donor_litt%leaf_fines_frag(pft) * donor_weight
+       this%seed_germ(pft)       = this%seed_germ(pft) * self_weight + &
+                                   donor_litt%seed_germ(pft) * donor_weight
+       this%seed_decay(pft)      = this%seed_decay(pft) * self_weight + &
+                                   donor_litt%seed_decay(pft) * donor_weight
+       do ilyr=1,nlevsoil
+          this%root_fines(pft,ilyr)      = this%root_fines(pft,ilyr) * self_weight + &
+                                           donor_litt%root_fines(pft,ilyr) * donor_weight
+          this%root_fines_in(pft,ilyr)   = this%root_fines_in(pft,ilyr) * self_weight + &
+                                           donor_litt%root_fines_in(pft,ilyr) * donor_weight
+          this%root_fines_frag(pft,ilyr) = this%root_fines_frag(pft,ilyr) * self_weight + &
+                                           donor_litt%root_fines_frag(pft,ilyr) * donor_weight
+       end do
+    end do
+
+    return
+  end subroutine FuseLitter
+
+  ! =====================================================================================
+
+  subroutine CopyLitter
+
+  end subroutine CopyLitter
+
 
   subroutine InitAllocate(this,numpft,numlevsoil)
 
@@ -137,10 +213,6 @@ contains
     allocate(this%bg_cwd_frag(ncwd,numlevsoil))
     allocate(this%leaf_fines_frag(numpft))
     allocate(this%root_fines_frag(numpft,numlevsoil))
-
-    allocate(this%bg_cwd_burn(ncwd,numlevsoil))
-    allocate(this%leaf_fines_burn(numpft))
-    allocate(this%root_fines_burn(numpft,numlevsoil))
 
     allocate(this%seed_germ(numpft))
     allocate(this%seed_decay(numpft))
@@ -164,13 +236,6 @@ contains
     this%bg_cwd_frag(:,:)      = fates_unset_real
     this%leaf_fines_frag(:)   = fates_unset_real
     this%root_fines_frag(:,:) = fates_unset_real
-
-    this%ag_cwd_burn(:)        = fates_unset_real
-    this%bg_cwd_burn(:,:)      = fates_unset_real
-    this%leaf_fines_burn(:)   = fates_unset_real
-    this%root_fines_burn(:,:) = fates_unset_real
-
-    this%exported               = fates_unset_real
 
     this%seed_germ(:)         = fates_unset_real
     this%seed_decay(:)        = fates_unset_real
@@ -224,10 +289,6 @@ contains
     deallocate(this%leaf_fines_frag)
     deallocate(this%root_fines_frag)
    
-    deallocate(this%bg_cwd_burn)
-    deallocate(this%leaf_fines_burn)
-    deallocate(this%root_fines_burn)
-    
     deallocate(this%seed_decay)
     deallocate(this%seed_germ)
 
@@ -252,16 +313,10 @@ contains
     this%leaf_fines_frag(:)   = 0._r8
     this%root_fines_frag(:,:) = 0._r8
     
-    this%ag_cwd_burn(:)       = 0._r8
-    this%bg_cwd_burn(:,:)     = 0._r8
-    this%leaf_fines_burn(:)   = 0._r8
-    this%root_fines_burn(:,:) = 0._r8
-
     this%seed_germ(:)         = 0._r8
     this%seed_decay(:)        = 0._r8
 
-    this%exported             = 0._r8
-    
+
     return
   end subroutine ZeroFlux
 

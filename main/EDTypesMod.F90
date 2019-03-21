@@ -538,8 +538,7 @@ module EDTypesMod
 
 
 
-
-  type site_masscheck_incr_type
+  type site_masscheck_type
 
      ! ----------------------------------------------------------------------------------
      ! This type is used for accounting purposes to ensure that we are not
@@ -550,19 +549,7 @@ module EDTypesMod
      ! This set of mass checks are for INCREMENTAL checks during the dynamics step.
      ! ----------------------------------------------------------------------------------
      
-     real(r8) :: flux_in   ! mass enter fates domain                [Kg/site]
-     real(r8) :: flux_out  ! mass leaving fates domain              [Kg/site]
      real(r8) :: old_stock ! remember biomass stock from last time  [Kg/site]
-
-  contains
-     
-     procedure :: ZeroMassCheckIncrState
-     procedure :: ZeroMassCheckIncrFlux
-     
-  end type site_masscheck_incr_type
-  
-  
-  type site_masscheck_type
 
      ! ----------------------------------------------------------------------------------
      ! This type is used purely for accounting purposes to ensure that we are not
@@ -576,110 +563,55 @@ module EDTypesMod
      ! ----------------------------------------------------------------------------------
 
      real(r8) :: err_fates      ! Total mass balance error for FATES processes     [kg/site]
-     real(r8) :: err_bgc        ! Total mass balance error for BGC (HLM) processes [kg/site]
-     real(r8) :: err_tot        ! Total mass balance error for all land processes  [kg/site]
 
-     real(r8) :: stock_fates     ! Total FATES mass at the site during current balance check     [kg/site]
-     real(r8) :: stock_bgc       ! Total BGC mass at the site during current balance check       [kg/site] 
+!     real(r8) :: err_bgc        ! Total mass balance error for BGC (HLM) processes [kg/site]
+!     real(r8) :: err_tot        ! Total mass balance error for all land processes  [kg/site]
+
+!     real(r8) :: stock_fates     ! Total FATES mass at the site during current balance check     [kg/site]
+!     real(r8) :: stock_bgc       ! Total BGC mass at the site during current balance check       [kg/site] 
      
-     real(r8) :: old_stock_fates     ! Total FATES mass at the site from last call to balance check     [kg/site]
-     real(r8) :: old_stock_bgc       ! Total BGC mass at the site from last call to balance check       [kg/site] 
+!     real(r8) :: old_stock_fates     ! Total FATES mass at the site from last call to balance check     [kg/site]
+!     real(r8) :: old_stock_bgc       ! Total BGC mass at the site from last call to balance check       [kg/site] 
 
-     real(r8) :: flux_fates_to_bgc   ! Total mass flux from fates to BGC                                  [kg/site/day]
-     real(r8) :: flux_fates_to_hd    ! Total mass flux from fates to Human Dimension model (wood harvest) [kg/site/day]
-     real(r8) :: flux_fates_to_atm   ! Total mass flux from fates to the atmosphere                       [kg/site/day]
-     real(r8) :: flux_fates_to_usr   ! Total mass flux from fates to arbitrary user source/sink
-                                     ! (i.e. this contains user external defined seed-rain)               [kg/site/day]
+!     real(r8) :: flux_fates_to_bgc   ! Total mass flux from fates to BGC                                  [kg/site/day]
+!     real(r8) :: flux_fates_to_hd    ! Total mass flux from fates to Human Dimension model (wood harvest) [kg/site/day]
+!     real(r8) :: flux_fates_to_atm   ! Total mass flux from fates to the atmosphere                       [kg/site/day]
+!     real(r8) :: flux_fates_to_usr   ! Total mass flux from fates to arbitrary user source/sink
+!                                     ! (i.e. this contains user external defined seed-rain)               [kg/site/day]
      
-     real(r8) :: flux_fates_to_bgc_last   ! Total mass flux out of fates to all externals    
-                                          ! (bgc model, atm, human-dimension,etc)                  [kg/site/day]
+!     real(r8) :: flux_fates_to_bgc_last   ! Total mass flux out of fates to all externals    
+!                                          ! (bgc model, atm, human-dimension,etc)                  [kg/site/day]
 
+     ! ----------------------------------------------------------------------------------
+     ! Group 3: Components of the total site level mass fluxes
+     ! ----------------------------------------------------------------------------------
 
+     real(r8) :: gpp_acc          ! Accumulated gross primary productivity [kg/site/day]
+     real(r8) :: aresp_acc        ! Accumulated autotrophic respiration [kg/site/day]
 
-     ! Group 3: Sub-components of the total site level mass fluxes
+     real(r8) :: net_root_uptake  ! Net uptake of carbon or nutrients through the roots [kg/site/day]
+                                  ! (if carbon most likely exudation, if even active)
 
-     real(r8) :: seed_influx      ! Total mass of external seed rain into fates site [kg/site/day]
-     real(r8) :: seed_outflux     ! Total mass of seeds exported outside of fates site [kg/site/day]
+     real(r8) :: seed_in          ! Total mass of external seed rain into fates site [kg/site/day]
+     real(r8) :: seed_out         ! Total mass of seeds exported outside of fates site [kg/site/day]
                                   ! (this is not used currently, placeholder, rgk feb-2019)
 
+     real(r8) :: fragmentation_out     !
+
+     real(r8) ;; wood_product          ! Total mass exported as wood product [kg/site/day]
      real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
 
    contains
-     
+
      procedure :: ZeroMassCheckState
      procedure :: ZeroMassCheckFlux
-     
      
   end type site_masscheck_type
 
 
 
 
-  ! =====================================================================================
 
-  subroutine ZeroSiteMassBalance(this)
-
-    class(site_mass_balance_type),intent(inout) :: this
-    
-    this%flux_in    = 0._r8
-    this%flux_out   = 0._r8
-    this%old_stock  = 0._r8
-    
-    this%err_fates  = 0._r8
-    this%err_bgc  = 0._r8
-    this%err_tot  = 0._r8
-
-    this%stock_fates  = 0._r8
-    this%stock_bgc  = 0._r8
-    
-    this%old_stock_fates  = 0._r8
-    this%old_stock_bgc  = 0._r8
-
-    this%flux_fates_to_bgc  = 0._r8
-    this%flux_fates_to_hd  = 0._r8
-    this%flux_fates_to_atm  = 0._r8
-    this%flux_fates_to_usr  = 0._r8
-    this%flux_fates_to_bgc_last  = 0._r8
-    
-    this%seed_influx  = 0._r8
-    this%seed_outflux  = 0._r8
-        
-    this%burn_flux_to_atm  = 0._r8
-
-    return
-  end subroutine ZeroSiteMassBalance
-
-  subroutine ZeroSiteMassBalanceFlux(this)
-
-    class(site_mass_balance_type),intent(inout) :: this
-    
-    this%flux_in    = 0._r8
-    this%flux_out   = 0._r8
-    this%old_stock  = 0._r8
-    
-    this%err_fates  = 0._r8
-    this%err_bgc  = 0._r8
-    this%err_tot  = 0._r8
-
-    this%stock_fates  = 0._r8
-    this%stock_bgc  = 0._r8
-    
-    this%old_stock_fates  = 0._r8
-    this%old_stock_bgc  = 0._r8
-
-    this%flux_fates_to_bgc  = 0._r8
-    this%flux_fates_to_hd  = 0._r8
-    this%flux_fates_to_atm  = 0._r8
-    this%flux_fates_to_usr  = 0._r8
-    this%flux_fates_to_bgc_last  = 0._r8
-    
-    this%seed_influx  = 0._r8
-    this%seed_outflux  = 0._r8
-        
-    this%burn_flux_to_atm  = 0._r8
-
-    return
-  end subroutine ZeroSiteMassBalanceFlux
   
 
   !************************************
@@ -703,7 +635,7 @@ module EDTypesMod
      
      ! MASS BALANCE       
 
-     type(mass_balance_type), pointer :: mass_balance(:)
+     type(site_masscheck_type), pointer :: mass_balance(:)
 
      real(r8) :: npp                ! used for calculating NEP and NBP during BGC summarization phase
      real(r8) :: nep                ! Net ecosystem production, i.e. fast-timescale carbon balance that 
@@ -743,6 +675,7 @@ module EDTypesMod
      type(ed_site_hydr_type), pointer :: si_hydr
      
      ! DIAGNOSTICS
+
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
      
      real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
@@ -777,11 +710,13 @@ module EDTypesMod
                                                                  ! due to fusion in a given day. on size x pft array 
 
 
-     ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
-     real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
-     real(r8) :: CWD_BG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to BG CWD [kg C / m2 / yr]
-     real(r8) :: leaf_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
-     real(r8) :: root_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
+     ! some diagnostic-only (i.e. not resolved by ODE solver) flux of 
+     ! mass to CWD and litter pools from termination and mortality associated with disturbance
+
+     real(r8) :: CWD_AG_diagnostic_input_flux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
+     real(r8) :: CWD_BG_diagnostic_input_flux(1:ncwd)       ! diagnostic flux to BG CWD [kg C / m2 / yr]
+     real(r8) :: leaf_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
+     real(r8) :: root_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
 
      ! Canopy Spread
      real(r8) ::  spread                                          ! dynamic canopy allometric term [unitless]
@@ -790,6 +725,35 @@ module EDTypesMod
 
 
   contains
+
+    ! =====================================================================================
+    
+    subroutine ZeroMassCheckState(this)
+      
+      class(site_masscheck_type) :: this
+      
+      this%old_stock = 0._r8
+      this%err_fates = 0._r8
+      
+      return
+    end subroutine ZeroMassCheckState
+    
+    subroutine ZeroMassCheckFlux(this)
+      
+      class(site_masscheck_type) :: this
+
+      this%gpp_acc           = 0._r8
+      this%aresp_acc         = 0._r8
+      this%net_root_uptake   = 0._r8
+      this%seed_in           = 0._r8
+      this%seed_out          = 0._r8
+      this%fragmentation_out = 0._r8
+      this%wood_product      = 0._r8
+      this%burn_flux_to_atm  = 0._r8
+      
+      return
+  end subroutine ZeroSiteMassBalance
+
    
   ! =====================================================================================
 
