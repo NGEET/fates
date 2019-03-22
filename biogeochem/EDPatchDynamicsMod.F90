@@ -20,6 +20,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ifire
   use EDTypesMod           , only : ican_upper
   use EDTypesMod           , only : num_elements
+  use EDTypesMod           , only : element_list
   use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
@@ -78,6 +79,25 @@ module EDPatchDynamicsMod
         __FILE__
 
   logical, parameter :: debug = .false.
+
+  ! When creating new patches from other patches, we need to send some of the
+  ! litter from the old patch to the new patch.  Likewise, when plants die
+  ! from the disturbance, we need to send some amount from the old patch to
+  ! the new patch.  If the plant matter falls straight down, then that
+  ! would make a case for all of the litter going to the new patch. 
+  ! This would be localization=1
+  ! But if we think some of the plant matter drifts, or a tall tree lands
+  ! outside of its gap, or are afraid of newly formed patches having 
+  ! too much burnable material, then we drop the localization from 1 down
+  ! a notch.
+  ! Note that in all cases, a localization of 0, suggests that litter
+  ! is dispensed equally based on area. A localization of 1 suggests that
+  ! all litter is sent to the new patch.
+
+  real(r8), parameter :: existing_litt_localization = 1.0_r8
+  real(r8), public, parameter :: treefall_localization = 0.75_r8
+  real(r8), parameter :: burn_localization = 0.75_r8
+
 
   ! 10/30/09: Created by Rosie Fisher
   ! ============================================================================
@@ -390,7 +410,7 @@ contains
 
           if (patch_site_areadis > nearzero) then
 
-             call TransferLitterFluxToNewPatch( currentPatch, newPatch, patch_site_areadis )
+             call TransLitterNewPatch( currentPatch, newPatch, patch_site_areadis )
           
           if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
                 currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) ) then 
@@ -451,7 +471,7 @@ contains
 
                    nc%n = 0.0_r8      ! kill all of the trees who caused the disturbance.  
        
-                   nc%cmort = nan     ! The mortality diagnostics are set to nan because the cohort should dissappear
+                   nc%cmort = nan
                    nc%hmort = nan
                    nc%bmort = nan
                    nc%frmort = nan
@@ -465,16 +485,18 @@ contains
 
 
                       ! Survivorship of undestory woody plants.  Two step process.
-                      ! Step 1:  Reduce current number of plants to reflect the change in area.
-                      !          The number density per square are doesn't change, but since the patch is smaller
+                      ! Step 1:  Reduce current number of plants to reflect the 
+                      !          change in area.
+                      !          The number density per square are doesn't change,
+                      !          but since the patch is smaller
                       !          and cohort counts are absolute, reduce this number.
                       nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
 
-                      ! because the mortality rate due to impact for the cohorts which 
-                      ! had been in the understory and are now in the newly-
+                      ! because the mortality rate due to impact for the cohorts 
+                      ! which had been in the understory and are now in the newly-
                       ! disturbed patch is very high, passing the imort directly 
                       ! to history results in large numerical errors, on account
-                      ! of the sharply reduced number densities.  so instead pass 
+                      ! of the sharply reduced number densities.  so instead pass
                       ! this info via a site-level diagnostic variable before reducing 
                       ! the number density.
 
@@ -854,7 +876,7 @@ contains
 
   ! ============================================================================
 
-  subroutine TransferLitterFluxToNewPatch( currentPatch, newPatch, patch_site_areadis )
+  subroutine TransLitterNewPatch( currentPatch, newPatch, patch_site_areadis )
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -910,15 +932,18 @@ contains
     integer  :: pft                        ! PFT loop counter
     integer  :: lyr                        ! soil layer loop counter
     integer  :: nlevsoil                   ! Number of soil layers
+
  
-    
     nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
     
+ 
+
+
     do il = 1,num_elements
 
        curr_litt => currentPatch%litter(il)
        new_litt  => newPatch%litter(il)
-       
+
        do c = 1,ncwd 
           new_litt%ag_cwd_frag(c) = new_litt%ag_cwd_frag(c) + &
                 curr_litt%ag_cwd_frag(c) * patch_site_areadis/newPatch%area
@@ -944,10 +969,88 @@ contains
           
        enddo
 
+       ! -----------------------------------------------------------------------------
+       ! Distribute the existing litter that was already in place on the donor
+       ! patch.  Some of this burns and is sent to the atosphere, and some goes to the 
+       ! litter stocks of the newly created patch. ALso, depending on your bonfire 
+       ! parameter, some may be retained in the donor patch.
+       !
+       ! This routine handles litter transfer for all types. Note that some of the
+       ! transfer may burn. If this routine is being called for a tree-fall
+       ! or logging disturbance, it is assumed that the burned_masses should come
+       ! out to zero.
+       ! -----------------------------------------------------------------------------
+
+       ! If/when sending litter fluxes to the old patch, we divide the total 
+       ! mass sent to that patch, by the area it will have remaining
+       ! after it donates area.
+       ! i.e. subtract the area it is donating.
+       
+       remainder_area = currentPatch%area - patch_site_areadis
+
+       ! Calculate the fraction of litter to be retained versus donated
+       ! vis-a-vis the new and donor patch
+
+       retain_frac = (1.0_r8-existing_litt_localization) * &
+             remainder_area/(newPatch%area+remainder_area)
+       donate_frac = 1.0_r8-retain_frac
+       
+       
+
+       do c = 1,ncwd
+             
+          ! Transfer above ground CWD
+          
+          donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
+                               (1._r8 - currentPatch%burnt_frac_litter(c))
+
+          burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
+                               currentPatch%burnt_frac_litter(c)
+ 
+          new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_frac / newPatch%area
+          cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + donatable_mass*retain_frac / remainder_area
+
+          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+             
+          ! Transfer below ground CWD (none burns)
+          
+          do lyr = 1,nlevsoil
+             donatable_mass         = curr_litt%bg_cwd(c,lyr) * patch_site_areadis
+             new_litt%bg_cwd(c,lyr) = new_litt%bg_cwd(c,lyr) + donatable_mass*donate_frac / newPatch%area
+             cur_litt%bg_cwd(c,lyr) = cur_litt%bg_cwd(c,lyr) + donatable_mass*retain_frac / remainder_area
+          end do
+          
+       enddo
+          
+       
+       do pft = 1,numpft
+          
+          ! Transfer leaf fines
+          
+          donatable_mass           = curr_litt%leaf_fines(pft) * patch_site_areadis * &
+                                     (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+          burned_mass              = curr_litt%leaf_fines(pft) * patch_site_areadis * &
+                                     currentPatch%burnt_frac_litter(dl_sf)
+          new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + donatable_mass*donate_frac/newPatch%area
+          cur_litt%leaf_fines(pft) = cur_litt%leaf_fines(pft) + donatable_mass*retain_frac/remainder_area
+
+          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+          
+          ! Transfer root fines (none burns)
+          do lyr = 1,nlevsoil
+             donatable_mass = curr_litt%root_fines(pft,lyr) * patch_site_areadis             
+             new_litt%root_fines(pft,lyr) = new_litt%root_fines(pft,lyr) + donatable_mass*donate_frac/newPatch%area
+             cur_litt%root_fines(pft,lyr) = cur_litt%root_fines(pft,lyr) + donatable_mass*retain_frac/remainder_area
+          end do
+          
+       enddo
+
+
+
     end do
 
     return
-  end subroutine TransferLitterFluxToNewPatch
+  end subroutine TransLitterNewPatch
 
   ! ============================================================================
 
@@ -984,6 +1087,7 @@ contains
                                      ! some may or may not be retained by the donor
     real(r8) :: burned_mass          ! the mass of litter that was supposed to be provided
                                      ! by the donor, but was burned [kg]
+    real(r8) :: remainder_area       ! current patch's remaining area after donation [m2]
     real(r8) :: donate_frac          ! the fraction of litter mass sent to the new patch
     real(r8) :: retain_frac          ! the fraction of litter mass retained by the donor patch
     real(r8) :: bcroot               ! amount of below ground coarse root per cohort kg. (goes into CWD_BG)
@@ -1001,28 +1105,12 @@ contains
     integer  :: pft                  ! loop index for plant functional types
     integer  :: ilyr                 ! loop index for soil layers
     integer  :: nlevsoil             ! number of soil layers
-
-    ! The "bonfire" flag dictate how burned debris is distributed into newly formed patches.
-    ! If the "bonfire" parameter is set to 1, it implies that all litter, both generated
-    ! and pre-existing in burned areas, STAY ONLY in the burned areas. While this is the most natural
-    ! and physically consistent approach, some tests have shown that massive re-burns can happen right
-    ! after, because fuel loads are so high. Think of it like creating a bonfire.
-    ! To combat this, the the bonfire parameter can be set to 0, where both the newly burned 
-    ! patch and the donating patch will get equal proportions of CWD, based on their areas.
-    ! Or you can go somewhere in-between.
-
-    real, parameter :: bonfire  = 0.75_r8
-                                
+    integer  :: element_id           ! parteh compatible global element index
 
     !---------------------------------------------------------------------
 
     ! Only do this if there was a fire in this actual patch. 
     if ( currentPatch%fire  ==  ifalse ) return
-
-    ! Calculate the fraction of litter to be retained versus donated
-    ! vis-a-vis the new and donor patch
-    retain_frac = (1.0_r8-bonfire)*currentPatch%area/(newPatch%area+currentPatch%area)
-    donate_frac = 1.0_r8-retain_frac
 
     ! If plant hydraulics are turned on, account for water leaving the plant-soil
     ! mass balance through the dead trees
@@ -1035,76 +1123,38 @@ contains
        end do
     end if
 
+    ! If/when sending litter fluxes to the old patch, we divide the total 
+    ! mass sent to that patch, by the area it will have remaining
+    ! after it donates area.
+    ! i.e. subtract the area it is donating.
+    
+    remainder_area = currentPatch%area - patch_site_areadis
+   
+    ! Calculate the fraction of litter to be retained versus donated
+    ! vis-a-vis the new and donor patch
+    
+    retain_frac = (1.0_r8-burn_localization) * &
+          remainder_area/(newPatch%area+remainder_area)
+
+    donate_frac = 1.0_r8-retain_frac
+    
     nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
     
     do il = 1,num_elements
        
-       elemend_id = element_list(il)
+       element_id = element_list(il)
        site_mass => currentSite%mass_balance(il)
        cur_litt  => currentPatch%litter(il)   ! Litter pool of "current" patch
        new_litt  => newPatch%litter(il)       ! Litter pool of "new" patch
-
-       ! -----------------------------------------------------------------------------
-       ! Part 1: distribute the existing litter that was already in place on the donor
-       ! patch.  Some of this burns and is sent to the atosphere, and some goes to the 
-       ! litter stocks of the newly created patch. ALso, depending on your bonfire 
-       ! parameter, some may be retained in the donor patch.
-       ! -----------------------------------------------------------------------------
-
-       do c = 1,ncwd
-             
-          ! Transfer above ground CWD
-          
-          donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               (1._r8 - currentPatch%burnt_frac_litter(c+1))
-
-          burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               currentPatch%burnt_frac_litter(c+1)
-
-          new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_frac / newPatch%area
-          cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + donatable_mass*retain_frac / currentPatch%area
-
-          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-             
-          ! Transfer below ground CWD (none burns)
-          
-          do lyr = 1,nlevsoil
-             donatable_mass         = curr_litt%bg_cwd(c,lyr) * patch_site_areadis
-             new_litt%bg_cwd(c,lyr) = new_litt%bg_cwd(c,lyr) + donatable_mass*donate_frac / newPatch%area
-             cur_litt%bg_cwd(c,lyr) = cur_litt%bg_cwd(c,lyr) + donatable_mass*retain_frac / currentPatch%area
-          end do
-          
-       enddo
-          
-       
-       do pft = 1,numpft
-          
-          ! Transfer leaf fines
-          
-          donatable_mass           = curr_litt%leaf_fines(pft) * patch_site_areadis * &
-                                     (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
-          burned_mass              = curr_litt%leaf_fines(pft) * patch_site_areadis * &
-                                     currentPatch%burnt_frac_litter(dl_sf)
-          new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + donatable_mass*donate_frac/newPatch%area
-          cur_litt%leaf_fines(pft) = cur_litt%leaf_fines(pft) + donatable_mass*retain_frac/currentPatch%area
-
-          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-          
-          ! Transfer root fines (none burns)
-          do lyr = 1,nlevsoil
-             donatable_mass = curr_litt%root_fines(pft,lyr) * patch_site_areadis             
-             new_litt%root_fines(pft,lyr) = new_litt%root_fines(pft,lyr) + donatable_mass*donate_frac/newPatch%area
-             cur_litt%root_fines(pft,lyr) = cur_litt%root_fines(pft,lyr) + donatable_mass*retain_frac/currentPatch%area
-          end do
-          
-       enddo
        
        ! -----------------------------------------------------------------------------
-       ! PART 2) Handle mass fluxes associated with plants that died in the fire. This
+       ! PART 1) Handle mass fluxes associated with plants that died in the fire. This
        ! includes transfer of non burned plant material to litter, and the burned
        ! part to the atmosphere.
        ! ------------------------------------------------------------------------------
        
+ 
+
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
           
@@ -1139,7 +1189,7 @@ contains
              new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
                                         donatable_mass*donate_frac/newPatch%area
              cur_litt%leaf_fines(pft) = cur_litt%leaf_fines(pft) + &
-                                        donatable_mass*retain_frac/currentPatch%area
+                                        donatable_mass*retain_frac/remainder_area
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
              
@@ -1149,17 +1199,17 @@ contains
                 new_litt%root_fines(pft,lyr) = new_litt%root_fines(pft,lyr) + &
                                                donatable_mass*donate_frac/newPatch%area
                 cur_litt%root_fines(pft,lyr) = cur_litt%root_fines(pft,lyr) + &
-                                               donatable_mass*retain_frac/currentPatch%area
+                                               donatable_mass*retain_frac/remainder_area
              end do
 
              ! Track as diagnostic fluxes
-             currentSite%leaf_litter_diagnostic_input_carbonflux(pft) = &
-                   currentSite%leaf_litter_diagnostic_input_carbonflux(pft) + &
+             currentSite%leaf_litter_diagnostic_input_flux(pft) = &
+                   currentSite%leaf_litter_diagnostic_input_flux(pft) + &
                    num_dead_trees * leaf_m * (1.0_r8-currentCohort%fraction_crown_burned) * &
                    hlm_days_per_year / area_site
 
-             currentSite%root_litter_diagnostic_input_carbonflux(p) = &
-                   currentSite%root_litter_diagnostic_input_carbonflux(p) + &
+             currentSite%root_litter_diagnostic_input_flux(p) = &
+                   currentSite%root_litter_diagnostic_input_flux(p) + &
                    (fnrt_m + store_m) * num_dead_trees * hlm_days_per_year / area_site
 
       
@@ -1171,11 +1221,11 @@ contains
                    new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
                          donatable_mass * donate_frac/newPatch%area
                    cur_litt%bg_cwd(c,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
-                         donatable_mass * retain_frac/currentPatch%area
+                         donatable_mass * retain_frac/remainder_area
 
                    ! track diagnostics
-                   currentSite%CWD_BG_diagnostic_input_carbonflux(c) = &
-                         currentSite%CWD_BG_diagnostic_input_carbonflux(c) + &
+                   currentSite%CWD_BG_diagnostic_input_flux(c) = &
+                         currentSite%CWD_BG_diagnostic_input_flux(c) + &
                          donatable_mass * hlm_days_per_year / area_site
                 enddo
              end do
@@ -1192,11 +1242,11 @@ contains
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * &
                       donate_frac/newPatch%area
                 cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + donatable_mass * &
-                      retain_frac/currentPatch%area
+                      retain_frac/remainder_area
                 
                 ! track as diagnostic fluxes
-                currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
-                      currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
+                currentSite%CWD_AG_diagnostic_input_flux(c) = &
+                      currentSite%CWD_AG_diagnostic_input_flux(c) + &
                       donatable_mass *  hlm_days_per_year / area_site
                 
                 site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
@@ -1210,11 +1260,11 @@ contains
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * &
                       donate_frac/newPatch%area
                 cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + donatable_mass * &
-                      retain_frac/currentPatch%area
+                      retain_frac/remainder_area
 
                 ! track as diagnostic fluxes
-                currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
-                      currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
+                currentSite%CWD_AG_diagnostic_input_flux(c) = &
+                      currentSite%CWD_AG_diagnostic_input_flux(c) + &
                       donatable_mass *  hlm_days_per_year / area_site
              enddo
              
@@ -1224,10 +1274,10 @@ contains
        enddo  ! currentCohort
        
        ! -----------------------------------------------------------------------------
-       ! PART 3) Burn parts of trees that did *not* die in the fire.
+       ! PART 2) Burn parts of trees that did *not* die in the fire.
        !         currently we only remove leaves. branch and associated 
        !         sapwood consumption coming soon.
-       ! PART 4) Burn parts of grass that are consumed by the fire. 
+       ! PART 3) Burn parts of grass that are consumed by the fire. 
        !         grasses are not killed directly by fire. They die by losing all 
        !         of their leaves and starving. 
        ! -----------------------------------------------------------------------------
@@ -1299,46 +1349,57 @@ contains
     real(r8)            , intent(in)            :: patch_site_areadis
     !
     ! !LOCAL VARIABLES:
-    real(r8) :: cwd_litter_density
-    real(r8) :: litter_area ! area over which to distribute this litter. 
     type(ed_cohort_type), pointer :: currentCohort
+    type(litter_type),       pointer :: new_litt
+    type(litter_type),       pointer :: cur_litt
+    type(mass_balance_type), pointer :: site_mass
 
-    real(r8) :: understorey_dead  !Number of individual dead from the canopy layer /day
-    real(r8) :: canopy_dead       !Number of individual dead from the understorey layer /day
-    real(r8) :: np_mult           !Fraction of the new patch which came from the current patch (and so needs the same litter) 
+    real(r8) :: num_dead
+    real(r8) :: donatable_mass       ! mass of donatable litter [kg]
     real(r8) :: leaf_m               ! leaf mass [kg]
     real(r8) :: fnrt_m               ! fineroot mass [kg]
     real(r8) :: sapw_m               ! sapwood mass [kg]
     real(r8) :: store_m              ! storage mass [kg]
     real(r8) :: struct_m             ! structure mass [kg]
-    integer  :: pft
-    integer  :: c
-    integer  :: il
-    integer  :: nlevsoil
-    real(r8) :: canopy_mortality_woody_litter(maxpft)    ! flux of wood litter in to litter pool: KgC/m2/day
-    real(r8) :: canopy_mortality_leaf_litter(maxpft)     ! flux in to  leaf litter from tree death: KgC/m2/day
-    real(r8) :: canopy_mortality_root_litter(maxpft)     ! flux in to froot litter  from tree death: KgC/m2/day
+    real(r8) :: retain_frac          ! Fraction of mass to be retained
+    real(r8) :: donate_frac          ! Fraction of mass to be donated
+    real(r8) :: ag_wood              ! Total above ground mass in wood [kg]
+    real(r8) :: bg_wood              ! Total bg mass in wood [kg]
+    real(r8) :: seed_mass            ! Total seed mass generated from storage death [kg]
+    integer  :: pft                  ! plant functional type index
+    integer  :: c                    ! coarse woody debris pool index
+    integer  :: il                   ! element loop index
+    integer  :: nlevsoil             ! number of soil layers
+    integer  :: ilyr                 ! soil layer index
+    integer  :: element_id           ! parteh compatible global element index
+
     !---------------------------------------------------------------------
 
-
-    canopy_mortality_woody_litter(:) = 0.0_r8 ! mortality generated litter. KgC/m2/day
-    canopy_mortality_leaf_litter(:)  = 0.0_r8
-    canopy_mortality_root_litter(:)  = 0.0_r8
 
     nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
     
     do il = 1,num_elements
        
-       elemend_id = element_list(il)
+       element_id = element_list(il)
        site_mass => currentSite%mass_balance(il)
        cur_litt  => currentPatch%litter(il)   ! Litter pool of "current" patch
        new_litt  => newPatch%litter(il)       ! Litter pool of "new" patch
 
+       ! -----------------------------------------------------------------------------
+       ! Part 1: Send parts of dying plants to the litter pool.
+       ! -----------------------------------------------------------------------------
+
+       ! Calculate the fraction of litter to be retained versus donated
+       ! vis-a-vis the new and donor patch
+       
+       retain_frac = (1.0_r8-treefall_localization) * &
+             remainder_area/(newPatch%area+remainder_area)
+       donate_frac = 1.0_r8-retain_frac
 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))       
           pft = currentCohort%pft
-          
+   
           sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
           struct_m = currentCohort%prt%GetState(struct_organ, element_id)
           leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
@@ -1346,118 +1407,120 @@ contains
           store_m  = currentCohort%prt%GetState(store_organ, element_id)
 
           if(currentCohort%canopy_layer == 1)then         
+
+             ! Upper canopy trees. The total dead is based on their disturbance
+             ! generating mortality rate.
              
-             ! currentCohort%dmort = mortality_rates(currentCohort) 
-             ! the disturbance calculations are done with the previous n,
-             ! c_area and d_mort. So it's probably &
-             ! not right to recalcualte dmort here.
-
-             canopy_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
+             num_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
                    hlm_freq_day * fates_mortality_disturbance_fraction)
+             
+          elseif(EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then
+             
+             ! Understorey trees. The total dead is based on their survivorship
+             ! function, and the total area of disturbance.
+             
+             num_dead = ED_val_understorey_death * currentCohort%n * &
+                   (patch_site_areadis/currentPatch%area)  !kgC/site/day
 
-             canopy_mortality_woody_litter(pft)= canopy_mortality_woody_litter(pft) + &
-                  canopy_dead*(struct_m + sapw_m)
-             canopy_mortality_leaf_litter(pft) = canopy_mortality_leaf_litter(pft) + &
-                  canopy_dead*leaf_m
+          else
+             
+             ! The only thing left is uderstory grasses. These guys aren't
+             ! killed by tree-fall disturbance events.
 
-             ! Some plants upon death will transfer storage carbon to seed production
-             ! Storage carbon that is not transferred to seeds goes to root litter flux
+             num_dead = 0._r8
+             
+          end if
 
-             canopy_mortality_root_litter(p) = canopy_mortality_root_litter(p) + &
-                  canopy_dead*(fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(p)) )
+          ! Update water balance by removing dead plant water
+          ! but only do this once (use the carbon element id)
+          if(element_id(il).eq.carbon12_element .and. 
+             hlm_use_planthydro == itrue ) then
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort, num_dead)
+          end if
+                          
+          ! Transfer leaves of dying trees to leaf litter
+          new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
+                num_dead*leaf_m*donate_frac/newPatch%area
+          cur_litt%leaf_fines(pft) = cur_litt%leaf_fines(pft) + &
+                num_dead*leaf_m*retain_frac/remainder_area
 
-             currentSite%seed_bank(p) = currentSite%seed_bank(p) + &
-                   canopy_dead * store_m * EDPftvarcon_inst%allom_frbstor_repro(p)/area_site
+          ! Pre-calculate Structural and sapwood, below and above ground, total mass [kg]
+          ag_wood = num_dead * (struct_m + sapw_m) * EDPftvarcon_inst%allom_agb_frac(pft)
+          bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
+          
+          do c=1,ncwd
 
+             ! Transfer wood of dying trees to AG CWD pools
+             new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
+                   SF_val_CWD_frac(c) * donate_frac/newPatch%area
+             cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + ag_wood * &
+                   SF_val_CWD_frac(c) * retain_frac/remainder_area
+             
+             ! Transfer wood of dying trees to BG CWD pools
+             do ilyr = 1,nlevsoil
+                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + bg_wood * &
+                      currentCohort%root_fr(ilyr) * SF_val_CWD_frac(c) * &
+                      donate_frac/newPatch%area
 
-             if( hlm_use_planthydro == itrue ) then
-                call AccumulateMortalityWaterStorage(currentSite,currentCohort, canopy_dead)
-             end if
+                cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + bg_wood * &
+                      currentCohort%root_fr(ilyr) * SF_val_CWD_frac(c) * &
+                      retain_frac/remainder_area
+             end do
+          end do
 
-         else 
-             if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+          ! Transfer fine roots of dying trees to below ground litter pools
+          do ilyr=1,nlevsoil
+             new_litt%root_fines(pft,ilyr) = new_litt%root_fines(pft,ilyr) + &
+                   num_dead * currentCohort%root_fr(ilyr) * &
+                   (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
+                   donate_frac/newPatch%area
+             
+             cur_litt%root_fines(pft,ilyr) = cur_litt%root_fines(pft,ilyr) + &
+                   num_dead * currentCohort%root_fr(ilyr) * &
+                   (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
+                   retain_frac/remainder_area
+          end do
 
-                understorey_dead = ED_val_understorey_death * currentCohort%n * (patch_site_areadis/currentPatch%area)  !kgC/site/day
-                canopy_mortality_woody_litter(p) = canopy_mortality_woody_litter(p)  + &
-                     understorey_dead*(struct_m + sapw_m)  
-                canopy_mortality_leaf_litter(p)= canopy_mortality_leaf_litter(p)+ &
-                     understorey_dead*leaf_m
-                canopy_mortality_root_litter(p)= canopy_mortality_root_litter(p)+ &
-                      understorey_dead*(fnrt_m + store_m)
-                
-                if( hlm_use_planthydro == itrue ) then
-                   call AccumulateMortalityWaterStorage(currentSite,currentCohort, understorey_dead)
-                end if
+          ! Transfer some of the storage that is shunted to reproduction
+          ! upon death, to the seed-pool. This is was designed for grasses,
+          ! but it is possible that some trees may utilize this behavior too
 
-             ! FIX(SPM,040114) - clarify this comment
-             ! grass is not killed by canopy mortality disturbance events.
-             ! Just move it into the new patch area. 
-             else 
-                ! no-op
-             endif
-          endif
+          seed_mass =  num_dead * store_m * EDPftvarcon_inst%allom_frbstor_repro(pft)
+
+          new_litt%seed(pft) = new_litt%seed(pft) + seed_mass * donate_frac/newPatch%area
+          cur_litt%seed(pft) = cur_litt%seed(pft) + seed_mass * retain_frac/remainder_area
+          
+          
+          ! track diagnostic fluxes
+          do c=1,ncwd
+             currentSite%CWD_AG_diagnostic_input_flux(c) = &
+                   currentSite%CWD_AG_diagnostic_input_flux(c) + &
+                   SF_val_CWD_frac(c) * ag_wood * hlm_days_per_year / area_site
+             
+             currentSite%CWD_BG_diagnostic_input_flux(c) = &
+                   currentSite%CWD_BG_diagnostic_input_flux(c) + &
+                   SF_val_CWD_frac(c) * bg_wood * hlm_days_per_year / area_site
+          end do
+          currentSite%leaf_litter_diagnostic_input_flux(pft) = &
+                currentSite%leaf_litter_diagnostic_input_flux(pft) + &
+                num_dead*leaf_m* hlm_days_per_year / area_site
+          currentSite%root_litter_diagnostic_input_flux(pft) = &
+                currentSite%root_litter_diagnostic_input_flux(pft) + &
+                num_dead * (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * & 
+                hlm_days_per_year /area_site
+         
 
           
-
+          currentCohort => currentCohort%taller      
+       enddo !currentCohort         
        
-
-       currentCohort => currentCohort%taller      
-
-    enddo !currentCohort         
-
-    !************************************/
-    !Evenly distribute the litter from the trees that died across the new and old patches
-    !************************************/
-    !************************************/
-    !Evenly distribute the litter from the trees that died across the new and old patches
-    !'litter' fluxes here are in KgC
-    !************************************/
-    litter_area = currentPatch%area 
-    np_mult =  patch_site_areadis/new_patch%area
-    ! This litter is distributed between the current and new patches, &
-    ! not to any other patches. This is really the eventually area of the current patch &
-    ! (currentPatch%area-patch_site_areadis) +patch_site_areadis...
-    ! For the new patch, only some fraction of its land area (patch_areadis/np%area) is derived from the current patch
-    ! so we need to multiply by patch_areadis/np%area
-
-    do p = 1,numpft
-    
-       do c = 1,ncwd
-          
-          cwd_litter_density = SF_val_CWD_frac(c) * canopy_mortality_woody_litter(p) / litter_area
-          
-          new_patch%cwd_ag(c)    = new_patch%cwd_ag(c)    + EDPftvarcon_inst%allom_agb_frac(p) * cwd_litter_density * np_mult
-          currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + EDPftvarcon_inst%allom_agb_frac(p) * cwd_litter_density
-          new_patch%cwd_bg(c)    = new_patch%cwd_bg(c)    + (1._r8-EDPftvarcon_inst%allom_agb_frac(p)) * cwd_litter_density &
-                                                            * np_mult 
-          currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + (1._r8-EDPftvarcon_inst%allom_agb_frac(p)) * cwd_litter_density 
-          
-          ! track as diagnostic fluxes
-          currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
-                SF_val_CWD_frac(c) * canopy_mortality_woody_litter(p) * hlm_days_per_year * EDPftvarcon_inst%allom_agb_frac(p) &
-                / area_site 
-          currentSite%CWD_BG_diagnostic_input_carbonflux(c) = currentSite%CWD_BG_diagnostic_input_carbonflux(c) + &
-                SF_val_CWD_frac(c) * canopy_mortality_woody_litter(p) * hlm_days_per_year * (1.0_r8 &
-                - EDPftvarcon_inst%allom_agb_frac(p)) / area_site
-       enddo
-
-       new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + canopy_mortality_leaf_litter(p) / litter_area * np_mult
-       new_patch%root_litter(p) = new_patch%root_litter(p) + canopy_mortality_root_litter(p) / litter_area * np_mult 
-
-       currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + canopy_mortality_leaf_litter(p) / litter_area
-       currentPatch%root_litter(p) = currentPatch%root_litter(p) + canopy_mortality_root_litter(p) / litter_area
-
-       ! track as diagnostic fluxes
-       currentSite%leaf_litter_diagnostic_input_carbonflux(p) = currentSite%leaf_litter_diagnostic_input_carbonflux(p) + &
-            canopy_mortality_leaf_litter(p) * hlm_days_per_year / area_site
-
-       currentSite%root_litter_diagnostic_input_carbonflux(p) = currentSite%root_litter_diagnostic_input_carbonflux(p) + &
-            canopy_mortality_root_litter(p) * hlm_days_per_year / area_site
     enddo
 
+    return
   end subroutine mortality_litter_fluxes
 
   ! ============================================================================
+
   subroutine create_patch(currentSite, new_patch, age, areap, nlevsoil)
     !
     ! !DESCRIPTION:

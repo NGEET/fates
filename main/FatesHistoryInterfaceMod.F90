@@ -2292,18 +2292,18 @@ end subroutine flush_hvars
          ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
          do i_cwd = 1, ncwd
             hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
-                 sites(s)%CWD_AG_diagnostic_input_carbonflux(i_cwd) * g_per_kg
+                 sites(s)%CWD_AG_diagnostic_input_flux(i_cwd) * g_per_kg
             hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
-                 sites(s)%CWD_BG_diagnostic_input_carbonflux(i_cwd) * g_per_kg
+                 sites(s)%CWD_BG_diagnostic_input_flux(i_cwd) * g_per_kg
          end do
          hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
-              (sum(sites(s)%leaf_litter_diagnostic_input_carbonflux) + &
-              sum(sites(s)%root_litter_diagnostic_input_carbonflux)) * g_per_kg * days_per_sec * years_per_day
+              (sum(sites(s)%leaf_litter_diagnostic_carbonflux) + &
+              sum(sites(s)%root_litter_diagnostic_carbonflux)) * g_per_kg * days_per_sec * years_per_day
          ! and reset the disturbance-related field buffers
-         sites(s)%CWD_AG_diagnostic_input_carbonflux(:) = 0._r8
-         sites(s)%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
-         sites(s)%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
-         sites(s)%root_litter_diagnostic_input_carbonflux(:) = 0._r8
+         sites(s)%CWD_AG_diagnostic_input_flux(:) = 0._r8
+         sites(s)%CWD_BG_diagnostic_input_flux(:) = 0._r8
+         sites(s)%leaf_litter_diagnostic_input_flux(:) = 0._r8
+         sites(s)%root_litter_diagnostic_input_flux(:) = 0._r8
          
       enddo ! site loop
       
@@ -4008,32 +4008,32 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_understory_si_scpf )
 
-    call this%set_history_var(vname='CWD_AG_CWDSC', units='gC/m^2', &
+    call this%set_history_var(vname='CWD_AG_CWDSC', units='g/m^2', &
           long='size-resolved AG CWD stocks', use_default='inactive', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_BG_CWDSC', units='gC/m^2', &
+    call this%set_history_var(vname='CWD_BG_CWDSC', units='g/m^2', &
           long='size-resolved BG CWD stocks', use_default='inactive', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_AG_IN_CWDSC', units='gC/m^2/y', &
+    call this%set_history_var(vname='CWD_AG_IN_CWDSC', units='g/m^2/y', &
           long='size-resolved AG CWD input', use_default='inactive', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_in_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_BG_IN_CWDSC', units='gC/m^2/y', &
+    call this%set_history_var(vname='CWD_BG_IN_CWDSC', units='g/m^2/y', &
           long='size-resolved BG CWD input', use_default='inactive', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_in_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_AG_OUT_CWDSC', units='gC/m^2/y', &
+    call this%set_history_var(vname='CWD_AG_OUT_CWDSC', units='g/m^2/y', &
           long='size-resolved AG CWD output', use_default='inactive', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_out_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_BG_OUT_CWDSC', units='gC/m^2/y', &
+    call this%set_history_var(vname='CWD_BG_OUT_CWDSC', units='g/m^2/y', &
           long='size-resolved BG CWD output', use_default='inactive', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_out_si_cwdsc )

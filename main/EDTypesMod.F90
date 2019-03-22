@@ -605,6 +605,8 @@ module EDTypesMod
 
      real(r8) ;; wood_product          ! Total mass exported as wood product [kg/site/day]
      real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
+     real(r8) :: product_flux       ! Total mass exported for things like harvesting [kg/site/day]
+
 
    contains
 
@@ -715,13 +717,13 @@ module EDTypesMod
                                                                  ! due to fusion in a given day. on size x pft array 
 
 
-     ! some diagnostic-only (i.e. not resolved by ODE solver) flux of 
-     ! mass to CWD and litter pools from termination and mortality associated with disturbance
+     ! some diagnostic-only (i.e. not resolved by ODE solver) flux of total biomass
+     ! to CWD and litter pools from termination and canopy mortality
+     real(r8) :: CWD_AG_diagnostic_input_flux(1:ncwd)        ! diagnostic flux to AG CWD [kg / m2 / yr]
+     real(r8) :: CWD_BG_diagnostic_input_flux(1:ncwd)        ! diagnostic flux to BG CWD [kg / m2 / yr]
+     real(r8) :: leaf_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to AG litter [kg / m2 / yr]
+     real(r8) :: root_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to BG litter [kg / m2 / yr]
 
-     real(r8) :: CWD_AG_diagnostic_input_flux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
-     real(r8) :: CWD_BG_diagnostic_input_flux(1:ncwd)       ! diagnostic flux to BG CWD [kg C / m2 / yr]
-     real(r8) :: leaf_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
-     real(r8) :: root_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
 
      ! Canopy Spread
      real(r8) ::  spread                                          ! dynamic canopy allometric term [unitless]
