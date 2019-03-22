@@ -33,6 +33,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : recruitment
   use EDPhysiologyMod          , only : trim_canopy
   use EDPhysiologyMod          , only : ZeroAllocationRates
+  use EDPhysiologyMod          , only : ZeroLitterFluxes
   use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use SFMainMod                , only : fire_model 
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
@@ -131,6 +132,10 @@ contains
 
     ! Zero turnover rates and growth diagnostics
     call ZeroAllocationRates(currentSite)
+
+    ! Zero fluxes in and out of litter pools
+    call ZeroLitterFluxes(currentSite)
+
 
    
     call TotalBalanceCheck(currentSite, 0)

@@ -96,6 +96,7 @@ module EDPhysiologyMod
   private :: SeedsIn
   private :: SeedDecay
   private :: SeedGermination
+  public :: ZeroLitterFluxes
   public :: flux_into_litter_pools
   public :: ZeroAllocationRates
   
@@ -116,6 +117,26 @@ module EDPhysiologyMod
   ! ============================================================================
 
 contains
+
+  subroutine ZeroLitterFluxes( currentSite )
+
+    ! !ARGUMENTS    
+    type(ed_site_type), intent(inout), target  :: currentSite
+    type(ed_patch_type), pointer               :: currentPatch
+    
+    currentPatch => currentSite%youngest_patch
+    do while(associated(currentPatch))
+       do el=1,num_elements
+          call currentPatch%litter(el)%ZeroFlux()
+       end do
+       currentPatch => currentPatch%older
+    end do
+    
+
+    return
+  end subroutine ZeroLitterFluxes
+
+  ! =====================================================================================
 
   subroutine ZeroAllocationRates( currentSite )
 
@@ -167,7 +188,7 @@ contains
     ! !LOCAL VARIABLES:
     type(litt_vartype), pointer :: litt    ! Points to the litter object for 
                                            ! the different element types
-    integer :: il                          ! Litter element loop index
+    integer :: el                          ! Litter element loop index
     integer :: nlev_eff_decomp             ! Number of active layers over which
                                            ! fragmentation fluxes are transfered
     !------------------------------------------------------------------------------------
@@ -176,9 +197,9 @@ contains
     call fragmentation_scaler(currentPatch, bc_in)
 
 
-    do il = 1, num_elements
+    do el = 1, num_elements
        
-       litt => currentPatch%litter(il)
+       litt => currentPatch%litter(el)
 
        ! Calculate loss rate of viable seeds to litter
        call SeedDecay(litt)
@@ -203,7 +224,7 @@ contains
        call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
 
 
-       site_mass => currentSite%mass_balance(il)
+       site_mass => currentSite%mass_balance(el)
        
        ! Seeds entering externally [kg/site]
        site_mass%seed_in = site_mass%seed_in + sum(litt%seed_in_extern(:))*currentPatch%area
@@ -248,15 +269,15 @@ contains
 
     ! Locals
     type(litt_vartype), pointer :: litt 
-    integer :: il          ! Loop counter for litter element type
+    integer :: el          ! Loop counter for litter element type
     integer :: pft         ! pft loop counter
     integer :: c           ! CWD loop counter
     integer :: nlevsoil    ! number of soil layers
     integer :: ilyr        ! soil layer loop counter
 
-    do il = 1, num_elements
+    do el = 1, num_elements
        
-       litt => currentPatch%litter(il)
+       litt => currentPatch%litter(el)
        nlevsoil = size(litt%bg_cwd,dim=2)
        
        ! Update the bank of viable seeds
@@ -933,21 +954,21 @@ contains
     real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
     real(r8) :: mean_site_seed_rain    ! The mean site level seed rain for all PFTs
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
-    integer  :: il                     ! loop counter for litter element types
+    integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
     !------------------------------------------------------------------------------------
 
-    do il = 1, num_elements
+    do el = 1, num_elements
        
        site_seed_rain(:) = 0._r8
        
-       site_mass => currentSite%mass_balance(il)
+       site_mass => currentSite%mass_balance(el)
 
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
           
-          litt => currentPatch%litter(il)
+          litt => currentPatch%litter(el)
           element_id = litt%element_id
 
           currentCohort => currentPatch%tallest
@@ -1008,7 +1029,7 @@ contains
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
 
-          litt => currentPatch%litter(il)
+          litt => currentPatch%litter(el)
           do pft = 1,numpft
 
              ! Seed input from local sources (within site)
@@ -1676,7 +1697,7 @@ contains
     real(r8) :: area_frac        ! fraction of site's area of current patch
     real(r8) :: z_decomp         ! Used for calculating depth midpoints of decomp layers
     integer  :: s                ! Site index
-    integer  :: il               ! Element index (C,N,P,etc)
+    integer  :: el               ! Element index (C,N,P,etc)
     integer  :: j                ! Soil layer index
     integer  :: id               ! Decomposition layer index
     integer  :: ic               ! CWD type index
@@ -1717,13 +1738,13 @@ contains
        end do
 
        ! Loop over the different elements. 
-       do il = 1, num_elements
+       do el = 1, num_elements
 
           ! Zero out the boundary flux arrays
           ! Make a pointer to the cellulose, labile and lignan
           ! flux partitions.
 
-          select case (element_list(il))
+          select case (element_list(el))
           case (carbon12_element)
              bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
              bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
@@ -1753,7 +1774,7 @@ contains
              ! Set a pointer to the litter object
              ! for the current element on the current
              ! patch
-             litt       => currentPatch%litter(il)
+             litt       => currentPatch%litter(el)
              area_frac  = currentPatch%area/area
              
              do ic = 1, ncwd
