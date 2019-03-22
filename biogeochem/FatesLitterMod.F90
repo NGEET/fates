@@ -30,6 +30,8 @@ module FatesLittMod
    ! 6) Add check in the initialization sequence to make sure that the
    !    first element is carbon12_element, and carbon12_element is 1
    ! 7) In SFMain, make the indexing consistent with Jackie's changes
+   ! 8) In CWD_IN, add the flux diagnostics, then remove the
+   !    patch level rate in the history code
    
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : i4 => fates_int
