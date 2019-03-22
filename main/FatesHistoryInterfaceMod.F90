@@ -10,6 +10,8 @@ module FatesHistoryInterfaceMod
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
   use EDTypesMod               , only : ican_upper
+  use EDTypesMod               , only : element_pos
+  use EDTypesMod               , only : num_elements
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -1293,6 +1295,7 @@ end subroutine flush_hvars
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     
     ! Locals
+    type(litter_type),pointer :: litt_c   ! Pointer to the carbon12 litter pool
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
     integer  :: ipa, ipa2 ! The local "I"ndex of "PA"tches 
@@ -2085,13 +2088,17 @@ end subroutine flush_hvars
                hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
                     cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
             end do
+
             ! Update Litter Flux Variables
+
+            litt_c => cpatch%litter(element_pos(carbon12_element))
 
             ! put litter_in flux onto site level variable so as to be able to append site-level 
             ! distubance-related input flux after patch loop
             hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
-                 (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in) + sum(cpatch%root_litter_in)) &
+                 (sum(litt_c%CWD_AG_in) +sum(cpatch%leaf_litter_in) + sum(cpatch%root_litter_in)) &
                  * g_per_kg * cpatch%area * AREA_INV * years_per_day * days_per_sec
+
             ! keep litter_out at patch level
             hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out) &
                  + sum(cpatch%root_litter_out)) &

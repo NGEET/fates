@@ -636,50 +636,10 @@ contains
                ! kill the ones which go into canopy layers that are not allowed
                if(i_lyr+1 > nclmax)then 
                   
-                  ! put the litter from the terminated cohorts into the fragmenting pools
-                  do i_cwd=1,ncwd
-                     
-                     currentPatch%CWD_AG(i_cwd)  = currentPatch%CWD_AG(i_cwd) + &
-                          (struct_c + sapw_c ) * &
-                          EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                          SF_val_CWD_frac(i_cwd)*currentCohort%n/currentPatch%area  
-                     
-                     currentPatch%CWD_BG(i_cwd)  = currentPatch%CWD_BG(i_cwd) + &
-                          (struct_c + sapw_c) * & 
-                          (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
-                          SF_val_CWD_frac(i_cwd)*currentCohort%n/currentPatch%area !litter flux per m2.
-                     
-                  enddo
-                  
-                  currentPatch%leaf_litter(currentCohort%pft)  = &
-                       currentPatch%leaf_litter(currentCohort%pft) + &
-                       leaf_c * currentCohort%n/currentPatch%area ! leaf litter flux per m2.
-                  
-                  currentPatch%root_litter(currentCohort%pft)  = &
-                       currentPatch%root_litter(currentCohort%pft) + &
-                       (fnrt_c + store_c) * currentCohort%n/currentPatch%area
-                  
-                  ! keep track of the above fluxes at the site level as a 
-                  ! CWD/litter input flux (in kg / site-m2 / yr)
-                  do i_cwd=1,ncwd
-                     currentSite%CWD_AG_diagnostic_input_carbonflux(i_cwd) = &
-                          currentSite%CWD_AG_diagnostic_input_carbonflux(i_cwd) &
-                          + currentCohort%n * (struct_c + sapw_c) * & 
-                          SF_val_CWD_frac(i_cwd) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) &
-                          * hlm_days_per_year / AREA
-                     currentSite%CWD_BG_diagnostic_input_carbonflux(i_cwd) = &
-                          currentSite%CWD_BG_diagnostic_input_carbonflux(i_cwd) &
-                          + currentCohort%n * (struct_c + sapw_c) * & 
-                          SF_val_CWD_frac(i_cwd) * (1.0_r8 -  &
-                          EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * hlm_days_per_year / AREA
-                  enddo
-                  
-                  currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
-                       currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
-                       currentCohort%n * leaf_c * hlm_days_per_year  / AREA
-                  currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
-                       currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
-                       currentCohort%n * (fnrt_c  + store_c) * hlm_days_per_year  / AREA
+                  ! put the litter from the terminated cohorts 
+                  ! straight into the fragmenting pools
+                  call SendCohortToLitter(currentSite,currentPatch, &
+                       currentCohort,currentCohort%n)
                   
                   currentCohort%n            = 0.0_r8
                   currentCohort%c_area       = 0.0_r8

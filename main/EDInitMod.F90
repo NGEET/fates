@@ -88,6 +88,7 @@ contains
     allocate(site_in%fmort_rate_crown(1:nlevsclass,1:numpft))
     allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
     allocate(site_in%mass_balance(1:num_elements))
+    allocate(site_in%flux_diags(1:num_elements))
 
     !
     end subroutine init_site_vars
@@ -104,6 +105,7 @@ contains
     type(ed_site_type), intent(inout) ::  site_in
     !
     ! !LOCAL VARIABLES:
+    integer :: el
     !----------------------------------------------------------------------
 
     site_in%oldest_patch     => null() ! pointer to oldest patch at the site
@@ -130,9 +132,10 @@ contains
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
 
-    do il=1,num_elements
+    do el=1,num_elements
        ! Zero the state variables used for checking mass conservation
-       call site_in%mass_balance%ZeroMassCheckState()
+       call site_in%mass_balance(el)%ZeroMassCheckState()
+       call site_in%flux_diags(el)%ZeroFluxDiagnostics()
     end do
        
 
@@ -159,12 +162,6 @@ contains
     site_in%demotion_carbonflux = 0._r8
     site_in%promotion_rate(:) = 0._r8
     site_in%promotion_carbonflux = 0._r8
-
-    ! diagnostic site-level cwd and litter fluxes
-    site_in%CWD_AG_diagnostic_input_carbonflux(:) = 0._r8
-    site_in%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
-    site_in%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
-    site_in%root_litter_diagnostic_input_carbonflux(:) = 0._r8
     
     ! Resources management (logging/harvesting, etc)
     site_in%resources_management%trunk_product_site  = 0.0_r8

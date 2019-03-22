@@ -91,6 +91,7 @@ module EDCohortDynamicsMod
   public :: copy_cohort
   public :: count_cohorts
   public :: InitPRTCohort
+  public :: SendCohortToLitter
   public :: UpdateCohortBioPhysRates
   public :: DeallocateCohort
   
@@ -641,8 +642,10 @@ contains
     integer :: terminate   ! do we terminate (1) or not (0) 
     integer :: c           ! counter for litter size class. 
     integer :: levcan      ! canopy level
+    integer :: nlevsoil    ! number of soil layers
     !----------------------------------------------------------------------
 
+    nlevsoil = size(currentPatch%litter(1)%bg_cwd,dim=2)
 
     currentCohort => currentPatch%shortest
     do while (associated(currentCohort))
@@ -650,12 +653,12 @@ contains
        terminate = 0 
        tallerCohort => currentCohort%taller
 
-       leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-       store_c = currentCohort%prt%GetState(store_organ, all_carbon_elements)
-       sapw_c  = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-       fnrt_c  = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
-       struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-       repro_c  = currentCohort%prt%GetState(repro_organ, all_carbon_elements)
+       leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+       store_c = currentCohort%prt%GetState(store_organ, carbon12_element)
+       sapw_c  = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+       fnrt_c  = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
+       struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
+       repro_c  = currentCohort%prt%GetState(repro_organ, carbon12_element)
 
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
@@ -731,52 +734,14 @@ contains
                    currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
           end if
 
-          !put the litter from the terminated cohorts straight into the fragmenting pools
+          ! put the litter from the terminated cohorts 
+          ! straight into the fragmenting pools
+
           if (currentCohort%n.gt.0.0_r8) then
-             do c=1,ncwd
-
-                currentPatch%CWD_AG(c)  = currentPatch%CWD_AG(c) + currentCohort%n*(struct_c+sapw_c) / &
-                     currentPatch%area &
-                     * SF_val_CWD_frac(c) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) 
-                currentPatch%CWD_BG(c)  = currentPatch%CWD_BG(c) + currentCohort%n*(struct_c+sapw_c) / &
-                     currentPatch%area &
-                     * SF_val_CWD_frac(c) * (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) 
-             enddo
-             
-             currentPatch%leaf_litter(currentCohort%pft) = currentPatch%leaf_litter(currentCohort%pft) + currentCohort%n* &
-                  (leaf_c)/currentPatch%area
-
-             currentPatch%root_litter(currentCohort%pft) = currentPatch%root_litter(currentCohort%pft) + currentCohort%n* &
-                  (fnrt_c+store_c)/currentPatch%area 
-
-
-             ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
-             do c=1,ncwd
-                currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
-                     + currentCohort%n*(struct_c + sapw_c) * &
-                     SF_val_CWD_frac(c) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * hlm_days_per_year / AREA
-                currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
-                     + currentCohort%n*(struct_c + sapw_c) * &
-                     SF_val_CWD_frac(c) * (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))  * hlm_days_per_year / AREA
-             enddo
-             
-             currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
-                  currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
-                  currentCohort%n * (leaf_c) * hlm_days_per_year  / AREA
-             currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
-                  currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
-                  currentCohort%n * (fnrt_c + store_c) * hlm_days_per_year  / AREA
-
+             call SendCohortToLitter(currentSite,currentPatch, &
+                  currentCohort,currentCohort%n)
           end if
           
-          ! Zero out the state pools
-          call SetState(currentCohort%prt,leaf_organ,carbon12_element,0.0_r8)
-          call SetState(currentCohort%prt,fnrt_organ,carbon12_element,0.0_r8)
-          call SetState(currentCohort%prt,sapw_organ,carbon12_element,0.0_r8)
-          call SetState(currentCohort%prt,struct_organ,carbon12_element,0.0_r8)
-          call SetState(currentCohort%prt,repro_organ,carbon12_element,0.0_r8)
-          call SetState(currentCohort%prt,store_organ,carbon12_element,0.0_r8)
-
           ! Set pointers and remove the current cohort from the list
           shorterCohort => currentCohort%shorter
           
@@ -807,6 +772,111 @@ contains
   end subroutine terminate_cohorts
 
   !-------------------------------------------------------------------------------------!
+
+  subroutine SendCohortToLitter(currentSite,currentPatch,currentCohort,nplant)
+    
+    ! This simple routine transfers the existing mass in all pools and all elements
+    ! on a vegetation cohort, into the litter pool.
+    ! 
+    ! Important: (1) This IS NOT turnover, this is not a partial transfer.
+    !            (2) This is from a select number of the cohort
+    !            (3) This does not affect the PER PLANT mass pools, so 
+    !                do not update any PARTEH structures.
+    !            (4) The change in plant number density (due to death or termination)
+    !                IS NOT handled here.
+
+    ! Arguments
+    type (ed_site_type)   , target  :: currentSite
+    type (ed_patch_type)  , target  :: currentPatch
+    type (ed_cohort_type) , target  :: currentCohort
+    real(r8)                        :: nplant     ! Number (absolute)
+                                                  ! of plants to transfer
+    
+    !
+    type (litter_type), pointer     :: litt       ! Litter object for each element
+
+    real(r8) :: leaf_m    ! leaf mass [kg]
+    real(r8) :: store_m   ! storage mass [kg]
+    real(r8) :: sapw_m    ! sapwood mass [kg]
+    real(r8) :: fnrt_m    ! fineroot mass [kg]
+    real(r8) :: repro_m   ! reproductive mass [kg]
+    real(r8) :: struct_m  ! structural mass [kg]
+    integer  :: el        ! loop index for elements
+    integer  :: c         ! loop index for CWD
+    integer  :: ilyr      ! loop index for soil layers
+    integer  :: nlevsoil  ! number of soil layers
+    !----------------------------------------------------------------------
+
+    nlevsoil = size(currentPatch%litter(1)%bg_cwd,dim=2)    
+
+    do el=1,num_elements
+       
+       leaf_m   = currentCohort%prt%GetState(leaf_organ, element_list(el))
+       store_m  = currentCohort%prt%GetState(store_organ, element_list(el))
+       sapw_m   = currentCohort%prt%GetState(sapw_organ, element_list(el))
+       fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_list(el))
+       struct_m = currentCohort%prt%GetState(struct_organ, element_list(el))
+       repro_m  = currentCohort%prt%GetState(repro_organ, element_list(el))
+                
+       litt => currentPatch%litter(el)
+
+       do c=1,ncwd
+                   
+          litt%ag_cwd(c) = litt%ag_cwd(c) + nplant/currentPatch%area * &
+               (struct_m+sapw_m)  * SF_val_CWD_frac(c) * &
+               EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) 
+                   
+          do ilyr=1,nlevsoil
+             litt%bg_cwd(c,ilyr) = litt%bg_cwd(c,ilyr) + nplant/currentPatch%area * &
+                  (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
+                  (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+          enddo
+       enddo
+       
+       litt%leaf_fines(currentCohort%pft) = litt%leaf_fines(currentCohort%pft) + &
+            nplant/currentPatch%area * (leaf_m + repro_m)
+                
+       do ilyr=1,nlevsoil
+          litt%root_fines(currentCohort%pft,ilyr) = litt%root_fines(currentCohort%pft,ilyr) + &
+               nplant/currentPatch%area * (fnrt_m+store_m)
+       end do
+                
+       
+       ! Update diagnostics
+       ! -----------------------------------------------------------------------
+       
+       ! keep track of the above fluxes at the site level as 
+       ! a CWD/litter input flux (in kg / site-m2 / yr)
+       
+       do c=1,ncwd
+          currentSite%CWD_AG_diagnostic_input_flux(c)  = currentSite%CWD_AG_diagnostic_input_flux(c) &
+               + nplant*(struct_m + sapw_m) * SF_val_CWD_frac(c) * &
+               EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * hlm_days_per_year / AREA
+          
+          currentSite%CWD_BG_diagnostic_input_flux(c)  = currentSite%CWD_BG_diagnostic_input_flux(c) &
+               + nplant*(struct_m + sapw_m) * SF_val_CWD_frac(c) * &
+               (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))  * hlm_days_per_year / AREA
+       enddo
+                
+                
+       currentSite%leaf_litter_diagnostic_input_flux(currentCohort%pft) = &
+            currentSite%leaf_litter_diagnostic_input_flux(currentCohort%pft) +  &
+            nplant * leaf_m * hlm_days_per_year  / AREA
+       
+       currentSite%root_litter_diagnostic_input_flux(currentCohort%pft) = &
+            currentSite%root_litter_diagnostic_input_flux(currentCohort%pft) + &
+            nplant * (fnrt_m + store_m) * hlm_days_per_year  / AREA
+       
+    end do
+    
+    
+    return
+  end subroutine SendCohortToLitter
+
+
+  !--------------------------------------------------------------------------------------
+
+
 
   subroutine DeallocateCohort(currentCohort)
 
@@ -977,7 +1047,7 @@ contains
                                 ! -----------------------------------------------------------------
                                 
                                 if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
-                                   call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,all_carbon_elements), currentCohort%pft, &
+                                   call StructureResetOfDH( currentCohort%prt%GetState(struct_organ,carbon12_element), currentCohort%pft, &
                                          currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
                                 end if
 
@@ -986,8 +1056,8 @@ contains
 				      
 
                                 if(hlm_use_planthydro.eq.itrue) then			  					  				  
-				    call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
-				 endif
+                                   call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
+                                endif
 
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
@@ -1120,19 +1190,19 @@ contains
                                 endif
                                 
                                 ! At this point, nothing should be pointing to current Cohort
-				! update hydraulics quantities that are functions of hite & biomasses
-				! deallocate the hydro structure of nextc
+                                ! update hydraulics quantities that are functions of hite & biomasses
+                                ! deallocate the hydro structure of nextc
                                 if (hlm_use_planthydro.eq.itrue) then				    
-				    call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-				          currentCohort%pft,currentCohort%c_area)
-                                    leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                                    currentCohort%treelai = tree_lai(leaf_c,             &
-                                       currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                                       currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-                                       currentCohort%vcmax25top  )			    
-				   call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)  				   
+                                   call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                                        currentCohort%pft,currentCohort%c_area)
+                                   leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+                                   currentCohort%treelai = tree_lai(leaf_c,             &
+                                        currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+                                        currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+                                        currentCohort%vcmax25top  )			    
+                                   call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)  				   
                                 endif
-    
+                                
                                 call DeallocateCohort(nextc)
                                 deallocate(nextc)
                                 nullify(nextc)

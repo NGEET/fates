@@ -7,6 +7,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
+  use EDCohortDynamicsMod  , only : SendCohortToLitter
   use EDTypesMod           , only : area_site => area
   use EDtypesMod           , only : ncwd, n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
@@ -935,9 +936,6 @@ contains
 
  
     nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
-    
- 
-
 
     do il = 1,num_elements
 

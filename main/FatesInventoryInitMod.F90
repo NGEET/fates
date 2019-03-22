@@ -30,6 +30,7 @@ module FatesInventoryInitMod
    use FatesGlobals     , only : fates_log
    use FatesInterfaceMod, only : bc_in_type
    use FatesInterfaceMod, only : hlm_inventory_ctrl_file
+   use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
    use EDTypesMod       , only : ed_patch_type
    use EDTypesMod       , only : ed_cohort_type 
@@ -37,6 +38,7 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : equal_leaf_aclass
    use EDTypesMod       , only : leaves_on
    use EDTypesMod       , only : leaves_off
+   use EDTypesMod       , only : num_elements
    use EDPftvarcon      , only : EDPftvarcon_inst
 
 
@@ -123,6 +125,7 @@ contains
       real(r8),                        allocatable :: inv_lon_list(:)      ! list of lon coords
       integer                                      :: invsite              ! index of inventory site 
                                                                            ! closest to actual site
+      integer                                      :: el                   ! loop counter for number of elements
       character(len=patchname_strlen)              :: patch_name           ! patch ID string in the file
       integer                                      :: npatches             ! number of patches found in PSS
       type(pp_array),                  allocatable :: patch_pointer_vec(:) ! vector of pointers to patch LL
@@ -251,17 +254,11 @@ contains
 
             age_init            = 0.0_r8
             area_init           = 0.0_r8 
-            cwd_ag_init(:)      = 0.0_r8
-            cwd_bg_init(:)      = 0.0_r8
-            leaf_litter_init(:) = 0.0_r8
-            root_litter_init(:) = 0.0_r8
 
-            call create_patch(sites(s), newpatch, age_init, area_init, &
-                  cwd_ag_init, cwd_bg_init, &
-                  leaf_litter_init, root_litter_init, bc_in(s)%nlevsoil )
-
-            do il=1,num_elements
-               call newpatch%litter(il)%InitConditions(init_leaf_fines=0._r8, &
+            call create_patch(sites(s), newpatch, age_init, area_init,bc_in(s)%nlevsoil )
+            
+            do el=1,num_elements
+               call newpatch%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                     init_root_fines=0._r8, &
                     init_ag_cwd=0._r8, &
                     init_bg_cwd=0._r8, &
@@ -665,6 +662,8 @@ contains
       character(len=patchname_strlen),intent(out) :: patch_name    ! unique string identifier of patch
 
       ! Locals
+      type(litter_type)                           :: litt
+      integer                                     :: el         ! index for elements
       real(r8)                                    :: p_time     ! Time patch was recorded
       real(r8)                                    :: p_trk      ! Land Use index (see above descriptions)
       character(len=patchname_strlen)             :: p_name     ! unique string identifier of patch
@@ -723,15 +722,16 @@ contains
       ! first hack solution. (RGK 06-2017)
       ! ----------------------------------------------------------------------
 
-      do icwd = 1, ncwd
-         newpatch%cwd_ag(icwd) = 0.0_r8
-         newpatch%cwd_bg(icwd) = 0.0_r8
+      do el=1,num_elements
+         litt => newpatch%litter(el)
+      
+         call litt%InitConditions(init_leaf_fines=0._r8, &
+              init_root_fines=0._r8, &
+              init_ag_cwd=0._r8,     &
+              init_bg_cwd=0._r8,     &
+              init_seed=0._r8)
+         
       end do
-
-
-      newpatch%leaf_litter(:) = 0.0_r8
-      newpatch%root_litter(:) = 0.0_r8
-
 
       return
    end subroutine set_inventory_edpatch_type1

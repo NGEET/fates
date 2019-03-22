@@ -334,8 +334,10 @@ module EDTypesMod
 
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
-     real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char (conditional on the tree being subjected to the fire)
-     real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch (conditional on the tree being subjected to the fire)
+     real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
+                                                         ! (conditional on the tree being subjected to the fire)
+     real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality 
+                                                         ! due to crown scorch (conditional on the tree being subjected to the fire)
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
 
      ! Hydraulics
@@ -542,6 +544,23 @@ module EDTypesMod
   end type ed_resources_management_type
 
 
+  type site_fluxdiagnostics_type
+
+     ! some diagnostic-only (i.e. not resolved by ODE solver) flux of 
+     ! total biomass
+     ! to CWD and litter pools from termination and canopy mortality
+     
+     real(r8) :: CWD_AG_diagnostic_input_flux(1:ncwd)        ! diagnostic flux to AG CWD [kg / m2 / yr]
+     real(r8) :: CWD_BG_diagnostic_input_flux(1:ncwd)        ! diagnostic flux to BG CWD [kg / m2 / yr]
+     real(r8) :: leaf_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to AG litter [kg / m2 / yr]
+     real(r8) :: root_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to BG litter [kg / m2 / yr]
+     
+   contains
+
+     procedure :: ZeroFluxDiagnostics
+     
+  end type site_fluxdiagnostics_type
+
 
   type site_masscheck_type
 
@@ -640,9 +659,14 @@ module EDTypesMod
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
      
-     ! MASS BALANCE       
+     ! MASS BALANCE (allocation for each element)
 
      type(site_masscheck_type), pointer :: mass_balance(:)
+
+     ! Flux diagnostics (allocation for each element)
+
+     type(site_fluxdiagnostics_type), pointer :: flux_diags(:)
+
 
      real(r8) :: npp                ! used for calculating NEP and NBP during BGC summarization phase
      real(r8) :: nep                ! Net ecosystem production, i.e. fast-timescale carbon balance that 
@@ -717,12 +741,6 @@ module EDTypesMod
                                                                  ! due to fusion in a given day. on size x pft array 
 
 
-     ! some diagnostic-only (i.e. not resolved by ODE solver) flux of total biomass
-     ! to CWD and litter pools from termination and canopy mortality
-     real(r8) :: CWD_AG_diagnostic_input_flux(1:ncwd)        ! diagnostic flux to AG CWD [kg / m2 / yr]
-     real(r8) :: CWD_BG_diagnostic_input_flux(1:ncwd)        ! diagnostic flux to BG CWD [kg / m2 / yr]
-     real(r8) :: leaf_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to AG litter [kg / m2 / yr]
-     real(r8) :: root_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to BG litter [kg / m2 / yr]
 
 
      ! Canopy Spread
@@ -732,6 +750,18 @@ module EDTypesMod
 
 
   contains
+
+    subroutine ZeroFluxDiagnostics(this)
+      
+      class(site_fluxdiagnostics_type) :: this
+      
+      this%cwd_ag_diagnostic_input_flux(:) = 0._r8
+      this%cwd_bg_diagnostic_input_flux(:) = 0._r8
+      this%leaf_litter_diagnostic_input_flux(:) = 0._r8
+      this%root_litter_diagnostic_input_flux(:) = 0._r8
+      
+      return
+    end subroutine ZeroFluxDiagnostics
 
     ! =====================================================================================
     
