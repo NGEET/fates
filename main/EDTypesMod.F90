@@ -180,6 +180,11 @@ module EDTypesMod
                                                 ! in PRTGenericMod.F90. examples are carbon12_element
                                                 ! nitrogen_element, etc.
 
+  integer :: element_pos(num_organ_types)       ! This is the reverse lookup
+                                                ! for element types. Pick an element
+                                                ! global index, and it gives you
+                                                ! the position in the element_list
+
 
   !************************************
   !** COHORT type structure          **

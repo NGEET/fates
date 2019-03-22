@@ -164,6 +164,7 @@ contains
 
     type(ed_patch_type),  pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
+    type(fates_litter_type), pointer :: litt_c
 
     real(r8) timeav_swc
     real(r8) alpha_FMC(nfsc)     ! Relative fuel moisture adjusted per drying ratio
@@ -172,8 +173,13 @@ contains
 
     fuel_moisture(:) = 0.0_r8
     
+    
+
     currentPatch => currentSite%oldest_patch; 
     do while(associated(currentPatch))  
+
+       litt_c => currentPatch%litter(element_pos(carbon12_element))
+       
        ! How much live grass is there? 
        currentPatch%livegrass = 0.0_r8 
        currentCohort => currentPatch%tallest
@@ -193,7 +199,7 @@ contains
        ! NCWD =4  NFSC = 6
        ! dl_sf = 1, tw_sf = 2, lb_sf = 4, tr_sf = 5, lg_sf = 6,
      
-            ! zero fire arrays. 
+       ! zero fire arrays. 
        currentPatch%fuel_eff_moist = 0.0_r8 
        currentPatch%fuel_bulkd     = 0.0_r8  !this is kgBiomass/m2 for use in rate of spread equations
        currentPatch%fuel_sav       = 0.0_r8 
@@ -203,13 +209,15 @@ contains
        currentPatch%fuel_frac      = 0.0_r8
 
        if(write_sf == itrue)then
-          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter1 ',currentPatch%leaf_litter
-          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter2 ',sum(currentPatch%CWD_AG)
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter1 ',sum(currentPatch%leaf_fines(:))
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter2 ',sum(litt_c%ag_cwd(:))
           if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter3 ',currentPatch%livegrass
           if ( hlm_masterproc == itrue ) write(fates_log(),*) ' sum fuel', currentPatch%sum_fuel
        endif
 
-       currentPatch%sum_fuel =  sum(currentPatch%leaf_litter) + sum(currentPatch%CWD_AG) + currentPatch%livegrass
+       currentPatch%sum_fuel =  sum(litt_c%leaf_fines(:)) + &
+                                sum(litt_c%ag_cwd(:)) + &
+                                currentPatch%livegrass
        if(write_SF == itrue)then
           if ( hlm_masterproc == itrue ) write(fates_log(),*) 'sum fuel', currentPatch%sum_fuel,currentPatch%area
        endif
@@ -219,8 +227,8 @@ contains
                   
        if (currentPatch%sum_fuel > 0.0) then        
           ! Fraction of fuel in litter classes
-          currentPatch%fuel_frac(dl_sf)       = sum(currentPatch%leaf_litter)/ currentPatch%sum_fuel
-          currentPatch%fuel_frac(tw_sf:tr_sf) = currentPatch%CWD_AG          / currentPatch%sum_fuel    
+          currentPatch%fuel_frac(dl_sf)       = sum(litt_c%leaf_fines(:))/ currentPatch%sum_fuel
+          currentPatch%fuel_frac(tw_sf:tr_sf) = litt_c%ag_cwd(:) / currentPatch%sum_fuel    
 
           if(write_sf == itrue)then
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff1 ',currentPatch%fuel_frac
@@ -285,8 +293,7 @@ contains
           if(write_SF == itrue)then
 
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'no litter fuel at all',currentPatch%patchno, &
-                  currentPatch%sum_fuel,sum(currentPatch%cwd_ag),                         &
-                  sum(currentPatch%cwd_bg),sum(currentPatch%leaf_litter)
+                  currentPatch%sum_fuel,sum(litt_c%ag_cwd(:)),sum(litt_c%leaf_fines(:))
 
           endif
           currentPatch%fuel_sav = sum(SF_val_SAV(1:nfsc))/(nfsc) ! make average sav to avoid crashing code. 
@@ -566,9 +573,9 @@ contains
          SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
 
     type(ed_site_type) , intent(in), target :: currentSite
-
     type(ed_patch_type), pointer    :: currentPatch
-
+    type(litter_type), pointer      :: litt_c           ! carbon 12 litter pool
+    
     real(r8) :: moist             !effective fuel moisture
     real(r8) :: tau_b(nfsc)     !lethal heating rates for each fuel class (min) 
     real(r8) :: fc_ground(nfsc) !propn of fuel consumed
@@ -611,8 +618,10 @@ contains
        currentPatch%burnt_frac_litter = currentPatch%burnt_frac_litter * (1.0_r8-SF_val_miner_total) 
 
        !---Calculate amount of fuel burnt.---    
-       FC_ground(dl_sf)       = currentPatch%burnt_frac_litter(dl_sf)   * sum(currentPatch%leaf_litter)
-       FC_ground(tw_sf:tr_sf) = currentPatch%burnt_frac_litter(tw_sf:tr_sf) * currentPatch%CWD_AG
+       litt_c => currentPatch%litter(element_pos(carbon12_element))
+
+       FC_ground(dl_sf)       = currentPatch%burnt_frac_litter(dl_sf) * sum(litt_c%leaf_fines(:))
+       FC_ground(tw_sf:tr_sf) = currentPatch%burnt_frac_litter(tw_sf:tr_sf) * litt_c%ag_cwd(:)
        FC_ground(lg_sf)       = currentPatch%burnt_frac_litter(lg_sf)   * currentPatch%livegrass      
 
        ! Following used for determination of cambial kill follows from Peterson & Ryan (1986) scheme 

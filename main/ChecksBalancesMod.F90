@@ -395,7 +395,7 @@ contains
     
     ! Local variables
     type(ed_patch_type), pointer :: currentPatch
-    type(litt_vartype), pointer  :: litt    ! Litter object
+    type(litter_type), pointer   :: litt    ! Litter object
     integer :: il                           ! Litter element loop index
 
     ! We only really run this scheme if we think things are really broken.  

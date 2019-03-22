@@ -24,6 +24,7 @@ module FatesInterfaceMod
    use EDTypesMod          , only : numlevsoil_max
    use EDTypesMod          , only : num_elements
    use EDTypesMod          , only : element_list
+   use EDTypesMod          , only : element_pos
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesConstantsMod   , only : itrue,ifalse
    use FatesGlobals        , only : fates_global_verbose
@@ -1733,7 +1734,9 @@ contains
         num_elements = 1
         allocate(element_list(num_elements))
         element_list(1) = carbon12_element
-        
+        element_pos(:) = 0
+        element_pos(carbon12_element) = 1
+
 
         call InitPRTGlobalAllometricCarbon()
 
@@ -1744,6 +1747,10 @@ contains
         element_list(1) = carbon12_element
         element_list(2) = nitrogen_element
         element_list(3) = phosphorus_element
+        element_pos(:)  = 0
+        element_pos(carbon12_element)   = 1
+        element_pos(nitrogen_element)   = 2
+        element_pos(phosphorus_element) = 3
 
         !call InitPRTGlobalAllometricCNP()
         write(fates_log(),*) 'You specified the allometric CNP mode'

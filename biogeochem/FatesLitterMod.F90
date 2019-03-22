@@ -27,7 +27,9 @@ module FatesLittMod
    !    help in tracking that sort of thing? 
    ! 5) Add a routine that performs all of the site-level mass balance
    !    integrations from daily sources?
-
+   ! 6) Add check in the initialization sequence to make sure that the
+   !    first element is carbon12_element, and carbon12_element is 1
+   ! 7) In SFMain, make the indexing consistent with Jackie's changes
    
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : i4 => fates_int
@@ -42,7 +44,7 @@ module FatesLittMod
    implicit none
    private
    
-   type litt_vartype
+   type litter_type
 
       
       ! This object is allocated for each element (C, N, P, etc) that we wish to track.
@@ -106,7 +108,7 @@ module FatesLittMod
       procedure,non_overridable :: CopyLitter
       procedure,non_overridable :: ZeroFlux
       
-   end type litt_vartype
+   end type litter_type
 
    ! Part 3: Public extended types
 
@@ -117,10 +119,10 @@ contains
 
   subroutine FuseLitter(this,self_area,donor_area,donor_litt)
 
-    class(litt_vartype) :: this
+    class(litter_type) :: this
     real(r8),intent(in)           :: self_area
     real(r8),intent(in)           :: donor_area
-    type(litt_vartype),intent(in) :: donor_litt
+    type(litter_type),intent(in) :: donor_litt
 
 
     ! locals
@@ -188,14 +190,45 @@ contains
 
   ! =====================================================================================
 
-  subroutine CopyLitter
+  subroutine CopyLitter(this,donor_litt)
 
+    ! This might not need to ever be called.  When a new patch is created
+    ! from disturbance, litter initialization is handled elsewhere (EDPatchDynamics)
+
+
+    class(litter_type) :: this
+    type(litter_type),intent(in) :: donor_litt
+
+
+    this%ag_cwd(:)      = donor_litt%ag_cwd(:)
+    this%ag_cwd_in(:)   = donor_litt%ag_cwd_in(:)
+    this%ag_cwd_frag(:) = donor_litt%ag_cwd_frag(:)
+    
+    this%bg_cwd(:,:)      = donor_litt%bg_cwd(:,:)
+    this%bg_cwd_in(:,:)   = donor_litt%bg_cwd_in(:,:)
+    this%bg_cwd_frag(:,:) = donor_litt%bg_cwd_frag(:,:)
+
+    this%leaf_fines(:)    = donor_litt%leaf_fines(:)
+    this%seed(:)          = donor_litt%seed(:)
+    this%leaf_fines_in(:) = donor_litt%leaf_fines_in(:)
+    this%seed_in_local(:) = donor_litt%seed_in_local(:)
+    
+    this%seed_in_extern(:)    = donor_litt%seed_in_extern(:)
+    this%leaf_fines_frag(:)   = donor_litt%leaf_fines_frag(:)
+    this%seed_germ(:)         = donor_litt%seed_germ(:)
+    this%seed_decay(:)        = donor_litt%seed_decay(:)
+    this%root_fines(:,:)      = donor_litt%root_fines(:,:)
+    this%root_fines_in(:,:)   = donor_litt%root_fines_in(:,:)
+    this%root_fines_frag(:,:) = donor_litt%root_fines_frag(:,:)
+
+    return
   end subroutine CopyLitter
 
+  ! =====================================================================================
 
   subroutine InitAllocate(this,numpft,numlevsoil)
 
-    class(litt_vartype) :: this
+    class(litter_type) :: this
     integer,intent(in)  :: numpft   ! number of plant functional types
     integer,intent(in)  :: numlevsoil ! number of soil layers
 
@@ -252,7 +285,7 @@ contains
                             init_bg_cwd,     &
                             init_seed)
     
-    class(litt_vartype) :: this
+    class(litter_type) :: this
     real(r8),intent(in) :: init_leaf_fines
     real(r8),intent(in) :: init_root_fines
     real(r8),intent(in) :: init_ag_cwd
@@ -272,7 +305,7 @@ contains
   
   subroutine DeallocateLitt(this)
     
-    class(litt_vartype) :: this
+    class(litter_type) :: this
 
     deallocate(this%bg_cwd)
     deallocate(this%leaf_fines)
@@ -299,7 +332,7 @@ contains
 
   subroutine ZeroFlux(this)
     
-    class(litt_vartype) :: this
+    class(litter_type) :: this
     
     this%ag_cwd_in(:)         = 0._r8
     this%bg_cwd_in(:,:)       = 0._r8

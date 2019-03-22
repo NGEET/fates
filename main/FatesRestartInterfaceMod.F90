@@ -1068,7 +1068,50 @@ contains
  end subroutine define_restart_vars
   
  ! =====================================================================================
-  
+ 
+ subroutine DefineLitterVars(this,initialize_variables,ivar)
+
+   use FatesIOVariableKindMod, only : cohort_r8
+   
+     class(fates_restart_interface_type) :: this
+     logical, intent(in)                 :: initialize_variables
+     integer,intent(inout)               :: ivar      ! global variable counter
+      
+     integer                             :: dummy_out ! dummy index for variable
+                                                      ! position in global file
+     integer                             :: i_var     ! loop counter for prt variables
+     integer                             :: i_pos     ! loop counter for discrete position
+   
+
+
+     do il = 1,num_elements
+
+        ! Register the instantaneous state variable "val"
+        ! ----------------------------------------------------------------------------
+        
+        ! The symbol that is written to file
+        symbol    = trim(symbol_base)//'_val_'//trim(pos_symbol)
+        
+        ! The expanded long name of the variable
+        long_name = trim(name_base)//', state var, position:'//trim(pos_symbol)
+
+        call this%set_restart_var(vname=trim(symbol), &
+             vtype=cohort_r8, &
+             long_name=trim(long_name), &
+             units='kg', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, &
+             ivar=ivar, index = dummy_out ) 
+
+
+     end do
+
+
+
+   return
+ end subroutine DefineLitterVars
+
+  ! =====================================================================================
+ 
   subroutine DefinePRTRestartVars(this,initialize_variables,ivar)
 
     ! ----------------------------------------------------------------------------------
