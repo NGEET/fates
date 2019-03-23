@@ -42,6 +42,9 @@ module EDPhysiologyMod
   use EDTypesMod          , only : leaves_off
   use EDTypesMod          , only : min_n_safemath
   use EDTypesMod          , only : num_elements
+  use EDTypesMod          , only : element_list
+  use EDTypesMod          , only : element_pos
+  use EDTypesMod          , only : site_fluxdiags_type
 
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
@@ -1248,7 +1251,11 @@ contains
 
     !
     ! !DESCRIPTION:
-    ! Generate litter fields from turnover.  
+    ! Generate litter fields from turnover.
+    ! Note, that the when this is called, the number density of the plants
+    ! has not been reduced from non-mortal turnover yet.
+    ! Thus, we need to avoid double counting losses from dying trees
+    ! and turnover in dying trees.
     !
     ! !USES:
     use SFParamsMod , only : SF_val_CWD_frac
@@ -1265,13 +1272,14 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: currentCohort
-    integer  :: c,p
+    type(site_fluxdiags_type), pointer :: flux_diags
+    type(site_masscheck_type), pointer :: site_mass
+    integer  :: c
     real(r8) :: dead_n          ! total understorey dead tree density
     real(r8) :: dead_n_dlogging ! direct logging understory dead-tree density
     real(r8) :: dead_n_ilogging ! indirect understory dead-tree density (logging)
     real(r8) :: dead_n_natural  ! understory dead density not associated
                                 ! with direct logging
-
     real(r8) :: leaf_m          ! mass of the element of interest in the 
                                 ! leaf  [kg]
     real(r8) :: fnrt_m
@@ -1295,16 +1303,21 @@ contains
     real(r8) :: rootfr(numlevsoil_max)  ! Fractional root mass profile
     !----------------------------------------------------------------------
 
-    ! ================================================        
+    ! -----------------------------------------------------------------------------------
     ! Other direct litter fluxes happen in phenology and in spawn_patches. 
-    ! ================================================   
+    ! -----------------------------------------------------------------------------------
 
     numlevsoil = bc_in%nlevsoil
     
     element_id = litt%element_id
+    
+    ! Object tracking flux diagnostics for each element
+    flux_diags => currentSite%flux_diags(element_pos(element_id))
+    
+    ! Object tracking site level mass balance for each element
+    site_mass => currentSite%mass_balance(element_pos(element_id))
 
     currentCohort => currentPatch%shortest
-
     do while(associated(currentCohort))
       pft = currentCohort%pft        
 
@@ -1320,49 +1333,71 @@ contains
       sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
       struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
 
-      ! ================================================        
-      ! Litter from tissue turnover. Kg/m2/day
-      ! ================================================   
+      plant_dens =  currentCohort%n/currentPatch%area
 
-      litt%leaf_fines_in(ipft) = litt%leaf_fines_in(pft) + & 
-           leaf_m_turnover * currentCohort%n/currentPatch%area
+      ! ---------------------------------------------------------------------------------
+      ! PART 1 Litter fluxes from non-mortal tissue turnovers  Kg/m2/day
+      !        Important note:  Turnover has already been removed from the cohorts.
+      !        So, in the next part of this algorithm, when we send the biomass
+      !        from dying trees to the litter pools, we don't have to worry 
+      !        about double counting.
+      ! ---------------------------------------------------------------------------------
 
+      litt%leaf_fines_in(pft) = litt%leaf_fines_in(pft) + & 
+           leaf_m_turnover * plant_dens
+
+      flux_diags%leaf_litter_input(pft) = &
+            flux_diags%leaf_litter_input(pft) +  &
+            leaf_m_turnover * currentCohort%n
+      
       root_fines_tot = (fnrt_m_turnover + store_m_turnover ) * &
-           currentCohort%n/currentPatch%area
+            plant_dens
       
       do ilyr = 1, numlevsoil
          litt%root_fines_in(ipft,ilyr) = litt%root_fines_in(ipft,ilyr) + &
               currentCohort%root_fr(ilyr) * root_fines_tot
       end do
       
-      ! ---------------------------------------------------------------------------------
+      flux_diags%root_litter_input(pft) = &
+            flux_diags%root_litter_input(pft) +  &
+            (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
+      
+      
       ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
-      ! ---------------------------------------------------------------------------------
       
       do c = 1,ncwd
          litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
               (sapw_m_turnover + struct_m_turnover) * &
-              SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area * &
+              SF_val_CWD_frac(c) * plant_dens * &
               EDPftvarcon_inst%allom_agb_frac(pft)
-         
+
+         flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+               (struct_m_turnover + sapw_m_turnover) * SF_val_CWD_frac(c) * &
+               EDPftvarcon_inst%allom_agb_frac(pft) * currentCohort%n
+
          bg_cwd_tot = (sapw_m_turnover + struct_m_turnover) * &
-              SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area * &
+              SF_val_CWD_frac(c) * plant_dens * & 
               (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
-         
+
          do ilyr = 1, numlevsoil
             litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + &
                   bg_cwd_tot * currentCohort%root_fr(ilyr)
          end do
          
+         flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
+               bg_cwd_tot*currentPatch%area
+         
+
       enddo
+
+
+      ! ---------------------------------------------------------------------------------
+      ! PART 2 Litter fluxes from non-disturbance inducing  mortality. Kg/m2/day
+      ! ---------------------------------------------------------------------------------
+
+      ! Total number of dead (n/m2/day)
+      dead_n = -1.0_r8 * currentCohort%dndt/currentPatch%area / days_per_year
       
-      ! ---------------------------------------------------------------------------------
-      ! Litter fluxes for non-disturbance inducing  mortality. Kg/m2/day
-      ! ---------------------------------------------------------------------------------
-
-      ! Total number of dead understory (n/m2/day)
-      dead_n = -1.0_r8 * currentCohort%dndt / currentPatch%area / days_per_year
-
       ! Total number of dead understory from direct logging (n/m2/day)
       ! (it is possible that large harvestable trees are in the understory)
       dead_n_dlogging = currentCohort%lmort_direct*currentCohort%n/currentPatch%area
@@ -1373,8 +1408,13 @@ contains
           
       dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
 
-          
+     
       litt%leaf_fines_in(pft) = litt%leaf_fines_in(pft) + leaf_m * dead_n
+
+      flux_diags%leaf_litter_input(pft) = &
+            flux_diags%leaf_litter_input(pft) +  &
+            leaf_m * dead_n*currentPatch%area
+
 
       ! %n has not been updated due to mortality yet, thus
       ! the litter flux has already been counted since it captured
@@ -1387,6 +1427,12 @@ contains
          litt%root_fines_in(pft,ilyr) = litt%root_fines_in(pft,ilyr) + &
               root_fines_tot * currentCohort%root_fr(ilyr)
       end do
+
+      flux_diags%root_litter_input(pft) = &
+            flux_diags%root_litter_input(pft) +  &
+            root_fines_tot*currentPatch%area
+
+
 
       ! Track CWD inputs from mortal plants
       
@@ -1402,6 +1448,10 @@ contains
             litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + &
                   currentCohort%root_fr(ilyr) * bg_cwd_tot
          end do
+
+         flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
+               SF_val_CWD_frac(c) * dead_n * currentPatch%area * &
+               (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
 
          ! The bole of the plant is the last index of the cwd array. So any harvesting
          ! mortality is diverted away from above-ground CWD and sent to harvest
@@ -1419,7 +1469,11 @@ contains
             trunk_product =  (struct_m + sapw_m) * &
                  SF_val_CWD_frac(c) * dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(pft)
             
-            litt%exported = litt%exported + trunk_product
+            site_mass%wood_product = site_mass%wood_product + trunk_product
+            
+            flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
+                  currentPatch%area * EDPftvarcon_inst%allom_agb_frac(pft)
 
          else
 
@@ -1427,6 +1481,10 @@ contains
                  SF_val_CWD_frac(c) * dead_n  * &
                  EDPftvarcon_inst%allom_agb_frac(pft)
 
+            flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+                  SF_val_CWD_frac(c) * dead_n * &
+                  currentPatch%area * EDPftvarcon_inst%allom_agb_frac(pft)
+            
          end if
          
       end do

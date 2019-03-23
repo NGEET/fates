@@ -771,11 +771,12 @@ contains
 
   end subroutine terminate_cohorts
 
-  !-------------------------------------------------------------------------------------!
+  ! =====================================================================================
 
   subroutine SendCohortToLitter(currentSite,currentPatch,currentCohort,nplant)
     
-    ! This simple routine transfers the existing mass in all pools and all elements
+    ! -----------------------------------------------------------------------------------
+    ! This routine transfers the existing mass in all pools and all elements
     ! on a vegetation cohort, into the litter pool.
     ! 
     ! Important: (1) This IS NOT turnover, this is not a partial transfer.
@@ -784,6 +785,10 @@ contains
     !                do not update any PARTEH structures.
     !            (4) The change in plant number density (due to death or termination)
     !                IS NOT handled here.
+    !            (5) This routine is NOT used for disturbance, mostly
+    !                because this routine assumes a cohort lands in its patch
+    !                Whereas the disturbance scheme does NOT assume that.
+    ! -----------------------------------------------------------------------------------
 
     ! Arguments
     type (ed_site_type)   , target  :: currentSite
@@ -793,7 +798,8 @@ contains
                                                   ! of plants to transfer
     
     !
-    type (litter_type), pointer     :: litt       ! Litter object for each element
+    type(litter_type), pointer     :: litt       ! Litter object for each element
+    type(site_fluxdiags_type),pointer :: flux_diags
 
     real(r8) :: leaf_m    ! leaf mass [kg]
     real(r8) :: store_m   ! storage mass [kg]
@@ -801,13 +807,19 @@ contains
     real(r8) :: fnrt_m    ! fineroot mass [kg]
     real(r8) :: repro_m   ! reproductive mass [kg]
     real(r8) :: struct_m  ! structural mass [kg]
+    real(r8) :: plantdens ! plant density [/m2]
     integer  :: el        ! loop index for elements
     integer  :: c         ! loop index for CWD
+    integer  :: pft       ! pft index of the cohort
     integer  :: ilyr      ! loop index for soil layers
     integer  :: nlevsoil  ! number of soil layers
     !----------------------------------------------------------------------
 
     nlevsoil = size(currentPatch%litter(1)%bg_cwd,dim=2)    
+
+    pft = currentCohort%pft
+
+    plantdens = nplant/currentPatch%area
 
     do el=1,num_elements
        
@@ -819,56 +831,49 @@ contains
        repro_m  = currentCohort%prt%GetState(repro_organ, element_list(el))
                 
        litt => currentPatch%litter(el)
+       flux_diags => currentSite%flux_diags(el)
 
        do c=1,ncwd
                    
-          litt%ag_cwd(c) = litt%ag_cwd(c) + nplant/currentPatch%area * &
+          litt%ag_cwd(c) = litt%ag_cwd(c) + plant_dens * &
                (struct_m+sapw_m)  * SF_val_CWD_frac(c) * &
                EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) 
-                   
+            
+          flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+                (struct_m + sapw_m) * SF_val_CWD_frac(c) * &
+                EDPftvarcon_inst%allom_agb_frac(pft) * nplant
+
+       
           do ilyr=1,nlevsoil
-             litt%bg_cwd(c,ilyr) = litt%bg_cwd(c,ilyr) + nplant/currentPatch%area * &
+             litt%bg_cwd(c,ilyr) = litt%bg_cwd(c,ilyr) + plant_dens * &
                   (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
-                  (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+                  (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(pft))
           enddo
+
+          flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
+                (struct_m + sapw_m) * SF_val_CWD_frac(c) * &
+                (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(pft)) * nplant
+
        enddo
        
-       litt%leaf_fines(currentCohort%pft) = litt%leaf_fines(currentCohort%pft) + &
-            nplant/currentPatch%area * (leaf_m + repro_m)
-                
+       litt%leaf_fines(pft) = litt%leaf_fines(pft) + &
+             plant_dens * (leaf_m + repro_m)
+
+       flux_diags%leaf_litter_input(pft) = &
+             flux_diags%leaf_litter_input(pft) +  &
+             (leaf_m+repro_m) * nplant
+       
        do ilyr=1,nlevsoil
-          litt%root_fines(currentCohort%pft,ilyr) = litt%root_fines(currentCohort%pft,ilyr) + &
-               nplant/currentPatch%area * (fnrt_m+store_m)
+           litt%root_fines(pft,ilyr) = litt%root_fines(pft,ilyr) + &
+                 plant_dens * (fnrt_m+store_m)
        end do
-                
        
-       ! Update diagnostics
-       ! -----------------------------------------------------------------------
-       
-       ! keep track of the above fluxes at the site level as 
-       ! a CWD/litter input flux (in kg / site-m2 / yr)
-       
-       do c=1,ncwd
-          currentSite%CWD_AG_diagnostic_input_flux(c)  = currentSite%CWD_AG_diagnostic_input_flux(c) &
-               + nplant*(struct_m + sapw_m) * SF_val_CWD_frac(c) * &
-               EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * hlm_days_per_year / AREA
-          
-          currentSite%CWD_BG_diagnostic_input_flux(c)  = currentSite%CWD_BG_diagnostic_input_flux(c) &
-               + nplant*(struct_m + sapw_m) * SF_val_CWD_frac(c) * &
-               (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))  * hlm_days_per_year / AREA
-       enddo
-                
-                
-       currentSite%leaf_litter_diagnostic_input_flux(currentCohort%pft) = &
-            currentSite%leaf_litter_diagnostic_input_flux(currentCohort%pft) +  &
-            nplant * leaf_m * hlm_days_per_year  / AREA
-       
-       currentSite%root_litter_diagnostic_input_flux(currentCohort%pft) = &
-            currentSite%root_litter_diagnostic_input_flux(currentCohort%pft) + &
-            nplant * (fnrt_m + store_m) * hlm_days_per_year  / AREA
+       flux_diags%root_litter_input(pft) = &
+             flux_diags%root_litter_input(pft) +  &
+             (fnrt_m+store_m) * nplant
+             
        
     end do
-    
     
     return
   end subroutine SendCohortToLitter

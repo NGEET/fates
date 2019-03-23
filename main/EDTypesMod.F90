@@ -543,24 +543,31 @@ module EDTypesMod
   
   end type ed_resources_management_type
 
+  ! =====================================================================================
 
-  type site_fluxdiagnostics_type
+  type site_fluxdiags_type
 
-     ! some diagnostic-only (i.e. not resolved by ODE solver) flux of 
-     ! total biomass
-     ! to CWD and litter pools from termination and canopy mortality
-     
-     real(r8) :: CWD_AG_diagnostic_input_flux(1:ncwd)        ! diagnostic flux to AG CWD [kg / m2 / yr]
-     real(r8) :: CWD_BG_diagnostic_input_flux(1:ncwd)        ! diagnostic flux to BG CWD [kg / m2 / yr]
-     real(r8) :: leaf_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to AG litter [kg / m2 / yr]
-     real(r8) :: root_litter_diagnostic_input_flux(1:maxpft) ! diagnostic flux to BG litter [kg / m2 / yr]
+     ! ----------------------------------------------------------------------------------
+     ! Diagnostics for fluxes into the litter pool from plants
+     ! these fluxes are the total from 
+     ! (1) turnover from living plants
+     ! (2) mass transfer from non-disturbance inducing mortality events
+     ! (3) mass transfer from disturbance inducing mortality events
+     ! [kg / ha / day]
+     ! ---------------------------------------------------------------------------------
+
+     real(r8) :: cwd_ag_input(1:ncwd)               
+     real(r8) :: cwd_bg_input(1:ncwd)               
+     real(r8),allocatable :: leaf_litter_input(:)
+     real(r8),allocatable :: root_litter_input(:)
      
    contains
 
-     procedure :: ZeroFluxDiagnostics
+     procedure :: ZeroFluxDiags
      
-  end type site_fluxdiagnostics_type
+ end type site_fluxdiags_type
 
+  ! ====================================================================================
 
   type site_masscheck_type
 
@@ -622,9 +629,8 @@ module EDTypesMod
 
      real(r8) :: fragmentation_out     !
 
-     real(r8) ;; wood_product          ! Total mass exported as wood product [kg/site/day]
+     real(r8) :: wood_product          ! Total mass exported as wood product [kg/site/day]
      real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
-     real(r8) :: product_flux       ! Total mass exported for things like harvesting [kg/site/day]
 
 
    contains
@@ -665,7 +671,7 @@ module EDTypesMod
 
      ! Flux diagnostics (allocation for each element)
 
-     type(site_fluxdiagnostics_type), pointer :: flux_diags(:)
+     type(site_fluxdiags_type), pointer :: flux_diags(:)
 
 
      real(r8) :: npp                ! used for calculating NEP and NBP during BGC summarization phase
@@ -753,12 +759,12 @@ module EDTypesMod
 
     subroutine ZeroFluxDiagnostics(this)
       
-      class(site_fluxdiagnostics_type) :: this
+      class(site_fluxdiags_type) :: this
       
-      this%cwd_ag_diagnostic_input_flux(:) = 0._r8
-      this%cwd_bg_diagnostic_input_flux(:) = 0._r8
-      this%leaf_litter_diagnostic_input_flux(:) = 0._r8
-      this%root_litter_diagnostic_input_flux(:) = 0._r8
+      this%cwd_ag_input(:)      = 0._r8
+      this%cwd_bg_input(:)      = 0._r8
+      this%leaf_litter_input(:) = 0._r8
+      this%root_litter_input(:) = 0._r8
       
       return
     end subroutine ZeroFluxDiagnostics

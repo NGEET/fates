@@ -408,7 +408,7 @@ contains
             new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
                   SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
 
-            new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
+            cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
                   SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
             
             do ilyr = 1,nlevsoil
@@ -472,7 +472,7 @@ contains
 
 
             ! This is for checking the total mass balance [kg/site/day]
-            site_mass%product_flux = site_mass%product_flux + ag_wood
+            site_mass%wood_product = site_mass%wood_product + ag_wood
             
             ! ---------------------------------------------------------------------------
             ! Handle fluxes of leaf, root and storage carbon into litter pools. 
