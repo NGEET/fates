@@ -32,6 +32,13 @@ module FatesIOVariableKindMod
   character(*), parameter :: site_scagpft_r8 = 'SI_SCAGPFT_R8'
   character(*), parameter :: site_agepft_r8 = 'SI_AGEPFT_R8'
 
+  ! Element, and multiplexed element dimensions
+  character(*), parameter :: site_elem_r8  = 'SI_ELEM_R8'
+  character(*), parameter :: site_elpft_r8 = 'SI_ELEMPFT_R8'
+  character(*), parameter :: site_elcwd_r8 = 'SI_ELEMCWD_R8'
+  character(*), parameter :: site_ageel_r8 = 'SI_ELEMAGE_R8'
+
+
   ! NOTE(RGK, 2016) %active is not used yet. Was intended as a check on the HLM->FATES
   ! control parameter passing to ensure all active dimension types received all
   ! dimensioning specifications from the host, but we currently arent using those

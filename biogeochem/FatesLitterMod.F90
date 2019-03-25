@@ -32,6 +32,8 @@ module FatesLittMod
    ! 7) In SFMain, make the indexing consistent with Jackie's changes
    ! 8) In CWD_IN, add the flux diagnostics, then remove the
    !    patch level rate in the history code
+   ! 9) Add litter_flux_output to the flux_diags, add it to history
+   ! 10) Add termination fluxes to the flux_diags array as well
    
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : i4 => fates_int

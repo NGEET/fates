@@ -342,10 +342,6 @@ contains
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
-    real(r8) :: root_litter_local(maxpft)    ! initial value of root litter. KgC/m2
-    real(r8) :: leaf_litter_local(maxpft)    ! initial value of leaf litter. KgC/m2
-    real(r8) :: cwd_ag_local(ncwd)           ! initial value of above ground coarse woody debris. KgC/m2
-    real(r8) :: cwd_bg_local(ncwd)           ! initial value of below ground coarse woody debris. KgC/m2
     integer  :: levcan                       ! canopy level
     real(r8) :: leaf_c                       ! leaf carbon [kg]
     real(r8) :: fnrt_c                       ! fineroot carbon [kg]
@@ -1088,8 +1084,8 @@ contains
     real(r8) :: remainder_area       ! current patch's remaining area after donation [m2]
     real(r8) :: donate_frac          ! the fraction of litter mass sent to the new patch
     real(r8) :: retain_frac          ! the fraction of litter mass retained by the donor patch
-    real(r8) :: bcroot               ! amount of below ground coarse root per cohort kg. (goes into CWD_BG)
-    real(r8) :: bstem                ! amount of above ground stem biomass per cohort kg.(goes into CWG_AG)
+    real(r8) :: bcroot               ! amount of below ground coarse root per cohort kg
+    real(r8) :: bstem                ! amount of above ground stem biomass per cohort kg
     real(r8) :: burned_leaves        ! amount of tissue consumed by fire for leaves. KgC/individual/day
     real(r8) :: leaf_burn_frac       ! fraction of leaves burned 
     real(r8) :: leaf_m               ! leaf mass [kg]
@@ -1097,6 +1093,7 @@ contains
     real(r8) :: sapw_m               ! sapwood mass [kg]
     real(r8) :: store_m              ! storage mass [kg]
     real(r8) :: struct_m             ! structure mass [kg]
+    real(r8) :: repro_m              ! Reproductive mass (seeds/flowers) [kg]
     real(r8) :: num_dead_trees       ! total number of dead trees passed in with the burn area
     real(r8) :: num_live_trees       ! total number of live trees passed in with the burn area
     integer  :: c                    ! loop index for coarse woody debris pools
@@ -1138,12 +1135,13 @@ contains
     
     nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
     
-    do il = 1,num_elements
+    do el = 1,num_elements
        
-       element_id = element_list(il)
-       site_mass => currentSite%mass_balance(il)
-       cur_litt  => currentPatch%litter(il)   ! Litter pool of "current" patch
-       new_litt  => newPatch%litter(il)       ! Litter pool of "new" patch
+       element_id = element_list(el)
+       site_mass  => currentSite%mass_balance(el)
+       flux_diags => currentSite%flux_diags(el)
+       cur_litt   => currentPatch%litter(el)   ! Litter pool of "current" patch
+       new_litt   => newPatch%litter(el)       ! Litter pool of "new" patch
        
        ! -----------------------------------------------------------------------------
        ! PART 1) Handle mass fluxes associated with plants that died in the fire. This
@@ -1168,6 +1166,7 @@ contains
              leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
              fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
              store_m  = currentCohort%prt%GetState(store_organ, element_id)
+             repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
              
              ! stem biomass per tree
              bstem  = (sapw_m + struct_m) * EDPftvarcon_inst%allom_agb_frac(pft)
@@ -1180,9 +1179,9 @@ contains
                                patch_site_areadis/currentPatch%area)
 
              ! Contribution of dead trees to leaf litter and leaf burn-flux
-             donatable_mass = num_dead_trees * leaf_m * &
+             donatable_mass = num_dead_trees * (leaf_m+repro_m) * &
                               (1.0_r8-currentCohort%fraction_crown_burned)
-             burned_mass  = num_dead_trees * leaf_m * currentCohort%fraction_crown_burned
+             burned_mass  = num_dead_trees * (leaf_m+repro_m) * currentCohort%fraction_crown_burned
              
              new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
                                         donatable_mass*donate_frac/newPatch%area
@@ -1201,14 +1200,13 @@ contains
              end do
 
              ! Track as diagnostic fluxes
-             currentSite%leaf_litter_diagnostic_input_flux(pft) = &
-                   currentSite%leaf_litter_diagnostic_input_flux(pft) + &
-                   num_dead_trees * leaf_m * (1.0_r8-currentCohort%fraction_crown_burned) * &
-                   hlm_days_per_year / area_site
+             flux_diags%leaf_litter_input(pft) = &
+                  flux_diags%leaf_litter_input(pft) + &
+                  num_dead_trees * (leaf_m+repro_m) * (1.0_r8-currentCohort%fraction_crown_burned)
 
-             currentSite%root_litter_diagnostic_input_flux(p) = &
-                   currentSite%root_litter_diagnostic_input_flux(p) + &
-                   (fnrt_m + store_m) * num_dead_trees * hlm_days_per_year / area_site
+             flux_diags%root_litter_input(pft) = &
+                  flux_diags%root_litter_input(pft) + &
+                  (fnrt_m + store_m) * num_dead_trees
 
       
              ! below ground coarse woody debris from burned trees
@@ -1222,9 +1220,9 @@ contains
                          donatable_mass * retain_frac/remainder_area
 
                    ! track diagnostics
-                   currentSite%CWD_BG_diagnostic_input_flux(c) = &
-                         currentSite%CWD_BG_diagnostic_input_flux(c) + &
-                         donatable_mass * hlm_days_per_year / area_site
+                   flux_diags%cwd_bg_input(c) = &
+                         flux_diags%cwd_bg_input(c) + &
+                         donatable_mass
                 enddo
              end do
              
@@ -1243,9 +1241,8 @@ contains
                       retain_frac/remainder_area
                 
                 ! track as diagnostic fluxes
-                currentSite%CWD_AG_diagnostic_input_flux(c) = &
-                      currentSite%CWD_AG_diagnostic_input_flux(c) + &
-                      donatable_mass *  hlm_days_per_year / area_site
+                flux_diags%cwd_ag_input(c) = &
+                     flux_diags%cwd_ag_input(c) + donatable_mass
                 
                 site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
@@ -1261,9 +1258,8 @@ contains
                       retain_frac/remainder_area
 
                 ! track as diagnostic fluxes
-                currentSite%CWD_AG_diagnostic_input_flux(c) = &
-                      currentSite%CWD_AG_diagnostic_input_flux(c) + &
-                      donatable_mass *  hlm_days_per_year / area_site
+                flux_diags%cwd_ag_input(c) = &
+                     flux_diags%cwd_ag_input(c) + donatable_mass
              enddo
              
 
@@ -1303,7 +1299,7 @@ contains
              
              ! We remove all elements from burning the plant in the same proportion
              ! so we only call this for one of the elements (use carbon)
-             if(element_id(il).eq.carbon12_element) then
+             if(element_id(el).eq.carbon12_element) then
                 call PRTBurnLosses(currentCohort%prt, leaf_organ, leaf_burn_frac)
              end if
              
@@ -1359,6 +1355,7 @@ contains
     real(r8) :: sapw_m               ! sapwood mass [kg]
     real(r8) :: store_m              ! storage mass [kg]
     real(r8) :: struct_m             ! structure mass [kg]
+    real(r8) :: repro_m              ! reproductive mass [kg]
     real(r8) :: retain_frac          ! Fraction of mass to be retained
     real(r8) :: donate_frac          ! Fraction of mass to be donated
     real(r8) :: ag_wood              ! Total above ground mass in wood [kg]
@@ -1366,7 +1363,7 @@ contains
     real(r8) :: seed_mass            ! Total seed mass generated from storage death [kg]
     integer  :: pft                  ! plant functional type index
     integer  :: c                    ! coarse woody debris pool index
-    integer  :: il                   ! element loop index
+    integer  :: el                   ! element loop index
     integer  :: nlevsoil             ! number of soil layers
     integer  :: ilyr                 ! soil layer index
     integer  :: element_id           ! parteh compatible global element index
@@ -1376,12 +1373,13 @@ contains
 
     nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
     
-    do il = 1,num_elements
+    do el = 1,num_elements
        
-       element_id = element_list(il)
-       site_mass => currentSite%mass_balance(il)
-       cur_litt  => currentPatch%litter(il)   ! Litter pool of "current" patch
-       new_litt  => newPatch%litter(il)       ! Litter pool of "new" patch
+       element_id = element_list(el)
+       site_mass  => currentSite%mass_balance(el)
+       flux_diags => currentSite%flux_diags(el)
+       cur_litt   => currentPatch%litter(el)   ! Litter pool of "current" patch
+       new_litt   => newPatch%litter(el)       ! Litter pool of "new" patch
 
        ! -----------------------------------------------------------------------------
        ! Part 1: Send parts of dying plants to the litter pool.
@@ -1403,6 +1401,7 @@ contains
           leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
           fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
           store_m  = currentCohort%prt%GetState(store_organ, element_id)
+          repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
 
           if(currentCohort%canopy_layer == 1)then         
 
@@ -1431,16 +1430,16 @@ contains
 
           ! Update water balance by removing dead plant water
           ! but only do this once (use the carbon element id)
-          if(element_id(il).eq.carbon12_element .and. 
+          if(element_id(el).eq.carbon12_element .and. 
              hlm_use_planthydro == itrue ) then
              call AccumulateMortalityWaterStorage(currentSite,currentCohort, num_dead)
           end if
                           
-          ! Transfer leaves of dying trees to leaf litter
+          ! Transfer leaves of dying trees to leaf litter (includes seeds too)
           new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
-                num_dead*leaf_m*donate_frac/newPatch%area
+                num_dead*(leaf_m+repro_m)*donate_frac/newPatch%area
           cur_litt%leaf_fines(pft) = cur_litt%leaf_fines(pft) + &
-                num_dead*leaf_m*retain_frac/remainder_area
+                num_dead*(leaf_m+repro_m)*retain_frac/remainder_area
 
           ! Pre-calculate Structural and sapwood, below and above ground, total mass [kg]
           ag_wood = num_dead * (struct_m + sapw_m) * EDPftvarcon_inst%allom_agb_frac(pft)
@@ -1491,22 +1490,19 @@ contains
           
           ! track diagnostic fluxes
           do c=1,ncwd
-             currentSite%CWD_AG_diagnostic_input_flux(c) = &
-                   currentSite%CWD_AG_diagnostic_input_flux(c) + &
-                   SF_val_CWD_frac(c) * ag_wood * hlm_days_per_year / area_site
+             flux_diags%cwd_ag_input(c) = & 
+                  flux_diags%cwd_ag_input(c) + SF_val_CWD_frac(c) * ag_wood
              
-             currentSite%CWD_BG_diagnostic_input_flux(c) = &
-                   currentSite%CWD_BG_diagnostic_input_flux(c) + &
-                   SF_val_CWD_frac(c) * bg_wood * hlm_days_per_year / area_site
+             flux_diags%cwd_bg_input(c) = &
+                  flux_diags%cwd_bg_input(c) + SF_val_CWD_frac(c) * bg_wood
           end do
-          currentSite%leaf_litter_diagnostic_input_flux(pft) = &
-                currentSite%leaf_litter_diagnostic_input_flux(pft) + &
-                num_dead*leaf_m* hlm_days_per_year / area_site
-          currentSite%root_litter_diagnostic_input_flux(pft) = &
-                currentSite%root_litter_diagnostic_input_flux(pft) + &
-                num_dead * (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * & 
-                hlm_days_per_year /area_site
-         
+
+          flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + &
+               num_dead*(leaf_m + repro_m)
+
+          flux_diags%root_litter_input(pft) = flux_diags%root_litter_input(pft) + & 
+               num_dead * (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft)))
+          
 
           
           currentCohort => currentCohort%taller      
@@ -1551,9 +1547,9 @@ contains
 
     allocate(new_patch%litter(num_elements))
 
-    do il=1,num_elements
-       new_patch%litter(il)%InitAllocate(numpft,numlevsoil)
-       new_patch%litter(il)%ZeroFlux()
+    do el=1,num_elements
+       new_patch%litter(el)%InitAllocate(numpft,numlevsoil)
+       new_patch%litter(el)%ZeroFlux()
     end do
 
     call zero_patch(new_patch) !The nan value in here is not working??
@@ -1923,7 +1919,7 @@ contains
     type (ed_cohort_type), pointer :: storebigcohort  
     integer                        :: c,p          !counters for pft and litter size class. 
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
-    integer                        :: il           ! loop counting index for elements
+    integer                        :: el           ! loop counting index for elements
     type(ed_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
     type(ed_patch_type), pointer   :: olderp       ! pointer to the patch older than donor
     real(r8)                       :: inv_sum_area ! Inverse of the sum of the two patches areas
@@ -1937,8 +1933,8 @@ contains
 
     rp%age_class = get_age_class_index(rp%age)
     
-    do il = 1,num_elements
-       call rp%litter(il)%FuseLitter(rp%area,dp%area,dp%litter(il),nlevsoil)
+    do el = 1,num_elements
+       call rp%litter(el)%FuseLitter(rp%area,dp%area,dp%litter(el),nlevsoil)
     end do
 
     
@@ -2149,7 +2145,7 @@ contains
 
     type(ed_cohort_type), pointer :: ccohort  ! current
     type(ed_cohort_type), pointer :: ncohort  ! next
-    integer                       :: il       ! loop counter for elements
+    integer                       :: el       ! loop counter for elements
     
     ! First Deallocate the cohort space
     ! -----------------------------------------------------------------------------------
@@ -2165,8 +2161,8 @@ contains
     end do
 
     
-    do il=1,num_elements
-       call cpatch%litter(il)%DeallocateLitt()
+    do el=1,num_elements
+       call cpatch%litter(el)%DeallocateLitt()
     end do
     deallocate(cpatch%litter)
 

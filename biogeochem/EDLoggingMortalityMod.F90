@@ -250,6 +250,8 @@ contains
 
       !LOCAL VARIABLES:
       type(ed_cohort_type), pointer :: currentCohort
+      type(site_masscheck_type), pointer :: site_mass
+      type(site_fluxdiags_type), pointer :: flux_diags
 
       real(r8) :: direct_dead         ! Mortality count through direct logging
       real(r8) :: indirect_dead       ! Mortality count through: impacts, infrastructure and collateral damage
@@ -268,12 +270,13 @@ contains
       real(r8) :: sapw_m              ! sapwood element mass [kg]
       real(r8) :: store_m             ! storage element mass [kg]
       real(r8) :: struct_m            ! structure element mass [kg]
+      real(r8) :: repro_m             ! reproductive mass [kg]
       integer  :: element_id          ! parteh global element index
       integer  :: pft                 ! pft index
       integer  :: c                   ! cwd index
       integer  :: nlevsoil            ! number of soil layers
-      integer  :: ilyr
-      integer  :: il
+      integer  :: ilyr                ! soil layer loop index
+      integer  :: el                  ! elemend loop index
 
 
       nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
@@ -293,13 +296,15 @@ contains
             remainder_area/(newPatch%area+remainder_area)
       donate_frac = 1.0_r8-retain_frac
 
-      do il = 1,num_elements
+      do el = 1,num_elements
          
-         element_id = element_list(il)
-         site_mass => currentSite%mass_balance(il)
-         cur_litt  => currentPatch%litter(il)   ! Litter pool of "current" patch
-         new_litt  => newPatch%litter(il)       ! Litter pool of "new" patch
+         element_id = element_list(el)
+         site_mass => currentSite%mass_balance(el)
+         flux_diags=> currentSite%flux_diags(el)
+         cur_litt  => currentPatch%litter(el)   ! Litter pool of "current" patch
+         new_litt  => newPatch%litter(el)       ! Litter pool of "new" patch
          
+
          ! Zero some site level accumulator diagnsotics
          trunk_product_site  = 0.0_r8
          delta_litter_stock  = 0.0_r8
@@ -319,6 +324,7 @@ contains
             leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
             fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
             store_m  = currentCohort%prt%GetState(store_organ, element_id)
+            repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
          
             if(currentCohort%canopy_layer == 1)then         
                direct_dead   = currentCohort%n * currentCohort%lmort_direct
@@ -378,13 +384,11 @@ contains
 
                
                ! Diagnostics on fluxes into the AG and BG CWD pools
-               currentSite%CWD_AG_diagnostic_input_flux(c) =       &
-                     currentSite%CWD_AG_diagnostic_input_flux(c) + &
-                     SF_val_CWD_frac(c) * ag_wood * hlm_days_per_year / area_site 
+               flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + & 
+                    SF_val_CWD_frac(c) * ag_wood
                
-               currentSite%CWD_BG_diagnostic_input_flux(c) =       &
-                     currentSite%CWD_BG_diagnostic_input_flux(c) + &
-                     SF_val_CWD_frac(c) * bg_wood * hlm_days_per_year / area_site
+               flux_diags%cwd_bg_input(c) = flux_diags%cwd_bg_input(c) + & 
+                    SF_val_CWD_frac(c) * bg_wood
             
                ! Diagnostic specific to resource management code
                delta_litter_stock  = delta_litter_stock  + (ag_wood + bg_wood) * SF_val_CWD_frac(c)
@@ -423,13 +427,11 @@ contains
 
             end do
 
-            currentSite%CWD_AG_diagnostic_input_flux(ncwd) =       &
-                  currentSite%CWD_AG_diagnostic_input_flux(ncwd) + &
-                  SF_val_CWD_frac(ncwd) * ag_wood * hlm_days_per_year / area_site 
+            flux_diags%cwd_ag_input(ncwd) = flux_diags%cwd_ag_input(ncwd) + & 
+                 SF_val_CWD_frac(ncwd) * ag_wood
             
-            currentSite%CWD_BG_diagnostic_input_flux(ncwd) =       &
-                  currentSite%CWD_BG_diagnostic_input_flux(ncwd) + &
-                  SF_val_CWD_frac(ncwd) * bg_wood * hlm_days_per_year / area_site
+            flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + & 
+                 SF_val_CWD_frac(ncwd) * bg_wood
 
             delta_litter_stock  = delta_litter_stock + (ag_wood+bg_wood) * SF_val_CWD_frac(ncwd)
             
@@ -449,10 +451,9 @@ contains
                      bg_wood * currentCohort%root_fr(ilyr) * &
                      retain_frac/remainder_area
             end do
-
-            currentSite%CWD_BG_diagnostic_input_flux(ncwd) =       &
-                  currentSite%CWD_BG_diagnostic_input_flux(ncwd) + &
-                  bg_wood * hlm_days_per_year / area_site            
+            
+            flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + &
+                 bg_wood
             
             ! ----------------------------------------------------------------------------------------
             ! Handle harvest (export, flux-out) flux for the above ground boles 
@@ -470,7 +471,6 @@ contains
 
             trunk_product_site = trunk_product_site + ag_wood
 
-
             ! This is for checking the total mass balance [kg/site/day]
             site_mass%wood_product = site_mass%wood_product + ag_wood
             
@@ -479,7 +479,7 @@ contains
             !  (none of these are exported)
             ! ---------------------------------------------------------------------------
             
-            leaf_litter = (direct_dead+indirect_dead)*leaf_m
+            leaf_litter = (direct_dead+indirect_dead)*(leaf_m + repro_m)
             root_litter = (direct_dead+indirect_dead)*(fnrt_m + store_m)
 
             new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
@@ -499,13 +499,11 @@ contains
             end do
          
             ! track as diagnostic fluxes
-            currentSite%leaf_litter_diagnostic_input_flux(pft) =       &
-                  currentSite%leaf_litter_diagnostic_input_flux(pft) + &
-                  leaf_litter * hlm_days_per_year / area_site
+            flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + & 
+                 leaf_litter
             
-            currentSite%root_litter_diagnostic_input_flux(pft) =       &
-                  currentSite%root_litter_diagnostic_input_flux(pft) + &
-                  root_litter * hlm_days_per_year / area_site
+            flux_diags%root_litter_input(pft) = flux_diags%root_litter_input(pft) + & 
+                 root_litter
             
             ! Logging specific diagnostics
             ! ----------------------------------------------------------------------------------------

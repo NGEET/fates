@@ -24,6 +24,11 @@ module FatesIODimensionsMod
     character(*), parameter :: levcan = 'fates_levcan'        ! matches histFileMod
     character(*), parameter :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
     character(*), parameter :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
+    
+    character(*), parameter :: levelem = 'fates_levelem'
+    character(*), parameter :: levelpft = 'fates_levelpft'
+    character(*), parameter :: levelcwd = 'fates_levelcwd'
+    character(*), parameter :: levelage = 'fates_levelage'
 
     ! patch = This is a structure that records where FATES patch boundaries
     ! on each thread point to in the host IO array, this structure
@@ -76,6 +81,12 @@ module FatesIODimensionsMod
     ! number of patch age x pft
 
 
+    ! levelem  = This records the boundaries for the number of elements
+    ! levelpft = This records the boundaries for elements x pft
+    ! levelcwd = This records the boundaries for element x cwd
+    ! levelage = This records the boundaries for element x age
+
+
     type, public :: fates_bounds_type
        integer :: patch_begin
        integer :: patch_end
@@ -111,6 +122,14 @@ module FatesIODimensionsMod
        integer :: cnlf_end
        integer :: cnlfpft_begin
        integer :: cnlfpft_end
+       integer :: elem_begin
+       integer :: elem_end
+       integer :: elpft_begin
+       integer :: elpft_end
+       integer :: elcwd_begin
+       integer :: elcwd_end
+       integer :: elage_begin
+       integer :: elage_end
     end type fates_bounds_type
     
 
