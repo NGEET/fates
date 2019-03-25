@@ -253,7 +253,7 @@ module FatesInterfaceMod
    integer, protected :: nlevsclass    ! The total number of cohort size class bins output to history
    integer, protected :: nlevage       ! The total number of patch age bins output to history
    integer, protected :: nlevheight    ! The total number of height bins output to history
-   integer, protected :: nleafage      ! The total number of leaf age classes
+   integer, public, protected :: nleafage      ! The total number of leaf age classes
 
    ! -------------------------------------------------------------------------------------
    ! Structured Boundary Conditions (SITE/PATCH SCALE)

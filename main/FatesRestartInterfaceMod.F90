@@ -1267,8 +1267,8 @@ contains
     ! and pulls from the different associated restart variables
     
     class(fates_restart_interface_type) , intent(inout) :: this
-    real(r8),intent(inout) :: state_vector(len_state_vector)
     integer,intent(in)     :: len_state_vector
+    real(r8),intent(inout) :: state_vector(len_state_vector)
     integer,intent(in)     :: variable_index_base
     integer,intent(in)     :: co_global_index
     
@@ -1292,8 +1292,8 @@ contains
     ! and pushes into the restart arrays the different associated restart variables
     
     class(fates_restart_interface_type) , intent(inout) :: this
-    real(r8),intent(in)  :: state_vector(len_state_vector)
     integer,intent(in)   :: len_state_vector
+    real(r8),intent(in)  :: state_vector(len_state_vector)
     integer,intent(in)   :: variable_index_base
     integer,intent(in)   :: co_global_index
     
