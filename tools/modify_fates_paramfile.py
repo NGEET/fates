@@ -103,6 +103,13 @@ def main():
             length_specified = len(outputval)
             if length_specified != otherdimlength:
                 ### ok, we find ourselves in the situation where we need to rewrite the netcdf from scratch with its revised shape.
+                #
+                # first lets chech to make sure the dimension we are changing can be changed without breaking things.
+                plastic_dimensions_list = ['fates_history_age_bins','fates_history_size_bins','fates_history_height_bins','fates_leafage_class']
+                if otherdimname not in plastic_dimensions_list:
+                    raise ValueError('asking to change the shape of a dimension, '+otherdimname+', that will probably break things')
+                else:
+                    print('WARNING: we need to change the dimension of '+otherdimname)
                 ### close the file that's open and start over.
                 ncfile.close()
                 os.remove(tempfilename)
@@ -143,15 +150,19 @@ def main():
                         else:
                             if len(variable.dimensions) == 1:
                                 if length_specified > otherdimlength:
+                                    print('WARNING: Variable '+name+' has a dimension that has been reshaped. New length is longer than old, so its been filled in with zeros.')
                                     x[0:otherdimlength] = variable[0:otherdimlength]
                                     x[otherdimlength:length_specified] = 0
                                 else:
+                                    print('WARNING: Variable '+name+' has a dimension that has been reshaped. New length is shorter than old, so its been truncated.')
                                     x[0:length_specified] = variable[0:length_specified]
                             elif len(variable.dimensions) == 2:
                                 if length_specified > otherdimlength:
+                                    print('WARNING: Variable '+name+' has a dimension that has been reshaped. New length is longer than old, so its been filled in with zeros.')
                                     x[0:otherdimlength,:] = variable[0:otherdimlength,:]
                                     x[otherdimlength:length_specified,:] = 0
                                 else:
+                                    print('WARNING: Variable '+name+' has a dimension that has been reshaped. New length is shorter than old, so its been truncated.')
                                     x[0:length_specified,:] = variable[0:length_specified,:]
                     else:
                         x.assignValue(float(variable.data))
