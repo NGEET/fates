@@ -1382,7 +1382,8 @@ end subroutine flush_hvars
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
-    integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for time-since-anthropogenic-disturbance of secondary forest
+    integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
+                                           ! time-since-anthropogenic-disturbance of secondary forest
     
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -3440,12 +3441,14 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_biomass_secondary_forest_si )
 
     call this%set_history_var(vname='SECONDARY_AREA_AGE_ANTHRO_DIST', units='m2/m2', &
-         long='Secondary forest patch area age distribution since anthropgenic disturbance', use_default='inactive', &
+         long='Secondary forest patch area age distribution since anthropgenic disturbance', &
+         use_default='inactive', &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_agesince_anthrodist_si_age )
 
     call this%set_history_var(vname='SECONDARY_AREA_PATCH_AGE_DIST', units='m2/m2', &
-         long='Secondary forest patch area age distribution since any kind of disturbance', use_default='inactive', &
+         long='Secondary forest patch area age distribution since any kind of disturbance', &
+         use_default='inactive', &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_secondaryforest_area_si_age )
 

@@ -17,7 +17,8 @@ module EDTypesMod
   save
 
   integer, parameter :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
-  integer, parameter :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
+  integer, parameter :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
+                                                     (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
   integer, parameter :: maxCohortsPerPatch = 100  ! maximum number of cohorts per patch
   
   integer, parameter :: nclmax = 3                ! Maximum number of canopy layers

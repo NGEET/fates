@@ -435,11 +435,6 @@ contains
           
           if (patch_site_areadis > nearzero ) then
 
-             allocate(nc)
-             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
-             call InitPRTCohort(nc)
-             call zero_cohort(nc)
-
              ! figure out whether the receiver patch for disturbance from this patch will be primary or secondary land
              ! receiver patch is primary forest only if both the donor patch is primary forest and the dominant disturbance type is not logging
              if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &

@@ -161,7 +161,10 @@ contains
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
-      real(r8), intent(out) :: l_degrad         ! fraction of trees that are not killed but suffer from forest degradation (i.e. they are moved to newly-anthro-disturbed secondary forest patch)
+      real(r8), intent(out) :: l_degrad         ! fraction of trees that are not killed
+                                                ! but suffer from forest degradation (i.e. they
+                                                ! are moved to newly-anthro-disturbed secondary
+                                                ! forest patch)
 
       ! Parameters
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates

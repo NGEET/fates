@@ -289,7 +289,8 @@ contains
 
        ! add age increment to secondary forest patches as well
        if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
-          currentPatch%age_since_anthro_disturbance = currentPatch%age_since_anthro_disturbance + hlm_freq_day
+          currentPatch%age_since_anthro_disturbance = &
+               currentPatch%age_since_anthro_disturbance + hlm_freq_day
        endif
 
        ! check to see if the patch has moved to the next age class
@@ -404,8 +405,10 @@ contains
        enddo
 
        do ft = 1,numpft
-          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* hlm_freq_day
-          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* hlm_freq_day
+          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + &
+               currentPatch%dleaf_litter_dt(ft)* hlm_freq_day
+          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + &
+               currentPatch%droot_litter_dt(ft)* hlm_freq_day
        enddo
 
        do c = 1,ncwd
