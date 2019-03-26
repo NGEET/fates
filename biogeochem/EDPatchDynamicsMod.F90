@@ -1875,10 +1875,15 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     type(ed_patch_type), pointer :: olderPatch
     type(ed_patch_type), pointer :: youngerPatch
+    integer, parameter           :: max_cycles = 10  ! After 10 loops through
+                                                     ! You should had fused
+    integer                      :: count_cycles
 
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
     !---------------------------------------------------------------------
  
+    count_cycles = 0
+
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
        
@@ -1889,15 +1894,10 @@ contains
           ! a discrete patch for very young patches
           ! However, if the patch to be fused is excessivlely small, then fuse
           ! at all costs.  If it is not fused, it will make
-          if ( currentPatch%area <= min_patch_area_forced ) &
-               write(fates_log(),*) 'small area: ',currentPatch%area,currentSite%lat,currentSite%lon
 
           if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
                currentPatch%area <= min_patch_area_forced ) then
              
-             if ( currentPatch%area <= min_patch_area_forced ) &
-                  write(fates_log(),*) 'small area(2): ',currentPatch%area,currentSite%lat,currentSite%lon
-
              if(associated(currentPatch%older) )then
                 
                 if(debug) &
@@ -1905,17 +1905,11 @@ contains
                      currentPatch%area, &
                      currentPatch%older%area
                 
-                if ( currentPatch%area <= min_patch_area_forced ) &
-                     write(fates_log(),*) 'small area(3): ',currentPatch%area,currentSite%lat,currentSite%lon
-
                 ! We set a pointer to this patch, because
                 ! it will be returned by the subroutine as de-referenced
                 
                 olderPatch => currentPatch%older
                 call fuse_2_patches(currentSite, olderPatch, currentPatch)
-                
-                if ( currentPatch%area <= min_patch_area_forced ) &
-                     write(fates_log(),*) 'small area(4): ',currentPatch%area,currentSite%lat,currentSite%lon
                 
                 ! The fusion process has updated the "older" pointer on currentPatch
                 ! for us.
@@ -1928,16 +1922,10 @@ contains
                 if(debug) &
                       write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
                       currentPatch%area
-                
-                if ( currentPatch%area <= min_patch_area_forced ) &
-                     write(fates_log(),*) 'small area(5): ',currentPatch%area,currentSite%lat,currentSite%lon
 
                 youngerPatch => currentPatch%younger
                 call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                 
-                if ( currentPatch%area <= min_patch_area_forced ) &
-                     write(fates_log(),*) 'small area(6): ',currentPatch%area,currentSite%lat,currentSite%lon
-
                 ! The fusion process has updated the "younger" pointer on currentPatch
                 
              endif
@@ -1953,7 +1941,28 @@ contains
 
        if(currentPatch%area > min_patch_area_forced)then
           currentPatch => currentPatch%older
+          count_cycles = 0
+       else
+          count_cycles = count_cycles + 1
        end if
+
+       if(count_cycles > max_cycles) then
+          write(fates_log(),*) 'FATES is having difficulties fusing very small patches.'
+          write(fates_log(),*) 'It is possible that a either a secondary or primary'
+          write(fates_log(),*) 'patch has become the only patch of its kind, and it is'
+          write(fates_log(),*) 'is very very small. You can test your luck by'
+          write(fates_log(),*) 'disabling the endrun statement following this message.'
+          write(fates_log(),*) 'FATES may or may not continue to operate within error'
+          write(fates_log(),*) 'tolerances, but will generate another fail if it does not.' 
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+          
+          ! Note to user. If you DO decide to remove the end-run above this line
+          ! Make sure that you keep the pointer below this line, or you will get
+          ! an infinite loop.
+          currentPatch => currentPatch%older
+          count_cycles = 0
+       end if
+
     enddo
     
     !check area is not exceeded
