@@ -360,9 +360,6 @@ variables:
 	float fates_mort_scalar_hydrfailure(fates_pft) ;
 		fates_mort_scalar_hydrfailure:units = "1/yr" ;
 		fates_mort_scalar_hydrfailure:long_name = "maximum mortality rate from hydraulic failure" ;
-	float fates_pft_used(fates_pft) ;
-		fates_pft_used:units = "0 = off (dont use), 1 = on (use)" ;
-		fates_pft_used:long_name = "Switch to turn on and off PFTs (also see fates_initd for cold-start)" ;
 	float fates_phen_evergreen(fates_pft) ;
 		fates_phen_evergreen:units = "logical flag" ;
 		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
@@ -561,6 +558,12 @@ variables:
 	float fates_phen_ncolddayslim(fates_scalar) ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
+	float fates_drying_ratio ;
+		fates_drying_ratio:units = "NA" ;
+		fates_drying_ratio:long_name = "spitfire parameter, fire drying ratio for fuel moisture, alpha_FMC EQ 6 Thonicke et al 2010" ;
+	float fates_senleaf_long_fdrought(fates_pft) ;
+		fates_senleaf_long_fdrought:units = "unitless[0-1]" ;
+		fates_senleaf_long_fdrought:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;
 	float fates_durat_slope ;
 		fates_durat_slope:units = "NA" ;
 		fates_durat_slope:long_name = "spitfire parameter, fire max duration slope, Equation 14 Thonicke et al 2010" ;
@@ -933,8 +936,6 @@ data:
 
  fates_mort_scalar_hydrfailure = 0.6, 0.6 ;
 
- fates_pft_used = 1, 1 ;
-
  fates_phen_evergreen = 1, 0 ;
 
  fates_phen_season_decid = 0, 0 ;
@@ -962,6 +963,10 @@ data:
  fates_rhosnir = 0.39, 0.39 ;
 
  fates_rhosvis = 0.16, 0.16 ;
+
+ fates_senleaf_long_fdrought = 1.0, 1.0 ;
+
+
 
  fates_root_long = 1, 1 ;
 
@@ -1068,6 +1073,8 @@ data:
  fates_phen_ncolddayslim = 5 ;
 
  fates_durat_slope = -11.06 ;
+
+ fates_drying_ratio = 13000 ;
 
  fates_fdi_a = 17.62 ;
 

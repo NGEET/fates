@@ -420,9 +420,6 @@ variables:
 	float fates_mort_scalar_hydrfailure(fates_pft) ;
 		fates_mort_scalar_hydrfailure:units = "1/yr" ;
 		fates_mort_scalar_hydrfailure:long_name = "maximum mortality rate from hydraulic failure" ;
-	float fates_pft_used(fates_pft) ;
-		fates_pft_used:units = "0 = off (dont use), 1 = on (use)" ;
-		fates_pft_used:long_name = "Switch to turn on and off PFTs (also see fates_initd for cold-start)" ;
 	float fates_phen_evergreen(fates_pft) ;
 		fates_phen_evergreen:units = "logical flag" ;
 		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
@@ -1064,8 +1061,6 @@ data:
 
  fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
     0.6, 0.6, 0.6, 0.6, 0.6 ;
-
- fates_pft_used = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_phen_evergreen    = 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0 ;
 

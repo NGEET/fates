@@ -35,7 +35,6 @@ module EDPftvarcon
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
 
-     real(r8), allocatable :: pft_used(:)            ! Switch to turn on and off PFTs
      real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
      real(r8), allocatable :: wood_density(:)        ! wood density  g cm^-3  ...
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
@@ -344,10 +343,6 @@ contains
     !X!    name = ''
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
     !X!         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_pft_used'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_seed_dbh_repro_threshold'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -780,10 +775,6 @@ contains
     !X!    name = ''
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
-
-    name = 'fates_pft_used'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%pft_used)
 
     name = 'fates_seed_dbh_repro_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1705,7 +1696,7 @@ contains
 
      integer :: npft,ipft
      
-     npft = size(EDPftvarcon_inst%pft_used,1)
+     npft = size(EDPftvarcon_inst%wood_density,1)
      
      if(debug_report .and. is_master) then
         
@@ -1717,7 +1708,6 @@ contains
         end if
 
         write(fates_log(),*) '-----------  FATES PFT Parameters -----------------'
-        write(fates_log(),fmt0) 'pft_used = ',EDPftvarcon_inst%pft_used
         write(fates_log(),fmt0) 'dbh max height = ',EDPftvarcon_inst%allom_dbh_maxheight
         write(fates_log(),fmt0) 'dbh mature = ',EDPftvarcon_inst%dbh_repro_threshold
         write(fates_log(),fmt0) 'freezetol = ',EDPftvarcon_inst%freezetol
@@ -1875,7 +1865,7 @@ contains
      integer :: iage     ! leaf age class index
      integer :: norgans  ! size of the plant organ dimension
 
-     npft = size(EDPftvarcon_inst%pft_used,1)
+     npft = size(EDPftvarcon_inst%wood_density,1)
 
      ! Prior to performing checks copy grperc to the 
      ! organ dimensioned version
