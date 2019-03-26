@@ -51,6 +51,7 @@ def main():
     # work with the file in some random temporary place so that if something goes wrong, then nothing happens to original file and it doesn't make a persistent output file
     tempdir = tempfile.mkdtemp()
     tempfilename = os.path.join(tempdir, 'temp_fates_param_file.nc')
+    ncfile_old = None
     #
     try:
         outputval = float(args.val)
@@ -79,8 +80,6 @@ def main():
         # for purposes of current state of this script, assume 1D 
         if ndim_file > 2:
             raise ValueError('variable dimensionality is too high for this script')
-        if ndim_file < 1:
-            raise ValueError('variable dimensionality is too low for this script. FATES assumes even scalars have a 1-length dimension')
         for i in range(ndim_file):
             if var.dimensions[i] == 'fates_pft':
                 ispftvar = True
@@ -155,7 +154,7 @@ def main():
                                 else:
                                     x[0:length_specified,:] = variable[0:length_specified,:]
                     else:
-                        x = variable.data
+                        x.assignValue(float(variable.data))
                 #
                 var = ncfile.variables[args.varname]
             else:
@@ -188,7 +187,7 @@ def main():
                 if not args.silent:
                     print('replacing prior values of variable '+args.varname+', for all PFTs, which were '+str(var[:])+', with new value of '+str(outputval))
                 var[:] = outputval
-        elif args.pftnum == None and not ispftvar:
+        elif args.pftnum == None and not ispftvar and ndim_file > 0:
             if not otherdimpresent:
                 if not args.silent:
                     print('replacing prior value of variable '+args.varname+', which was '+str(var[:])+', with new value of '+str(outputval))
@@ -199,6 +198,10 @@ def main():
                 if not args.silent:
                     print('replacing prior value of variable '+args.varname+', which was '+str(var[:])+', with new value of '+str(outputval))
                 var[:] = outputval
+        elif ndim_file < 1:
+            if not args.silent:
+                print('replacing prior value of scalar variable '+args.varname+', which was '+str(var.data)+', with new value of '+str(outputval))
+            var.assignValue(outputval)
         else:
             raise ValueError('Nothing happened somehow.')
         #
