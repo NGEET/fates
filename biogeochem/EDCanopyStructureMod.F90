@@ -167,10 +167,6 @@ contains
          ! Perform numerical checks on some cohort and patch structures
          ! ------------------------------------------------------------------------------
 
-!         call val_check_ed_vars(currentPatch,'co_n:co_dbh:pa_area',return_code)
-!         ! No need to make error message, already generated in math_check_ed_vars
-!         if(return_code>0) call endrun(msg=errMsg(sourcefile, __LINE__))
-
          ! canopy layer has a special bounds check
          currentCohort => currentPatch%tallest
          do while (associated(currentCohort))
@@ -253,7 +249,7 @@ contains
             area_not_balanced = .false.
             do i_lyr = 1,z
                call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
-               if( ((arealayer(i_lyr)-currentPatch%area)/currentPatch%area  >  area_check_rel_precision) .or. &
+               if( ((arealayer(i_lyr)-currentPatch%area)/currentPatch%area > area_check_rel_precision) .or. &
                    ((arealayer(i_lyr)-currentPatch%area) > area_check_precision )  ) then
                   area_not_balanced = .true.
                endif
@@ -557,9 +553,11 @@ contains
                do while (associated(currentCohort))  
                   if(currentCohort%canopy_layer  ==  i_lyr) then 
                      area_res         = area_res + &
-                                        currentCohort%c_area*currentCohort%excl_weight*scale_factor_min
+                                        currentCohort%c_area * currentCohort%excl_weight * &
+                                        scale_factor_min
                      scale_factor_res = scale_factor_res + &
-                                        currentCohort%c_area * (1._r8 - (currentCohort%excl_weight * scale_factor_min))
+                                        currentCohort%c_area * &
+                                        (1._r8 - (currentCohort%excl_weight * scale_factor_min))
                   endif
                   currentCohort => currentCohort%shorter      
                enddo
@@ -577,15 +575,18 @@ contains
                            (1._r8 - (currentCohort%excl_weight*scale_factor_min) ) * scale_factor_res)
                      
                      if(debug)then
-                        if((currentCohort%excl_weight > (currentCohort%c_area+area_target_precision)) .or. &
+                        if((currentCohort%excl_weight > &
+                            (currentCohort%c_area+area_target_precision)) .or. &
                              (currentCohort%excl_weight < 0._r8)  ) then
-                           write(fates_log(),*) 'exclusion area error (2)'
-                           write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                           write(fates_log(),*) 'currentCohort%excl_weight: ',currentCohort%excl_weight
-                           write(fates_log(),*) 'excess: ',currentCohort%excl_weight - currentCohort%c_area
-                           call endrun(msg=errMsg(sourcefile, __LINE__))
+                            write(fates_log(),*) 'exclusion area error (2)'
+                            write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
+                            write(fates_log(),*) 'currentCohort%excl_weight: ', &
+                                                  currentCohort%excl_weight
+                            write(fates_log(),*) 'excess: ', &
+                                                  currentCohort%excl_weight - currentCohort%c_area
+                            call endrun(msg=errMsg(sourcefile, __LINE__))
                         end if
-                     end if
+                    end if
 
                   endif
                   currentCohort => currentCohort%shorter      
@@ -1017,18 +1018,22 @@ contains
                   currentCohort => currentPatch%tallest
                   do while (associated(currentCohort))
                      if(currentCohort%canopy_layer  ==  (i_lyr+1) ) then 
-                        currentCohort%prom_weight = currentCohort%c_area * currentCohort%prom_weight * scale_factor
+                        currentCohort%prom_weight = currentCohort%c_area * &
+                              currentCohort%prom_weight * scale_factor
                         
                         if(debug)then
-                           if((currentCohort%prom_weight > (currentCohort%c_area+area_target_precision)) .or. &
-                                (currentCohort%prom_weight < 0._r8)  ) then
-                              write(fates_log(),*) 'promotion area too big (1)'
-                              write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                              write(fates_log(),*) 'currentCohort%prom_weight: ',currentCohort%prom_weight
-                              write(fates_log(),*) 'excess: ',currentCohort%prom_weight - currentCohort%c_area
-                              call endrun(msg=errMsg(sourcefile, __LINE__))
+                           if((currentCohort%prom_weight > &
+                                 (currentCohort%c_area+area_target_precision)) .or. &
+                                 (currentCohort%prom_weight < 0._r8)  ) then
+                               write(fates_log(),*) 'promotion area too big (1)'
+                               write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
+                               write(fates_log(),*) 'currentCohort%prom_weight: ', &
+                                     currentCohort%prom_weight
+                               write(fates_log(),*) 'excess: ', &
+                                     currentCohort%prom_weight - currentCohort%c_area
+                               call endrun(msg=errMsg(sourcefile, __LINE__))
                            end if
-                        end if
+                       end if
                         
                      endif
                      currentCohort => currentCohort%shorter      
@@ -1047,7 +1052,8 @@ contains
                         area_res         = area_res + &
                               currentCohort%c_area*currentCohort%prom_weight*scale_factor_min
                         scale_factor_res = scale_factor_res + &
-                              currentCohort%c_area * (1._r8 - (currentCohort%prom_weight * scale_factor_min))
+                              currentCohort%c_area * &
+                              (1._r8 - (currentCohort%prom_weight * scale_factor_min))
                      endif
                      currentCohort => currentCohort%shorter      
                   enddo
@@ -1062,16 +1068,20 @@ contains
                         
                         currentCohort%prom_weight = currentCohort%c_area * &
                               (currentCohort%prom_weight * scale_factor_min + &
-                              (1._r8 - (currentCohort%prom_weight*scale_factor_min) ) * scale_factor_res)
+                              (1._r8 - (currentCohort%prom_weight*scale_factor_min) ) * &
+                              scale_factor_res)
                         
                         if(debug)then
-                           if((currentCohort%prom_weight > (currentCohort%c_area+area_target_precision)) .or. &
-                                (currentCohort%prom_weight < 0._r8)  ) then
-                              write(fates_log(),*) 'promotion area error (2)'
-                              write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                              write(fates_log(),*) 'currentCohort%prom_weight: ',currentCohort%prom_weight
-                              write(fates_log(),*) 'excess: ',currentCohort%prom_weight - currentCohort%c_area
-                              call endrun(msg=errMsg(sourcefile, __LINE__))
+                           if((currentCohort%prom_weight > &
+                                 (currentCohort%c_area+area_target_precision)) .or. &
+                                 (currentCohort%prom_weight < 0._r8)  ) then
+                               write(fates_log(),*) 'promotion area error (2)'
+                               write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
+                               write(fates_log(),*) 'currentCohort%prom_weight: ', &
+                                     currentCohort%prom_weight
+                               write(fates_log(),*) 'excess: ', &
+                                     currentCohort%prom_weight - currentCohort%c_area
+                               call endrun(msg=errMsg(sourcefile, __LINE__))
                            end if
                         end if
 
@@ -1192,7 +1202,8 @@ contains
 
             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
             
-            if ((abs(arealayer_current - currentPatch%area)/arealayer_current > area_check_rel_precision ) .or. &
+            if ((abs(arealayer_current - currentPatch%area)/arealayer_current > &
+                  area_check_rel_precision ) .or. &
                 (abs(arealayer_current - currentPatch%area) > area_check_precision) ) then
                write(fates_log(),*) 'promotion did not bring area within tolerance'
                write(fates_log(),*) 'arealayer:',arealayer_current
@@ -1252,7 +1263,8 @@ contains
 
     enddo !currentPatch
 
-    !If the canopy area is approaching closure, squash the tree canopies and make them taller and thinner
+    ! If the canopy area is approaching closure,
+    ! squash the tree canopies and make them taller and thinner
     if( sitelevel_canopyarea/AREA .gt. ED_val_canopy_closure_thresh ) then
        currentSite%spread = currentSite%spread - inc
     else 
@@ -1290,15 +1302,15 @@ contains
     type (ed_patch_type)  , pointer :: currentPatch
     type (ed_cohort_type) , pointer :: currentCohort
     integer  :: s
-    integer  :: ft                                      ! plant functional type
+    integer  :: ft               ! plant functional type
     integer  :: ifp
-    integer  :: patchn                                  ! identification number for each patch. 
-    real(r8) :: canopy_leaf_area                        ! total amount of leaf area in the vegetated area. m2.  
-    real(r8) :: leaf_c               ! leaf carbon [kg]
-    real(r8) :: fnrt_c               ! fineroot carbon [kg]
-    real(r8) :: sapw_c               ! sapwood carbon [kg]
-    real(r8) :: store_c              ! storage carbon [kg]
-    real(r8) :: struct_c             ! structure carbon [kg]
+    integer  :: patchn           ! identification number for each patch. 
+    real(r8) :: canopy_leaf_area ! total amount of leaf area in the vegetated area. m2.  
+    real(r8) :: leaf_c           ! leaf carbon [kg]
+    real(r8) :: fnrt_c           ! fineroot carbon [kg]
+    real(r8) :: sapw_c           ! sapwood carbon [kg]
+    real(r8) :: store_c          ! storage carbon [kg]
+    real(r8) :: struct_c         ! structure carbon [kg]
     !----------------------------------------------------------------------
 
     if ( debug ) then
