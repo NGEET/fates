@@ -377,9 +377,9 @@ variables:
 	float fates_seed_germination_timescale(fates_pft) ;
 		fates_seed_germination_timescale:units = "1/yr" ;
 		fates_seed_germination_timescale:long_name = "turnover time for seeds with respect to decay" ;
-	float fates_seed_rain(fates_pft) ;
-		fates_seed_rain:units = "KgC/m2/yr" ;
-		fates_seed_rain:long_name = "External seed rain from outside site (non-mass conserving)" ;
+	float fates_seed_suppl(fates_pft) ;
+		fates_seed_suppl:units = "KgC/m2/yr" ;
+		fates_seed_suppl:long_name = "Supplemental external seed rain source term (non-mass conserving)" ;
 	float fates_smpsc(fates_pft) ;
 		fates_smpsc:units = "mm" ;
 		fates_smpsc:long_name = "Soil water potential at full stomatal closure" ;
@@ -841,7 +841,7 @@ data:
 
  fates_seed_germination_timescale = 0.5, 0.5 ;
 
- fates_seed_rain = 0.28, 0.28 ;
+ fates_seed_suppl = 0.28, 0.28 ;
 
  fates_smpsc = -255000, -255000 ;
 
