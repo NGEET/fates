@@ -50,7 +50,8 @@ module EDPftvarcon
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model. 
      real(r8), allocatable :: initd(:)               ! initial seedling density 
-     real(r8), allocatable :: seed_rain(:)           ! seeds that come from outside the gridbox.
+     real(r8), allocatable :: seed_rain(:)           ! Non-conserving, supplemental seed rain influx
+                                                     
      real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
      
      real(r8), allocatable :: seed_alloc_mature(:)   ! fraction of carbon balance allocated to 
