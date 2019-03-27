@@ -386,12 +386,13 @@ contains
             call carea_allom(currentCohort%dbh,currentCohort%n, &
                  currentSite%spread,currentCohort%pft,currentCohort%c_area)
 
-            if(currentCohort%c_area<0._r8)then
-               write(fates_log(),*) 'negative c_area stage 1d: ',currentCohort%dbh,i_lyr,currentCohort%n, &
-                    currentSite%spread,currentCohort%pft,currentCohort%c_area
-               call endrun(msg=errMsg(sourcefile, __LINE__))
+            if(debug) then
+               if(currentCohort%c_area<0._r8)then
+                  write(fates_log(),*) 'negative c_area stage 1d: ',currentCohort%dbh,i_lyr,currentCohort%n, &
+                       currentSite%spread,currentCohort%pft,currentCohort%c_area
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
             end if
-
             
             if( currentCohort%canopy_layer == i_lyr)then
 
@@ -525,17 +526,19 @@ contains
                   if(currentCohort%canopy_layer  ==  i_lyr) then 
                      currentCohort%excl_weight = currentCohort%c_area * currentCohort%excl_weight * scale_factor
                      
-                     if((currentCohort%excl_weight > (currentCohort%c_area+area_target_precision)) .or. &
-                        (currentCohort%excl_weight < 0._r8)  ) then
-                        write(fates_log(),*) 'exclusion area too big (1)'
-                        write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                        write(fates_log(),*) 'dbh: ',currentCohort%dbh
-                        write(fates_log(),*) 'n: ',currentCohort%n
-                        write(fates_log(),*) 'spread: ',currentSite%spread
-                        write(fates_log(),*) 'pft: ',currentCohort%pft
-                        write(fates_log(),*) 'currentCohort%excl_weight: ',currentCohort%excl_weight
-                        write(fates_log(),*) 'excess: ',currentCohort%excl_weight - currentCohort%c_area
-                        call endrun(msg=errMsg(sourcefile, __LINE__))
+                     if(debug) then
+                        if((currentCohort%excl_weight > (currentCohort%c_area+area_target_precision)) .or. &
+                             (currentCohort%excl_weight < 0._r8)  ) then
+                           write(fates_log(),*) 'exclusion area too big (1)'
+                           write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
+                           write(fates_log(),*) 'dbh: ',currentCohort%dbh
+                           write(fates_log(),*) 'n: ',currentCohort%n
+                           write(fates_log(),*) 'spread: ',currentSite%spread
+                           write(fates_log(),*) 'pft: ',currentCohort%pft
+                           write(fates_log(),*) 'currentCohort%excl_weight: ',currentCohort%excl_weight
+                           write(fates_log(),*) 'excess: ',currentCohort%excl_weight - currentCohort%c_area
+                           call endrun(msg=errMsg(sourcefile, __LINE__))
+                        end if
                      end if
 
                   endif
@@ -572,14 +575,16 @@ contains
                      currentCohort%excl_weight = currentCohort%c_area * &
                            (currentCohort%excl_weight * scale_factor_min + &
                            (1._r8 - (currentCohort%excl_weight*scale_factor_min) ) * scale_factor_res)
-
-                     if((currentCohort%excl_weight > (currentCohort%c_area+area_target_precision)) .or. &
-                        (currentCohort%excl_weight < 0._r8)  ) then
-                        write(fates_log(),*) 'exclusion area error (2)'
-                        write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                        write(fates_log(),*) 'currentCohort%excl_weight: ',currentCohort%excl_weight
-                        write(fates_log(),*) 'excess: ',currentCohort%excl_weight - currentCohort%c_area
-                        call endrun(msg=errMsg(sourcefile, __LINE__))
+                     
+                     if(debug)then
+                        if((currentCohort%excl_weight > (currentCohort%c_area+area_target_precision)) .or. &
+                             (currentCohort%excl_weight < 0._r8)  ) then
+                           write(fates_log(),*) 'exclusion area error (2)'
+                           write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
+                           write(fates_log(),*) 'currentCohort%excl_weight: ',currentCohort%excl_weight
+                           write(fates_log(),*) 'excess: ',currentCohort%excl_weight - currentCohort%c_area
+                           call endrun(msg=errMsg(sourcefile, __LINE__))
+                        end if
                      end if
 
                   endif
@@ -658,21 +663,10 @@ contains
                   endif
 		  call copy_cohort(currentCohort, copyc)
 
-                  if(currentCohort%n < 0._r8) then
-                     write(fates_log(),*) 'negatives (0_?): ',currentCohort%n,currentCohort%c_area
-                     call endrun(msg=errMsg(sourcefile, __LINE__))
-                  end if
-
                   newarea = currentCohort%c_area - cc_loss
                   copyc%n = currentCohort%n*newarea/currentCohort%c_area 
                   currentCohort%n = currentCohort%n - copyc%n
 
-                  if(copyc%n < 0._r8 .or. currentCohort%n < 0._r8) then
-                     write(fates_log(),*) 'negatives?: ',newarea,cc_loss,copyc%n,currentCohort%n,currentCohort%c_area
-                     call endrun(msg=errMsg(sourcefile, __LINE__))
-                  end if
-
-                  
                   copyc%canopy_layer = i_lyr !the taller cohort is the copy
                   
                   ! Demote the current cohort to the understory.
@@ -688,16 +682,6 @@ contains
                   call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
                        currentCohort%pft,currentCohort%c_area)
                   
-                  ! Calculate how much area loss from recalculation
-                  if( abs(copyc%c_area-newarea)>area_target_precision .or. &
-                       abs(currentCohort%c_area-cc_loss)>area_target_precision) then
-                     write(fates_log(),*) 'recalculation losses?',newarea-copyc%c_area,newarea, &
-                          copyc%c_area,currentCohort%c_area-cc_loss,currentCohort%c_area,&
-                          cc_loss
-                     call endrun(msg=errMsg(sourcefile, __LINE__))
-                  end if
-
-
                   !----------- Insert copy into linked list ------------------------!                         
                   copyc%shorter => currentCohort
                   if(associated(currentCohort%taller))then
@@ -1034,14 +1018,16 @@ contains
                   do while (associated(currentCohort))
                      if(currentCohort%canopy_layer  ==  (i_lyr+1) ) then 
                         currentCohort%prom_weight = currentCohort%c_area * currentCohort%prom_weight * scale_factor
-                     
-                        if((currentCohort%prom_weight > (currentCohort%c_area+area_target_precision)) .or. &
-                              (currentCohort%prom_weight < 0._r8)  ) then
-                           write(fates_log(),*) 'promotion area too big (1)'
-                           write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                           write(fates_log(),*) 'currentCohort%prom_weight: ',currentCohort%prom_weight
-                           write(fates_log(),*) 'excess: ',currentCohort%prom_weight - currentCohort%c_area
-                           call endrun(msg=errMsg(sourcefile, __LINE__))
+                        
+                        if(debug)then
+                           if((currentCohort%prom_weight > (currentCohort%c_area+area_target_precision)) .or. &
+                                (currentCohort%prom_weight < 0._r8)  ) then
+                              write(fates_log(),*) 'promotion area too big (1)'
+                              write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
+                              write(fates_log(),*) 'currentCohort%prom_weight: ',currentCohort%prom_weight
+                              write(fates_log(),*) 'excess: ',currentCohort%prom_weight - currentCohort%c_area
+                              call endrun(msg=errMsg(sourcefile, __LINE__))
+                           end if
                         end if
                         
                      endif
@@ -1078,15 +1064,17 @@ contains
                               (currentCohort%prom_weight * scale_factor_min + &
                               (1._r8 - (currentCohort%prom_weight*scale_factor_min) ) * scale_factor_res)
                         
-                        if((currentCohort%prom_weight > (currentCohort%c_area+area_target_precision)) .or. &
-                              (currentCohort%prom_weight < 0._r8)  ) then
-                           write(fates_log(),*) 'promotion area error (2)'
-                           write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                           write(fates_log(),*) 'currentCohort%prom_weight: ',currentCohort%prom_weight
-                           write(fates_log(),*) 'excess: ',currentCohort%prom_weight - currentCohort%c_area
-                           call endrun(msg=errMsg(sourcefile, __LINE__))
+                        if(debug)then
+                           if((currentCohort%prom_weight > (currentCohort%c_area+area_target_precision)) .or. &
+                                (currentCohort%prom_weight < 0._r8)  ) then
+                              write(fates_log(),*) 'promotion area error (2)'
+                              write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
+                              write(fates_log(),*) 'currentCohort%prom_weight: ',currentCohort%prom_weight
+                              write(fates_log(),*) 'excess: ',currentCohort%prom_weight - currentCohort%c_area
+                              call endrun(msg=errMsg(sourcefile, __LINE__))
+                           end if
                         end if
-                        
+
                      endif
                      currentCohort => currentCohort%shorter      
                   enddo
@@ -1106,12 +1094,14 @@ contains
                currentCohort => currentCohort%shorter
             end do
 
-            if (abs(sumweights - promote_area) > area_check_precision ) then
-               write(fates_log(),*) 'promotions dont add up'
-               write(fates_log(),*) 'sum promotions: ',sumweights
-               write(fates_log(),*) 'area needed to be promoted: ',promote_area
-               write(fates_log(),*) 'excess: ',sumweights - promote_area
-               call endrun(msg=errMsg(sourcefile, __LINE__))
+            if(debug)then
+               if (abs(sumweights - promote_area) > area_check_precision ) then
+                  write(fates_log(),*) 'promotions dont add up'
+                  write(fates_log(),*) 'sum promotions: ',sumweights
+                  write(fates_log(),*) 'area needed to be promoted: ',promote_area
+                  write(fates_log(),*) 'excess: ',sumweights - promote_area
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
             end if
 
             currentCohort => currentPatch%tallest
@@ -1162,13 +1152,6 @@ contains
                      ! number of individuals in cohort remaining in understorey    
                      currentCohort%n = currentCohort%n - copyc%n
                      
-
-                     if(copyc%n < 0._r8 .or. currentCohort%n < 0._r8) then
-                        write(fates_log(),*) 'negatives (2)?: ',newarea,cc_gain,copyc%n,currentCohort%n
-                        call endrun(msg=errMsg(sourcefile, __LINE__))
-                     end if
-
-
                      currentCohort%canopy_layer = i_lyr + 1 ! keep current cohort in the understory.        
                      copyc%canopy_layer = i_lyr             ! promote copy to the higher canopy layer. 
                      
