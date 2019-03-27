@@ -208,8 +208,8 @@ contains
     ! information that relies on these key states, as well as other vegetation
     ! states such as carbon pools and plant geometry.
 
-    type(ed_site_type)          , intent(inout), target :: sites(nsites)
     integer                     , intent(in)            :: nsites
+    type(ed_site_type)          , intent(inout), target :: sites(nsites)
     type(bc_in_type)            , intent(in)            :: bc_in(nsites)
     type(bc_out_type)           , intent(inout)         :: bc_out(nsites)
     
