@@ -5,7 +5,7 @@ dimensions:
 	fates_history_height_bins = 6 ;
 	fates_history_size_bins = 13 ;
 	fates_hydr_organs = 4 ;
-	fates_leafage_class = 2 ;
+	fates_leafage_class = 1 ;
 	fates_litterclass = 6 ;
 	fates_pft = 12 ;
 	fates_prt_organs = 6 ;
@@ -887,9 +887,7 @@ data:
  fates_leaf_jmaxse = 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 
     495 ;
 
- fates_leaf_long =
-  0.75, 2, 0.5, 0.75, 0.5, 0.5, 0.75, 0.5, 0.5, 0.5, 0.5, 0.5,
-  0.75, 2, 0.5, 0.75, 0.5, 0.5, 0.75, 0.5, 0.5, 0.5, 0.5, 0.5 ;
+ fates_leaf_long =  1.5, 4, 1.0, 1.5, 1.0, 1.0, 1.5, 1.0, 1.0, 1.0, 1.0, 1.0 ;
 
  fates_leaf_slamax = 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.012, 
     0.03, 0.03, 0.03, 0.03, 0.03 ;
@@ -908,9 +906,7 @@ data:
 
  fates_leaf_tpuse = 490, 490, 490, 490, 490, 490, 490, 490, 490, 490, 490, 490 ;
 
- fates_leaf_vcmax25top =
-  50, 65, 39, 62, 41, 58, 62, 54, 54, 78, 78, 78,
-  50, 65, 39, 62, 41, 58, 62, 54, 54, 78, 78, 78 ;
+ fates_leaf_vcmax25top = 50, 65, 39, 62, 41, 58, 62, 54, 54, 78, 78, 78 ;
 
  fates_leaf_vcmaxha = 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 
     65330, 65330, 65330, 65330 ;
