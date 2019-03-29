@@ -130,7 +130,7 @@ contains
       real(r8)                                     :: basal_area_postf     ! basal area before fusion (m2/ha)
       real(r8)                                     :: basal_area_pref      ! basal area after fusion (m2/ha)
 
-      real(r8), parameter                          :: max_ba_diff = 1.0e-2 ! 1% is the maximum allowable
+      real(r8), parameter                          :: max_ba_diff = 3.0e-2 ! 3% is the maximum allowable
                                                                            ! change in BA due to fusion
 
       ! I. Load the inventory list file, do some file handle checks
