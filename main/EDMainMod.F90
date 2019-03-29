@@ -48,7 +48,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
   use FatesPlantHydraulicsMod  , only : initTreeHydStates
   use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
-  use FatesAllometryMod        , only : h_allom
+  use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use FatesGlobals             , only : endrun => fates_endrun
@@ -265,6 +265,7 @@ contains
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
+    real(r8) :: leaf_c
     
     !-----------------------------------------------------------------------
 
@@ -338,10 +339,29 @@ contains
           
           currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
+
+          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+               currentCohort%vcmax25top)
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,6 )
+          
+
           ! Conducte Maintenance Turnover (parteh)
           call currentCohort%prt%CheckMassConservation(ft,3)
           call PRTMaintTurnover(currentCohort%prt,ft,currentSite%is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
+
+          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+               currentCohort%vcmax25top)
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,7 )
+          
 
           ! Conduct Growth (parteh)
           call currentCohort%prt%DailyPRT()
@@ -353,7 +373,14 @@ contains
           ! routine is also called following fusion
           call UpdateCohortBioPhysRates(currentCohort)
 
-
+          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+               currentCohort%vcmax25top)
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,3 ) 
+          
           ! Transfer all reproductive tissues into seed production
           call PRTReproRelease(currentCohort%prt,repro_organ,carbon12_element, &
                                1.0_r8, currentCohort%seed_prod)
