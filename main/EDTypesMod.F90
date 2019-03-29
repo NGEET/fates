@@ -18,7 +18,7 @@ module EDTypesMod
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
   integer, parameter :: maxCohortsPerPatch = 100  ! maximum number of cohorts per patch
   
-  integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
+  integer, parameter :: nclmax = 3                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for diagnostics that refer
                                                   ! to understory layers (all layers that
