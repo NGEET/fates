@@ -134,10 +134,14 @@ contains
 
    
     call ed_total_balance_check(currentSite, 0)
-    
-    if (do_ed_phenology) then
+
+    ! We do not allow phenology while in ST3 mode either, it is hypothetically
+    ! possible to allow this, but we have not plugged in the litter fluxes
+    ! of flushing or turning over leaves for non-dynamics runs
+    if (hlm_use_ed_st3.eq.ifalse) then
        call phenology(currentSite, bc_in )
     end if
+
 
     if (hlm_use_ed_st3.eq.ifalse) then   ! Bypass if ST3
        call fire_model(currentSite, bc_in) 
