@@ -12,6 +12,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : maxPatchesPerSite
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area
+  use EDTypesMod           , only : min_patch_area_forced
   use EDTypesMod           , only : nclmax
   use EDTypesMod           , only : maxpft
   use EDTypesMod           , only : dtype_ifall
@@ -1537,7 +1538,7 @@ contains
     !  Keep doing this until nopatches >= maxPatchesPerSite                         !
     !---------------------------------------------------------------------!
 
-    do while(iterate == 1)
+    do while(iterate == 1 .and. nopatches>1)
        !---------------------------------------------------------------------!
        ! Calculate the biomass profile of each patch                         !
        !---------------------------------------------------------------------!  
@@ -1554,10 +1555,6 @@ contains
        do while(associated(currentPatch))      
           tpp => currentSite%youngest_patch
           do while(associated(tpp))
-
-             if(.not.associated(currentPatch))then
-                write(fates_log(),*) 'ED: issue with currentPatch'
-             endif
 
              if(associated(tpp).and.associated(currentPatch))then
 
@@ -1878,16 +1875,28 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     type(ed_patch_type), pointer :: olderPatch
     type(ed_patch_type), pointer :: youngerPatch
+    integer, parameter           :: max_cycles = 10  ! After 10 loops through
+                                                     ! You should had fused
+    integer                      :: count_cycles
 
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
     !---------------------------------------------------------------------
  
+    count_cycles = 0
+
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
        
        if(currentPatch%area <= min_patch_area)then
           
-          if ( .not.associated(currentPatch,currentSite%youngest_patch) ) then
+          ! Even if the patch area is small, avoid fusing it into its neighbor
+          ! if it is the youngest of all patches. We do this in attempts to maintain
+          ! a discrete patch for very young patches
+          ! However, if the patch to be fused is excessivlely small, then fuse
+          ! at all costs.  If it is not fused, it will make
+
+          if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
+               currentPatch%area <= min_patch_area_forced ) then
              
              if(associated(currentPatch%older) )then
                 
@@ -1908,12 +1917,12 @@ contains
                 ! This logic checks to make sure that the younger patch is not the youngest
                 ! patch. As mentioned earlier, we try not to fuse it.
                 
-             elseif( .not. associated(currentPatch%younger,currentSite%youngest_patch) ) then
+             elseif( associated(currentPatch%younger) ) then
                 
                 if(debug) &
                       write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
                       currentPatch%area
-                
+
                 youngerPatch => currentPatch%younger
                 call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                 
@@ -1922,22 +1931,44 @@ contains
              endif
           endif
        endif
-          
-       currentPatch => currentPatch%older
        
+       ! It is possible that an incredibly small patch just fused into another incredibly
+       ! small patch, resulting in an incredibly small patch.  It is also possible that this
+       ! resulting incredibly small patch is the oldest patch.  If this was true than
+       ! we would had been at the end of the loop, and left with an incredibly small patch.
+       ! Think this is impossible? No, this really happens, especially when we have fires.
+       ! So, we don't move forward until we have merged enough area into this thing.
+
+       if(currentPatch%area > min_patch_area_forced)then
+          currentPatch => currentPatch%older
+          count_cycles = 0
+       else
+          count_cycles = count_cycles + 1
+       end if
+
+       if(count_cycles > max_cycles) then
+          write(fates_log(),*) 'FATES is having difficulties fusing very small patches.'
+          write(fates_log(),*) 'It is possible that a either a secondary or primary'
+          write(fates_log(),*) 'patch has become the only patch of its kind, and it is'
+          write(fates_log(),*) 'is very very small. You can test your luck by'
+          write(fates_log(),*) 'disabling the endrun statement following this message.'
+          write(fates_log(),*) 'FATES may or may not continue to operate within error'
+          write(fates_log(),*) 'tolerances, but will generate another fail if it does not.' 
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+          
+          ! Note to user. If you DO decide to remove the end-run above this line
+          ! Make sure that you keep the pointer below this line, or you will get
+          ! an infinite loop.
+          currentPatch => currentPatch%older
+          count_cycles = 0
+       end if
+
     enddo
     
     !check area is not exceeded
-    areatot = 0._r8
-    currentPatch => currentSite%oldest_patch
-    do while(associated(currentPatch))
-       areatot = areatot + currentPatch%area
-       currentPatch => currentPatch%younger
-       if((areatot-area) > 0.0000001_r8)then
-          write(fates_log(),*) 'ED: areatot too large. end terminate', areatot
-       endif
-    enddo
+    call check_patch_area( currentSite )
 
+    return
   end subroutine terminate_patches
 
   ! =====================================================================================
