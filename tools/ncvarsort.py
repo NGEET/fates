@@ -4,12 +4,12 @@
 # --input or --fin: input filename.
 # --output or --fout: output filename.  If missing, will assume its directly modifying the input file, and will prompt unless -O is specified
 
-from netCDF4 import Dataset
+from scipy.io import netcdf as nc
 import sys
 import os
 import argparse
 
-# program sorts the variables based on the provided list, and pulls them one at a time 
+# program sorts the variables based on the provided list, and pulls them one at a time
 # from an existing file and adds them to a new file in the sorted order.
 # input/output based on code here: https://gist.github.com/guziy/8543562
 
@@ -18,14 +18,14 @@ def main():
     #
     parser.add_argument('--fin', '--input', dest='fnamein', type=str, help="Input filename.  Required.", required=True)
     parser.add_argument('--fout','--output', dest='fnameout', type=str, help="Output filename.  Required.", required=True)
-    parser.add_argument('--O','--overwrite', dest='overwrite', help="If present, automatically overwrite the output file.", action="store_true")    
+    parser.add_argument('--O','--overwrite', dest='overwrite', help="If present, automatically overwrite the output file.", action="store_true")
     #
     args = parser.parse_args()
     #
     # open the input dataset
-    dsin = Dataset(args.fnamein)
+    dsin = nc.netcdf_file(args.fnamein, 'r')
     #
-    # make empty lists to hold the variable names in. the first of these is a list of sub-lists, 
+    # make empty lists to hold the variable names in. the first of these is a list of sub-lists,
     # one for each type of variable (based on dimensionality).
     # the second is the master list that will contain all variables.
     varnames_list = [[],[],[],[],[],[],[],[],[],[]]
@@ -69,39 +69,53 @@ def main():
         else:
             raise ValueError('Output file already exists and overwrite flag not specified for filename: '+args.fnameout)
     #
-    dsout = Dataset(args.fnameout,  "w", format="NETCDF3_CLASSIC")
+    dsout = nc.netcdf_file(args.fnameout,  "w")
     #
     #Copy dimensions
     for dname, the_dim in dsin.dimensions.iteritems():
-        print dname, len(the_dim)
-        dsout.createDimension(dname, len(the_dim) if not the_dim.isunlimited() else None)
-    #   
+        print dname, the_dim
+        dsout.createDimension(dname, the_dim )
+    #
     print
+    #
+    try:
+        dsout.history = dsin.history
+    except:
+        print('no history!')
+    #
     #
     # go through each variable in the order of the sorted master list, and copy the variable
     # as well as all metadata to the new file.
     for i in range(len(varnames_list_sorted)):
         v_name = varnames_list_sorted[i]
         varin = dsin.variables[v_name]
-        outVar = dsout.createVariable(v_name, varin.datatype, varin.dimensions)
+        outVar = dsout.createVariable(v_name, varin.data.dtype, varin.dimensions)
         print v_name
         #
-        # Copy variable attributes
-        outVar.setncatts({k: varin.getncattr(k) for k in varin.ncattrs()})
+        try:
+            outVar.units = varin.units
+        except:
+            print('----------no units!-----------')
+        try:
+            outVar.long_name = varin.long_name
+        except:
+            print('----------no long name!---------')
         #
         # copy data from input file to output file
-        outVar[:] = varin[:]
-    #   
-    # copy global attributes
-    dsout.setncatts({k: dsin.getncattr(k) for k in dsin.ncattrs()})
+        #
+        try:
+            outVar[:] = varin[:]
+        except:
+            # handle the case where there is a scalar
+            outVar.assignValue(varin.data)
+    #
     #
     # close the output file
-    dsout.close()
     dsin.close()
+    dsout.close()
 
 # =======================================================================================
 # This is the actual call to main
-   
+
 if __name__ == "__main__":
     main()
-
