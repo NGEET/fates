@@ -1041,7 +1041,7 @@ contains
                   
                else
                   
-                  ! Non-trivial case, at least 1 cohort's demotion
+                  ! Non-trivial case, at least 1 cohort's promotion
                   ! rate would exceed its area, given the trivial scale factor
                   
                   area_res         = 0._r8
