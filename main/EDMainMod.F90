@@ -338,7 +338,7 @@ contains
           
           currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
-          ! Conducte Maintenance Turnover (parteh)
+          ! Conduct Maintenance Turnover (parteh)
           call currentCohort%prt%CheckMassConservation(ft,3)
           call PRTMaintTurnover(currentCohort%prt,ft,currentSite%is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
