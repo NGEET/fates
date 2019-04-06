@@ -40,7 +40,6 @@ module EDMainMod
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
-  use EDTypesMod               , only : do_ed_phenology
   use EDTypesMod               , only : AREA
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
