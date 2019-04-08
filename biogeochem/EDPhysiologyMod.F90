@@ -27,7 +27,6 @@ module EDPhysiologyMod
 
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
-  use EDTypesMod          , only : external_recruitment
   use EDTypesMod          , only : ncwd
   use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : senes
@@ -888,19 +887,13 @@ contains
 
     endif
 
-    currentPatch => currentSite%oldest_patch
-
-    do while(associated(currentPatch))
-       if (external_recruitment == 1) then !external seed rain - needed to prevent extinction  
-          do p = 1,numpft
-           currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
+    do p = 1,numpft
+       currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
                  EDPftvarcon_inst%seed_rain(p) !KgC/m2/year
-           currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + &
+       currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + &
                  EDPftvarcon_inst%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
-          enddo
-       endif
-       currentPatch => currentPatch%younger
     enddo
+
 
   end subroutine seeds_in
   

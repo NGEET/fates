@@ -116,7 +116,6 @@ module EDTypesMod
   integer, parameter :: numWaterMem           = 10         ! watermemory saved as site level var
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
-  integer , parameter :: external_recruitment = 0          ! external recruitment flag 1=yes  
   integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter :: dinc_ed              = 1.0_r8     ! size of VAI bins (LAI+SAI)  [CHANGE THIS NAME WITH NEXT INTERFACE
                                                            ! UPDATE]
