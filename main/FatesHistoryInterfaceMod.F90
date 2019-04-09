@@ -73,13 +73,13 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_seed_bank_elem
   integer, private :: ih_seeds_in_local_elem
   integer, private :: ih_seeds_in_extern_elem
+  integer, private :: ih_seed_decay_elem
+  integer, private :: ih_seed_germ_elem
 
   integer, private :: ih_daily_temp
   integer, private :: ih_daily_rh
   integer, private :: ih_daily_prec
  
-  integer, private :: ih_seed_decay_pa
-  integer, private :: ih_seed_germination_pa
   integer, private :: ih_bstore_pa
   integer, private :: ih_bdead_pa
   integer, private :: ih_balive_pa
@@ -759,6 +759,8 @@ contains
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     use FatesIOVariableKindMod, only : site_height_r8
+    use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
+    use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
 
    implicit none
 
@@ -1526,7 +1528,7 @@ end subroutine flush_hvars
                hio_litter_in_elem      => this%hvars(ih_litter_in_elem)%r82d, &
                hio_litter_out_elem     => this%hvars(ih_litter_out_elem)%r82d, &
                hio_seed_bank_elem      => this%hvars(ih_seed_bank_elem)%r82d, &
-               hio_seeds_in_elem       => this%hvars(ih_seeds_in_local_elem)%r82d, &
+               hio_seeds_in_local_elem => this%hvars(ih_seeds_in_local_elem)%r82d, &
                hio_seed_in_extern_elem => this%hvars(ih_seeds_in_extern_elem)%r82d, & 
                hio_seed_decay_elem     => this%hvars(ih_seed_decay_elem)%r82d, &
                hio_seed_germ_elem      => this%hvars(ih_seed_germ_elem)%r82d, &
@@ -1703,8 +1705,7 @@ end subroutine flush_hvars
          ! Set trimming on the soil patch to 1.0
          hio_trimming_pa(io_soipa) = 1.0_r8
 
-         ! The seed bank is a site level variable
-         hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * g_per_kg
+         
 
          hio_canopy_spread_si(io_si)        = sites(s)%spread
 
@@ -2245,21 +2246,7 @@ end subroutine flush_hvars
             litt_c       => cpatch%litter(element_pos(carbon12_element))
             flux_diags_c => currentSite%flux_diags(element_pos(carbon12_element))
 
-
-
-            ! keep litter_out at patch level
-            hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out) &
-                 + sum(cpatch%root_litter_out)) &
-                 * g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec
-            
-            hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * &
-                 g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec
-            hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) * &
-                 g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec
-            hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) * &
-                 g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec 
-
-            
+             
             do i_cwd = 1, ncwd
                hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
                     cpatch%CWD_AG(i_cwd)*cpatch%area * AREA_INV * g_per_kg
@@ -2430,15 +2417,46 @@ end subroutine flush_hvars
             
             flux_diags => currentSite%flux_diags(el)
             
+            ! Sum up all input litter fluxes (above below, fines, cwd)
             hio_litter_in_elem(io_si, el) = hio_litter_in_elem(io_si, el) + &
-                 (sum(flux_diags%cwd_ag_input(:)) + & 
+                 sum(flux_diags%cwd_ag_input(:)) + & 
                  sum(flux_diags%cwd_bg_input(:)) + &
                  sum(flux_diags%leaf_litter_input(:)) + &
-                 sum(flux_diags%root_litter_input(:))) * area_inv
+                 sum(flux_diags%root_litter_input(:))
 
-!            hio_litter_out_elem(io_si,el) = hio_litter_out_elem(io_si,el) + & 
-!
             
+            cpatch => sites(s)%oldest_patch
+            do while(associated(cpatch))
+
+               litt => cpatch%litter(el)
+
+               area_frac = cpatch%area * AREA_INV
+
+               ! Sum up all output fluxes (fragmentation)
+               hio_litter_out_elem(io_si,el) = hio_litter_out_elem(io_si,el) + &
+                    (sum(litt%leaf_fines_frag(:)) + &
+                     sum(sum(litt%root_fines_frag(:,:))) + &
+                     sum(litt%ag_cwd_frag(:)) + & 
+                     sum(sum(litt%bg_cwd_frag(:,:)))) * area_frac
+               
+               hio_seed_bank_elem(io_si,el) = hio_seed_bank_elem(io_si,el) + & 
+                    sum(litt%seed(:)) * area_frac
+
+               hio_seed_germ_elem(io_si,el) = hio_seed_germ_elem(io_si,el) + &
+                    sum(litt%seed_germ(:)) * area_frac
+                    
+               hio_seed_decay_elem(io_si,el) = hio_seed_decay_elem(io_si,el) + & 
+                    sum(litt%seed_decay(:)) * area_frac
+
+               hio_seeds_in_local_elem(io_si,el) = hio_seeds_in_local_elem(io_si,el) + & 
+                    sum(litt%seed_in_local(:)) * area_frac
+
+               hio_seed_in_extern_elem(io_si,el) = hio_seed_in_extern_elem(io_si,el) + & 
+                    sum(litt%seed_in_extern(:)) * area_frac
+
+                    
+               cpatch => cpatch%younger
+            end do
 
          end do
          
@@ -3556,7 +3574,7 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_litter_in_elem )
 
     call this%set_history_var(vname='LITTER_OUT_ELEM', units='kg m-2 d-1',         &
-         long='FATES litter flux out',  use_default='active',                      & 
+         long='FATES litter flux out (fragmentation only)',  use_default='active',                      & 
          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_litter_out_elem )
 

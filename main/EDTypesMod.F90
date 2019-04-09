@@ -11,6 +11,9 @@ module EDTypesMod
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,         only : all_carbon_elements
+  use PRTGenericMod,         only : num_organ_types
+  use FatesLitterMod,        only : litter_type
+  use FatesLitterMod,        only : ncwd
 
   implicit none
   save
@@ -130,8 +133,7 @@ module EDTypesMod
   integer , parameter :: dtype_ilog           = 3          ! index for logging generated disturbance event
 
   ! SPITFIRE     
-  integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools (twig,s branch,l branch, trunk)
-  integer , parameter :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
+  integer , parameter :: NFSC                 = ncwd+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
   integer,  parameter :: lg_sf                = 6          ! array index of live grass pool for spitfire
   integer,  parameter :: dl_sf                = 1          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter :: tw_sf                = 2          ! array index of twig pool for spitfire
@@ -297,11 +299,6 @@ module EDTypesMod
      real(r8) ::  livecroot_mr                           ! Live stem        maintenance respiration: kgC/indiv/s
                                                          ! (below ground)
      real(r8) ::  froot_mr                               ! Live fine root   maintenance respiration: kgC/indiv/s
-
-     ! ALLOCATION
-
-     !real(r8) ::  seed_prod                              ! reproduction seed and clonal: KgC/indiv/day
-
 
      !MORTALITY
      real(r8) ::  dmort                                  ! proportional mortality rate. (year-1)
@@ -483,7 +480,7 @@ module EDTypesMod
 
      ! Litter and Coarse Woody Debris
 
-     type(dead_vartype), pointer :: litter(:)  ! Litter (leaf,fnrt,CWD and seeds) for different elements
+     type(litter_type), pointer :: litter(:)  ! Litter (leaf,fnrt,CWD and seeds) for different elements
 
      real(r8) :: fragmentation_scaler          ! Scale rate of litter fragmentation. 0 to 1.
 
@@ -560,9 +557,6 @@ module EDTypesMod
      real(r8) :: cwd_bg_input(1:ncwd)               
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
-
- 
-
      
    contains
 
@@ -765,7 +759,8 @@ module EDTypesMod
 
   contains
 
-    subroutine ZeroFluxDiagnostics(this)
+
+    subroutine ZeroFluxDiags(this)
       
       class(site_fluxdiags_type) :: this
       
@@ -775,7 +770,7 @@ module EDTypesMod
       this%root_litter_input(:) = 0._r8
       
       return
-    end subroutine ZeroFluxDiagnostics
+    end subroutine ZeroFluxDiags
 
     ! =====================================================================================
     
@@ -803,7 +798,7 @@ module EDTypesMod
       this%burn_flux_to_atm  = 0._r8
       
       return
-  end subroutine ZeroSiteMassBalance
+    end subroutine ZeroMassCheckFlux
 
    
   ! =====================================================================================
@@ -977,7 +972,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr
      write(fates_log(),*) 'co%froot_mr               = ', ccohort%froot_mr
      write(fates_log(),*) 'co%dmort                  = ', ccohort%dmort
-     write(fates_log(),*) 'co%seed_prod              = ', ccohort%seed_prod
      write(fates_log(),*) 'co%treelai                = ', ccohort%treelai
      write(fates_log(),*) 'co%treesai                = ', ccohort%treesai
      write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area

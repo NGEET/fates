@@ -17,7 +17,7 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : InitPRTCohort
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
-  use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
+  use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
   use EDtypesMod            , only : AREA
@@ -111,7 +111,6 @@ contains
       ! !USES:
 
       use EDParamsMod, only : ED_val_comp_excln
-      use EDtypesMod , only : ncwd
       use EDTypesMod , only : min_patch_area
       use EDTypesMod , only : val_check_ed_vars
       use FatesInterfaceMod, only : bc_in_type
@@ -322,7 +321,6 @@ contains
    subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr)
 
       use EDParamsMod, only : ED_val_comp_excln
-      use EDtypesMod , only : ncwd
       use SFParamsMod, only : SF_val_CWD_frac
 
       ! !ARGUMENTS

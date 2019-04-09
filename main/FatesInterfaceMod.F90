@@ -677,7 +677,7 @@ contains
       bc_in%nlevdecomp = nlevdecomp_in
 
 
-      if (hlm_use_versoilc == itrue) then
+      if (hlm_use_vertsoilc == itrue) then
          if(bc_in%nlevdecomp .ne. bc_in%nlevsoil) then
             write(fates_log(), *) 'The host has signaled a vertically resolved'
             write(fates_log(), *) 'soil decomposition model. Therefore, the '

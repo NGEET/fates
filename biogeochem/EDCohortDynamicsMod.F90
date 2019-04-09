@@ -19,7 +19,9 @@ module EDCohortDynamicsMod
   use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
-  use EDTypesMod            , only : ncwd
+  use EDTypesMod            , only : element_list
+  use FatesLitterMod        , only : ncwd
+  use FatesLitterMod        , only : litter_type
   use EDTypesMod            , only : maxCohortsPerPatch
   use EDTypesMod            , only : AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
@@ -526,8 +528,6 @@ contains
     currentCohort%lmort_infra        = nan
     currentCohort%lmort_collateral   = nan
 
-
-    currentCohort%seed_prod          = nan ! reproduction seed and clonal: KgC/indiv/year
     currentCohort%c_area             = nan ! areal extent of canopy (m2)
     currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
     currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
@@ -584,7 +584,6 @@ contains
 
     currentcohort%year_net_uptake(:) = 999._r8 ! this needs to be 999, or trimming of new cohorts will break. 
     currentcohort%ts_net_uptake(:)   = 0._r8
-    currentcohort%seed_prod          = 0._r8
     currentcohort%fraction_crown_burned = 0._r8 
     currentCohort%size_class            = 1
     currentCohort%size_class_lasttimestep = 0
@@ -1113,8 +1112,6 @@ contains
                                 
                                 if ( .not.currentCohort%isnew) then
 
-                                   currentCohort%seed_prod      = (currentCohort%n*currentCohort%seed_prod + &
-                                         nextc%n*nextc%seed_prod)/newn
                                    currentCohort%gpp_acc        = (currentCohort%n*currentCohort%gpp_acc     + &
                                          nextc%n*nextc%gpp_acc)/newn
                                    currentCohort%npp_acc        = (currentCohort%n*currentCohort%npp_acc     + &
@@ -1527,7 +1524,6 @@ contains
     n%lmort_direct    = o%lmort_direct
     n%lmort_infra     = o%lmort_infra
     n%lmort_collateral= o%lmort_collateral
-    n%seed_prod       = o%seed_prod
     n%treelai         = o%treelai
     n%treesai         = o%treesai
     n%c_area          = o%c_area

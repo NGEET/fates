@@ -36,7 +36,7 @@ module FatesIOVariableKindMod
   character(*), parameter :: site_elem_r8  = 'SI_ELEM_R8'
   character(*), parameter :: site_elpft_r8 = 'SI_ELEMPFT_R8'
   character(*), parameter :: site_elcwd_r8 = 'SI_ELEMCWD_R8'
-  character(*), parameter :: site_ageel_r8 = 'SI_ELEMAGE_R8'
+  character(*), parameter :: site_elage_r8 = 'SI_ELEMAGE_R8'
 
 
   ! NOTE(RGK, 2016) %active is not used yet. Was intended as a check on the HLM->FATES

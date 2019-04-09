@@ -3,10 +3,12 @@ module SFParamsMod
    ! module that deals with reading the SF parameter file
    !
    use FatesConstantsMod , only: r8 => fates_r8
-   use EDtypesMod        , only: NFSC,NCWD
+   use EDtypesMod        , only: NFSC
+   use FatesLitterMod    , only: ncwd
    use FatesParametersInterface, only : param_string_length
    use FatesGlobals,   only : fates_log
    use FatesGlobals,   only : endrun => fates_endrun
+   use shr_log_mod      , only : errMsg => shr_log_errMsg
 
    implicit none
    save
@@ -26,7 +28,7 @@ module SFParamsMod
    real(r8),protected :: SF_val_max_durat
    real(r8),protected :: SF_val_durat_slope
    real(r8),protected :: SF_val_drying_ratio
-   real(r8),protected :: SF_val_CWD_frac(NCWD)
+   real(r8),protected :: SF_val_CWD_frac(ncwd)
    real(r8),protected :: SF_val_max_decomp(NFSC)
    real(r8),protected :: SF_val_SAV(NFSC)
    real(r8),protected :: SF_val_FBD(NFSC)
@@ -97,7 +99,7 @@ contains
      if(.not.is_master) return
      
      ! Move these checks to initialization
-     do c = 1,nsfc
+     do c = 1,nfsc
         if ( SF_val_max_decomp(c) < 0._r8 .or. SF_val_max_decomp(c) > 1.0_r8) then
            write(fates_log(),*) 'Decomposition rates should be >0 and <1'
            write(fates_log(),*) 'c = ',c,' SF_val_max_decomp(c) = ',SF_val_max_decomp(c)

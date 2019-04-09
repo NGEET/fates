@@ -17,7 +17,7 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : r8 => fates_r8
    use EDTypesMod        , only : ed_cohort_type
    use EDTypesMod        , only : ed_patch_type
-   use EDTypesMod        , only : ncwd
+   use FatesLitterMod    , only : ncwd
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_resources_management_type
    use EDTypesMod        , only : dtype_ilog

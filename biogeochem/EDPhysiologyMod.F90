@@ -31,7 +31,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
   use EDTypesMod          , only : external_recruitment
-  use EDTypesMod          , only : ncwd
+  use FatesLitterMod      , only : ncwd
   use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : senes
   use EDTypesMod          , only : maxpft

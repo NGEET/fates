@@ -1,4 +1,4 @@
-module FatesLittMod
+module FatesLitterMod
 
   ! -------------------------------------------------------------------------------------
   ! This module contains methods and type definitions for all things litter.
@@ -47,8 +47,11 @@ module FatesLittMod
 
    implicit none
    private
-   
-   type litter_type
+
+
+   integer, public,  parameter :: ncwd  = 4   ! number of coarse woody debris pools 
+                                              ! (twig,s branch,l branch, trunk)
+   type, public ::  litter_type
 
       
       ! This object is allocated for each element (C, N, P, etc) that we wish to track.
@@ -118,7 +121,6 @@ module FatesLittMod
 
    character(len=*), parameter, private :: sourcefile = __FILE__
 
-   
 contains
 
   subroutine FuseLitter(this,self_area,donor_area,donor_litt)
@@ -126,20 +128,21 @@ contains
     class(litter_type) :: this
     real(r8),intent(in)           :: self_area
     real(r8),intent(in)           :: donor_area
-    type(litter_type),intent(in) :: donor_litt
-
+    type(litter_type),intent(in)  :: donor_litt
 
     ! locals
-    integer  :: nlevsoil
-    integer  :: c
-    integer  :: pft
-    integer  :: ilyr
+    integer  :: nlevsoil        ! number of soil layers
+    integer  :: c               ! cwd index
+    integer  :: pft             ! pft index
+    integer  :: ilyr            ! soil layer index
+    integer  :: npft            ! number of PFTs
     real(r8) :: self_weight
     real(r8) :: donor_weight
     
 
     nlevsoil = size(this%bg_cwd,dim=2)
-    
+    npft     = size(this%leaf_fines,dim=1)
+
     self_weight  = self_area /(donor_area+self_area)
     donor_weight = 1._r8 - self_weight
 
@@ -162,7 +165,7 @@ contains
     end do
     
     
-    do pft=1,numpft
+    do pft=1,npft
        this%leaf_fines(pft)      = this%leaf_fines(pft) * self_weight + &
                                    donor_litt%leaf_fines(pft) * donor_weight
        this%seed(pft)            = this%seed(pft) * self_weight + &
@@ -360,4 +363,4 @@ contains
 
 
   
-end module FatesLittMod
+end module FatesLitterMod
