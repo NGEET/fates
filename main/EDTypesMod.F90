@@ -21,13 +21,13 @@ module EDTypesMod
                                                      (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
   integer, parameter :: maxCohortsPerPatch = 100  ! maximum number of cohorts per patch
   
-  integer, parameter :: nclmax = 3                ! Maximum number of canopy layers
+  integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for diagnostics that refer
                                                   ! to understory layers (all layers that
                                                   ! are not the top canopy layer)
 
-  integer, parameter :: nlevleaf = 20             ! number of leaf layers in canopy layer
+  integer, parameter :: nlevleaf = 30             ! number of leaf layers in canopy layer
   integer, parameter :: maxpft = 15               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
@@ -154,6 +154,11 @@ module EDTypesMod
 
   real(r8), parameter :: min_npm2       = 1.0E-7_r8               ! minimum cohort number density per m2 before termination
   real(r8), parameter :: min_patch_area = 0.01_r8                 ! smallest allowable patch area before termination
+  real(r8), parameter :: min_patch_area_forced = 0.0001_r8        ! patch termination will not fuse the youngest patch
+                                                                  ! if the area is less than min_patch_area.
+                                                                  ! however, it is allowed to fuse the youngest patch
+                                                                  ! if the fusion area is less than min_patch_area_forced
+
   real(r8), parameter :: min_nppatch    = min_npm2*min_patch_area ! minimum number of cohorts per patch (min_npm2*min_patch_area)
   real(r8), parameter :: min_n_safemath = 1.0E-12_r8              ! in some cases, we want to immediately remove super small
                                                                   ! number densities of cohorts to prevent FPEs
