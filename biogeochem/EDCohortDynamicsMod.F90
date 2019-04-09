@@ -515,9 +515,12 @@ contains
 
     ! ALLOCATION
     currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
+
+    ! logging
     currentCohort%lmort_direct       = nan
     currentCohort%lmort_infra        = nan
     currentCohort%lmort_collateral   = nan
+    currentCohort%l_degrad           = nan
 
 
     currentCohort%seed_prod          = nan ! reproduction seed and clonal: KgC/indiv/year
@@ -589,6 +592,7 @@ contains
     currentCohort%lmort_direct       = 0._r8
     currentCohort%lmort_infra        = 0._r8
     currentCohort%lmort_collateral   = 0._r8
+    currentCohort%l_degrad           = 0._r8    
     currentCohort%leaf_cost          = 0._r8
     currentcohort%excl_weight        = 0._r8
     currentcohort%prom_weight        = 0._r8
@@ -1152,12 +1156,6 @@ contains
 
                                    currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                          nextc%n*nextc%dmort)/newn
-                                   currentCohort%lmort_direct     = (currentCohort%n*currentCohort%lmort_direct     + &
-                                         nextc%n*nextc%lmort_direct)/newn
-                                   currentCohort%lmort_infra      = (currentCohort%n*currentCohort%lmort_infra      + &
-                                         nextc%n*nextc%lmort_infra)/newn
-                                   currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
-                                         nextc%n*nextc%lmort_collateral)/newn
 
                                    currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
                                          nextc%n*nextc%fire_mort)/newn
@@ -1175,7 +1173,9 @@ contains
                                          nextc%n*nextc%lmort_collateral)/newn
                                    currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
                                          nextc%n*nextc%lmort_infra)/newn
-
+                                   currentCohort%l_degrad = (currentCohort%n*currentCohort%l_degrad + &
+                                         nextc%n*nextc%l_degrad)/newn
+                                   
                                    ! biomass and dbh tendencies
                                    currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + &
                                          nextc%n*nextc%ddbhdt)/newn
@@ -1550,9 +1550,6 @@ contains
  
     ! ALLOCATION
     n%dmort           = o%dmort
-    n%lmort_direct    = o%lmort_direct
-    n%lmort_infra     = o%lmort_infra
-    n%lmort_collateral= o%lmort_collateral
     n%seed_prod       = o%seed_prod
     n%treelai         = o%treelai
     n%treesai         = o%treesai
@@ -1565,9 +1562,10 @@ contains
     n%frmort = o%frmort
 
     ! logging mortalities, Yi Xu
-    n%lmort_direct=o%lmort_direct
+    n%lmort_direct     =o%lmort_direct
     n%lmort_collateral =o%lmort_collateral
-    n%lmort_infra =o%lmort_infra
+    n%lmort_infra      =o%lmort_infra
+    n%l_degrad         =o%l_degrad    
 
     ! Flags
     n%isnew = o%isnew

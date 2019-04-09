@@ -25,6 +25,10 @@ module FatesConstantsMod
   ! Integer equivalent of false (in case come compilers dont auto convert)
   integer, parameter :: ifalse = 0
 
+  ! Labels for patch disturbance history
+  integer, parameter :: n_anthro_disturbance_categories = 2
+  integer, parameter :: primaryforest = 1
+  integer, parameter :: secondaryforest = 2
   
   ! Error Tolerances
 

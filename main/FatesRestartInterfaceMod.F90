@@ -1,14 +1,15 @@
 module FatesRestartInterfaceMod
 
 
-  use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : fates_avg_flag_length
-  use FatesConstantsMod, only : fates_short_string_length
-  use FatesConstantsMod, only : fates_long_string_length
-  use FatesConstantsMod, only : itrue
-  use FatesConstantsMod, only : ifalse
-  use FatesGlobals, only : fates_log
-  use FatesGlobals, only : endrun => fates_endrun
+  use FatesConstantsMod , only : r8 => fates_r8
+  use FatesConstantsMod , only : fates_avg_flag_length
+  use FatesConstantsMod , only : fates_short_string_length
+  use FatesConstantsMod , only : fates_long_string_length
+  use FatesConstantsMod , only : itrue
+  use FatesConstantsMod , only : ifalse
+  use FatesConstantsMod , only : primaryforest
+  use FatesGlobals      , only : fates_log
+  use FatesGlobals      , only : endrun => fates_endrun
   use FatesIODimensionsMod, only : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
@@ -139,8 +140,12 @@ module FatesRestartInterfaceMod
   integer, private :: ir_livegrass_pa
   integer, private :: ir_age_pa
   integer, private :: ir_area_pa
+  integer, private :: ir_agesinceanthrodist_pa
+  integer, private :: ir_patchdistturbcat_pa
+  
 
   ! Site level
+
   integer, private :: ir_watermem_siwm
   integer, private :: ir_seed_bank_sift
   integer, private :: ir_spread_si
@@ -867,6 +872,16 @@ contains
          long_name='age of the ED patch', units='yr', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_age_pa )
 
+    call this%set_restart_var(vname='fates_age_since_anthro_dist', vtype=cohort_r8, &
+         long_name='age of the ED patch since last anthropogenic disturbance', &
+         units='yr', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, &
+         index = ir_agesinceanthrodist_pa )
+
+    call this%set_restart_var(vname='fates_patchdistturbcat', vtype=cohort_int, &
+         long_name='Disturbance label of patch', units='yr', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_patchdistturbcat_pa )
+
     call this%set_restart_var(vname='fates_area', vtype=cohort_r8, &
          long_name='are of the ED patch', units='m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
@@ -1492,6 +1507,8 @@ contains
            rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
+           rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d, &           
+           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &           
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
            rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
@@ -1689,6 +1706,8 @@ contains
              !
              rio_livegrass_pa(io_idx_co_1st)   = cpatch%livegrass
              rio_age_pa(io_idx_co_1st)         = cpatch%age
+             rio_patchdistturbcat_pa(io_idx_co_1st)   = cpatch%anthro_disturbance_label
+             rio_agesinceanthrodist_pa(io_idx_co_1st) = cpatch%age_since_anthro_disturbance
              rio_area_pa(io_idx_co_1st)        = cpatch%area
              
              ! set cohorts per patch for IO
@@ -1981,7 +2000,7 @@ contains
              ! make new patch
              call create_patch(sites(s), newp, patch_age, area, &
                   cwd_ag_local, cwd_bg_local,  &
-                  leaf_litter_local, root_litter_local,bc_in(s)%nlevsoil ) 
+                  leaf_litter_local, root_litter_local,bc_in(s)%nlevsoil, primaryforest) 
              
              ! give this patch a unique patch number
              newp%patchno = idx_pa
@@ -2201,6 +2220,8 @@ contains
           rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
+          rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d,  &
+          rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
           rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
@@ -2391,7 +2412,9 @@ contains
              ! deal with patch level fields here
              !
              cpatch%livegrass          = rio_livegrass_pa(io_idx_co_1st)
-             cpatch%age                = rio_age_pa(io_idx_co_1st) 
+             cpatch%age                = rio_age_pa(io_idx_co_1st)
+             cpatch%anthro_disturbance_label       = rio_patchdistturbcat_pa(io_idx_co_1st)
+             cpatch%age_since_anthro_disturbance   = rio_agesinceanthrodist_pa(io_idx_co_1st)
              cpatch%area               = rio_area_pa(io_idx_co_1st)
              cpatch%age_class          = get_age_class_index(cpatch%age)
 
