@@ -11,11 +11,14 @@ module EDTypesMod
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,         only : all_carbon_elements
+  use FatesConstantsMod,     only : n_anthro_disturbance_categories
 
   implicit none
   save
 
-  integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
+  integer, parameter :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
+  integer, parameter :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
+                                                     (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
   integer, parameter :: maxCohortsPerPatch = 100  ! maximum number of cohorts per patch
   
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
@@ -305,9 +308,11 @@ module EDTypesMod
 
       ! Logging Mortality Rate 
       ! Yi Xu & M. Huang
-     real(r8) ::  lmort_direct                           ! directly logging rate            %/per logging activity
-     real(r8) ::  lmort_collateral                       ! collaterally damaged rate        %/per logging activity
-     real(r8) ::  lmort_infra                            ! mechanically damaged rate        %/per logging activity
+     real(r8) ::  lmort_direct                           ! directly logging rate            fraction /per logging activity
+     real(r8) ::  lmort_collateral                       ! collaterally damaged rate        fraction /per logging activity
+     real(r8) ::  lmort_infra                            ! mechanically damaged rate        fraction /per logging activity
+     real(r8) ::  l_degrad                               ! rate of trees that are not killed but suffer from forest degradation
+                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary forest patch).  fraction /per logging activity
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
@@ -359,6 +364,8 @@ module EDTypesMod
      real(r8) ::  area                                             ! patch area: m2  
      integer  ::  countcohorts                                     ! Number of cohorts in patch
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
+     integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
+     real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
@@ -473,6 +480,7 @@ module EDTypesMod
                                                                    !                       2) fire: fraction/day 
                                                                    !                       3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
+     real(r8) ::  fract_ldist_not_harvested                        ! fraction of logged area that is canopy trees that weren't harvested
 
      ! LITTER AND COARSE WOODY DEBRIS 
      ! Pools of litter (non respiring) 
