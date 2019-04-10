@@ -32,6 +32,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : nan_leaf_aclass
   use EDTypesMod            , only : max_nleafage
   use EDTypesMod            , only : ican_upper
+  use EDTypesMod            , only : site_fluxdiags_type
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
