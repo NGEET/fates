@@ -80,18 +80,6 @@ module EDTypesMod
                                         ! its leaves and should not be trying to allocate
                                         ! towards any growth.
 
-  ! Switches that turn on/off ED dynamics process (names are self explanatory)
-  ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
-  ! THEY SHOULD CORRECTLY TURN OFF OR ON THE PROCESS, BUT.. THERE ARE VARIOUS 
-  ! ASPECTS REGARDING DIAGNOSING RATES AND HOW THEY ARE REPORTED WHEN THESE 
-  ! PROCESSES ARE OFF THAT NEED TO BE DISCUSSED AND CONSIDERED.
-  ! TO-DO: THESE SHOULD BE PARAMETERS IN THE FILE OR NAMELIST - ADDING THESE
-  ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
-  ! INTRODUCED (RGK 03-2017)
-
-  logical, parameter :: do_ed_phenology   = .true.
-
-
   ! Flag to turn on/off salinity effects on the effective "btran"
   ! btran stress function.
 

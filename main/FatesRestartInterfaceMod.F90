@@ -96,6 +96,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_canopy_trim_co
   integer, private :: ir_size_class_lasttimestep_co
   integer, private :: ir_dbh_co
+  integer, private :: ir_g_sb_laweight_co
   integer, private :: ir_height_co
   integer, private :: ir_laimemory_co
   integer, private :: ir_nplant_co
@@ -804,6 +805,10 @@ contains
          units='0/1', flushval = flushone, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_isnew_co )
 
+    call this%set_restart_var(vname='fates_gsblaweight',vtype=cohort_r8, &
+         long_name='ed cohort - leaf-area weighted total stomatal+blayer conductance', &
+         units='[m/s]*[m2]', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_g_sb_laweight_co)
 
     ! Mixed dimension variables using the cohort vector
     ! -----------------------------------------------------------------------------------
@@ -1468,6 +1473,7 @@ contains
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
+           rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
            rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
@@ -1654,6 +1660,7 @@ contains
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_height_co(io_idx_co)       = ccohort%hite
                 rio_laimemory_co(io_idx_co)    = ccohort%laimemory
+                rio_g_sb_laweight_co(io_idx_co)= ccohort%g_sb_laweight
 
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
@@ -2179,6 +2186,7 @@ contains
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
+          rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
           rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
@@ -2326,6 +2334,7 @@ contains
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
                 ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
+                ccohort%g_sb_laweight= rio_g_sb_laweight_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
                 ccohort%laimemory    = rio_laimemory_co(io_idx_co)
                 ccohort%n            = rio_nplant_co(io_idx_co)

@@ -40,7 +40,6 @@ module EDMainMod
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
-  use EDTypesMod               , only : do_ed_phenology
   use EDTypesMod               , only : AREA
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : primaryforest, secondaryforest
@@ -135,10 +134,14 @@ contains
 
    
     call ed_total_balance_check(currentSite, 0)
-    
-    if (do_ed_phenology) then
+
+    ! We do not allow phenology while in ST3 mode either, it is hypothetically
+    ! possible to allow this, but we have not plugged in the litter fluxes
+    ! of flushing or turning over leaves for non-dynamics runs
+    if (hlm_use_ed_st3.eq.ifalse) then
        call phenology(currentSite, bc_in )
     end if
+
 
     if (hlm_use_ed_st3.eq.ifalse) then   ! Bypass if ST3
        call fire_model(currentSite, bc_in) 
@@ -346,7 +349,6 @@ contains
           
           currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
-
           leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
@@ -356,7 +358,8 @@ contains
                currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,6 )
           
 
-          ! Conducte Maintenance Turnover (parteh)
+          ! Conduct Maintenance Turnover (parteh)
+
           call currentCohort%prt%CheckMassConservation(ft,3)
           call PRTMaintTurnover(currentCohort%prt,ft,currentSite%is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
