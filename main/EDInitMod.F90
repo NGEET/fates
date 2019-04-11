@@ -8,6 +8,7 @@ module EDInitMod
   use FatesConstantsMod         , only : ifalse
   use FatesConstantsMod         , only : itrue
   use FatesConstantsMod         , only : fates_unset_int
+  use FatesConstantsMod         , only : primaryforest
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
@@ -115,8 +116,8 @@ contains
     site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
     site_in%dstatus          = fates_unset_int
     site_in%grow_deg_days    = nan  ! growing degree days
-    site_in%ncd              = fates_unset_int
-   
+    site_in%nchilldays       = fates_unset_int
+    site_in%ncolddays        = fates_unset_int
     site_in%cleafondate      = fates_unset_int  ! doy of leaf on
     site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off
     site_in%dleafondate      = fates_unset_int  ! doy of leaf on drought
@@ -188,7 +189,6 @@ contains
     ! !LOCAL VARIABLES:
     integer  :: s
     integer  :: cstat      ! cold status phenology flag
-    integer  :: NCD
     real(r8) :: GDD
     integer  :: dstat      ! drought status phenology flag
     real(r8) :: acc_NI
@@ -207,7 +207,6 @@ contains
 
     if ( hlm_is_restart == ifalse ) then
 
-       NCD      = 0
        GDD      = 30.0_r8
        cleafon  = 100.0_r8
        cleafoff = 300.0_r8 
@@ -219,7 +218,12 @@ contains
        watermem = 0.5_r8
 
        do s = 1,nsites
-          sites(s)%ncd           = NCD
+          sites(s)%nchilldays    = 0
+          sites(s)%ncolddays     = 0        ! recalculated in phenology
+                                            ! immediately, so yes this
+                                            ! is memory-less, but needed
+                                            ! for first value in history file
+
           sites(s)%cleafondate   = cleafon
           sites(s)%cleafoffdate  = cleafoff
           sites(s)%dleafoffdate  = dleafoff
@@ -334,7 +338,7 @@ contains
            ! make new patch...
            call create_patch(sites(s), newp, age, AREA, &
                  cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
-                 root_litter_local, bc_in(s)%nlevsoil ) 
+                 root_litter_local, bc_in(s)%nlevsoil, primaryforest ) 
            
            sitep => sites(s)
            call init_cohorts(sitep, newp, bc_in(s))

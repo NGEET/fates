@@ -27,7 +27,6 @@ module EDPhysiologyMod
 
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
-  use EDTypesMod          , only : external_recruitment
   use EDTypesMod          , only : ncwd
   use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
@@ -60,7 +59,6 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : bbgw_allom
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
-  use FatesAllometryMod  , only : StructureResetOfDH
   
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : leaf_organ
@@ -259,7 +257,8 @@ contains
 
           currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
                                            currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                                           currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top )  
+                                           currentPatch%canopy_layer_tlai, currentCohort%treelai, &
+                                           currentCohort%vcmax25top,0 )  
 
           currentCohort%nv      = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
 
@@ -475,17 +474,17 @@ contains
     ! in the late autumn.
     ! This value is used to determine the GDD exceedance threshold
     if (hlm_day_of_year == ncdstart)then
-       currentSite%ncd = 0
+       currentSite%nchilldays = 0
     endif
 
     !Accumulate growing/chilling days after start of counting period
     if (temp_in_C  <  ED_val_phen_chiltemp)then
-       currentSite%ncd = currentSite%ncd + 1
+       currentSite%nchilldays = currentSite%nchilldays + 1
     endif
 
     !GDD accumulation function, which also depends on chilling days.
     !  -68 + 638 * (-0.001 * ncd) 
-    gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%ncd,r8))
+    gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%nchilldays,r8))
 
     !Accumulate temperature of last 10 days.
     currentSite%vegtemp_memory(2:num_vegtemp_mem) = currentSite%vegtemp_memory(1:num_vegtemp_mem-1)
@@ -539,7 +538,7 @@ contains
 
     if ( (currentSite%cstatus == 1 .or. currentSite%cstatus == 0) .and. &
          (currentSite%grow_deg_days > gdd_threshold) .and. &
-         (currentSite%ncd >= 1)                    .and. &
+         (currentSite%nchilldays >= 1)                    .and. &
          (dayssincecleafoff > ED_val_phen_mindayson))  then
        currentSite%cstatus = 2     !alter status of site to 'leaves on'
        currentSite%cleafondate = model_day_int  
@@ -575,7 +574,7 @@ contains
     
     ! LEAF OFF: COLD LIFESPAN THRESHOLD
     ! NOTE: Some areas of the planet will never generate a cold day
-    ! and thus %ncd will never go from zero to 1.  The following logic
+    ! and thus %nchilldays will never go from zero to 1.  The following logic
     ! when coupled with this fact will essentially prevent cold-deciduous
     ! plants from re-emerging in areas without at least some cold days
 
@@ -965,19 +964,13 @@ contains
 
     endif
 
-    currentPatch => currentSite%oldest_patch
-
-    do while(associated(currentPatch))
-       if (external_recruitment == 1) then !external seed rain - needed to prevent extinction  
-          do p = 1,numpft
-           currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
+    do p = 1,numpft
+       currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
                  EDPftvarcon_inst%seed_rain(p) !KgC/m2/year
-           currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + &
+       currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + &
                  EDPftvarcon_inst%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
-          enddo
-       endif
-       currentPatch => currentPatch%younger
     enddo
+
 
   end subroutine seeds_in
   

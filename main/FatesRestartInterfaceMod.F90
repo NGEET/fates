@@ -1,14 +1,15 @@
 module FatesRestartInterfaceMod
 
 
-  use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : fates_avg_flag_length
-  use FatesConstantsMod, only : fates_short_string_length
-  use FatesConstantsMod, only : fates_long_string_length
-  use FatesConstantsMod, only : itrue
-  use FatesConstantsMod, only : ifalse
-  use FatesGlobals, only : fates_log
-  use FatesGlobals, only : endrun => fates_endrun
+  use FatesConstantsMod , only : r8 => fates_r8
+  use FatesConstantsMod , only : fates_avg_flag_length
+  use FatesConstantsMod , only : fates_short_string_length
+  use FatesConstantsMod , only : fates_long_string_length
+  use FatesConstantsMod , only : itrue
+  use FatesConstantsMod , only : ifalse
+  use FatesConstantsMod , only : primaryforest
+  use FatesGlobals      , only : fates_log
+  use FatesGlobals      , only : endrun => fates_endrun
   use FatesIODimensionsMod, only : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
@@ -69,6 +70,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_cd_status_si
   integer, private :: ir_dd_status_si
   integer, private :: ir_nchill_days_si
+  integer, private :: ir_ncold_days_si
   integer, private :: ir_leafondate_si
   integer, private :: ir_leafoffdate_si
   integer, private :: ir_dleafondate_si
@@ -95,6 +97,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_canopy_trim_co
   integer, private :: ir_size_class_lasttimestep_co
   integer, private :: ir_dbh_co
+  integer, private :: ir_g_sb_laweight_co
   integer, private :: ir_height_co
   integer, private :: ir_laimemory_co
   integer, private :: ir_nplant_co
@@ -138,8 +141,12 @@ module FatesRestartInterfaceMod
   integer, private :: ir_livegrass_pa
   integer, private :: ir_age_pa
   integer, private :: ir_area_pa
+  integer, private :: ir_agesinceanthrodist_pa
+  integer, private :: ir_patchdistturbcat_pa
+  
 
   ! Site level
+
   integer, private :: ir_watermem_siwm
   integer, private :: ir_vegtempmem_sitm
   integer, private :: ir_seed_bank_sift
@@ -565,6 +572,10 @@ contains
          long_name='chilling day counter', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nchill_days_si )
 
+    call this%set_restart_var(vname='fates_cold_days', vtype=site_int, &
+         long_name='cold day counter', units='unitless', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ncold_days_si )
+
     call this%set_restart_var(vname='fates_leafondate', vtype=site_int, &
          long_name='the day of year for leaf on', units='day of year', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafondate_si )
@@ -800,6 +811,10 @@ contains
          units='0/1', flushval = flushone, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_isnew_co )
 
+    call this%set_restart_var(vname='fates_gsblaweight',vtype=cohort_r8, &
+         long_name='ed cohort - leaf-area weighted total stomatal+blayer conductance', &
+         units='[m/s]*[m2]', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_g_sb_laweight_co)
 
     ! Mixed dimension variables using the cohort vector
     ! -----------------------------------------------------------------------------------
@@ -862,6 +877,16 @@ contains
     call this%set_restart_var(vname='fates_age', vtype=cohort_r8, &
          long_name='age of the ED patch', units='yr', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_age_pa )
+
+    call this%set_restart_var(vname='fates_age_since_anthro_dist', vtype=cohort_r8, &
+         long_name='age of the ED patch since last anthropogenic disturbance', &
+         units='yr', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, &
+         index = ir_agesinceanthrodist_pa )
+
+    call this%set_restart_var(vname='fates_patchdistturbcat', vtype=cohort_int, &
+         long_name='Disturbance label of patch', units='yr', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_patchdistturbcat_pa )
 
     call this%set_restart_var(vname='fates_area', vtype=cohort_r8, &
          long_name='are of the ED patch', units='m2', flushval = flushzero, &
@@ -1272,8 +1297,8 @@ contains
     ! and pulls from the different associated restart variables
     
     class(fates_restart_interface_type) , intent(inout) :: this
-    real(r8),intent(inout) :: state_vector(len_state_vector)
     integer,intent(in)     :: len_state_vector
+    real(r8),intent(inout) :: state_vector(len_state_vector)
     integer,intent(in)     :: variable_index_base
     integer,intent(in)     :: co_global_index
     
@@ -1297,8 +1322,8 @@ contains
     ! and pushes into the restart arrays the different associated restart variables
     
     class(fates_restart_interface_type) , intent(inout) :: this
-    real(r8),intent(in)  :: state_vector(len_state_vector)
     integer,intent(in)   :: len_state_vector
+    real(r8),intent(in)  :: state_vector(len_state_vector)
     integer,intent(in)   :: variable_index_base
     integer,intent(in)   :: co_global_index
     
@@ -1433,6 +1458,7 @@ contains
            rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
            rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
            rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
+           rio_ncold_days_si           => this%rvars(ir_ncold_days_si)%int1d, &
            rio_leafondate_si           => this%rvars(ir_leafondate_si)%int1d, &
            rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%int1d, &
            rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%int1d, &
@@ -1460,6 +1486,7 @@ contains
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
+           rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
            rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
@@ -1493,6 +1520,8 @@ contains
            rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
+           rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d, &           
+           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &           
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
            rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
@@ -1646,6 +1675,7 @@ contains
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_height_co(io_idx_co)       = ccohort%hite
                 rio_laimemory_co(io_idx_co)    = ccohort%laimemory
+                rio_g_sb_laweight_co(io_idx_co)= ccohort%g_sb_laweight
 
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
@@ -1691,6 +1721,8 @@ contains
              !
              rio_livegrass_pa(io_idx_co_1st)   = cpatch%livegrass
              rio_age_pa(io_idx_co_1st)         = cpatch%age
+             rio_patchdistturbcat_pa(io_idx_co_1st)   = cpatch%anthro_disturbance_label
+             rio_agesinceanthrodist_pa(io_idx_co_1st) = cpatch%age_since_anthro_disturbance
              rio_area_pa(io_idx_co_1st)        = cpatch%area
              
              ! set cohorts per patch for IO
@@ -1789,7 +1821,8 @@ contains
           rio_old_stock_si(io_idx_si)    = sites(s)%old_stock
           rio_cd_status_si(io_idx_si)    = sites(s)%cstatus
           rio_dd_status_si(io_idx_si)    = sites(s)%dstatus
-          rio_nchill_days_si(io_idx_si)  = sites(s)%ncd 
+          rio_nchill_days_si(io_idx_si)  = sites(s)%nchilldays
+          rio_ncold_days_si(io_idx_si)   = sites(s)%ncolddays
           rio_leafondate_si(io_idx_si)   = sites(s)%cleafondate
           rio_leafoffdate_si(io_idx_si)  = sites(s)%cleafoffdate
           rio_dleafondate_si(io_idx_si)  = sites(s)%dleafondate
@@ -1946,13 +1979,6 @@ contains
           call init_site_vars( sites(s) )
           call zero_site( sites(s) )
 
-          ! 
-          ! set a few items that are necessary on restart for ED but not on the 
-          ! restart file
-          !
-          
-          sites(s)%ncd = 0
-
           if ( rio_npatch_si(io_idx_si)<0 .or. rio_npatch_si(io_idx_si) > 10000 ) then
              write(fates_log(),*) 'a column was expected to contain a valid number of patches'
              write(fates_log(),*) '0 is a valid number, but this column seems uninitialized',rio_npatch_si(io_idx_si)
@@ -1976,7 +2002,7 @@ contains
              ! make new patch
              call create_patch(sites(s), newp, patch_age, area, &
                   cwd_ag_local, cwd_bg_local,  &
-                  leaf_litter_local, root_litter_local,bc_in(s)%nlevsoil ) 
+                  leaf_litter_local, root_litter_local,bc_in(s)%nlevsoil, primaryforest) 
              
              ! give this patch a unique patch number
              newp%patchno = idx_pa
@@ -2137,6 +2163,7 @@ contains
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
           rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
           rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
+          rio_ncold_days_si           => this%rvars(ir_ncold_days_si)%int1d, &
           rio_leafondate_si           => this%rvars(ir_leafondate_si)%int1d, &
           rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%int1d, &
           rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%int1d, &
@@ -2164,6 +2191,7 @@ contains
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
+          rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
           rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
@@ -2197,6 +2225,8 @@ contains
           rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
+          rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d,  &
+          rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
           rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
@@ -2311,6 +2341,7 @@ contains
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
                 ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
+                ccohort%g_sb_laweight= rio_g_sb_laweight_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
                 ccohort%laimemory    = rio_laimemory_co(io_idx_co)
                 ccohort%n            = rio_nplant_co(io_idx_co)
@@ -2388,7 +2419,9 @@ contains
              ! deal with patch level fields here
              !
              cpatch%livegrass          = rio_livegrass_pa(io_idx_co_1st)
-             cpatch%age                = rio_age_pa(io_idx_co_1st) 
+             cpatch%age                = rio_age_pa(io_idx_co_1st)
+             cpatch%anthro_disturbance_label       = rio_patchdistturbcat_pa(io_idx_co_1st)
+             cpatch%age_since_anthro_disturbance   = rio_agesinceanthrodist_pa(io_idx_co_1st)
              cpatch%area               = rio_area_pa(io_idx_co_1st)
              cpatch%age_class          = get_age_class_index(cpatch%age)
 
@@ -2532,7 +2565,8 @@ contains
 
           sites(s)%cstatus        = rio_cd_status_si(io_idx_si)
           sites(s)%dstatus        = rio_dd_status_si(io_idx_si)
-          sites(s)%ncd            = rio_nchill_days_si(io_idx_si)
+          sites(s)%nchilldays     = rio_nchill_days_si(io_idx_si)
+          sites(s)%ncolddays      = rio_ncold_days_si(io_idx_si)
           sites(s)%cleafondate    = rio_leafondate_si(io_idx_si)
           sites(s)%cleafoffdate   = rio_leafoffdate_si(io_idx_si)
           sites(s)%dleafondate    = rio_dleafondate_si(io_idx_si)

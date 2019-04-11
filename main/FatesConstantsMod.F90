@@ -15,22 +15,22 @@ module FatesConstantsMod
   integer, parameter :: fates_short_string_length = 32
   integer, parameter :: fates_long_string_length = 199
 
-  ! Unset and various other 'special' values
+  ! Used to initialize and test unset integers
   integer, parameter :: fates_unset_int = -9999
 
-  ! special value for real data (history ignore val)
-  real(fates_r8), parameter ::  clm_spval = 1.e36_fates_r8
+  ! Used to initialize and test unset r8s
+  real(fates_r8), parameter :: fates_unset_r8 = -1.e36_fates_r8
 
-  ! special value for integer data
-  integer , parameter :: clm_ispval = -9999
-
-  
   ! Integer equivalent of true  (in case some compilers dont auto convert)
   integer, parameter :: itrue = 1
 
   ! Integer equivalent of false (in case come compilers dont auto convert)
   integer, parameter :: ifalse = 0
 
+  ! Labels for patch disturbance history
+  integer, parameter :: n_anthro_disturbance_categories = 2
+  integer, parameter :: primaryforest = 1
+  integer, parameter :: secondaryforest = 2
   
   ! Error Tolerances
 

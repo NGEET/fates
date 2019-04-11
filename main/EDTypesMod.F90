@@ -11,20 +11,23 @@ module EDTypesMod
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,         only : all_carbon_elements
+  use FatesConstantsMod,     only : n_anthro_disturbance_categories
 
   implicit none
   save
 
-  integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
+  integer, parameter :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
+  integer, parameter :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
+                                                     (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
   integer, parameter :: maxCohortsPerPatch = 100  ! maximum number of cohorts per patch
   
-  integer, parameter :: nclmax = 3                ! Maximum number of canopy layers
+  integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for diagnostics that refer
                                                   ! to understory layers (all layers that
                                                   ! are not the top canopy layer)
 
-  integer, parameter :: nlevleaf = 20             ! number of leaf layers in canopy layer
+  integer, parameter :: nlevleaf = 30             ! number of leaf layers in canopy layer
   integer, parameter :: maxpft = 15               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
@@ -78,18 +81,6 @@ module EDTypesMod
                                         ! its leaves and should not be trying to allocate
                                         ! towards any growth.
 
-  ! Switches that turn on/off ED dynamics process (names are self explanatory)
-  ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
-  ! THEY SHOULD CORRECTLY TURN OFF OR ON THE PROCESS, BUT.. THERE ARE VARIOUS 
-  ! ASPECTS REGARDING DIAGNOSING RATES AND HOW THEY ARE REPORTED WHEN THESE 
-  ! PROCESSES ARE OFF THAT NEED TO BE DISCUSSED AND CONSIDERED.
-  ! TO-DO: THESE SHOULD BE PARAMETERS IN THE FILE OR NAMELIST - ADDING THESE
-  ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
-  ! INTRODUCED (RGK 03-2017)
-
-  logical, parameter :: do_ed_phenology   = .true.
-
-
   ! Flag to turn on/off salinity effects on the effective "btran"
   ! btran stress function.
 
@@ -117,7 +108,6 @@ module EDTypesMod
   integer, parameter :: numWaterMem           = 10         ! watermemory saved as site level var
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
-  integer , parameter :: external_recruitment = 0          ! external recruitment flag 1=yes  
   integer , parameter :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter :: dinc_ed              = 1.0_r8     ! size of VAI bins (LAI+SAI)  [CHANGE THIS NAME WITH NEXT INTERFACE
                                                            ! UPDATE]
@@ -152,6 +142,11 @@ module EDTypesMod
 
   real(r8), parameter :: min_npm2       = 1.0E-7_r8               ! minimum cohort number density per m2 before termination
   real(r8), parameter :: min_patch_area = 0.01_r8                 ! smallest allowable patch area before termination
+  real(r8), parameter :: min_patch_area_forced = 0.0001_r8        ! patch termination will not fuse the youngest patch
+                                                                  ! if the area is less than min_patch_area.
+                                                                  ! however, it is allowed to fuse the youngest patch
+                                                                  ! if the fusion area is less than min_patch_area_forced
+
   real(r8), parameter :: min_nppatch    = min_npm2*min_patch_area ! minimum number of cohorts per patch (min_npm2*min_patch_area)
   real(r8), parameter :: min_n_safemath = 1.0E-12_r8              ! in some cases, we want to immediately remove super small
                                                                   ! number densities of cohorts to prevent FPEs
@@ -251,6 +246,11 @@ module EDTypesMod
      real(r8) ::  resp_tstep         ! Autotrophic respiration (see above *)
      real(r8) ::  resp_acc
      real(r8) ::  resp_acc_hold
+     
+     ! carbon 13c discrimination
+     real(r8) ::  c13disc_clm         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/timestep
+     real(r8) ::  c13disc_acc         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/day, at the end of a day
+
 
      ! The following four biophysical rates are assumed to be
      ! at the canopy top, at reference temp 25C, and based on the 
@@ -297,9 +297,11 @@ module EDTypesMod
 
       ! Logging Mortality Rate 
       ! Yi Xu & M. Huang
-     real(r8) ::  lmort_direct                           ! directly logging rate            %/per logging activity
-     real(r8) ::  lmort_collateral                       ! collaterally damaged rate        %/per logging activity
-     real(r8) ::  lmort_infra                            ! mechanically damaged rate        %/per logging activity
+     real(r8) ::  lmort_direct                           ! directly logging rate            fraction /per logging activity
+     real(r8) ::  lmort_collateral                       ! collaterally damaged rate        fraction /per logging activity
+     real(r8) ::  lmort_infra                            ! mechanically damaged rate        fraction /per logging activity
+     real(r8) ::  l_degrad                               ! rate of trees that are not killed but suffer from forest degradation
+                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary forest patch).  fraction /per logging activity
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
@@ -351,6 +353,8 @@ module EDTypesMod
      real(r8) ::  area                                             ! patch area: m2  
      integer  ::  countcohorts                                     ! Number of cohorts in patch
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
+     integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
+     real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
@@ -465,6 +469,7 @@ module EDTypesMod
                                                                    !                       2) fire: fraction/day 
                                                                    !                       3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
+     real(r8) ::  fract_ldist_not_harvested                        ! fraction of logged area that is canopy trees that weren't harvested
 
      ! LITTER AND COARSE WOODY DEBRIS 
      ! Pools of litter (non respiring) 
@@ -619,7 +624,8 @@ module EDTypesMod
                                                                ! 1 = leaves off due to moisture avail
                                                                ! 2 = leaves on due to moisture avail
                                                                ! 3 = leaves on due to time exceedance
-     integer  ::  ncd                                          ! no chilling days:-
+     integer  ::  nchilldays                                   ! num chilling days: (for botta gdd trheshold calculation)
+     integer  ::  ncolddays                                    ! num cold days: (must exceed threshold to drop leaves)
      real(r8) ::  vegtemp_memory(num_vegtemp_mem)              ! record of last 10 days temperature for senescence model. deg C
      integer  ::  cleafondate                                  ! model date (day integer) of leaf on (cold):-
      integer  ::  cleafoffdate                                 ! model date (day integer) of leaf off (cold):-

@@ -40,15 +40,15 @@ module EDMainMod
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
-  use EDTypesMod               , only : do_ed_phenology
   use EDTypesMod               , only : AREA
   use FatesConstantsMod        , only : itrue,ifalse
+  use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
   use FatesPlantHydraulicsMod  , only : initTreeHydStates
   use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
-  use FatesAllometryMod        , only : h_allom
+  use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use FatesGlobals             , only : endrun => fates_endrun
@@ -134,10 +134,14 @@ contains
 
    
     call ed_total_balance_check(currentSite, 0)
-    
-    if (do_ed_phenology) then
+
+    ! We do not allow phenology while in ST3 mode either, it is hypothetically
+    ! possible to allow this, but we have not plugged in the litter fluxes
+    ! of flushing or turning over leaves for non-dynamics runs
+    if (hlm_use_ed_st3.eq.ifalse) then
        call phenology(currentSite, bc_in )
     end if
+
 
     if (hlm_use_ed_st3.eq.ifalse) then   ! Bypass if ST3
        call fire_model(currentSite, bc_in) 
@@ -266,6 +270,7 @@ contains
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
     logical  :: is_drought            ! logical for if the plant (site) is in a drought state
+    real(r8) :: leaf_c
     
     !-----------------------------------------------------------------------
 
@@ -285,6 +290,12 @@ contains
        if( currentPatch%age  <  0._r8 )then
           write(fates_log(),*) 'negative patch age?',currentPatch%age, &
                currentPatch%patchno,currentPatch%area
+       endif
+
+       ! add age increment to secondary forest patches as well
+       if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
+          currentPatch%age_since_anthro_disturbance = &
+               currentPatch%age_since_anthro_disturbance + hlm_freq_day
        endif
 
        ! check to see if the patch has moved to the next age class
@@ -339,6 +350,15 @@ contains
           
           currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
+          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+               currentCohort%vcmax25top)
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,6 )
+          
+
           ! Conduct Maintenance Turnover (parteh)
           call currentCohort%prt%CheckMassConservation(ft,3)
           if(currentSite%dstatus>1) then
@@ -348,6 +368,15 @@ contains
           end if
           call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
+
+          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+               currentCohort%vcmax25top)
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,7 )
+          
 
           ! Conduct Growth (parteh)
           call currentCohort%prt%DailyPRT()
@@ -359,7 +388,14 @@ contains
           ! routine is also called following fusion
           call UpdateCohortBioPhysRates(currentCohort)
 
-
+          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+               currentCohort%vcmax25top)
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,3 ) 
+          
           ! Transfer all reproductive tissues into seed production
           call PRTReproRelease(currentCohort%prt,repro_organ,carbon12_element, &
                                1.0_r8, currentCohort%seed_prod)
@@ -404,8 +440,10 @@ contains
        enddo
 
        do ft = 1,numpft
-          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* hlm_freq_day
-          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* hlm_freq_day
+          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + &
+               currentPatch%dleaf_litter_dt(ft)* hlm_freq_day
+          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + &
+               currentPatch%droot_litter_dt(ft)* hlm_freq_day
        enddo
 
        do c = 1,ncwd
@@ -706,8 +744,8 @@ contains
           currentCohort%frmort = 0.0_r8
 
           currentCohort%dndt      = 0.0_r8
-	  currentCohort%dhdt      = 0.0_r8
-	  currentCohort%ddbhdt    = 0.0_r8
+          currentCohort%dhdt      = 0.0_r8
+          currentCohort%ddbhdt    = 0.0_r8
 
           currentCohort => currentCohort%taller
        enddo

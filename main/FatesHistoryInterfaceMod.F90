@@ -6,7 +6,6 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : fates_long_string_length
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : calloc_abs_error
-  use FatesConstantsMod        , only : clm_spval
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
@@ -39,6 +38,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : sec_per_day
   use FatesConstantsMod        , only : days_per_year
   use FatesConstantsMod        , only : years_per_day
+  use FatesConstantsMod        , only : secondaryforest
 
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
@@ -50,8 +50,70 @@ module FatesHistoryInterfaceMod
   ! These variables hold the index of the history output structure so we don't
   ! have to constantly do name lookup when we want to populate the dataset
   ! These indices are set during "define_history_vars()" call to "set_history_var()"
-  ! during the initialize phase.  Definitions are not provide, for an explanation of
+  ! during the initialize phase.  Definitions are not provided, for an explanation of
   ! the variable go to its registry.  (IH_ signifies "index history")
+  !
+  ! Because of the complex sub-gridscale structure of FATES, in which multiple patches and cohorts
+  ! exist within a gridcell, along with vertical gradients within and between canopy layers, as well
+  ! as distinct classes such as PFTs or fuel size bins, there are multiple different dimensions in
+  ! which it is possible to output history variables to better understand what's going on.
+  !
+  ! a key point is that, while the number of patches or cohorts can in principle be large, and 
+  ! the age and size indices of a given patch or cohort can be finely resolved, we collapse these 
+  ! continuously varying indices into bins of time-invariant width for the purposes of history 
+  ! outputting.  This is because a given patch or cohort may not persist across a given interval
+  ! of history averaging, so it is better to output all patches of cohorts whose index is within 
+  ! a given interval along the size or age bin.
+  !
+  ! Another particularity of the issue of FATES shifting its subgrid structure frequently 
+  ! and possibly having multiple (or zero) patches or cohorts within a given bin is that, if you
+  ! want to output an average quantities across some dimension, such as a mean carbon flux across 
+  ! patch area of a given age, in general it is better to output both the numerator and denominator
+  ! of the averaging calculation separately, rather than the average itself, and then calculate 
+  ! the average in post-processing. So, e.g. this means outputting both the patch area and the 
+  ! product of the flux within each patch and the patch area as separate variables.  Doing this 
+  ! allows conservation even when the weights are changing rapidly and simplifies the logic when
+  ! the number of patches or cohorts may be anywhere from zero to a large number.
+  !
+  ! So what this means is that anything that is disaggregated at the patch area requires 
+  ! outputting the patch age distribution (in units of patch area / site area) as the denominator
+  ! of the average and then calculating the numerator of the average as XXX times the patch 
+  ! area so (so in units of XXX * patch area / site area). For cohort-level quantities,
+  ! this requires outputting the number density (in units of individuals per site area), etc.
+  !
+  ! For reference, some standardized abbreviations of the FATES dimensions are listed here:
+  ! scls = size-class dimension
+  ! pft  = the pft dimension
+  ! age  = the age bin dimension
+  ! height = the height bin dimension
+  ! cwdsc  = the coarse woody debris size class dimension
+  ! 
+  ! Since the netcdf interface can only handle variables with a certain number of dimensions,
+  ! we have create some "multiplexed" dimensions that combine two or more dimensions into a
+  ! single dimension.  Examples of these are the following:
+  ! scpf = size class x PFT
+  ! cnlf = canopy layer x leaf layer
+  ! cnlfpft = canopy layer x leaf layer x PFT
+  ! scag = size class bin x age bin
+  ! scagpft = size class bin x age bin x PFT
+  ! agepft  = age bin x PFT
+  !
+  ! A recipe for adding a new history variable to this module:
+  ! (1) decide what time frequency it makes sense to update the variable at, and what dimension(s)
+  !     you want to output the variable on
+  ! (2) add the ih_ integer variable in the immediately following section of the module.  
+  !     use the suffix as outlined above for the dimension you are using.
+  ! (3) define a corresponding hio_ variable by associating it to the ih_ variable 
+  !     in the associate section of the subroutine that corresponds to the time-updating 
+  !     frequency that you've chosen
+  !     (i.e. if half-hourly, then work in subroutine update_history_prod; if daily, 
+  !     then work in subroutine update_history_dyn)
+  ! (4) within that subroutine, add the logic that passes the information from the 
+  !     fates-native variable (possibly on a patch or cohort structure) to the history 
+  !     hio_ variable that you've associated to.
+  ! (5) add the variable name, metadata, units, dimension, updating frequency, the ih_ variable 
+  !     index, etc via a call to the set_history_var method in the subroutine define_history_vars.
+  !
   
   ! Indices to 1D Patch variables
 
@@ -155,15 +217,20 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_froot_mr_si
   integer, private :: ih_livestem_mr_si
   integer, private :: ih_livecroot_mr_si
+  integer, private :: ih_fraction_secondary_forest_si
+  integer, private :: ih_biomass_secondary_forest_si
+  integer, private :: ih_woodproduct_si
   integer, private :: ih_h2oveg_si
   integer, private :: ih_h2oveg_dead_si
   integer, private :: ih_h2oveg_recruit_si
   integer, private :: ih_h2oveg_growturn_err_si
   integer, private :: ih_h2oveg_pheno_err_si
   integer, private :: ih_h2oveg_hydro_err_si
+
   integer, private :: ih_site_cstatus_si
   integer, private :: ih_site_dstatus_si
   integer, private :: ih_gdd_si
+  integer, private :: ih_site_nchilldays_si
   integer, private :: ih_site_ncolddays_si
   integer, private :: ih_cleafoff_si
   integer, private :: ih_cleafon_si
@@ -172,7 +239,6 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_meanliqvol_si
 
 
-  ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
   integer, private :: ih_gpp_si_scpf
   integer, private :: ih_npp_totl_si_scpf
@@ -223,9 +289,11 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ar_agsapm_si_scpf
   integer, private :: ih_ar_crootm_si_scpf
   integer, private :: ih_ar_frootm_si_scpf
+  
+  integer, private :: ih_c13disc_si_scpf
 
 
-  ! indices to (site x scls) variables
+  ! indices to (site x scls [size class bins]) variables
   integer, private :: ih_ba_si_scls
   integer, private :: ih_nplant_si_scls
   integer, private :: ih_nplant_canopy_si_scls
@@ -323,6 +391,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_biomass_si_age
   integer, private :: ih_c_stomata_si_age
   integer, private :: ih_c_lblayer_si_age
+  integer, private :: ih_agesince_anthrodist_si_age
+  integer, private :: ih_secondaryforest_area_si_age
 
   ! indices to (site x height) variables
   integer, private :: ih_canopy_height_dist_si_height
@@ -1330,9 +1400,10 @@ end subroutine flush_hvars
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
     integer  :: i_tmem        ! iterator for veg temp bins
-    integer  :: ncolddays     ! number of days below cold threshold over counting period
     integer  :: model_day_int ! integer model day from reference 
-    
+    integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
+                                           ! time-since-anthropogenic-disturbance of secondary forest
+
     
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -1341,6 +1412,8 @@ end subroutine flush_hvars
     real(r8) :: npp_partition_error ! a check that the NPP partitions sum to carbon allocation
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
     real(r8) :: binbottom,bintop    ! edges of height bins
+    
+    real(r8) :: gpp_cached ! variable used to cache gpp value in previous time step; for C13 discrimination
 
     ! The following are all carbon states, turnover and net allocation flux variables
     ! the organs of relevance should be self explanatory
@@ -1467,7 +1540,9 @@ end subroutine flush_hvars
                hio_m5_si_scls          => this%hvars(ih_m5_si_scls)%r82d, &
                hio_m6_si_scls          => this%hvars(ih_m6_si_scls)%r82d, &
                hio_m7_si_scls          => this%hvars(ih_m7_si_scls)%r82d, &
-               hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &                        
+               hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &    
+	       hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &                    
+
 
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_agb_si_scls          => this%hvars(ih_agb_si_scls)%r82d, &
@@ -1529,6 +1604,11 @@ end subroutine flush_hvars
                hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d, &
                hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
                hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
+               hio_fraction_secondary_forest_si   => this%hvars(ih_fraction_secondary_forest_si)%r81d, &
+               hio_biomass_secondary_forest_si    => this%hvars(ih_biomass_secondary_forest_si)%r81d, &
+               hio_woodproduct_si                 => this%hvars(ih_woodproduct_si)%r81d, &
+               hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
+               hio_secondaryforest_area_si_age    => this%hvars(ih_secondaryforest_area_si_age)%r82d, &
                hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
                hio_leaf_height_dist_si_height     => this%hvars(ih_leaf_height_dist_si_height)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
@@ -1551,6 +1631,7 @@ end subroutine flush_hvars
                hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d, &
                hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
                hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
+               hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
                hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
@@ -1593,15 +1674,9 @@ end subroutine flush_hvars
          hio_site_dstatus_si(io_si)   = real(sites(s)%dstatus,r8)
 
          !count number of days for leaves off
-         if(model_day_int>num_vegtemp_mem)then
-            ncolddays = 0
-            do i_tmem = 1,num_vegtemp_mem
-               if (sites(s)%vegtemp_memory(i_tmem) < ED_val_phen_coldtemp)then
-                  ncolddays = ncolddays + 1
-               endif
-            enddo
-            hio_site_ncolddays_si(io_si) = real(ncolddays,r8)
-         end if
+         hio_site_nchilldays_si(io_si) = real(sites(s)%nchilldays,r8)
+         hio_site_ncolddays_si(io_si)  = real(sites(s)%ncolddays,r8)
+
             
          hio_gdd_si(io_si)      = sites(s)%grow_deg_days
          hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
@@ -1614,6 +1689,10 @@ end subroutine flush_hvars
                  sum(sites(s)%water_memory(1:numWaterMem))/real(numWaterMem,r8)
          end if
 
+         ! track total wood product accumulation at the site level
+         hio_woodproduct_si(io_si)          = sites(s)%resources_management%trunk_product_site &
+              * AREA_INV * g_per_kg
+         
 
          ! If hydraulics are turned on, track the error terms
          ! associated with dynamics
@@ -1625,7 +1704,6 @@ end subroutine flush_hvars
             this%hvars(ih_h2oveg_pheno_err_si)%r81d(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
          end if
 
-            
          ipa = 0
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -1653,6 +1731,22 @@ end subroutine flush_hvars
                     + cpatch%zstar * cpatch%area * AREA_INV
             endif
 
+            ! some diagnostics on secondary forest area and its age distribution
+            if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+               hio_fraction_secondary_forest_si(io_si) = hio_fraction_secondary_forest_si(io_si) + &
+                    cpatch%area * AREA_INV
+               
+               ageclass_since_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
+               
+               hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist) = &
+                    hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
+                    + cpatch%area * AREA_INV
+
+               hio_secondaryforest_area_si_age(io_si,cpatch%age_class) = &
+                    hio_secondaryforest_area_si_age(io_si,cpatch%age_class)  &
+                    + cpatch%area * AREA_INV
+            endif
+            
             ccohort => cpatch%shortest
             do while(associated(ccohort))
                
@@ -1774,6 +1868,12 @@ end subroutine flush_hvars
                hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
                     + total_c * ccohort%n * AREA_INV
 
+               ! track the total biomass on all secondary lands
+               if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  hio_biomass_secondary_forest_si(io_si) = hio_biomass_secondary_forest_si(io_si) + &
+                       total_c * ccohort%n * AREA_INV
+               endif
+
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
 
@@ -1812,6 +1912,8 @@ end subroutine flush_hvars
 
                   associate( scpf => ccohort%size_by_pft_class, &
                              scls => ccohort%size_class )
+			     
+		    gpp_cached = hio_gpp_si_scpf(io_si,scpf)
 
                     hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
                                                        n_perm2*ccohort%gpp_acc_hold  ! [kgC/m2/yr]
@@ -1838,39 +1940,49 @@ end subroutine flush_hvars
                     hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
                                                        store_c_net_alloc*n_perm2
 
-                    ! Woody State Variables (basal area and number density and mortality)
+                    ! Woody State Variables (basal area growth increment)
                     if (EDPftvarcon_inst%woody(ft) == 1) then
-                       
-                       hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) + ccohort%bmort*ccohort%n
-                       hio_m2_si_scpf(io_si,scpf) = hio_m2_si_scpf(io_si,scpf) + ccohort%hmort*ccohort%n
-                       hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) + ccohort%cmort*ccohort%n
-                       hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) + &
-                            (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
-                       hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) + ccohort%frmort*ccohort%n
-
-                       hio_m1_si_scls(io_si,scls) = hio_m1_si_scls(io_si,scls) + ccohort%bmort*ccohort%n
-                       hio_m2_si_scls(io_si,scls) = hio_m2_si_scls(io_si,scls) + ccohort%hmort*ccohort%n
-                       hio_m3_si_scls(io_si,scls) = hio_m3_si_scls(io_si,scls) + ccohort%cmort*ccohort%n
-		       hio_m7_si_scls(io_si,scls) = hio_m7_si_scls(io_si,scls) + &
-                             (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
-                       hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
-                             ccohort%frmort*ccohort%n
 
                        ! basal area  [m2/ha]
                        hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
                             0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*ccohort%n
+
                        ! also by size class only
                        hio_ba_si_scls(io_si,scls) = hio_ba_si_scls(io_si,scls) + &
                             0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*ccohort%n
-                       
-                       ! number density [/ha]
-                       hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n
-                       
+
                        ! growth increment
                        hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
                             ccohort%ddbhdt*ccohort%n
 
                     end if
+
+                    hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) + ccohort%bmort*ccohort%n
+                    hio_m2_si_scpf(io_si,scpf) = hio_m2_si_scpf(io_si,scpf) + ccohort%hmort*ccohort%n
+                    hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) + ccohort%cmort*ccohort%n
+                    hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) + &
+                         (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
+                    hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) + ccohort%frmort*ccohort%n
+
+                    hio_m1_si_scls(io_si,scls) = hio_m1_si_scls(io_si,scls) + ccohort%bmort*ccohort%n
+                    hio_m2_si_scls(io_si,scls) = hio_m2_si_scls(io_si,scls) + ccohort%hmort*ccohort%n
+                    hio_m3_si_scls(io_si,scls) = hio_m3_si_scls(io_si,scls) + ccohort%cmort*ccohort%n
+                    hio_m7_si_scls(io_si,scls) = hio_m7_si_scls(io_si,scls) + &
+                         (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
+                    hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
+                         ccohort%frmort*ccohort%n
+
+                    !C13 discrimination
+                    if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
+                       hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
+                            (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
+                    else
+                       hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
+                    endif
+
+                    ! number density [/ha]
+                    hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n
+
 
                     hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
                           total_c * ccohort%n * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) * AREA_INV
@@ -2529,7 +2641,6 @@ end subroutine flush_hvars
             
             hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) + &
                  cpatch%c_lblayer * cpatch%total_canopy_area
-            
 
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -2602,8 +2713,6 @@ end subroutine flush_hvars
                   ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
                   hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
                         ccohort%froot_mr * n_perm2  * sec_per_day * days_per_year
-
-                  
 
 
                   ! accumulate fluxes per patch age bin
@@ -3149,6 +3258,12 @@ end subroutine flush_hvars
          if(hlm_use_ed_st3.eq.ifalse) then
             do scpf=1,nlevsclass*numpft
                if( abs(hio_nplant_si_scpf(io_si, scpf)-ncohort_scpf(scpf)) > 1.0E-8_r8 ) then
+                  write(fates_log(),*) 'numpft:',numpft
+                  write(fates_log(),*) 'nlevsclass:',nlevsclass
+                  write(fates_log(),*) 'scpf:',scpf
+                  write(fates_log(),*) 'io_si:',io_si
+                  write(fates_log(),*) 'hio_nplant_si_scpf:',hio_nplant_si_scpf(io_si, scpf)
+                  write(fates_log(),*) 'ncohort_scpf:',ncohort_scpf(scpf)
                   write(fates_log(),*) 'nplant check on hio_nplant_si_scpf fails during hydraulics history updates'
                   call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
@@ -3274,55 +3389,61 @@ end subroutine flush_hvars
     call this%set_history_var(vname='SITE_COLD_STATUS', units='1,2', &
           long='Site level cold status, 1=too cold for leaves, 2=not-too cold',  &
           use_default='active',                                                  &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
           ivar=ivar, initialize=initialize_variables, index = ih_site_cstatus_si )
 
     call this%set_history_var(vname='SITE_DROUGHT_STATUS', units='1,2', &
           long='Site level drought status, 1=too dry for leaves, 2=not-too dry', &
           use_default='active',                                                  &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
           ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si)
 
     call this%set_history_var(vname='SITE_GDD', units='degC',  &
          long='site level growing degree days',                &
          use_default='active',                                                 &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_gdd_si)
     
+    call this%set_history_var(vname='SITE_NCHILLDAYS', units = 'days', &
+         long='site level number of chill days', &
+         use_default='active',                                                 &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_site_nchilldays_si)
+
     call this%set_history_var(vname='SITE_NCOLDDAYS', units = 'days', &
          long='site level number of cold days', &
          use_default='active',                                                 &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_site_ncolddays_si)
 
     call this%set_history_var(vname='SITE_DAYSINCE_COLDLEAFOFF', units='days', &
          long='site level days elapsed since cold leaf drop', &
          use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_cleafoff_si)
 
     call this%set_history_var(vname='SITE_DAYSINCE_COLDLEAFON', units='days', &
          long='site level days elapsed since cold leaf flush', &
          use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_cleafon_si) 
 
     call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFOFF', units='days', &
          long='site level days elapsed since drought leaf drop', &
          use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_dleafoff_si)
     
     call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFON', units='days', &
          long='site level days elapsed since drought leaf flush', &
          use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_dleafon_si)
 
     call this%set_history_var(vname='SITE_MEANLIQVOL_DROUGHTPHEN', units='m3/m3', &
          long='site level mean liquid water volume for drought phen', &
          use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=clm_spval, upfreq=1, &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_meanliqvol_si)
 
     call this%set_history_var(vname='CANOPY_SPREAD', units='0-1',               &
@@ -3418,6 +3539,37 @@ end subroutine flush_hvars
          use_default='inactive',                     &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_age )
+
+    ! Secondary forest area and age diagnostics
+
+    call this%set_history_var(vname='SECONDARY_FOREST_FRACTION', units='m2/m2', &
+         long='Secondary forest fraction', use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_fraction_secondary_forest_si )
+
+    call this%set_history_var(vname='WOOD_PRODUCT', units='gC/m2', &
+         long='Total wood product from logging', use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_woodproduct_si )
+
+    call this%set_history_var(vname='SECONDARY_FOREST_BIOMASS', units='kgC/m2', &
+         long='Biomass on secondary lands (per total site area, mult by SECONDARY_FOREST_FRACTION to get per secondary forest area)',&
+         use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_biomass_secondary_forest_si )
+
+    call this%set_history_var(vname='SECONDARY_AREA_AGE_ANTHRO_DIST', units='m2/m2', &
+         long='Secondary forest patch area age distribution since anthropgenic disturbance', &
+         use_default='inactive', &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_agesince_anthrodist_si_age )
+
+    call this%set_history_var(vname='SECONDARY_AREA_PATCH_AGE_DIST', units='m2/m2', &
+         long='Secondary forest patch area age distribution since any kind of disturbance', &
+         use_default='inactive', &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_secondaryforest_area_si_age )
+
 
     ! Fire Variables
 
@@ -4086,6 +4238,11 @@ end subroutine flush_hvars
           long='total mortality of canopy plants by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_canopy_si_scpf )
+
+    call this%set_history_var(vname='C13disc_SCPF', units = 'per mil',               &
+         long='C13 discrimination by pft/size',use_default='inactive',           &
+         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_c13disc_si_scpf )	  
 
     call this%set_history_var(vname='BSTOR_CANOPY_SCPF', units = 'kgC/ha',          &
           long='biomass carbon in storage pools of canopy plants by pft/size', use_default='inactive', &
