@@ -40,8 +40,9 @@ module FatesPlantHydraulicsMod
    use FatesConstantsMod, only : cm2_per_m2
    use FatesConstantsMod, only : g_per_kg
 
-   use EDParamsMod       , only : hydr_kmax_rsurf
-
+   use EDParamsMod       , only : hydr_kmax_rsurf1
+   use EDParamsMod       , only : hydr_kmax_rsurf2
+   
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_patch_type
    use EDTypesMod        , only : ed_cohort_type
@@ -1635,7 +1636,53 @@ contains
        enddo !cohort
        cPatch => cPatch%older
     enddo !patch
-    kmax_root_surf = hydr_kmax_rsurf
+    
+    !update the resistance from absorbing root to inner shell
+    !we assume that the conductivitity for water uptake is larger than 
+    !water loss due to composite regulation of resistance the roots
+    !hydraulic vs osmostic with and without transpiration
+    !Steudle, E. Water uptake by roots: effects of water deficit. 
+    !J Exp Bot 51, 1531-1542, doi:DOI 10.1093/jexbot/51.350.1531 (2000).
+    do while(associated(cPatch))
+       cCohort => cPatch%tallest
+       do while(associated(cCohort))
+          ccohort_hydr => cCohort%co_hydr
+	  k = 1 !the inner shell for the rhizosphere
+	  do j = 1,csite_hydr%nlevsoi_hyd 
+	    if(ccohort_hydr%psi_aroot(j)<csite_hydr%psisoi_liq_innershell(j))then
+	       kmax_root_surf = hydr_kmax_rsurf1
+	    else
+	       kmax_root_surf = hydr_kmax_rsurf2
+	    endif	  
+            kmax_root_surf_total = kmax_root_surf*2._r8*pi_const *csite_hydr%rs1(j)* &
+		                       csite_hydr%l_aroot_layer(j)
+            if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
+		   !csite_hydr%kmax_upper_shell(j,k)  = large_kmax_bound
+                   !csite_hydr%kmax_bound_shell(j,k)  = large_kmax_bound
+                   !csite_hydr%kmax_lower_shell(j,k)  = large_kmax_bound
+                   ccohort_hydr%kmax_innershell(j)  = kmax_root_surf_total
+
+            else
+
+		   kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
+                         log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
+
+                   !csite_hydr%kmax_upper_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
+		   !      log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
+                   !csite_hydr%kmax_bound_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
+		   !      log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
+                   !csite_hydr%kmax_lower_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
+		   !      log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
+
+                   ccohort_hydr%kmax_innershell(j)  = (1._r8/kmax_root_surf_total + &
+		                             1._r8/kmax_soil_total)**(-1._r8) 
+             end if
+	    enddo !soil layers	  
+          cCohort => cCohort%shorter
+       enddo !cohort
+       cPatch => cPatch%older
+    enddo !patch
+    
     csite_hydr%l_aroot_1D = sum( csite_hydr%l_aroot_layer(:))
     
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
@@ -1656,50 +1703,8 @@ contains
        ! proceed only if the total absorbing root length (site-level) has changed in this layer
        if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
 
-          do k = 1,nshell
-	     if(k == 1) then
-	        kmax_root_surf_total = kmax_root_surf*2._r8*pi_const *csite_hydr%rs1(j)* &
-		                       csite_hydr%l_aroot_layer(j)
-                if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
-		   !csite_hydr%kmax_upper_shell(j,k)  = large_kmax_bound
-                   !csite_hydr%kmax_bound_shell(j,k)  = large_kmax_bound
-                   !csite_hydr%kmax_lower_shell(j,k)  = large_kmax_bound
-                   csite_hydr%kmax_upper_shell(j,k)  = kmax_root_surf_total
-                   csite_hydr%kmax_bound_shell(j,k)  = kmax_root_surf_total
-                   csite_hydr%kmax_lower_shell(j,k)  = kmax_root_surf_total
-
-                else
-
-		   kmax_soil_total = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
-                         log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
-
-                   !csite_hydr%kmax_upper_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
-		   !      log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
-                   !csite_hydr%kmax_bound_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
-		   !      log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
-                   !csite_hydr%kmax_lower_shell(j,k)  = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
-		   !      log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
-
-                   csite_hydr%kmax_upper_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**(-1._r8)    
-                   csite_hydr%kmax_bound_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**(-1._r8) 
-                   csite_hydr%kmax_lower_shell(j,k)  = (1._r8/kmax_root_surf_total + &
-		                       1._r8/kmax_soil_total)**(-1._r8)
-                end if
-		if(j == 1) then
-                   if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
-                     csite_hydr%kmax_upper_shell_1D(k)  = csite_hydr%kmax_upper_shell(1,k)
-                     csite_hydr%kmax_bound_shell_1D(k)  = csite_hydr%kmax_bound_shell(1,k)
-                     csite_hydr%kmax_lower_shell_1D(k)  = csite_hydr%kmax_lower_shell(1,k)
-                   else
-                      csite_hydr%kmax_upper_shell_1D(k) = csite_hydr%kmax_upper_shell(1,k)
-                      csite_hydr%kmax_bound_shell_1D(k) = csite_hydr%kmax_bound_shell(1,k)
-                      csite_hydr%kmax_lower_shell_1D(k) = csite_hydr%kmax_lower_shell(1,k)
-                   end if
-                end if
-             else
-                csite_hydr%kmax_upper_shell(j,k)        = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
+          do k = 2,nshell
+	        csite_hydr%kmax_upper_shell(j,k)        = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                       log(csite_hydr%r_node_shell(j,k)/csite_hydr%r_out_shell(j,k-1))*hksat_s
                 csite_hydr%kmax_bound_shell(j,k)        = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                       log(csite_hydr%r_node_shell(j,k)/csite_hydr%r_node_shell(j,k-1))*hksat_s
@@ -1713,11 +1718,9 @@ contains
                    csite_hydr%kmax_lower_shell_1D(k)    = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
                          log(csite_hydr%r_out_shell_1D( k)/csite_hydr%r_node_shell_1D(k  ))*hksat_s
                 end if
-             end if
           enddo ! loop over rhizosphere shells
        end if !has l_aroot_layer changed?
     enddo ! loop over soil layers
-
 
 
     return
@@ -2518,6 +2521,9 @@ contains
 		   kmax_lower(                  1 : n_hypool_ag    ) = ccohort_hydr%kmax_lower(:)
 		   kmax_upper((        n_hypool_ag+1)              ) = ccohort_hydr%kmax_upper_troot
                    if(site_hydr%nlevsoi_hyd == 1) then
+		      site_hydr%kmax_upper_shell_1D(1) =  ccohort_hydr%kmax_innershell(1)
+		      site_hydr%kmax_lower_shell_1D(1) =  ccohort_hydr%kmax_innershell(1)
+		      site_hydr%kmax_bound_shell_1D(1) =  ccohort_hydr%kmax_innershell(1)
                       !! estimate troot-aroot and aroot-radial components as a residual:
                       !! 25% each of total (surface of aroots to leaves) resistance
                       kmax_bound((        n_hypool_ag+1):(n_hypool_ag+2 )) = 2._r8 * ccohort_hydr%kmax_treebg_tot
@@ -2647,11 +2653,14 @@ contains
                          v_node_1l((n_hypool_ag+n_hypool_troot+1)           ) = ccohort_hydr%v_aroot_layer(j)
                          v_node_1l((n_hypool_tot-nshell+1):(n_hypool_tot)) = site_hydr%v_shell(j,:) * &
                                ccohort_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)
+			 site_hydr%kmax_bound_shell(j,1)=ccohort_hydr%kmax_innershell(j)
+			 site_hydr%kmax_upper_shell(j,1)=ccohort_hydr%kmax_innershell(j)
+			 site_hydr%kmax_lower_shell(j,1)=ccohort_hydr%kmax_innershell(j)
                          kmax_bound_1l(:) = 0._r8 
                          kmax_bound_shell_1l(:) = site_hydr%kmax_bound_shell(j,:) * &
                                                   ccohort_hydr%l_aroot_layer(j) / site_hydr%l_aroot_layer(j)
 
-
+                           
                          ! transporting-to-absorbing root conductance: factor of 2 means one-half of the total 
                          ! belowground resistance in layer j      
                          kmax_bound_1l((n_hypool_ag+1)) = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)                     
