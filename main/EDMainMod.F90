@@ -24,6 +24,7 @@ module EDMainMod
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
   use EDCohortDynamicsMod      , only : count_cohorts
+  use EDCohortDynamicsMod      , only : EvaluateAndCorrectDBH
   use EDPatchDynamicsMod       , only : disturbance_rates
   use EDPatchDynamicsMod       , only : fuse_patches
   use EDPatchDynamicsMod       , only : spawn_patches
@@ -270,7 +271,9 @@ contains
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
     real(r8) :: leaf_c
-    
+    real(r8) :: delta_dbh             ! correction for dbh
+    real(r8) :: delta_hite            ! correction for hite
+
     !-----------------------------------------------------------------------
 
     small_no = 0.0000000000_r8  ! Obviously, this is arbitrary.  RF - changed to zero
@@ -314,8 +317,7 @@ contains
           ! Apply Plant Allocation and Reactive Transport
           ! -----------------------------------------------------------------------------
 
-          hite_old = currentCohort%hite
-          dbh_old  = currentCohort%dbh
+          
 
           ! -----------------------------------------------------------------------------
           !  Identify the net carbon gain for this dynamics interval
@@ -372,6 +374,15 @@ contains
                currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
                currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,7 )
           
+
+          ! If the current diameter of a plant is somehow less than what is consistent
+          ! with what is allometrically consistent with the stuctural biomass, then
+          ! correct the dbh to match.
+
+          call EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
+
+          hite_old = currentCohort%hite
+          dbh_old  = currentCohort%dbh
 
           ! Conduct Growth (parteh)
           call currentCohort%prt%DailyPRT()
