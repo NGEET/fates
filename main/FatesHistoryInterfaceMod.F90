@@ -360,6 +360,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_recruitment_si_pft
   integer, private :: ih_mortality_si_pft
   integer, private :: ih_crownarea_si_pft
+  integer, private :: ih_canopycrownarea_si_pft
 
 
   ! indices to (site x patch-age) variables
@@ -1425,6 +1426,7 @@ end subroutine flush_hvars
                hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
+               hio_canopycrownarea_si_pft    => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
                hio_nesterov_fire_danger_pa => this%hvars(ih_nesterov_fire_danger_pa)%r81d, &
                hio_spitfire_ros_pa     => this%hvars(ih_spitfire_ROS_pa)%r81d, &
                hio_tfc_ros_pa          => this%hvars(ih_TFC_ROS_pa)%r81d, &
@@ -1776,7 +1778,12 @@ end subroutine flush_hvars
 
                ! Update PFT crown area
                hio_crownarea_si_pft(io_si, ft) = hio_crownarea_si_pft(io_si, ft) + &
-                    ccohort%c_area 
+                    ccohort%c_area * AREA_INV
+
+               if (ccohort%canopy_layer .eq. 1) then
+                  hio_canopycrownarea_si_pft(io_si, ft) = hio_canopycrownarea_si_pft(io_si, ft) + &
+                       ccohort%c_area * AREA_INV
+               endif
 
                ! update total biomass per age bin
                hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
@@ -3313,10 +3320,15 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_storebiomass_si_pft )
 
-    call this%set_history_var(vname='PFTcrownarea',  units='m2/ha',            &
+    call this%set_history_var(vname='PFTcrownarea',  units='m2/m2',            &
          long='total PFT level crown area', use_default='inactive',              &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_crownarea_si_pft )
+    
+    call this%set_history_var(vname='PFTcanopycrownarea',  units='m2/m2',            &
+         long='canopy-only PFT level crown area', use_default='inactive',              &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_canopycrownarea_si_pft )
     
     call this%set_history_var(vname='PFTnindivs',  units='indiv / m2',            &
          long='total PFT level number of individuals', use_default='active',       &
