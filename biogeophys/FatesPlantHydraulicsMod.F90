@@ -325,7 +325,8 @@ contains
        !   watsat(c,j), watres(c,j), alpha_VG(c,j), n_VG(c,j), m_VG(c,j), l_VG(c,j), &
        !   smp)
        !ccohort_hydr%psi_aroot(j) = smp
-       ccohort_hydr%psi_aroot(j) = csite%si_hydr%psisoi_liq_innershell(j)
+       !ccohort_hydr%psi_aroot(j) = csite%si_hydr%psisoi_liq_innershell(j)
+       ccohort_hydr%psi_aroot(j) = -0.2_r8 !do not assume the equalibrium between soil and root
 
        call th_from_psi(ft, 4, ccohort_hydr%psi_aroot(j), ccohort_hydr%th_aroot(j), csite%si_hydr, bc_in )
     end do
@@ -346,6 +347,7 @@ contains
     !hydrostatic equilibrium with the water potential immediately below
     dz = ccohort_hydr%z_node_ag(n_hypool_ag) - ccohort_hydr%z_node_troot(1)
     ccohort_hydr%psi_ag(n_hypool_ag) = ccohort_hydr%psi_troot(1) - 1.e-6_r8*denh2o*grav*dz
+    if (ccohort_hydr%psi_ag(n_hypool_ag)>0.0_r8) ccohort_hydr%psi_ag(n_hypool_ag) = -0.01_r8
     call th_from_psi(ft, 2, ccohort_hydr%psi_ag(n_hypool_ag), ccohort_hydr%th_ag(n_hypool_ag), csite%si_hydr, bc_in)
     do k=n_hypool_ag-1, 1, -1
        dz = ccohort_hydr%z_node_ag(k) - ccohort_hydr%z_node_ag(k+1)
