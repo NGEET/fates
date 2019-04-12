@@ -149,8 +149,6 @@ contains
                                    ! (umol co2/m**2/s)
     real(r8) :: jmax_z             ! leaf layer maximum electron transport rate 
                                    ! (umol electrons/m**2/s)
-    real(r8) :: tpu_z              ! leaf layer triose phosphate utilization rate 
-                                   ! (umol CO2/m**2/s)
     real(r8) :: kp_z               ! leaf layer initial slope of CO2 response 
                                    ! curve (C4 plants)
     real(r8) :: c13disc_z(nclmax,maxpft,nlevleaf) ! carbon 13 in newly assimilated carbon at leaf level
@@ -488,14 +486,12 @@ contains
                                                              ft,                                 &  ! in
                                                              currentCohort%vcmax25top,           &  ! in
                                                              currentCohort%jmax25top,            &  ! in
-                                                             currentCohort%tpu25top,             &  ! in
                                                              currentCohort%kp25top,              &  ! in
                                                              nscaler,                            &  ! in
                                                              bc_in(s)%t_veg_pa(ifp),             &  ! in
                                                              btran_eff,                          &  ! in
                                                              vcmax_z,                            &  ! out
                                                              jmax_z,                             &  ! out
-                                                             tpu_z,                              &  ! out
                                                              kp_z )                                 ! out
                               
                               ! Part IX: This call calculates the actual photosynthesis for the 
@@ -510,7 +506,6 @@ contains
                                                         ft,                                 &  ! in
                                                         vcmax_z,                            &  ! in
                                                         jmax_z,                             &  ! in
-                                                        tpu_z,                              &  ! in
                                                         kp_z,                               &  ! in
                                                         bc_in(s)%t_veg_pa(ifp),             &  ! in
                                                         bc_in(s)%esat_tv_pa(ifp),           &  ! in
@@ -812,7 +807,6 @@ contains
                                      ft,                &  ! in
                                      vcmax,             &  ! in
                                      jmax,              &  ! in
-                                     tpu,               &  ! in
                                      co2_rcurve_islope, &  ! in
                                      veg_tempk,         &  ! in
                                      veg_esat,          &  ! in
@@ -855,7 +849,6 @@ contains
     integer,  intent(in) :: ft                ! (plant) Functional Type Index
     real(r8), intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
     real(r8), intent(in) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8), intent(in) :: tpu               ! triose phosphate utilization rate (umol CO2/m**2/s)
     real(r8), intent(in) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
     real(r8), intent(in) :: veg_tempk         ! vegetation temperature
     real(r8), intent(in) :: veg_esat          ! saturation vapor pressure at veg_tempk (Pa)
@@ -1030,9 +1023,6 @@ contains
                     aj = je * max(co2_inter_c-co2_cpoint, 0._r8) / &
                           (4._r8*co2_inter_c+8._r8*co2_cpoint)
                  
-                    ! C3: Product-limited photosynthesis 
-                    ap = 3._r8 * tpu
-                 
                  else
                     
                     ! C4: Rubisco-limited photosynthesis
@@ -1053,21 +1043,12 @@ contains
                        aj = aj / (laisha_lsl * canopy_area_lsl)
                     end if
 
-                    ! C4: PEP carboxylase-limited (CO2-limited)
-                    ap = co2_rcurve_islope * max(co2_inter_c, 0._r8) / can_press  
-                    
                  end if
 
-                 ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap
+                 ! Gross photosynthesis smoothing calculations. 
                  aquad = theta_cj(c3c4_path_index)
                  bquad = -(ac + aj)
                  cquad = ac * aj
-                 call quadratic_f (aquad, bquad, cquad, r1, r2)
-                 ai = min(r1,r2)
-
-                 aquad = theta_ip
-                 bquad = -(ai + ap)
-                 cquad = ai * ap
                  call quadratic_f (aquad, bquad, cquad, r1, r2)
                  agross = min(r1,r2)
 
@@ -1633,7 +1614,6 @@ contains
       ! Activation energy, from:
       ! Bernacchi et al (2001) Plant, Cell and Environment 24:253-259
       ! Bernacchi et al (2003) Plant, Cell and Environment 26:1419-1430
-      ! except TPU from: Harley et al (1992) Plant, Cell and Environment 15:271-282
 
       real(r8), parameter :: kcha    = 79430._r8  ! activation energy for kc (J/mol)
       real(r8), parameter :: koha    = 36380._r8  ! activation energy for ko (J/mol)
@@ -1754,14 +1734,12 @@ contains
                                          ft,            &
                                          vcmax25top_ft, &
                                          jmax25top_ft, &
-                                         tpu25top_ft, &
                                          co2_rcurve_islope25top_ft, &
                                          nscaler,    &
                                          veg_tempk,      &
                                          btran, &
                                          vcmax, &
                                          jmax, &
-                                         tpu, &
                                          co2_rcurve_islope )
 
       ! ---------------------------------------------------------------------------------
@@ -1774,7 +1752,6 @@ contains
       ! The output biophysical rates are:
       ! vcmax: maximum rate of carboxilation,
       ! jmax: maximum electron transport rate,
-      ! tpu: triose phosphate utilization rate and
       ! co2_rcurve_islope: initial slope of CO2 response curve (C4 plants)
       ! ---------------------------------------------------------------------------------
 
@@ -1791,8 +1768,6 @@ contains
                                               ! for this pft (umol CO2/m**2/s)
       real(r8), intent(in) :: jmax25top_ft    ! canopy top maximum electron transport rate at 25C 
                                               ! for this pft (umol electrons/m**2/s)
-      real(r8), intent(in) :: tpu25top_ft     ! canopy top triose phosphate utilization rate at 25C 
-                                              ! for this pft (umol CO2/m**2/s)
       real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
                                               ! (C4 plants) at 25C, canopy top, this pft
       real(r8), intent(in) :: veg_tempk           ! vegetation temperature
@@ -1801,8 +1776,6 @@ contains
       real(r8), intent(out) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
       real(r8), intent(out) :: jmax              ! maximum electron transport rate 
                                                  ! (umol electrons/m**2/s)
-      real(r8), intent(out) :: tpu               ! triose phosphate utilization rate 
-                                                 ! (umol CO2/m**2/s)
       real(r8), intent(out) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
       
       ! Locals
@@ -1811,8 +1784,6 @@ contains
                                       ! (umol CO2/m**2/s)
       real(r8) :: jmax25              ! leaf layer: maximum electron transport rate at 25C 
                                       ! (umol electrons/m**2/s)
-      real(r8) :: tpu25               ! leaf layer: triose phosphate utilization rate at 25C 
-                                      ! (umol CO2/m**2/s)
       real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve 
                                       ! (C4 plants) at 25C
       
@@ -1821,50 +1792,39 @@ contains
       ! ---------------------------------------------------------------------------------
       real(r8) :: vcmaxha        ! activation energy for vcmax (J/mol)
       real(r8) :: jmaxha         ! activation energy for jmax (J/mol)
-      real(r8) :: tpuha          ! activation energy for tpu (J/mol)
       real(r8) :: vcmaxhd        ! deactivation energy for vcmax (J/mol)
       real(r8) :: jmaxhd         ! deactivation energy for jmax (J/mol)
-      real(r8) :: tpuhd          ! deactivation energy for tpu (J/mol)
       real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
       real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
-      real(r8) :: tpuse          ! entropy term for tpu (J/mol/K)
       real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
       real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
-      real(r8) :: tpuc           ! scaling factor for high temperature inhibition (25 C = 1.0)
 
       vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
       jmaxha  = EDPftvarcon_inst%jmaxha(FT)
-      tpuha   = EDPftvarcon_inst%tpuha(FT)
       
       vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
       jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
-      tpuhd   = EDPftvarcon_inst%tpuhd(FT)
       
       vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
       jmaxse  = EDPftvarcon_inst%jmaxse(FT)
-      tpuse   = EDPftvarcon_inst%tpuse(FT)
 
       vcmaxc = fth25_f(vcmaxhd, vcmaxse)
       jmaxc  = fth25_f(jmaxhd, jmaxse)
-      tpuc   = fth25_f(tpuhd, tpuse)
 
       if ( parsun_lsl <= 0._r8) then           ! night time
          vcmax             = 0._r8
          jmax              = 0._r8
-         tpu               = 0._r8
          co2_rcurve_islope = 0._r8
       else                                     ! day time
 
          ! Vcmax25top was already calculated to derive the nscaler function
          vcmax25 = vcmax25top_ft * nscaler
          jmax25  = jmax25top_ft * nscaler
-         tpu25   = tpu25top_ft * nscaler
          co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
          
          ! Adjust for temperature
          vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
          jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
-         tpu   = tpu25 * ft1_f(veg_tempk, tpuha) * fth_f(veg_tempk, tpuhd, tpuse, tpuc)
          
          if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
             vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
