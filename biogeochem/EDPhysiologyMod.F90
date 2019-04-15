@@ -106,6 +106,7 @@ module EDPhysiologyMod
   integer, parameter :: i_cdead = 6   ! Array index associated with structural carbon
   integer, parameter :: i_crepro = 7  ! Array index associated with reproductive carbon 
   integer, parameter :: n_cplantpools = 7 ! Size of the carbon only integration framework
+  integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter 
 
   ! ============================================================================
 
@@ -566,7 +567,7 @@ contains
                                                  ! first flush, but if we dont
                                                  ! clear this value, it will cause
                                                  ! leaves to flush later in the year
-       currentSite%cstatus       = 1             ! alter status of site to 'leaves on'
+       currentSite%cstatus       = 1             ! alter status of site to 'leaves off'
        currentSite%cleafoffdate = model_day_int  ! record leaf off date   
 
        if ( debug ) write(fates_log(),*) 'leaves off'
@@ -718,7 +719,7 @@ contains
     if ( (currentSite%dstatus == 2 .or. currentSite%dstatus == 3 ) .and. &
          (model_day_int > numWaterMem) .and. &
          (mean_10day_liqvol <= ED_val_phen_drought_threshold) .and. &
-         (dayssincedleafon > 100 ) ) then 
+         (dayssincedleafon > dleafon_drycheck ) ) then 
        currentSite%dstatus = 1                  ! alter status of site to 'leaves off'
        currentSite%dleafoffdate = model_day_int ! record leaf on date           
     endif
@@ -770,7 +771,7 @@ contains
           ! for leaves. Time to signal flushing
 
           if (EDPftvarcon_inst%season_decid(ipft) == 1)then
-             if ( currentSite%cstatus > 1  )then                ! we have just moved to leaves being on . 
+             if ( currentSite%cstatus == 2  )then                ! we have just moved to leaves being on . 
                 if (currentCohort%status_coh == leaves_off)then ! Are the leaves currently off?        
                    currentCohort%status_coh = leaves_on         ! Leaves are on, so change status to 
                                                                 ! stop flow of carbon out of bstore. 
@@ -793,7 +794,7 @@ contains
 
              !COLD LEAF OFF
              if (currentSite%cstatus == 1 .or. currentSite%cstatus == 0)then !past leaf drop day? Leaves still on tree?  
-                if (currentCohort%status_coh == 2)then ! leaves have not dropped
+                if (currentCohort%status_coh == leaves_on)then ! leaves have not dropped
 
                    
                    ! This sets the cohort to the "leaves off" flag
@@ -851,7 +852,7 @@ contains
 
              !DROUGHT LEAF OFF
              if (currentSite%dstatus == 1 .or. currentSite%dstatus == 0)then        
-                if (currentCohort%status_coh == 2)then ! leaves have not dropped
+                if (currentCohort%status_coh == leaves_on)then ! leaves have not dropped
 
                    ! This sets the cohort to the "leaves off" flag
                    currentCohort%status_coh      = leaves_off
@@ -1030,12 +1031,12 @@ contains
        currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * &
              EDPftvarcon_inst%germination_timescale(p),max_germination)     
        !set the germination only under the growing season...c.xu
-       if ( (EDPftvarcon_inst%season_decid(p) == 1) .and. &
-            (currentSite%cstatus <= 1)) then
+       if ( (EDPftvarcon_inst%season_decid(p) == itrue) .and. &
+            (any(currentSite%cstatus == [0,1]))) then
           currentPatch%seed_germination(p) = 0.0_r8
        endif
-       if ( (EDPftvarcon_inst%stress_decid(p) == 1) .and. & 
-            (currentSite%dstatus <= 1)) then
+       if ( (EDPftvarcon_inst%stress_decid(p) == itrue) .and. & 
+            (any(currentSite%dstatus == [0,1]))) then
           currentPatch%seed_germination(p) = 0.0_r8
        endif
     enddo
@@ -1095,15 +1096,15 @@ contains
        cohortstatus = leaves_on
        temp_cohort%laimemory = 0.0_r8     
 
-       if ( (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1) .and. &
-            (currentSite%cstatus <= 1)) then
+       if ( (EDPftvarcon_inst%season_decid(temp_cohort%pft) == itrue) .and. &
+            (any(currentSite%cstatus == [0,1]))) then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
           cohortstatus = leaves_off
        endif
 
-       if ( (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == 1) .and. &
-            (currentSite%dstatus <= 1)) then
+       if ( (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == itrue) .and. &
+            (any(currentSite%dstatus == [0,1]))) then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
           cohortstatus = leaves_off

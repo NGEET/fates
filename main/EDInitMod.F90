@@ -193,8 +193,8 @@ contains
     integer  :: dstat      ! drought status phenology flag
     real(r8) :: acc_NI
     real(r8) :: watermem 
-    real(r8) :: cleafon    ! DOY for cold-decid leaf-on, initial guess
-    real(r8) :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
+    integer  :: cleafon    ! DOY for cold-decid leaf-on, initial guess
+    integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
     integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
     !----------------------------------------------------------------------
@@ -208,8 +208,8 @@ contains
     if ( hlm_is_restart == ifalse ) then
 
        GDD      = 30.0_r8
-       cleafon  = 100.0_r8
-       cleafoff = 300.0_r8 
+       cleafon  = 100
+       cleafoff = 300 
        cstat    = 2                ! Leaves are on
        acc_NI   = 0.0_r8
        dstat    = 2                ! Leaves are on
