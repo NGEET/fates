@@ -68,6 +68,9 @@ module FatesInventoryInitMod
                                                            ! defined in model memory and a physical
                                                            ! site listed in the file
 
+   logical, parameter :: do_inventory_out = .true.
+
+
    public :: initialize_sites_by_inventory
 
 contains
@@ -119,6 +122,8 @@ contains
       integer,                         allocatable :: inv_format_list(:)   ! list of format specs
       character(len=path_strlen),      allocatable :: inv_css_list(:)      ! list of css file names
       character(len=path_strlen),      allocatable :: inv_pss_list(:)      ! list of pss file names
+      character(len=128)                           :: pss_name_out         ! 
+      character(len=128)                           :: css_name_out         ! 
       real(r8),                        allocatable :: inv_lat_list(:)      ! list of lat coords
       real(r8),                        allocatable :: inv_lon_list(:)      ! list of lon coords
       integer                                      :: invsite              ! index of inventory site 
@@ -443,8 +448,19 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
-      end do
+         if(do_inventory_out)then
+             
+             write(pss_name_out,'(A8,f7.4,A,f7.4,A5)') 'pss_out_',sites(s)%lat,'N',sites(s)%lon,'E.txt'
+             write(css_name_out,'(A8,f7.4,A,f7.4,A5)') 'css_out_',sites(s)%lat,'N',sites(s)%lon,'E.txt'
+             
+             print*,"---",trim(pss_name_out),"---"
+             print*,"---",trim(css_name_out),"---"
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+             
 
+         end if
+
+      end do
       deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list)
 
       return
