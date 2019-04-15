@@ -442,84 +442,27 @@ contains
     ! -----------------------------------------------------------------------------------
     ! II. Calculate target size of the biomass compartment for a given dbh.   
     ! -----------------------------------------------------------------------------------
-
-    if( EDPftvarcon_inst%woody(ipft) == itrue) then
-
     
-       ! Target sapwood biomass according to allometry and trimming [kgC]
-       call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-       
-       ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-       call bagw_allom(dbh,ipft,target_agw_c)
-       
-       ! Target total below ground biomass in woody/fibrous tissues [kgC] 
-       call bbgw_allom(dbh,ipft,target_bgw_c)
-       
-       ! Target total dead (structrual) biomass [kgC]
-       call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
-       
-       ! ------------------------------------------------------------------------------------
-       ! If structure is larger than target, then we need to correct some integration errors
-       ! by slightly increasing dbh to match it.
-       ! For grasses, if leaf biomass is larger than target, then we reset dbh to match
-       ! -----------------------------------------------------------------------------------
-       
-       if( (struct_c - target_struct_c ) > calloc_abs_error ) then
-          
-          call ForceDBH( ipft, canopy_trim, dbh, hite_out, bdead=struct_c )
-          
-          ! Set the structural target biomass to the current structural boimass [kgC]
-          target_struct_c = struct_c
-
-          ! Target sapwood biomass according to allometry and trimming [kgC]
-          call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-          
-       end if
-       
-       
-       ! Target leaf biomass according to allometry and trimming
-       call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
-       
-       ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-       call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
-       
-       ! Target storage carbon [kgC,kgC/cm]
-       call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
-       
-    else
-
-       ! Target leaf biomass according to allometry and trimming
-       call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
-
-
-       if( ( sum(leaf_c) - target_leaf_c ) > calloc_abs_error ) then
-          
-          call ForceDBH( ipft, canopy_trim, dbh, hite_out, bl=sum(leaf_c) )
-       
-          target_leaf_c = sum(leaf_c)
-   
-       end if
-
-       ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-       call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
-
-       ! Target sapwood biomass according to allometry and trimming [kgC]
-       call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-
-       ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-       call bagw_allom(dbh,ipft,target_agw_c)
-
-       ! Target total below ground biomass in woody/fibrous tissues [kgC]
-       call bbgw_allom(dbh,ipft,target_bgw_c)
-
-       ! Target total dead (structrual) biomass and [kgC]
-       call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
-       
-       ! Target storage carbon [kgC]
-       call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
-
-       
-    end if
+    ! Target sapwood biomass according to allometry and trimming [kgC]
+    call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
+    
+    ! Target total above ground biomass in woody/fibrous tissues  [kgC]
+    call bagw_allom(dbh,ipft,target_agw_c)
+    
+    ! Target total below ground biomass in woody/fibrous tissues [kgC] 
+    call bbgw_allom(dbh,ipft,target_bgw_c)
+    
+    ! Target total dead (structrual) biomass [kgC]
+    call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
+    
+    ! Target leaf biomass according to allometry and trimming
+    call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
+    
+    ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
+    call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
+    
+    ! Target storage carbon [kgC,kgC/cm]
+    call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
 
 
     ! -----------------------------------------------------------------------------------
