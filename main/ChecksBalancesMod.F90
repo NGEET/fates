@@ -6,7 +6,7 @@ module ChecksBalancesMod
    use EDTypesMod,        only : ed_patch_type
    use EDTypesMod,        only : ed_cohort_type
    use EDTypesMod,        only : AREA
-   use EDTypesMod,        only : site_masscheck_type
+   use EDTypesMod,        only : site_massbal_type
    use EDTypesMod,        only : num_elements
    use EDTypesMod,        only : element_list
    use FatesInterfaceMod, only : numpft
@@ -42,7 +42,7 @@ contains
     type(ed_site_type), intent(inout), target :: sites(:)
 
     ! locals
-    type(site_masscheck_type),pointer :: site_mass
+    type(site_massbal_type),pointer :: site_mass
     integer :: el
     integer :: s
     real(r8) :: total_stock

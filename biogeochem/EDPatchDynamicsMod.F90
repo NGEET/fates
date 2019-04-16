@@ -15,6 +15,7 @@ module EDPatchDynamicsMod
   use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : maxPatchesPerSite
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
   use EDTypesMod           , only : maxpft
@@ -409,15 +410,12 @@ contains
 
           if (patch_site_areadis > nearzero) then
 
-             
-          
              if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
                   currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) ) then 
                 
                 call logging_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
-                
                 currentPatch%burnt_frac_litter(:) = 0._r8
-                
+
              elseif (currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ifall) .and. &
                   currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ilog) ) then
                 
@@ -431,7 +429,10 @@ contains
              endif
 
              ! Transfer the litter from patch to another
-             call TransLitterNewPatch( currentPatch, newPatch, patch_site_areadis, currentPatch%burnt_frac_litter)
+             ! This call will only transfer burned litter to new patch
+             ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
+             ! fire is not the dominant disturbance regime.
+             call TransLitterNewPatch( currentPatch, newPatch, patch_site_areadis)
 
 
           !INSERT SURVIVORS FROM DISTURBANCE INTO NEW PATCH 
@@ -882,7 +883,10 @@ contains
 
   ! ============================================================================
 
-  subroutine TransLitterNewPatch(currentSite, currentPatch, newPatch, patch_site_areadis )
+  subroutine TransLitterNewPatch(currentSite,        &
+                                 currentPatch,       &
+                                 newPatch,           &
+                                 patch_site_areadis)
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -931,8 +935,10 @@ contains
     type(ed_patch_type) , intent(inout)       :: newPatch           ! New patch
     real(r8)            , intent(in)          :: patch_site_areadis ! Area being donated
                                                                     ! by current cohort
+
     
     ! locals
+    type(site_massbal_type), pointer :: site_mass
     type(litter_type),pointer :: curr_litt ! litter object for current patch
     type(litter_type),pointer :: new_litt  ! litter object for the new patch
     integer  :: el                         ! element loop counter
@@ -946,7 +952,7 @@ contains
 
     do el = 1,num_elements
 
-       site_mass => currentSite%mass_check(el)
+       site_mass => currentSite%mass_balance(el)
        
        curr_litt => currentPatch%litter(el)
        new_litt  => newPatch%litter(el)
@@ -1085,10 +1091,10 @@ contains
     !
     ! !LOCAL VARIABLES:
 
-    type(ed_cohort_type),    pointer :: currentCohort
-    type(litter_type),       pointer :: new_litt
-    type(litter_type),       pointer :: curr_litt
-    type(mass_balance_type), pointer :: site_mass
+    type(ed_cohort_type),  pointer :: currentCohort
+    type(litter_type),     pointer :: new_litt
+    type(litter_type),     pointer :: curr_litt
+    type(site_massbal_type),   pointer :: site_mass
 
     real(r8) :: donatable_mass       ! non-burned litter mass provided by the donor [kg]
                                      ! some may or may not be retained by the donor
@@ -1359,7 +1365,7 @@ contains
     type(ed_cohort_type), pointer :: currentCohort
     type(litter_type),       pointer :: new_litt
     type(litter_type),       pointer :: curr_litt
-    type(mass_balance_type), pointer :: site_mass
+    type(site_massbal_type), pointer :: site_mass
 
     real(r8) :: num_dead
     real(r8) :: donatable_mass       ! mass of donatable litter [kg]

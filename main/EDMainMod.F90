@@ -43,6 +43,7 @@ module EDMainMod
   use EDtypesMod               , only : ed_cohort_type
   use EDTypesMod               , only : do_ed_phenology
   use EDTypesMod               , only : AREA
+  use EDTypesMod               , only : site_massbal_type
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
@@ -549,7 +550,7 @@ contains
     real(r8) :: struct_m        ! "" structure
     real(r8) :: repro_m         ! "" reproduction
 
-    integer  :: il              ! loop counter for element types
+    integer  :: el              ! loop counter for element types
 
     ! nb. There is no time associated with these variables 
     ! because this routine can be called between any two 
@@ -567,11 +568,11 @@ contains
     
     ! Loop through the number of elements in the system
 
-    do il = 1, num_elements
+    do el = 1, num_elements
        
-       call SiteMassStock(currentSite,il,total_stock,biomass_stock,litter_stock,seed_stock)
+       call SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
 
-       site_mass => currentSite%mass_balance(il)
+       site_mass => currentSite%mass_balance(el)
        
        change_in_stock = total_stock - site_mass%old_stock  
 
@@ -603,7 +604,7 @@ contains
        
        if ( error_frac > 10e-6_r8 ) then
           write(fates_log(),*) 'mass balance error detected'
-          write(fates_log(),*) 'element type (see PRTGenericMod.F90): ',element_list(il)
+          write(fates_log(),*) 'element type (see PRTGenericMod.F90): ',element_list(el)
           write(fates_log(),*) 'error fraction relative to biomass stock: ',error_frac
           write(fates_log(),*) 'call index: ',call_index
           write(fates_log(),*) 'flux in (npp,nutrient uptake,seed rain):  ',site_mass%flux_in
@@ -622,7 +623,7 @@ contains
           
              currentPatch => currentSite%oldest_patch
              do while(associated(currentPatch))
-                litt => currentPatch%litter(il)
+                litt => currentPatch%litter(el)
                 write(fates_log(),*) '---------------------------------------'
                 write(fates_log(),*) 'patch area: ',currentPatch%area
                 write(fates_log(),*) 'AG CWD: ', sum(litt%ag_cwd)
@@ -634,12 +635,12 @@ contains
                 do while(associated(currentCohort))
                    write(fates_log(),*) 'pft: ',currentCohort%pft
                    write(fates_log(),*) 'dbh: ',currentCohort%dbh
-                   leaf_m   = currentCohort%prt%GetState(leaf_organ,element_list(il))
-                   struct_m = currentCohort%prt%GetState(struct_organ,element_list(il))
-                   store_m  = currentCohort%prt%GetState(store_organ,element_list(il))
-                   fnrt_m   = currentCohort%prt%GetState(fnrt_organ,element_list(il))
-                   repro_m  = currentCohort%prt%GetState(repro_organ,element_list(il))
-                   sapw_m   = currentCohort%prt%GetState(sapw_organ,element_list(il))
+                   leaf_m   = currentCohort%prt%GetState(leaf_organ,element_list(el))
+                   struct_m = currentCohort%prt%GetState(struct_organ,element_list(el))
+                   store_m  = currentCohort%prt%GetState(store_organ,element_list(el))
+                   fnrt_m   = currentCohort%prt%GetState(fnrt_organ,element_list(el))
+                   repro_m  = currentCohort%prt%GetState(repro_organ,element_list(el))
+                   sapw_m   = currentCohort%prt%GetState(sapw_organ,element_list(el))
                    write(fates_log(),*) 'leaf: ',leaf_m,' structure: ',struct_m,' store: ',store_m
                    write(fates_log(),*) 'fineroot: ',fnrt_m,' repro: ',repro_m,' sapwood: ',sapw_m
                    write(fates_log(),*) 'num plant: ',currentCohort%n

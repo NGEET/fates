@@ -14,7 +14,7 @@ module EDAccumulateFluxesMod
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8
   use EDTypesMod          , only : element_pos
-  use EDTypesMod          , only : site_masscheck_type
+  use EDTypesMod          , only : site_massbal_type
   use PRTGenericMod, only : carbon12_element
 
 
@@ -61,7 +61,7 @@ contains
     integer :: ifp ! index fates patch
     integer :: c12_id
     real(r8):: n_perm2
-    type(site_masscheck_type),pointer :: site_cmass ! point to carbon12
+    type(site_massbal_type),pointer :: site_cmass ! point to carbon12
                                                     ! mass balance
     !----------------------------------------------------------------------
 

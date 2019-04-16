@@ -17,7 +17,7 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : r8 => fates_r8
    use EDTypesMod        , only : ed_cohort_type
    use EDTypesMod        , only : ed_patch_type
-   use EDTypesMod        , only : site_masscheck_type
+   use EDTypesMod        , only : site_massbal_type
    use EDTypesMod        , only : site_fluxdiags_type
    use FatesLitterMod    , only : ncwd
    use FatesLitterMod    , only : litter_type
@@ -255,7 +255,7 @@ contains
 
       !LOCAL VARIABLES:
       type(ed_cohort_type), pointer      :: currentCohort
-      type(site_masscheck_type), pointer :: site_mass
+      type(site_massbal_type), pointer   :: site_mass
       type(site_fluxdiags_type), pointer :: flux_diags
       type(litter_type),pointer          :: new_litt
       type(litter_type),pointer          :: cur_litt

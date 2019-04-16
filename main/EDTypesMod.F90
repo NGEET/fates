@@ -566,7 +566,7 @@ module EDTypesMod
 
   ! ====================================================================================
 
-  type site_masscheck_type
+  type site_massbal_type
 
      ! ----------------------------------------------------------------------------------
      ! This type is used for accounting purposes to ensure that we are not
@@ -622,10 +622,12 @@ module EDTypesMod
                                   ! (if carbon most likely exudation, if even active)
 
      real(r8) :: seed_in          ! Total mass of external seed rain into fates site [kg/site/day]
+                                  ! This is from external grid-cells or from user parameterization
+                                  ! (user param seed rain, or dispersal model)
      real(r8) :: seed_out         ! Total mass of seeds exported outside of fates site [kg/site/day]
                                   ! (this is not used currently, placeholder, rgk feb-2019)
 
-     real(r8) :: fragmentation_out     !
+     real(r8) :: frag_out         ! Litter and coarse woody debris fragmentation flux [kg/site/day]
 
      real(r8) :: wood_product          ! Total mass exported as wood product [kg/site/day]
      real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
@@ -633,10 +635,10 @@ module EDTypesMod
 
    contains
 
-     procedure :: ZeroMassCheckState
-     procedure :: ZeroMassCheckFlux
+     procedure :: ZeroMassBalState
+     procedure :: ZeroMassBalFlux
      
-  end type site_masscheck_type
+ end type site_massbal_type
 
 
 
@@ -663,9 +665,9 @@ module EDTypesMod
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
      
-     ! MASS BALANCE (allocation for each element)
+     ! Mass Balance (allocation for each element)
 
-     type(site_masscheck_type), pointer :: mass_balance(:)
+     type(site_massbal_type), pointer :: mass_balance(:)
 
      ! Flux diagnostics (allocation for each element)
 
@@ -775,31 +777,31 @@ module EDTypesMod
 
     ! =====================================================================================
     
-    subroutine ZeroMassCheckState(this)
+    subroutine ZeroMassBalState(this)
       
-      class(site_masscheck_type) :: this
+      class(site_massbal_type) :: this
       
       this%old_stock = 0._r8
       this%err_fates = 0._r8
       
       return
-    end subroutine ZeroMassCheckState
+    end subroutine ZeroMassBalState
     
-    subroutine ZeroMassCheckFlux(this)
+    subroutine ZeroMassBalFlux(this)
       
-      class(site_masscheck_type) :: this
+      class(site_massbal_type) :: this
 
       this%gpp_acc           = 0._r8
       this%aresp_acc         = 0._r8
       this%net_root_uptake   = 0._r8
       this%seed_in           = 0._r8
       this%seed_out          = 0._r8
-      this%fragmentation_out = 0._r8
+      this%frag_out          = 0._r8
       this%wood_product      = 0._r8
       this%burn_flux_to_atm  = 0._r8
       
       return
-    end subroutine ZeroMassCheckFlux
+  end subroutine ZeroMassBalFlux
 
    
   ! =====================================================================================

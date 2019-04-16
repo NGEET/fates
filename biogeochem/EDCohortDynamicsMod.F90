@@ -199,10 +199,6 @@ contains
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
 
-    
-
-    
-
 
     ! All newly initialized cohorts start off with an assumption
     ! about leaf age (depending on what is calling the initialization
@@ -232,6 +228,8 @@ contains
     ! contitions must be set. All new cohorts go through create_cohort()
     ! so this should be the only place this is called.  Alternatively
     ! cohorts can be copied and fused, but special routines handle that.
+    ! We are only concerned with the carbon 12 portion of the initialization
+    ! right now, as
     ! -----------------------------------------------------------------------------------
 
     select case(hlm_parteh_mode)
@@ -247,14 +245,13 @@ contains
        call SetState(new_cohort%prt,struct_organ , carbon12_element, bdead)
        call SetState(new_cohort%prt,repro_organ , carbon12_element, 0.0_r8)
 
+    case default
+       write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     
 
-    ! This call cycles through the initial conditions, and makes sure that they
-    ! are all initialized.
-    ! -----------------------------------------------------------------------------------
-
-    call new_cohort%prt%CheckInitialConditions()
+   
 
     ! Initialize the rooting depth fractions
     ! This could be based on all sorts of stuff, like size
