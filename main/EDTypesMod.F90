@@ -630,7 +630,7 @@ module EDTypesMod
      integer  ::  cleafondate                                  ! model date (day integer) of leaf on (cold):-
      integer  ::  cleafoffdate                                 ! model date (day integer) of leaf off (cold):-
      integer  ::  dleafondate                                  ! model date (day integer) of leaf on drought:-
-     integer  ::  dleafoffdate                                 ! model date (day integer) of leaf on drought:-
+     integer  ::  dleafoffdate                                 ! model date (day integer) of leaf off drought:-
 
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 

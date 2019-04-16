@@ -1165,7 +1165,6 @@ end subroutine flush_hvars
     ! locals
     integer :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
     integer :: ityp
-    integer :: nonfates              ! non-optional 
 
     logical :: write_var
 
