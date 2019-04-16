@@ -10,6 +10,7 @@ module EDPatchDynamicsMod
   use EDCohortDynamicsMod  , only : SendCohortToLitter
   use EDTypesMod           , only : area_site => area
   use FatesLitterMod       , only : ncwd
+  use FatesLitterMod       , only : litter_type
   use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : maxPatchesPerSite
@@ -97,7 +98,7 @@ module EDPatchDynamicsMod
   ! all litter is sent to the new patch.
 
   real(r8), parameter :: existing_litt_localization = 1.0_r8
-  real(r8), public, parameter :: treefall_localization = 0.75_r8
+  real(r8), parameter :: treefall_localization = 0.75_r8
   real(r8), parameter :: burn_localization = 0.75_r8
 
 
@@ -408,23 +409,30 @@ contains
 
           if (patch_site_areadis > nearzero) then
 
-             call TransLitterNewPatch( currentPatch, newPatch, patch_site_areadis )
+             
           
-          if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
-                currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) ) then 
-             
-             call logging_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
-             
-          elseif (currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ifall) .and. &
-                currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ilog) ) then
-             
-             call fire_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)  
-             
-          else
-             
-             call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
-             
-          endif
+             if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
+                  currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) ) then 
+                
+                call logging_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
+                
+                currentPatch%burnt_frac_litter(:) = 0._r8
+                
+             elseif (currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ifall) .and. &
+                  currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ilog) ) then
+                
+                call fire_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)  
+                
+             else
+                
+                call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
+                currentPatch%burnt_frac_litter(:) = 0._r8
+
+             endif
+
+             ! Transfer the litter from patch to another
+             call TransLitterNewPatch( currentPatch, newPatch, patch_site_areadis, currentPatch%burnt_frac_litter)
+
 
           !INSERT SURVIVORS FROM DISTURBANCE INTO NEW PATCH 
           currentCohort => currentPatch%shortest
@@ -874,13 +882,14 @@ contains
 
   ! ============================================================================
 
-  subroutine TransLitterNewPatch( currentPatch, newPatch, patch_site_areadis )
+  subroutine TransLitterNewPatch(currentSite, currentPatch, newPatch, patch_site_areadis )
 
     ! -----------------------------------------------------------------------------------
     ! 
     ! This routine transfers litter fluxes and rates from a donor patch "currentPatch" into 
-    ! the new patch. Note, since fire can burn the states, we only are transfering
-    ! THINGS THAT ARE NOT BURNABLE.  
+    ! the new patch. 
+    ! This may include the transfer of existing litter from a patch that burned.
+    ! This ROUTINE DOES TRANSFER PARTIALLY BURNED LITTER
     !
     ! Also, note we are not transfering in diagnostics that were calculated
     ! prior to disturbance, because those diagnostics we applied to the patch
@@ -917,6 +926,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
+    type(ed_site_type)  , intent(in), target  :: currentSite        ! site
     type(ed_patch_type) , intent(in), target  :: currentPatch       ! Donor patch
     type(ed_patch_type) , intent(inout)       :: newPatch           ! New patch
     real(r8)            , intent(in)          :: patch_site_areadis ! Area being donated
@@ -925,7 +935,7 @@ contains
     ! locals
     type(litter_type),pointer :: curr_litt ! litter object for current patch
     type(litter_type),pointer :: new_litt  ! litter object for the new patch
-    integer  :: il                         ! element loop counter
+    integer  :: el                         ! element loop counter
     integer  :: c                          ! CWD loop counter
     integer  :: pft                        ! PFT loop counter
     integer  :: lyr                        ! soil layer loop counter
@@ -934,10 +944,12 @@ contains
  
     nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
 
-    do il = 1,num_elements
+    do el = 1,num_elements
 
-       curr_litt => currentPatch%litter(il)
-       new_litt  => newPatch%litter(il)
+       site_mass => currentSite%mass_check(el)
+       
+       curr_litt => currentPatch%litter(el)
+       new_litt  => newPatch%litter(el)
 
        do c = 1,ncwd 
           new_litt%ag_cwd_frag(c) = new_litt%ag_cwd_frag(c) + &
@@ -1003,7 +1015,7 @@ contains
                                currentPatch%burnt_frac_litter(c)
  
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_frac / newPatch%area
-          cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + donatable_mass*retain_frac / remainder_area
+          curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_frac / remainder_area
 
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
              
@@ -1012,7 +1024,7 @@ contains
           do lyr = 1,nlevsoil
              donatable_mass         = curr_litt%bg_cwd(c,lyr) * patch_site_areadis
              new_litt%bg_cwd(c,lyr) = new_litt%bg_cwd(c,lyr) + donatable_mass*donate_frac / newPatch%area
-             cur_litt%bg_cwd(c,lyr) = cur_litt%bg_cwd(c,lyr) + donatable_mass*retain_frac / remainder_area
+             curr_litt%bg_cwd(c,lyr) = curr_litt%bg_cwd(c,lyr) + donatable_mass*retain_frac / remainder_area
           end do
           
        enddo
@@ -1027,7 +1039,7 @@ contains
           burned_mass              = curr_litt%leaf_fines(pft) * patch_site_areadis * &
                                      currentPatch%burnt_frac_litter(dl_sf)
           new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + donatable_mass*donate_frac/newPatch%area
-          cur_litt%leaf_fines(pft) = cur_litt%leaf_fines(pft) + donatable_mass*retain_frac/remainder_area
+          curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + donatable_mass*retain_frac/remainder_area
 
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
           
@@ -1035,7 +1047,7 @@ contains
           do lyr = 1,nlevsoil
              donatable_mass = curr_litt%root_fines(pft,lyr) * patch_site_areadis             
              new_litt%root_fines(pft,lyr) = new_litt%root_fines(pft,lyr) + donatable_mass*donate_frac/newPatch%area
-             cur_litt%root_fines(pft,lyr) = cur_litt%root_fines(pft,lyr) + donatable_mass*retain_frac/remainder_area
+             curr_litt%root_fines(pft,lyr) = curr_litt%root_fines(pft,lyr) + donatable_mass*retain_frac/remainder_area
           end do
           
        enddo
@@ -1075,7 +1087,7 @@ contains
 
     type(ed_cohort_type),    pointer :: currentCohort
     type(litter_type),       pointer :: new_litt
-    type(litter_type),       pointer :: cur_litt
+    type(litter_type),       pointer :: curr_litt
     type(mass_balance_type), pointer :: site_mass
 
     real(r8) :: donatable_mass       ! non-burned litter mass provided by the donor [kg]
@@ -1141,7 +1153,7 @@ contains
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
        flux_diags => currentSite%flux_diags(el)
-       cur_litt   => currentPatch%litter(el)   ! Litter pool of "current" patch
+       curr_litt   => currentPatch%litter(el)   ! Litter pool of "current" patch
        new_litt   => newPatch%litter(el)       ! Litter pool of "new" patch
        
        ! -----------------------------------------------------------------------------
@@ -1186,7 +1198,7 @@ contains
              
              new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
                                         donatable_mass*donate_frac/newPatch%area
-             cur_litt%leaf_fines(pft) = cur_litt%leaf_fines(pft) + &
+             curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + &
                                         donatable_mass*retain_frac/remainder_area
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
@@ -1196,7 +1208,7 @@ contains
                 donatable_mass = num_dead_trees * (fnrt_m+store_m) * currentCohort%root_fr(ilyr)
                 new_litt%root_fines(pft,lyr) = new_litt%root_fines(pft,lyr) + &
                                                donatable_mass*donate_frac/newPatch%area
-                cur_litt%root_fines(pft,lyr) = cur_litt%root_fines(pft,lyr) + &
+                curr_litt%root_fines(pft,lyr) = curr_litt%root_fines(pft,lyr) + &
                                                donatable_mass*retain_frac/remainder_area
              end do
 
@@ -1217,7 +1229,7 @@ contains
                          bcroot * currentCohort%root_fr(ilyr)
                    new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
                          donatable_mass * donate_frac/newPatch%area
-                   cur_litt%bg_cwd(c,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
+                   curr_litt%bg_cwd(c,ilyr) = curr_litt%bg_cwd(c,ilyr) + &
                          donatable_mass * retain_frac/remainder_area
 
                    ! track diagnostics
@@ -1238,7 +1250,7 @@ contains
 
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * &
                       donate_frac/newPatch%area
-                cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + donatable_mass * &
+                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * &
                       retain_frac/remainder_area
                 
                 ! track as diagnostic fluxes
@@ -1255,7 +1267,7 @@ contains
                 donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * &
                       donate_frac/newPatch%area
-                cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + donatable_mass * &
+                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * &
                       retain_frac/remainder_area
 
                 ! track as diagnostic fluxes
@@ -1346,7 +1358,7 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: currentCohort
     type(litter_type),       pointer :: new_litt
-    type(litter_type),       pointer :: cur_litt
+    type(litter_type),       pointer :: curr_litt
     type(mass_balance_type), pointer :: site_mass
 
     real(r8) :: num_dead
@@ -1379,7 +1391,7 @@ contains
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
        flux_diags => currentSite%flux_diags(el)
-       cur_litt   => currentPatch%litter(el)   ! Litter pool of "current" patch
+       curr_litt   => currentPatch%litter(el)   ! Litter pool of "current" patch
        new_litt   => newPatch%litter(el)       ! Litter pool of "new" patch
 
        ! -----------------------------------------------------------------------------
@@ -1439,7 +1451,7 @@ contains
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
           new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
                 num_dead*(leaf_m+repro_m)*donate_frac/newPatch%area
-          cur_litt%leaf_fines(pft) = cur_litt%leaf_fines(pft) + &
+          curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + &
                 num_dead*(leaf_m+repro_m)*retain_frac/remainder_area
 
           ! Pre-calculate Structural and sapwood, below and above ground, total mass [kg]
@@ -1451,7 +1463,7 @@ contains
              ! Transfer wood of dying trees to AG CWD pools
              new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
                    SF_val_CWD_frac(c) * donate_frac/newPatch%area
-             cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + ag_wood * &
+             curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + ag_wood * &
                    SF_val_CWD_frac(c) * retain_frac/remainder_area
              
              ! Transfer wood of dying trees to BG CWD pools
@@ -1460,7 +1472,7 @@ contains
                       currentCohort%root_fr(ilyr) * SF_val_CWD_frac(c) * &
                       donate_frac/newPatch%area
 
-                cur_litt%ag_cwd(c) = cur_litt%ag_cwd(c) + bg_wood * &
+                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + bg_wood * &
                       currentCohort%root_fr(ilyr) * SF_val_CWD_frac(c) * &
                       retain_frac/remainder_area
              end do
@@ -1473,7 +1485,7 @@ contains
                    (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
                    donate_frac/newPatch%area
              
-             cur_litt%root_fines(pft,ilyr) = cur_litt%root_fines(pft,ilyr) + &
+             curr_litt%root_fines(pft,ilyr) = curr_litt%root_fines(pft,ilyr) + &
                    num_dead * currentCohort%root_fr(ilyr) * &
                    (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
                    retain_frac/remainder_area
@@ -1486,7 +1498,7 @@ contains
           seed_mass =  num_dead * store_m * EDPftvarcon_inst%allom_frbstor_repro(pft)
 
           new_litt%seed(pft) = new_litt%seed(pft) + seed_mass * donate_frac/newPatch%area
-          cur_litt%seed(pft) = cur_litt%seed(pft) + seed_mass * retain_frac/remainder_area
+          curr_litt%seed(pft) = curr_litt%seed(pft) + seed_mass * retain_frac/remainder_area
           
           
           ! track diagnostic fluxes

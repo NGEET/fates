@@ -18,8 +18,6 @@ module FatesLitterMod
 
 
    ! To-do:
-   ! 0) Update the initialization sequence to use
-   !    the array style, and also set the element_id
    ! 1) Add the state integration step
    ! 2) Evaluate how we are handling disturbance
    ! 3) Add root fraction variable to each cohort?
@@ -34,6 +32,8 @@ module FatesLitterMod
    !    patch level rate in the history code
    ! 9) Add litter_flux_output to the flux_diags, add it to history
    ! 10) Add termination fluxes to the flux_diags array as well
+   ! 11) re-evaluate the removed FATES_BGC_Carbon_Balancecheck
+   !     re-write per its original intent
    
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : i4 => fates_int
@@ -92,12 +92,6 @@ module FatesLitterMod
       ! because this process changes the size of the patch
       ! as well, and the unit fluxes that would be tracked
       ! here are convoluted
-      
-      !real(r8)             ::  ag_cwd_burn_atm(ncwd)     ! kg/m2/day
-      !real(r8),allocatable ::  bg_cwd_burn_atm(:,:)      ! kg/m2/day
-      !real(r8),allocatable ::  leaf_fines_burn_atm(:)    ! kg/m2/day
-      !real(r8),allocatable ::  root_fines_burn_atm(:,:)  ! kg/m2/day
-
 
       ! Fluxes out - germination
       real(r8),allocatable :: seed_germ(:)           ! kg/m2/day

@@ -591,6 +591,7 @@ module EDTypesMod
      ! ----------------------------------------------------------------------------------
 
      real(r8) :: err_fates      ! Total mass balance error for FATES processes     [kg/site]
+     real(r8) :: stock_fates    ! Total mass of each element in FATES              [kg/site]
 
 !     real(r8) :: err_bgc        ! Total mass balance error for BGC (HLM) processes [kg/site]
 !     real(r8) :: err_tot        ! Total mass balance error for all land processes  [kg/site]

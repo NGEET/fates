@@ -15,6 +15,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : nearzero
   use FatesInterfaceMod     , only : hlm_days_per_year
   use FatesInterfaceMod     , only : nleafage
+  use SFParamsMod           , only : SF_val_CWD_frac
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -33,6 +34,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : max_nleafage
   use EDTypesMod            , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
+  use EDTypesMod            , only : num_elements
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
@@ -53,6 +55,7 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : StructureResetOfDH
   use FatesAllometryMod  , only : tree_lai, tree_sai
+  use FatesAllometryMod  , only : i_biomass_rootprof_context 
 
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
@@ -611,7 +614,7 @@ contains
     ! terminates cohorts when they get too small      
     !
     ! !USES:
-    use SFParamsMod, only : SF_val_CWD_frac
+    
     !
     ! !ARGUMENTS    
     type (ed_site_type) , intent(inout), target :: currentSite
@@ -807,7 +810,7 @@ contains
     real(r8) :: fnrt_m    ! fineroot mass [kg]
     real(r8) :: repro_m   ! reproductive mass [kg]
     real(r8) :: struct_m  ! structural mass [kg]
-    real(r8) :: plantdens ! plant density [/m2]
+    real(r8) :: plant_dens! plant density [/m2]
     integer  :: el        ! loop index for elements
     integer  :: c         ! loop index for CWD
     integer  :: pft       ! pft index of the cohort
@@ -819,7 +822,7 @@ contains
 
     pft = currentCohort%pft
 
-    plantdens = nplant/currentPatch%area
+    plant_dens = nplant/currentPatch%area
 
     do el=1,num_elements
        

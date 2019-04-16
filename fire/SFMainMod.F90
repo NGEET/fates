@@ -15,6 +15,7 @@
 
   use EDPftvarcon           , only : EDPftvarcon_inst
 
+  use EDTypesMod            , only : element_pos
   use EDtypesMod            , only : ed_site_type
   use EDtypesMod            , only : ed_patch_type
   use EDtypesMod            , only : ed_cohort_type
@@ -27,8 +28,10 @@
   use FatesLitterMod        , only : ncwd
   use EDtypesMod            , only : NFSC
   use EDtypesMod            , only : TR_SF
+  use FatesLitterMod        , only : litter_type
 
   use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
@@ -164,7 +167,7 @@ contains
 
     type(ed_patch_type),  pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
-    type(fates_litter_type), pointer :: litt_c
+    type(litter_type), pointer    :: litt_c
 
     real(r8) timeav_swc
     real(r8) alpha_FMC(nfsc)     ! Relative fuel moisture adjusted per drying ratio
@@ -209,7 +212,7 @@ contains
        currentPatch%fuel_frac      = 0.0_r8
 
        if(write_sf == itrue)then
-          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter1 ',sum(currentPatch%leaf_fines(:))
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter1 ',sum(litt_c%leaf_fines(:))
           if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter2 ',sum(litt_c%ag_cwd(:))
           if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter3 ',currentPatch%livegrass
           if ( hlm_masterproc == itrue ) write(fates_log(),*) ' sum fuel', currentPatch%sum_fuel

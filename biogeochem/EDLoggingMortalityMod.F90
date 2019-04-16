@@ -17,7 +17,10 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : r8 => fates_r8
    use EDTypesMod        , only : ed_cohort_type
    use EDTypesMod        , only : ed_patch_type
+   use EDTypesMod        , only : site_masscheck_type
+   use EDTypesMod        , only : site_fluxdiags_type
    use FatesLitterMod    , only : ncwd
+   use FatesLitterMod    , only : litter_type
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_resources_management_type
    use EDTypesMod        , only : dtype_ilog
@@ -46,7 +49,6 @@ module EDLoggingMortalityMod
    use FatesGlobals      , only : fates_log
    use shr_log_mod       , only : errMsg => shr_log_errMsg
    use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
-   use EDPatchDynamics   , only : treefall_localization
    use PRTGenericMod     , only : all_carbon_elements,carbon12_element
    use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
@@ -57,6 +59,9 @@ module EDLoggingMortalityMod
 
    logical, protected :: logging_time   ! If true, logging should be 
                                         ! performed during the current time-step
+
+
+   real(r8), parameter :: harvest_litter_localization = 0.75_r8
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -249,9 +254,11 @@ contains
       real(r8)            , intent(in)             :: patch_site_areadis
 
       !LOCAL VARIABLES:
-      type(ed_cohort_type), pointer :: currentCohort
+      type(ed_cohort_type), pointer      :: currentCohort
       type(site_masscheck_type), pointer :: site_mass
       type(site_fluxdiags_type), pointer :: flux_diags
+      type(litter_type),pointer          :: new_litt
+      type(litter_type),pointer          :: cur_litt
 
       real(r8) :: direct_dead         ! Mortality count through direct logging
       real(r8) :: indirect_dead       ! Mortality count through: impacts, infrastructure and collateral damage
@@ -271,6 +278,8 @@ contains
       real(r8) :: store_m             ! storage element mass [kg]
       real(r8) :: struct_m            ! structure element mass [kg]
       real(r8) :: repro_m             ! reproductive mass [kg]
+      real(r8) :: retain_frac         ! fraction of litter retained in the donor patch
+      real(r8) :: donate_frac         ! fraction of litter sent to newly formed patch
       integer  :: element_id          ! parteh global element index
       integer  :: pft                 ! pft index
       integer  :: c                   ! cwd index
@@ -292,7 +301,7 @@ contains
       ! Calculate the fraction of litter to be retained versus donated
       ! vis-a-vis the new and donor patch
       
-      retain_frac = (1.0_r8-treefall_localization) * &
+      retain_frac = (1.0_r8-harvest_litter_localization) * &
             remainder_area/(newPatch%area+remainder_area)
       donate_frac = 1.0_r8-retain_frac
 
@@ -344,7 +353,7 @@ contains
                end if
             end if
             
-            if(element_id(il).eq.carbon12_element .and. 
+            if( (element_id .eq. carbon12_element) .and. &
                hlm_use_planthydro == itrue ) then
                call AccumulateMortalityWaterStorage(currentSite, &
                      currentCohort,(direct_dead+indirect_dead))
@@ -435,11 +444,11 @@ contains
 
             delta_litter_stock  = delta_litter_stock + (ag_wood+bg_wood) * SF_val_CWD_frac(ncwd)
             
-            ! ----------------------------------------------------------------------------------------
+            ! ---------------------------------------------------------------------------------------
             ! Handle below-ground trunk flux for directly logged trees (c = ncwd)
             ! ----------------------------------------------------------------------------------------
             
-            bg_wood = direct_dead * (struct_m + sapw_m ) * SF_val_CWD_frac(ncwd) &
+            bg_wood = direct_dead * (struct_m + sapw_m ) * SF_val_CWD_frac(ncwd) * &
                   (1._r8 - EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
 
             do ilyr = 1,nlevsoil
@@ -517,7 +526,7 @@ contains
             delta_biomass_stock = delta_biomass_stock + &
                   leaf_litter         + &
                   root_litter         + &
-                  (direct_dead+indirect_dead) * (struct_c + sapw_c)
+                  (direct_dead+indirect_dead) * (struct_m + sapw_m)
                
             delta_individual    = delta_individual    + &
                   direct_dead         + &
@@ -531,7 +540,7 @@ contains
          ! of the tree bole that experienced "direct" logging is exported
          ! This portion is known as "trunk_product_site
          
-         if(element_id(il).eq.carbon12_element) then
+         if(element_id .eq. carbon12_element) then
             currentSite%resources_management%trunk_product_site  = &
                   currentSite%resources_management%trunk_product_site + &
                   trunk_product_site
