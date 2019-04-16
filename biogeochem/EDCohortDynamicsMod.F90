@@ -14,6 +14,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
+  use FatesConstantsMod     , only : calloc_abs_error
   use FatesInterfaceMod     , only : hlm_days_per_year
   use FatesInterfaceMod     , only : nleafage
   use EDPftvarcon           , only : EDPftvarcon_inst
@@ -47,6 +48,10 @@ module EDCohortDynamicsMod
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
+  use FatesAllometryMod  , only : bsap_allom
+  use FatesAllometryMod  , only : bagw_allom
+  use FatesAllometryMod  , only : bbgw_allom
+  use FatesAllometryMod  , only : bdead_allom
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : ForceDBH
@@ -93,6 +98,7 @@ module EDCohortDynamicsMod
   public :: count_cohorts
   public :: InitPRTCohort
   public :: UpdateCohortBioPhysRates
+  public :: EvaluateAndCorrectDBH
 
   logical, parameter :: debug  = .false. ! local debug flag
 
@@ -1705,5 +1711,91 @@ contains
 
   
   ! ============================================================================
+
+
+  subroutine EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
+
+    ! -----------------------------------------------------------------------------------
+    ! If the current diameter of a plant is somehow less than what is allometrically 
+    ! consistent with stuctural biomass (or, in the case of grasses, leaf biomass) 
+    ! then correct (increase) the dbh to match that.
+    ! -----------------------------------------------------------------------------------
+
+    ! argument
+    type(ed_cohort_type),intent(inout) :: currentCohort
+    real(r8),intent(out)               :: delta_dbh
+    real(r8),intent(out)               :: delta_hite
+    
+    ! locals
+    real(r8) :: dbh
+    real(r8) :: canopy_trim
+    integer  :: ipft
+    real(r8) :: sapw_area
+    real(r8) :: target_sapw_c
+    real(r8) :: target_agw_c
+    real(r8) :: target_bgw_c
+    real(r8) :: target_struct_c
+    real(r8) :: target_leaf_c
+    real(r8) :: struct_c
+    real(r8) :: hite_out
+    real(r8) :: leaf_c
+    
+    dbh  = currentCohort%dbh
+    ipft = currentCohort%pft
+    canopy_trim = currentCohort%canopy_trim
+
+    delta_dbh   = 0._r8
+    delta_hite  = 0._r8
+    
+    if( EDPftvarcon_inst%woody(ipft) == itrue) then
+
+       struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+    
+       ! Target sapwood biomass according to allometry and trimming [kgC]
+       call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
+       
+       ! Target total above ground biomass in woody/fibrous tissues  [kgC]
+       call bagw_allom(dbh,ipft,target_agw_c)
+       
+       ! Target total below ground biomass in woody/fibrous tissues [kgC] 
+       call bbgw_allom(dbh,ipft,target_bgw_c)
+       
+       ! Target total dead (structrual) biomass [kgC]
+       call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
+       
+       ! ------------------------------------------------------------------------------------
+       ! If structure is larger than target, then we need to correct some integration errors
+       ! by slightly increasing dbh to match it.
+       ! For grasses, if leaf biomass is larger than target, then we reset dbh to match
+       ! -----------------------------------------------------------------------------------
+       
+       if( (struct_c - target_struct_c ) > calloc_abs_error ) then
+          call ForceDBH( ipft, canopy_trim, dbh, hite_out, bdead=struct_c )
+          delta_dbh = dbh - currentCohort%dbh 
+          delta_hite = hite_out - currentCohort%hite
+          currentCohort%dbh  = dbh
+          currentCohort%hite = hite_out
+       end if
+       
+    else
+
+       ! This returns the sum of leaf carbon over all (age) bins
+       leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+
+       ! Target leaf biomass according to allometry and trimming
+       call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
+
+       if( ( leaf_c - target_leaf_c ) > calloc_abs_error ) then
+          call ForceDBH( ipft, canopy_trim, dbh, hite_out, bl=leaf_c )
+          delta_dbh = dbh - currentCohort%dbh 
+          delta_hite = hite_out - currentCohort%hite
+          currentCohort%dbh = dbh
+          currentCohort%hite = hite_out
+       end if
+       
+    end if
+    return
+  end subroutine EvaluateAndCorrectDBH
+  
 
 end module EDCohortDynamicsMod
