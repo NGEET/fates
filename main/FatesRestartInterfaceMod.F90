@@ -2023,7 +2023,7 @@ contains
              newp%patchno = idx_pa
 
 
-	     ! Iterate over the number of cohorts
+             ! Iterate over the number of cohorts
              ! the file says are associated with this patch
              ! we are just allocating space here, so we do 
              ! a simple list filling routine
@@ -2053,9 +2053,13 @@ contains
 
                 ! Every cohort added takes over as shortest
                 newp%shortest => new_cohort
+
+                ! Initialize the PARTEH object and point to the
+                ! correct boundary condition fields
+                new_cohort%prt => null()
+                call InitPRTObject(new_cohort%prt)
+                call InitPRTBoundaryConditions(new_cohort)
                 
-                ! Initialize the PRT environment (allocate/choose hypothesis only)
-                call InitPRTCohort(new_cohort)
                 
                 ! Allocate hydraulics arrays
                 if( hlm_use_planthydro.eq.itrue ) then

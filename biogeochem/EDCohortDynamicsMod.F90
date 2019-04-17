@@ -204,25 +204,6 @@ contains
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
 
-
-    ! All newly initialized cohorts start off with an assumption
-    ! about leaf age (depending on what is calling the initialization
-    ! of this cohort
-
-!    if(leaf_aclass_init .eq. equal_leaf_aclass) then
-!       frac_leaf_aclass(1:nleafage) = 1._r8 / real(nleafage,r8)
-!    elseif(leaf_aclass_init .eq. first_leaf_aclass) then
-!       frac_leaf_aclass(1:nleafage) = 0._r8
-!       frac_leaf_aclass(1)          = 1._r8
-!    elseif(leaf_aclass_init .eq. nan_leaf_aclass) then
-!       frac_leaf_aclass(1:nleafage) = nan
-!    else
-!       write(fates_log(),*) 'An unknown leaf age distribution was'
-!       write(fates_log(),*) 'requested during create cohort'
-!       write(fates_log(),*) 'leaf_aclass_init: ',leaf_aclass_init
-!       call endrun(msg=errMsg(sourcefile, __LINE__))
-!    end if
-
     ! Initialize the rooting depth fractions
     ! This could be based on all sorts of stuff, like size
     ! or perhaps mass balance dynamics
@@ -232,7 +213,7 @@ contains
     
 
     ! This sets things like vcmax25top, that depend on the
-    ! leaf age fractions
+    ! leaf age fractions (which are defined by PARTEH)
     call UpdateCohortBioPhysRates(new_cohort)
 
     call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
@@ -244,7 +225,7 @@ contains
     ! In these cases, testing if things like biomass are reasonable is pre-mature
     ! However, in this part of the code, we will pass in nominal values for size, number and type
     
-    if (new_cohort%dbh <= 0.0_r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
+    if (new_cohort%dbh <= nearzero .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
        write(fates_log(),*) 'ED: something is zero in create_cohort', &
                              new_cohort%dbh,new_cohort%n, &
                              new_cohort%pft
@@ -286,47 +267,8 @@ contains
        snull = 1
        patchptr%shortest => new_cohort 
     endif
-    
-    ! Set the boundary conditions that flow in an out of the PARTEH
-    ! allocation hypotheses.  These are pointers in the PRT objects that
-    ! point to values outside in the FATES model.
-    
-    ! Example:
-    ! "ac_bc_inout_id_dbh" is the unique integer that defines the object index
-    ! for the allometric carbon "ac" boundary condition "bc" for DBH "dbh"
-    ! that is classified as input and output "inout".
-    ! See PRTAllometricCarbonMod.F90 to track its usage.
-    ! bc_rval is used as the optional argument identifyer to specify a real
-    ! value boundary condition.
-    ! bc_ival is used as the optional argument identifyer to specify an integer
-    ! value boundary condition.
-    
-    
-    select case(hlm_parteh_mode)
-    case (prt_carbon_allom_hyp)
-       
-       ! Register boundary conditions for the Carbon Only Allometric Hypothesis
-       
-       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
-       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
-       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
-    
-    case (prt_cnp_flex_allom_hyp)
 
-       write(fates_log(),*) 'You have not specified the boundary conditions for the'
-       write(fates_log(),*) 'CNP with flexible stoichiometries hypothesis. Please do so. Dude.'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-       
-
-    case DEFAULT
-       
-       write(fates_log(),*) 'You specified an unknown PRT module'
-       write(fates_log(),*) 'Aborting'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-   
-    end select
-    
+    call InitPRTBoundaryConditions(new_cohort)
 
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics
@@ -408,56 +350,104 @@ contains
      ! Each hypothesis has a different object which is an extension
      ! of the base class.
 
+
+     call InitPRTObject(new_cohort%prt)
+
+
+
+
+     return
+  end subroutine InitPRTCohort
+
+  ! ------------------------------------------------------------------------------------!
+
+  subroutine InitPRTBoundaryConditions(new_cohort)
+    
+    ! Set the boundary conditions that flow in an out of the PARTEH
+    ! allocation hypotheses.  These are pointers in the PRT objects that
+    ! point to values outside in the FATES model.
+    
+    ! Example:
+    ! "ac_bc_inout_id_dbh" is the unique integer that defines the object index
+    ! for the allometric carbon "ac" boundary condition "bc" for DBH "dbh"
+    ! that is classified as input and output "inout".
+    ! See PRTAllometricCarbonMod.F90 to track its usage.
+    ! bc_rval is used as the optional argument identifyer to specify a real
+    ! value boundary condition.
+    ! bc_ival is used as the optional argument identifyer to specify an integer
+    ! value boundary condition.
+
+    select case(hlm_parteh_mode)
+    case (prt_carbon_allom_hyp)
+       
+       ! Register boundary conditions for the Carbon Only Allometric Hypothesis
+       
+       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
+       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
+       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
+       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
+    
+    case (prt_cnp_flex_allom_hyp)
+
+       write(fates_log(),*) 'You have not specified the boundary conditions for the'
+       write(fates_log(),*) 'CNP with flexible stoichiometries hypothesis. Please do so. Dude.'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+
+    case DEFAULT
+       
+       write(fates_log(),*) 'You specified an unknown PRT module'
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+   
+    end select
+    
+
+  end subroutine InitPRTBoundaryConditions
+
+  ! ------------------------------------------------------------------------------------!
+  
+  subroutine InitPRTObject(prt)
+
+    ! Argument
+    type(prt_vartypes), pointer :: prt
+    
+    ! Potential Extended types
+    type(callom_prt_vartypes), pointer :: c_allom_prt
+    type(cnp_allom_prt_vartypes), pointer :: cnpallom_prt
+
+     ! Allocate the PRT class object
+     ! Each hypothesis has a different object which is an extension
+     ! of the base class.
+
      select case(hlm_parteh_mode)
      case (prt_carbon_allom_hyp)
         
-        allocate(callom_prt)
-        new_cohort%prt => callom_prt
+        allocate(c_allom_prt)
+        prt => callom_prt
      
+     case (prt_cnp_flex_allom_hyp)
+        
+        allocate(cnp_allom_prt)
+        prt => cnp_allom_prt
+        
      case DEFAULT
-
+        
         write(fates_log(),*) 'You specified an unknown PRT module'
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
-
+        
      end select
      
      ! This is the call to allocate the data structures in the PRT object
      ! This call will be extended to each specific class.
 
-     call new_cohort%prt%InitPRTVartype()
+     call prt%InitPRTVartype()
 
 
-     ! Set the boundary conditions that flow in an out of the PARTEH
-     ! allocation hypotheses.  These are pointers in the PRT objects that
-     ! point to values outside in the FATES model.
+    return
+  end subroutine InitPRTObject
 
-     ! Example:
-     ! "ac_bc_inout_id_dbh" is the unique integer that defines the object index
-     ! for the allometric carbon "ac" boundary condition "bc" for DBH "dbh"
-     ! that is classified as input and output "inout".
-     ! See PRTAllometricCarbonMod.F90 to track its usage.
-     ! bc_rval is used as the optional argument identifyer to specify a real
-     ! value boundary condition.
-     ! bc_ival is used as the optional argument identifyer to specify an integer
-     ! value boundary condition.
-     
-
-     select case(hlm_parteh_mode)
-     case (prt_carbon_allom_hyp)
-
-        ! Register boundary conditions for the Carbon Only Allometric Hypothesis
-
-        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
-        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
-        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
-        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
-
-     end select
-
-
-     return
-  end subroutine InitPRTCohort
 
   !-------------------------------------------------------------------------------------!
 

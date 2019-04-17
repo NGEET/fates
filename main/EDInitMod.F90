@@ -474,8 +474,68 @@ contains
 
        if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
+       prt => null()
+       call InitPRTObject(prt)
+
+       do el = 1,num_elements
+
+          element_id = element_list(el)
+          
+          ! If this is carbon12, then the initialization is straight forward
+          ! otherwise, we use stoichiometric ratios
+          select case(element_id)
+          case(carbon12_element)
+             
+             m_struct = c_dead
+             m_leaf   = c_leaf
+             m_fnrt   = c_fnrt
+             m_sapw   = c_sapwood
+             m_store  = c_store
+             m_repro  = 0._r8
+             
+          case(nitrogen_element)
+             
+             m_struct = c_dead*prt_nitr_stoich_p1(ft,struct_organ)
+             m_leaf   = c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)
+             m_fnrt   = c_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ)
+             m_sapw   = c_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)
+             m_store  = c_store*prt_nitr_stoich_p1(ft,store_organ)
+             m_repro  = 0._r8
+             
+          case(phosphorus_element)
+
+             m_struct = c_dead*prt_phos_stoich_p1(ft,struct_organ)
+             m_leaf   = c_leaf*prt_phos_stoich_p1(ft,leaf_organ)
+             m_fnrt   = c_fineroot*prt_phos_stoich_p1(ft,fnrt_organ)
+             m_sapw   = c_sapwood*prt_phos_stoich_p1(ft,sapw_organ)
+             m_store  = c_store*prt_phos_stoich_p1(ft,store_organ)
+             m_repro  = 0._r8
+          end select
+
+          select case(hlm_parteh_mode)
+          case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+             
+             ! Put all of the leaf mass into the first bin
+             call SetState(prt,leaf_organ, element_id,m_leaf,1)
+             do iage = 2,nleafage
+                call SetState(prt,leaf_organ, element_id,0._r8,iage)
+             end do
+             
+             call SetState(prt,fnrt_organ, element_id, m_fnrt)
+             call SetState(prt,sapw_organ, element_id, m_sapw)
+             call SetState(prt,store_organ, element_id, m_store)
+             call SetState(prt,struct_organ, element_id, m_struct)
+             call SetState(prt,repro_organ, elemeent_id, m_repro)
+             
+          case default
+             write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end select
+          
+       end do
+
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-            b_leaf, b_fineroot, b_sapwood, b_dead, b_store, & 
+            prt, &
             temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, &
             site_in%spread, first_leaf_aclass, bc_in)
 

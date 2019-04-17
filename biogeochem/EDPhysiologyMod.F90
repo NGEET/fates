@@ -22,7 +22,7 @@ module EDPhysiologyMod
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
-  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts,InitPRTCohort
+  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : decay_coeff_kn
@@ -1140,46 +1140,7 @@ contains
   ! =====================================================================================
 
 
-  subroutine InitPRTObject(prt)
 
-    ! Argument
-    type(prt_vartypes), pointer :: prt
-    
-    ! Potential Extended types
-    type(callom_prt_vartypes), pointer :: c_allom_prt
-    type(cnp_allom_prt_vartypes), pointer :: cnpallom_prt
-
-     ! Allocate the PRT class object
-     ! Each hypothesis has a different object which is an extension
-     ! of the base class.
-
-     select case(hlm_parteh_mode)
-     case (prt_carbon_allom_hyp)
-        
-        allocate(c_allom_prt)
-        prt => callom_prt
-     
-     case (prt_cnp_flex_allom_hyp)
-        
-        allocate(cnp_allom_prt)
-        prt => cnp_allom_prt
-        
-     case DEFAULT
-        
-        write(fates_log(),*) 'You specified an unknown PRT module'
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-        
-     end select
-     
-     ! This is the call to allocate the data structures in the PRT object
-     ! This call will be extended to each specific class.
-
-     call prt%InitPRTVartype()
-
-
-    return
-  end subroutine InitPRTObject
 
 
   ! =====================================================================================
