@@ -1139,6 +1139,51 @@ contains
 
   ! =====================================================================================
 
+
+  subroutine InitPRTObject(prt)
+
+    ! Argument
+    type(prt_vartypes), pointer :: prt
+    
+    ! Potential Extended types
+    type(callom_prt_vartypes), pointer :: c_allom_prt
+    type(cnp_allom_prt_vartypes), pointer :: cnpallom_prt
+
+     ! Allocate the PRT class object
+     ! Each hypothesis has a different object which is an extension
+     ! of the base class.
+
+     select case(hlm_parteh_mode)
+     case (prt_carbon_allom_hyp)
+        
+        allocate(c_allom_prt)
+        prt => callom_prt
+     
+     case (prt_cnp_flex_allom_hyp)
+        
+        allocate(cnp_allom_prt)
+        prt => cnp_allom_prt
+        
+     case DEFAULT
+        
+        write(fates_log(),*) 'You specified an unknown PRT module'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        
+     end select
+     
+     ! This is the call to allocate the data structures in the PRT object
+     ! This call will be extended to each specific class.
+
+     call prt%InitPRTVartype()
+
+
+    return
+  end subroutine InitPRTObject
+
+
+  ! =====================================================================================
+
   subroutine recruitment( currentSite, currentPatch, bc_in )
     !
     ! !DESCRIPTION:
@@ -1153,6 +1198,7 @@ contains
     type(bc_in_type), intent(in)                :: bc_in
     !
     ! !LOCAL VARIABLES:
+    type(prt_vartypes), pointer :: prt
     integer :: ft
     type (ed_cohort_type) , pointer :: temp_cohort
     type (litter_type), pointer     :: litt          ! The litter object (carbon right now)
@@ -1208,6 +1254,8 @@ contains
           cohortstatus = leaves_off
        endif
 
+      
+
        ! Cycle through available carbon and nutrients, find the limiting element
        ! to dictate the total number of plants that can be generated
 
@@ -1257,16 +1305,21 @@ contains
                 hlm_freq_day
        endif
 
+
+      
+
+
        ! Only bother allocating a new cohort if there is a reasonable amount of it
        if (temp_cohort%n > min_n_safemath )then
 
-          ! This initializes *almost* everthing. It does not initialize the
-          ! nutrient pools.
-          call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, & 
-                temp_cohort%hite, temp_cohort%dbh, c_leaf, c_fineroot, c_sapwood, c_dead, &
-                c_store, temp_cohort%laimemory, cohortstatus,recruitstatus, &
-                temp_cohort%canopy_trim, currentPatch%NCL_p, currentSite%spread, &
-                first_leaf_aclass, bc_in)
+          ! -----------------------------------------------------------------------------
+          ! PART II.
+          ! Initialize the PARTEH object, and determine the initial masses of all
+          ! organs and elements.
+          ! -----------------------------------------------------------------------------
+
+          prt => null()
+          call InitPRTObject(prt)
 
           do el = 1,num_elements
 
@@ -1278,157 +1331,137 @@ contains
 
               ! If this is carbon12, then the initialization is straight forward
               ! otherwise, we use stoichiometric ratios
-              if(element_id .eq. carbon12_element) then
+              select case(element_id)
+              case(carbon12_element)
 
-                  select case(hlm_parteh_mode)
-                  case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+                 m_struct = c_dead
+                 m_leaf   = c_leaf
+                 m_fnrt   = c_fnrt
+                 m_sapw   = c_sapwood
+                 m_store  = c_store
+                 m_repro  = 0._r8
 
-                      ! Put all of the leaf mass into the first bin
-                      call SetState(new_cohort%prt,leaf_organ, carbon12_element,c_leaf,1)
-                      do iage = 2,nleafage
-                          call SetState(new_cohort%prt,leaf_organ, carbon12_element, &
-                                0._r8,iage)
-                      end do
-
-                      call SetState(new_cohort%prt,fnrt_organ, carbon12_element, c_fineroot)
-                      call SetState(new_cohort%prt,sapw_organ, carbon12_element, c_sapwood)
-                      call SetState(new_cohort%prt,store_organ, carbon12_element, c_store)
-                      call SetState(new_cohort%prt,struct_organ , carbon12_element, c_dead)
-                      call SetState(new_cohort%prt,repro_organ , carbon12_element, 0.0_r8)
+              case(nitrogen_element)
+                 
+                 min_demand = c_dead*prt_nitr_stoich_p1(ft,struct_organ)   + &
+                              c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)     + &
+                              c_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ) + & 
+                              c_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)  + & 
+                              c_store*prt_nitr_stoich_p1(ft,store_organ)
+                 max_demand = c_dead*prt_nitr_stoich_p2(ft,struct_organ)   + &
+                              c_leaf*prt_nitr_stoich_p2(ft,leaf_organ)     + &
+                              c_fineroot*prt_nitr_stoich_p2(ft,fnrt_organ) + & 
+                              c_sapwood*prt_nitr_stoich_p2(ft,sapw_organ)  + & 
+                              c_store*prt_nitr_stoich_p2(ft,store_organ)
                       
-                  case default
-                      write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
-                      call endrun(msg=errMsg(sourcefile, __LINE__))
-                  end select
-                  
-              else
-                  
-                  select case(element_id)
-                  case(nitrogen_element)
-                      min_demand = c_dead*prt_nitr_stoich_p1(ft,struct_organ)   + &
-                                   c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)     + &
-                                   c_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ) + & 
-                                   c_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)  + & 
-                                   c_store*prt_nitr_stoich_p1(ft,store_organ)
-                      max_demand = c_dead*prt_nitr_stoich_p2(ft,struct_organ)   + &
-                                   c_leaf*prt_nitr_stoich_p2(ft,leaf_organ)     + &
-                                   c_fineroot*prt_nitr_stoich_p2(ft,fnrt_organ) + & 
-                                   c_sapwood*prt_nitr_stoich_p2(ft,sapw_organ)  + & 
-                                   c_store*prt_nitr_stoich_p2(ft,store_organ)
-                      
-                      ! Use up as much of the nutrient in the seed germination pool
-                      ! but don't go higher than the ideal value (roughly, this
-                      ! won't enforce a perfect cap)
-                      
-                      scaler = min(mass_avail/(min_demand*temp_cohort%n), &
-                                   max_demand/min_demand)
+                 ! Use up as much of the nutrient in the seed germination pool
+                 ! but don't go higher than the ideal value (roughly, this
+                 ! won't enforce a perfect cap)
+                 
+                 scaler = min(mass_avail/(min_demand*temp_cohort%n), &
+                              max_demand/min_demand)
 
+                 m_struct = scaler*c_dead*prt_nitr_stoich_p1(ft,struct_organ)
+                 m_leaf   = scaler*c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)
+                 m_fnrt   = scaler*c_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ)
+                 m_sapw   = scaler*c_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)
+                 m_store  = scaler*c_store*prt_nitr_stoich_p1(ft,store_organ)
+                 m_repro  = 0._r8
 
-                  case(phosphorus_element)
-                      min_demand = c_dead*prt_phos_stoich_p1(ft,struct_organ)   + &
-                                   c_leaf*prt_phos_stoich_p1(ft,leaf_organ)     + &
-                                   c_fineroot*prt_phos_stoich_p1(ft,fnrt_organ) + & 
-                                   c_sapwood*prt_phos_stoich_p1(ft,sapw_organ)  + & 
-                                   c_store*prt_phos_stoich_p1(ft,store_organ)
-                      max_demand = c_dead*prt_phos_stoich_p2(ft,struct_organ)   + &
-                                   c_leaf*prt_phos_stoich_p2(ft,leaf_organ)     + &
-                                   c_fineroot*prt_phos_stoich_p2(ft,fnrt_organ) + & 
-                                   c_sapwood*prt_phos_stoich_p2(ft,sapw_organ)  + & 
-                                   c_store*prt_phos_stoich_p2(ft,store_organ) 
+              case(phosphorus_element)
 
-                      ! Use up as much of the nutrient in the seed germination pool
-                      ! but don't go higher than the ideal value (roughly, this
-                      ! won't enforce a perfect cap)
-                      
-                      scaler = min(mass_avail/(min_demand*temp_cohort%n), &
-                                   max_demand/min_demand)
-                      
-                  end select
+                 min_demand = c_dead*prt_phos_stoich_p1(ft,struct_organ)   + &
+                              c_leaf*prt_phos_stoich_p1(ft,leaf_organ)     + &
+                              c_fineroot*prt_phos_stoich_p1(ft,fnrt_organ) + & 
+                              c_sapwood*prt_phos_stoich_p1(ft,sapw_organ)  + & 
+                              c_store*prt_phos_stoich_p1(ft,store_organ)
+                 max_demand = c_dead*prt_phos_stoich_p2(ft,struct_organ)   + &
+                              c_leaf*prt_phos_stoich_p2(ft,leaf_organ)     + &
+                              c_fineroot*prt_phos_stoich_p2(ft,fnrt_organ) + & 
+                              c_sapwood*prt_phos_stoich_p2(ft,sapw_organ)  + & 
+                              c_store*prt_phos_stoich_p2(ft,store_organ) 
+                 
+                 ! Use up as much of the nutrient in the seed germination pool
+                 ! but don't go higher than the ideal value (roughly, this
+                 ! won't enforce a perfect cap)
+                 
+                 scaler = min(mass_avail/(min_demand*temp_cohort%n), &
+                              max_demand/min_demand)
 
-                  select case(hlm_parteh_mode)
-                  case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+                 m_struct = scaler*c_dead*prt_phos_stoich_p1(ft,struct_organ)
+                 m_leaf   = scaler*c_leaf*prt_phos_stoich_p1(ft,leaf_organ)
+                 m_fnrt   = scaler*c_fineroot*prt_phos_stoich_p1(ft,fnrt_organ)
+                 m_sapw   = scaler*c_sapwood*prt_phos_stoich_p1(ft,sapw_organ)
+                 m_store  = scaler*c_store*prt_phos_stoich_p1(ft,store_organ)
+                 m_repro  = 0._r8
 
-                      ! Put all of the leaf mass into the first bin
-                      call SetState(new_cohort%prt,leaf_organ, carbon12_element,c_leaf,1)
-                      do iage = 2,nleafage
-                          call SetState(new_cohort%prt,leaf_organ, carbon12_element, &
-                                0._r8,iage)
-                      end do
+              end select
 
-                      call SetState(new_cohort%prt,fnrt_organ, carbon12_element, c_fineroot)
-                      call SetState(new_cohort%prt,sapw_organ, carbon12_element, c_sapwood)
-                      call SetState(new_cohort%prt,store_organ, carbon12_element, c_store)
-                      call SetState(new_cohort%prt,struct_organ , carbon12_element, c_dead)
-                      call SetState(new_cohort%prt,repro_organ , carbon12_element, 0.0_r8)
-                      
-                  case default
-                      write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
-                      call endrun(msg=errMsg(sourcefile, __LINE__))
-                  end select
+              select case(hlm_parteh_mode)
+              case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+                 
+                 ! Put all of the leaf mass into the first bin
+                 call SetState(prt,leaf_organ, element_id,m_leaf,1)
+                 do iage = 2,nleafage
+                    call SetState(prt,leaf_organ, element_id,0._r8,iage)
+                 end do
+                 
+                 call SetState(prt,fnrt_organ, element_id, m_fnrt)
+                 call SetState(prt,sapw_organ, element_id, m_sapw)
+                 call SetState(prt,store_organ, element_id, m_store)
+                 call SetState(prt,struct_organ, element_id, m_struct)
+                 call SetState(prt,repro_organ, elemeent_id, m_repro)
+                 
+              case default
+                 write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end select
               
-              max_demand = 
-
-
-              do iage = 1,nleafage
-                  call SetState(new_cohort%prt,leaf_organ, element_id, &
-                        bleaf*frac_leaf_aclass(iage),iage)
-              end do
-
-
-          select case(hlm_parteh_mode)
-          case (prt_carbon_allom_hyp)
-              
-              do iage = 1,nleafage
-                  call SetState(new_cohort%prt,leaf_organ, carbon12_element, &
-                        bleaf*frac_leaf_aclass(iage),iage)
-              end do
-              call SetState(new_cohort%prt,fnrt_organ, carbon12_element, bfineroot)
-              call SetState(new_cohort%prt,sapw_organ, carbon12_element, bsap)
-              call SetState(new_cohort%prt,store_organ, carbon12_element, bstore)
-              call SetState(new_cohort%prt,struct_organ , carbon12_element, bdead)
-              call SetState(new_cohort%prt,repro_organ , carbon12_element, 0.0_r8)
-          case (prt_cnp_flex_allom_hyp)
-
+              ! Remove mass from the germination pool
+              currentPatch%litter(el)%seed_germ(ft) = currentPatch%litter(el)%seed_germ(ft) - & 
+                   new_cohort%n *(m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)/cpatch%area
               
 
-          case default
-              write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-          end select
+           end do
 
-
-
-
-          ! This call cycles through the initial conditions, and makes sure that they
-          ! are all initialized.
-          ! -----------------------------------------------------------------------------------
-          
-          call new_cohort%prt%CheckInitialConditions()
-
-
-          ! Note that if hydraulics is on, the number of cohorts may had changed due to hydraulic constraints.
-          ! This constaint is applied during "create_cohort" subroutine.
-          
-          ! keep track of how many individuals were recruited for passing to history
-          currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
-          
-          ! modify the carbon balance accumulators to take into account the different way of defining recruitment
-          ! add prescribed rates as an input C flux, and the recruitment that would have otherwise occured as an output flux
-          ! (since the carbon associated with them effectively vanishes)
-          ! check the water for hydraulics
-          if ( (hlm_use_ed_prescribed_phys .eq. itrue ) .and. &
-               (EDPftvarcon_inst%prescribed_recruitment(ft) .ge. nearzero )) then
-
+           ! This call cycles through the initial conditions, and makes sure that they
+           ! are all initialized.
+           ! -----------------------------------------------------------------------------------
+           
+           call prt%CheckInitialConditions()
+           
+           ! This initializes the cohort
+           call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, & 
+                temp_cohort%hite, temp_cohort%dbh, prt, & 
+                temp_cohort%laimemory, cohortstatus, recruitstatus, &
+                temp_cohort%canopy_trim, currentPatch%NCL_p, currentSite%spread, &
+                first_leaf_aclass, bc_in)
+           
+           
+           ! Note that if hydraulics is on, the number of cohorts may had
+           ! changed due to hydraulic constraints.
+           ! This constaint is applied during "create_cohort" subroutine.
+           
+           ! keep track of how many individuals were recruited for passing to history
+           currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
+           
+           ! modify the carbon balance accumulators to take into account the different way of defining recruitment
+           ! add prescribed rates as an input C flux, and the recruitment that would have otherwise occured as an output flux
+           ! (since the carbon associated with them effectively vanishes)
+           ! check the water for hydraulics
+           if ( (hlm_use_ed_prescribed_phys .eq. itrue ) .and. &
+                (EDPftvarcon_inst%prescribed_recruitment(ft) .ge. nearzero )) then
+              
               currentSite%flux_in = currentSite%flux_in + temp_cohort%n * &
-                    (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
+                   (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
               currentSite%flux_out = currentSite%flux_out + currentPatch%area * litt%seed_germ(ft)
-
-          endif
-
-       endif
-    enddo  !pft loop
-
-    deallocate(temp_cohort) ! delete temporary cohort
+              
+           endif
+           
+        endif
+     enddo  !pft loop
+     
+     deallocate(temp_cohort) ! delete temporary cohort
 
   end subroutine recruitment
 

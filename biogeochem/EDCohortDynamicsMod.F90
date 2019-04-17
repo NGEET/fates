@@ -113,8 +113,8 @@ contains
 
   !-------------------------------------------------------------------------------------!
 
-  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh, bleaf, bfineroot, &
-                           bsap, bdead, bstore, laimemory, status, recruitstatus,ctrim, &
+  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh, &
+                           prt, laimemory, status, recruitstatus,ctrim, &
                            clayer, spread, leaf_aclass_init, bc_in)
 
     !
@@ -145,6 +145,8 @@ contains
                                                          ! per 'area' (10000m2 default)
     real(r8), intent(in)   :: hite                       ! height: meters
     real(r8), intent(in)   :: dbh                        ! dbh: cm
+    type(prt_vartypes),target :: prt                     ! A pointer to the allocated PARTEH
+                                                         ! object
     real(r8), intent(in)   :: bleaf                      ! biomass in leaves: kgC
     real(r8), intent(in)   :: bfineroot                  ! biomass in fineroots: kgC
     real(r8), intent(in)   :: bsap                       ! biomass in sapwood: kgC
@@ -180,6 +182,9 @@ contains
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
 
+    ! Point to the PARTEH object
+    new_cohort%prt => prt
+
     !**********************/
     ! Define cohort state variable
     !**********************/
@@ -204,54 +209,19 @@ contains
     ! about leaf age (depending on what is calling the initialization
     ! of this cohort
 
-    if(leaf_aclass_init .eq. equal_leaf_aclass) then
-       frac_leaf_aclass(1:nleafage) = 1._r8 / real(nleafage,r8)
-    elseif(leaf_aclass_init .eq. first_leaf_aclass) then
-       frac_leaf_aclass(1:nleafage) = 0._r8
-       frac_leaf_aclass(1)          = 1._r8
-    elseif(leaf_aclass_init .eq. nan_leaf_aclass) then
-       frac_leaf_aclass(1:nleafage) = nan
-    else
-       write(fates_log(),*) 'An unknown leaf age distribution was'
-       write(fates_log(),*) 'requested during create cohort'
-       write(fates_log(),*) 'leaf_aclass_init: ',leaf_aclass_init
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
-
-    ! Initialize the Plant allocative Reactive Transport (PaRT) module
-    ! Choose from one of the extensible hypotheses (EH)
-    ! -----------------------------------------------------------------------------------
-
-    call InitPRTCohort(new_cohort)
-
-    ! The initialization allocates memory, but the boundary and initial
-    ! contitions must be set. All new cohorts go through create_cohort()
-    ! so this should be the only place this is called.  Alternatively
-    ! cohorts can be copied and fused, but special routines handle that.
-    ! We are only concerned with the carbon 12 portion of the initialization
-    ! right now, as
-    ! -----------------------------------------------------------------------------------
-
-    select case(hlm_parteh_mode)
-    case (prt_carbon_allom_hyp)
-
-       do iage = 1,nleafage
-          call SetState(new_cohort%prt,leaf_organ, carbon12_element, &
-                bleaf*frac_leaf_aclass(iage),iage)
-       end do
-       call SetState(new_cohort%prt,fnrt_organ, carbon12_element, bfineroot)
-       call SetState(new_cohort%prt,sapw_organ, carbon12_element, bsap)
-       call SetState(new_cohort%prt,store_organ, carbon12_element, bstore)
-       call SetState(new_cohort%prt,struct_organ , carbon12_element, bdead)
-       call SetState(new_cohort%prt,repro_organ , carbon12_element, 0.0_r8)
-
-    case default
-       write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end select
-    
-
-   
+!    if(leaf_aclass_init .eq. equal_leaf_aclass) then
+!       frac_leaf_aclass(1:nleafage) = 1._r8 / real(nleafage,r8)
+!    elseif(leaf_aclass_init .eq. first_leaf_aclass) then
+!       frac_leaf_aclass(1:nleafage) = 0._r8
+!       frac_leaf_aclass(1)          = 1._r8
+!    elseif(leaf_aclass_init .eq. nan_leaf_aclass) then
+!       frac_leaf_aclass(1:nleafage) = nan
+!    else
+!       write(fates_log(),*) 'An unknown leaf age distribution was'
+!       write(fates_log(),*) 'requested during create cohort'
+!       write(fates_log(),*) 'leaf_aclass_init: ',leaf_aclass_init
+!       call endrun(msg=errMsg(sourcefile, __LINE__))
+!    end if
 
     ! Initialize the rooting depth fractions
     ! This could be based on all sorts of stuff, like size
@@ -284,7 +254,11 @@ contains
     ! Assign canopy extent and depth
     call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft,new_cohort%c_area)
 
-    new_cohort%treelai = tree_lai(bleaf, new_cohort%pft, new_cohort%c_area,    &
+    ! Query PARTEH for the leaf carbon [kg]
+    leaf_c = new_cohort%prt%GetState(leaf_organ,carbon12_element)
+
+
+    new_cohort%treelai = tree_lai(leaf_c, new_cohort%pft, new_cohort%c_area,    &
                                   new_cohort%n, new_cohort%canopy_layer,               &
                                   patchptr%canopy_layer_tlai,new_cohort%vcmax25top )    
 
@@ -312,6 +286,47 @@ contains
        snull = 1
        patchptr%shortest => new_cohort 
     endif
+    
+    ! Set the boundary conditions that flow in an out of the PARTEH
+    ! allocation hypotheses.  These are pointers in the PRT objects that
+    ! point to values outside in the FATES model.
+    
+    ! Example:
+    ! "ac_bc_inout_id_dbh" is the unique integer that defines the object index
+    ! for the allometric carbon "ac" boundary condition "bc" for DBH "dbh"
+    ! that is classified as input and output "inout".
+    ! See PRTAllometricCarbonMod.F90 to track its usage.
+    ! bc_rval is used as the optional argument identifyer to specify a real
+    ! value boundary condition.
+    ! bc_ival is used as the optional argument identifyer to specify an integer
+    ! value boundary condition.
+    
+    
+    select case(hlm_parteh_mode)
+    case (prt_carbon_allom_hyp)
+       
+       ! Register boundary conditions for the Carbon Only Allometric Hypothesis
+       
+       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
+       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
+       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
+       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
+    
+    case (prt_cnp_flex_allom_hyp)
+
+       write(fates_log(),*) 'You have not specified the boundary conditions for the'
+       write(fates_log(),*) 'CNP with flexible stoichiometries hypothesis. Please do so. Dude.'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+
+    case DEFAULT
+       
+       write(fates_log(),*) 'You specified an unknown PRT module'
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+   
+    end select
+    
 
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics
@@ -343,6 +358,7 @@ contains
        call initTreeHydStates(currentSite,new_cohort, bc_in)
 
        if(recruitstatus==1)then
+
           new_cohort%co_hydr%is_newly_recruited = .true.
 
           ! If plant hydraulics is active, we must constrain the
@@ -352,6 +368,7 @@ contains
           ! states in the temporary cohort, to calculate this new number density
 
           call ConstrainRecruitNumber(currentSite,new_cohort, bc_in)
+
        endif
 
     endif
