@@ -24,7 +24,7 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,          only : prt_global
   use EDCohortDynamicsMod,      only : nan_cohort
   use EDCohortDynamicsMod,      only : zero_cohort
-  use EDCohortDynamicsMod,      only : InitPRTCohort
+  use EDCohortDynamicsMod,      only : InitPRTObject
   use FatesPlantHydraulicsMod,  only : InitHydrCohort
   use FatesInterfaceMod, only : nlevsclass
   use PRTGenericMod, only : prt_global
@@ -130,10 +130,16 @@ module FatesRestartInterfaceMod
   integer, private :: ir_gnd_alb_dif_pasb
   integer, private :: ir_gnd_alb_dir_pasb
 
-  integer, private :: ir_leaf_litter_paft
-  integer, private :: ir_root_litter_paft
-  integer, private :: ir_leaf_litter_in_paft
-  integer, private :: ir_root_litter_in_paft
+  integer, private :: ir_agcwd_litt
+  integer, private :: ir_bgcwd_litt
+  integer, private :: ir_leaf_litt
+  integer, private :: ir_fnrt_litt
+  integer, private :: ir_seed_litt
+
+  !integer, private :: ir_leaf_litter_paft
+  !integer, private :: ir_root_litter_paft
+  !integer, private :: ir_leaf_litter_in_paft
+  !integer, private :: ir_root_litter_in_paft
   
   integer, private :: ir_livegrass_pa
   integer, private :: ir_age_pa
@@ -823,10 +829,10 @@ contains
          units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gnd_alb_dir_pasb )
 
-    call this%set_restart_var(vname='fates_leaf_litter', vtype=cohort_r8, &
-         long_name='leaf litter, by patch x pft (non-respiring)', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litter_paft )
+!    call this%set_restart_var(vname='fates_leaf_litter', vtype=cohort_r8, &
+!         long_name='leaf litter, by patch x pft (non-respiring)', &
+!         units='kgC/m2', flushval = flushzero, &
+!         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litter_paft )
 
     call this%set_restart_var(vname='fates_root_litter', vtype=cohort_r8, &
          long_name='root litter, by patch x pft (non-respiring)', &
@@ -866,7 +872,34 @@ contains
          long_name='are of the ED patch', units='m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
 
+    ! Patch Level Litter Pools are potentially multi-element
+
+    call this%RegisterCohortVector(symbol_base='fates_ag_cwd', vtype=cohort_r8, &
+            long_name_base='above ground CWD',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_agcwd_litt) 
+
+    call this%RegisterCohortVector(symbol_base='fates_bg_cwd', vtype=cohort_r8, &
+            long_name_base='below ground CWD',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bgcwd_litt) 
+
+    call this%RegisterCohortVector(symbol_base='fates_leaf_fines', vtype=cohort_r8, &
+            long_name_base='above ground leaf litter',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litt) 
+
+    call this%RegisterCohortVector(symbol_base='fates_fnrt_fines', vtype=cohort_r8, &
+            long_name_base='fine root litter',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fnrt_litt) 
     
+    call this%RegisterCohortVector(symbol_base='fates_seed', vtype=cohort_r8, &
+            long_name_base='seed bank (non-germinated)',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_litt)
+
+
     ! Only register hydraulics restart variables if it is turned on!
     
     if(hlm_use_planthydro==itrue) then
@@ -1068,49 +1101,6 @@ contains
  end subroutine define_restart_vars
   
  ! =====================================================================================
- 
- subroutine DefineLitterVars(this,initialize_variables,ivar)
-
-   use FatesIOVariableKindMod, only : cohort_r8
-   
-     class(fates_restart_interface_type) :: this
-     logical, intent(in)                 :: initialize_variables
-     integer,intent(inout)               :: ivar      ! global variable counter
-      
-     integer                             :: dummy_out ! dummy index for variable
-                                                      ! position in global file
-     integer                             :: i_var     ! loop counter for prt variables
-     integer                             :: i_pos     ! loop counter for discrete position
-   
-
-
-     do il = 1,num_elements
-
-        ! Register the instantaneous state variable "val"
-        ! ----------------------------------------------------------------------------
-        
-        ! The symbol that is written to file
-        symbol    = trim(symbol_base)//'_val_'//trim(pos_symbol)
-        
-        ! The expanded long name of the variable
-        long_name = trim(name_base)//', state var, position:'//trim(pos_symbol)
-
-        call this%set_restart_var(vname=trim(symbol), &
-             vtype=cohort_r8, &
-             long_name=trim(long_name), &
-             units='kg', flushval = flushzero, &
-             hlms='CLM:ALM', initialize=initialize_variables, &
-             ivar=ivar, index = dummy_out ) 
-
-
-     end do
-
-
-
-   return
- end subroutine DefineLitterVars
-
-  ! =====================================================================================
  
   subroutine DefinePRTRestartVars(this,initialize_variables,ivar)
 
@@ -1440,6 +1430,8 @@ contains
     integer  :: io_idx_co      ! cohort index
     integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
     integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
+    integer  :: io_idx_pa_cwsl ! each cwd x soil layer
+    integer  :: io_idx_pa_pfsl ! each pft x soil layer
     integer  :: io_idx_pa_ib   ! each SW band (vis/ir) per patch (pa_ib)
     integer  :: io_idx_si_wmem ! each water memory class within each site
     integer  :: io_idx_si_lyr_shell ! site - layer x shell index
@@ -1452,6 +1444,8 @@ contains
     integer  :: cohortsperpatch  ! number of cohorts per patch 
 
     integer  :: ft               ! functional type index
+    integer  :: ilyr             ! soil layer index
+    integer  :: nlevsoil         ! total soil layers in patch of interest
     integer  :: k,j,i            ! indices to the radiation matrix
     integer  :: ir_prt_var       ! loop counter for var x position
     integer  :: i_var            ! loop counter for PRT variables
@@ -1521,7 +1515,8 @@ contains
            rio_cwd_bg_pacw             => this%rvars(ir_cwd_bg_pacw)%r81d, &
            rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
            rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
-           rio_leaf_litter_paft        => this%rvars(ir_leaf_litter_paft)%r81d, &
+!           rio_leaf_litter_paft        => this%rvars(ir_leaf_litter_paft)%r81d, &
+           rio_leaf_litt               => this%rvars(ir_leaf_litt)%r81d, &
            rio_root_litter_paft        => this%rvars(ir_root_litter_paft)%r81d, &
            rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
            rio_root_litter_in_paft     => this%rvars(ir_root_litter_in_paft)%r81d, &
@@ -1570,8 +1565,6 @@ contains
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
 
           io_idx_co      = io_idx_co_1st
-          io_idx_pa_pft  = io_idx_co_1st
-          io_idx_pa_cwd  = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
 
@@ -1742,24 +1735,47 @@ contains
                 write(fates_log(),*) 'offsetNumCohorts III ' &
                       ,io_idx_co,cohortsperpatch
              endif
-             !
-             ! deal with patch level fields of arrays here
-             !
-             ! these are arrays of length numpft, each patch contains one
-             ! vector so we increment 
-             do i = 1,numpft
-                rio_leaf_litter_paft(io_idx_pa_pft)    = cpatch%leaf_litter(i)
-                rio_root_litter_paft(io_idx_pa_pft)    = cpatch%root_litter(i)
-                rio_leaf_litter_in_paft(io_idx_pa_pft) = cpatch%leaf_litter_in(i)
-                rio_root_litter_in_paft(io_idx_pa_pft) = cpatch%root_litter_in(i)
-                io_idx_pa_pft = io_idx_pa_pft + 1
+
+             ! --------------------------------------------------------------------------
+             ! Send litter to the restart arrays
+             ! Each element has its own variable, so we have to make sure 
+             ! we keep re-setting this 
+             ! --------------------------------------------------------------------------
+
+             do el = 1, num_elements
+                 
+                 io_idx_pa_pft  = io_idx_co_1st
+                 io_idx_pa_cwd  = io_idx_co_1st
+                 io_idx_pa_cwsl = io_idx_co_1st
+                 io_idx_pa_pfsl = io_idx_co_1st
+                 
+                 litt => cpatch%litter(el)
+
+                 do i = 1,numpft
+                     this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_pft) = litt%leaf_fines(i)
+                     this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft) = litt%seed(i)
+                     io_idx_pa_pft = io_idx_pa_pft + 1
+
+                     do ilyr=1,nlevsoil
+                         this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_pfsl) = litt%root_fines(i,ilyr)
+                         io_idx_pa_pfsl = io_idx_pa_pfsl + 1
+                     end do
+                 end do
+                 
+                 nlevsoil = size(litt%bg_cwd,dim=2)
+                 do i = 1,ncwd
+
+                     this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd(i)
+                     io_idx_pa_cwd = io_idx_pa_cwd + 1
+                     
+                     do ilyr=1,nlevsoil
+                         this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%bg_cwd(i,ilyr)
+                         io_idx_pa_cwsl = io_idx_pa_cwsl + 1
+                     end do
+                 end do
+
              end do
-             
-             do i = 1,ncwd ! ncwd currently 4
-                rio_cwd_ag_pacw(io_idx_pa_cwd) = cpatch%cwd_ag(i)
-                rio_cwd_bg_pacw(io_idx_pa_cwd) = cpatch%cwd_bg(i)
-                io_idx_pa_cwd = io_idx_pa_cwd + 1
-             end do
+
              
              do i = 1,maxSWb
                 rio_gnd_alb_dif_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dif(i)
@@ -1926,7 +1942,6 @@ contains
      use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
      use EDPatchDynamicsMod,   only : zero_patch
-     use EDCohortDynamicsMod,  only : create_cohort
      use EDInitMod,            only : zero_site
      use EDInitMod,            only : init_site_vars
      use EDPatchDynamicsMod,   only : create_patch
@@ -2159,6 +2174,8 @@ contains
      integer  :: io_idx_co      ! cohort index
      integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
      integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
+     integer  :: io_idx_pa_cwsl ! each cwd x soil layer
+     integer  :: io_idx_pa_pfsl ! each pft x soil layer
      integer  :: io_idx_pa_ib   ! each SW radiation band per patch (pa_ib)
      integer  :: io_idx_si_wmem ! each water memory class within each site
      integer  :: io_idx_si_lyr_shell ! site - layer x shell index
@@ -2270,8 +2287,6 @@ contains
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
           
           io_idx_co      = io_idx_co_1st
-          io_idx_pa_pft  = io_idx_co_1st
-          io_idx_pa_cwd  = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
 
@@ -2443,27 +2458,47 @@ contains
                 write(fates_log(),*) 'CVTL III ' &
                      ,io_idx_co,cohortsperpatch
              endif
-
-             !
-             ! deal with patch level fields of arrays here
-             !
-             ! these are arrays of length numpft, each patch contains one
-             ! vector so we increment 
-
-             do i = 1,numpft
-                cpatch%leaf_litter(i)    = rio_leaf_litter_paft(io_idx_pa_pft)    
-                cpatch%root_litter(i)    = rio_root_litter_paft(io_idx_pa_pft)    
-                cpatch%leaf_litter_in(i) = rio_leaf_litter_in_paft(io_idx_pa_pft) 
-                cpatch%root_litter_in(i) = rio_root_litter_in_paft(io_idx_pa_pft) 
-                io_idx_pa_pft = io_idx_pa_pft + 1
-             enddo
-          
-             do i = 1,ncwd ! ncwd currently 4
-                cpatch%cwd_ag(i) = rio_cwd_ag_pacw(io_idx_pa_cwd)
-                cpatch%cwd_bg(i) = rio_cwd_bg_pacw(io_idx_pa_cwd)
-                io_idx_pa_cwd = io_idx_pa_cwd + 1
-             enddo
              
+             ! --------------------------------------------------------------------------
+             ! Pull litter from the restart arrays
+             ! Each element has its own variable, so we have to make sure 
+             ! we keep re-setting this 
+             ! --------------------------------------------------------------------------
+
+             do el = 1, num_elements
+                 
+                 io_idx_pa_pft  = io_idx_co_1st
+                 io_idx_pa_cwd  = io_idx_co_1st
+                 io_idx_pa_cwsl = io_idx_co_1st
+                 io_idx_pa_pfsl = io_idx_co_1st
+                 
+                 litt => cpatch%litter(el)
+
+                 do i = 1,numpft
+                     litt%leaf_fines(i) = this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_pft)
+                     litt%seed(i)       = this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft) = 
+                     io_idx_pa_pft = io_idx_pa_pft + 1
+
+                     do ilyr=1,nlevsoil
+                         litt%root_fines(i,ilyr) = this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_pfsl)
+                         io_idx_pa_pfsl = io_idx_pa_pfsl + 1
+                     end do
+                 end do
+                 
+                 nlevsoil = size(litt%bg_cwd,dim=2)
+                 do i = 1,ncwd
+
+                     litt%ag_cwd(i) = this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd)
+                     io_idx_pa_cwd = io_idx_pa_cwd + 1
+                     
+                     do ilyr=1,nlevsoil
+                         litt%bg_cwd(i,ilyr) = this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwd)
+                         io_idx_pa_cwsl = io_idx_pa_cwsl + 1
+                     end do
+                 end do
+
+             end do
+
              do i = 1,maxSWb
                 cpatch%gnd_alb_dif(i) = rio_gnd_alb_dif_pasb(io_idx_pa_ib)
                 cpatch%gnd_alb_dir(i) = rio_gnd_alb_dir_pasb(io_idx_pa_ib)

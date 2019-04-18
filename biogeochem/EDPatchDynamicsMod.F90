@@ -46,7 +46,8 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : years_per_day
   use FatesConstantsMod    , only : nearzero
 
-  use EDCohortDynamicsMod  , only : InitPRTCohort
+  use EDCohortDynamicsMod  , only : InitPRTObject
+  use EDCohortDynamicsMod  , only : InitPRTBoundaryConditions
 
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -441,7 +442,13 @@ contains
 
              allocate(nc)
              if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
-             call InitPRTCohort(nc)
+
+             ! Initialize the PARTEH object and point to the
+             ! correct boundary condition fields
+             nc%prt => null()
+             call InitPRTObject(nc%prt)
+             call InitPRTBoundaryConditions(nc)
+
              call zero_cohort(nc)
 
              ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort

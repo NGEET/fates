@@ -405,14 +405,21 @@ contains
 
     integer  :: cstatus
     integer  :: pft
-    real(r8) :: b_agw      ! biomass above ground (non-leaf)     [kgC]
-    real(r8) :: b_bgw      ! biomass below ground (non-fineroot) [kgC]
-    real(r8) :: b_leaf     ! biomass in leaves [kgC]
-    real(r8) :: b_fineroot ! biomass in fine roots [kgC]
-    real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
-    real(r8) :: b_dead     ! biomass in structure (dead) [kgC]
-    real(r8) :: b_store    ! biomass in storage [kgC]
+    integer  :: iage       ! index for leaf age loop
+    real(r8) :: c_agw      ! biomass above ground (non-leaf)     [kgC]
+    real(r8) :: c_bgw      ! biomass below ground (non-fineroot) [kgC]
+    real(r8) :: c_leaf     ! biomass in leaves [kgC]
+    real(r8) :: c_fineroot ! biomass in fine roots [kgC]
+    real(r8) :: c_sapwood  ! biomass in sapwood [kgC]
+    real(r8) :: c_dead     ! biomass in structure (dead) [kgC]
+    real(r8) :: c_store    ! biomass in storage [kgC]
     real(r8) :: a_sapwood  ! area in sapwood (dummy) [m2]
+    real(r8) :: m_struct   ! Generic (any element) mass for structure [kg]
+    real(r8) :: m_leaf     ! Generic mass for leaf  [kg]
+    real(r8) :: m_fnrt     ! Generic mass for fine-root  [kg]
+    real(r8) :: m_sapw     ! Generic mass for sapwood [kg]
+    real(r8) :: m_store    ! Generic mass for storage [kg]
+    real(r8) :: m_repro    ! Generic mass for reproductive tissues [kg]
 
     integer, parameter :: rstatus = 0
 
@@ -437,45 +444,49 @@ contains
        temp_cohort%canopy_trim = 1.0_r8
 
        ! Calculate total above-ground biomass from allometry
-       call bagw_allom(temp_cohort%dbh,pft,b_agw)
+       call bagw_allom(temp_cohort%dbh,pft,c_agw)
 
        ! Calculate coarse root biomass from allometry
-       call bbgw_allom(temp_cohort%dbh,pft,b_bgw)
+       call bbgw_allom(temp_cohort%dbh,pft,c_bgw)
 
        ! Calculate the leaf biomass from allometry
        ! (calculates a maximum first, then applies canopy trim)
-       call bleaf(temp_cohort%dbh,pft,temp_cohort%canopy_trim,b_leaf)
+       call bleaf(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_leaf)
 
        ! Calculate fine root biomass from allometry
        ! (calculates a maximum and then trimming value)
-       call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,b_fineroot)
+       call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_fineroot)
 
        ! Calculate sapwood biomass
-       call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapwood,b_sapwood)
+       call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapwood,c_sapwood)
        
-       call bdead_allom( b_agw, b_bgw, b_sapwood, pft, b_dead )
+       call bdead_allom( c_agw, c_bgw, c_sapwood, pft, c_dead )
 
-       call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, b_store)
+       call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
 
        temp_cohort%laimemory = 0._r8
        cstatus = leaves_on
        
        if( EDPftvarcon_inst%season_decid(pft) == itrue .and. site_in%is_cold ) then
-          temp_cohort%laimemory = b_leaf
-          b_leaf = 0._r8
+          temp_cohort%laimemory = c_leaf
+          c_leaf = 0._r8
           cstatus = leaves_off
        endif
        
        if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. site_in%is_drought ) then
-          temp_cohort%laimemory = b_leaf
-          b_leaf = 0._r8
+          temp_cohort%laimemory = c_leaf
+          c_leaf = 0._r8
           cstatus = leaves_off
        endif
 
        if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
-       prt => null()
-       call InitPRTObject(prt)
+       ! --------------------------------------------------------------------------------
+       ! Initialize the mass of every element in every organ of the organ
+       ! --------------------------------------------------------------------------------
+
+       prt_obj => null()
+       call InitPRTObject(prt_obj)
 
        do el = 1,num_elements
 
@@ -516,16 +527,16 @@ contains
           case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
              
              ! Put all of the leaf mass into the first bin
-             call SetState(prt,leaf_organ, element_id,m_leaf,1)
+             call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
              do iage = 2,nleafage
-                call SetState(prt,leaf_organ, element_id,0._r8,iage)
+                call SetState(prt_obj,leaf_organ, element_id,0._r8,iage)
              end do
              
-             call SetState(prt,fnrt_organ, element_id, m_fnrt)
-             call SetState(prt,sapw_organ, element_id, m_sapw)
-             call SetState(prt,store_organ, element_id, m_store)
-             call SetState(prt,struct_organ, element_id, m_struct)
-             call SetState(prt,repro_organ, elemeent_id, m_repro)
+             call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
+             call SetState(prt_obj,sapw_organ, element_id, m_sapw)
+             call SetState(prt_obj,store_organ, element_id, m_store)
+             call SetState(prt_obj,struct_organ, element_id, m_struct)
+             call SetState(prt_obj,repro_organ, elemeent_id, m_repro)
              
           case default
              write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
@@ -534,10 +545,11 @@ contains
           
        end do
 
-       call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-            prt, &
-            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, &
-            site_in%spread, first_leaf_aclass, bc_in)
+       call prt_obj%CheckInitialConditions()
+
+       call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
+             temp_cohort%dbh, prt_obj, temp_cohort%laimemory, cstatus, rstatus,        &
+             temp_cohort%canopy_trim, 1, site_in%spread, first_leaf_aclass, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 

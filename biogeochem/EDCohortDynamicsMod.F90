@@ -96,7 +96,8 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-  public :: InitPRTCohort
+  public :: InitPRTObject
+  public :: InitPRTBoundaryConditions
   public :: SendCohortToLitter
   public :: UpdateCohortBioPhysRates
   public :: DeallocateCohort
@@ -325,42 +326,6 @@ contains
 
   ! -------------------------------------------------------------------------------------
 
-  subroutine InitPRTCohort(new_cohort)
-
-     ! ----------------------------------------------------------------------------------
-     ! This subroutine simply allocates and attaches the correct PRT object.
-     ! The call to InitPRTVartype() performs the allocation of the variables
-     ! and boundary conditions inside the object.  It also initializes
-     ! all values as unitialized (large bogus values).
-     !
-     ! Each PARTEH allocation hypothesis has different expectations of boundary conditions.
-     ! These are specified by pointers to values in the host model. Because these
-     ! are pointers, they just need to be set once when the prt object is first initalized.
-     ! The calls below to "RegisterBCINOut", "RegisterBCIn" and "RegisterBCOut" are
-     ! setting those pointers.
-     ! -----------------------------------------------------------------------------------
-
-     !
-     ! !ARGUMENTS    
-     type(ed_cohort_type), intent(inout), target  :: new_cohort
-     type(callom_prt_vartypes), pointer :: callom_prt
-
-
-     ! Allocate the PRT class object
-     ! Each hypothesis has a different object which is an extension
-     ! of the base class.
-
-
-     call InitPRTObject(new_cohort%prt)
-
-
-
-
-     return
-  end subroutine InitPRTCohort
-
-  ! ------------------------------------------------------------------------------------!
-
   subroutine InitPRTBoundaryConditions(new_cohort)
     
     ! Set the boundary conditions that flow in an out of the PARTEH
@@ -409,16 +374,27 @@ contains
   
   subroutine InitPRTObject(prt)
 
+    ! -----------------------------------------------------------------------------------
+    !
+    ! This routine allocates the PARTEH object that is associated with each cohort.
+    ! The argument that is passed in is a pointer that is then associated with this
+    ! newly allocated object.
+    ! The object that is allocated is the specific extended class for the hypothesis
+    ! of choice. 
+    ! Following this, the object and its internal mappings are initialized.
+    ! This routine does NOT set any of the initial conditions, or boundary conditions
+    ! such as the organ/element masses.  Those are handled after this call.
+    !
+    ! -----------------------------------------------------------------------------------
+
     ! Argument
     type(prt_vartypes), pointer :: prt
     
     ! Potential Extended types
     type(callom_prt_vartypes), pointer :: c_allom_prt
-    type(cnp_allom_prt_vartypes), pointer :: cnpallom_prt
+    type(cnp_allom_prt_vartypes), pointer :: cnp_allom_prt
 
-     ! Allocate the PRT class object
-     ! Each hypothesis has a different object which is an extension
-     ! of the base class.
+  
 
      select case(hlm_parteh_mode)
      case (prt_carbon_allom_hyp)

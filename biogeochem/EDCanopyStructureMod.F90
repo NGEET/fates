@@ -14,7 +14,8 @@ module EDCanopyStructureMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
-  use EDCohortDynamicsMod   , only : InitPRTCohort
+  use EDCohortDynamicsMod   , only : InitPRTObject
+  use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -586,11 +587,16 @@ contains
                   
                   allocate(copyc)
 
-                  call InitPRTCohort(copyc)
+                  ! Initialize the PARTEH object and point to the
+                  ! correct boundary condition fields
+                  copyc%prt => null()
+                  call InitPRTObject(copyc%prt)
+                  call InitPRTBoundaryConditions(copyc)
+
                   if( hlm_use_planthydro.eq.itrue ) then
                      call InitHydrCohort(currentSite,copyc)
                   endif
-		  call copy_cohort(currentCohort, copyc)
+                  call copy_cohort(currentCohort, copyc)
                   
                   newarea = currentCohort%c_area - cc_loss
                   copyc%n = currentCohort%n*newarea/currentCohort%c_area 
@@ -971,7 +977,12 @@ contains
                      
                      allocate(copyc)
 
-                     call InitPRTCohort(copyc)
+                     ! Initialize the PARTEH object and point to the
+                     ! correct boundary condition fields
+                     copyc%prt => null()
+                     call InitPRTObject(copyc%prt)
+                     call InitPRTBoundaryConditions(copyc)
+
                      if( hlm_use_planthydro.eq.itrue ) then
                         call InitHydrCohort(CurrentSite,copyc)
                      endif

@@ -674,6 +674,21 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
+      if( (nlevsoil_in*numpft) > fates_maxElementsPerPatch .or. &
+          (nlevsoil_in*ncwd) > fates_maxElementsPerPatch) then
+          write(fates_log(), *) 'The restart files require that space is allocated'
+          write(fates_log(), *) 'to accomodate the multi-dimensional patch arrays'
+          write(fates_log(), *) 'that are nlevsoil*numpft and nlevsoil*ncwd'
+          write(fates_log(), *) 'fates_maxElementsPerPatch = ',fates_maxElementsPerPatch
+          write(fates_log(), *) 'nlevsoil = ',nlevsoil_in
+          write(fates_log(), *) 'numpft = ',numpft
+          write(fates_log(), *) 'ncwd   = ',ncwd
+          write(fates_log(), *) 'numpft*nlevsoil = ',nlevsoil_in*numpft
+          write(fates_log(), *) 'ncwd*nlevsoil = ',ncwd * nlevsoil_in
+          write(fates_log(), *) 'To increase max_elements, change numlevsoil_max'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
       bc_in%nlevdecomp = nlevdecomp_in
 
 
@@ -1056,7 +1071,7 @@ contains
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          
-         fates_maxElementsPerPatch = max(maxCohortsPerPatch, numpft, ncwd )
+         fates_maxElementsPerPatch = max(maxCohortsPerPatch, numpft*numlevsoil_max ,ncwd*numlevsoil_max)
 
          if (maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
             write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'

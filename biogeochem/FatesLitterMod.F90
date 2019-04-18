@@ -227,11 +227,17 @@ contains
 
   ! =====================================================================================
 
-  subroutine InitAllocate(this,numpft,numlevsoil)
+  subroutine InitAllocate(this,numpft,numlevsoil,max_elements)
 
     class(litter_type) :: this
     integer,intent(in)  :: numpft   ! number of plant functional types
     integer,intent(in)  :: numlevsoil ! number of soil layers
+    integer,intent(in)  :: max_elements ! for restart arrays,
+                                        ! we are not allowed 
+
+    
+   
+
 
     allocate(this%bg_cwd(ncwd,numlevsoil))
     allocate(this%leaf_fines(numpft))
