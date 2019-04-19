@@ -40,7 +40,18 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : leaves_off
    use EDTypesMod       , only : num_elements
    use EDPftvarcon      , only : EDPftvarcon_inst
-
+   use FatesInterfaceMod,      only : hlm_parteh_mode
+   use PRTGenericMod,          only : prt_carbon_allom_hyp
+   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+   use PRTGenericMod,          only : leaf_organ
+   use PRTGenericMod,          only : fnrt_organ
+   use PRTGenericMod,          only : sapw_organ
+   use PRTGenericMod,          only : store_organ
+   use PRTGenericMod,          only : struct_organ
+   use PRTGenericMod,          only : repro_organ
+   use PRTGenericMod,          only : carbon12_element
+   use PRTGenericMod,          only : nitrogen_element
+   use PRTGenericMod,          only : phosphorus_element
 
    implicit none
    private
@@ -813,7 +824,12 @@ contains
       real(r8) :: b_dead
       real(r8) :: b_store 
       real(r8) :: a_sapwood  ! area of sapwood at reference height [m2]
-
+      real(r8) :: m_struct   ! Generic (any element) mass for structure [kg]
+      real(r8) :: m_leaf     ! Generic mass for leaf  [kg]
+      real(r8) :: m_fnrt     ! Generic mass for fine-root  [kg]
+      real(r8) :: m_sapw     ! Generic mass for sapwood [kg]
+      real(r8) :: m_store    ! Generic mass for storage [kg]
+      real(r8) :: m_repro    ! Generic mass for reproductive tissues [kg]
 
       character(len=128),parameter    :: wr_fmt = &
            '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
@@ -936,11 +952,68 @@ contains
          cstatus = leaves_off
       endif
 
+      do el = 1,num_elements
+
+          element_id = element_list(el)
+          
+          ! If this is carbon12, then the initialization is straight forward
+          ! otherwise, we use stoichiometric ratios
+          select case(element_id)
+          case(carbon12_element)
+             
+             m_struct = b_dead
+             m_leaf   = b_leaf
+             m_fnrt   = b_fnrt
+             m_sapw   = b_sapwood
+             m_store  = b_store
+             m_repro  = 0._r8
+             
+          case(nitrogen_element)
+             
+             m_struct = b_dead*prt_nitr_stoich_p1(ft,struct_organ)
+             m_leaf   = b_leaf*prt_nitr_stoich_p1(ft,leaf_organ)
+             m_fnrt   = b_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ)
+             m_sapw   = b_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)
+             m_store  = b_store*prt_nitr_stoich_p1(ft,store_organ)
+             m_repro  = 0._r8
+             
+          case(phosphorus_element)
+
+             m_struct = b_dead*prt_phos_stoich_p1(ft,struct_organ)
+             m_leaf   = b_leaf*prt_phos_stoich_p1(ft,leaf_organ)
+             m_fnrt   = b_fineroot*prt_phos_stoich_p1(ft,fnrt_organ)
+             m_sapw   = b_sapwood*prt_phos_stoich_p1(ft,sapw_organ)
+             m_store  = b_store*prt_phos_stoich_p1(ft,store_organ)
+             m_repro  = 0._r8
+          end select
+
+          select case(hlm_parteh_mode)
+          case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+             
+             ! Put all of the leaf mass into the first bin
+             call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
+             do iage = 2,nleafage
+                call SetState(prt_obj,leaf_organ, element_id,0._r8,iage)
+             end do
+             
+             call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
+             call SetState(prt_obj,sapw_organ, element_id, m_sapw)
+             call SetState(prt_obj,store_organ, element_id, m_store)
+             call SetState(prt_obj,struct_organ, element_id, m_struct)
+             call SetState(prt_obj,repro_organ, element_id, m_repro)
+             
+          case default
+             write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end select
+          
+       end do
+
+
       ! Since spread is a canopy level calculation, we need to provide an initial guess here.
       call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-           b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &
-           temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
-           1, csite%spread, equal_leaf_aclass, bc_in)
+            prt_obj, temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
+            1, csite%spread, bc_in)
 
       
       deallocate(temp_cohort) ! get rid of temporary cohort

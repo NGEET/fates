@@ -35,7 +35,6 @@ module PRTAllometricCNPMod
   use FatesAllometryMod   , only : bagw_allom
   use FatesAllometryMod   , only : h_allom
   use FatesAllometryMod   , only : CheckIntegratedAllometries
-  use FatesAllometryMod   , only : StructureResetOfDH
 
   use FatesGlobals        , only : endrun => fates_endrun
   use FatesGlobals        , only : fates_log
@@ -636,32 +635,6 @@ contains
     ! Target total dead (structrual) biomass and deriv. [kgC, kgC/cm]
     call bdead_allom( agw_c_target, bgw_c_target, sapw_c_target, ipft, struct_c_target, &
                       agw_dcdd_target, bgw_dcdd_target, sapw_dcdd_target, struct_dcdd_target)
-
-    ! ------------------------------------------------------------------------------------
-    ! If structure is larger than target, then we need to correct some integration errors
-    ! by slightly increasing dbh to match it.
-    ! For grasses, if leaf biomass is larger than target, then we reset dbh to match
-    ! -----------------------------------------------------------------------------------
-    if( (( struct_c - struct_c_target ) > calloc_abs_error) .and. &
-          (EDPftvarcon_inst%woody(ipft) == itrue) ) then
-
-       call StructureResetOfDH( struct_c, ipft, &
-             canopy_trim, dbh, hite_out )
-
-       ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-       call bsap_allom(dbh,ipft,canopy_trim,sapw_area,sapw_c_target, sapw_dcdd_target )
-       
-       ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
-       call bagw_allom(dbh,ipft,agw_c_target, agw_dcdd_target )
-       
-       ! Target total below ground deriv. biomass in woody/fibrous tissues [kgC, kgC/cm] 
-       call bbgw_allom(dbh,ipft, bgw_c_target, bgw_dcdd_target )
-       
-       ! Target total dead (structrual) biomass and deriv. [kgC, kgC/cm]
-       call bdead_allom( agw_c_target, bgw_c_target, sapw_c_target, ipft, struct_c_target, &
-                         agw_dcdd_target, bgw_dcdd_target, sapw_dcdd_target, struct_dcdd_target)
-       
-    end if
     
     ! Target leaf biomass according to allometry and trimming
     call bleaf(dbh,ipft,canopy_trim, leaf_c_target, leaf_dcdd_target)

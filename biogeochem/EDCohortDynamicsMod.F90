@@ -78,7 +78,8 @@ module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
-
+  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
+  
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
 
   ! CIME globals
@@ -114,9 +115,9 @@ contains
 
   !-------------------------------------------------------------------------------------!
 
-  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh, &
+  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh,   &
                            prt, laimemory, status, recruitstatus,ctrim, &
-                           clayer, spread, leaf_aclass_init, bc_in)
+                           clayer, spread, bc_in)
 
     !
     ! !DESCRIPTION:
@@ -135,43 +136,35 @@ contains
 
     type(ed_site_type), intent(inout),   target :: currentSite
     type(ed_patch_type), intent(inout), pointer :: patchptr
-    integer,  intent(in)   :: pft                        ! Cohort Plant Functional Type
-    integer,  intent(in)   :: clayer                     ! canopy status of cohort 
-                                                         ! (1 = canopy, 2 = understorey, etc.)
-    integer,  intent(in)   :: status                     ! growth status of plant  
-                                                         ! (2 = leaves on , 1 = leaves off)
-    integer,  intent(in)   :: recruitstatus              ! recruit status of plant  
-                                                         ! (1 = recruitment , 0 = other)
-    real(r8), intent(in)   :: nn                         ! number of individuals in cohort 
-                                                         ! per 'area' (10000m2 default)
-    real(r8), intent(in)   :: hite                       ! height: meters
-    real(r8), intent(in)   :: dbh                        ! dbh: cm
-    type(prt_vartypes),target :: prt                     ! A pointer to the allocated PARTEH
-                                                         ! object
-    real(r8), intent(in)   :: bleaf                      ! biomass in leaves: kgC
-    real(r8), intent(in)   :: bfineroot                  ! biomass in fineroots: kgC
-    real(r8), intent(in)   :: bsap                       ! biomass in sapwood: kgC
-    real(r8), intent(in)   :: bdead                      ! total dead biomass: kGC per indiv
-    real(r8), intent(in)   :: bstore                     ! stored carbon: kGC per indiv
-    real(r8), intent(in)   :: laimemory                  ! target leaf biomass- set from 
-                                                         ! previous year: kGC per indiv
-    real(r8), intent(in)   :: ctrim                      ! What is the fraction of the maximum 
-                                                         ! leaf biomass that we are targeting?
-    real(r8), intent(in)   :: spread                     ! The community assembly effects how 
-                                                         ! spread crowns are in horizontal space
-    integer,  intent(in)   :: leaf_aclass_init           ! how to initialized the leaf age class
-                                                         ! distribution
-    integer :: iage                                      ! loop counter for leaf age classes
-    type(bc_in_type), intent(in) :: bc_in                ! External boundary conditions
+    integer,  intent(in)      :: pft              ! Cohort Plant Functional Type
+    integer,  intent(in)      :: clayer           ! canopy status of cohort 
+                                                  ! (1 = canopy, 2 = understorey, etc.)
+    integer,  intent(in)      :: status           ! growth status of plant  
+                                                  ! (2 = leaves on , 1 = leaves off)
+    integer,  intent(in)      :: recruitstatus    ! recruit status of plant  
+                                                  ! (1 = recruitment , 0 = other)
+    real(r8), intent(in)      :: nn               ! number of individuals in cohort 
+                                                  ! per 'area' (10000m2 default)
+    real(r8), intent(in)      :: hite             ! height: meters
+    real(r8), intent(in)      :: dbh              ! dbh: cm
+    type(prt_vartypes),target :: prt              ! A pointer to the allocated PARTEH
+                                                  ! object
+    real(r8), intent(in)      :: laimemory        ! target leaf biomass- set from 
+                                                  ! previous year: kGC per indiv
+    real(r8), intent(in)      :: ctrim            ! What is the fraction of the maximum 
+                                                  ! leaf biomass that we are targeting?
+    real(r8), intent(in)      :: spread           ! The community assembly effects how 
+                                                  ! spread crowns are in horizontal space
+    type(bc_in_type), intent(in) :: bc_in         ! External boundary conditions
      
-    !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
     type(ed_cohort_type), pointer :: storesmallcohort 
-    type(ed_cohort_type), pointer :: storebigcohort   
-    real(r8) :: frac_leaf_aclass(max_nleafage)   ! Fraction of leaves in each age-class
-    integer  :: tnull,snull                      ! are the tallest and shortest cohorts allocate
-    integer :: nlevsoi_hyd                       ! number of hydraulically active soil layers 
+    type(ed_cohort_type), pointer :: storebigcohort  
+    integer  :: iage                           ! loop counter for leaf age classes 
+    real(r8) :: leaf_c                         ! total leaf carbon
+    integer  :: tnull,snull                    ! are the tallest and shortest cohorts allocate
+    integer  :: nlevsoi_hyd                    ! number of hydraulically active soil layers 
 
     !----------------------------------------------------------------------
 
@@ -342,6 +335,9 @@ contains
     ! bc_ival is used as the optional argument identifyer to specify an integer
     ! value boundary condition.
 
+    type(ed_cohort_type), intent(inout), target :: new_cohort
+
+
     select case(hlm_parteh_mode)
     case (prt_carbon_allom_hyp)
        
@@ -388,38 +384,37 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! Argument
-    type(prt_vartypes), pointer :: prt
+    class(prt_vartypes), pointer :: prt
     
     ! Potential Extended types
     type(callom_prt_vartypes), pointer :: c_allom_prt
     type(cnp_allom_prt_vartypes), pointer :: cnp_allom_prt
-
   
 
-     select case(hlm_parteh_mode)
-     case (prt_carbon_allom_hyp)
+    select case(hlm_parteh_mode)
+    case (prt_carbon_allom_hyp)
         
         allocate(c_allom_prt)
-        prt => callom_prt
-     
-     case (prt_cnp_flex_allom_hyp)
+        prt => c_allom_prt
+        
+    case (prt_cnp_flex_allom_hyp)
         
         allocate(cnp_allom_prt)
         prt => cnp_allom_prt
         
-     case DEFAULT
+    case DEFAULT
         
         write(fates_log(),*) 'You specified an unknown PRT module'
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
         
-     end select
-     
+    end select
+    
      ! This is the call to allocate the data structures in the PRT object
-     ! This call will be extended to each specific class.
+    ! This call will be extended to each specific class.
 
-     call prt%InitPRTVartype()
-
+    call prt%InitPRTVartype()
+    
 
     return
   end subroutine InitPRTObject
@@ -781,7 +776,7 @@ contains
                                                   ! of plants to transfer
     
     !
-    type(litter_type), pointer     :: litt       ! Litter object for each element
+    type(litter_type), pointer        :: litt       ! Litter object for each element
     type(site_fluxdiags_type),pointer :: flux_diags
 
     real(r8) :: leaf_m    ! leaf mass [kg]

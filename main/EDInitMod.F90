@@ -21,7 +21,6 @@ module EDInitMod
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
   use EDTypesMod                , only : init_spread_inventory
-  use EDTypesMod                , only : first_leaf_aclass
   use EDTypesMod                , only : leaves_on
   use EDTypesMod                , only : leaves_off
   use FatesInterfaceMod         , only : bc_in_type
@@ -41,7 +40,17 @@ module EDInitMod
   use FatesAllometryMod         , only : bstore_allom
 
   use FatesInterfaceMod,      only : hlm_parteh_mode
+  use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : fnrt_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : store_organ
+  use PRTGenericMod,          only : struct_organ
+  use PRTGenericMod,          only : repro_organ
+  use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : nitrogen_element
+  use PRTGenericMod,          only : phosphorus_element
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -406,6 +415,8 @@ contains
     integer  :: cstatus
     integer  :: pft
     integer  :: iage       ! index for leaf age loop
+    integer  :: el         ! index for element loop
+    integer  :: element_id ! element index consistent with defs in PRTGeneric
     real(r8) :: c_agw      ! biomass above ground (non-leaf)     [kgC]
     real(r8) :: c_bgw      ! biomass below ground (non-fineroot) [kgC]
     real(r8) :: c_leaf     ! biomass in leaves [kgC]
@@ -536,7 +547,7 @@ contains
              call SetState(prt_obj,sapw_organ, element_id, m_sapw)
              call SetState(prt_obj,store_organ, element_id, m_store)
              call SetState(prt_obj,struct_organ, element_id, m_struct)
-             call SetState(prt_obj,repro_organ, elemeent_id, m_repro)
+             call SetState(prt_obj,repro_organ, element_id, m_repro)
              
           case default
              write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
@@ -549,7 +560,7 @@ contains
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
              temp_cohort%dbh, prt_obj, temp_cohort%laimemory, cstatus, rstatus,        &
-             temp_cohort%canopy_trim, 1, site_in%spread, first_leaf_aclass, bc_in)
+             temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 

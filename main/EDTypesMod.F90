@@ -632,6 +632,10 @@ module EDTypesMod
      real(r8) :: wood_product          ! Total mass exported as wood product [kg/site/day]
      real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
 
+     real(r8) :: flux_generic_in       ! Used for prescribed or artificial input fluxes
+                                       ! and initialization [kg/site/day]
+     real(r8) :: flux_generic_out      ! Used for prescribed or artificial output fluxes
+                                       ! for instance when prescribed physiology is on
 
    contains
 

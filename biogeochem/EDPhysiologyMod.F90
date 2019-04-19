@@ -72,6 +72,8 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : StructureResetOfDH
   
   use PRTGenericMod, only : prt_carbon_allom_hyp
+  use PRTGenericMod, only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod, only : prt_vartypes
   use PRTGenericMod, only : leaf_organ
   use PRTGenericMod, only : all_carbon_elements
   use PRTGenericMod, only : carbon12_element
@@ -90,17 +92,9 @@ module EDPhysiologyMod
   implicit none
   private
 
-  public :: non_canopy_derivs
   public :: trim_canopy
   public :: phenology
-  private :: phenology_leafonoff
   public :: recruitment
-  private :: cwd_input
-  private :: cwd_out
-  private :: fragmentation_scaler
-  private :: SeedsIn
-  private :: SeedDecay
-  private :: SeedGermination
   public :: ZeroLitterFluxes
   public :: flux_into_litter_pools
   public :: ZeroAllocationRates
@@ -286,28 +280,35 @@ contains
     do el = 1, num_elements
        
        litt => currentPatch%litter(el)
-       nlevsoil = size(litt%bg_cwd,dim=2)
        
        ! Update the bank of viable seeds
        ! -----------------------------------------------------------------------------------
        
        do pft = 1,numpft
-          litt%seed(pft) = litt%seed(pft) &
-               + litt%seed_in_local(pft)  &
-               + litt%seed_in_extern(pft) &
-               - litt%seed_decay(pft)     &
-               - litt%seed_germ(pft)
+          litt%seed(pft) = litt%seed(pft) + &
+                litt%seed_in_local(pft) +   &
+                litt%seed_in_extern(pft) -  &
+                litt%seed_decay(pft) -      &
+                litt%seed_germ_in(pft)
+
+          ! Note that the recruitment scheme will use seed_germ
+          ! for its construction costs.
+          litt%seed_germ(pft) = litt%seed_germ(pft) + &
+                litt%seed_germ_in(pft) - & 
+                litt%seed_germ_decay(pft)
+
+
        enddo
        
        ! Update the Coarse Woody Debris pools (above and below)
        ! -----------------------------------------------------------------------------------
-       
+       nlevsoil = size(litt%bg_cwd,dim=2)
        do c = 1,ncwd
           litt%ag_cwd(c) = litt%ag_cwd(c)  + litt%ag_cwd_in(c) - litt%ag_cwd_frag(c)
           do ilyr=1,nlevsoil
              litt%bg_cwd(c,ilyr) = litt%bg_cwd(c,ilyr) &
                   + litt%bg_cwd_in(c,ilyr) &
-                  - litt%bg_cwd_frac(c,ilyr)
+                  - litt%bg_cwd_frag(c,ilyr)
           enddo
        end do
     
@@ -962,6 +963,7 @@ contains
     real(r8) :: store_m_to_repro       ! mass sent from storage to reproduction upon death [kg/plant]
     real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
     real(r8) :: mean_site_seed_rain    ! The mean site level seed rain for all PFTs
+    real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
@@ -1085,6 +1087,10 @@ contains
     do pft = 1,numpft 
        litt%seed_decay(pft) = litt%seed(pft) * &
              EDPftvarcon_inst%seed_decay_turnover(pft)/days_per_year
+
+       litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+             EDPftvarcon_inst%seed_decay_turnover(pft)/days_per_year
+
     enddo
 
     return
@@ -1123,15 +1129,15 @@ contains
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
     do pft = 1,numpft
-       litt%seed_germ(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_timescale(pft), &
-                                  max_germination)/days_per_year  
+       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_timescale(pft), &
+                                     max_germination)/days_per_year  
        
        !set the germination only under the growing season...c.xu
        if (EDPftvarcon_inst%season_decid(pft) == itrue .and. is_cold)then 
-          litt%seed_germ(pft) = 0.0_r8
+          litt%seed_germ_in(pft) = 0.0_r8
        endif
        if (EDPftvarcon_inst%stress_decid(pft) == itrue .and. is_drought)then
-          litt%seed_germ(pft) = 0.0_r8
+          litt%seed_germ_in(pft) = 0.0_r8
        endif
     enddo
 
@@ -1159,10 +1165,11 @@ contains
     type(bc_in_type), intent(in)                :: bc_in
     !
     ! !LOCAL VARIABLES:
-    type(prt_vartypes), pointer :: prt
+    class(prt_vartypes), pointer :: prt
     integer :: ft
     type (ed_cohort_type) , pointer :: temp_cohort
     type (litter_type), pointer     :: litt          ! The litter object (carbon right now)
+    type(site_massbal_type), pointer :: site_mass    ! For accounting total in-out mass fluxes
     integer :: cohortstatus
     integer,parameter :: recruitstatus = 1 !weather it the new created cohorts is recruited or initialized
     real(r8) :: c_leaf
@@ -1173,6 +1180,10 @@ contains
     real(r8) :: c_bgw         ! Below ground biomass [kgC]
     real(r8) :: c_dead
     real(r8) :: c_store
+    real(r8) :: mass_avail    ! The mass of each nutrient/carbon available in the seed_germination pool [kg]
+    real(r8) :: mass_demand   ! Total mass demanded by the plant to achieve the stoichiometric targets
+                              ! of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
+                              
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
@@ -1221,7 +1232,7 @@ contains
        ! to dictate the total number of plants that can be generated
 
        if ( (hlm_use_ed_prescribed_phys .eq. ifalse) .or. &
-            (EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0.) ) then
+            (EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0._r8) ) then
 
            temp_cohort%n = 1.e10_r8
 
@@ -1286,7 +1297,13 @@ contains
 
               element_id = element_list(el)
               
-              mass_avail = currentPatch%area * currentPatch%litter(el)%seed_germ(ft)
+              if ( (hlm_use_ed_prescribed_phys .eq. ifalse) .or. &
+                    (EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0._r8) ) then
+                  mass_avail = currentPatch%area * currentPatch%litter(el)%seed_germ(ft)
+              else
+                  ! If this is a prescribed case, make the available mass obsurdly large
+                  mass_avail = 1.e10_r8
+              end if
 
               element_id = element_list(el)
 
@@ -1304,23 +1321,17 @@ contains
 
               case(nitrogen_element)
                  
-                 min_demand = c_dead*prt_nitr_stoich_p1(ft,struct_organ)   + &
-                              c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)     + &
-                              c_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ) + & 
-                              c_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)  + & 
-                              c_store*prt_nitr_stoich_p1(ft,store_organ)
-                 max_demand = c_dead*prt_nitr_stoich_p2(ft,struct_organ)   + &
-                              c_leaf*prt_nitr_stoich_p2(ft,leaf_organ)     + &
-                              c_fineroot*prt_nitr_stoich_p2(ft,fnrt_organ) + & 
-                              c_sapwood*prt_nitr_stoich_p2(ft,sapw_organ)  + & 
-                              c_store*prt_nitr_stoich_p2(ft,store_organ)
-                      
+                 mass_demand = c_dead*prt_nitr_stoich_p1(ft,struct_organ)   + &
+                               c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)     + &
+                               c_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ) + & 
+                               c_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)  + & 
+                               c_store*prt_nitr_stoich_p1(ft,store_organ)
+
                  ! Use up as much of the nutrient in the seed germination pool
                  ! but don't go higher than the ideal value (roughly, this
                  ! won't enforce a perfect cap)
                  
-                 scaler = min(mass_avail/(min_demand*temp_cohort%n), &
-                              max_demand/min_demand)
+                 scaler = min(mass_avail/(mass_demand*temp_cohort%n),1.0_r8)
 
                  m_struct = scaler*c_dead*prt_nitr_stoich_p1(ft,struct_organ)
                  m_leaf   = scaler*c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)
@@ -1331,23 +1342,17 @@ contains
 
               case(phosphorus_element)
 
-                 min_demand = c_dead*prt_phos_stoich_p1(ft,struct_organ)   + &
-                              c_leaf*prt_phos_stoich_p1(ft,leaf_organ)     + &
-                              c_fineroot*prt_phos_stoich_p1(ft,fnrt_organ) + & 
-                              c_sapwood*prt_phos_stoich_p1(ft,sapw_organ)  + & 
-                              c_store*prt_phos_stoich_p1(ft,store_organ)
-                 max_demand = c_dead*prt_phos_stoich_p2(ft,struct_organ)   + &
-                              c_leaf*prt_phos_stoich_p2(ft,leaf_organ)     + &
-                              c_fineroot*prt_phos_stoich_p2(ft,fnrt_organ) + & 
-                              c_sapwood*prt_phos_stoich_p2(ft,sapw_organ)  + & 
-                              c_store*prt_phos_stoich_p2(ft,store_organ) 
+                 mass_demand = c_dead*prt_phos_stoich_p1(ft,struct_organ)   + &
+                               c_leaf*prt_phos_stoich_p1(ft,leaf_organ)     + &
+                               c_fineroot*prt_phos_stoich_p1(ft,fnrt_organ) + & 
+                               c_sapwood*prt_phos_stoich_p1(ft,sapw_organ)  + & 
+                               c_store*prt_phos_stoich_p1(ft,store_organ)
                  
                  ! Use up as much of the nutrient in the seed germination pool
                  ! but don't go higher than the ideal value (roughly, this
                  ! won't enforce a perfect cap)
                  
-                 scaler = min(mass_avail/(min_demand*temp_cohort%n), &
-                              max_demand/min_demand)
+                 scaler = min(mass_avail/(mass_demand*temp_cohort%n),1.0_r8)
 
                  m_struct = scaler*c_dead*prt_phos_stoich_p1(ft,struct_organ)
                  m_leaf   = scaler*c_leaf*prt_phos_stoich_p1(ft,leaf_organ)
@@ -1377,11 +1382,35 @@ contains
                  write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end select
+
+              site_mass => currentSite%mass_balance(el)
+
+              ! Remove mass from the germination pool. However, if we are use prescribed physiology,
+              ! AND the forced recruitment model, then we are not realling using the prognostic 
+              ! seed_germination model, so we have to short circuit things.  We send all of the
+              ! seed germination mass to an outflux pool, and use an arbitrary generic input flux
+              ! to balance out the new recruits.
+
+              if ( (hlm_use_ed_prescribed_phys .eq. itrue ) .and. &
+                    (EDPftvarcon_inst%prescribed_recruitment(ft) .ge. 0._r8 )) then
+
+                  site_mass%flux_generic_in = site_mass%flux_generic_in + &
+                        temp_cohort%n*(m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
+                  
+                  site_mass%flux_generic_out = site_mass%flux_generic_out + &
+                        currentPatch%area * currentPatch%litter(el)%seed_germ(ft)
+                  
+                  currentPatch%litter(el)%seed_germ(ft) = 0._r8
+
+                  
+              else
+
+                  currentPatch%litter(el)%seed_germ(ft) = currentPatch%litter(el)%seed_germ(ft) - & 
+                        temp_cohort%n*(m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)/currentPatch
               
-              ! Remove mass from the germination pool
-              currentPatch%litter(el)%seed_germ(ft) = currentPatch%litter(el)%seed_germ(ft) - & 
-                   new_cohort%n *(m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)/cpatch%area
+              end if
               
+
 
            end do
 
@@ -1395,9 +1424,7 @@ contains
            call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, & 
                 temp_cohort%hite, temp_cohort%dbh, prt, & 
                 temp_cohort%laimemory, cohortstatus, recruitstatus, &
-                temp_cohort%canopy_trim, currentPatch%NCL_p, currentSite%spread, &
-                first_leaf_aclass, bc_in)
-           
+                temp_cohort%canopy_trim, currentPatch%NCL_p, currentSite%spread, bc_in)
            
            ! Note that if hydraulics is on, the number of cohorts may had
            ! changed due to hydraulic constraints.
@@ -1405,21 +1432,12 @@ contains
            
            ! keep track of how many individuals were recruited for passing to history
            currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
+
            
-           ! modify the carbon balance accumulators to take into account the different way of defining recruitment
-           ! add prescribed rates as an input C flux, and the recruitment that would have otherwise occured as an output flux
-           ! (since the carbon associated with them effectively vanishes)
-           ! check the water for hydraulics
-           if ( (hlm_use_ed_prescribed_phys .eq. itrue ) .and. &
-                (EDPftvarcon_inst%prescribed_recruitment(ft) .ge. nearzero )) then
-              
-              currentSite%flux_in = currentSite%flux_in + temp_cohort%n * &
-                   (b_store + b_leaf + b_fineroot + b_sapwood + b_dead)
-              currentSite%flux_out = currentSite%flux_out + currentPatch%area * litt%seed_germ(ft)
-              
-           endif
-           
-        endif
+
+          
+
+      endif
      enddo  !pft loop
      
      deallocate(temp_cohort) ! delete temporary cohort
@@ -1428,7 +1446,7 @@ contains
 
   ! ============================================================================
 
-  subroutine CWDInput( currentSite, currentPatch, litt, element_id, bc_in)
+  subroutine CWDInput( currentSite, currentPatch, litt, bc_in)
 
     !
     ! !DESCRIPTION:
@@ -1445,16 +1463,15 @@ contains
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type),intent(inout), target :: currentPatch
-    type(dead_type),intent(inout),target      :: litt
-    integer,intent(in)                        :: element_id
+    type(litter_type),intent(inout),target    :: litt
     type(bc_in_type), intent(in)              :: bc_in
 
 
     !
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer :: currentCohort
+    type(ed_cohort_type), pointer      :: currentCohort
     type(site_fluxdiags_type), pointer :: flux_diags
-    type(site_massbal_type), pointer :: site_mass
+    type(site_massbal_type), pointer   :: site_mass
     integer  :: c
     real(r8) :: dead_n          ! total understorey dead tree density
     real(r8) :: dead_n_dlogging ! direct logging understory dead-tree density
@@ -1729,7 +1746,9 @@ contains
     ! -----------------------------------------------------------------------------------
     
     do pft = 1,numpft
-       litt%leaf_fines_in(pft) = litt%leaf_fines_in(pft) + litt%seed_decay(pft)
+       litt%leaf_fines_in(pft) = litt%leaf_fines_in(pft) + &
+                                 litt%seed_decay(pft) +    &
+                                 litt%seed_germ_decay(pft)
     enddo
     
     
@@ -1808,7 +1827,7 @@ contains
   
   ! ============================================================================
 
-  subroutine CWDOut( litt, element_id, fragmentation_scaler, nlev_eff_decomp )
+  subroutine CWDOut( litt, fragmentation_scaler, nlev_eff_decomp )
     !
     ! !DESCRIPTION:
     ! Simple CWD fragmentation Model
@@ -1819,8 +1838,8 @@ contains
 
     !
     ! !ARGUMENTS    
-    type(dead_type),intent(inout),target       :: litt
-    integer,intent(in)                         :: element_id
+    type(litter_type),intent(inout),target     :: litt
+    
     real(r8),intent(in)                        :: fragmentation_scaler
 
     ! This is not necessarily every soil layer, this is the number
@@ -1856,7 +1875,7 @@ contains
 
     do pft = 1,numpft
        
-       litt%leaf_fines_frag(pft) = litt%leaf_litter(pft) * &
+       litt%leaf_fines_frag(pft) = litt%leaf_fines(pft) * &
              SF_val_max_decomp(dl_sf) * fragmentation_scaler
 
        do ilyr = 1,nlev_eff_decomp
@@ -1869,7 +1888,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine flux_into_litter_pools(nsites, sites, bc_in, bc_out)
+  subroutine FluxIntoLitterPools(nsites, sites, bc_in, bc_out)
     
     ! -----------------------------------------------------------------------------------
     ! Created by Charlie Koven and Rosie Fisher, 2014-2015
@@ -2022,7 +2041,7 @@ contains
                    flux_cel_si(id) = flux_cel_si(id) + &
                          litt%ag_cwd_frag(ic) * ED_val_cwd_fcel * area_frac * surface_prof(id)
                    
-                   flux_lig_si(id) = flux_lig_si(id) & 
+                   flux_lig_si(id) = flux_lig_si(id) + & 
                          litt%ag_cwd_frag(ic) * ED_val_cwd_flig * area_frac * surface_prof(id)
                 end do
                    
@@ -2092,7 +2111,7 @@ contains
        
     end do  ! do sites(s)
     return
- end subroutine flux_into_litter_pools
+end subroutine FluxIntoLitterPools
 
 
 

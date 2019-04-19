@@ -16,6 +16,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : maxPatchesPerSite
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : site_massbal_type
+  use EDTypesMod           , only : site_fluxdiags_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
   use EDTypesMod           , only : maxpft
@@ -50,6 +51,7 @@ module EDPatchDynamicsMod
   use EDCohortDynamicsMod  , only : InitPRTBoundaryConditions
 
   use PRTGenericMod,          only : all_carbon_elements
+  use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
@@ -344,6 +346,7 @@ contains
     real(r8) :: site_areadis                 ! total area disturbed in m2 per site per day
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
+    integer  :: el                           ! element loop index
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
     integer  :: levcan                       ! canopy level
@@ -391,8 +394,8 @@ contains
        ! Initialize the litter pools to zero, these
        ! pools will be populated by looping over the existing patches
        ! and transfering in mass
-       do il=1,num_elements
-          call new_patch%litter(il)%InitConditions(init_leaf_fines=0._r8, &
+       do el=1,num_elements
+          call new_patch%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                                                    init_root_fines=0._r8, &
                                                    init_ag_cwd=0._r8, &
                                                    init_bg_cwd=0._r8, &
@@ -429,11 +432,11 @@ contains
 
              endif
 
-             ! Transfer the litter from patch to another
-             ! This call will only transfer burned litter to new patch
+             ! Transfer the litter existing already in the donor patch to the new patch
+             ! This call will only transfer non-burned litter to new patch
              ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
              ! fire is not the dominant disturbance regime.
-             call TransLitterNewPatch( currentPatch, newPatch, patch_site_areadis)
+             call TransLitterNewPatch( currentPatch, new_patch, patch_site_areadis)
 
 
           !INSERT SURVIVORS FROM DISTURBANCE INTO NEW PATCH 
@@ -948,6 +951,12 @@ contains
     type(site_massbal_type), pointer :: site_mass
     type(litter_type),pointer :: curr_litt ! litter object for current patch
     type(litter_type),pointer :: new_litt  ! litter object for the new patch
+    real(r8) :: remainder_area             ! amount of area remaining in patch after donation
+    real(r8) :: burned_mass                ! the mass of litter that was supposed to be provided
+                                           ! by the donor, but was burned [kg] 
+    real(r8) :: donatable_mass             ! mass of donatable litter [kg]
+    real(r8) :: donate_frac                ! the fraction of litter mass sent to the new patch
+    real(r8) :: retain_frac                ! the fraction of litter mass retained by the donor patch
     integer  :: el                         ! element loop counter
     integer  :: c                          ! CWD loop counter
     integer  :: pft                        ! PFT loop counter
@@ -1098,10 +1107,11 @@ contains
     !
     ! !LOCAL VARIABLES:
 
-    type(ed_cohort_type),  pointer :: currentCohort
-    type(litter_type),     pointer :: new_litt
-    type(litter_type),     pointer :: curr_litt
-    type(site_massbal_type),   pointer :: site_mass
+    type(ed_cohort_type), pointer      :: currentCohort
+    type(litter_type), pointer         :: new_litt
+    type(litter_type), pointer         :: curr_litt
+    type(site_massbal_type), pointer   :: site_mass
+    type(site_fluxdiags_type), pointer :: flux_diags
 
     real(r8) :: donatable_mass       ! non-burned litter mass provided by the donor [kg]
                                      ! some may or may not be retained by the donor
@@ -1122,6 +1132,7 @@ contains
     real(r8) :: repro_m              ! Reproductive mass (seeds/flowers) [kg]
     real(r8) :: num_dead_trees       ! total number of dead trees passed in with the burn area
     real(r8) :: num_live_trees       ! total number of live trees passed in with the burn area
+    integer  :: lyr                  ! soil layer index
     integer  :: c                    ! loop index for coarse woody debris pools
     integer  :: pft                  ! loop index for plant functional types
     integer  :: ilyr                 ! loop index for soil layers
@@ -1174,8 +1185,6 @@ contains
        ! includes transfer of non burned plant material to litter, and the burned
        ! part to the atmosphere.
        ! ------------------------------------------------------------------------------
-       
- 
 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
@@ -1302,7 +1311,7 @@ contains
        !         of their leaves and starving. 
        ! -----------------------------------------------------------------------------
 
-       currentCohort => new_patch%shortest
+       currentCohort => newPatch%shortest
        do while(associated(currentCohort))
 
           sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
@@ -1325,7 +1334,7 @@ contains
              
              ! We remove all elements from burning the plant in the same proportion
              ! so we only call this for one of the elements (use carbon)
-             if(element_id(el).eq.carbon12_element) then
+             if(element_id.eq.carbon12_element) then
                 call PRTBurnLosses(currentCohort%prt, leaf_organ, leaf_burn_frac)
              end if
              
@@ -1333,10 +1342,10 @@ contains
              
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-          endif
+         endif
 
           currentCohort => currentCohort%taller
-       enddo
+      enddo
 
     end do
     
@@ -1373,7 +1382,9 @@ contains
     type(litter_type),       pointer :: new_litt
     type(litter_type),       pointer :: curr_litt
     type(site_massbal_type), pointer :: site_mass
+    type(site_fluxdiags_type), pointer :: flux_diags
 
+    real(r8) :: remainder_area             ! amount of area remaining in patch after donation
     real(r8) :: num_dead
     real(r8) :: donatable_mass       ! mass of donatable litter [kg]
     real(r8) :: leaf_m               ! leaf mass [kg]
@@ -1456,9 +1467,9 @@ contains
 
           ! Update water balance by removing dead plant water
           ! but only do this once (use the carbon element id)
-          if(element_id(el).eq.carbon12_element .and. 
-             hlm_use_planthydro == itrue ) then
-             call AccumulateMortalityWaterStorage(currentSite,currentCohort, num_dead)
+          if( (element_id == carbon12_element) .and. &
+              (hlm_use_planthydro == itrue) ) then
+              call AccumulateMortalityWaterStorage(currentSite,currentCohort, num_dead)
           end if
                           
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
@@ -1554,6 +1565,9 @@ contains
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: nlevsoil             ! number of soil layers
+
+    integer :: el ! element loop index
+
     !
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -1574,8 +1588,8 @@ contains
     allocate(new_patch%litter(num_elements))
 
     do el=1,num_elements
-       new_patch%litter(el)%InitAllocate(numpft,numlevsoil)
-       new_patch%litter(el)%ZeroFlux()
+        call new_patch%litter(el)%InitAllocate(numpft,nlevsoil)
+        call new_patch%litter(el)%ZeroFlux()
     end do
 
     call zero_patch(new_patch) !The nan value in here is not working??
@@ -1708,10 +1722,6 @@ contains
     currentPatch%btran_ft(:)                = 0.0_r8
 
     currentPatch%canopy_layer_tlai(:)       = 0.0_r8
-
-    currentPatch%seeds_in(:)                = 0.0_r8
-    currentPatch%seed_decay(:)              = 0.0_r8
-    currentPatch%seed_germination(:)        = 0.0_r8
 
     currentPatch%fab(:)                     = 0.0_r8
     currentPatch%sabs_dir(:)                = 0.0_r8
@@ -1960,7 +1970,7 @@ contains
     rp%age_class = get_age_class_index(rp%age)
     
     do el = 1,num_elements
-       call rp%litter(el)%FuseLitter(rp%area,dp%area,dp%litter(el),nlevsoil)
+       call rp%litter(el)%FuseLitter(rp%area,dp%area,dp%litter(el))
     end do
 
     

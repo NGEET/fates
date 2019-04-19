@@ -56,49 +56,46 @@ module FatesLitterMod
       
       ! This object is allocated for each element (C, N, P, etc) that we wish to track.
 
-      integer              :: element_id               ! This element ID should
-                                                       ! be associated with the element
-                                                       ! types listed in parteh/PRTGenericMod.F90
+      integer              :: element_id            ! This element ID should
+                                                    ! be associated with the element
+                                                    ! types listed in parteh/PRTGenericMod.F90
 
-      ! Prognostic variables (litter and coarse woody debris)
+                                                    ! Prognostic variables (litter and coarse woody debris)
 
-      real(r8)             ::  ag_cwd(ncwd)            ! above ground coarse wood debris kg/m2
-      real(r8),allocatable ::  bg_cwd(:,:)             ! below ground coarse wood debris kg/m2
-      real(r8),allocatable ::  leaf_fines(:)           ! above ground leaf litter        kg/m2
-      real(r8),allocatable ::  root_fines(:,:)         ! below ground fine root litter   kg/m2
-
-      real(r8),allocatable ::  seed(:)                 ! the seed pool (viable)          kg/m2
-
-
-      ! Fluxes in - dying trees / seed rain 
-      ! (does not include disturbance fluxes)
+      real(r8)             :: ag_cwd(ncwd)          ! above ground coarse wood debris (cwd)        [kg/m2]
+      real(r8),allocatable :: bg_cwd(:,:)           ! below ground coarse wood debris (cwd x soil) [kg/m2]
+      real(r8),allocatable :: leaf_fines(:)         ! above ground leaf litter (pft)               [kg/m2]
+      real(r8),allocatable :: root_fines(:,:)       ! below ground fine root litter (pft x soil)   [kg/m2]
       
-      real(r8)             ::  ag_cwd_in(ncwd)         ! kg/m2/day
-      real(r8),allocatable ::  bg_cwd_in(:,:)          ! kg/m2/day
-      real(r8),allocatable ::  leaf_fines_in(:)        ! kg/m2/day
-      real(r8),allocatable ::  root_fines_in(:,:)      ! kg/m2/day
+      real(r8),allocatable :: seed(:)               ! the seed pool (viable)    (pft) [kg/m2]
+      real(r8),allocatable :: seed_germ(:)          ! the germinated seed pool  (pft) [kg/m2]
 
-      real(r8),allocatable ::  seed_in_local(:)        ! kg/m2/day (from local sources)
-      real(r8),allocatable ::  seed_in_extern(:)       ! kg/m2/day (from outside cell)
-
-      ! Fluxes out - fragmentation
+      ! Fluxes in - dying trees / seed rain  (does not include disturbance fluxes)
       
-      real(r8)             ::  ag_cwd_frag(ncwd)     ! kg/m2/day
-      real(r8),allocatable ::  bg_cwd_frag(:,:)      ! kg/m2/day
-      real(r8),allocatable ::  leaf_fines_frag(:)    ! kg/m2/day
-      real(r8),allocatable ::  root_fines_frag(:,:)  ! kg/m2/day
+      real(r8)             ::  ag_cwd_in(ncwd)      ! kg/m2/day
+      real(r8),allocatable ::  bg_cwd_in(:,:)       ! kg/m2/day
+      real(r8),allocatable ::  leaf_fines_in(:)     ! kg/m2/day
+      real(r8),allocatable ::  root_fines_in(:,:)   ! kg/m2/day
 
-      ! Fluxes out from burning are not tracked here
-      ! because this process changes the size of the patch
-      ! as well, and the unit fluxes that would be tracked
+      real(r8),allocatable ::  seed_in_local(:)     ! kg/m2/day (from local sources)
+      real(r8),allocatable ::  seed_in_extern(:)    ! kg/m2/day (from outside cell)
+
+                                                    ! Fluxes out - fragmentation
+      
+      real(r8)             ::  ag_cwd_frag(ncwd)    ! kg/m2/day
+      real(r8),allocatable ::  bg_cwd_frag(:,:)     ! kg/m2/day
+      real(r8),allocatable ::  leaf_fines_frag(:)   ! kg/m2/day
+      real(r8),allocatable ::  root_fines_frag(:,:) ! kg/m2/day
+
+      ! Fluxes out from burning are not tracked here because this process changes 
+      ! the size of the patch as well, and the unit fluxes that would be tracked
       ! here are convoluted
 
-      ! Fluxes out - germination
-      real(r8),allocatable :: seed_germ(:)           ! kg/m2/day
-
-
-      ! Flux (in/out ... transfer) from seed to litter
-      real(r8),allocatable :: seed_decay(:)            ! kg/m2/day
+      ! Flux (in/out ... transfer) of seeds
+      
+      real(r8), allocatable :: seed_decay(:)      ! decay of viable seeds to litter [kg/m2/day]
+      real(r8), allocatable :: seed_germ_decay(:) ! decay of germinated seeds to litter [kg/m2/day]
+      real(r8), allocatable :: seed_germ_in(:)    ! flux from viable to germinated seed [kg/m2/day]
 
     contains
       
@@ -164,6 +161,8 @@ contains
                                    donor_litt%leaf_fines(pft) * donor_weight
        this%seed(pft)            = this%seed(pft) * self_weight + &
                                    donor_litt%seed(pft) * donor_weight
+       this%seed_germ(pft)       = this%seed_germ(pft) * self_weight + &
+                                   donor_litt%seed_germ(pft) * donor_weight
        this%leaf_fines_in(pft)   = this%leaf_fines_in(pft) * self_weight + &
                                    donor_litt%leaf_fines_in(pft) * donor_weight
        this%seed_in_local(pft)   = this%seed_in_local(pft) * self_weight + &
@@ -172,10 +171,13 @@ contains
                                    donor_litt%seed_in_extern(pft) * donor_weight
        this%leaf_fines_frag(pft) = this%leaf_fines_frag(pft) * self_weight + &
                                    donor_litt%leaf_fines_frag(pft) * donor_weight
-       this%seed_germ(pft)       = this%seed_germ(pft) * self_weight + &
-                                   donor_litt%seed_germ(pft) * donor_weight
        this%seed_decay(pft)      = this%seed_decay(pft) * self_weight + &
                                    donor_litt%seed_decay(pft) * donor_weight
+       this%seed_germ_decay(pft) = this%seed_germ_decay(pft) * self_weight + &
+                                   donor_litt%seed_germ_decay(pft) * donor_weight
+       this%seed_germ_in(pft)    = this%seed_germ_in(pft) * self_weight + &
+                                   donor_litt%seed_germ_in(pft) * donor_weight
+
        do ilyr=1,nlevsoil
           this%root_fines(pft,ilyr)      = this%root_fines(pft,ilyr) * self_weight + &
                                            donor_litt%root_fines(pft,ilyr) * donor_weight
@@ -211,13 +213,16 @@ contains
 
     this%leaf_fines(:)    = donor_litt%leaf_fines(:)
     this%seed(:)          = donor_litt%seed(:)
+    this%seed_germ(:)     = donor_litt%seed_germ(:)
     this%leaf_fines_in(:) = donor_litt%leaf_fines_in(:)
     this%seed_in_local(:) = donor_litt%seed_in_local(:)
     
     this%seed_in_extern(:)    = donor_litt%seed_in_extern(:)
     this%leaf_fines_frag(:)   = donor_litt%leaf_fines_frag(:)
-    this%seed_germ(:)         = donor_litt%seed_germ(:)
+    
     this%seed_decay(:)        = donor_litt%seed_decay(:)
+    this%seed_germ_decay(:)   = donor_litt%seed_germ_decay(:)
+    this%seed_germ_in(:)      = donor_litt%seed_germ_in(:)
     this%root_fines(:,:)      = donor_litt%root_fines(:,:)
     this%root_fines_in(:,:)   = donor_litt%root_fines_in(:,:)
     this%root_fines_frag(:,:) = donor_litt%root_fines_frag(:,:)
@@ -227,22 +232,17 @@ contains
 
   ! =====================================================================================
 
-  subroutine InitAllocate(this,numpft,numlevsoil,max_elements)
+  subroutine InitAllocate(this,numpft,numlevsoil)
 
     class(litter_type) :: this
     integer,intent(in)  :: numpft   ! number of plant functional types
     integer,intent(in)  :: numlevsoil ! number of soil layers
-    integer,intent(in)  :: max_elements ! for restart arrays,
-                                        ! we are not allowed 
-
-    
-   
-
 
     allocate(this%bg_cwd(ncwd,numlevsoil))
     allocate(this%leaf_fines(numpft))
     allocate(this%root_fines(numpft,numlevsoil))
     allocate(this%seed(numpft))
+    allocate(this%seed_germ(numpft))
 
     allocate(this%bg_cwd_in(ncwd,numlevsoil))
     allocate(this%leaf_fines_in(numpft))
@@ -254,31 +254,34 @@ contains
     allocate(this%leaf_fines_frag(numpft))
     allocate(this%root_fines_frag(numpft,numlevsoil))
 
-    allocate(this%seed_germ(numpft))
+    allocate(this%seed_germ_in(numpft))
+    allocate(this%seed_germ_decay(numpft))
     allocate(this%seed_decay(numpft))
 
 
     ! Initialize everything to a nonsense flag
-    this%ag_cwd(:)               = fates_unset_real
-    this%bg_cwd(:,:)             = fates_unset_real
-    this%leaf_fines(:)          = fates_unset_real
-    this%root_fines(:,:)        = fates_unset_real
-    this%seed(:)                 = fates_unset_real
+    this%ag_cwd(:)            = fates_unset_real
+    this%bg_cwd(:,:)          = fates_unset_real
+    this%leaf_fines(:)        = fates_unset_real
+    this%root_fines(:,:)      = fates_unset_real
+    this%seed(:)              = fates_unset_real
+    this%seed_germ(:)         = fates_unset_real
 
-    this%ag_cwd_in(:)            = fates_unset_real
-    this%bg_cwd_in(:,:)          = fates_unset_real
-    this%leaf_fines_in(:)       = fates_unset_real
-    this%root_fines_in(:,:)     = fates_unset_real
-    this%seed_in_local(:)            = fates_unset_real
-    this%seed_in_extern(:)      = fates_unset_real
+    this%ag_cwd_in(:)         = fates_unset_real
+    this%bg_cwd_in(:,:)       = fates_unset_real
+    this%leaf_fines_in(:)     = fates_unset_real
+    this%root_fines_in(:,:)   = fates_unset_real
+    this%seed_in_local(:)     = fates_unset_real
+    this%seed_in_extern(:)    = fates_unset_real
 
-    this%ag_cwd_frag(:)        = fates_unset_real
-    this%bg_cwd_frag(:,:)      = fates_unset_real
+    this%ag_cwd_frag(:)       = fates_unset_real
+    this%bg_cwd_frag(:,:)     = fates_unset_real
     this%leaf_fines_frag(:)   = fates_unset_real
     this%root_fines_frag(:,:) = fates_unset_real
 
-    this%seed_germ(:)         = fates_unset_real
     this%seed_decay(:)        = fates_unset_real
+    this%seed_germ_decay(:)   = fates_unset_real
+    this%seed_germ_in(:)      = fates_unset_real
 
     return
   end subroutine InitAllocate
@@ -318,6 +321,7 @@ contains
     deallocate(this%leaf_fines)
     deallocate(this%root_fines)
     deallocate(this%seed)
+    deallocate(this%seed_germ)
 
     deallocate(this%bg_cwd_in)
     deallocate(this%leaf_fines_in)
@@ -330,7 +334,8 @@ contains
     deallocate(this%root_fines_frag)
    
     deallocate(this%seed_decay)
-    deallocate(this%seed_germ)
+    deallocate(this%seed_germ_decay)
+    deallocate(this%seed_germ_in)
 
     return
   end subroutine DeallocateLitt
@@ -353,8 +358,9 @@ contains
     this%leaf_fines_frag(:)   = 0._r8
     this%root_fines_frag(:,:) = 0._r8
     
-    this%seed_germ(:)         = 0._r8
+    this%seed_germ_in(:)      = 0._r8
     this%seed_decay(:)        = 0._r8
+    this%seed_germ_decay(:)   = 0._r8
 
 
     return
