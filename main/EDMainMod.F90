@@ -359,6 +359,7 @@ contains
           ! routine is also called following fusion
           call UpdateCohortBioPhysRates(currentCohort)
 
+          
 
           ! This cohort has grown, it is no longer "new"
           currentCohort%isnew = .false.

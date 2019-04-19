@@ -88,6 +88,7 @@ module EDPhysiologyMod
   use PRTGenericMod, only : SetState
   use PRTLossFluxesMod, only : PRTPhenologyFlush
   use PRTLossFluxesMod, only : PRTDeciduousTurnover
+  use PRTLossFluxesMod, only : PRTReproRelease
 
   implicit none
   private
@@ -997,6 +998,10 @@ contains
              call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
                    1.0_r8, seed_prod)
              
+             if(element_id==carbon12_element)then
+                 ccohort%seed_prod = seed_prod
+             end if
+
              site_seed_rain(pft) = site_seed_rain(pft) +  &
                    (seed_prod * currentCohort%n + store_m_to_repro)
              

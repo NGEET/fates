@@ -36,7 +36,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : sec_per_day
   use FatesConstantsMod        , only : days_per_year
   use FatesConstantsMod        , only : years_per_day
-
+  use FatesLitterMod           , only : litter_type
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
   use PRTGenericMod            , only : all_carbon_elements
@@ -123,6 +123,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_hr_timeintegrated_si
   integer, private :: ih_nbp_si
   integer, private :: ih_npp_si
+
   integer, private :: ih_c_stomata_si
   integer, private :: ih_c_lblayer_si
   integer, private :: ih_fire_c_to_atm_si
@@ -442,7 +443,7 @@ module FatesHistoryInterfaceMod
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
      integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
      integer, private :: levscagpft_index_, levagepft_index_
-     integer, private :: levheight_index_,
+     integer, private :: levheight_index_
      integer, private :: levelem_index_, levelpft_index_
      integer, private :: levelcwd_index_, levelage_index_
 
@@ -455,7 +456,7 @@ module FatesHistoryInterfaceMod
      
      procedure, public :: update_history_dyn
      procedure, public :: update_history_prod
-     procedure, public :: update_history_cbal
+!     procedure, public :: update_history_cbal
      procedure, public :: update_history_hydraulics
 
      ! 'get' methods used by external callers to access private read only data
@@ -623,22 +624,22 @@ contains
     dim_count = dim_count + 1
     call this%set_levelem_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levelem, num_threads, &
-         fates_bounds%levelem_begin, fates_bounds%levelem_end)
+         fates_bounds%elem_begin, fates_bounds%elem_end)
 
     dim_count = dim_count + 1
     call this%set_levelpft_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levelpft, num_threads, &
-         fates_bounds%levelpft_begin, fates_bounds%levelpft_end)
-
+          fates_bounds%elpft_begin, fates_bounds%elpft_end)
+    
     dim_count = dim_count + 1
     call this%set_levelcwd_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levelcwd, num_threads, &
-         fates_bounds%levelcwd_begin, fates_bounds%levelcwd_end)
+         fates_bounds%elcwd_begin, fates_bounds%elcwd_end)
 
     dim_count = dim_count + 1
     call this%set_levelage_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levelage, num_threads, &
-         fates_bounds%levelage_begin, fates_bounds%levelage_end)
+          fates_bounds%elage_begin, fates_bounds%elage_end)
     
 
     ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
@@ -1356,59 +1357,59 @@ end subroutine flush_hvars
   end subroutine init_dim_kinds_maps
 
  ! =======================================================================
- subroutine update_history_cbal(this,nc,nsites,sites)
+! subroutine update_history_cbal(this,nc,nsites,sites)
 
-     use EDtypesMod          , only : ed_site_type
+!     use EDtypesMod          , only : ed_site_type
      
-     ! Arguments
-     class(fates_history_interface_type)             :: this
-     integer                 , intent(in)            :: nc   ! clump index
-     integer                 , intent(in)            :: nsites
-     type(ed_site_type)      , intent(inout), target :: sites(nsites)
+!     ! Arguments
+!     class(fates_history_interface_type)             :: this
+!     integer                 , intent(in)            :: nc   ! clump index
+!     integer                 , intent(in)            :: nsites
+!     type(ed_site_type)      , intent(inout), target :: sites(nsites)
 
      ! Locals
-     integer  :: s        ! The local site index
-     integer  :: io_si     ! The site index of the IO array
+!     integer  :: s        ! The local site index
+!     integer  :: io_si     ! The site index of the IO array
      
      
-     associate( hio_nep_si            => this%hvars(ih_nep_si)%r81d, &
-                 hio_nbp_si            => this%hvars(ih_nbp_si)%r81d, &
-                 hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
-                 hio_totecosysc_si     => this%hvars(ih_totecosysc_si)%r81d, &
-                 hio_cbal_err_fates_si => this%hvars(ih_cbal_err_fates_si)%r81d, &
-                 hio_cbal_err_bgc_si   => this%hvars(ih_cbal_err_bgc_si)%r81d, &
-                 hio_cbal_err_tot_si   => this%hvars(ih_cbal_err_tot_si)%r81d, &
-                 hio_biomass_stock_si  => this%hvars(ih_biomass_stock_si)%r81d, &
-                 hio_litter_stock_si   => this%hvars(ih_litter_stock_si)%r81d, &
-                 hio_cwd_stock_si      => this%hvars(ih_cwd_stock_si)%r81d )
+!     associate( hio_nep_si            => this%hvars(ih_nep_si)%r81d, &
+!                 hio_nbp_si            => this%hvars(ih_nbp_si)%r81d, &
+!                 hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
+!                 hio_totecosysc_si     => this%hvars(ih_totecosysc_si)%r81d, &
+!                 hio_cbal_err_fates_si => this%hvars(ih_cbal_err_fates_si)%r81d, &
+!                 hio_cbal_err_bgc_si   => this%hvars(ih_cbal_err_bgc_si)%r81d, &
+!                 hio_cbal_err_tot_si   => this%hvars(ih_cbal_err_tot_si)%r81d, &
+!                 hio_biomass_stock_si  => this%hvars(ih_biomass_stock_si)%r81d, &
+!                 hio_litter_stock_si   => this%hvars(ih_litter_stock_si)%r81d, &
+!                 hio_cwd_stock_si      => this%hvars(ih_cwd_stock_si)%r81d )
 
         ! ---------------------------------------------------------------------------------
         ! Flush arrays to values defined by %flushval (see registry entry in
         ! subroutine define_history_vars()
         ! ---------------------------------------------------------------------------------
-        call this%flush_hvars(nc,upfreq_in=3)
+!        call this%flush_hvars(nc,upfreq_in=3)
         
         
-        do s = 1,nsites
+!        do s = 1,nsites
          
-           io_si  = this%iovar_map(nc)%site_index(s)
+!           io_si  = this%iovar_map(nc)%site_index(s)
 
-           hio_nep_si(io_si) = sites(s)%nep
-           hio_nbp_si(io_si) = sites(s)%nbp
-           hio_fire_c_to_atm_si(io_si) = sites(s)%fire_c_to_atm
-           hio_totecosysc_si(io_si) = sites(s)%totecosysc
-           hio_cbal_err_fates_si(io_si) = sites(s)%cbal_err_fates
-           hio_cbal_err_bgc_si(io_si) = sites(s)%cbal_err_bgc
-           hio_cbal_err_tot_si(io_si) = sites(s)%cbal_err_tot
-           hio_biomass_stock_si(io_si) = sites(s)%biomass_stock
-           hio_litter_stock_si(io_si) = sites(s)%ed_litter_stock
-           hio_cwd_stock_si(io_si) = sites(s)%cwd_stock
+!           hio_nep_si(io_si) = sites(s)%nep
+!           hio_nbp_si(io_si) = sites(s)%nbp
+!           hio_fire_c_to_atm_si(io_si) = sites(s)%fire_c_to_atm
+!           hio_totecosysc_si(io_si) = sites(s)%totecosysc
+!           hio_cbal_err_fates_si(io_si) = sites(s)%cbal_err_fates
+!           hio_cbal_err_bgc_si(io_si) = sites(s)%cbal_err_bgc
+!           hio_cbal_err_tot_si(io_si) = sites(s)%cbal_err_tot
+!           hio_biomass_stock_si(io_si) = sites(s)%biomass_stock
+!           hio_litter_stock_si(io_si) = sites(s)%ed_litter_stock
+!           hio_cwd_stock_si(io_si) = sites(s)%cwd_stock
 
-        end do
+!        end do
 
-      end associate
+!      end associate
 
-   end subroutine update_history_cbal
+!   end subroutine update_history_cbal
    
 
   ! ====================================================================================
@@ -4640,55 +4641,55 @@ end subroutine flush_hvars
 
     ! CARBON BALANCE VARIABLES THAT DEPEND ON HLM BGC INPUTS
 
-    call this%set_history_var(vname='NEP', units='gC/m^2/s', &
-          long='net ecosystem production', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nep_si )
+!    call this%set_history_var(vname='NEP', units='gC/m^2/s', &
+!          long='net ecosystem production', use_default='active', &
+!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nep_si )
 
-    call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
-          long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
+!    call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
+!          long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
+!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
    
-    call this%set_history_var(vname='NBP', units='gC/m^2/s', &
-          long='net biosphere production', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nbp_si )
+!    call this%set_history_var(vname='NBP', units='gC/m^2/s', &
+!          long='net biosphere production', use_default='active', &
+!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nbp_si )
    
-    call this%set_history_var(vname='TOTECOSYSC', units='gC/m^2',  &
-         long='total ecosystem carbon', use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_totecosysc_si )
+!    call this%set_history_var(vname='TOTECOSYSC', units='gC/m^2',  &
+!         long='total ecosystem carbon', use_default='active', &
+!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_totecosysc_si )
     
-    call this%set_history_var(vname='CBALANCE_ERROR_ED', units='gC/m^2/s',  &
-         long='total carbon balance error on ED side', use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_fates_si )
+!    call this%set_history_var(vname='CBALANCE_ERROR_ED', units='gC/m^2/s',  &
+!         long='total carbon balance error on ED side', use_default='active', &
+!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_fates_si )
 
-    call this%set_history_var(vname='CBALANCE_ERROR_BGC', units='gC/m^2/s',  &
-         long='total carbon balance error on HLMs BGC side', use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_bgc_si )
+!    call this%set_history_var(vname='CBALANCE_ERROR_BGC', units='gC/m^2/s',  &
+!         long='total carbon balance error on HLMs BGC side', use_default='active', &
+!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_bgc_si )
     
-    call this%set_history_var(vname='CBALANCE_ERROR_TOTAL', units='gC/m^2/s', &
-          long='total carbon balance error total', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_tot_si )
+!    call this%set_history_var(vname='CBALANCE_ERROR_TOTAL', units='gC/m^2/s', &
+!          long='total carbon balance error total', use_default='active', &
+!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_tot_si )
     
-    call this%set_history_var(vname='BIOMASS_STOCK_COL', units='gC/m^2',  &
-          long='total ED biomass carbon at the column level', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_biomass_stock_si )
+!    call this%set_history_var(vname='BIOMASS_STOCK_COL', units='gC/m^2',  &
+!          long='total ED biomass carbon at the column level', use_default='active', &
+!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_biomass_stock_si )
     
-    call this%set_history_var(vname='ED_LITTER_STOCK_COL', units='gC/m^2', &
-          long='total ED litter carbon at the column level', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_litter_stock_si )
+!    call this%set_history_var(vname='ED_LITTER_STOCK_COL', units='gC/m^2', &
+!          long='total ED litter carbon at the column level', use_default='active', &
+!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_litter_stock_si )
     
-    call this%set_history_var(vname='CWD_STOCK_COL', units='gC/m^2', &
-          long='total CWD carbon at the column level', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cwd_stock_si )
+!    call this%set_history_var(vname='CWD_STOCK_COL', units='gC/m^2', &
+!          long='total CWD carbon at the column level', use_default='active', &
+!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cwd_stock_si )
 
     ! organ-partitioned NPP / allocation fluxes
     call this%set_history_var(vname='NPP_LEAF', units='kgC/m2/yr',       &

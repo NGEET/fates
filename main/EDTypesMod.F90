@@ -315,6 +315,8 @@ module EDTypesMod
      real(r8) ::  lmort_collateral                       ! collaterally damaged rate        %/per logging activity
      real(r8) ::  lmort_infra                            ! mechanically damaged rate        %/per logging activity
 
+     real(r8) :: seed_prod                               ! diagnostic seed production rate [kgC/plant/day]
+
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
      ! Nitrogen pools are not prognostic in the current implementation.
