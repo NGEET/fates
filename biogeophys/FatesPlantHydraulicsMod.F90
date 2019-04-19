@@ -1643,6 +1643,7 @@ contains
     !hydraulic vs osmostic with and without transpiration
     !Steudle, E. Water uptake by roots: effects of water deficit. 
     !J Exp Bot 51, 1531-1542, doi:DOI 10.1093/jexbot/51.350.1531 (2000).
+    cPatch => currentSite%youngest_patch
     do while(associated(cPatch))
        cCohort => cPatch%tallest
        do while(associated(cCohort))
