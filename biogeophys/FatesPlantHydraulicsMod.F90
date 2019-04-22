@@ -1753,8 +1753,8 @@ contains
     call shellGeom( csite_hydr%l_aroot_1D, csite_hydr%rs1(1), AREA, sum(bc_in%dz_sisl(1:nlevsoi_hyd)), &
           csite_hydr%r_out_shell_1D(:), csite_hydr%r_node_shell_1D(:), csite_hydr%v_shell_1D(:))
 	  
-    !update the conductitivity for first shell 	is done at subroutine UpdateTreeHydrLenVolCond
-    !which is dependant on whether it is water uptake or loss
+    !update the conductitivity for first soil shell is done at subroutine UpdateWaterDepTreeHydrCond
+    !which is dependant on whether it is water uptake or loss for every 30 minutes
     
     do j = 1,csite_hydr%nlevsoi_hyd
        
