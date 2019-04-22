@@ -68,7 +68,7 @@ module FatesInventoryInitMod
                                                            ! defined in model memory and a physical
                                                            ! site listed in the file
 
-   logical, parameter :: do_inventory_out = .true.
+   logical, parameter :: do_inventory_out = .false.
 
 
    public :: initialize_sites_by_inventory
