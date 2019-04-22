@@ -54,7 +54,7 @@ module FatesInventoryInitMod
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
 
-   logical, parameter :: debug_inv = .false.       ! Debug flag for devs
+   logical, parameter :: debug_inv = .true.       ! Debug flag for devs
 
    ! String length specifiers
    integer, parameter :: patchname_strlen = 64   
@@ -338,6 +338,7 @@ contains
                write(fates_log(),*) ' AGE: ',currentpatch%age,' AREA: ',currentpatch%area
                currentPatch => currentpatch%older
             enddo
+            write(fates_log(),*) patch_name_vec(:)
          end if
          
          ! OPEN THE CSS FILE
@@ -699,9 +700,10 @@ contains
       if (ios/=0) return
 
       patch_name = trim(p_name)
+      write(fates_log(),*) 'writing list of patches as read in'
 
       if( debug_inv) then
-         write(*,fmt=wr_fmt) &
+         write(fates_log(),*) &
                p_time, p_name, p_trk, p_age, p_area, &
                p_water,p_fsc, p_stsc, p_stsl, p_ssc, &
                p_psc, p_msn, p_fsn
@@ -832,7 +834,7 @@ contains
             c_pft, c_nplant, c_bdead, c_balive, c_avgRG
       
       if( debug_inv) then
-         write(*,fmt=wr_fmt) &
+         write(fates_log(),*) 'writing cohorts: ',&
               c_time, p_name, c_name, c_dbh, c_height, &
               c_pft, c_nplant, c_bdead, c_balive, c_avgRG
       end if
@@ -902,6 +904,9 @@ contains
                               ! Don't need to allocate leaf age classes (not used)
 
       temp_cohort%pft         = c_pft
+      if( debug_inv) then
+         write(fates_log(),*) 'calculating cohort n: ', c_nplant, cpatch%area, c_nplant * cpatch%area
+      endif
       temp_cohort%n           = c_nplant * cpatch%area
       temp_cohort%dbh         = c_dbh
       call h_allom(c_dbh,c_pft,temp_cohort%hite)
@@ -943,6 +948,13 @@ contains
       endif
 
       ! Since spread is a canopy level calculation, we need to provide an initial guess here.
+      if( debug_inv) then
+         write(fates_log(),*) 'calling create_cohort: ', c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+              b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &
+              temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
+              1, csite%spread
+      endif
+
       call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
            b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &
            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
