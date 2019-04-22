@@ -23,12 +23,13 @@ module EDInitMod
   use EDTypesMod                , only : init_spread_inventory
   use EDTypesMod                , only : leaves_on
   use EDTypesMod                , only : leaves_off
+  use EDTypesMod                , only : num_elements
+  use EDTypesMod                , only : element_list
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
   use FatesInterfaceMod         , only : numpft
   use FatesInterfaceMod         , only : nleafage
-  use ChecksBalancesMod         , only : SiteCarbonStock
   use FatesInterfaceMod         , only : nlevsclass
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
@@ -42,6 +43,7 @@ module EDInitMod
   use FatesInterfaceMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
@@ -85,6 +87,8 @@ contains
     !
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
+    integer :: el
+
     !
     allocate(site_in%term_nindivs_canopy(1:nlevsclass,1:numpft))
     allocate(site_in%term_nindivs_ustory(1:nlevsclass,1:numpft))
@@ -138,18 +142,15 @@ contains
     site_in%dleafoffdate     = 999  ! doy of leaf on drought
     site_in%water_memory(:)  = nan
 
-
-    ! SEED
-    site_in%seed_bank(:)     = 0._r8
-
     ! FIRE 
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
 
     do el=1,num_elements
        ! Zero the state variables used for checking mass conservation
-       call site_in%mass_balance(el)%ZeroMassCheckState()
-       call site_in%flux_diags(el)%ZeroFluxDiagnostics()
+       call site_in%mass_balance(el)%ZeroMassBalState()
+       call site_in%mass_balance(el)%ZeroMassBalFlux()
+       call site_in%flux_diags(el)%ZeroFluxDiags()
     end do
        
 
@@ -294,6 +295,7 @@ contains
      real(r8) :: cwd_bg_local(ncwd)
      real(r8) :: leaf_litter_local(maxpft)
      real(r8) :: root_litter_local(maxpft)
+     integer  :: el
      real(r8) :: age !notional age of this patch
 
      ! dummy locals
@@ -330,8 +332,8 @@ contains
 
            ! For carbon balance checks, we need to initialize the 
            ! total carbon stock
-            do il=1,num_elements
-              call SiteMassStock(sites(s),il,sites(s)%mass_balance%old_stock, &
+           do el=1,num_elements
+              call SiteMassStock(sites(s),el,sites(s)%mass_balance%old_stock, &
                    biomass_stock,litter_stock,seed_stock)
            end do
            
@@ -362,8 +364,8 @@ contains
            ! Initialize the litter pools to zero, these
            ! pools will be populated by looping over the existing patches
            ! and transfering in mass
-           do il=1,num_elements
-              call newp%litter(il)%InitConditions(init_leaf_fines=0._r8, &
+           do el=1,num_elements
+              call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                    init_root_fines=0._r8, &
                    init_ag_cwd=0._r8, &
                    init_bg_cwd=0._r8, &
@@ -375,8 +377,8 @@ contains
            
            ! For carbon balance checks, we need to initialize the 
            ! total carbon stock
-           do il=1,num_elements
-              call SiteMassStock(sites(s),il,sites(s)%mass_balance%old_stock, &
+           do el=1,num_elements
+              call SiteMassStock(sites(s),el,sites(s)%mass_balance%old_stock, &
                    biomass_stock,litter_stock,seed_stock)
            end do
         enddo
@@ -411,7 +413,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type),pointer :: temp_cohort
-
+    class(prt_vartypes),pointer  :: prt_obj
     integer  :: cstatus
     integer  :: pft
     integer  :: iage       ! index for leaf age loop
@@ -420,11 +422,11 @@ contains
     real(r8) :: c_agw      ! biomass above ground (non-leaf)     [kgC]
     real(r8) :: c_bgw      ! biomass below ground (non-fineroot) [kgC]
     real(r8) :: c_leaf     ! biomass in leaves [kgC]
-    real(r8) :: c_fineroot ! biomass in fine roots [kgC]
-    real(r8) :: c_sapwood  ! biomass in sapwood [kgC]
-    real(r8) :: c_dead     ! biomass in structure (dead) [kgC]
+    real(r8) :: c_fnrt     ! biomass in fine roots [kgC]
+    real(r8) :: c_sapw     ! biomass in sapwood [kgC]
+    real(r8) :: c_struct   ! biomass in structure (dead) [kgC]
     real(r8) :: c_store    ! biomass in storage [kgC]
-    real(r8) :: a_sapwood  ! area in sapwood (dummy) [m2]
+    real(r8) :: a_sapw     ! area in sapwood (dummy) [m2]
     real(r8) :: m_struct   ! Generic (any element) mass for structure [kg]
     real(r8) :: m_leaf     ! Generic mass for leaf  [kg]
     real(r8) :: m_fnrt     ! Generic mass for fine-root  [kg]
@@ -466,12 +468,12 @@ contains
 
        ! Calculate fine root biomass from allometry
        ! (calculates a maximum and then trimming value)
-       call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_fineroot)
+       call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_fnrt)
 
        ! Calculate sapwood biomass
-       call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapwood,c_sapwood)
+       call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapw,c_sapw)
        
-       call bdead_allom( c_agw, c_bgw, c_sapwood, pft, c_dead )
+       call bdead_allom( c_agw, c_bgw, c_sapw, pft, c_struct )
 
        call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
 
@@ -508,29 +510,29 @@ contains
           select case(element_id)
           case(carbon12_element)
              
-             m_struct = c_dead
+             m_struct = c_struct
              m_leaf   = c_leaf
              m_fnrt   = c_fnrt
-             m_sapw   = c_sapwood
+             m_sapw   = c_sapw
              m_store  = c_store
              m_repro  = 0._r8
              
           case(nitrogen_element)
              
-             m_struct = c_dead*prt_nitr_stoich_p1(ft,struct_organ)
-             m_leaf   = c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)
-             m_fnrt   = c_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ)
-             m_sapw   = c_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)
-             m_store  = c_store*prt_nitr_stoich_p1(ft,store_organ)
+             m_struct = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,struct_organ)
+             m_leaf   = c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,leaf_organ)
+             m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,fnrt_organ)
+             m_sapw   = c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,sapw_organ)
+             m_store  = c_store*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,store_organ)
              m_repro  = 0._r8
              
           case(phosphorus_element)
 
-             m_struct = c_dead*prt_phos_stoich_p1(ft,struct_organ)
-             m_leaf   = c_leaf*prt_phos_stoich_p1(ft,leaf_organ)
-             m_fnrt   = c_fineroot*prt_phos_stoich_p1(ft,fnrt_organ)
-             m_sapw   = c_sapwood*prt_phos_stoich_p1(ft,sapw_organ)
-             m_store  = c_store*prt_phos_stoich_p1(ft,store_organ)
+             m_struct = c_struct*EDPftvarcon_inst%prt_phos_stoich_p2(pft,struct_organ)
+             m_leaf   = c_leaf*EDPftvarcon_inst%prt_phos_stoich_p2(pft,leaf_organ)
+             m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p2(pft,fnrt_organ)
+             m_sapw   = c_sapw*EDPftvarcon_inst%prt_phos_stoich_p2(pft,sapw_organ)
+             m_store  = c_store*EDPftvarcon_inst%prt_phos_stoich_p2(pft,store_organ)
              m_repro  = 0._r8
           end select
 
@@ -553,7 +555,13 @@ contains
              write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end select
-          
+       
+          ! Add these magically appearing cohorts to the mass balance accounting
+          site_in%mass_balance(el)%flux_generic_in =  &
+               site_in%mass_balance(el)%flux_generic_in + &
+               temp_cohort%n * (m_fnrt + m_leaf + m_sapw + m_store + m_struct + m_repro)
+
+   
        end do
 
        call prt_obj%CheckInitialConditions()

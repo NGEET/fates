@@ -703,10 +703,6 @@ module EDTypesMod
      integer  ::  dleafoffdate                                 ! doy of leaf on drought:-
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
-     !SEED BANK
-     real(r8) :: seed_bank(maxpft)                              ! seed pool in KgC/m2
-     real(r8) :: dseed_dt(maxpft)                               ! change in seed pool in KgC/m2/year
-
 
      ! FIRE
      real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
@@ -805,6 +801,9 @@ module EDTypesMod
       this%frag_out          = 0._r8
       this%wood_product      = 0._r8
       this%burn_flux_to_atm  = 0._r8
+      
+      this%flux_generic_in   = 0._r8
+      this%flux_generic_out  = 0._r8
       
       return
   end subroutine ZeroMassBalFlux

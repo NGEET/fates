@@ -28,12 +28,13 @@ module EDMainMod
   use EDPatchDynamicsMod       , only : fuse_patches
   use EDPatchDynamicsMod       , only : spawn_patches
   use EDPatchDynamicsMod       , only : terminate_patches
-  use EDPhysiologyMod          , only : non_canopy_derivs
   use EDPhysiologyMod          , only : phenology
   use EDPhysiologyMod          , only : recruitment
   use EDPhysiologyMod          , only : trim_canopy
   use EDPhysiologyMod          , only : ZeroAllocationRates
   use EDPhysiologyMod          , only : ZeroLitterFluxes
+  use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
+  use EDPhysiologyMod          , only : PreDisturbanceIntegrateLitter
   use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use SFMainMod                , only : fire_model 
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
@@ -112,13 +113,21 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
+    integer :: el              ! Loop counter for elements
+
     !-----------------------------------------------------------------------
 
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
-    currentSite%flux_in = 0.0_r8
-
+    
+    ! Consider moving this towards the end, because some of these 
+    ! are being integrated over the short time-step
+    
+    do el = 1,num_elements
+       call currentSite%mass_balance(el)%ZeroMassBalFlux()
+       call currentSite%flux_diags(el)%ZeroFluxDiags()
+    end do
 
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
@@ -137,6 +146,7 @@ contains
     ! Zero fluxes in and out of litter pools
     call ZeroLitterFluxes(currentSite)
 
+    ! Zero mass balance 
 
    
     call TotalBalanceCheck(currentSite, 0)
@@ -262,6 +272,7 @@ contains
 
     !
     ! !LOCAL VARIABLES:
+    type(site_massbal_type), pointer :: site_cmass
     type(ed_patch_type)  , pointer :: currentPatch
     type(ed_cohort_type) , pointer :: currentCohort
 
@@ -275,14 +286,17 @@ contains
     
     !-----------------------------------------------------------------------
 
+    ! Set a pointer to this sites carbon12 mass balance
+    site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
+
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))
 
 
        ! Zero all fluxes into and out of the litter pools
-       do il = 1, size(currentPatch%litter,dim=1)
-          call currentPatch%litter(il)%zero_flux()
+       do el = 1, num_elements
+          call currentPatch%litter(el)%ZeroFlux()
        end if
 
        currentPatch%age = currentPatch%age + hlm_freq_day
@@ -341,16 +355,21 @@ contains
              currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
              currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
           endif
-          
-          currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
-          ! Conducte Maintenance Turnover (parteh)
+          
           call currentCohort%prt%CheckMassConservation(ft,3)
+          
+
+          ! Conduct Maintenance Turnover (PARTEH)
           call PRTMaintTurnover(currentCohort%prt,ft,currentSite%is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
 
-          ! Conduct Growth (parteh)
+          ! Growth and Allocation (PARTEH)
           call currentCohort%prt%DailyPRT()
+    
+          ! And simultaneously add the input fluxes to mass balance accounting
+          site_cmass%gpp_acc   = site_cmass%gpp_acc + ccohort%gpp_acc * ccohort%n
+          site_cmass%aresp_acc = site_cmass%aresp_acc + ccohort%resp_acc * ccohort%n
           call currentCohort%prt%CheckMassConservation(ft,5)
 
           ! Update the leaf biophysical rates based on proportion of leaf

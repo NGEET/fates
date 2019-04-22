@@ -474,7 +474,7 @@ contains
     currentCohort%c_area             = nan ! areal extent of canopy (m2)
     currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
     currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
-
+    currentCohort%seed_prod          = nan
     currentCohort%vcmax25top = nan 
     currentCohort%jmax25top  = nan 
     currentCohort%tpu25top   = nan 

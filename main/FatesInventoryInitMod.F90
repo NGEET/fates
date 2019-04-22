@@ -30,6 +30,7 @@ module FatesInventoryInitMod
    use FatesGlobals     , only : fates_log
    use FatesInterfaceMod, only : bc_in_type
    use FatesInterfaceMod, only : hlm_inventory_ctrl_file
+   use FatesInterfaceMod, only : nleafage
    use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
    use EDTypesMod       , only : ed_patch_type
@@ -39,10 +40,13 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : leaves_on
    use EDTypesMod       , only : leaves_off
    use EDTypesMod       , only : num_elements
+   use EDTypesMod       , only : element_list
    use EDPftvarcon      , only : EDPftvarcon_inst
    use FatesInterfaceMod,      only : hlm_parteh_mode
+   use EDCohortDynamicsMod,    only : InitPRTObject
    use PRTGenericMod,          only : prt_carbon_allom_hyp
    use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+   use PRTGenericMod,          only : prt_vartypes
    use PRTGenericMod,          only : leaf_organ
    use PRTGenericMod,          only : fnrt_organ
    use PRTGenericMod,          only : sapw_organ
@@ -673,7 +677,7 @@ contains
       character(len=patchname_strlen),intent(out) :: patch_name    ! unique string identifier of patch
 
       ! Locals
-      type(litter_type)                           :: litt
+      type(litter_type),pointer                   :: litt
       integer                                     :: el         ! index for elements
       real(r8)                                    :: p_time     ! Time patch was recorded
       real(r8)                                    :: p_trk      ! Land Use index (see above descriptions)
@@ -797,6 +801,7 @@ contains
       integer,intent(out)                         :: ios           ! Return flag
       
       ! Locals
+      class(prt_vartypes), pointer                :: prt_obj
       real(r8)                                    :: c_time        ! Time patch was recorded
       character(len=patchname_strlen)             :: p_name        ! The patch associated with this cohort
       character(len=cohortname_strlen)            :: c_name        ! cohort index
@@ -815,21 +820,24 @@ contains
       type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
       type(ed_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
       integer                                     :: ipa           ! patch idex
+      integer                                     :: iage
+      integer                                     :: el
+      integer                                     :: element_id
       logical                                     :: matched_patch ! check if cohort was matched w/ patch
-      real(r8) :: b_agw      ! biomass above ground non-leaf [kgC]
-      real(r8) :: b_bgw      ! biomass below ground non-leaf [kgC]
-      real(r8) :: b_leaf     ! biomass in leaves [kgC]
-      real(r8) :: b_fineroot ! biomass in fine roots [kgC]
-      real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
-      real(r8) :: b_dead
+      real(r8) :: b_agw    ! biomass above ground non-leaf [kgC]
+      real(r8) :: b_bgw    ! biomass below ground non-leaf [kgC]
+      real(r8) :: b_leaf   ! biomass in leaves [kgC]
+      real(r8) :: b_fnrt   ! biomass in fine roots [kgC]
+      real(r8) :: b_sapw   ! biomass in sapwood [kgC]
+      real(r8) :: b_struct
       real(r8) :: b_store 
-      real(r8) :: a_sapwood  ! area of sapwood at reference height [m2]
-      real(r8) :: m_struct   ! Generic (any element) mass for structure [kg]
-      real(r8) :: m_leaf     ! Generic mass for leaf  [kg]
-      real(r8) :: m_fnrt     ! Generic mass for fine-root  [kg]
-      real(r8) :: m_sapw     ! Generic mass for sapwood [kg]
-      real(r8) :: m_store    ! Generic mass for storage [kg]
-      real(r8) :: m_repro    ! Generic mass for reproductive tissues [kg]
+      real(r8) :: a_sapw   ! area of sapwood at reference height [m2]
+      real(r8) :: m_struct ! Generic (any element) mass for structure [kg]
+      real(r8) :: m_leaf   ! Generic mass for leaf  [kg]
+      real(r8) :: m_fnrt   ! Generic mass for fine-root  [kg]
+      real(r8) :: m_sapw   ! Generic mass for sapwood [kg]
+      real(r8) :: m_store  ! Generic mass for storage [kg]
+      real(r8) :: m_repro  ! Generic mass for reproductive tissues [kg]
 
       character(len=128),parameter    :: wr_fmt = &
            '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
@@ -928,12 +936,12 @@ contains
       call bleaf(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_leaf)
       
       ! Calculate fine root biomass
-      call bfineroot(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_fineroot)
+      call bfineroot(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_fnrt)
       
       ! Calculate sapwood biomass
-      call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim, a_sapwood, b_sapwood)
+      call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim, a_sapw, b_sapw)
       
-      call bdead_allom( b_agw, b_bgw, b_sapwood, c_pft, b_dead )
+      call bdead_allom( b_agw, b_bgw, b_sapw, c_pft, b_struct )
 
       call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim, b_store)
       
@@ -952,6 +960,9 @@ contains
          cstatus = leaves_off
       endif
 
+      prt_obj => null()
+      call InitPRTObject(prt_obj)
+
       do el = 1,num_elements
 
           element_id = element_list(el)
@@ -961,29 +972,29 @@ contains
           select case(element_id)
           case(carbon12_element)
              
-             m_struct = b_dead
+             m_struct = b_struct
              m_leaf   = b_leaf
              m_fnrt   = b_fnrt
-             m_sapw   = b_sapwood
+             m_sapw   = b_sapw
              m_store  = b_store
              m_repro  = 0._r8
              
           case(nitrogen_element)
              
-             m_struct = b_dead*prt_nitr_stoich_p1(ft,struct_organ)
-             m_leaf   = b_leaf*prt_nitr_stoich_p1(ft,leaf_organ)
-             m_fnrt   = b_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ)
-             m_sapw   = b_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)
-             m_store  = b_store*prt_nitr_stoich_p1(ft,store_organ)
+             m_struct = b_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,struct_organ)
+             m_leaf   = b_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,leaf_organ)
+             m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,fnrt_organ)
+             m_sapw   = b_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,sapw_organ)
+             m_store  = b_store*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,store_organ)
              m_repro  = 0._r8
              
           case(phosphorus_element)
 
-             m_struct = b_dead*prt_phos_stoich_p1(ft,struct_organ)
-             m_leaf   = b_leaf*prt_phos_stoich_p1(ft,leaf_organ)
-             m_fnrt   = b_fineroot*prt_phos_stoich_p1(ft,fnrt_organ)
-             m_sapw   = b_sapwood*prt_phos_stoich_p1(ft,sapw_organ)
-             m_store  = b_store*prt_phos_stoich_p1(ft,store_organ)
+             m_struct = b_struct*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,struct_organ)
+             m_leaf   = b_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,leaf_organ)
+             m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,fnrt_organ)
+             m_sapw   = b_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,sapw_organ)
+             m_store  = b_store*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,store_organ)
              m_repro  = 0._r8
           end select
 
@@ -991,9 +1002,8 @@ contains
           case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
              
              ! Put all of the leaf mass into the first bin
-             call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
-             do iage = 2,nleafage
-                call SetState(prt_obj,leaf_organ, element_id,0._r8,iage)
+             do iage = 1,nleafage
+                call SetState(prt_obj,leaf_organ, element_id,m_leaf/real(nleafage,r8),iage)
              end do
              
              call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
@@ -1009,9 +1019,10 @@ contains
           
        end do
 
+       call prt_obj%CheckInitialConditions()
 
-      ! Since spread is a canopy level calculation, we need to provide an initial guess here.
-      call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+       ! Since spread is a canopy level calculation, we need to provide an initial guess here.
+       call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             prt_obj, temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
             1, csite%spread, bc_in)
 

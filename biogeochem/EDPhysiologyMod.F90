@@ -97,10 +97,11 @@ module EDPhysiologyMod
   public :: phenology
   public :: recruitment
   public :: ZeroLitterFluxes
-  public :: flux_into_litter_pools
+  public :: FluxIntoLitterPools
   public :: ZeroAllocationRates
+  public :: PreDisturbanceLitterFluxes
+  public :: PreDisturbanceIntegrateLitter  
   
-
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -182,9 +183,9 @@ contains
      
 
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type), intent(inout)         :: currentPatch
-    type(bc_in_type), intent(in)               :: bc_in
+    type(ed_site_type), intent(inout)  :: currentSite
+    type(ed_patch_type), intent(inout) :: currentPatch
+    type(bc_in_type), intent(in)       :: bc_in
 
     !
     ! !LOCAL VARIABLES:
@@ -223,7 +224,7 @@ contains
        ! Only calculate fragmentation flux over layers that are active
        ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
 
-       nlev_eff_decomp = max(bc_in(s)%max_rooting_depth_index_col, 1)
+       nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
        call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
 
 
@@ -362,7 +363,6 @@ contains
     real(r8) :: kn               ! nitrogen decay coefficient
     real(r8) :: sla_max          ! Observational constraint on how large sla (m2/gC) can become
     real(r8) :: leaf_c           ! leaf carbon [kg]
-    real(r8) :: fnrt_c           ! fineroot carbon [kg]
     real(r8) :: sapw_c           ! sapwood carbon [kg]
     real(r8) :: store_c          ! storage carbon [kg]
     real(r8) :: struct_c         ! structure carbon [kg]
@@ -554,12 +554,6 @@ contains
     integer  :: mon                      ! month (1, ..., 12)
     integer  :: day                      ! day of month (1, ..., 31)
     integer  :: sec                      ! seconds of the day
-
-    real(r8) :: leaf_c                       ! leaf carbon [kg]
-    real(r8) :: fnrt_c               ! fineroot carbon [kg]
-    real(r8) :: sapw_c               ! sapwood carbon [kg]
-    real(r8) :: store_c              ! storage carbon [kg]
-    real(r8) :: struct_c             ! structure carbon [kg]
 
     real(r8) :: gdd_threshold
     integer  :: ncdstart     ! beginning of counting period for chilling degree days.
@@ -965,6 +959,8 @@ contains
     real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
     real(r8) :: mean_site_seed_rain    ! The mean site level seed rain for all PFTs
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
+    real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
+    real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
@@ -973,7 +969,9 @@ contains
     do el = 1, num_elements
        
        site_seed_rain(:) = 0._r8
-       
+
+       element_id = element_list(el)
+
        site_mass => currentSite%mass_balance(el)
 
        ! Loop over all patches and sum up the seed input for each PFT
@@ -981,7 +979,6 @@ contains
        do while (associated(currentPatch))
           
           litt => currentPatch%litter(el)
-          element_id = litt%element_id
 
           currentCohort => currentPatch%tallest
           do while (associated(currentCohort))
@@ -999,7 +996,7 @@ contains
                    1.0_r8, seed_prod)
              
              if(element_id==carbon12_element)then
-                 ccohort%seed_prod = seed_prod
+                 currentcohort%seed_prod = seed_prod
              end if
 
              site_seed_rain(pft) = site_seed_rain(pft) +  &
@@ -1176,18 +1173,29 @@ contains
     type (litter_type), pointer     :: litt          ! The litter object (carbon right now)
     type(site_massbal_type), pointer :: site_mass    ! For accounting total in-out mass fluxes
     integer :: cohortstatus
+    integer :: el          ! loop counter for element
+    integer :: element_id  ! element index consistent with definitions in PRTGenericMod
+    integer :: iage        ! age loop counter for leaf age bins
     integer,parameter :: recruitstatus = 1 !weather it the new created cohorts is recruited or initialized
-    real(r8) :: c_leaf
-    real(r8) :: c_fineroot    ! fine root biomass [kgC]
-    real(r8) :: c_sapwood     ! sapwood biomass [kgC]
-    real(r8) :: a_sapwood     ! sapwood cross section are [m2] (dummy)
-    real(r8) :: c_agw         ! Above ground biomass [kgC]
-    real(r8) :: c_bgw         ! Below ground biomass [kgC]
-    real(r8) :: c_dead
-    real(r8) :: c_store
-    real(r8) :: mass_avail    ! The mass of each nutrient/carbon available in the seed_germination pool [kg]
-    real(r8) :: mass_demand   ! Total mass demanded by the plant to achieve the stoichiometric targets
-                              ! of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
+    real(r8) :: c_leaf      ! target leaf biomass [kgC]
+    real(r8) :: c_fnrt      ! target fine root biomass [kgC]
+    real(r8) :: c_sapw      ! target sapwood biomass [kgC]
+    real(r8) :: a_sapw      ! target sapwood cross section are [m2] (dummy)
+    real(r8) :: c_agw       ! target Above ground biomass [kgC]
+    real(r8) :: c_bgw       ! target Below ground biomass [kgC]
+    real(r8) :: c_struct    ! target Structural biomass [kgc]
+    real(r8) :: c_store     ! target Storage biomass [kgC]
+    real(r8) :: m_leaf      ! leaf mass (element agnostic) [kg]
+    real(r8) :: m_fnrt      ! fine-root mass (element agnostic) [kg]
+    real(r8) :: m_sapw      ! sapwood mass (element agnostic) [kg]
+    real(r8) :: m_agw       ! AG wood mass (element agnostic) [kg]
+    real(r8) :: m_bgw       ! BG wood mass (element agnostic) [kg]
+    real(r8) :: m_struct    ! structural mass (element agnostic) [kg]
+    real(r8) :: m_store     ! storage mass (element agnostic) [kg]
+    real(r8) :: m_repro     ! reproductive mass (element agnostic) [kg]
+    real(r8) :: mass_avail  ! The mass of each nutrient/carbon available in the seed_germination pool [kg]
+    real(r8) :: mass_demand ! Total mass demanded by the plant to achieve the stoichiometric targets
+                            ! of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
                               
     !----------------------------------------------------------------------
 
@@ -1203,11 +1211,11 @@ contains
 
        ! Initialize live pools
        call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_leaf)
-       call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_fineroot)
-       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapwood, c_sapwood)
+       call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_fnrt)
+       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapw, c_sapw)
        call bagw_allom(temp_cohort%dbh,ft,c_agw)
        call bbgw_allom(temp_cohort%dbh,ft,c_bgw)
-       call bdead_allom(c_agw,c_bgw,c_sapwood,ft,c_dead)
+       call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
        call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_store)
 
        ! Default assumption is that leaves are on
@@ -1246,19 +1254,25 @@ contains
                element_id = element_list(el)
                select case(element_id)
                case(carbon12_element)
-                   mass_demand = (c_dead+c_leaf+c_fineroot+c_sapwood+c_store)
+               
+                  mass_demand = (c_struct+c_leaf+c_fnrt+c_sapw+c_store)
+               
                case(nitrogen_element)
-                   mass_demand = c_dead*prt_nitr_stoich_p1(ft,struct_organ)   + &
-                                 c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)     + &
-                                 c_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)  + & 
-                                 c_store*prt_nitr_stoich_p1(ft,store_organ)
+               
+                  mass_demand = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,struct_organ)   + &
+                                 c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)     + &
+                                 c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ) + & 
+                                 c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)  + & 
+                                 c_store*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,store_organ)
+               
                case(phosphorus_element)
-                   mass_demand = c_dead*prt_phos_stoich_p1(ft,struct_organ)   + &
-                                 c_leaf*prt_phos_stoich_p1(ft,leaf_organ)     + &
-                                 c_fineroot*prt_phos_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapwood*prt_phos_stoich_p1(ft,sapw_organ)  + & 
-                                 c_store*prt_phos_stoich_p1(ft,store_organ)
+               
+                  mass_demand = c_struct*EDPftvarcon_inst%prt_phos_stoich_p1(ft,struct_organ)   + &
+                                 c_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(ft,leaf_organ)     + &
+                                 c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(ft,fnrt_organ) + & 
+                                 c_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(ft,sapw_organ)  + & 
+                                 c_store*EDPftvarcon_inst%prt_phos_stoich_p1(ft,store_organ)
+               
                case default
                    write(fates_log(),*) 'Undefined element type in recruitment'
                    call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1302,68 +1316,34 @@ contains
 
               element_id = element_list(el)
               
-              if ( (hlm_use_ed_prescribed_phys .eq. ifalse) .or. &
-                    (EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0._r8) ) then
-                  mass_avail = currentPatch%area * currentPatch%litter(el)%seed_germ(ft)
-              else
-                  ! If this is a prescribed case, make the available mass obsurdly large
-                  mass_avail = 1.e10_r8
-              end if
-
-              element_id = element_list(el)
-
               ! If this is carbon12, then the initialization is straight forward
               ! otherwise, we use stoichiometric ratios
               select case(element_id)
               case(carbon12_element)
 
-                 m_struct = c_dead
+                 m_struct = c_struct
                  m_leaf   = c_leaf
                  m_fnrt   = c_fnrt
-                 m_sapw   = c_sapwood
+                 m_sapw   = c_sapw
                  m_store  = c_store
                  m_repro  = 0._r8
 
               case(nitrogen_element)
-                 
-                 mass_demand = c_dead*prt_nitr_stoich_p1(ft,struct_organ)   + &
-                               c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)     + &
-                               c_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ) + & 
-                               c_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)  + & 
-                               c_store*prt_nitr_stoich_p1(ft,store_organ)
 
-                 ! Use up as much of the nutrient in the seed germination pool
-                 ! but don't go higher than the ideal value (roughly, this
-                 ! won't enforce a perfect cap)
-                 
-                 scaler = min(mass_avail/(mass_demand*temp_cohort%n),1.0_r8)
-
-                 m_struct = scaler*c_dead*prt_nitr_stoich_p1(ft,struct_organ)
-                 m_leaf   = scaler*c_leaf*prt_nitr_stoich_p1(ft,leaf_organ)
-                 m_fnrt   = scaler*c_fineroot*prt_nitr_stoich_p1(ft,fnrt_organ)
-                 m_sapw   = scaler*c_sapwood*prt_nitr_stoich_p1(ft,sapw_organ)
-                 m_store  = scaler*c_store*prt_nitr_stoich_p1(ft,store_organ)
+                 m_struct = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,struct_organ)
+                 m_leaf   = c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)
+                 m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ)
+                 m_sapw   = c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
+                 m_store  = c_store*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,store_organ)
                  m_repro  = 0._r8
 
               case(phosphorus_element)
 
-                 mass_demand = c_dead*prt_phos_stoich_p1(ft,struct_organ)   + &
-                               c_leaf*prt_phos_stoich_p1(ft,leaf_organ)     + &
-                               c_fineroot*prt_phos_stoich_p1(ft,fnrt_organ) + & 
-                               c_sapwood*prt_phos_stoich_p1(ft,sapw_organ)  + & 
-                               c_store*prt_phos_stoich_p1(ft,store_organ)
-                 
-                 ! Use up as much of the nutrient in the seed germination pool
-                 ! but don't go higher than the ideal value (roughly, this
-                 ! won't enforce a perfect cap)
-                 
-                 scaler = min(mass_avail/(mass_demand*temp_cohort%n),1.0_r8)
-
-                 m_struct = scaler*c_dead*prt_phos_stoich_p1(ft,struct_organ)
-                 m_leaf   = scaler*c_leaf*prt_phos_stoich_p1(ft,leaf_organ)
-                 m_fnrt   = scaler*c_fineroot*prt_phos_stoich_p1(ft,fnrt_organ)
-                 m_sapw   = scaler*c_sapwood*prt_phos_stoich_p1(ft,sapw_organ)
-                 m_store  = scaler*c_store*prt_phos_stoich_p1(ft,store_organ)
+                 m_struct = c_struct*EDPftvarcon_inst%prt_phos_stoich_p1(ft,struct_organ)
+                 m_leaf   = c_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(ft,leaf_organ)
+                 m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(ft,fnrt_organ)
+                 m_sapw   = c_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(ft,sapw_organ)
+                 m_store  = c_store*EDPftvarcon_inst%prt_phos_stoich_p1(ft,store_organ)
                  m_repro  = 0._r8
 
               end select
@@ -1381,7 +1361,7 @@ contains
                  call SetState(prt,sapw_organ, element_id, m_sapw)
                  call SetState(prt,store_organ, element_id, m_store)
                  call SetState(prt,struct_organ, element_id, m_struct)
-                 call SetState(prt,repro_organ, elemeent_id, m_repro)
+                 call SetState(prt,repro_organ, element_id, m_repro)
                  
               case default
                  write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
@@ -1411,8 +1391,9 @@ contains
               else
 
                   currentPatch%litter(el)%seed_germ(ft) = currentPatch%litter(el)%seed_germ(ft) - & 
-                        temp_cohort%n*(m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)/currentPatch
-              
+                        temp_cohort%n / currentPatch%area * & 
+                        (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
+                  
               end if
               
 
@@ -1494,6 +1475,7 @@ contains
     real(r8) :: sapw_m_turnover
     real(r8) :: struct_m_turnover
     real(r8) :: store_m_turnover
+    real(r8) :: plant_dens        ! Number of plants per m2
     real(r8) :: bg_cwd_tot        ! Total below-ground coarse woody debris
                                   ! input flux
     real(r8) :: root_fines_tot    ! Total below-ground fine root coarse
@@ -1501,6 +1483,7 @@ contains
     integer  :: element_id        ! element id consistent with parteh/PRTGenericMod.F90
 
     real(r8) :: trunk_product   ! carbon flux into trunk products kgC/day/site
+    integer  :: ilyr
     integer  :: pft
     integer  :: numlevsoil              ! Actual number of soil layers
     real(r8) :: rootfr(numlevsoil_max)  ! Fractional root mass profile
@@ -1557,7 +1540,7 @@ contains
             plant_dens
       
       do ilyr = 1, numlevsoil
-         litt%root_fines_in(ipft,ilyr) = litt%root_fines_in(ipft,ilyr) + &
+         litt%root_fines_in(pft,ilyr) = litt%root_fines_in(pft,ilyr) + &
               currentCohort%root_fr(ilyr) * root_fines_tot
       end do
       
@@ -1705,7 +1688,7 @@ contains
 
          currentSite%resources_management%delta_biomass_stock = &
               currentSite%resources_management%delta_biomass_stock + &
-              (leaf_c + fnrt_c + store_c ) * & 
+              (leaf_m + fnrt_m + store_m ) * & 
               (dead_n_ilogging+dead_n_dlogging) *currentPatch%area
 
          currentSite%resources_management%trunk_product_site = &
@@ -1936,18 +1919,18 @@ contains
     implicit none   
 
     ! !ARGUMENTS    
-    integer                 , intent(in)            :: nsites
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_in_type)        , intent(in)            :: bc_in(:)
-    type(bc_out_type)       , intent(inout)         :: bc_out(:)
+    integer            , intent(in)            :: nsites
+    type(ed_site_type) , intent(inout)         :: sites(nsites)
+    type(bc_in_type)   , intent(in)            :: bc_in(:)
+    type(bc_out_type)  , intent(inout), target :: bc_out(:)
 
     ! !LOCAL VARIABLES:
     type (ed_patch_type),  pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
-    real(r8),dimension(:), pointer :: flux_cel_si
-    real(r8),dimension(:), pointer :: flux_lab_si
-    real(r8),dimension(:), pointer :: flux_lig_si
-    type(litter_type),     pointer :: litt
+    real(r8), pointer              :: flux_cel_si(:)
+    real(r8), pointer              :: flux_lab_si(:)
+    real(r8), pointer              :: flux_lig_si(:)
+    type(litter_type), pointer     :: litt
      
     real(r8) :: surface_prof(1:hlm_numlevgrnd) ! this array is used to distribute
                                                ! fragmented litter on the surface
@@ -2012,23 +1995,23 @@ contains
              bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
              bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
              bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
-             flux_cel_si => bc_out(s)%litt_flux_cel_c_si
-             flux_lab_si => bc_out(s)%litt_flux_lab_c_si
-             flux_lig_si => bc_out(s)%litt_flux_lig_c_si
+             flux_cel_si => bc_out(s)%litt_flux_cel_c_si(:)
+             flux_lab_si => bc_out(s)%litt_flux_lab_c_si(:)
+             flux_lig_si => bc_out(s)%litt_flux_lig_c_si(:)
           case (nitrogen_element) 
              bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
              bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
              bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
-             flux_cel_si => bc_out(s)%litt_flux_cel_n_si
-             flux_lab_si => bc_out(s)%litt_flux_lab_n_si
-             flux_lig_si => bc_out(s)%litt_flux_lig_n_si
+             flux_cel_si => bc_out(s)%litt_flux_cel_n_si(:)
+             flux_lab_si => bc_out(s)%litt_flux_lab_n_si(:)
+             flux_lig_si => bc_out(s)%litt_flux_lig_n_si(:)
           case (phosphorus_element)
              bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
              bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
              bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
-             flux_cel_si => bc_out(s)%litt_flux_cel_p_si
-             flux_lab_si => bc_out(s)%litt_flux_lab_p_si
-             flux_lig_si => bc_out(s)%litt_flux_lig_p_si
+             flux_cel_si => bc_out(s)%litt_flux_cel_p_si(:)
+             flux_lab_si => bc_out(s)%litt_flux_lab_p_si(:)
+             flux_lig_si => bc_out(s)%litt_flux_lig_p_si(:)
           end select
           
           currentPatch => sites(s)%oldest_patch

@@ -28,7 +28,7 @@ module FatesRestartInterfaceMod
   use FatesPlantHydraulicsMod,  only : InitHydrCohort
   use FatesInterfaceMod, only : nlevsclass
   use PRTGenericMod, only : prt_global
-
+  use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -168,7 +168,12 @@ module FatesRestartInterfaceMod
   integer, private :: ir_fmortcflux_cano_si
   integer, private :: ir_fmortcflux_usto_si
 
-
+  integer, private :: ir_cwdagin_flxdg
+  integer, private :: ir_cwdbgin_flxdg
+  integer, private :: ir_leaflittin_flxdg
+  integer, private :: ir_rootlittin_flxdg
+  integer, private :: ir_oldstock_mbal
+  integer, private :: ir_errfates_mbal
 
   integer, private :: ir_prt_base     ! Base index for all PRT variables
 
@@ -809,16 +814,6 @@ contains
     ! Mixed dimension variables using the cohort vector
     ! -----------------------------------------------------------------------------------
 
-    call this%set_restart_var(vname='fates_cwd_ag', vtype=cohort_r8, &
-         long_name='coarse woody debris above ground (non-respiring), by patch x cw class', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwd_ag_pacw )
-
-    call this%set_restart_var(vname='fates_cwd_bg', vtype=cohort_r8, &
-         long_name='coarse woody debris below ground (non-respiring), by patch x cw class', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwd_bg_pacw )
-
     call this%set_restart_var(vname='fates_gnd_alb_dif', vtype=cohort_r8, &
          long_name='ground albedo of diffuse radiation vis and ir', &
          units='fraction', flushval = flushzero, &
@@ -828,31 +823,6 @@ contains
          long_name='ground albedo of direct radiation vis and ir', &
          units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gnd_alb_dir_pasb )
-
-!    call this%set_restart_var(vname='fates_leaf_litter', vtype=cohort_r8, &
-!         long_name='leaf litter, by patch x pft (non-respiring)', &
-!         units='kgC/m2', flushval = flushzero, &
-!         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litter_paft )
-
-    call this%set_restart_var(vname='fates_root_litter', vtype=cohort_r8, &
-         long_name='root litter, by patch x pft (non-respiring)', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_litter_paft )
-
-    call this%set_restart_var(vname='fates_leaf_litter_in', vtype=cohort_r8, &
-         long_name='leaf litter flux from turnover and mort, by patch x pft', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litter_in_paft )
-
-    call this%set_restart_var(vname='fates_root_litter_in', vtype=cohort_r8, &
-         long_name='root litter flux from turnover and mort, by patch x pft', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_litter_in_paft )
-
-    call this%set_restart_var(vname='fates_seed_bank', vtype=cohort_r8, &
-         long_name='seed pool for each functional type, by site x pft', &
-         units='kgC/m2/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_bank_sift )
 
     call this%set_restart_var(vname='fates_spread', vtype=site_r8, &
          long_name='dynamic ratio of dbh to canopy area, by patch x canopy-layer', &
@@ -871,6 +841,10 @@ contains
     call this%set_restart_var(vname='fates_area', vtype=cohort_r8, &
          long_name='are of the ED patch', units='m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
+
+
+    ! Site Level Diagnostics over multiple nutrients
+
 
     ! Patch Level Litter Pools are potentially multi-element
 
@@ -899,6 +873,41 @@ contains
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_litt)
 
+    ! Site level flux diagnostics for each element
+
+    call this%RegisterCohortVector(symbol_base='fates_cwdagin', vtype=cohort_r8, &
+            long_name_base='Input flux of AG CWD', &
+            units='kg/ha', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwdagin_flxdg)
+
+    call this%RegisterCohortVector(symbol_base='fates_cwdbgin', vtype=cohort_r8, &
+            long_name_base='Input flux of BG CWD', &
+            units='kg/ha', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwdbgin_flxdg)
+
+    call this%RegisterCohortVector(symbol_base='fates_leaflittin', vtype=cohort_r8, &
+            long_name_base='Input flux of leaf litter', &
+            units='kg/ha', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaflittin_flxdg)
+
+    call this%RegisterCohortVector(symbol_base='fates_rootlittin', vtype=cohort_r8, &
+           long_name_base='Input flux of root litter', &
+           units='kg/ha', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_rootlittin_flxdg)
+
+    ! Site level Mass Balance State Accounting
+
+    call this%RegisterCohortVector(symbol_base='fates_oldstock', vtype=site_r8, &
+         long_name_base='Previous total mass of all fates state variables', &
+         units='kg/ha', veclength=num_elements, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_oldstock_mbal)
+    
+    call this%RegisterCohortVector(symbol_base='fates_errfates', vtype=site_r8, &
+         long_name_base='Previous total mass of error fates state variables', &
+         units='kg/ha', veclength=num_elements, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
+    
+    
 
     ! Only register hydraulics restart variables if it is turned on!
     
@@ -1415,7 +1424,8 @@ contains
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
 
     ! Locals
-    integer  :: s        ! The local site index
+    integer  :: s                         ! The local site index
+    type(litter_type), pointer :: litt    ! pointer to patch's litter object
 
     ! ----------------------------------------------------------------------------------
     ! The following group of integers indicate the positional index (idx)
@@ -1437,6 +1447,8 @@ contains
     integer  :: io_idx_si_lyr_shell ! site - layer x shell index
     integer  :: io_idx_si_scpf ! each size-class x pft index within site
     integer  :: io_idx_si_sc   ! each size-class index within site
+    integer  :: io_idx_si_cwd  ! each site-cwd index
+    integer  :: io_idx_si_pft  ! each site-pft index
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1451,6 +1463,7 @@ contains
     integer  :: i_var            ! loop counter for PRT variables
     integer  :: i_pos            ! loop counter for discrete PRT positions
     integer  :: i_scls           ! loop counter for size-class
+    integer  :: i_cwd            ! loop counter for cwd
     integer  :: i_pft            ! loop counter for pft
 
     type(fates_restart_variable_type) :: rvar
@@ -1575,11 +1588,33 @@ contains
           io_idx_si_sc   = io_idx_co_1st
 
           
-          ! write seed_bank info(site-level, but PFT-resolved)
+          ! recruitment rate
           do i_pft = 1,numpft
-             rio_seed_bank_sift(io_idx_co_1st+i_pft-1) = sites(s)%seed_bank(i_pft)
              rio_recrate_sift(io_idx_co_1st+i_pft-1)   = sites(s)%recruitment_rate(i_pft)
           end do
+
+          do el = 1, num_elements
+
+             io_idx_si_cwd = io_idx_co_1st
+             io_idx_si_pft = io_idx_co_1st
+
+             do i_cwd=1,ncwd
+                this%rvars(ir_cwdagin_flxdg+el)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_ag_input(i_cwd)
+                this%rvars(ir_cwdbgin_flxdg+el)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_bg_input(i_cwd)
+                io_idx_si_cwd = io_idx_si_cwd + 1
+             end do
+             
+             do i_pft=1,numpft
+                this%rvars(ir_leaflittin_flxdg+el)%r81d(io_idx_si_pft) = sites(s)%mass_balance(el)%leaf_litter_input(i_pft)
+                this%rvars(ir_rootlittin_flxdg+el)%r81d(io_idx_si_pft) = sites(s)%mass_balance(el)%root_litter_input(i_pft)
+                io_idx_si_pft = io_idx_si_pft + 1
+             end do
+
+             this%rvars(ir_oldstock_mbal+el)%r81d(io_idx_si) = sites(s)%err_fates(el)%old_stock
+             this%rvars(ir_errfates_mbal+el)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
+
+          end do
+
 
           ! canopy spread term
           rio_spread_si(io_idx_si)   = sites(s)%spread
@@ -1838,6 +1873,8 @@ contains
 
 
 
+
+
           rio_old_stock_si(io_idx_si)    = sites(s)%old_stock
 
           if(sites(s)%is_cold) then
@@ -2030,9 +2067,19 @@ contains
              allocate(newp)    
              
              ! make new patch
-             call create_patch(sites(s), newp, patch_age, area, &
-                  cwd_ag_local, cwd_bg_local,  &
-                  leaf_litter_local, root_litter_local,bc_in(s)%nlevsoil ) 
+             call create_patch(sites(s), newp, patch_age, area, bc_in(s)%nlevsoil )
+
+             ! Initialize the litter pools to zero, these
+             ! pools will be populated by looping over the existing patches
+             ! and transfering in mass
+             do el=1,num_elements
+                call new_patch%litter(el)%InitConditions(init_leaf_fines=nan, &
+                     init_root_fines=nan, &
+                     init_ag_cwd=nan, &
+                     init_bg_cwd=nan, &
+                     init_seed=nan)
+             end do
+             
              
              ! give this patch a unique patch number
              newp%patchno = idx_pa
@@ -2157,7 +2204,7 @@ contains
      ! LL pointers
      type(ed_patch_type),pointer  :: cpatch      ! current patch
      type(ed_cohort_type),pointer :: ccohort     ! current cohort
-
+     type(litter_type), pointer   :: litt        ! litter object on the current patch
      ! loop indices
      integer :: s, i, j, k
 
@@ -2181,6 +2228,8 @@ contains
      integer  :: io_idx_si_lyr_shell ! site - layer x shell index
      integer  :: io_idx_si_scpf ! each size-class x pft index within site
      integer  :: io_idx_si_sc   ! each size-class index within site
+     integer  :: io_idx_si_cwd
+     integer  :: io_idx_si_pft
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2298,9 +2347,34 @@ contains
 
           ! read seed_bank info(site-level, but PFT-resolved)
           do i_pft = 1,numpft 
-             sites(s)%seed_bank(i_pft) = rio_seed_bank_sift(io_idx_co_1st+i_pft-1)
              sites(s)%recruitment_rate(i_pft) = rio_recrate_sift(io_idx_co_1st+i_pft-1)
           enddo
+
+
+          ! Mass balance and diagnostics across elements at the site level
+          do el = 1, num_elements
+
+             io_idx_si_cwd = io_idx_co_1st
+             io_idx_si_pft = io_idx_co_1st
+
+             do i_cwd=1,ncwd
+                sites(s)%flux_diags(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el)%r81d(io_idx_si_cwd)
+                sites(s)%flux_diags(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el)%r81d(io_idx_si_cwd)
+                io_idx_si_cwd = io_idx_si_cwd + 1
+             end do
+             
+             do i_pft=1,numpft
+                sites(s)%mass_balance(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el)%r81d(io_idx_si_pft)
+                sites(s)%mass_balance(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el)%r81d(io_idx_si_pft)
+                io_idx_si_pft = io_idx_si_pft + 1
+             end do
+
+             sites(s)%err_fates(el)%old_stock    = this%rvars(ir_oldstock_mbal+el)%r81d(io_idx_si)
+             sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el)%r81d(io_idx_si)
+
+          end do
+
+
 
           sites(s)%spread = rio_spread_si(io_idx_si) 
           

@@ -26,6 +26,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : ican_upper
   use EDTypesMod           , only : num_elements
   use EDTypesMod           , only : element_list
+  use EDTypesMod           , only : dl_sf
   use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
@@ -33,7 +34,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : numpft
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
-  use FatesConstantsMod    , only : itrue
+  use FatesConstantsMod    , only : itrue, ifalse
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
@@ -436,7 +437,7 @@ contains
              ! This call will only transfer non-burned litter to new patch
              ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
              ! fire is not the dominant disturbance regime.
-             call TransLitterNewPatch( currentPatch, new_patch, patch_site_areadis)
+             call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
 
 
           !INSERT SURVIVORS FROM DISTURBANCE INTO NEW PATCH 
@@ -1132,6 +1133,7 @@ contains
     real(r8) :: repro_m              ! Reproductive mass (seeds/flowers) [kg]
     real(r8) :: num_dead_trees       ! total number of dead trees passed in with the burn area
     real(r8) :: num_live_trees       ! total number of live trees passed in with the burn area
+    integer  :: el                   ! element loop index
     integer  :: lyr                  ! soil layer index
     integer  :: c                    ! loop index for coarse woody debris pools
     integer  :: pft                  ! loop index for plant functional types
