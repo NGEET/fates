@@ -17,6 +17,12 @@ module EDTypesMod
   private
   save
 
+  public :: val_check_ed_vars
+  public :: dump_site
+  public :: dump_patch
+  public :: dump_cohort
+  public :: dump_cohort_hydr
+
   integer, parameter, public :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
   integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
                                                      (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
@@ -169,7 +175,7 @@ module EDTypesMod
   !************************************
   !** COHORT type structure          **
   !************************************
-  type ed_cohort_type
+  type, public :: ed_cohort_type
 
      ! POINTERS
      type (ed_cohort_type) , pointer :: taller   => null()       ! pointer to next tallest cohort     
@@ -336,7 +342,7 @@ module EDTypesMod
   !** Patch type structure           **
   !************************************
 
-  type ed_patch_type
+  type, public :: ed_patch_type
 
      ! POINTERS
      type (ed_cohort_type), pointer :: tallest => null()           ! pointer to patch's tallest cohort    
@@ -542,7 +548,7 @@ module EDTypesMod
   !** Resources management type      **
   ! YX
   !************************************
-  type ed_resources_management_type
+  type, public :: ed_resources_management_type
     
      real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
 
@@ -559,7 +565,7 @@ module EDTypesMod
   !** Site type structure           **
   !************************************
 
-  type ed_site_type
+  type, public :: ed_site_type
      
      ! POINTERS  
      type (ed_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
