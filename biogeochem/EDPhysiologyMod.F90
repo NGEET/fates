@@ -42,6 +42,7 @@ module EDPhysiologyMod
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
+  use EDParamsMod           , only : logging_export_frac
 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   
@@ -1225,9 +1226,29 @@ contains
              ! Send AGB component of boles from non direct-logging activities to AGB litter pool
              if (c==ncwd) then
                 
+                ! CWD contributed by indirect damage
                 currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (struct_c + sapw_c) * & 
-                     SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
+                     SF_val_CWD_frac(c) * (dead_n_natural+ dead_n_ilogging) * &
                      EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+
+                ! CWD contributed by logged boles due to losses in transportation
+                currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + &
+                      (1.0_r8 - logging_export_frac) * (struct_c + sapw_c) * SF_val_CWD_frac(c) * &
+                      dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+
+                ! Send AGB component of boles from direct-logging activities to
+                ! export/harvest pool
+                ! Generate trunk product (kgC/day/site)
+                trunk_product =  logging_export_frac * (struct_c + sapw_c) * &
+                      SF_val_CWD_frac(c) * dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                      hlm_freq_day * currentPatch%area
+
+                currentSite%flux_out = currentSite%flux_out + trunk_product
+
+                ! Update diagnostics that track resource management
+                currentSite%resources_management%trunk_product_site  = &
+                      currentSite%resources_management%trunk_product_site + &
+                      trunk_product
                 
              else
 
@@ -1235,22 +1256,6 @@ contains
                      SF_val_CWD_frac(c) * dead_n  * &
                      EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
 
-                ! Send AGB component of boles from direct-logging activities to export/harvest pool
-                ! Generate trunk product (kgC/day/site)
-                trunk_product =  (struct_c + sapw_c) * &
-                      SF_val_CWD_frac(c) * dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                      hlm_freq_day * currentPatch%area
-                
-                currentSite%flux_out = currentSite%flux_out + trunk_product
-
-                ! Update diagnostics that track resource management
-                currentSite%resources_management%trunk_product_site  = &
-                      currentSite%resources_management%trunk_product_site + &
-                      trunk_product
-                ! Update diagnostics that track resource management
-                currentSite%resources_management%trunk_product_site  = &
-                      currentSite%resources_management%trunk_product_site + &
-                      trunk_product
              end if
 
              ! Update diagnostics that track resource management
@@ -1259,6 +1264,7 @@ contains
                    (struct_c + sapw_c) * &
                    SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * & 
                    hlm_freq_day * currentPatch%area
+
              ! Update diagnostics that track resource management
              currentSite%resources_management%delta_biomass_stock = &
                    currentSite%resources_management%delta_biomass_stock + &
@@ -1391,9 +1397,9 @@ contains
     
     do c = 1,ncwd  
        currentPatch%cwd_ag_out(c)      = max(0.0_r8,   currentPatch%cwd_ag(c) * &
-            SF_val_max_decomp(c) * currentPatch%fragmentation_scaler )  
+            SF_val_max_decomp(c+1) * currentPatch%fragmentation_scaler )  
        currentPatch%cwd_bg_out(c)      = max(0.0_r8,   currentPatch%cwd_bg(c) * &
-            SF_val_max_decomp(c) * currentPatch%fragmentation_scaler )
+            SF_val_max_decomp(c+1) * currentPatch%fragmentation_scaler )
     enddo
 
     ! this is the rate at which dropped leaves stop being part of the burnable pool and begin to be part of the 
