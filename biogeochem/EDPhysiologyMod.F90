@@ -23,6 +23,7 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
+  use EDCohortDynamicsMod , only : InitPRTObject
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : decay_coeff_kn
@@ -101,6 +102,7 @@ module EDPhysiologyMod
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
   public :: PreDisturbanceIntegrateLitter  
+  public :: SeedIn
   
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &

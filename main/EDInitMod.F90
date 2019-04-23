@@ -13,7 +13,9 @@ module EDInitMod
   use FatesInterfaceMod         , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod       , only : InitPRTObject
   use EDPatchDynamicsMod        , only : create_patch
+  use ChecksBalancesMod         , only : SiteMassStock
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod                , only : ncwd
   use EDTypesMod                , only : nuMWaterMem
@@ -53,6 +55,7 @@ module EDInitMod
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : nitrogen_element
   use PRTGenericMod,          only : phosphorus_element
+  use PRTGenericMod,          only : SetState
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -327,17 +330,15 @@ contains
         call initialize_sites_by_inventory(nsites,sites,bc_in)
 
         
-
+        ! For carbon balance checks, we need to initialize the 
+        ! total carbon stock
         do s = 1, nsites
-
-           ! For carbon balance checks, we need to initialize the 
-           ! total carbon stock
-           do el=1,num_elements
-              call SiteMassStock(sites(s),el,sites(s)%mass_balance%old_stock, &
-                   biomass_stock,litter_stock,seed_stock)
-           end do
-           
+            do el=1,num_elements
+                call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
+                      biomass_stock,litter_stock,seed_stock)
+            end do
         enddo
+
      else
 
         !FIX(SPM,032414) clean this up...inits out of this loop
@@ -378,7 +379,7 @@ contains
            ! For carbon balance checks, we need to initialize the 
            ! total carbon stock
            do el=1,num_elements
-              call SiteMassStock(sites(s),el,sites(s)%mass_balance%old_stock, &
+              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                    biomass_stock,litter_stock,seed_stock)
            end do
         enddo

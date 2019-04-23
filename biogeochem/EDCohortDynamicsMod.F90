@@ -56,6 +56,7 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : StructureResetOfDH
   use FatesAllometryMod  , only : tree_lai, tree_sai
   use FatesAllometryMod  , only : i_biomass_rootprof_context 
+  use FatesAllometryMOd  , only : set_root_fraction
 
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp

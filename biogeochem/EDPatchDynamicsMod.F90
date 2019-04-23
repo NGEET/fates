@@ -8,6 +8,7 @@ module EDPatchDynamicsMod
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDCohortDynamicsMod  , only : SendCohortToLitter
+  use EDCohortDynamicsMod  , only : DeallocateCohort
   use EDTypesMod           , only : area_site => area
   use FatesLitterMod       , only : ncwd
   use FatesLitterMod       , only : litter_type

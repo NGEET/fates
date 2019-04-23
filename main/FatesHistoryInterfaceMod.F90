@@ -12,6 +12,7 @@ module FatesHistoryInterfaceMod
   use EDTypesMod               , only : ican_upper
   use EDTypesMod               , only : element_pos
   use EDTypesMod               , only : num_elements
+  use EDTypesMod               , only : site_fluxdiags_type
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -40,6 +41,7 @@ module FatesHistoryInterfaceMod
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
   use PRTGenericMod            , only : all_carbon_elements
+  use PRTGenericMod            , only : carbon12_element
 
 
   implicit none
@@ -1255,7 +1257,9 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     use FatesIOVariableKindMod, only : site_height_r8
-    
+    use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
+    use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
+
     implicit none
     
     ! Arguments
@@ -1446,7 +1450,11 @@ end subroutine flush_hvars
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     
     ! Locals
-    type(litter_type),pointer :: litt_c   ! Pointer to the carbon12 litter pool
+    type(litter_type), pointer         :: litt_c   ! Pointer to the carbon12 litter pool
+    type(litter_type), pointer         :: litt     ! Generic pointer to any litter pool
+    type(site_fluxdiags_type), pointer :: flux_diags
+    type(site_fluxdiags_type), pointer :: flux_diags_c
+
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
     integer  :: ipa, ipa2 ! The local "I"ndex of "PA"tches 
@@ -1464,6 +1472,8 @@ end subroutine flush_hvars
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
+    integer  :: c            ! loop index for CWD
+    integer  :: el           ! Loop index for elements
     
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -1493,6 +1503,7 @@ end subroutine flush_hvars
     real(r8) :: fnrt_c_net_alloc
     real(r8) :: struct_c_net_alloc
     real(r8) :: repro_c_net_alloc
+    real(r8) :: area_frac
 
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -2245,22 +2256,22 @@ end subroutine flush_hvars
             ! Update Litter Flux Variables
 
             litt_c       => cpatch%litter(element_pos(carbon12_element))
-            flux_diags_c => currentSite%flux_diags(element_pos(carbon12_element))
+            flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
 
              
             do i_cwd = 1, ncwd
-               hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_AG(i_cwd)*cpatch%area * AREA_INV * g_per_kg
-               hio_cwd_bg_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_BG(i_cwd)*cpatch%area * AREA_INV * g_per_kg
-               hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_AG_IN(i_cwd)*cpatch%area * AREA_INV * g_per_kg
-               hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_BG_IN(i_cwd)*cpatch%area * AREA_INV * g_per_kg
-               hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_AG_OUT(i_cwd)*cpatch%area * AREA_INV * g_per_kg
-               hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_BG_OUT(i_cwd)*cpatch%area * AREA_INV * g_per_kg
+
+                hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
+                      litt_c%ag_cwd(i_cwd)*cpatch%area * AREA_INV * g_per_kg
+                hio_cwd_bg_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_si_cwdsc(io_si, i_cwd) + &
+                      sum(litt_c%bg_cwd(i_cwd,:)) * cpatch%area * AREA_INV * g_per_kg
+                
+                hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) + &
+                      litt_c%ag_cwd_frag(i_cwd)*cpatch%area * AREA_INV * g_per_kg
+                
+                hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) + &
+                      sum(litt_c%bg_cwd_frag(i_cwd,:)) * cpatch%area * AREA_INV * g_per_kg
+
             end do
 
             ipa = ipa + 1
@@ -2410,13 +2421,13 @@ end subroutine flush_hvars
             end do
          end do
          
-
+         ! ------------------------------------------------------------------------------
          ! Diagnostics discretized by element type
          ! ------------------------------------------------------------------------------
 
          do el = 1, num_elements
             
-            flux_diags => currentSite%flux_diags(el)
+            flux_diags => sites(s)%flux_diags(el)
             
             ! Sum up all input litter fluxes (above below, fines, cwd)
             hio_litter_in_elem(io_si, el) = hio_litter_in_elem(io_si, el) + &
@@ -2436,9 +2447,9 @@ end subroutine flush_hvars
                ! Sum up all output fluxes (fragmentation)
                hio_litter_out_elem(io_si,el) = hio_litter_out_elem(io_si,el) + &
                     (sum(litt%leaf_fines_frag(:)) + &
-                     sum(sum(litt%root_fines_frag(:,:))) + &
+                     sum(litt%root_fines_frag(:,:)) + &
                      sum(litt%ag_cwd_frag(:)) + & 
-                     sum(sum(litt%bg_cwd_frag(:,:)))) * area_frac
+                     sum(litt%bg_cwd_frag(:,:))) * area_frac
                
                hio_seed_bank_elem(io_si,el) = hio_seed_bank_elem(io_si,el) + & 
                     sum(litt%seed(:)) * area_frac
@@ -2484,21 +2495,24 @@ end subroutine flush_hvars
          sites(s)%term_carbonflux_canopy = 0._r8
          sites(s)%term_carbonflux_ustory = 0._r8
          !
+
          ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
+
          do i_cwd = 1, ncwd
-            hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
-                 sites(s)%CWD_AG_diagnostic_input_flux(i_cwd) * g_per_kg
-            hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
-                 sites(s)%CWD_BG_diagnostic_input_flux(i_cwd) * g_per_kg
+             hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
+                   flux_diags_c%cwd_ag_input(c) * g_per_kg
+             
+             hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
+                   flux_diags_c%cwd_bg_input(c) * g_per_kg
+
          end do
 
-
          ! and reset the disturbance-related field buffers
-         sites(s)%CWD_AG_diagnostic_input_flux(:) = 0._r8
-         sites(s)%CWD_BG_diagnostic_input_flux(:) = 0._r8
-         sites(s)%leaf_litter_diagnostic_input_flux(:) = 0._r8
-         sites(s)%root_litter_diagnostic_input_flux(:) = 0._r8
-         
+
+         do el = 1, num_elements
+             call sites(s)%flux_diags(el)%ZeroFluxDiags()
+         end do
+
       enddo ! site loop
       
     end associate
@@ -3366,6 +3380,9 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
+    use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
+    use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
+
 
     implicit none
     

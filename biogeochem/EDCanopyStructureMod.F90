@@ -16,6 +16,7 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
   use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
+  use EDCohortDynamicsMod   , only : SendCohortToLitter
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type

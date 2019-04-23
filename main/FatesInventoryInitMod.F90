@@ -56,6 +56,7 @@ module FatesInventoryInitMod
    use PRTGenericMod,          only : carbon12_element
    use PRTGenericMod,          only : nitrogen_element
    use PRTGenericMod,          only : phosphorus_element
+   use PRTGenericMod,          only : SetState
 
    implicit none
    private
