@@ -42,7 +42,6 @@ module FatesInterfaceMod
    use PRTGenericMod         , only : nitrogen_element
    use PRTGenericMod         , only : phosphorus_element
    use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
-
    !   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
 
 
@@ -1755,7 +1754,6 @@ contains
         element_list(1) = carbon12_element
         element_pos(:) = 0
         element_pos(carbon12_element) = 1
-
 
         call InitPRTGlobalAllometricCarbon()
 

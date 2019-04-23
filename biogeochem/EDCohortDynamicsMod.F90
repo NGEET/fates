@@ -85,7 +85,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
-  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
+  !  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
 
@@ -402,7 +402,7 @@ contains
     
     ! Potential Extended types
     type(callom_prt_vartypes), pointer :: c_allom_prt
-    type(cnp_allom_prt_vartypes), pointer :: cnp_allom_prt
+    !    type(cnp_allom_prt_vartypes), pointer :: cnp_allom_prt
   
 
     select case(hlm_parteh_mode)
@@ -413,9 +413,13 @@ contains
         
     case (prt_cnp_flex_allom_hyp)
         
-        allocate(cnp_allom_prt)
-        prt => cnp_allom_prt
+        !! allocate(cnp_allom_prt)
+        !! prt => cnp_allom_prt
         
+        write(fates_log(),*) 'Flexible CNP allocation is still in development'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+
     case DEFAULT
         
         write(fates_log(),*) 'You specified an unknown PRT module'
