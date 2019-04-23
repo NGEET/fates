@@ -118,7 +118,7 @@ contains
 
       else if(icode < 0 .and. icode > -366) then
          ! Logging event every year on specific day of year
-         if(hlm_day_of_year .eq. icode  ) then
+         if(hlm_day_of_year .eq. abs(icode)  ) then
             logging_time = .true.
          end if
 

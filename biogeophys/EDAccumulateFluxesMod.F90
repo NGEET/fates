@@ -94,6 +94,14 @@ contains
                 ccohort%npp_acc  = ccohort%npp_acc  + ccohort%npp_tstep 
                 ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
                 ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
+		
+		! weighted mean of D13C by gpp
+		if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
+                  ccohort%c13disc_acc = 0.0_r8
+                else
+                  ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
+                                          (ccohort%gpp_acc + ccohort%gpp_tstep)
+		endif
                 
                 n_perm2      = ccohort%n/AREA
                 

@@ -39,7 +39,7 @@ module FatesLitterMod
    use FatesConstantsMod, only : i4 => fates_int
    use FatesConstantsMod, only : nearzero
    use FatesConstantsMod, only : calloc_abs_error
-   use FatesConstantsMod, only : fates_unset_real
+   use FatesConstantsMod, only : fates_unset_r8
 
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log 
@@ -260,28 +260,28 @@ contains
 
 
     ! Initialize everything to a nonsense flag
-    this%ag_cwd(:)            = fates_unset_real
-    this%bg_cwd(:,:)          = fates_unset_real
-    this%leaf_fines(:)        = fates_unset_real
-    this%root_fines(:,:)      = fates_unset_real
-    this%seed(:)              = fates_unset_real
-    this%seed_germ(:)         = fates_unset_real
+    this%ag_cwd(:)            = fates_unset_r8
+    this%bg_cwd(:,:)          = fates_unset_r8
+    this%leaf_fines(:)        = fates_unset_r8
+    this%root_fines(:,:)      = fates_unset_r8
+    this%seed(:)              = fates_unset_r8
+    this%seed_germ(:)         = fates_unset_r8
 
-    this%ag_cwd_in(:)         = fates_unset_real
-    this%bg_cwd_in(:,:)       = fates_unset_real
-    this%leaf_fines_in(:)     = fates_unset_real
-    this%root_fines_in(:,:)   = fates_unset_real
-    this%seed_in_local(:)     = fates_unset_real
-    this%seed_in_extern(:)    = fates_unset_real
+    this%ag_cwd_in(:)         = fates_unset_r8
+    this%bg_cwd_in(:,:)       = fates_unset_r8
+    this%leaf_fines_in(:)     = fates_unset_r8
+    this%root_fines_in(:,:)   = fates_unset_r8
+    this%seed_in_local(:)     = fates_unset_r8
+    this%seed_in_extern(:)    = fates_unset_r8
 
-    this%ag_cwd_frag(:)       = fates_unset_real
-    this%bg_cwd_frag(:,:)     = fates_unset_real
-    this%leaf_fines_frag(:)   = fates_unset_real
-    this%root_fines_frag(:,:) = fates_unset_real
+    this%ag_cwd_frag(:)       = fates_unset_r8
+    this%bg_cwd_frag(:,:)     = fates_unset_r8
+    this%leaf_fines_frag(:)   = fates_unset_r8
+    this%root_fines_frag(:,:) = fates_unset_r8
 
-    this%seed_decay(:)        = fates_unset_real
-    this%seed_germ_decay(:)   = fates_unset_real
-    this%seed_germ_in(:)      = fates_unset_real
+    this%seed_decay(:)        = fates_unset_r8
+    this%seed_germ_decay(:)   = fates_unset_r8
+    this%seed_germ_in(:)      = fates_unset_r8
 
     return
   end subroutine InitAllocate

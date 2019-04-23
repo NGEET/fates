@@ -24,6 +24,7 @@ module EDMainMod
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
   use EDCohortDynamicsMod      , only : count_cohorts
+  use EDCohortDynamicsMod      , only : EvaluateAndCorrectDBH
   use EDPatchDynamicsMod       , only : disturbance_rates
   use EDPatchDynamicsMod       , only : fuse_patches
   use EDPatchDynamicsMod       , only : spawn_patches
@@ -44,21 +45,21 @@ module EDMainMod
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
-  use EDTypesMod               , only : do_ed_phenology
   use EDTypesMod               , only : AREA
   use EDTypesMod               , only : site_massbal_type
   use EDTypesMod               , only : num_elements
   use EDTypesMod               , only : element_list
   use EDTypesMod               , only : element_pos
   use FatesConstantsMod        , only : itrue,ifalse
+  use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
   use FatesPlantHydraulicsMod  , only : initTreeHydStates
   use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
-  use FatesAllometryMod        , only : h_allom
-  use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydStates
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
+  use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
+  use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
@@ -155,13 +156,15 @@ contains
     call ZeroLitterFluxes(currentSite)
 
     ! Zero mass balance 
-
-   
     call TotalBalanceCheck(currentSite, 0)
-    
-    if (do_ed_phenology) then
+
+    ! We do not allow phenology while in ST3 mode either, it is hypothetically
+    ! possible to allow this, but we have not plugged in the litter fluxes
+    ! of flushing or turning over leaves for non-dynamics runs
+    if (hlm_use_ed_st3.eq.ifalse) then
        call phenology(currentSite, bc_in )
     end if
+
 
     if (hlm_use_ed_st3.eq.ifalse) then   ! Bypass if ST3
        call fire_model(currentSite, bc_in) 
@@ -291,7 +294,10 @@ contains
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
-    
+    real(r8) :: leaf_c
+    real(r8) :: delta_dbh             ! correction for dbh
+    real(r8) :: delta_hite            ! correction for hite
+
     !-----------------------------------------------------------------------
 
     ! Set a pointer to this sites carbon12 mass balance
@@ -314,6 +320,12 @@ contains
                currentPatch%patchno,currentPatch%area
        endif
 
+       ! add age increment to secondary forest patches as well
+       if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
+          currentPatch%age_since_anthro_disturbance = &
+               currentPatch%age_since_anthro_disturbance + hlm_freq_day
+       endif
+
        ! check to see if the patch has moved to the next age class
        currentPatch%age_class = get_age_class_index(currentPatch%age)
 
@@ -331,8 +343,7 @@ contains
           ! Apply Plant Allocation and Reactive Transport
           ! -----------------------------------------------------------------------------
 
-          hite_old = currentCohort%hite
-          dbh_old  = currentCohort%dbh
+          
 
           ! -----------------------------------------------------------------------------
           !  Identify the net carbon gain for this dynamics interval
@@ -364,13 +375,21 @@ contains
              currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
           endif
 
-          
-          call currentCohort%prt%CheckMassConservation(ft,3)
-          
 
           ! Conduct Maintenance Turnover (PARTEH)
+          call currentCohort%prt%CheckMassConservation(ft,3)
           call PRTMaintTurnover(currentCohort%prt,ft,currentSite%is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
+
+          ! If the current diameter of a plant is somehow less than what is consistent
+          ! with what is allometrically consistent with the stuctural biomass, then
+          ! correct the dbh to match.
+
+          call EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
+
+          hite_old = currentCohort%hite
+          dbh_old  = currentCohort%dbh
+
 
           ! Growth and Allocation (PARTEH)
           call currentCohort%prt%DailyPRT()
@@ -388,6 +407,14 @@ contains
           ! routine is also called following fusion
           call UpdateCohortBioPhysRates(currentCohort)
 
+
+          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+               currentCohort%vcmax25top)
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,3 ) 
           
 
           ! This cohort has grown, it is no longer "new"

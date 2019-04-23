@@ -33,7 +33,6 @@ module EDPhysiologyMod
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
-  use EDTypesMod          , only : external_recruitment
   use FatesLitterMod      , only : ncwd
   use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : senes
@@ -70,7 +69,6 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : bbgw_allom
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
-  use FatesAllometryMod  , only : StructureResetOfDH
   
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : prt_cnp_flex_allom_hyp
@@ -395,7 +393,8 @@ contains
 
           currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
                                            currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                                           currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top )  
+                                           currentPatch%canopy_layer_tlai, currentCohort%treelai, &
+                                           currentCohort%vcmax25top,0 )  
 
           currentCohort%nv      = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
 
@@ -1037,7 +1036,6 @@ contains
           write(fates_log(), *) 'while defining forced external seed mass flux'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
-          
           
 
        ! Loop over all patches and sum up the seed input for each PFT

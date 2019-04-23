@@ -7,6 +7,7 @@ module EDInitMod
   use FatesConstantsMod         , only : r8 => fates_r8
   use FatesConstantsMod         , only : ifalse
   use FatesConstantsMod         , only : itrue
+  use FatesConstantsMod         , only : primaryforest
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
@@ -360,7 +361,9 @@ contains
            sites(s)%oldest_patch   => newp
 
            ! make new patch...
-           call create_patch(sites(s), newp, age, area, bc_in(s)%nlevsoil)
+
+           call create_patch(sites(s), newp, age, area, &
+                 bc_in(s)%nlevsoil, primaryforest)
            
            ! Initialize the litter pools to zero, these
            ! pools will be populated by looping over the existing patches

@@ -57,6 +57,7 @@ module FatesInventoryInitMod
    use PRTGenericMod,          only : nitrogen_element
    use PRTGenericMod,          only : phosphorus_element
    use PRTGenericMod,          only : SetState
+   use FatesConstantsMod, only : primaryforest
 
    implicit none
    private
@@ -271,7 +272,8 @@ contains
             age_init            = 0.0_r8
             area_init           = 0.0_r8 
 
-            call create_patch(sites(s), newpatch, age_init, area_init,bc_in(s)%nlevsoil )
+            call create_patch(sites(s), newpatch, age_init, area_init, &
+                  bc_in(s)%nlevsoil, primaryforest )
             
             do el=1,num_elements
                call newpatch%litter(el)%InitConditions(init_leaf_fines=0._r8, &
@@ -280,7 +282,6 @@ contains
                     init_bg_cwd=0._r8, &
                     init_seed=0._r8)
             end do
-            
 
             if( inv_format_list(invsite) == 1 ) then
                call set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)

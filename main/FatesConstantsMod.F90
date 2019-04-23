@@ -18,7 +18,7 @@ module FatesConstantsMod
   ! Unset and various other 'special' values
   integer, parameter :: fates_unset_int = -9999
 
-  real(fates_r8), parameter :: fates_unset_real = -9.9e32_fates_r8
+  real(fates_r8), parameter :: fates_unset_r8 = -9.9e32_fates_r8
   
   ! Integer equivalent of true  (in case some compilers dont auto convert)
   integer, parameter :: itrue = 1
@@ -26,6 +26,10 @@ module FatesConstantsMod
   ! Integer equivalent of false (in case come compilers dont auto convert)
   integer, parameter :: ifalse = 0
 
+  ! Labels for patch disturbance history
+  integer, parameter :: n_anthro_disturbance_categories = 2
+  integer, parameter :: primaryforest = 1
+  integer, parameter :: secondaryforest = 2
   
   ! Error Tolerances
 

@@ -34,7 +34,7 @@ module PRTAllometricCarbonMod
   use FatesAllometryMod   , only : bagw_allom
   use FatesAllometryMod   , only : h_allom
   use FatesAllometryMod   , only : CheckIntegratedAllometries
-  use FatesAllometryMod   , only : StructureResetOfDH
+  use FatesAllometryMod   , only : ForceDBH
 
   use FatesGlobals        , only : endrun => fates_endrun
   use FatesGlobals        , only : fates_log
@@ -336,6 +336,7 @@ contains
     real(r8) :: repro_c0              ! ""
     real(r8) :: struct_c0             ! ""
 
+    logical  :: grow_struct
     logical  :: grow_leaf             ! Are leaves at allometric target and should be grown?
     logical  :: grow_fnrt             ! Are fine-roots at allometric target and should be grown?
     logical  :: grow_sapw             ! Is sapwood at allometric target and should be grown?
@@ -442,54 +443,26 @@ contains
     ! II. Calculate target size of the biomass compartment for a given dbh.   
     ! -----------------------------------------------------------------------------------
     
-    ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
+    ! Target sapwood biomass according to allometry and trimming [kgC]
     call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-
-    ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
+    
+    ! Target total above ground biomass in woody/fibrous tissues  [kgC]
     call bagw_allom(dbh,ipft,target_agw_c)
-
-    ! Target total below ground deriv. biomass in woody/fibrous tissues [kgC, kgC/cm] 
+    
+    ! Target total below ground biomass in woody/fibrous tissues [kgC] 
     call bbgw_allom(dbh,ipft,target_bgw_c)
-
-    ! Target total dead (structrual) biomass and deriv. [kgC, kgC/cm]
+    
+    ! Target total dead (structrual) biomass [kgC]
     call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
-
-
-    ! ------------------------------------------------------------------------------------
-    ! If structure is larger than target, then we need to correct some integration errors
-    ! by slightly increasing dbh to match it.
-    ! For grasses, if leaf biomass is larger than target, then we reset dbh to match
-    ! -----------------------------------------------------------------------------------
-    if( (( struct_c - target_struct_c ) > calloc_abs_error) .and. &
-          (EDPftvarcon_inst%woody(ipft) == itrue) ) then
-
-       call StructureResetOfDH( struct_c, ipft, &
-             canopy_trim, dbh, hite_out )
-
-       ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-       call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-
-       ! Target total above ground deriv. biomass in woody/fibrous tissues  [kgC, kgC/cm]
-       call bagw_allom(dbh,ipft,target_agw_c)
-       
-       ! Target total below ground deriv. biomass in woody/fibrous tissues [kgC, kgC/cm] 
-       call bbgw_allom(dbh,ipft,target_bgw_c)
-       
-       ! Target total dead (structrual) biomass and deriv. [kgC, kgC/cm]
-       call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
-
-    end if
     
     ! Target leaf biomass according to allometry and trimming
     call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
-
+    
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
-
+    
     ! Target storage carbon [kgC,kgC/cm]
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
-
-    
 
 
     ! -----------------------------------------------------------------------------------
@@ -667,32 +640,24 @@ contains
        ! allow actual pools to be above the target, and in these cases, it sends
        ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
        ! It also checks to make sure that structural biomass is not above the target.
-       if ( EDPftvarcon_inst%woody(ipft) == itrue ) then
 
-
-          if( (target_store_c - store_c)>calloc_abs_error) then
-             write(fates_log(),*) 'storage is not on-allometry at the growth step'
-             write(fates_log(),*) 'exiting'
-             write(fates_log(),*) 'cbal: ',carbon_balance
-             write(fates_log(),*) 'near-zero',nearzero
-             write(fates_log(),*) 'store_c: ',store_c
-             write(fates_log(),*) 'target c: ',target_store_c
-             write(fates_log(),*) 'store_c0:', store_c0
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-
-
-          call TargetAllometryCheck(sum(leaf_c(1:nleafage)), fnrt_c, sapw_c, &
-                                    store_c, struct_c,       &
-                                    target_leaf_c, target_fnrt_c, &
-                                    target_sapw_c, target_store_c, target_struct_c, &
-                                    grow_leaf, grow_fnrt, grow_sapw, grow_store)
-       else ! for grasses 
-          grow_leaf  = .true.
-          grow_fnrt = .true.
-          grow_sapw  = .true.
-          grow_store = .true.
+       if( (target_store_c - store_c)>calloc_abs_error) then
+          write(fates_log(),*) 'storage is not on-allometry at the growth step'
+          write(fates_log(),*) 'exiting'
+          write(fates_log(),*) 'cbal: ',carbon_balance
+          write(fates_log(),*) 'near-zero',nearzero
+          write(fates_log(),*) 'store_c: ',store_c
+          write(fates_log(),*) 'target c: ',target_store_c
+          write(fates_log(),*) 'store_c0:', store_c0
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
+       
+
+       call TargetAllometryCheck(sum(leaf_c(1:nleafage)), fnrt_c, sapw_c, &
+                                 store_c, struct_c,       &
+                                 target_leaf_c, target_fnrt_c, &
+                                 target_sapw_c, target_store_c, target_struct_c, &
+                                 grow_struct, grow_leaf, grow_fnrt, grow_sapw, grow_store)
 
        ! --------------------------------------------------------------------------------
        ! The numerical integration of growth requires that the instantaneous state
@@ -729,7 +694,7 @@ contains
        c_mask(fnrt_c_id)   = grow_fnrt
        c_mask(sapw_c_id)   = grow_sapw
        c_mask(store_c_id)  = grow_store
-       c_mask(struct_c_id) = .true.                ! Always increment dead on growth step
+       c_mask(struct_c_id) = grow_struct
        c_mask(repro_c_id)  = .true.                ! Always calculate reproduction on growth
        c_mask(dbh_id)      = .true.                ! Always increment dbh on growth step
        
@@ -1045,7 +1010,7 @@ contains
 
    subroutine TargetAllometryCheck(bleaf,bfroot,bsap,bstore,bdead, &
                                    bt_leaf,bt_froot,bt_sap,bt_store,bt_dead, &
-                                   grow_leaf,grow_froot,grow_sapw,grow_store)
+                                   grow_dead,grow_leaf,grow_froot,grow_sapw,grow_store)
 
      ! Arguments
      real(r8),intent(in) :: bleaf   !actual
@@ -1062,6 +1027,7 @@ contains
      logical,intent(out) :: grow_froot
      logical,intent(out) :: grow_sapw
      logical,intent(out) :: grow_store
+     logical,intent(out) :: grow_dead
        
      if( (bt_leaf - bleaf)>calloc_abs_error) then
         write(fates_log(),*) 'leaves are not on-allometry at the growth step'
@@ -1108,7 +1074,14 @@ contains
         write(fates_log(),*) 'structure not on-allometry at the growth step'
         write(fates_log(),*) 'exiting',bdead,bt_dead
         call endrun(msg=errMsg(sourcefile, __LINE__))
+     elseif( (bdead-bt_dead)> calloc_abs_error) then
+        grow_dead = .false.
+     else
+        grow_dead = .true.
      end if
+     
+
+     return
    end subroutine TargetAllometryCheck
 
    ! =====================================================================================
