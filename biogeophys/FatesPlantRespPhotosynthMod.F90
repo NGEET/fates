@@ -924,6 +924,10 @@ contains
    ! Fraction of light absorbed by non-photosynthetic pigments
    real(r8),parameter :: fnps = 0.15_r8       
 
+   ! For plants with no leaves, a miniscule amount of conductance
+   ! can happen through the stems, at a partial rate of cuticular conductance
+   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
+
    ! empirical curvature parameter for electron transport rate
    real(r8),parameter :: theta_psii = 0.7_r8   
    
@@ -974,9 +978,6 @@ contains
         
          !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
          if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
-
-         !only if stomata open larger than cuticular conductance
-         if(bbb > 1.0_r8)then !only if stomata open larger than cuticular conductance
 
            !Loop aroun shaded and unshaded leaves          
            psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves. 
@@ -1172,20 +1173,16 @@ contains
            ! This is the stomatal resistance of the leaf layer
            rstoma_out = 1._r8/gstoma
 	   
-	     else !!set the situations with only cuticular conductance and no photosynthesis
-        
-          psn_out     = 0._r8
-          anet_av_out = -lmr
-          rstoma_out  = cf/bbb
-
-        endif  ! If stomata are open more than cuticular conductance
-            
         else
 
-           !No leaf area. This layer is present only because of stems. 
+           ! No leaf area. This layer is present only because of stems. 
+           ! Net assimilation is zero, not negative because there are 
+           ! no leaves to even respire
            ! (leaves are off, or have reduced to 0)
-           psn_out = 0._r8
-           rstoma_out  = min(rsmax0, cf/(0.1_r8*bbbopt(c3c4_path_index))) !assume stem loss is only 10% of leaf culticular
+
+           psn_out     = 0._r8
+           anet_av_out = 0._r8
+           rstoma_out  = min(rsmax0, cf/(stem_cuticle_loss_frac*bbbopt(c3c4_path_index)))
            c13disc_z = 0.0_r8
            
        end if !is there leaf area? 
