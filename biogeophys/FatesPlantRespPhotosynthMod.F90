@@ -394,10 +394,10 @@ contains
                                  (hlm_use_planthydro.eq.itrue) .or. &
                                  (nleafage > 1) .or. &
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
-                              
-                              if (hlm_use_planthydro.eq.itrue ) then
-
-                                 bbb       = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
+                               
+                               if (hlm_use_planthydro.eq.itrue ) then
+                                   
+                                 bbb = max( cf/rsmax0, bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1) ) 
                                  btran_eff = currentCohort%co_hydr%btran(1) 
                                  
                                  ! dinc_ed is the total vegetation area index of each "leaf" layer
@@ -414,7 +414,7 @@ contains
 
                               else
                                  
-                                 bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
+                                 bbb = max( cf/rsmax0, bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft) ) 
                                  btran_eff = currentPatch%btran_ft(ft)
                                  ! For consistency sake, we use total LAI here, and not exposed
                                  ! if the plant is under-snow, it will be effectively dormant for 
@@ -943,14 +943,8 @@ contains
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
    
-   real(r8), dimension(0:1) :: bbbopt !cuticular conductance 
-
    associate( bb_slope  => EDPftvarcon_inst%BB_slope)    ! slope of BB relationship
    
-
-
-     bbbopt(0) = ED_val_bbopt_c4
-     bbbopt(1) = ED_val_bbopt_c3
 
      ! photosynthetic pathway: 0. = c4, 1. = c3
      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
@@ -968,25 +962,22 @@ contains
          
         anet_av_out = -lmr
         psn_out     = 0._r8
-        if(btran>0._r8) then
-            rstoma_out  = min(rsmax0, cf*1._r8/(bbbopt(c3c4_path_index)*btran))
-        else
-            rstoma_out = rsmax0
-        endif
+
+        ! The cuticular conductance already factored in maximum resistance as a bound
+        ! no need to re-bound it
+
+        rstoma_out = cf/bbb
         
         c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
         
      else ! day time (a little bit more complicated ...)
         
-!        if ( debug ) write(fates_log(),*) 'EDphot 594 ',laisun_lsl
-!        if ( debug ) write(fates_log(),*) 'EDphot 595 ',laisha_lsl
+         !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
+         if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
 
-        !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
-        if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
-	  if(bbb > 1.0_r8)then !only if stomata open larger than cuticular conductance
+         !only if stomata open larger than cuticular conductance
+         if(bbb > 1.0_r8)then !only if stomata open larger than cuticular conductance
 
-!           if ( debug ) write(fates_log(),*) '600 in laisun, laisha loop '
-           
            !Loop aroun shaded and unshaded leaves          
            psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves. 
            rstoma_out  = 0._r8    ! 1/rs is accumulated across sun and shaded leaves. 
@@ -1136,19 +1127,16 @@ contains
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
 	      
-	      ! estimate carbon 13 discrimination in leaf level carbon flux Liang WEI and Hang ZHOU 2018, based on
+              ! estimate carbon 13 discrimination in leaf level carbon 
+              ! flux Liang WEI and Hang ZHOU 2018, based on
               ! Ubierna and Farquhar, 2014 doi:10.1111/pce.12346, using the simplified model:
               ! $\Delta ^{13} C = \alpha_s + (b - \alpha_s) \cdot \frac{C_i}{C_a}$
               ! just hard code b and \alpha_s for now, might move to parameter set in future
               ! b = 27.0 alpha_s = 4.4
               ! TODO, not considering C4 or CAM right now, may need to address this
-	      ! note co2_inter_c is intracelluar CO2, not intercelluar 
-              c13disc_z = 4.4_r8 + (27.0_r8 - 4.4_r8) * min (can_co2_ppress, max (co2_inter_c, 0._r8)) / can_co2_ppress 
-
-	                    
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 737 ', psn_out
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 738 ', agross
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 739 ', f_sun_lsl
+              ! note co2_inter_c is intracelluar CO2, not intercelluar 
+              c13disc_z = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
+                    min (can_co2_ppress, max (co2_inter_c, 0._r8)) / can_co2_ppress 
 
               ! Accumulate total photosynthesis umol/m2 ground/s-1. 
               ! weight per unit sun and sha leaves.
@@ -1162,10 +1150,6 @@ contains
                  gstoma  = gstoma + &
                        1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-f_sun_lsl) 
               end if
-
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 758 ', psn_out
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 759 ', agross
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 760 ', f_sun_lsl
               
               ! Make sure iterative solution is correct
               if (gs_mol < 0._r8) then
@@ -1188,25 +1172,23 @@ contains
            ! This is the stomatal resistance of the leaf layer
            rstoma_out = 1._r8/gstoma
 	   
-	   else !!set the situations with only cuticular conductance and no photosynthesis
-     
-              psn_out     = 0._r8
-	      anet_av_out = -lmr
-	      if(btran>0._r8) then
-                 rstoma_out  = min(rsmax0, cf*1._r8/(bbbopt(c3c4_path_index)*btran))
-	      else
-	          rstoma_out = rsmax0
-	      endif
-	   endif 
+	     else !!set the situations with only cuticular conductance and no photosynthesis
+        
+          psn_out     = 0._r8
+          anet_av_out = -lmr
+          rstoma_out  = cf/bbb
+
+        endif  ! If stomata are open more than cuticular conductance
             
         else
+
            !No leaf area. This layer is present only because of stems. 
            ! (leaves are off, or have reduced to 0)
            psn_out = 0._r8
-           rstoma_out  = min(rsmax0, cf*1._r8/(0.1_r8*bbbopt(c3c4_path_index))) !assume stem loss is only 10% of leaf culticular
-	   c13disc_z = 0.0_r8
+           rstoma_out  = min(rsmax0, cf/(0.1_r8*bbbopt(c3c4_path_index))) !assume stem loss is only 10% of leaf culticular
+           c13disc_z = 0.0_r8
            
-        end if !is there leaf area? 
+       end if !is there leaf area? 
         
         
      end if    ! night or day 
