@@ -1,3 +1,4 @@
+
 module FATESPlantRespPhotosynthMod
    
    !-------------------------------------------------------------------------------------
@@ -58,7 +59,7 @@ module FATESPlantRespPhotosynthMod
    !-------------------------------------------------------------------------------------
    
    ! maximum stomatal resistance [s/m] (used across several procedures)
-   real(r8),parameter :: rsmax0 =  2.e4_r8                    
+   real(r8),parameter :: rsmax0 =  2.e8_r8                    
    
    logical   ::  debug = .false.
 
@@ -843,6 +844,7 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use EDPftvarcon       , only : EDPftvarcon_inst
+    use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4
     
     ! Arguments
     ! ------------------------------------------------------------------------------------
@@ -916,6 +918,7 @@ contains
    real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
    real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
+
    ! Parameters
    ! ------------------------------------------------------------------------
    ! Fraction of light absorbed by non-photosynthetic pigments
@@ -939,8 +942,15 @@ contains
 
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
+   
+   real(r8), dimension(0:1) :: bbbopt !cuticular conductance 
 
    associate( bb_slope  => EDPftvarcon_inst%BB_slope)    ! slope of BB relationship
+   
+
+
+     bbbopt(0) = ED_val_bbopt_c4
+     bbbopt(1) = ED_val_bbopt_c3
 
      ! photosynthetic pathway: 0. = c4, 1. = c3
      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
@@ -958,7 +968,11 @@ contains
 
         anet_av_out = -lmr
         psn_out     = 0._r8
-        rstoma_out  = min(rsmax0, 1._r8/bbb * cf)
+	if(btran>0._r8) then
+             rstoma_out  = min(rsmax0, cf*1._r8/(bbbopt(c3c4_path_index)*btran))
+	else
+	     rstoma_out = rsmax0
+	endif
 	c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
         
      else ! day time (a little bit more complicated ...)
@@ -968,6 +982,7 @@ contains
 
         !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
         if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
+	  if(bbb > 1.0_r8)then !only if stomata open larger than cuticular conductance
 
 !           if ( debug ) write(fates_log(),*) '600 in laisun, laisha loop '
            
@@ -1171,19 +1186,31 @@ contains
 
            ! This is the stomatal resistance of the leaf layer
            rstoma_out = 1._r8/gstoma
-           
+	   
+	   else !!set the situations with only cuticular conductance and no photosynthesis
+     
+              psn_out     = 0._r8
+	      anet_av_out = -lmr
+	      if(btran>0._r8) then
+                 rstoma_out  = min(rsmax0, cf*1._r8/(bbbopt(c3c4_path_index)*btran))
+	      else
+	          rstoma_out = rsmax0
+	      endif
+	   endif 
+            
         else
            !No leaf area. This layer is present only because of stems. 
            ! (leaves are off, or have reduced to 0)
            psn_out = 0._r8
-           rstoma_out = min(rsmax0, 1._r8/bbb * cf)
-
+           rstoma_out  = min(rsmax0, cf*1._r8/(0.1_r8*bbbopt(c3c4_path_index))) !assume stem loss is only 10% of leaf culticular
 	   c13disc_z = 0.0_r8
            
         end if !is there leaf area? 
         
         
      end if    ! night or day 
+     
+
    end associate
    return
   end subroutine LeafLayerPhotosynthesis
