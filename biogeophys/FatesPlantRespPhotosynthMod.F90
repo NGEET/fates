@@ -832,7 +832,7 @@ contains
                                      psn_out,           &  ! out
                                      rstoma_out,        &  ! out
                                      anet_av_out,       &  ! out
-				     c13disc_z)            ! out
+                                     c13disc_z)            ! out
 
     ! ------------------------------------------------------------------------------------
     ! This subroutine calculates photosynthesis and stomatal conductance within each leaf 
@@ -965,15 +965,16 @@ contains
      ! ----------------------------------------------------------------------------------
      
      if ( parsun_lsl <= 0._r8 ) then  ! night time
-
+         
         anet_av_out = -lmr
         psn_out     = 0._r8
-	if(btran>0._r8) then
-             rstoma_out  = min(rsmax0, cf*1._r8/(bbbopt(c3c4_path_index)*btran))
-	else
-	     rstoma_out = rsmax0
-	endif
-	c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
+        if(btran>0._r8) then
+            rstoma_out  = min(rsmax0, cf*1._r8/(bbbopt(c3c4_path_index)*btran))
+        else
+            rstoma_out = rsmax0
+        endif
+        
+        c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
         
      else ! day time (a little bit more complicated ...)
         
