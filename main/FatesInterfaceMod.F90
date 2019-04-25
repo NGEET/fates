@@ -45,6 +45,7 @@ module FatesInterfaceMod
 
    private        ! By default everything is private
 
+   ! Make public necessary subroutines and functions
    public :: FatesInterfaceInit
    public :: set_fates_ctrlparms
    public :: SetFatesTime

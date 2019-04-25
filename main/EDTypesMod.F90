@@ -14,9 +14,10 @@ module EDTypesMod
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
 
   implicit none
-  private
+  private               ! By default everything is private
   save
 
+  ! Make public necessary subroutines and functions
   public :: val_check_ed_vars
   public :: dump_site
   public :: dump_patch
