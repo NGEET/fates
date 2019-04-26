@@ -118,8 +118,8 @@ module EDParamsMod
    real(r8),protected :: logging_dbhmax_infra        ! "Tree diameter, above which infrastructure from logging does not impact damage or mortality.
    character(len=param_string_length),parameter :: logging_name_dbhmax_infra = "fates_logging_dbhmax_infra"
 
-   real(r8),protected :: logging_export_frac        ! "fraction of trunk product being shipped offsite, the leftovers will be left onsite as large CWD
-   character(len=param_string_length),parameter :: logging_name_export_frac ="fates_logging_export_frac"
+!   real(r8),protected :: logging_export_frac        ! "fraction of trunk product being shipped offsite, the leftovers will be left onsite as large CWD
+!   character(len=param_string_length),parameter :: logging_name_export_frac ="fates_logging_export_frac"
    
    public :: FatesParamsInit
    public :: FatesRegisterParams
@@ -172,7 +172,7 @@ contains
     logging_mechanical_frac               = nan
     logging_event_code                    = nan
     logging_dbhmax_infra                  = nan
-    logging_export_frac                   = nan
+!    logging_export_frac                   = nan
 
   end subroutine FatesParamsInit
 
@@ -296,8 +296,8 @@ contains
     call fates_params%RegisterParameter(name=logging_name_dbhmax_infra, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=logging_export_frac, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+!    call fates_params%RegisterParameter(name=logging_export_frac, dimension_shape=dimension_shape_1d, &
+!         dimension_names=dim_names)
 
     ! non-scalar parameters
     call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
@@ -420,8 +420,8 @@ contains
     call fates_params%RetreiveParameter(name=logging_name_dbhmax_infra, &
           data=logging_dbhmax_infra)
 
-    call fates_params%RetreiveParameter(name=logging_export_frac, &
-          data=logging_export_frac)
+!    call fates_params%RetreiveParameter(name=logging_name_export_frac, &
+!          data=logging_export_frac)
 
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
@@ -481,7 +481,7 @@ contains
         write(fates_log(),fmt0) 'logging_mechanical_frac = ',logging_mechanical_frac
         write(fates_log(),fmt0) 'logging_event_code = ',logging_event_code
         write(fates_log(),fmt0) 'logging_dbhmax_infra = ',logging_dbhmax_infra
-        write(fates_log(),fmt0) 'logging_export_frac = ',logging_export_frac
+!        write(fates_log(),fmt0) 'logging_export_frac = ',logging_export_frac
         write(fates_log(),*) '------------------------------------------------------'
 
      end if
