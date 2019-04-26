@@ -45,6 +45,7 @@ module FATESPlantRespPhotosynthMod
    use PRTGenericMod,     only : store_organ
    use PRTGenericMod,     only : repro_organ
    use PRTGenericMod,     only : struct_organ
+   use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
 
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -96,7 +97,7 @@ contains
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
-    use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
+    
     use FatesAllometryMod, only : bleaf
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
@@ -844,7 +845,7 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use EDPftvarcon       , only : EDPftvarcon_inst
-    use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4
+
     
     ! Arguments
     ! ------------------------------------------------------------------------------------
@@ -919,6 +920,10 @@ contains
    real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
 
+   real(r8), dimension(0:1) :: bbbopt ! Cuticular conductance at full water potential (umol H2O /m2/s)
+
+
+
    ! Parameters
    ! ------------------------------------------------------------------------
    ! Fraction of light absorbed by non-photosynthetic pigments
@@ -953,6 +958,9 @@ contains
      ! photosynthetic pathway: 0. = c4, 1. = c3
      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
      
+     bbbopt(0) = ED_val_bbopt_c4
+     bbbopt(1) = ED_val_bbopt_c3
+
      if (c3c4_path_index == 1) then
         init_co2_inter_c = init_a2l_co2_c3 * can_co2_ppress
      else
