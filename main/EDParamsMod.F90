@@ -80,10 +80,10 @@ module EDParamsMod
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
    real(r8),protected :: hydr_kmax_rsurf1         !  maximum conducitivity for unit root surface for water uptake(kg water/m2 root area/Mpa/s)
-   real(r8),protected :: hydr_kmax_rsurf2         !  maximum conducitivity for unit root surface for water loss (kg water/m2 root area/Mpa/s)
+!   real(r8),protected :: hydr_kmax_rsurf2         !  maximum conducitivity for unit root surface for water loss (kg water/m2 root area/Mpa/s)
 
-   character(len=param_string_length),parameter :: hydr_name_kmax_rsurf1 = "fates_hydr_kmax_rsurf1"  
-   character(len=param_string_length),parameter :: hydr_name_kmax_rsurf2 = "fates_hydr_kmax_rsurf2"  
+   character(len=param_string_length),parameter :: hydr_name_kmax_rsurf1 = "fates_hydr_kmax_rsurf"  
+!   character(len=param_string_length),parameter :: hydr_name_kmax_rsurf2 = "fates_hydr_kmax_rsurf2"  
    
    real(r8),protected :: hydr_psi0          !  sapwood water potential at saturation (MPa)
    character(len=param_string_length),parameter :: hydr_name_psi0 = "fates_hydr_psi0"
@@ -161,7 +161,7 @@ contains
     ED_val_canopy_closure_thresh          = nan    
     
     hydr_kmax_rsurf1                      = nan
-    hydr_kmax_rsurf2                      = nan
+!    hydr_kmax_rsurf2                      = nan
     hydr_psi0                             = nan
     hydr_psicap                           = nan
     
@@ -266,8 +266,8 @@ contains
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 	 
-    call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf2, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)	 
+!    call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf2, dimension_shape=dimension_shape_1d, &
+!         dimension_names=dim_names)	 
 
     call fates_params%RegisterParameter(name=hydr_name_psi0, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
@@ -390,8 +390,8 @@ contains
     call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf1, &
           data=hydr_kmax_rsurf1)	 
 
-   call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf2, &
-          data=hydr_kmax_rsurf2)		  
+!   call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf2, &
+!          data=hydr_kmax_rsurf2)		  
     
     call fates_params%RetreiveParameter(name=hydr_name_psi0, &
           data=hydr_psi0)
@@ -470,8 +470,8 @@ contains
         write(fates_log(),fmt0) 'ED_val_cohort_fusion_tol = ',ED_val_cohort_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh      
-	write(fates_log(),fmt0) 'hydr_kmax_rsurf1 = ',hydr_kmax_rsurf1  
-	write(fates_log(),fmt0) 'hydr_kmax_rsurf2 = ',hydr_kmax_rsurf2  
+        write(fates_log(),fmt0) 'hydr_kmax_rsurf1 = ',hydr_kmax_rsurf1  
+        !        write(fates_log(),fmt0) 'hydr_kmax_rsurf2 = ',hydr_kmax_rsurf2  
         write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0
         write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
         write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
