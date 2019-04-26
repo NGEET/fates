@@ -42,7 +42,8 @@ module EDPhysiologyMod
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
-  use EDParamsMod           , only : logging_export_frac
+  use EDLoggingMortalityMod , only : logging_export_frac
+  !use EDParamsMod           , only : logging_export_frac
 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   
@@ -1167,8 +1168,6 @@ contains
               (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
       enddo
 
-      !if (currentCohort%canopy_layer > 1)then   
-
           ! ================================================        
           ! Litter fluxes for understorey  mortality. KgC/m2/year
           ! ================================================
@@ -1176,17 +1175,31 @@ contains
           ! Total number of dead understory (n/m2)
           dead_n = -1.0_r8 * currentCohort%dndt / currentPatch%area
 
-          ! Total number of dead understory from direct logging
-          ! (it is possible that large harvestable trees are in the understory)
-          dead_n_dlogging = ( currentCohort%lmort_direct) * &
-               currentCohort%n/hlm_freq_day/currentPatch%area
-          
-          ! Total number of dead understory from indirect logging
-          dead_n_ilogging = ( currentCohort%lmort_collateral + currentCohort%lmort_infra) * &
-                currentCohort%n/hlm_freq_day/currentPatch%area
-          
-          dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
+          if(currentCohort%canopy_layer > 1)then   
 
+             ! Total number of dead understory from direct logging
+             ! (it is possible that large harvestable trees are in the understory)
+             dead_n_dlogging = ( currentCohort%lmort_direct) * &
+                  currentCohort%n/hlm_freq_day/currentPatch%area
+             
+             ! Total number of dead understory from indirect logging
+             dead_n_ilogging = ( currentCohort%lmort_collateral + currentCohort%lmort_infra) * &
+                  currentCohort%n/hlm_freq_day/currentPatch%area
+             
+          else
+             
+             ! All mortality from logging in the canopy is
+             ! is disturbance generating
+
+             dead_n_dlogging = 0._r8
+             dead_n_ilogging = 0._r8
+
+          end if
+             
+
+
+          dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
+             
           
           currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
                (leaf_c)* dead_n
@@ -1274,7 +1287,8 @@ contains
              
              if (currentPatch%cwd_AG_in(c) < 0.0_r8)then
                 write(fates_log(),*) 'negative CWD in flux',currentPatch%cwd_AG_in(c), &
-                      (struct_c + sapw_c), dead_n
+                      (struct_c + sapw_c), dead_n, dead_n_natural, dead_n_ilogging, dead_n_dlogging
+                call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
 
           end do
@@ -1283,7 +1297,6 @@ contains
                 currentSite%resources_management%delta_individual + &
                 (dead_n_dlogging+dead_n_ilogging) * hlm_freq_day * currentPatch%area
           
-       !endif !canopy layer
        
        currentCohort => currentCohort%taller
     enddo  ! end loop over cohorts 
