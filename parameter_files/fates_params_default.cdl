@@ -70,6 +70,9 @@ variables:
 	float fates_logging_dbhmax_infra(fates_scalar) ;
 		fates_logging_dbhmax_infra:units = "cm" ;
 		fates_logging_dbhmax_infra:long_name = "Tree diameter, above which infrastructure from logging does not impact damage or mortality." ;
+	float fates_logging_export_frac(fates_scalar) ;	 
+		fates_logging_export_frac:units = "fraction" ;
+		fates_logging_export_frac:long_name = "fraction of trunk product being shipped offsite, the leftovers will be left onsite as large CWD" ;
 	float fates_logging_dbhmin(fates_scalar) ;
 		fates_logging_dbhmin:units = "cm" ;
 		fates_logging_dbhmin:long_name = "Minimum dbh at which logging is applied" ;
@@ -627,6 +630,8 @@ data:
  fates_logging_collateral_frac = 0.05 ;
 
  fates_logging_dbhmax_infra = 35 ;
+
+ fates_logging_export_frac = 0.8 ;
 
  fates_logging_dbhmin = 50 ;
 
