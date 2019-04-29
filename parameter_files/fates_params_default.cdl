@@ -82,7 +82,7 @@ variables:
 	float fates_logging_direct_frac(fates_scalar) ;
 		fates_logging_direct_frac:units = "fraction" ;
 		fates_logging_direct_frac:long_name = "Fraction of stems logged directly per event" ;
-	float fates_logging_event_code(fates_scalar) ;
+	double fates_logging_event_code(fates_scalar) ;
 		fates_logging_event_code:units = "unitless" ;
 		fates_logging_event_code:long_name = "Integer code that options how logging events are structured" ;
 	float fates_logging_mechanical_frac(fates_scalar) ;
