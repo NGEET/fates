@@ -491,7 +491,7 @@ module FatesHistoryInterfaceMod
      
      ! Instance of the list of history output varialbes
      type(fates_history_variable_type), allocatable :: hvars(:)
-     integer :: num_history_vars_
+     integer, private :: num_history_vars_
      
      ! Instanteat one registry of the different dimension/kinds (dk)
      ! All output variables will have a pointer to one of these dk's
