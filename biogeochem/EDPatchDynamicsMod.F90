@@ -20,6 +20,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
   use EDTypesMod           , only : ican_upper
+  use EDTypesMod           , only : lg_sf
   use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
@@ -477,6 +478,8 @@ contains
                 
                 call logging_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
                 
+                if(debug) write(fates_log(),*) "Logging disturbance generated:",patch_site_areadis
+
              elseif ((currentPatch%disturbance_rates(dtype_ifire) > &
                       currentPatch%disturbance_rates(dtype_ifall)) .and. &
                      (currentPatch%disturbance_rates(dtype_ifire) > &
@@ -1085,7 +1088,7 @@ contains
        !************************************/ 
        do c = 1,ncwd
           burned_litter = new_patch%cwd_ag(c) * patch_site_areadis/new_patch%area * &
-                currentPatch%burnt_frac_litter(c+1) !kG/m2/day
+                currentPatch%burnt_frac_litter(c) !kG/m2/day
           new_patch%cwd_ag(c) = new_patch%cwd_ag(c) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
           currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + &
@@ -1240,7 +1243,7 @@ contains
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              burned_leaves = leaf_c * currentCohort%fraction_crown_burned
           else
-             burned_leaves = leaf_c * currentPatch%burnt_frac_litter(6)
+             burned_leaves = leaf_c * currentPatch%burnt_frac_litter(lg_sf)
           endif
 
           if (burned_leaves > 0.0_r8) then

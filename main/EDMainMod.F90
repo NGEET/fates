@@ -750,8 +750,8 @@ contains
           currentCohort%frmort = 0.0_r8
 
           currentCohort%dndt      = 0.0_r8
-	  currentCohort%dhdt      = 0.0_r8
-	  currentCohort%ddbhdt    = 0.0_r8
+          currentCohort%dhdt      = 0.0_r8
+          currentCohort%ddbhdt    = 0.0_r8
 
           currentCohort => currentCohort%taller
        enddo

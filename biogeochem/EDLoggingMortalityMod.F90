@@ -59,6 +59,9 @@ module EDLoggingMortalityMod
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
+
+
+   real(r8), public, parameter :: logging_export_frac = 0.8_r8
    
    public :: LoggingMortality_frac
    public :: logging_litter_fluxes
@@ -170,6 +173,8 @@ contains
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates
  
       if (logging_time) then 
+
+         
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
 
             ! Pass logging rates to cohort level 
@@ -194,6 +199,9 @@ contains
             ! will be applied via "understory_death" via the disturbance algorithm
             if (canopy_layer .eq. 1) then
                lmort_collateral = logging_collateral_frac * adjustment
+            else
+               lmort_collateral = 0._r8
+               l_degrad         = l_degrad + logging_collateral_frac * adjustment
             endif
 
          else
@@ -202,6 +210,7 @@ contains
             lmort_infra      = 0.0_r8
             l_degrad         = 0.0_r8
          end if
+
       else 
          lmort_direct    = 0.0_r8
          lmort_collateral = 0.0_r8
