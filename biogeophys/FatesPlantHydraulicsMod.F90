@@ -40,7 +40,7 @@ module FatesPlantHydraulicsMod
    use FatesConstantsMod, only : cm2_per_m2
    use FatesConstantsMod, only : g_per_kg
 
-   use EDParamsMod       , only : hydr_kmax_rsurf
+   use EDParamsMod       , only : hydr_kmax_rsurf1
 
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_patch_type
@@ -1633,7 +1633,7 @@ contains
        enddo !cohort
        cPatch => cPatch%older
     enddo !patch
-    kmax_root_surf = hydr_kmax_rsurf
+    kmax_root_surf = hydr_kmax_rsurf1
     csite_hydr%l_aroot_1D = sum( csite_hydr%l_aroot_layer(:))
     
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
