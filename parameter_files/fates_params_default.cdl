@@ -469,9 +469,9 @@ variables:
 	float fates_seed_germination_timescale(fates_pft) ;
 		fates_seed_germination_timescale:units = "1/yr" ;
 		fates_seed_germination_timescale:long_name = "turnover time for seeds with respect to decay" ;
-	float fates_seed_rain(fates_pft) ;
-		fates_seed_rain:units = "KgC/m2/yr" ;
-		fates_seed_rain:long_name = "External seed rain from outside site (non-mass conserving)" ;
+	float fates_seed_suppl(fates_pft) ;
+		fates_seed_suppl:units = "KgC/m2/yr" ;
+		fates_seed_suppl:long_name = "Supplemental external seed rain source term (non-mass conserving)" ;
 	float fates_senleaf_long_fdrought(fates_pft) ;
 		fates_senleaf_long_fdrought:units = "unitless[0-1]" ;
 		fates_senleaf_long_fdrought:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;
@@ -1055,7 +1055,7 @@ data:
  fates_seed_germination_timescale = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5, 0.5, 0.5 ;
 
- fates_seed_rain = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+ fates_seed_suppl = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
 
  fates_senleaf_long_fdrought = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
