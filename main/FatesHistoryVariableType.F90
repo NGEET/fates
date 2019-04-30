@@ -5,10 +5,14 @@ module FatesHistoryVariableType
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
 
   implicit none
+  private        ! By default everything is private
+
+  ! Make public necessary subroutines and functions
+
 
   ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
 
-  type fates_history_variable_type
+  type, public :: fates_history_variable_type
      character(len=32)    :: vname
      character(len=24)    :: units
      character(len=128)   :: long
@@ -31,8 +35,8 @@ module FatesHistoryVariableType
      integer,  pointer     :: int2d(:,:)
      integer,  pointer     :: int3d(:,:,:)
    contains
-     procedure, public :: Init
-     procedure, public :: Flush
+     procedure          :: Init
+     procedure          :: Flush
      procedure, private :: GetBounds
   end type fates_history_variable_type
 
