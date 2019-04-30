@@ -37,6 +37,10 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : equal_leaf_aclass
    use EDTypesMod       , only : leaves_on
    use EDTypesMod       , only : leaves_off
+   use EDTypesMod       , only : phen_cstat_nevercold
+   use EDTypesMod       , only : phen_cstat_iscold
+   use EDTypesMod       , only : phen_dstat_timeoff
+   use EDTypesMod       , only : phen_dstat_moistoff
    use EDPftvarcon      , only : EDPftvarcon_inst
    use FatesConstantsMod, only : primaryforest
 
@@ -916,13 +920,15 @@ contains
       temp_cohort%laimemory = 0._r8
       cstatus = leaves_on
             
-      if( EDPftvarcon_inst%season_decid(c_pft) == itrue .and. csite%cstatus < 2 ) then
+      if( EDPftvarcon_inst%season_decid(c_pft) == itrue .and. &
+           any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
          temp_cohort%laimemory = b_leaf
          b_leaf  = 0._r8
          cstatus = leaves_off
       endif
       
-      if ( EDPftvarcon_inst%stress_decid(c_pft) == itrue .and. csite%dstatus < 2) then
+      if ( EDPftvarcon_inst%stress_decid(c_pft) == itrue .and. &
+           any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
          temp_cohort%laimemory = b_leaf
          b_leaf  = 0._r8
          cstatus = leaves_off

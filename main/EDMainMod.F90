@@ -41,6 +41,8 @@ module EDMainMod
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
   use EDTypesMod               , only : AREA
+  use EDTypesMod               , only : phen_dstat_moiston
+  use EDTypesMod               , only : phen_dstat_timeon
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
@@ -361,7 +363,7 @@ contains
 
           ! Conduct Maintenance Turnover (parteh)
           call currentCohort%prt%CheckMassConservation(ft,3)
-          if(currentSite%dstatus>1) then
+          if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
              is_drought = .false.
           else
              is_drought = .true.

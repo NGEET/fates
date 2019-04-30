@@ -27,6 +27,12 @@ module EDInitMod
   use EDTypesMod                , only : first_leaf_aclass
   use EDTypesMod                , only : leaves_on
   use EDTypesMod                , only : leaves_off
+  use EDTypesMod                , only : phen_cstat_nevercold
+  use EDTypesMod                , only : phen_cstat_iscold
+  use EDTypesMod                , only : phen_dstat_timeoff
+  use EDTypesMod                , only : phen_dstat_moistoff
+  use EDTypesMod                , only : phen_cstat_notcold
+  use EDTypesMod                , only : phen_dstat_moiston
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
@@ -210,9 +216,9 @@ contains
        GDD      = 30.0_r8
        cleafon  = 100
        cleafoff = 300 
-       cstat    = 2                ! Leaves are on
+       cstat    = phen_cstat_notcold     ! Leaves are on
        acc_NI   = 0.0_r8
-       dstat    = 2                ! Leaves are on
+       dstat    = phen_dstat_moiston     ! Leaves are on
        dleafoff = 300
        dleafon  = 100
        watermem = 0.5_r8
@@ -437,13 +443,15 @@ contains
        temp_cohort%laimemory = 0._r8
        cstatus = leaves_on
        
-       if( EDPftvarcon_inst%season_decid(pft) == itrue .and. site_in%cstatus < 2 ) then
+       if( EDPftvarcon_inst%season_decid(pft) == itrue .and. &
+            any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0._r8
           cstatus = leaves_off
        endif
-       
-       if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. site_in%dstatus < 2 ) then
+
+       if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. &
+            any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0._r8
           cstatus = leaves_off

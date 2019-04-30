@@ -116,6 +116,20 @@ module EDTypesMod
   integer , parameter :: dtype_ifire          = 2          ! index for fire generated disturbance event
   integer , parameter :: dtype_ilog           = 3          ! index for logging generated disturbance event
 
+
+  ! Phenology status flag definitions (cold type is cstat, dry type is dstat)
+
+  integer, parameter :: phen_cstat_nevercold = 0        ! This (location/plant) has not experienced a cold period over a large number
+                                                        ! of days, leaves are dropped and flagged as non-cold region
+  integer, parameter :: phen_cstat_iscold    = 1        ! This (location/plant) is in a cold-state where leaves should have fallen
+  integer, parameter :: phen_cstat_notcold   = 2        ! This site is in a warm-state where leaves are allowed to flush
+
+  integer, parameter :: phen_dstat_timeoff   = 0       ! Leaves off due to time exceedance (drought phenology)
+  integer, parameter :: phen_dstat_moistoff  = 1       ! Leaves off due to moisture avail  (drought phenology)
+  integer, parameter :: phen_dstat_moiston   = 2       ! Leaves on due to moisture avail   (drought phenology)
+  integer, parameter :: phen_dstat_timeon    = 3       ! Leaves on due to time exceedance  (drought phenology)
+
+
   ! SPITFIRE     
   integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools (twig,s branch,l branch, trunk)
   integer , parameter :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)

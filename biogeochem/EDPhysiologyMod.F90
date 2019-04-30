@@ -37,6 +37,13 @@ module EDPhysiologyMod
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
   use EDTypesMod          , only : min_n_safemath
+  use EDTypesMod          , only : phen_cstat_nevercold
+  use EDTypesMod          , only : phen_cstat_iscold
+  use EDTypesMod          , only : phen_cstat_notcold
+  use EDTypesMod          , only : phen_dstat_timeoff
+  use EDTypesMod          , only : phen_dstat_moistoff
+  use EDTypesMod          , only : phen_dstat_moiston
+  use EDTypesMod          , only : phen_dstat_timeon
 
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
@@ -537,11 +544,11 @@ contains
     !   from ever re-flushing after they have reached their maximum age (thus
     !   preventing them from competing
 
-    if ( (currentSite%cstatus == 1 .or. currentSite%cstatus == 0) .and. &
+    if ( (currentSite%cstatus == phen_cstat_iscold .or. &
+          currentSite%cstatus == phen_cstat_nevercold) .and. &
          (currentSite%grow_deg_days > gdd_threshold) .and. &
-         (currentSite%nchilldays >= 1)                    .and. &
-         (dayssincecleafoff > ED_val_phen_mindayson))  then
-       currentSite%cstatus = 2     !alter status of site to 'leaves on'
+         (currentSite%nchilldays >= 1)) then
+       currentSite%cstatus = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
        currentSite%cleafondate = model_day_int  
        if ( debug ) write(fates_log(),*) 'leaves on'
     endif !GDD
@@ -557,7 +564,7 @@ contains
     !4) The day of simulation should be larger than the counting period. 
 
     
-    if ( (currentSite%cstatus == 2)             .and. &
+    if ( (currentSite%cstatus == phen_cstat_notcold) .and. &
          (model_day_int > num_vegtemp_mem)      .and. &
          (ncolddays > ED_val_phen_ncolddayslim) .and. &
          (dayssincecleafon > ED_val_phen_mindayson) )then
@@ -567,8 +574,8 @@ contains
                                                  ! first flush, but if we dont
                                                  ! clear this value, it will cause
                                                  ! leaves to flush later in the year
-       currentSite%cstatus       = 1             ! alter status of site to 'leaves off'
-       currentSite%cleafoffdate = model_day_int  ! record leaf off date   
+       currentSite%cstatus       = phen_cstat_iscold  ! alter status of site to 'leaves off'
+       currentSite%cleafoffdate = model_day_int       ! record leaf off date   
 
        if ( debug ) write(fates_log(),*) 'leaves off'
     endif
@@ -579,13 +586,15 @@ contains
     ! when coupled with this fact will essentially prevent cold-deciduous
     ! plants from re-emerging in areas without at least some cold days
 
-    if( (currentSite%cstatus == 2)  .and. &
+    if( (currentSite%cstatus == phen_cstat_notcold)  .and. &
         (dayssincecleafoff > 400)) then           ! remove leaves after a whole year 
                                                   ! when there is no 'off' period.  
        currentSite%grow_deg_days  = 0._r8
 
-       currentSite%cstatus = 0                    ! alter status of site to "not-cold deciduous"
-       currentSite%cleafoffdate = model_day_int   ! record leaf off date   
+       currentSite%cstatus = phen_cstat_nevercold  ! alter status of site to imply that this
+                                                   ! site is never really cold enough
+                                                   ! for cold deciduous
+       currentSite%cleafoffdate = model_day_int    ! record leaf off date   
        
        if ( debug ) write(fates_log(),*) 'leaves off'
     endif
@@ -643,7 +652,6 @@ contains
     endif
     
     ! the leaves are on. How long have they been on? 
-    ! if (currentSite%dstatus == 2 .or. currentSite%dstatus == 3)then
     if (model_day_int < currentSite%dleafondate) then
        dayssincedleafon = model_day_int - (currentSite%dleafondate-365)
     else
@@ -660,7 +668,8 @@ contains
     ! c) is the model day at least > 10 (let soil water spin-up)
     ! Note that cold-starts begin in the "leaf-on"
     ! status
-    if ( (currentSite%dstatus == 1 .or. currentSite%dstatus == 0) .and. &
+    if ( (currentSite%dstatus == phen_dstat_timeoff .or. &
+          currentSite%dstatus == phen_dstat_moistoff) .and. &
           (model_day_int > numWaterMem) .and. &
           (dayssincedleafon >= 365-30 .and. dayssincedleafon <= 365+30 ) .and. &
           (dayssincedleafoff > ED_val_phen_doff_time) ) then
@@ -670,8 +679,8 @@ contains
        ! time window... test if the moisture conditions allow for leaf-on
        
        if ( mean_10day_liqvol >= ED_val_phen_drought_threshold ) then
-          currentSite%dstatus     = 2              ! set status to leaf-on
-          currentSite%dleafondate = model_day_int  ! save the model day we start flushing
+          currentSite%dstatus     = phen_dstat_moiston  ! set status to leaf-on
+          currentSite%dleafondate = model_day_int       ! save the model day we start flushing
           dayssincedleafon        = 0
        endif
     endif
@@ -679,15 +688,16 @@ contains
     ! LEAF ON: DROUGHT DECIDUOUS TIME EXCEEDANCE
     ! If we still haven't done budburst by end of window, then force it
 
-    ! If the status is 1, it means this site currently has 
+    ! If the status is "phen_dstat_moistoff", it means this site currently has 
     ! leaves off due to actual moisture limitations. 
     ! So we trigger bud-burst at the end of the month since 
-    ! last year's bud-burst.
+    ! last year's bud-burst.  If this is imposed, then we set the new
+    ! status to indicate bud-burst was forced by timing
 
-    if( currentSite%dstatus == 1 ) then
+    if( currentSite%dstatus == phen_dstat_moistoff ) then
        if ( dayssincedleafon > 365+30 ) then
-          currentSite%dstatus     = 3               ! force budburst!
-          currentSite%dleafondate = model_day_int   ! record leaf on date
+          currentSite%dstatus     = phen_dstat_timeon ! force budburst!
+          currentSite%dleafondate = model_day_int     ! record leaf on date
           dayssincedleafon        = 0
        end if
     end if
@@ -695,10 +705,10 @@ contains
     ! But if leaves are off due to time, then we enforce
     ! a longer cool-down (because this is a perrenially wet system)
 
-    if(currentSite%dstatus == 0 ) then
+    if(currentSite%dstatus == phen_dstat_timeoff ) then
        if (dayssincedleafoff > min_daysoff_dforcedflush) then
-          currentSite%dstatus     = 3               ! force budburst!
-          currentSite%dleafondate = model_day_int   ! record leaf on date
+          currentSite%dstatus     = phen_dstat_timeon    ! force budburst!
+          currentSite%dleafondate = model_day_int        ! record leaf on date
           dayssincedleafon        = 0
        end if
     end if
@@ -707,21 +717,23 @@ contains
     ! the end of its useful life. A*, E*  
     ! i.e. Are the leaves rouhgly at the end of their lives? 
 
-    if ( (currentSite%dstatus == 2 .or. currentSite%dstatus == 3 ) .and. & 
+    if ( (currentSite%dstatus == phen_dstat_moiston .or. &
+          currentSite%dstatus == phen_dstat_timeon ) .and. & 
          (dayssincedleafon > canopy_leaf_lifespan) )then 
-          currentSite%dstatus      = 0             !alter status of site to 'leaves off'
-          currentSite%dleafoffdate = model_day_int !record leaf on date          
+          currentSite%dstatus      = phen_dstat_timeoff    !alter status of site to 'leaves off'
+          currentSite%dleafoffdate = model_day_int         !record leaf on date          
     endif
 
     ! LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry, 
     ! and the leaves have already been on a while... 
 
-    if ( (currentSite%dstatus == 2 .or. currentSite%dstatus == 3 ) .and. &
+    if ( (currentSite%dstatus == phen_dstat_moiston .or. &
+          currentSite%dstatus == phen_dstat_timeon ) .and. &
          (model_day_int > numWaterMem) .and. &
          (mean_10day_liqvol <= ED_val_phen_drought_threshold) .and. &
          (dayssincedleafon > dleafon_drycheck ) ) then 
-       currentSite%dstatus = 1                  ! alter status of site to 'leaves off'
-       currentSite%dleafoffdate = model_day_int ! record leaf on date           
+       currentSite%dstatus = phen_dstat_moistoff     ! alter status of site to 'leaves off'
+       currentSite%dleafoffdate = model_day_int      ! record leaf on date           
     endif
 
     call phenology_leafonoff(currentSite)
@@ -770,8 +782,8 @@ contains
           ! The site level flags signify that it is no-longer too cold
           ! for leaves. Time to signal flushing
 
-          if (EDPftvarcon_inst%season_decid(ipft) == 1)then
-             if ( currentSite%cstatus == 2  )then                ! we have just moved to leaves being on . 
+          if (EDPftvarcon_inst%season_decid(ipft) == itrue)then
+             if ( currentSite%cstatus == phen_cstat_notcold  )then                ! we have just moved to leaves being on . 
                 if (currentCohort%status_coh == leaves_off)then ! Are the leaves currently off?        
                    currentCohort%status_coh = leaves_on         ! Leaves are on, so change status to 
                                                                 ! stop flow of carbon out of bstore. 
@@ -793,8 +805,10 @@ contains
              endif ! growing season 
 
              !COLD LEAF OFF
-             if (currentSite%cstatus == 1 .or. currentSite%cstatus == 0)then !past leaf drop day? Leaves still on tree?  
-                if (currentCohort%status_coh == leaves_on)then ! leaves have not dropped
+             if (currentSite%cstatus == phen_cstat_nevercold .or. &
+                 currentSite%cstatus == phen_cstat_iscold) then ! past leaf drop day? Leaves still on tree?  
+
+                if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
 
                    
                    ! This sets the cohort to the "leaves off" flag
@@ -821,9 +835,10 @@ contains
           ! Site level flag indicates it is no longer in drought condition
           ! deciduous plants can flush
 
-          if (EDPftvarcon_inst%stress_decid(ipft) == 1)then
+          if (EDPftvarcon_inst%stress_decid(ipft) == itrue )then
              
-             if (currentSite%dstatus == 2 .or. currentSite%dstatus == 3 )then 
+             if (currentSite%dstatus == phen_dstat_moiston .or. &
+                 currentSite%dstatus == phen_dstat_timeon )then 
 
                 ! we have just moved to leaves being on . 
                 if (currentCohort%status_coh == leaves_off)then    
@@ -851,8 +866,10 @@ contains
              endif   !currentSite status
 
              !DROUGHT LEAF OFF
-             if (currentSite%dstatus == 1 .or. currentSite%dstatus == 0)then        
-                if (currentCohort%status_coh == leaves_on)then ! leaves have not dropped
+             if (currentSite%dstatus == phen_dstat_moistoff .or. &
+                 currentSite%dstatus == phen_dstat_timeoff) then        
+
+                if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
 
                    ! This sets the cohort to the "leaves off" flag
                    currentCohort%status_coh      = leaves_off
@@ -1032,11 +1049,11 @@ contains
              EDPftvarcon_inst%germination_timescale(p),max_germination)     
        !set the germination only under the growing season...c.xu
        if ( (EDPftvarcon_inst%season_decid(p) == itrue) .and. &
-            (any(currentSite%cstatus == [0,1]))) then
+            (any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]))) then
           currentPatch%seed_germination(p) = 0.0_r8
        endif
        if ( (EDPftvarcon_inst%stress_decid(p) == itrue) .and. & 
-            (any(currentSite%dstatus == [0,1]))) then
+            (any(currentSite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
           currentPatch%seed_germination(p) = 0.0_r8
        endif
     enddo
@@ -1097,14 +1114,14 @@ contains
        temp_cohort%laimemory = 0.0_r8     
 
        if ( (EDPftvarcon_inst%season_decid(temp_cohort%pft) == itrue) .and. &
-            (any(currentSite%cstatus == [0,1]))) then
+            (any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]))) then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
           cohortstatus = leaves_off
        endif
 
        if ( (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == itrue) .and. &
-            (any(currentSite%dstatus == [0,1]))) then
+            (any(currentSite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
           cohortstatus = leaves_off
