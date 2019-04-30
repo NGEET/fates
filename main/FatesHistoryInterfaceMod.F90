@@ -3385,14 +3385,14 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_area_treespread_pa)
 
-    call this%set_history_var(vname='SITE_COLD_STATUS', units='1,2', &
-          long='Site level cold status, 1=too cold for leaves, 2=not-too cold',  &
+    call this%set_history_var(vname='SITE_COLD_STATUS', units='0,1,2', &
+          long='Site level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not-too cold',  &
           use_default='active',                                                  &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
           ivar=ivar, initialize=initialize_variables, index = ih_site_cstatus_si )
 
-    call this%set_history_var(vname='SITE_DROUGHT_STATUS', units='1,2', &
-          long='Site level drought status, 1=too dry for leaves, 2=not-too dry', &
+    call this%set_history_var(vname='SITE_DROUGHT_STATUS', units='0,1,2,3', &
+          long='Site level drought status, <2 too dry for leaves, >=2 not-too dry', &
           use_default='active',                                                  &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
           ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si)

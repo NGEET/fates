@@ -322,8 +322,8 @@ contains
                    
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
-                if (EDPftvarcon_inst%season_decid(ipft) == 1.or. &
-                     EDPftvarcon_inst%stress_decid(ipft) == 1)then 
+                if (EDPftvarcon_inst%season_decid(ipft) ==  itrue .or. &
+                     EDPftvarcon_inst%stress_decid(ipft) == itrue )then 
 
                    ! Leaf cost at leaf level z accounting for sla profile (kgC/m2)
                    currentCohort%leaf_cost =  1._r8/(sla_levleaf*1000.0_r8)
