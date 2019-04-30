@@ -987,6 +987,10 @@ contains
                  EDPftvarcon_inst%seed_rain(p) !KgC/m2/year
        currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + &
                  EDPftvarcon_inst%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
+
+       currentSite%flux_in = currentSite%flux_in + &
+             EDPftvarcon_inst%seed_rain(p) * currentPatch%area * hlm_freq_day
+
     enddo
 
 

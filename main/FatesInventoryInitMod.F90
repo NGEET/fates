@@ -809,6 +809,7 @@ contains
       real(r8) :: b_dead
       real(r8) :: b_store 
       real(r8) :: a_sapwood  ! area of sapwood at reference height [m2]
+      integer                                     :: i_pft, ncohorts_to_create
 
 
       character(len=128),parameter    :: wr_fmt = &
@@ -857,9 +858,9 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      if (c_pft <= 0 ) then
+      if (c_pft < 0 ) then
          write(fates_log(), *) 'inventory pft: ',c_pft
-         write(fates_log(), *) 'The inventory produced a cohort with <=0 pft index'
+         write(fates_log(), *) 'The inventory produced a cohort with <0 pft index'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
@@ -886,64 +887,91 @@ contains
          write(fates_log(), *) 'The inventory produced a cohort with very large density /m2'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
-      
-      allocate(temp_cohort)   ! A temporary cohort is needed because we want to make
-                              ! use of the allometry functions
-                              ! Don't need to allocate leaf age classes (not used)
 
-      temp_cohort%pft         = c_pft
-      temp_cohort%n           = c_nplant * cpatch%area
-      temp_cohort%dbh         = c_dbh
-      call h_allom(c_dbh,c_pft,temp_cohort%hite)
-      temp_cohort%canopy_trim = 1.0_r8
+      if (c_pft .eq. 0 ) then
+         write(fates_log(), *) 'inventory pft: ',c_pft
+         write(fates_log(), *) 'SPECIAL CASE TRIGGERED: PFT == 0 and therefore this subroutine'
+         write(fates_log(), *) 'will assign a cohort with n = n_orig/numpft to every cohort in range 1 to numpft'
+         ncohorts_to_create = numpft
+      else
+         ncohorts_to_create = 1
+      end if
 
-      ! Calculate total above-ground biomass from allometry
+      do i_pft = 1,ncohorts_to_create
+         allocate(temp_cohort)   ! A temporary cohort is needed because we want to make
+         ! use of the allometry functions
+         ! Don't need to allocate leaf age classes (not used)
 
-      call bagw_allom(temp_cohort%dbh,c_pft,b_agw)
-      ! Calculate coarse root biomass from allometry
-      call bbgw_allom(temp_cohort%dbh,c_pft,b_bgw)
-      
-      ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
-      ! and sla scaling factors)
-      call bleaf(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_leaf)
-      
-      ! Calculate fine root biomass
-      call bfineroot(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_fineroot)
-      
-      ! Calculate sapwood biomass
-      call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim, a_sapwood, b_sapwood)
-      
-      call bdead_allom( b_agw, b_bgw, b_sapwood, c_pft, b_dead )
+         if (c_pft .ne. 0 ) then
+            ! normal case: assign each cohort to its specified PFT
+            temp_cohort%pft         = c_pft
+         else
+            ! special case, make an identical cohort for each PFT
+            temp_cohort%pft         = i_pft
+         endif
 
-      call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim, b_store)
-      
-      temp_cohort%laimemory = 0._r8
-      cstatus = leaves_on
-            
-      if( EDPftvarcon_inst%season_decid(c_pft) == itrue .and. &
-           any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-         temp_cohort%laimemory = b_leaf
-         b_leaf  = 0._r8
-         cstatus = leaves_off
-      endif
-      
-      if ( EDPftvarcon_inst%stress_decid(c_pft) == itrue .and. &
-           any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-         temp_cohort%laimemory = b_leaf
-         b_leaf  = 0._r8
-         cstatus = leaves_off
-      endif
+         temp_cohort%n           = c_nplant * cpatch%area / real(ncohorts_to_create,r8)
+         temp_cohort%dbh         = c_dbh
 
-      ! Since spread is a canopy level calculation, we need to provide an initial guess here.
-      call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-           b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &
-           temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
-           1, csite%spread, equal_leaf_aclass, bc_in)
+         call h_allom(c_dbh,temp_cohort%pft,temp_cohort%hite)
+         temp_cohort%canopy_trim = 1.0_r8
 
-      
-      deallocate(temp_cohort) ! get rid of temporary cohort
+         ! Calculate total above-ground biomass from allometry
+
+         call bagw_allom(temp_cohort%dbh,temp_cohort%pft,b_agw)
+         ! Calculate coarse root biomass from allometry
+         call bbgw_allom(temp_cohort%dbh,temp_cohort%pft,b_bgw)
+
+         ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
+         ! and sla scaling factors)
+         call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,b_leaf)
+
+         ! Calculate fine root biomass
+         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,b_fineroot)
+
+         ! Calculate sapwood biomass
+         call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim, a_sapwood, b_sapwood)
+
+         call bdead_allom( b_agw, b_bgw, b_sapwood, temp_cohort%pft, b_dead )
+
+         call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%canopy_trim, b_store)
+
+         temp_cohort%laimemory = 0._r8
+         cstatus = leaves_on
+
+
+         if( EDPftvarcon_inst%season_decid(temp_cohort%pft) == itrue .and. &
+              any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
+            temp_cohort%laimemory = b_leaf
+            b_leaf  = 0._r8
+            cstatus = leaves_off
+         endif
+         
+         if ( EDPftvarcon_inst%stress_decid(temp_cohort%pft) == itrue .and. &
+              any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
+            temp_cohort%laimemory = b_leaf
+            b_leaf  = 0._r8
+            cstatus = leaves_off
+         endif
+
+         ! Since spread is a canopy level calculation, we need to provide an initial guess here.
+         if( debug_inv) then
+            write(fates_log(),*) 'calling create_cohort: ', temp_cohort%pft, temp_cohort%n, &
+                 temp_cohort%hite, temp_cohort%dbh, &
+                 b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &
+                 temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
+                 1, csite%spread
+         endif
+
+         call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
+              temp_cohort%dbh, b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &
+              temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
+              1, csite%spread, equal_leaf_aclass, bc_in)
+
+         deallocate(temp_cohort) ! get rid of temporary cohort
+      end do
 
       return
-   end subroutine set_inventory_edcohort_type1
+    end subroutine set_inventory_edcohort_type1
 
 end module FatesInventoryInitMod
