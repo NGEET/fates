@@ -191,125 +191,125 @@ contains
     ! indicate whether they are fates parameters or host parameters
     ! that need to be synced with host values.
 
-    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar1d, dimension_shape_1d
+    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_1d
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
-    use FatesParametersInterface, only : dimension_name_history_height_bins
+    use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_shape_scalar
 
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
-    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_scalar1d/)
+    character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
     character(len=param_string_length), parameter :: dim_names_sizeclass(1) = (/dimension_name_history_size_bins/)
     character(len=param_string_length), parameter :: dim_names_ageclass(1) = (/dimension_name_history_age_bins/)
     character(len=param_string_length), parameter :: dim_names_height(1) = (/dimension_name_history_height_bins/)
 
     call FatesParamsInit()
 
-    call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_nignitions, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_nignitions, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_understorey_death, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_understorey_death, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_cwd_fcel, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_cwd_fcel, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_cwd_flig, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_cwd_flig, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_bbopt_c3, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_bbopt_c3, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_bbopt_c4, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_bbopt_c4, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_base_mr_20, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_base_mr_20, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_phen_drought_threshold, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_phen_drought_threshold, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_phen_doff_time, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_phen_doff_time, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_phen_a, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_phen_a, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_phen_b, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_phen_b, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_phen_c, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_phen_c, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_phen_chiltemp, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_phen_chiltemp, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_phen_mindayson, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_phen_mindayson, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_phen_ncolddayslim, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_phen_ncolddayslim, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_phen_coldtemp, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_phen_coldtemp, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_cohort_fusion_tol, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_cohort_fusion_tol, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_patch_fusion_tol, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_patch_fusion_tol, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_canopy_closure_thresh, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=ED_name_canopy_closure_thresh, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 	 
-    call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf2, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf2, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=hydr_name_psi0, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=hydr_name_psi0, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=hydr_name_psicap, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=hydr_name_psicap, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=bgc_name_soil_salinity, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names) 
+    call fates_params%RegisterParameter(name=bgc_name_soil_salinity, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar) 
 
-    call fates_params%RegisterParameter(name=logging_name_dbhmin, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=logging_name_dbhmin, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=logging_name_collateral_frac, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=logging_name_collateral_frac, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=logging_name_coll_under_frac, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=logging_name_coll_under_frac, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=logging_name_direct_frac, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=logging_name_direct_frac, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=logging_name_mechanical_frac, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=logging_name_mechanical_frac, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=logging_name_event_code, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=logging_name_event_code, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=logging_name_dbhmax_infra, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=logging_name_dbhmax_infra, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=logging_name_export_frac, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    call fates_params%RegisterParameter(name=logging_name_export_frac, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
     ! non-scalar parameters
     call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &

@@ -1,4 +1,4 @@
-netcdf fates_params_refactor_sorted {
+netcdf fates_params_default {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
