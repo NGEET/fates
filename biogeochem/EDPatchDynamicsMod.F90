@@ -52,7 +52,6 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : nearzero
   use FatesConstantsMod    , only : primaryforest, secondaryforest
   use FatesConstantsMod    , only : n_anthro_disturbance_categories
-
   use EDCohortDynamicsMod  , only : InitPRTObject
   use EDCohortDynamicsMod  , only : InitPRTBoundaryConditions
 
@@ -435,7 +434,7 @@ contains
           allocate(new_patch_primary)
 
           call create_patch(currentSite, new_patch_primary, age, &
-                site_areadis_primary, bc_in%nlevsoil, primary_forest)
+                site_areadis_primary, bc_in%nlevsoil, primaryforest)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -456,7 +455,7 @@ contains
        if ( site_areadis_secondary .gt. nearzero) then
           allocate(new_patch_secondary)
           call create_patch(currentSite, new_patch_secondary, age, &
-                site_areadis_secondary, bc_in%nlevsoil, secondary_forest)
+                site_areadis_secondary, bc_in%nlevsoil, secondaryforest)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
