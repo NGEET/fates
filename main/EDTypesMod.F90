@@ -643,7 +643,6 @@ module EDTypesMod
                                        ! and initialization [kg/site/day]
      real(r8) :: flux_generic_out      ! Used for prescribed or artificial output fluxes
                                        ! for instance when prescribed physiology is on
-
    contains
 
      procedure :: ZeroMassBalState
