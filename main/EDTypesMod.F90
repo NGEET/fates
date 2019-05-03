@@ -466,8 +466,6 @@ module EDTypesMod
      real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
 
      ! ROOTS
-     real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
-     real(r8), allocatable ::  rootr_ft(:,:)                       ! fraction of water taken from each PFT and soil layer:-
      real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-
      real(r8) ::  bstress_sal_ft(maxpft)                        ! bstress from salinity calculated seperately for each PFT:-   
      
