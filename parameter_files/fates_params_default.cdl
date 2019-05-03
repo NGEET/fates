@@ -482,7 +482,7 @@ variables:
 		fates_fire_durat_slope:long_name = "spitfire parameter, fire max duration slope, Equation 14 Thonicke et al 2010" ;
 	float fates_fire_fdi_a ;
 		fates_fire_fdi_a:units = "NA" ;
-		fates_fire_fdi_a:long_name = "spitfire parameter (unknown) " ;
+		fates_fire_fdi_a:long_name = "spitfire parameter, fire danger index,  EQ 5 Thonicke et al 2010" ;
 	float fates_fire_fdi_alpha ;
 		fates_fire_fdi_alpha:units = "NA" ;
 		fates_fire_fdi_alpha:long_name = "spitfire parameter, EQ 7 Venevsky et al. GCB 2002,(modified EQ 8 Thonicke et al. 2010) " ;
