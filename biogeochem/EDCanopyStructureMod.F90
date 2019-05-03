@@ -1258,8 +1258,6 @@ contains
 
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
-    use FatesAllometryMod    , only : set_root_fraction
-    use FatesAllometryMod    , only : i_hydro_rootprof_context
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use EDtypesMod           , only : area
     use EDPftvarcon          , only : EDPftvarcon_inst
@@ -1300,17 +1298,6 @@ contains
        currentPatch => sites(s)%oldest_patch
 
        do while(associated(currentPatch))
-          
-          ! Calculate rooting depth fractions for the patch x pft
-          ! Note that we are calling for the root fractions in the hydrologic context.
-          ! See explanation in FatesAllometryMod.  In other locations, this
-          ! function is called to return the profile of biomass as used for litter
-
-          do ft = 1, numpft
-             call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
-                  bc_in(s)%zi_sisl,icontext=i_hydro_rootprof_context)
-          end do
-          
           
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8

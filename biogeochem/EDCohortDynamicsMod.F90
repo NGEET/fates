@@ -62,7 +62,6 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : ForceDBH
   use FatesAllometryMod  , only : tree_lai, tree_sai
   use FatesAllometryMod  , only : i_biomass_rootprof_context 
-  use FatesAllometryMOd  , only : set_root_fraction
 
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
@@ -184,9 +183,6 @@ contains
 
     allocate(new_cohort)
 
-    ! Allocate dynamic memory in each cohort
-    allocate(new_cohort%root_fr(bc_in%nlevsoil))
-
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
 
@@ -212,13 +208,6 @@ contains
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
 
-    ! Initialize the rooting depth fractions
-    ! This could be based on all sorts of stuff, like size
-    ! or perhaps mass balance dynamics
-    
-    call set_root_fraction(new_cohort%root_fr(:), pft, &
-          bc_in%zi_sisl(:), i_biomass_rootprof_context )
-    
 
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
@@ -477,7 +466,6 @@ contains
     currentCohort%size_class         = fates_unset_int  ! size class index
     currentCohort%size_class_lasttimestep = fates_unset_int  ! size class index
     currentCohort%size_by_pft_class  = fates_unset_int  ! size by pft classification index
-    currentCohort%root_fr(:)         = nan
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm                            
     currentCohort%hite               = nan ! height: meters                   
@@ -906,9 +894,6 @@ contains
      
      ! Deallocate the PRT object
      deallocate(currentCohort%prt)
-     
-     ! Deallocate any dynamic arrays
-     deallocate(currentCohort%root_fr)
      
      return
   end subroutine DeallocateCohort

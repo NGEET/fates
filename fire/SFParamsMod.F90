@@ -100,8 +100,8 @@ contains
      
      ! Move these checks to initialization
      do c = 1,nfsc
-        if ( SF_val_max_decomp(c) < 0._r8 .or. SF_val_max_decomp(c) > 1.0_r8) then
-           write(fates_log(),*) 'Decomposition rates should be >0 and <1'
+        if ( SF_val_max_decomp(c) < 0._r8) then
+           write(fates_log(),*) 'Decomposition rates should be >0'
            write(fates_log(),*) 'c = ',c,' SF_val_max_decomp(c) = ',SF_val_max_decomp(c)
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if

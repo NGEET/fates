@@ -56,8 +56,7 @@ module EDPhysiologyMod
   
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : calloc_abs_error
-  use FatesConstantsMod     , only : days_per_year
-
+  use FatesConstantsMod     , only : years_per_day
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : h2d_allom
   use FatesAllometryMod  , only : bagw_allom
@@ -69,6 +68,8 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : bbgw_allom
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
+  use FatesAllometryMod, only : set_root_fraction
+  use FatesAllometryMod, only : i_biomass_rootprof_context 
   
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : prt_cnp_flex_allom_hyp
@@ -1049,7 +1050,7 @@ contains
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
              
              ! Seed input from external sources (user param seed rain, or dispersal model)
-             seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_rain(pft)/days_per_year
+             seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_rain(pft)*years_per_day
              
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
@@ -1088,10 +1089,10 @@ contains
 
     do pft = 1,numpft 
        litt%seed_decay(pft) = litt%seed(pft) * &
-             EDPftvarcon_inst%seed_decay_turnover(pft)/days_per_year
+             EDPftvarcon_inst%seed_decay_turnover(pft)*years_per_day
 
        litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
-             EDPftvarcon_inst%seed_decay_turnover(pft)/days_per_year
+             EDPftvarcon_inst%seed_decay_turnover(pft)*years_per_day
 
     enddo
 
@@ -1132,7 +1133,7 @@ contains
 
     do pft = 1,numpft
        litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_timescale(pft), &
-                                     max_germination)/days_per_year  
+                                     max_germination)*years_per_day
        
        !set the germination only under the growing season...c.xu
        if (EDPftvarcon_inst%season_decid(pft) == itrue .and. is_cold)then 
@@ -1486,7 +1487,7 @@ contains
     integer  :: ilyr
     integer  :: pft
     integer  :: numlevsoil              ! Actual number of soil layers
-    real(r8) :: rootfr(numlevsoil_max)  ! Fractional root mass profile
+    real(r8),allocatable :: rootfr(:)  ! Fractional root mass profile
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
@@ -1494,7 +1495,8 @@ contains
     ! -----------------------------------------------------------------------------------
 
     numlevsoil = bc_in%nlevsoil
-    
+    allocate(rootfr(numlevsoil))
+
     element_id = litt%element_id
     
     ! Object tracking flux diagnostics for each element
@@ -1506,6 +1508,9 @@ contains
     currentCohort => currentPatch%shortest
     do while(associated(currentCohort))
       pft = currentCohort%pft        
+
+      call set_root_fraction(rootfr(:), pft, bc_in%zi_sisl, &
+            icontext = i_biomass_rootprof_context)
 
       leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id)
       store_m_turnover  = currentCohort%prt%GetTurnover(store_organ,element_id)
@@ -1541,7 +1546,7 @@ contains
       
       do ilyr = 1, numlevsoil
          litt%root_fines_in(pft,ilyr) = litt%root_fines_in(pft,ilyr) + &
-              currentCohort%root_fr(ilyr) * root_fines_tot
+               rootfr(ilyr) * root_fines_tot
       end do
       
       flux_diags%root_litter_input(pft) = &
@@ -1567,7 +1572,7 @@ contains
 
          do ilyr = 1, numlevsoil
             litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + &
-                  bg_cwd_tot * currentCohort%root_fr(ilyr)
+                  bg_cwd_tot * rootfr(ilyr)
          end do
          
          flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
@@ -1582,7 +1587,7 @@ contains
       ! ---------------------------------------------------------------------------------
 
       ! Total number of dead (n/m2/day)
-      dead_n = -1.0_r8 * currentCohort%dndt/currentPatch%area / days_per_year
+      dead_n = -1.0_r8 * currentCohort%dndt/currentPatch%area*years_per_day
       
       ! Total number of dead understory from direct logging (n/m2/day)
       ! (it is possible that large harvestable trees are in the understory)
@@ -1611,7 +1616,7 @@ contains
       
       do ilyr = 1, numlevsoil
          litt%root_fines_in(pft,ilyr) = litt%root_fines_in(pft,ilyr) + &
-              root_fines_tot * currentCohort%root_fr(ilyr)
+              root_fines_tot * rootfr(ilyr)
       end do
 
       flux_diags%root_litter_input(pft) = &
@@ -1632,7 +1637,7 @@ contains
          
          do ilyr = 1, numlevsoil
             litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + &
-                  currentCohort%root_fr(ilyr) * bg_cwd_tot
+                  rootfr(ilyr) * bg_cwd_tot
          end do
 
          flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
@@ -1717,6 +1722,8 @@ contains
       
       currentCohort => currentCohort%taller
    enddo  ! end loop over cohorts 
+
+   deallocate(rootfr)
   
    return
   end subroutine CWDInput
@@ -1846,12 +1853,12 @@ contains
     do c = 1,ncwd  
 
        litt%ag_cwd_frag(c)   = litt%ag_cwd(c) * SF_val_max_decomp(c+1) * &
-             fragmentation_scaler
-
+             years_per_day * fragmentation_scaler
+       
        do ilyr = 1,nlev_eff_decomp
-
-          litt%bg_cwd_frag(c,ilyr) = litt%bg_cwd(c,ilyr) * SF_val_max_decomp(c+1) * &
-                fragmentation_scaler
+           
+           litt%bg_cwd_frag(c,ilyr) = litt%bg_cwd(c,ilyr) * SF_val_max_decomp(c+1) * &
+                years_per_day * fragmentation_scaler
 
        enddo
     end do
@@ -1864,11 +1871,11 @@ contains
     do pft = 1,numpft
        
        litt%leaf_fines_frag(pft) = litt%leaf_fines(pft) * &
-             SF_val_max_decomp(dl_sf) * fragmentation_scaler
+             years_per_day * SF_val_max_decomp(dl_sf) * fragmentation_scaler
 
        do ilyr = 1,nlev_eff_decomp
           litt%root_fines_frag(pft,ilyr) = litt%root_fines(pft,ilyr) * &
-                SF_val_max_decomp(dl_sf) * fragmentation_scaler
+                years_per_day *  SF_val_max_decomp(dl_sf) * fragmentation_scaler
        end do
     enddo
 
@@ -1912,8 +1919,7 @@ contains
     use FatesConstantsMod, only : itrue
     use FatesGlobals, only : endrun => fates_endrun
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
-    use FatesAllometryMod, only : set_root_fraction
-    use FatesAllometryMod, only : i_biomass_rootprof_context 
+   
     
 
     implicit none   

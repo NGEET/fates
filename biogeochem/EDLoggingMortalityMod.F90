@@ -52,7 +52,8 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : all_carbon_elements,carbon12_element
    use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
-
+   use FatesAllometryMod , only : set_root_fraction
+   use FatesAllometryMod , only : i_biomass_rootprof_context
 
    implicit none
    private
@@ -223,7 +224,7 @@ contains
 
    ! ============================================================================
 
-   subroutine logging_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
+   subroutine logging_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis, bc_in)
 
       ! -------------------------------------------------------------------------------------------
       !
@@ -260,6 +261,7 @@ contains
       use EDtypesMod,   only : ed_site_type
       use EDtypesMod,   only : ed_patch_type
       use EDtypesMod,   only : ed_cohort_type
+      use FatesInterfaceMod , only : bc_in_type
       use FatesAllometryMod , only : carea_allom
 
 
@@ -268,6 +270,7 @@ contains
       type(ed_patch_type) , intent(inout), target  :: currentPatch
       type(ed_patch_type) , intent(inout), target  :: newPatch
       real(r8)            , intent(in)             :: patch_site_areadis
+      type(bc_in_type)    , intent(in)             :: bc_in
 
       !LOCAL VARIABLES:
       type(ed_cohort_type), pointer      :: currentCohort
@@ -302,9 +305,13 @@ contains
       integer  :: nlevsoil            ! number of soil layers
       integer  :: ilyr                ! soil layer loop index
       integer  :: el                  ! elemend loop index
-
+      real(r8), allocatable :: rootfr(:)   ! Root mass fraction array
+      
 
       nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
+
+      allocate(rootfr(nlevsoil))
+
 
       ! If/when sending litter fluxes to the old patch, we divide the total 
       ! mass sent to that patch, by the area it will have remaining
@@ -383,6 +390,10 @@ contains
             ! For the new patch, only some fraction of its land area (patch_areadis/np%area) is 
             ! derived from the current patch, so we need to multiply by patch_areadis/np%area
             ! ----------------------------------------------------------------------------------------
+
+            call set_root_fraction(rootfr(:), pft, bc_in%zi_sisl, &
+                  icontext = i_biomass_rootprof_context)
+
          
             ag_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
                   EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
@@ -399,11 +410,11 @@ contains
                do ilyr = 1,nlevsoil
                   
                   new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
-                        bg_wood * currentCohort%root_fr(ilyr) * &
+                        bg_wood * rootfr(ilyr) * &
                         SF_val_CWD_frac(c) * donate_frac/newPatch%area
                   
                   cur_litt%bg_cwd(c,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
-                        bg_wood * currentCohort%root_fr(ilyr) * &
+                        bg_wood * rootfr(ilyr) * &
                         SF_val_CWD_frac(c) * retain_frac/remainder_area
                end do
 
@@ -443,11 +454,11 @@ contains
             do ilyr = 1,nlevsoil
                
                new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(c,ilyr) + &
-                     bg_wood * currentCohort%root_fr(ilyr) * &
+                     bg_wood * rootfr(ilyr) * &
                      SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
                
                cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
-                     bg_wood * currentCohort%root_fr(ilyr) * &
+                     bg_wood * rootfr(ilyr) * &
                      SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
 
             end do
@@ -469,11 +480,11 @@ contains
 
             do ilyr = 1,nlevsoil
                new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(c,ilyr) + &
-                     bg_wood * currentCohort%root_fr(ilyr) * &
+                     bg_wood * rootfr(ilyr) * &
                      donate_frac/newPatch%area
                
                cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
-                     bg_wood * currentCohort%root_fr(ilyr) * &
+                     bg_wood * rootfr(ilyr) * &
                      retain_frac/remainder_area
             end do
             
@@ -515,11 +526,11 @@ contains
 
             do ilyr = 1,nlevsoil
                new_litt%root_fines(pft,ilyr) = new_litt%root_fines(pft,ilyr) + &
-                     root_litter * currentCohort%root_fr(ilyr) * &
+                     root_litter * rootfr(ilyr) * &
                      donate_frac/newPatch%area
                
                cur_litt%root_fines(pft,ilyr) = cur_litt%root_fines(pft,ilyr) + &
-                     root_litter * currentCohort%root_fr(ilyr) * &
+                     root_litter * rootfr(ilyr) * &
                      retain_frac/remainder_area
             end do
          
@@ -583,6 +594,9 @@ contains
          currentCohort => currentCohort%taller
       enddo
       
+      deallocate(rootfr)
+
+      return
    end subroutine logging_litter_fluxes
 
 end module EDLoggingMortalityMod

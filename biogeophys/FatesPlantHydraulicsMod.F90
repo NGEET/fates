@@ -53,7 +53,8 @@ module FatesPlantHydraulicsMod
 
    use FatesAllometryMod, only    : bsap_allom
    use FatesAllometryMod, only    : CrownDepth
-   
+   use FatesAllometryMod , only   : set_root_fraction
+   use FatesAllometryMod , only   : i_hydro_rootprof_context
    use FatesHydraulicsMemMod, only: ed_site_hydr_type
    use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
    use FatesHydraulicsMemMod, only: n_hypool_leaf
@@ -599,6 +600,7 @@ contains
       real(r8) :: b_troot_biom                 ! transporting root biomass in dry wt units                             [kg/indiv]
       real(r8) :: v_troot                      ! transporting root volume                                              [m3/indiv]
       real(r8) :: rootfr                       ! mass fraction of roots in each layer                                  [kg/kg]
+      real(r8), allocatable :: rootfrs(:)      ! Vector of root fractions (only used in 1 layer case)                  [kg/kg]
       real(r8) :: crown_depth                  ! Depth of the plant's crown [m]
       real(r8) :: kmax_node1_nodekplus1(n_hypool_ag) ! cumulative kmax, petiole to node k+1, 
                                                      ! conduit taper effects excluded   [kg s-1 MPa-1]
@@ -797,8 +799,12 @@ contains
          ccohort_hydr%kmax_treebg_tot      = ( 1._r8/kmax_tot - 1._r8/kmax_treeag_tot ) ** (-1._r8)
          
          if(nlevsoi_hyd == 1) then
-            ccohort_hydr%kmax_treebg_layer(:) = ccohort_hydr%kmax_treebg_tot * &
-                                                ccohort%patchptr%rootfr_ft(ft,:)
+             allocate(rootfrs(bc_in%nlevsoil))
+             call set_root_fraction(rootfrs(:), ft, bc_in%zi_sisl, &
+                   icontext = i_hydro_rootprof_context)
+            
+            ccohort_hydr%kmax_treebg_layer(:) = ccohort_hydr%kmax_treebg_tot * rootfrs(:)
+            deallocate(rootfrs)
          else
             do j=1,nlevsoi_hyd
                if(j == 1) then

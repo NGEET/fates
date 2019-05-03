@@ -49,7 +49,9 @@ contains
     use FatesIOVariableKindMod, only : site_height_r8
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
-    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
+    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8 
+    use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
+    use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
     use FatesIOVariableKindMod, only : iotype_index
 
     implicit none
@@ -168,6 +170,22 @@ contains
        this%r82d(:,:) = flushval
 
     case(site_agepft_r8)
+       allocate(this%r82d(lb1:ub1, lb2:ub2))
+       this%r82d(:,:) = flushval
+
+   case(site_elem_r8)
+       allocate(this%r82d(lb1:ub1, lb2:ub2))
+       this%r82d(:,:) = flushval
+
+   case(site_elpft_r8)
+       allocate(this%r82d(lb1:ub1, lb2:ub2))
+       this%r82d(:,:) = flushval
+   
+   case(site_elcwd_r8)
+       allocate(this%r82d(lb1:ub1, lb2:ub2))
+       this%r82d(:,:) = flushval
+
+   case(site_elage_r8)
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 

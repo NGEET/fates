@@ -211,7 +211,6 @@ module EDTypesMod
      real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort
                                                          ! (1 = canopy, 2 = understorey, etc.)  
                                                          ! real to be conservative during fusion
-     real(r8), allocatable :: root_fr(:)                 ! The fraction of root tissue (coarse and fine) in each soil-layer
 
      real(r8) ::  lai                                    ! leaf area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
      real(r8) ::  sai                                    ! stem area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
@@ -345,10 +344,6 @@ module EDTypesMod
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
 
   end type ed_cohort_type
-
-  
-     
-     
 
   !************************************
   !** Patch type structure           **
@@ -682,18 +677,6 @@ module EDTypesMod
      ! Flux diagnostics (allocation for each element)
 
      type(site_fluxdiags_type), pointer :: flux_diags(:)
-
-
-     real(r8) :: npp                ! used for calculating NEP and NBP during BGC summarization phase
-     real(r8) :: nep                ! Net ecosystem production, i.e. fast-timescale carbon balance that 
-                                    ! does not include disturbance [gC/m2/s]
-     real(r8) :: nbp                ! Net biosphere production, i.e. slow-timescale carbon balance that 
-                                    ! integrates to total carbon change [gC/m2/s]
-
-
-     real(r8) :: hr_timeintegrated        ! Heterotrophic respiration accumulated over model time-steps [kgC/site]
-     real(r8) :: npp_timeintegrated       ! Net primary production accumulated over model time-steps [kgC/site]
-
 
      ! PHENOLOGY 
      real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.

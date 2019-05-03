@@ -218,6 +218,7 @@ module FatesInterfaceMod
    integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel class dimension
    integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
    integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
+   integer , public, allocatable :: fates_hdim_levelem(:)              ! element dimension
    integer , public, allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
    integer , public, allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
    integer , public, allocatable :: fates_hdim_canmap_levcnlfpf(:) ! can-layer map into the can-layer x pft x leaf-layer dim
@@ -230,6 +231,14 @@ module FatesInterfaceMod
    integer , public, allocatable :: fates_hdim_pftmap_levscagpft(:)    ! map of pft into size-class x patch age x pft dimension
    integer , public, allocatable :: fates_hdim_agmap_levagepft(:)      ! map of patch-age into patch age x pft dimension
    integer , public, allocatable :: fates_hdim_pftmap_levagepft(:)     ! map of pft into patch age x pft dimension
+   
+   integer , public, allocatable :: fates_hdim_elmap_levelpft(:)       ! map of elements in the element x pft dimension
+   integer , public, allocatable :: fates_hdim_elmap_levelcwd(:)       ! map of elements in the element x cwd dimension
+   integer , public, allocatable :: fates_hdim_elmap_levelage(:)       ! map of elements in the element x age dimension
+   integer , public, allocatable :: fates_hdim_pftmap_levelpft(:)       ! map of pfts in the element x pft dimension
+   integer , public, allocatable :: fates_hdim_cwdmap_levelcwd(:)       ! map of cwds in the element x cwd dimension
+   integer , public, allocatable :: fates_hdim_agemap_levelage(:)       ! map of ages in the element x age dimension
+
 
    ! ------------------------------------------------------------------------------------
    !                              DYNAMIC BOUNDARY CONDITIONS
@@ -741,7 +750,7 @@ contains
       
       !BGC
       if(do_fates_salinity) then
-         allocate(bc_in%salinity_sl(nlevsoil_in))	 
+         allocate(bc_in%salinity_sl(nlevsoil_in))
       endif
 
       ! Photosynthesis
@@ -1173,6 +1182,7 @@ contains
        integer :: ileaf
        integer :: iage
        integer :: iheight
+       integer :: iel
 
        allocate( fates_hdim_levsclass(1:nlevsclass   ))
        allocate( fates_hdim_pfmap_levscpf(1:nlevsclass*numpft))
@@ -1184,6 +1194,7 @@ contains
        allocate( fates_hdim_levheight(1:nlevheight   ))
 
        allocate( fates_hdim_levcan(nclmax))
+       allocate( fates_hdim_levelem(num_elements))
        allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
        allocate( fates_hdim_lfmap_levcnlf(nlevleaf*nclmax))
        allocate( fates_hdim_canmap_levcnlfpf(nlevleaf*nclmax*numpft))
@@ -1196,6 +1207,14 @@ contains
        allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
        allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
        allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
+
+       allocate( fates_hdim_elmap_levelpft(num_elements*numpft))
+       allocate( fates_hdim_elmap_levelcwd(num_elements*ncwd))
+       allocate( fates_hdim_elmap_levelage(num_elements*nlevage))
+       allocate( fates_hdim_pftmap_levelpft(num_elements*numpft))
+       allocate( fates_hdim_cwdmap_levelcwd(num_elements*ncwd))
+       allocate( fates_hdim_agemap_levelage(num_elements*nlevage))
+
 
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
@@ -1220,6 +1239,39 @@ contains
        ! make canopy array
        do ican = 1,nclmax
           fates_hdim_levcan(ican) = ican
+       end do
+
+       ! Make an element array, each index is the PARTEH global identifier index
+
+       do iel = 1, num_elements
+           fates_hdim_levelem(iel) = element_list(iel)
+       end do
+       
+       i = 0
+       do iel = 1, num_elements
+           do ipft=1,numpft
+               i = i+1
+               fates_hdim_elmap_levelpft(i)  = iel
+               fates_hdim_pftmap_levelpft(i) = ipft
+           end do
+       end do
+       
+       i = 0
+       do iel = 1, num_elements
+           do icwd = 1, ncwd
+               i = i+1
+               fates_hdim_elmap_levelcwd(i)  = iel
+               fates_hdim_cwdmap_levelcwd(i) = ipft
+           end do
+       end do
+       
+       i = 0
+       do iel = 1, num_elements
+           do iage=1,nlevage
+               i = i+1
+               fates_hdim_elmap_levelage(i) = iel
+               fates_hdim_agemap_levelage(i) = iage
+           end do
        end do
 
        ! Fill the IO arrays that match pft and size class to their combined array

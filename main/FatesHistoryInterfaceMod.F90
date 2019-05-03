@@ -13,6 +13,11 @@ module FatesHistoryInterfaceMod
   use EDTypesMod               , only : element_pos
   use EDTypesMod               , only : num_elements
   use EDTypesMod               , only : site_fluxdiags_type
+  use EDtypesMod               , only : ed_site_type
+  use EDtypesMod               , only : ed_cohort_type
+  use EDtypesMod               , only : ed_patch_type  
+  use EDtypesMod               , only : AREA
+  use EDtypesMod               , only : AREA_INV
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -24,6 +29,7 @@ module FatesHistoryInterfaceMod
   use EDParamsMod              , only : ED_val_comp_excln
   use FatesInterfaceMod        , only : nlevsclass, nlevage
   use FatesInterfaceMod        , only : nlevheight
+  use FatesInterfaceMod        , only : bc_in_type
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -184,10 +190,7 @@ module FatesHistoryInterfaceMod
 
   ! Indices to (site) variables
   integer, private :: ih_nep_si
-  integer, private :: ih_nep_timeintegrated_si
-  integer, private :: ih_npp_timeintegrated_si
-  integer, private :: ih_hr_timeintegrated_si
-  integer, private :: ih_nbp_si
+!  integer, private :: ih_nbp_si
   integer, private :: ih_npp_si
 
   integer, private :: ih_c_stomata_si
@@ -479,8 +482,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_crownarea_si_can
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_history_num_dimensions = 16
-  integer, parameter :: fates_history_num_dim_kinds = 18
+  integer, parameter :: fates_history_num_dimensions = 20
+  integer, parameter :: fates_history_num_dim_kinds = 22
   
 
   
@@ -531,7 +534,7 @@ module FatesHistoryInterfaceMod
      
      procedure, public :: update_history_dyn
      procedure, public :: update_history_prod
-!     procedure, public :: update_history_cbal
+     procedure, public :: update_history_cbal
      procedure, public :: update_history_hydraulics
 
      ! 'get' methods used by external callers to access private read only data
@@ -1434,59 +1437,57 @@ end subroutine flush_hvars
   end subroutine init_dim_kinds_maps
 
  ! =======================================================================
-! subroutine update_history_cbal(this,nc,nsites,sites)
 
-!     use EDtypesMod          , only : ed_site_type
-     
-!     ! Arguments
-!     class(fates_history_interface_type)             :: this
-!     integer                 , intent(in)            :: nc   ! clump index
-!     integer                 , intent(in)            :: nsites
-!     type(ed_site_type)      , intent(inout), target :: sites(nsites)
+  subroutine update_history_cbal(this,nc,nsites,sites,bc_in)
+
+     use EDtypesMod          , only : ed_site_type
+      
+
+     ! Arguments
+     class(fates_history_interface_type)             :: this
+     integer                 , intent(in)            :: nc   ! clump index
+     integer                 , intent(in)            :: nsites
+     type(ed_site_type)      , intent(inout), target :: sites(nsites)
+     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
 
      ! Locals
-!     integer  :: s        ! The local site index
-!     integer  :: io_si     ! The site index of the IO array
+     integer  :: s        ! The local site index
+     integer  :: io_si     ! The site index of the IO array
+     type(ed_cohort_type), pointer  :: ccohort ! current cohort
+     type(ed_patch_type) , pointer  :: cpatch ! current patch
      
-     
-!     associate( hio_nep_si            => this%hvars(ih_nep_si)%r81d, &
-!                 hio_nbp_si            => this%hvars(ih_nbp_si)%r81d, &
-!                 hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
-!                 hio_totecosysc_si     => this%hvars(ih_totecosysc_si)%r81d, &
-!                 hio_cbal_err_fates_si => this%hvars(ih_cbal_err_fates_si)%r81d, &
-!                 hio_cbal_err_bgc_si   => this%hvars(ih_cbal_err_bgc_si)%r81d, &
-!                 hio_cbal_err_tot_si   => this%hvars(ih_cbal_err_tot_si)%r81d, &
-!                 hio_biomass_stock_si  => this%hvars(ih_biomass_stock_si)%r81d, &
-!                 hio_litter_stock_si   => this%hvars(ih_litter_stock_si)%r81d, &
-!                 hio_cwd_stock_si      => this%hvars(ih_cwd_stock_si)%r81d )
+     associate( hio_nep_si => this%hvars(ih_nep_si)%r81d )
+       
+       ! ---------------------------------------------------------------------------------
+       ! Flush arrays to values defined by %flushval (see registry entry in
+       ! subroutine define_history_vars()
+       ! ---------------------------------------------------------------------------------
 
-        ! ---------------------------------------------------------------------------------
-        ! Flush arrays to values defined by %flushval (see registry entry in
-        ! subroutine define_history_vars()
-        ! ---------------------------------------------------------------------------------
-!        call this%flush_hvars(nc,upfreq_in=3)
+       call this%flush_hvars(nc,upfreq_in=3)        
         
-        
-!        do s = 1,nsites
-         
-!           io_si  = this%iovar_map(nc)%site_index(s)
+       do s = 1,nsites
+           
+           io_si  = this%iovar_map(nc)%site_index(s)
 
-!           hio_nep_si(io_si) = sites(s)%nep
-!           hio_nbp_si(io_si) = sites(s)%nbp
-!           hio_fire_c_to_atm_si(io_si) = sites(s)%fire_c_to_atm
-!           hio_totecosysc_si(io_si) = sites(s)%totecosysc
-!           hio_cbal_err_fates_si(io_si) = sites(s)%cbal_err_fates
-!           hio_cbal_err_bgc_si(io_si) = sites(s)%cbal_err_bgc
-!           hio_cbal_err_tot_si(io_si) = sites(s)%cbal_err_tot
-!           hio_biomass_stock_si(io_si) = sites(s)%biomass_stock
-!           hio_litter_stock_si(io_si) = sites(s)%ed_litter_stock
-!           hio_cwd_stock_si(io_si) = sites(s)%cwd_stock
+           hio_nep_si(io_si) = -bc_in(s)%tot_het_resp ! (gC/m2/s)
+           
+           cpatch => sites(s)%oldest_patch
+           do while(associated(cpatch))
+               ccohort => cpatch%shortest
+               do while(associated(ccohort))
+               
+                   ! Add up the total Net Ecosystem Production
+                   ! for this timestep.  [gC/m2/s]
+                   hio_nep_si(io_si) = hio_nep_si(io_si) + &
+                         (ccohort%gpp_tstep - ccohort%resp_tstep) * g_per_kg * ccohort%n * area_inv
+                   ccohort => ccohort%taller
+               end do
+               cpatch => cpatch%younger
+           end do
+       end do
+      end associate
 
-!        end do
-
-!      end associate
-
-!   end subroutine update_history_cbal
+   end subroutine update_history_cbal
    
 
   ! ====================================================================================
@@ -1498,11 +1499,7 @@ end subroutine flush_hvars
     ! after Ecosystem Dynamics have been processed.
     ! ---------------------------------------------------------------------------------
     
-    use EDtypesMod          , only : ed_site_type
-    use EDtypesMod          , only : ed_cohort_type
-    use EDtypesMod          , only : ed_patch_type
-    use EDtypesMod          , only : AREA
-    use EDtypesMod          , only : AREA_INV
+
     use EDtypesMod          , only : nfsc
     use EDtypesMod          , only : ncwd
     use EDtypesMod          , only : ican_upper
@@ -1648,7 +1645,6 @@ end subroutine flush_hvars
                hio_npp_froot_si        => this%hvars(ih_npp_froot_si)%r81d, &
                hio_npp_croot_si        => this%hvars(ih_npp_croot_si)%r81d, &
                hio_npp_stor_si         => this%hvars(ih_npp_stor_si)%r81d, &
-
                hio_bstor_canopy_si_scpf      => this%hvars(ih_bstor_canopy_si_scpf)%r82d, &
                hio_bstor_understory_si_scpf  => this%hvars(ih_bstor_understory_si_scpf)%r82d, &
                hio_bleaf_canopy_si_scpf      => this%hvars(ih_bleaf_canopy_si_scpf)%r82d, &
@@ -2023,12 +2019,10 @@ end subroutine flush_hvars
                        (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                   hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) + store_c_net_alloc * n_perm2
                   
-
-
                   associate( scpf => ccohort%size_by_pft_class, &
                              scls => ccohort%size_class )
-			     
-		    gpp_cached = hio_gpp_si_scpf(io_si,scpf)
+                    
+                    gpp_cached = hio_gpp_si_scpf(io_si,scpf)
 
                     hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
                                                        n_perm2*ccohort%gpp_acc_hold  ! [kgC/m2/yr]
@@ -2649,12 +2643,6 @@ end subroutine flush_hvars
     ! after rapid timescale productivity calculations (gpp and respiration).
     ! ---------------------------------------------------------------------------------
     
-    use EDtypesMod          , only : ed_site_type,   &
-                                     ed_cohort_type, &
-                                     ed_patch_type,  &
-                                     AREA,           &
-                                     AREA_INV
-
     use EDTypesMod          , only : nclmax, nlevleaf
     !
     ! Arguments
@@ -3077,11 +3065,6 @@ end subroutine flush_hvars
     ! after rapid timescale productivity calculations (gpp and respiration).
     ! ---------------------------------------------------------------------------------
     
-    use EDtypesMod          , only : ed_site_type,   &
-                                     ed_cohort_type, &
-                                     ed_patch_type,  &
-                                     AREA
-
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type, nshell
     use EDTypesMod           , only : maxpft
 
@@ -4817,10 +4800,10 @@ end subroutine flush_hvars
 
     ! CARBON BALANCE VARIABLES THAT DEPEND ON HLM BGC INPUTS
 
-!    call this%set_history_var(vname='NEP', units='gC/m^2/s', &
-!          long='net ecosystem production', use_default='active', &
-!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nep_si )
+    call this%set_history_var(vname='NEP', units='gC/m^2/s', &
+          long='net ecosystem production', use_default='active', &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nep_si )
 
 !    call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
 !          long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &

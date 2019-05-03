@@ -60,7 +60,6 @@ contains
     integer :: s  ! ed site
     integer :: ifp ! index fates patch
     integer :: c12_id
-    real(r8):: n_perm2
     type(site_massbal_type),pointer :: site_cmass ! point to carbon12
                                                     ! mass balance
     !----------------------------------------------------------------------
@@ -71,7 +70,7 @@ contains
        
        ifp = 0
        site_cmass => sites(s)%mass_balance(c12_id)
-       
+
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
           ifp = ifp+1
@@ -95,18 +94,15 @@ contains
                 ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
                 ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
 		
-		! weighted mean of D13C by gpp
-		if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
-                  ccohort%c13disc_acc = 0.0_r8
+                ! weighted mean of D13C by gpp
+                if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
+                    ccohort%c13disc_acc = 0.0_r8
                 else
-                  ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
-                                          (ccohort%gpp_acc + ccohort%gpp_tstep)
-		endif
+                    ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + &
+                          (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
+                          (ccohort%gpp_acc + ccohort%gpp_tstep)
+                endif
                 
-                n_perm2      = ccohort%n/AREA
-                
-                sites(s)%npp = sites(s)%npp + ccohort%npp_tstep * n_perm2 * 1.e3_r8 / dt_time
-
                 ! Accumulate to [kgc/site]
                 site_cmass%gpp_acc   = site_cmass%gpp_acc  + ccohort%gpp_tstep * ccohort%n
                 site_cmass%aresp_acc = site_cmass%aresp_acc + ccohort%resp_tstep * ccohort%n
