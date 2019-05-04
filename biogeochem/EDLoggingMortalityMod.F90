@@ -318,10 +318,19 @@ contains
                   (currentCohort%lmort_collateral + currentCohort%lmort_infra)
 
          else
+
+            ! This routine is only called during disturbance.  The litter
+            ! fluxes from non-disturbance generating mortality are 
+            ! handled in EDPhysiology.  Disturbance generating mortality
+            ! are those cohorts in the top canopy layer, or those
+            ! plants that were impacted. Thus, no direct dead can occur
+            ! here, and indirect are impacts.
+
             if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
                direct_dead   = 0.0_r8
-               indirect_dead = logging_coll_under_frac * currentCohort%n * &
-                     (patch_site_areadis/currentPatch%area)  !kgC/site/day
+               indirect_dead = logging_coll_under_frac * &
+                    (1._r8-currentPatch%fract_ldist_not_harvested) * currentCohort%n * &
+                    (patch_site_areadis/currentPatch%area)   !kgC/site/day
             else
                ! If the cohort of interest is grass, it will not experience
                ! any mortality associated with the logging disturbance
