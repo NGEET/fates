@@ -197,11 +197,14 @@ contains
 
             ! Collateral damage to smaller plants below the canopy layer
             ! will be applied via "understory_death" via the disturbance algorithm
+            ! Important: Degredation rates really only have an impact when
+            ! applied to the canopy layer. So we don't add to degredation
+            ! for collateral damage, even understory collateral damage.
+
             if (canopy_layer .eq. 1) then
                lmort_collateral = logging_collateral_frac * adjustment
             else
                lmort_collateral = 0._r8
-               l_degrad         = l_degrad + logging_collateral_frac * adjustment
             endif
 
          else
