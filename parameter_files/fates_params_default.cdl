@@ -488,7 +488,7 @@ variables:
 		fates_fire_fdi_alpha:long_name = "spitfire parameter, EQ 7 Venevsky et al. GCB 2002,(modified EQ 8 Thonicke et al. 2010) " ;
 	float fates_fire_fdi_b ;
 		fates_fire_fdi_b:units = "NA" ;
-		fates_fire_fdi_b:long_name = "spitfire parameter (unknown) " ;
+		fates_fire_fdi_b:long_name = "spitfire parameter, fire danger index, EQ 5 Thonicke et al 2010 " ;
 	float fates_fire_fuel_energy ;
 		fates_fire_fuel_energy:units = "kJ/kg" ;
 		fates_fire_fuel_energy:long_name = "spitfire parameter, heat content of fuel" ;
