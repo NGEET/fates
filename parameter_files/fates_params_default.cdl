@@ -491,7 +491,7 @@ variables:
 		fates_fire_fdi_b:long_name = "spitfire parameter (unknown) " ;
 	float fates_fire_fuel_energy ;
 		fates_fire_fuel_energy:units = "kJ/kg" ;
-		fates_fire_fuel_energy:long_name = "pitfire parameter, heat content of fuel" ;
+		fates_fire_fuel_energy:long_name = "spitfire parameter, heat content of fuel" ;
 	float fates_fire_max_durat ;
 		fates_fire_max_durat:units = "minutes" ;
 		fates_fire_max_durat:long_name = "spitfire parameter, fire maximum duration, Equation 14 Thonicke et al 2010" ;
