@@ -19,11 +19,12 @@ def main():
     parser.add_argument('--fin', '--input', dest='fnamein', type=str, help="Input filename.  Required.", required=True)
     parser.add_argument('--fout','--output', dest='fnameout', type=str, help="Output filename.  Required.", required=True)
     parser.add_argument('--O','--overwrite', dest='overwrite', help="If present, automatically overwrite the output file.", action="store_true")
+    parser.add_argument('--debug', dest='debug', help="If present, output more diagnostics", action="store_true")
     #
     args = parser.parse_args()
     #
     # open the input dataset
-    dsin = nc.netcdf_file(args.fnamein, 'r')
+    dsin = nc.netcdf_file(args.fnamein, 'r', mmap=False)
     #
     # make empty lists to hold the variable names in. the first of these is a list of sub-lists,
     # one for each type of variable (based on dimensionality).
@@ -58,6 +59,10 @@ def main():
         varnames_list[i] = sorted(varnames_list[i], key=lambda L: (L.lower(), L))
         varnames_list_sorted.extend(varnames_list[i])
     #
+    # write list of variables in ourput order
+    if args.debug:
+        print(varnames_list_sorted)
+    #
     # open the output filename, deleting it if it exists already.
     if os.path.isfile(args.fnameout):
         if args.fnameout == args.fnamein:
@@ -68,7 +73,7 @@ def main():
         else:
             raise ValueError('Output file already exists and overwrite flag not specified for filename: '+args.fnameout)
     #
-    dsout = nc.netcdf_file(args.fnameout,  "w")
+    dsout = nc.netcdf_file(args.fnameout,  "w", mmap=False)
     #
     #Copy dimensions
     for dname, the_dim in dsin.dimensions.iteritems():
