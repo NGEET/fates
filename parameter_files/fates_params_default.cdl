@@ -259,10 +259,10 @@ variables:
 		fates_prescribed_mortality_understory:units = "1/yr" ;
 		fates_prescribed_mortality_understory:long_name = "mortality rate of understory trees for prescribed physiology mode" ;
 	float fates_prescribed_npp_canopy(fates_pft) ;
-		fates_prescribed_npp_canopy:units = "gC / m^2 / yr" ;
+		fates_prescribed_npp_canopy:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_canopy:long_name = "NPP per unit crown area of canopy trees for prescribed physiology mode" ;
 	float fates_prescribed_npp_understory(fates_pft) ;
-		fates_prescribed_npp_understory:units = "gC / m^2 / yr" ;
+		fates_prescribed_npp_understory:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_understory:long_name = "NPP per unit crown area of understory trees for prescribed physiology mode" ;
 	float fates_prescribed_recruitment(fates_pft) ;
 		fates_prescribed_recruitment:units = "n/yr" ;
