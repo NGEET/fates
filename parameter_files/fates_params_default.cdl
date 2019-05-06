@@ -503,7 +503,7 @@ variables:
 		fates_fire_miner_total:long_name = "spitfire parameter, total mineral content, Table A1 Thonicke et al 2010" ;
 	float fates_fire_nignitions ;
 		fates_fire_nignitions:units = "ignitions per day" ;
-		fates_fire_nignitions:long_name = "number of daily ignitions (nfires = nignitions*FDI*area_scaling)" ;
+		fates_fire_nignitions:long_name = "number of daily ignitions" ;
 	float fates_fire_part_dens ;
 		fates_fire_part_dens:units = "kg/m2" ;
 		fates_fire_part_dens:long_name = "spitfire parameter, oven dry particle density, Table A1 Thonicke et al 2010" ;
