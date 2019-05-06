@@ -301,7 +301,8 @@ module EDTypesMod
      real(r8) ::  lmort_collateral                       ! collaterally damaged rate        fraction /per logging activity
      real(r8) ::  lmort_infra                            ! mechanically damaged rate        fraction /per logging activity
      real(r8) ::  l_degrad                               ! rate of trees that are not killed but suffer from forest degradation
-                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary forest patch).  fraction /per logging activity
+                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary 
+                                                         !  forest patch).  fraction /per logging activity
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
