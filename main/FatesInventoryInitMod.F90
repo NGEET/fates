@@ -37,6 +37,10 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : equal_leaf_aclass
    use EDTypesMod       , only : leaves_on
    use EDTypesMod       , only : leaves_off
+   use EDTypesMod       , only : phen_cstat_nevercold
+   use EDTypesMod       , only : phen_cstat_iscold
+   use EDTypesMod       , only : phen_dstat_timeoff
+   use EDTypesMod       , only : phen_dstat_moistoff
    use EDPftvarcon      , only : EDPftvarcon_inst
    use FatesConstantsMod, only : primaryforest
 
@@ -898,7 +902,6 @@ contains
          ! use of the allometry functions
          ! Don't need to allocate leaf age classes (not used)
 
-
          if (c_pft .ne. 0 ) then
             ! normal case: assign each cohort to its specified PFT
             temp_cohort%pft         = c_pft
@@ -936,13 +939,16 @@ contains
          temp_cohort%laimemory = 0._r8
          cstatus = leaves_on
 
-         if( EDPftvarcon_inst%season_decid(temp_cohort%pft) == itrue .and. csite%is_cold ) then
+
+         if( EDPftvarcon_inst%season_decid(temp_cohort%pft) == itrue .and. &
+              any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
             temp_cohort%laimemory = b_leaf
             b_leaf  = 0._r8
             cstatus = leaves_off
          endif
-
-         if ( EDPftvarcon_inst%stress_decid(temp_cohort%pft) == itrue .and. csite%is_drought ) then
+         
+         if ( EDPftvarcon_inst%stress_decid(temp_cohort%pft) == itrue .and. &
+              any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
             temp_cohort%laimemory = b_leaf
             b_leaf  = 0._r8
             cstatus = leaves_off

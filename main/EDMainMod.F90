@@ -42,6 +42,8 @@ module EDMainMod
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
   use EDTypesMod               , only : AREA
+  use EDTypesMod               , only : phen_dstat_moiston
+  use EDTypesMod               , only : phen_dstat_timeon
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
@@ -270,6 +272,7 @@ contains
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
+    logical  :: is_drought            ! logical for if the plant (site) is in a drought state
     real(r8) :: leaf_c
     real(r8) :: delta_dbh             ! correction for dbh
     real(r8) :: delta_hite            ! correction for hite
@@ -361,9 +364,13 @@ contains
           
 
           ! Conduct Maintenance Turnover (parteh)
-
           call currentCohort%prt%CheckMassConservation(ft,3)
-          call PRTMaintTurnover(currentCohort%prt,ft,currentSite%is_drought)
+          if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
+             is_drought = .false.
+          else
+             is_drought = .true.
+          end if
+          call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
 
           leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
@@ -750,8 +757,8 @@ contains
           currentCohort%frmort = 0.0_r8
 
           currentCohort%dndt      = 0.0_r8
-	  currentCohort%dhdt      = 0.0_r8
-	  currentCohort%ddbhdt    = 0.0_r8
+          currentCohort%dhdt      = 0.0_r8
+          currentCohort%ddbhdt    = 0.0_r8
 
           currentCohort => currentCohort%taller
        enddo

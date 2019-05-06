@@ -15,10 +15,12 @@ module FatesConstantsMod
   integer, parameter :: fates_short_string_length = 32
   integer, parameter :: fates_long_string_length = 199
 
-  ! Unset and various other 'special' values
+  ! Used to initialize and test unset integers
   integer, parameter :: fates_unset_int = -9999
-  real(fates_r8), parameter :: fates_unset_r8 = -9999._fates_r8
-  
+
+  ! Used to initialize and test unset r8s
+  real(fates_r8), parameter :: fates_unset_r8 = -1.e36_fates_r8
+
   ! Integer equivalent of true  (in case some compilers dont auto convert)
   integer, parameter :: itrue = 1
 
