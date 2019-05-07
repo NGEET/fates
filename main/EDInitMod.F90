@@ -389,7 +389,8 @@ contains
                    init_root_fines=0._r8, &
                    init_ag_cwd=0._r8, &
                    init_bg_cwd=0._r8, &
-                   init_seed=0._r8)
+                   init_seed=0._r8,   &
+                   init_seed_germ=0._r8)
            end do
            
            sitep => sites(s)

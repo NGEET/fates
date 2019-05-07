@@ -232,11 +232,14 @@ contains
 
   ! =====================================================================================
 
-  subroutine InitAllocate(this,numpft,numlevsoil)
+  subroutine InitAllocate(this,numpft,numlevsoil,element_id)
 
     class(litter_type) :: this
-    integer,intent(in)  :: numpft   ! number of plant functional types
+    integer,intent(in)  :: numpft     ! number of plant functional types
     integer,intent(in)  :: numlevsoil ! number of soil layers
+    integer,intent(in)  :: element_id ! PARTEH compliant element index
+
+    this%element_id = element_id
 
     allocate(this%bg_cwd(ncwd,numlevsoil))
     allocate(this%leaf_fines(numpft))
@@ -293,7 +296,8 @@ contains
                             init_root_fines, &
                             init_ag_cwd,     &
                             init_bg_cwd,     &
-                            init_seed)
+                            init_seed,       &
+                            init_seed_germ)
     
     class(litter_type) :: this
     real(r8),intent(in) :: init_leaf_fines
@@ -301,13 +305,15 @@ contains
     real(r8),intent(in) :: init_ag_cwd
     real(r8),intent(in) :: init_bg_cwd
     real(r8),intent(in) :: init_seed
+    real(r8),intent(in) :: init_seed_germ
     
     this%ag_cwd(:)              = init_leaf_fines
     this%bg_cwd(:,:)            = init_root_fines
     this%leaf_fines(:)          = init_ag_cwd
     this%root_fines(:,:)        = init_bg_cwd
     this%seed(:)                = init_seed
-    
+    this%seed_germ(:)           = init_seed_germ
+
     return
   end subroutine InitConditions
   

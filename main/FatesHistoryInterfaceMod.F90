@@ -1542,7 +1542,6 @@ end subroutine flush_hvars
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
-    integer  :: c            ! loop index for CWD
     integer  :: el           ! Loop index for elements
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
@@ -2614,10 +2613,10 @@ end subroutine flush_hvars
 
          do i_cwd = 1, ncwd
              hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
-                   flux_diags_c%cwd_ag_input(c) * g_per_kg
+                   flux_diags_c%cwd_ag_input(i_cwd) * g_per_kg
              
              hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
-                   flux_diags_c%cwd_bg_input(c) * g_per_kg
+                   flux_diags_c%cwd_bg_input(i_cwd) * g_per_kg
 
          end do
 

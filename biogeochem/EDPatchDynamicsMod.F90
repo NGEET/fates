@@ -53,6 +53,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : nearzero
   use FatesConstantsMod    , only : primaryforest, secondaryforest
   use FatesConstantsMod    , only : n_anthro_disturbance_categories
+  use FatesConstantsMod    , only : fates_unset_r8
   use EDCohortDynamicsMod  , only : InitPRTObject
   use EDCohortDynamicsMod  , only : InitPRTBoundaryConditions
 
@@ -445,7 +446,8 @@ contains
                     init_root_fines=0._r8, &
                     init_ag_cwd=0._r8, &
                     init_bg_cwd=0._r8, &
-                    init_seed=0._r8)
+                    init_seed=0._r8,   &
+                    init_seed_germ=0._r8)
           end do
           new_patch_primary%tallest  => null()
           new_patch_primary%shortest => null()
@@ -466,7 +468,8 @@ contains
                     init_root_fines=0._r8, &
                     init_ag_cwd=0._r8, &
                     init_bg_cwd=0._r8, &
-                    init_seed=0._r8)
+                    init_seed=0._r8,   &
+                    init_seed_germ=0._r8)
           end do
           new_patch_secondary%tallest  => null()
           new_patch_secondary%shortest => null()
@@ -553,6 +556,10 @@ contains
                  call InitPRTBoundaryConditions(nc)
                  
                  call zero_cohort(nc)
+
+                 ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
+                 ! is the curent cohort that stays in the donor patch (currentPatch) 
+                 call copy_cohort(currentCohort, nc)
 
                  !this is the case as the new patch probably doesn't have a closed canopy, and
                  ! even if it does, that will be sorted out in canopy_structure. 
@@ -1536,7 +1543,7 @@ contains
     type(site_massbal_type), pointer   :: site_mass
     type(site_fluxdiags_type), pointer :: flux_diags
 
-    real(r8) :: remainder_area             ! amount of area remaining in patch after donation
+    real(r8) :: remainder_area       ! amount of area remaining in patch after donation
     real(r8) :: num_dead
     real(r8) :: donatable_mass       ! mass of donatable litter [kg]
     real(r8) :: leaf_m               ! leaf mass [kg]
@@ -1573,8 +1580,12 @@ contains
        ! -----------------------------------------------------------------------------
 
        ! Calculate the fraction of litter to be retained versus donated
-       ! vis-a-vis the new and donor patch
-       
+       ! vis-a-vis the new and donor patch. At this step, we have not
+       ! yet removed the area from the pre-existing patch (currentPatch),
+       ! so we pre-compute "remainder_area", which is the soon-to-be
+       ! area of the patch once disturbance is completed
+
+       remainder_area = currentPatch%area - patch_site_areadis
        retain_frac = (1.0_r8-treefall_localization) * &
              remainder_area/(newPatch%area+remainder_area)
        donate_frac = 1.0_r8-retain_frac
@@ -1625,6 +1636,7 @@ contains
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
           new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
                 num_dead*(leaf_m+repro_m)*donate_frac/newPatch%area
+
           curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + &
                 num_dead*(leaf_m+repro_m)*retain_frac/remainder_area
 
@@ -1741,8 +1753,14 @@ contains
     allocate(new_patch%litter(num_elements))
 
     do el=1,num_elements
-        call new_patch%litter(el)%InitAllocate(numpft,nlevsoil)
+        call new_patch%litter(el)%InitAllocate(numpft,nlevsoil,element_list(el))
         call new_patch%litter(el)%ZeroFlux()
+        call new_patch%litter(el)%InitConditions(init_leaf_fines = fates_unset_r8, &
+              init_root_fines = fates_unset_r8, &
+              init_ag_cwd = fates_unset_r8, &
+              init_bg_cwd = fates_unset_r8, &
+              init_seed = fates_unset_r8,   &
+              init_seed_germ = fates_unset_r8)
     end do
 
     call zero_patch(new_patch) !The nan value in here is not working??
@@ -2414,7 +2432,7 @@ contains
 
     end do
 
-    
+    ! Deallocate all litter objects
     do el=1,num_elements
        call cpatch%litter(el)%DeallocateLitt()
     end do

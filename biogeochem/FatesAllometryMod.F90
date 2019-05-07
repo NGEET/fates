@@ -1993,7 +1993,7 @@ contains
     ! !ARGUMENTS
     real(r8),intent(inout) :: root_fraction(:) ! Normalized profile
     integer, intent(in)    :: ft               ! functional typpe
-    real(r8),intent(in)    :: zi(:)            ! Center of depth [m]
+    real(r8),intent(in)    :: zi(0:)            ! Center of depth [m]
     integer,intent(in)     :: icontext
 
     ! Parameters
@@ -2019,10 +2019,9 @@ contains
 
     !----------------------------------------------------------------------
     
-    if(lbound(zi,1).ne.0) then
-       write(fates_log(),*) 'lbound:',lbound(zi)
-       write(fates_log(),*) 'ubound:',ubound(zi)
-       write(fates_log(),*) 'layer interface levels should have 0 index'
+    if(size(zi) .ne. (size(root_fraction)+1)) then
+       write(fates_log(),*) 'layer interface array should be 1 larger than'
+       write(fates_log(),*) 'root fraction array'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 

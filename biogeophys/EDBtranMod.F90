@@ -141,7 +141,7 @@ contains
               
               do ft = 1,numpft
                   
-                 call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
+                  call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
                       icontext = i_hydro_rootprof_context)
 
                  cpatch%btran_ft(ft) = 0.0_r8

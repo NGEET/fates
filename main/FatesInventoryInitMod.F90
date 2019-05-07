@@ -274,14 +274,7 @@ contains
 
             call create_patch(sites(s), newpatch, age_init, area_init, &
                   bc_in(s)%nlevsoil, primaryforest )
-            
-            do el=1,num_elements
-               call newpatch%litter(el)%InitConditions(init_leaf_fines=0._r8, &
-                    init_root_fines=0._r8, &
-                    init_ag_cwd=0._r8, &
-                    init_bg_cwd=0._r8, &
-                    init_seed=0._r8)
-            end do
+
 
             if( inv_format_list(invsite) == 1 ) then
                call set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
@@ -746,7 +739,8 @@ contains
               init_root_fines=0._r8, &
               init_ag_cwd=0._r8,     &
               init_bg_cwd=0._r8,     &
-              init_seed=0._r8)
+              init_seed=0._r8,   &
+              init_seed_germ=0._r8)
          
       end do
 

@@ -1996,7 +1996,8 @@ contains
                      init_root_fines=fates_unset_r8, &
                      init_ag_cwd=fates_unset_r8, &
                      init_bg_cwd=fates_unset_r8, &
-                     init_seed=fates_unset_r8)
+                     init_seed=fates_unset_r8, &
+                     init_seed_germ=fates_unset_r8)
              end do
              
              ! give this patch a unique patch number

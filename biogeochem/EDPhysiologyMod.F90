@@ -219,7 +219,7 @@ contains
        ! Send fluxes from newly created litter into the litter pools
        ! This litter flux is from non-disturbance inducing mortality, as well
        ! as litter fluxes from live trees
-       call CWDInput( currentSite, currentPatch, litt, bc_in)
+       call CWDInput(currentSite, currentPatch, litt)
 
 
        ! Only calculate fragmentation flux over layers that are active
@@ -1433,7 +1433,7 @@ contains
 
   ! ============================================================================
 
-  subroutine CWDInput( currentSite, currentPatch, litt, bc_in)
+  subroutine CWDInput( currentSite, currentPatch, litt)
 
     !
     ! !DESCRIPTION:
@@ -1451,7 +1451,6 @@ contains
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type),intent(inout), target :: currentPatch
     type(litter_type),intent(inout),target    :: litt
-    type(bc_in_type), intent(in)              :: bc_in
 
 
     !
@@ -1487,15 +1486,13 @@ contains
     integer  :: ilyr
     integer  :: pft
     integer  :: numlevsoil              ! Actual number of soil layers
-    real(r8),allocatable :: rootfr(:)  ! Fractional root mass profile
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
     ! Other direct litter fluxes happen in phenology and in spawn_patches. 
     ! -----------------------------------------------------------------------------------
 
-    numlevsoil = bc_in%nlevsoil
-    allocate(rootfr(numlevsoil))
+    numlevsoil = currentSite%nlevsoil
 
     element_id = litt%element_id
     
@@ -1509,7 +1506,7 @@ contains
     do while(associated(currentCohort))
       pft = currentCohort%pft        
 
-      call set_root_fraction(rootfr(:), pft, bc_in%zi_sisl, &
+      call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
             icontext = i_biomass_rootprof_context)
 
       leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id)
@@ -1546,7 +1543,7 @@ contains
       
       do ilyr = 1, numlevsoil
          litt%root_fines_in(pft,ilyr) = litt%root_fines_in(pft,ilyr) + &
-               rootfr(ilyr) * root_fines_tot
+               currentSite%rootfrac_scr(ilyr) * root_fines_tot
       end do
       
       flux_diags%root_litter_input(pft) = &
@@ -1572,7 +1569,7 @@ contains
 
          do ilyr = 1, numlevsoil
             litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + &
-                  bg_cwd_tot * rootfr(ilyr)
+                  bg_cwd_tot * currentSite%rootfrac_scr(ilyr)
          end do
          
          flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
@@ -1616,7 +1613,7 @@ contains
       
       do ilyr = 1, numlevsoil
          litt%root_fines_in(pft,ilyr) = litt%root_fines_in(pft,ilyr) + &
-              root_fines_tot * rootfr(ilyr)
+              root_fines_tot * currentSite%rootfrac_scr(ilyr)
       end do
 
       flux_diags%root_litter_input(pft) = &
@@ -1637,7 +1634,7 @@ contains
          
          do ilyr = 1, numlevsoil
             litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + &
-                  rootfr(ilyr) * bg_cwd_tot
+                  currentSite%rootfrac_scr(ilyr) * bg_cwd_tot
          end do
 
          flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
@@ -1723,7 +1720,6 @@ contains
       currentCohort => currentCohort%taller
    enddo  ! end loop over cohorts 
 
-   deallocate(rootfr)
   
    return
   end subroutine CWDInput

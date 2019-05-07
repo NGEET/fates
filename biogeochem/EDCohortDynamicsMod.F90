@@ -161,7 +161,7 @@ contains
                                                   ! per 'area' (10000m2 default)
     real(r8), intent(in)      :: hite             ! height: meters
     real(r8), intent(in)      :: dbh              ! dbh: cm
-    type(prt_vartypes),target :: prt              ! A pointer to the allocated PARTEH
+    class(prt_vartypes),target :: prt             ! The allocated PARTEH
                                                   ! object
     real(r8), intent(in)      :: laimemory        ! target leaf biomass- set from 
                                                   ! previous year: kGC per indiv
@@ -391,8 +391,8 @@ contains
     class(prt_vartypes), pointer :: prt
     
     ! Potential Extended types
-    type(callom_prt_vartypes), pointer :: c_allom_prt
-    !    type(cnp_allom_prt_vartypes), pointer :: cnp_allom_prt
+    class(callom_prt_vartypes), pointer :: c_allom_prt
+    !    class(cnp_allom_prt_vartypes), pointer :: cnp_allom_prt
   
 
     select case(hlm_parteh_mode)
@@ -418,7 +418,7 @@ contains
         
     end select
     
-     ! This is the call to allocate the data structures in the PRT object
+    ! This is the call to allocate the data structures in the PRT object
     ! This call will be extended to each specific class.
 
     call prt%InitPRTVartype()
@@ -654,7 +654,7 @@ contains
 
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
-          terminate = 1
+          terminate = itrue
           if ( debug ) then
              write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh
           endif
@@ -703,7 +703,7 @@ contains
       endif    !  if (.not.currentCohort%isnew .and. level == 2) then
 
       if (terminate == itrue) then 
-         
+
           ! preserve a record of the to-be-terminated cohort for mortality accounting
           levcan = currentCohort%canopy_layer
 
@@ -1018,7 +1018,6 @@ contains
                                    end do
                                 end if
 
-
                                 ! Fuse all mass pools
                                 call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, &
                                                                                currentCohort%n/newn )
@@ -1067,6 +1066,7 @@ contains
                                    ! cohorts' dbh
                                    ! -----------------------------------------------------------------
                                    !
+                                   
                                    call carea_allom(currentCohort%dbh,currentCohort%n, &
                                          currentSite%spread,currentCohort%pft,&
                                          currentCohort%c_area,inverse=.false.)
