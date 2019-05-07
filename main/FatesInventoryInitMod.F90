@@ -41,6 +41,10 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : leaves_off
    use EDTypesMod       , only : num_elements
    use EDTypesMod       , only : element_list
+   use EDTypesMod       , only : phen_cstat_nevercold
+   use EDTypesMod       , only : phen_cstat_iscold
+   use EDTypesMod       , only : phen_dstat_timeoff
+   use EDTypesMod       , only : phen_dstat_moistoff
    use EDPftvarcon      , only : EDPftvarcon_inst
    use FatesInterfaceMod,      only : hlm_parteh_mode
    use EDCohortDynamicsMod,    only : InitPRTObject
@@ -834,6 +838,7 @@ contains
       real(r8) :: m_sapw   ! Generic mass for sapwood [kg]
       real(r8) :: m_store  ! Generic mass for storage [kg]
       real(r8) :: m_repro  ! Generic mass for reproductive tissues [kg]
+      integer  :: i_pft, ncohorts_to_create
 
       character(len=128),parameter    :: wr_fmt = &
            '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
@@ -881,9 +886,9 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      if (c_pft <= 0 ) then
+      if (c_pft < 0 ) then
          write(fates_log(), *) 'inventory pft: ',c_pft
-         write(fates_log(), *) 'The inventory produced a cohort with <=0 pft index'
+         write(fates_log(), *) 'The inventory produced a cohort with <0 pft index'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
@@ -910,122 +915,138 @@ contains
          write(fates_log(), *) 'The inventory produced a cohort with very large density /m2'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
-      
-      allocate(temp_cohort)   ! A temporary cohort is needed because we want to make
-                              ! use of the allometry functions
-                              ! Don't need to allocate leaf age classes (not used)
 
-      temp_cohort%pft         = c_pft
-      temp_cohort%n           = c_nplant * cpatch%area
-      temp_cohort%dbh         = c_dbh
-      call h_allom(c_dbh,c_pft,temp_cohort%hite)
-      temp_cohort%canopy_trim = 1.0_r8
+      if (c_pft .eq. 0 ) then
+         write(fates_log(), *) 'inventory pft: ',c_pft
+         write(fates_log(), *) 'SPECIAL CASE TRIGGERED: PFT == 0 and therefore this subroutine'
+         write(fates_log(), *) 'will assign a cohort with n = n_orig/numpft to every cohort in range 1 to numpft'
+         ncohorts_to_create = numpft
+      else
+         ncohorts_to_create = 1
+      end if
 
-      ! Calculate total above-ground biomass from allometry
+      do i_pft = 1,ncohorts_to_create
+         allocate(temp_cohort)   ! A temporary cohort is needed because we want to make
 
-      call bagw_allom(temp_cohort%dbh,c_pft,b_agw)
-      ! Calculate coarse root biomass from allometry
-      call bbgw_allom(temp_cohort%dbh,c_pft,b_bgw)
-      
-      ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
-      ! and sla scaling factors)
-      call bleaf(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_leaf)
-      
-      ! Calculate fine root biomass
-      call bfineroot(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_fnrt)
-      
-      ! Calculate sapwood biomass
-      call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim, a_sapw, b_sapw)
-      
-      call bdead_allom( b_agw, b_bgw, b_sapw, c_pft, b_struct )
+         if (c_pft .ne. 0 ) then
+             ! normal case: assign each cohort to its specified PFT
+             temp_cohort%pft         = c_pft
+         else
+             ! special case, make an identical cohort for each PFT
+             temp_cohort%pft         = i_pft
+         endif
+         
+         temp_cohort%n           = c_nplant * cpatch%area / real(ncohorts_to_create,r8)
+         temp_cohort%dbh         = c_dbh
 
-      call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim, b_store)
+         call h_allom(c_dbh,temp_cohort%pft,temp_cohort%hite)
+         temp_cohort%canopy_trim = 1.0_r8
+
+
+         call bagw_allom(temp_cohort%dbh,c_pft,b_agw)
+         ! Calculate coarse root biomass from allometry
+         call bbgw_allom(temp_cohort%dbh,c_pft,b_bgw)
+         
+         ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
+         ! and sla scaling factors)
+         call bleaf(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_leaf)
+         
+         ! Calculate fine root biomass
+         call bfineroot(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_fnrt)
+         
+         ! Calculate sapwood biomass
+         call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim, a_sapw, b_sapw)
+         
+         call bdead_allom( b_agw, b_bgw, b_sapw, c_pft, b_struct )
+         
+         call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim, b_store)
       
-      temp_cohort%laimemory = 0._r8
-      cstatus = leaves_on
-            
-      if( EDPftvarcon_inst%season_decid(c_pft) == itrue .and. csite%is_cold ) then
-         temp_cohort%laimemory = b_leaf
-         b_leaf  = 0._r8
-         cstatus = leaves_off
-      endif
-      
-      if ( EDPftvarcon_inst%stress_decid(c_pft) == itrue .and. csite%is_drought ) then
-         temp_cohort%laimemory = b_leaf
-         b_leaf  = 0._r8
-         cstatus = leaves_off
-      endif
-
-      prt_obj => null()
-      call InitPRTObject(prt_obj)
-
-      do el = 1,num_elements
-
-          element_id = element_list(el)
-          
-          ! If this is carbon12, then the initialization is straight forward
-          ! otherwise, we use stoichiometric ratios
-          select case(element_id)
-          case(carbon12_element)
+         temp_cohort%laimemory = 0._r8
+         cstatus = leaves_on
+         
+         if( EDPftvarcon_inst%season_decid(c_pft) == itrue .and. csite%is_cold ) then
+             temp_cohort%laimemory = b_leaf
+             b_leaf  = 0._r8
+             cstatus = leaves_off
+         endif
+         
+         if ( EDPftvarcon_inst%stress_decid(c_pft) == itrue .and. csite%is_drought ) then
+             temp_cohort%laimemory = b_leaf
+             b_leaf  = 0._r8
+             cstatus = leaves_off
+         endif
+         
+         prt_obj => null()
+         call InitPRTObject(prt_obj)
+         
+         do el = 1,num_elements
              
-             m_struct = b_struct
-             m_leaf   = b_leaf
-             m_fnrt   = b_fnrt
-             m_sapw   = b_sapw
-             m_store  = b_store
-             m_repro  = 0._r8
+             element_id = element_list(el)
              
-          case(nitrogen_element)
+             ! If this is carbon12, then the initialization is straight forward
+             ! otherwise, we use stoichiometric ratios
+             select case(element_id)
+             case(carbon12_element)
+                 
+                 m_struct = b_struct
+                 m_leaf   = b_leaf
+                 m_fnrt   = b_fnrt
+                 m_sapw   = b_sapw
+                 m_store  = b_store
+                 m_repro  = 0._r8
+                 
+             case(nitrogen_element)
+                 
+                 m_struct = b_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,struct_organ)
+                 m_leaf   = b_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,leaf_organ)
+                 m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,fnrt_organ)
+                 m_sapw   = b_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,sapw_organ)
+                 m_store  = b_store*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,store_organ)
+                 m_repro  = 0._r8
+                 
+             case(phosphorus_element)
+                 
+                 m_struct = b_struct*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,struct_organ)
+                 m_leaf   = b_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,leaf_organ)
+                 m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,fnrt_organ)
+                 m_sapw   = b_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,sapw_organ)
+                 m_store  = b_store*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,store_organ)
+                 m_repro  = 0._r8
+             end select
              
-             m_struct = b_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,struct_organ)
-             m_leaf   = b_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,leaf_organ)
-             m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,fnrt_organ)
-             m_sapw   = b_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,sapw_organ)
-             m_store  = b_store*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,store_organ)
-             m_repro  = 0._r8
+             select case(hlm_parteh_mode)
+             case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+                 
+                 ! Equally distribute leaf mass into available age-bins
+                 do iage = 1,nleafage
+                     call SetState(prt_obj,leaf_organ, element_id,m_leaf/real(nleafage,r8),iage)
+                 end do
+                 
+                 call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
+                 call SetState(prt_obj,sapw_organ, element_id, m_sapw)
+                 call SetState(prt_obj,store_organ, element_id, m_store)
+                 call SetState(prt_obj,struct_organ, element_id, m_struct)
+                 call SetState(prt_obj,repro_organ, element_id, m_repro)
+                 
+             case default
+                 write(fates_log(),*) 'Unspecified PARTEH module during inventory intitialization'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+             end select
              
-          case(phosphorus_element)
+         end do
 
-             m_struct = b_struct*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,struct_organ)
-             m_leaf   = b_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,leaf_organ)
-             m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,fnrt_organ)
-             m_sapw   = b_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,sapw_organ)
-             m_store  = b_store*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,store_organ)
-             m_repro  = 0._r8
-          end select
+         call prt_obj%CheckInitialConditions()
 
-          select case(hlm_parteh_mode)
-          case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
-             
-             ! Put all of the leaf mass into the first bin
-             do iage = 1,nleafage
-                call SetState(prt_obj,leaf_organ, element_id,m_leaf/real(nleafage,r8),iage)
-             end do
-             
-             call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
-             call SetState(prt_obj,sapw_organ, element_id, m_sapw)
-             call SetState(prt_obj,store_organ, element_id, m_store)
-             call SetState(prt_obj,struct_organ, element_id, m_struct)
-             call SetState(prt_obj,repro_organ, element_id, m_repro)
-             
-          case default
-             write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end select
-          
-       end do
+         ! Since spread is a canopy level calculation, we need to provide an initial guess here.
+         call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+               prt_obj, temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
+               1, csite%spread, bc_in)
 
-       call prt_obj%CheckInitialConditions()
+         deallocate(temp_cohort) ! get rid of temporary cohort
 
-       ! Since spread is a canopy level calculation, we need to provide an initial guess here.
-       call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-            prt_obj, temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
-            1, csite%spread, bc_in)
-
-      
-      deallocate(temp_cohort) ! get rid of temporary cohort
+      end do
 
       return
-   end subroutine set_inventory_edcohort_type1
+    end subroutine set_inventory_edcohort_type1
 
 end module FatesInventoryInitMod
