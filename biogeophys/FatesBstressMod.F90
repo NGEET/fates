@@ -56,12 +56,10 @@ contains
       integer  :: ft                ! plant functional type index
       real(r8) :: salinity_node     ! salinity in the soil water [ppt]
       real(r8) :: rresis            ! salinity limitation to transpiration independent
-      real(r8), allocatable :: rootfr(:)
+
       !------------------------------------------------------------------------------
         
         do s = 1,nsites
-
-           allocate(rootfr(bc_in(s)%nlevsoil))
 
            cpatch => sites(s)%oldest_patch
            do while (associated(cpatch))                 
@@ -71,7 +69,7 @@ contains
               do ft = 1,numpft
                  cpatch%bstress_sal_ft(ft) = 0.0_r8
 
-                 call set_root_fraction(rootfr(:), ft, bc_in(s)%zi_sisl, &
+                 call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
                        icontext = i_hydro_rootprof_context)
 
                  do j = 1,bc_in(s)%nlevsoil
@@ -85,7 +83,7 @@ contains
                        
                        rresis  = min( 1.244_r8/(1+exp((0.186_r8-salinity_node)/(-0.132_r8))), 1._r8)
                        
-                       cpatch%bstress_sal_ft(ft) = cpatch%bstress_sal_ft(ft)+rootfr(j)*rresis
+                       cpatch%bstress_sal_ft(ft) = cpatch%bstress_sal_ft(ft)+sites(s)%rootfrac_scr(j)*rresis
 
                     end if
                     
@@ -97,7 +95,6 @@ contains
 	      
            end do
           
-           deallocate(rootfr)
         end do
            
         return

@@ -224,7 +224,7 @@ contains
 
    ! ============================================================================
 
-   subroutine logging_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis, bc_in)
+   subroutine logging_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
 
       ! -------------------------------------------------------------------------------------------
       !
@@ -261,7 +261,6 @@ contains
       use EDtypesMod,   only : ed_site_type
       use EDtypesMod,   only : ed_patch_type
       use EDtypesMod,   only : ed_cohort_type
-      use FatesInterfaceMod , only : bc_in_type
       use FatesAllometryMod , only : carea_allom
 
 
@@ -270,7 +269,6 @@ contains
       type(ed_patch_type) , intent(inout), target  :: currentPatch
       type(ed_patch_type) , intent(inout), target  :: newPatch
       real(r8)            , intent(in)             :: patch_site_areadis
-      type(bc_in_type)    , intent(in)             :: bc_in
 
       !LOCAL VARIABLES:
       type(ed_cohort_type), pointer      :: currentCohort
@@ -391,7 +389,7 @@ contains
             ! derived from the current patch, so we need to multiply by patch_areadis/np%area
             ! ----------------------------------------------------------------------------------------
 
-            call set_root_fraction(rootfr(:), pft, bc_in%zi_sisl, &
+            call set_root_fraction(rootfr, pft, currentSite%zi_soil, &
                   icontext = i_biomass_rootprof_context)
 
          

@@ -128,7 +128,6 @@ contains
         
         do s = 1,nsites
 
-           allocate(rootfr(bc_in(s)%nlevsoil))
            allocate(root_resis(numpft,bc_in(s)%nlevsoil))
            
            bc_out(s)%rootr_pasl(:,:) = 0._r8
@@ -142,8 +141,8 @@ contains
               
               do ft = 1,numpft
                   
-                 call set_root_fraction(rootfr(:), ft, bc_in(s)%zi_sisl, &
-                       icontext = i_hydro_rootprof_context)
+                 call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
+                      icontext = i_hydro_rootprof_context)
 
                  cpatch%btran_ft(ft) = 0.0_r8
                  do j = 1,bc_in(s)%nlevsoil
@@ -158,7 +157,7 @@ contains
                        rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*               &
                             (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
                        
-                       root_resis(ft,j) = rootfr(j)*rresis
+                       root_resis(ft,j) = sites(s)%rootfrac_scr(j)*rresis
                        
                        ! root water uptake is not linearly proportional to root density,
                        ! to allow proper deep root funciton. Replace with equations from SPA/Newman. FIX(RF,032414)
@@ -243,7 +242,6 @@ contains
            end do
           
            deallocate(root_resis)
-           deallocate(rootfr)
            
         end do
            

@@ -81,13 +81,14 @@ contains
 
   ! ============================================================================
 
-  subroutine init_site_vars( site_in )
+  subroutine init_site_vars( site_in, bc_in )
     !
     ! !DESCRIPTION:
     !
     !
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout) ::  site_in
+    type(ed_site_type), intent(inout) :: site_in
+    type(bc_in_type),intent(in)       :: bc_in
     !
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
@@ -106,10 +107,25 @@ contains
     allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
     allocate(site_in%mass_balance(1:num_elements))
     allocate(site_in%flux_diags(1:num_elements))
+   
+    site_in%nlevsoil   = bc_in%nlevsoil
+    allocate(site_in%rootfrac_scr(site_in%nlevsoil))
+    allocate(site_in%zi_soil(0:site_in%nlevsoil))
+    allocate(site_in%dz_soil(site_in%nlevsoil))
+    allocate(site_in%z_soil(site_in%nlevsoil))
+
     do el=1,num_elements
         allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
     end do
+
+    ! Initialize the static soil 
+    ! arrays from the boundary (initial) condition
+
+   
+    site_in%zi_soil(:) = bc_in%zi_sisl(:)
+    site_in%dz_soil(:) = bc_in%dz_sisl(:)
+    site_in%z_soil(:)  = bc_in%z_sisl(:)
 
 
     !

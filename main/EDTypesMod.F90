@@ -591,7 +591,6 @@ module EDTypesMod
      ! ----------------------------------------------------------------------------------
 
      real(r8) :: err_fates      ! Total mass balance error for FATES processes     [kg/site]
-     real(r8) :: stock_fates    ! Total mass of each element in FATES              [kg/site]
 
 !     real(r8) :: err_bgc        ! Total mass balance error for BGC (HLM) processes [kg/site]
 !     real(r8) :: err_tot        ! Total mass balance error for all land processes  [kg/site]
@@ -697,6 +696,24 @@ module EDTypesMod
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
+
+     ! Soil Layering
+
+     integer :: nlevsoil                      ! Number of soil layers in this site
+     real(r8), allocatable :: zi_soil(:)      ! interface level below a "z" level (m)
+                                              ! this contains a zero index for surface.
+     real(r8), allocatable :: dz_soil(:)      ! layer thickness (m)
+     real(r8), allocatable :: z_soil(:)       ! layer depth (m)
+     real(r8), allocatable :: rootfrac_scr(:) ! This is just allocated scratch space to hold
+                                              ! root fractions. Since root fractions may be dependant
+                                              ! on cohort properties, and we do not want to store this infromation
+                                              ! on each cohort, we do not keep root fractions in
+                                              ! memory, and instead calculate them on demand.
+                                              ! This array is allocated over the number of soil
+                                              ! layers for each site, and save allocating deallocating.
+                                              ! NOTE: THIS SCRATCH SPACE WOULD NOT BE THREAD-SAFE
+                                              ! IF WE FORK ON PATCHES
+
      
      ! DIAGNOSTICS
 

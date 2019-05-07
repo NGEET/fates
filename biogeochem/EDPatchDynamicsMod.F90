@@ -7,7 +7,6 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
-  use EDCohortDynamicsMod  , only : SendCohortToLitter
   use EDCohortDynamicsMod  , only : DeallocateCohort
   use EDTypesMod           , only : area_site => area
   use FatesLitterMod       , only : ncwd
@@ -518,18 +517,18 @@ contains
                   (currentPatch%disturbance_rates(dtype_ilog) > &
                    currentPatch%disturbance_rates(dtype_ifire)) ) then 
                 
-                call logging_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis, bc_in)
+                call logging_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
                 
              elseif ((currentPatch%disturbance_rates(dtype_ifire) > &
                       currentPatch%disturbance_rates(dtype_ifall)) .and. &
                      (currentPatch%disturbance_rates(dtype_ifire) > &
                       currentPatch%disturbance_rates(dtype_ilog)) ) then
                 
-                call fire_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis, bc_in)  
+                call fire_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)  
                 
              else
                 
-                call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis, bc_in)
+                call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
                 
              endif
              
@@ -1230,7 +1229,7 @@ contains
 
   ! ============================================================================
 
-  subroutine fire_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis, bc_in)
+  subroutine fire_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
     !
     ! !DESCRIPTION:
     !  CWD pool burned by a fire. 
@@ -1251,8 +1250,6 @@ contains
     type(ed_patch_type) , intent(inout), target :: newPatch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
                                                                       ! by current cohort
-    type(bc_in_type)    , intent(in)             :: bc_in
-    
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer      :: currentCohort
@@ -1287,7 +1284,7 @@ contains
     integer  :: ilyr                 ! loop index for soil layers
     integer  :: nlevsoil             ! number of soil layers
     integer  :: element_id           ! parteh compatible global element index
-    real(r8), allocatable :: rootfr(:)   ! Root mass fraction array
+
     !---------------------------------------------------------------------
 
     ! Only do this if there was a fire in this actual patch. 
@@ -1320,9 +1317,6 @@ contains
     donate_frac = 1.0_r8-retain_frac
     
     nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
-
-    ! Allocate the root fraction scratch array
-    allocate(rootfr(nlevsoil))
 
     do el = 1,num_elements
        
@@ -1377,12 +1371,12 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             call set_root_fraction(rootfr(:), pft, bc_in%zi_sisl, &
+             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                    icontext = i_biomass_rootprof_context)
 
              ! Contribution of dead trees to root litter (no root burn flux)
              do lyr = 1,nlevsoil
-                donatable_mass = num_dead_trees * (fnrt_m+store_m) * rootfr(ilyr)
+                donatable_mass = num_dead_trees * (fnrt_m+store_m) * currentSite%rootfrac_scr(ilyr)
                 new_litt%root_fines(pft,lyr) = new_litt%root_fines(pft,lyr) + &
                                                donatable_mass*donate_frac/newPatch%area
                 curr_litt%root_fines(pft,lyr) = curr_litt%root_fines(pft,lyr) + &
@@ -1404,7 +1398,7 @@ contains
              do c = 1,ncwd
                 do lyr = 1,nlevsoil
                    donatable_mass =  num_dead_trees * SF_val_CWD_frac(c) * &
-                         bcroot * rootfr(ilyr)
+                         bcroot * currentSite%rootfrac_scr(ilyr)
 
                    new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
                          donatable_mass * donate_frac/newPatch%area
@@ -1514,14 +1508,12 @@ contains
        currentCohort => currentCohort%taller
     enddo
     
-    deallocate(rootfr)
-
     return
   end subroutine fire_litter_fluxes
 
   ! ============================================================================
 
-  subroutine mortality_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis, bc_in)
+  subroutine mortality_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
     !
     ! !DESCRIPTION:
     !  Carbon going from ongoing mortality into CWD pools. 
@@ -1535,7 +1527,6 @@ contains
     type(ed_patch_type) , intent(inout), target :: currentPatch
     type(ed_patch_type) , intent(inout), target :: newPatch
     real(r8)            , intent(in)            :: patch_site_areadis
-    type(bc_in_type)    , intent(in)            :: bc_in
 
     !
     ! !LOCAL VARIABLES:
@@ -1565,12 +1556,9 @@ contains
     integer  :: nlevsoil             ! number of soil layers
     integer  :: ilyr                 ! soil layer index
     integer  :: element_id           ! parteh compatible global element index
-    real(r8), allocatable :: rootfr(:)   ! Root mass fraction array
     !---------------------------------------------------------------------
 
-
-    nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
-    allocate(rootfr(nlevsoil))
+    nlevsoil = currentSite%nlevsoil
 
     do el = 1,num_elements
        
@@ -1644,7 +1632,7 @@ contains
           ag_wood = num_dead * (struct_m + sapw_m) * EDPftvarcon_inst%allom_agb_frac(pft)
           bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
           
-          call set_root_fraction(rootfr(:), pft, bc_in%zi_sisl, &
+          call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                 icontext = i_biomass_rootprof_context)
 
           do c=1,ncwd
@@ -1658,11 +1646,11 @@ contains
              ! Transfer wood of dying trees to BG CWD pools
              do ilyr = 1,nlevsoil
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + bg_wood * &
-                      rootfr(ilyr) * SF_val_CWD_frac(c) * &
+                      currentSite%rootfrac_scr(ilyr) * SF_val_CWD_frac(c) * &
                       donate_frac/newPatch%area
 
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + bg_wood * &
-                      rootfr(ilyr) * SF_val_CWD_frac(c) * &
+                      currentSite%rootfrac_scr(ilyr) * SF_val_CWD_frac(c) * &
                       retain_frac/remainder_area
              end do
           end do
@@ -1670,12 +1658,12 @@ contains
           ! Transfer fine roots of dying trees to below ground litter pools
           do ilyr=1,nlevsoil
              new_litt%root_fines(pft,ilyr) = new_litt%root_fines(pft,ilyr) + &
-                   num_dead * rootfr(ilyr) * &
+                   num_dead * currentSite%rootfrac_scr(ilyr) * &
                    (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
                    donate_frac/newPatch%area
              
              curr_litt%root_fines(pft,ilyr) = curr_litt%root_fines(pft,ilyr) + &
-                   num_dead * rootfr(ilyr) * &
+                   num_dead * currentSite%rootfrac_scr(ilyr) * &
                    (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
                    retain_frac/remainder_area
           end do
@@ -1711,8 +1699,6 @@ contains
        enddo !currentCohort         
        
     enddo
-
-    deallocate(rootfr)
 
     return
   end subroutine mortality_litter_fluxes

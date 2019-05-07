@@ -265,7 +265,7 @@ contains
        call terminate_patches(currentSite)   
     end if
    
-    call TotalBalanceCheck(currentSite,final_check_id)
+    call TotalBalanceCheck(currentSite,5)
 
   end subroutine ed_ecosystem_dynamics
 
@@ -530,7 +530,7 @@ contains
 
     call canopy_structure(currentSite, bc_in)
 
-    call TotalBalanceCheck(currentSite,7)
+    call TotalBalanceCheck(currentSite,final_check_id)
 
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
@@ -627,7 +627,7 @@ contains
 
        site_mass => currentSite%mass_balance(el)
        
-       change_in_stock = total_stock - site_mass%stock_fates
+       change_in_stock = total_stock - site_mass%old_stock
 
        flux_in  = site_mass%seed_in + & 
                   site_mass%net_root_uptake + &
@@ -717,7 +717,7 @@ contains
       ! This is the last check of the sequence, where we update our total
       ! error check and the final fates stock
       if(call_index == final_check_id) then
-          site_mass%stock_fates = total_stock
+          site_mass%old_stock = total_stock
           site_mass%err_fates   = site_mass%err_fates + (net_flux - change_in_stock)
           call site_mass%ZeroMassBalFlux()
       end if

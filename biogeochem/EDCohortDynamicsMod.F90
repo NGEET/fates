@@ -62,7 +62,7 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : ForceDBH
   use FatesAllometryMod  , only : tree_lai, tree_sai
   use FatesAllometryMod  , only : i_biomass_rootprof_context 
-
+  use FatesAllometryMod    , only : set_root_fraction
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : InitPRTVartype
@@ -84,6 +84,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
+
   !  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
@@ -631,19 +632,17 @@ contains
     real(r8) :: fnrt_c    ! fineroot carbon [kg]
     real(r8) :: repro_c   ! reproductive carbon [kg]
     real(r8) :: struct_c  ! structural carbon [kg]
+    real(r8), allocatable :: rootfr(:)  ! Root fraction
 
     integer :: terminate   ! do we terminate (1) or not (0) 
     integer :: c           ! counter for litter size class. 
     integer :: levcan      ! canopy level
-    integer :: nlevsoil    ! number of soil layers
     !----------------------------------------------------------------------
-
-    nlevsoil = size(currentPatch%litter(1)%bg_cwd,dim=2)
 
     currentCohort => currentPatch%shortest
     do while (associated(currentCohort))
 
-       terminate = 0 
+       terminate = ifalse
        tallerCohort => currentCohort%taller
 
        leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
@@ -655,12 +654,12 @@ contains
 
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
-         terminate = 1
-	 if ( debug ) then
+          terminate = 1
+          if ( debug ) then
              write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh
-         endif
+          endif
        endif
-
+      
        ! The rest of these are only allowed if we are not dealing with a recruit (level 2)
        if (.not.currentCohort%isnew .and. level == 2) then
 
@@ -668,8 +667,7 @@ contains
          if  (currentCohort%n/currentPatch%area <= min_npm2 .or.	&  !
               currentCohort%n <= min_nppatch .or. &
               (currentCohort%dbh < 0.00001_r8 .and. store_c < 0._r8) ) then 
-            terminate = 1
-
+            terminate = itrue
             if ( debug ) then
                write(fates_log(),*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
             endif
@@ -677,7 +675,7 @@ contains
 
          ! Outside the maximum canopy layer
          if (currentCohort%canopy_layer > nclmax ) then 
-           terminate = 1
+           terminate = itrue
            if ( debug ) then
              write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer
            endif
@@ -685,8 +683,8 @@ contains
 
          ! live biomass pools are terminally depleted
          if ( ( sapw_c+leaf_c+fnrt_c ) < 1e-10_r8  .or.  &
-               store_c  < 1e-10_r8) then 
-            terminate = 1  
+               store_c  < 1e-10_r8) then
+            terminate = itrue
             if ( debug ) then
               write(fates_log(),*) 'terminating cohorts 3', &
                     sapw_c,leaf_c,fnrt_c,store_c
@@ -695,17 +693,16 @@ contains
 
          ! Total cohort biomass is negative
          if ( ( struct_c+sapw_c+leaf_c+fnrt_c+store_c ) < 0._r8) then
-            terminate = 1
+            terminate = itrue
             if ( debug ) then
-            write(fates_log(),*) 'terminating cohorts 4', & 
-                  struct_c,sapw_c,leaf_c,fnrt_c,store_c
-
+               write(fates_log(),*) 'terminating cohorts 4', & 
+                    struct_c,sapw_c,leaf_c,fnrt_c,store_c
+            endif
+            
          endif
-
-         endif 
       endif    !  if (.not.currentCohort%isnew .and. level == 2) then
 
-      if (terminate == 1) then 
+      if (terminate == itrue) then 
          
           ! preserve a record of the to-be-terminated cohort for mortality accounting
           levcan = currentCohort%canopy_layer
@@ -766,7 +763,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine SendCohortToLitter(currentSite,currentPatch,currentCohort,nplant)
+  subroutine SendCohortToLitter(csite,cpatch,ccohort,nplant)
     
     ! -----------------------------------------------------------------------------------
     ! This routine transfers the existing mass in all pools and all elements
@@ -784,9 +781,9 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! Arguments
-    type (ed_site_type)   , target  :: currentSite
-    type (ed_patch_type)  , target  :: currentPatch
-    type (ed_cohort_type) , target  :: currentCohort
+    type (ed_site_type)   , target  :: csite
+    type (ed_patch_type)  , target  :: cpatch
+    type (ed_cohort_type) , target  :: ccohort
     real(r8)                        :: nplant     ! Number (absolute)
                                                   ! of plants to transfer
     
@@ -805,43 +802,43 @@ contains
     integer  :: c         ! loop index for CWD
     integer  :: pft       ! pft index of the cohort
     integer  :: ilyr      ! loop index for soil layers
-    integer  :: nlevsoil  ! number of soil layers
     !----------------------------------------------------------------------
 
-    nlevsoil = size(currentPatch%litter(1)%bg_cwd,dim=2)    
+    pft = ccohort%pft
 
-    pft = currentCohort%pft
+    plant_dens = nplant/cpatch%area
 
-    plant_dens = nplant/currentPatch%area
+    call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
+         icontext = i_biomass_rootprof_context)
 
     do el=1,num_elements
        
-       leaf_m   = currentCohort%prt%GetState(leaf_organ, element_list(el))
-       store_m  = currentCohort%prt%GetState(store_organ, element_list(el))
-       sapw_m   = currentCohort%prt%GetState(sapw_organ, element_list(el))
-       fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_list(el))
-       struct_m = currentCohort%prt%GetState(struct_organ, element_list(el))
-       repro_m  = currentCohort%prt%GetState(repro_organ, element_list(el))
+       leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
+       store_m  = ccohort%prt%GetState(store_organ, element_list(el))
+       sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
+       fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
+       struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
+       repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
                 
-       litt => currentPatch%litter(el)
-       flux_diags => currentSite%flux_diags(el)
+       litt => cpatch%litter(el)
+       flux_diags => csite%flux_diags(el)
 
        do c=1,ncwd
                    
           litt%ag_cwd(c) = litt%ag_cwd(c) + plant_dens * &
                (struct_m+sapw_m)  * SF_val_CWD_frac(c) * &
-               EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) 
-            
-          flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-                (struct_m + sapw_m) * SF_val_CWD_frac(c) * &
-                EDPftvarcon_inst%allom_agb_frac(pft) * nplant
-
+               EDPftvarcon_inst%allom_agb_frac(pft)
        
-          do ilyr=1,nlevsoil
+          do ilyr=1,csite%nlevsoil
              litt%bg_cwd(c,ilyr) = litt%bg_cwd(c,ilyr) + plant_dens * &
                   (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
-                  (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(pft))
+                  (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(pft)) * &
+                  csite%rootfrac_scr(ilyr)
           enddo
+
+          flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+                (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
+                EDPftvarcon_inst%allom_agb_frac(pft) * nplant
 
           flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
                 (struct_m + sapw_m) * SF_val_CWD_frac(c) * &
@@ -856,9 +853,9 @@ contains
              flux_diags%leaf_litter_input(pft) +  &
              (leaf_m+repro_m) * nplant
        
-       do ilyr=1,nlevsoil
+       do ilyr=1,csite%nlevsoil
            litt%root_fines(pft,ilyr) = litt%root_fines(pft,ilyr) + &
-                 plant_dens * (fnrt_m+store_m)
+                 plant_dens * (fnrt_m+store_m) * csite%rootfrac_scr(ilyr)
        end do
        
        flux_diags%root_litter_input(pft) = &

@@ -58,7 +58,7 @@ contains
           
           call SiteMassStock(sites(s),el,total_stock,biomass_stock,litter_stock,seed_stock)
           
-          site_mass%stock_fates     = total_stock
+          site_mass%old_stock     = total_stock
           
        end do
        
@@ -102,7 +102,8 @@ contains
               sum(sum(litt%root_fines,dim=1)))
 
         ! Total mass of viable seeds in [kg]
-        seed_stock = seed_stock + currentPatch%area * sum(litt%seed)
+        seed_stock = seed_stock + currentPatch%area * &
+             (sum(litt%seed) + sum(litt%seed_germ))
 
         ! Total mass on living plants
         currentCohort => currentPatch%tallest
