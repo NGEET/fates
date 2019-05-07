@@ -409,7 +409,7 @@ variables:
 		fates_fire_SAV:units = "NA" ;
 		fates_fire_SAV:long_name = "spitfire parameter related to surface area to volume ratio, see SFMain.F90" ;
 	float fates_max_decomp(fates_litterclass) ;
-		fates_max_decomp:units = "kgC/m2/yr ?" ;
+		fates_max_decomp:units = "yr-1" ;
 		fates_max_decomp:long_name = "maximum rate of litter & CWD transfer from non-decomposing class into decomposing class" ;
 	float fates_hydr_avuln_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_avuln_node:units = "unitless" ;
