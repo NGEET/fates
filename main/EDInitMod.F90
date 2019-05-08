@@ -283,7 +283,7 @@ contains
           
           sites(s)%acc_NI     = acc_NI
           sites(s)%frac_burnt = 0.0_r8
-          sites(s)%old_stock  = 0.0_r8
+
           
        end do
 

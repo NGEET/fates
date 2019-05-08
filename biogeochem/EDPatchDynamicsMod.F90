@@ -1097,7 +1097,7 @@ contains
     type(ed_patch_type) , intent(in), target  :: currentPatch       ! Donor patch
     type(ed_patch_type) , intent(inout)       :: newPatch           ! New patch
     real(r8)            , intent(in)          :: patch_site_areadis ! Area being donated
-                                                                    ! by current cohort
+                                                                    ! by current patch
 
     
     ! locals
@@ -1128,7 +1128,7 @@ contains
 
        do c = 1,ncwd 
           new_litt%ag_cwd_frag(c) = new_litt%ag_cwd_frag(c) + &
-                curr_litt%ag_cwd_frag(c) * patch_site_areadis/newPatch%area
+               curr_litt%ag_cwd_frag(c) * patch_site_areadis/newPatch%area
           
           do lyr=1,nlevsoil
              new_litt%bg_cwd_frag(c,lyr) = new_litt%bg_cwd_frag(c,lyr) + &
@@ -1139,10 +1139,13 @@ contains
        do pft = 1,numpft
 
           new_litt%leaf_fines_frag(pft) = new_litt%leaf_fines_frag(pft) + &
-                curr_litt%leaf_fines_frag(pft) * patch_site_areadis/newPatch%area
+               curr_litt%leaf_fines_frag(pft) * patch_site_areadis/newPatch%area
 
           new_litt%seed(pft) = new_litt%seed(pft) + &
-                curr_litt%seed(pft) * patch_site_areadis/newPatch%area
+               curr_litt%seed(pft) * patch_site_areadis/newPatch%area
+
+          new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + & 
+               curr_litt%seed_germ(pft) * patch_site_areadis/newPatch%area
           
           do lyr=1,nlevsoil
              new_litt%root_fines_frag(pft,lyr) = new_litt%root_fines_frag(pft,lyr) + &

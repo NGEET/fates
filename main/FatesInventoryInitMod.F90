@@ -943,34 +943,36 @@ contains
          temp_cohort%canopy_trim = 1.0_r8
 
 
-         call bagw_allom(temp_cohort%dbh,c_pft,b_agw)
+         call bagw_allom(temp_cohort%dbh,temp_cohort%pft,b_agw)
          ! Calculate coarse root biomass from allometry
-         call bbgw_allom(temp_cohort%dbh,c_pft,b_bgw)
+         call bbgw_allom(temp_cohort%dbh,temp_cohort%pft,b_bgw)
          
          ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
          ! and sla scaling factors)
-         call bleaf(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_leaf)
+         call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,b_leaf)
          
          ! Calculate fine root biomass
-         call bfineroot(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_fnrt)
+         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,b_fnrt)
          
          ! Calculate sapwood biomass
-         call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim, a_sapw, b_sapw)
+         call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim, a_sapw, b_sapw)
          
-         call bdead_allom( b_agw, b_bgw, b_sapw, c_pft, b_struct )
+         call bdead_allom( b_agw, b_bgw, b_sapw, temp_cohort%pft, b_struct )
          
-         call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim, b_store)
+         call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%canopy_trim, b_store)
       
          temp_cohort%laimemory = 0._r8
          cstatus = leaves_on
-         
-         if( EDPftvarcon_inst%season_decid(c_pft) == itrue .and. csite%is_cold ) then
+
+         if( EDPftvarcon_inst%season_decid(temp_cohort%pft) == itrue .and. &
+              any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
              temp_cohort%laimemory = b_leaf
              b_leaf  = 0._r8
              cstatus = leaves_off
          endif
-         
-         if ( EDPftvarcon_inst%stress_decid(c_pft) == itrue .and. csite%is_drought ) then
+
+         if ( EDPftvarcon_inst%stress_decid(temp_cohort%pft) == itrue .and. &
+              any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
              temp_cohort%laimemory = b_leaf
              b_leaf  = 0._r8
              cstatus = leaves_off
@@ -997,20 +999,20 @@ contains
                  
              case(nitrogen_element)
                  
-                 m_struct = b_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,struct_organ)
-                 m_leaf   = b_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,leaf_organ)
-                 m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,fnrt_organ)
-                 m_sapw   = b_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,sapw_organ)
-                 m_store  = b_store*EDPftvarcon_inst%prt_nitr_stoich_p1(c_pft,store_organ)
+                 m_struct = b_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,struct_organ)
+                 m_leaf   = b_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,leaf_organ)
+                 m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,fnrt_organ)
+                 m_sapw   = b_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,sapw_organ)
+                 m_store  = b_store*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,store_organ)
                  m_repro  = 0._r8
                  
              case(phosphorus_element)
                  
-                 m_struct = b_struct*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,struct_organ)
-                 m_leaf   = b_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,leaf_organ)
-                 m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,fnrt_organ)
-                 m_sapw   = b_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,sapw_organ)
-                 m_store  = b_store*EDPftvarcon_inst%prt_phos_stoich_p1(c_pft,store_organ)
+                 m_struct = b_struct*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,struct_organ)
+                 m_leaf   = b_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,leaf_organ)
+                 m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,fnrt_organ)
+                 m_sapw   = b_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,sapw_organ)
+                 m_store  = b_store*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,store_organ)
                  m_repro  = 0._r8
              end select
              
@@ -1038,7 +1040,7 @@ contains
          call prt_obj%CheckInitialConditions()
 
          ! Since spread is a canopy level calculation, we need to provide an initial guess here.
-         call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+         call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                prt_obj, temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
                1, csite%spread, bc_in)
 

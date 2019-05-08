@@ -222,7 +222,7 @@ contains
        call SeedDecayToFines(litt)
        
        ! Calculate seed germination rate
-       call SeedGermination(litt, currentSite%is_cold, currentSite%is_drought)
+       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus)
        
        ! Send fluxes from newly created litter into the litter pools
        ! This litter flux is from non-disturbance inducing mortality, as well
@@ -1201,7 +1201,7 @@ contains
   end subroutine SeedDecay
 
   ! ============================================================================
-  subroutine SeedGermination( litt, is_cold, is_drought )
+  subroutine SeedGermination( litt, cold_stat, drought_stat )
     !
     ! !DESCRIPTION:
     !  Flux from seed pool into sapling pool    
@@ -1211,8 +1211,8 @@ contains
     !
     ! !ARGUMENTS
     type(litter_type) :: litt  
-    logical, intent(in) :: is_cold    ! Is the site in cold leaf-off status?
-    logical, intent(in) :: is_drought ! Is the site in drought leaf-off status?
+    integer, intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
+    integer, intent(in) :: drought_stat ! Is the site in drought leaf-off status?
     !
     ! !LOCAL VARIABLES:
     integer :: pft
@@ -1239,11 +1239,11 @@ contains
        !set the germination only under the growing season...c.xu
 
        if ((EDPftvarcon_inst%season_decid(pft) == itrue ) .and. &
-             (any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]))) then
+             (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
            litt%seed_germ_in(pft) = 0.0_r8
        endif
        if ((EDPftvarcon_inst%stress_decid(pft) == itrue ) .and. &
-             (any(currentSite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
+             (any(drought_stat == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
            litt%seed_germ_in(pft) = 0.0_r8
        end if
 
