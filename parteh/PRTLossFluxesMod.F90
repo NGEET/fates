@@ -317,7 +317,7 @@ contains
                   + burned_mass
              
              ! Update the state of the pool to reflect the mass lost
-             prt%variables(i_var)%val(i_pos)      = prt%variables(i_var)%val(i_pos) &
+             prt%variables(i_var)%val(i_pos)    = prt%variables(i_var)%val(i_pos) &
                   - burned_mass
              
           end do
