@@ -123,7 +123,6 @@ module EDTypesMod
   integer , parameter :: dtype_ifire          = 2          ! index for fire generated disturbance event
   integer , parameter :: dtype_ilog           = 3          ! index for logging generated disturbance event
 
-
   ! Phenology status flag definitions (cold type is cstat, dry type is dstat)
 
   integer, parameter :: phen_cstat_nevercold = 0        ! This (location/plant) has not experienced a cold period over a large number
@@ -490,6 +489,8 @@ module EDTypesMod
                                                                    !                       2) fire: fraction/day 
                                                                    !                       3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
+     integer  ::  disturbance_mode                                 ! index identifying which disturbance was applied
+                                                                   ! can be one of: dtype_ifall, dtype_ilog or dtype_ifire
      real(r8) ::  fract_ldist_not_harvested                        ! fraction of logged area that is canopy trees that weren't harvested
 
 
