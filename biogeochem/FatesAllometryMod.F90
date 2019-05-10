@@ -2054,6 +2054,13 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
 
+    if( abs(sum(root_fraction)-1.0_r8) > 1.e-9_r8 ) then
+        write(fates_log(),*) 'Root fractions should add up to 1'
+        write(fates_log(),*) root_fraction
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+
     return
   end subroutine set_root_fraction
 

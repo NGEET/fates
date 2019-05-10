@@ -29,6 +29,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : num_elements
   use EDTypesMod           , only : element_list
   use EDTypesMod           , only : dl_sf
+  use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
@@ -110,8 +111,8 @@ module EDPatchDynamicsMod
   ! all litter is sent to the new patch.
 
   real(r8), parameter :: existing_litt_localization = 1.0_r8
-  real(r8), parameter :: treefall_localization = 0.75_r8
-  real(r8), parameter :: burn_localization = 0.8_r8
+  real(r8), parameter :: treefall_localization = 0.7_r8
+  real(r8), parameter :: burn_localization = 0.7_r8
 
 
   ! 10/30/09: Created by Rosie Fisher
@@ -387,6 +388,7 @@ contains
     real(r8) :: total_c                      ! total carbon of plant [kg]
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
+    real(r8) :: leaf_c1,leaf_c0
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -427,14 +429,14 @@ contains
        
     enddo ! end loop over patches. sum area disturbed for all patches. 
 
-    ! It is possible that no disturbance area was generated
-    if ( (site_areadis_primary + site_areadis_secondary) > nearzero) then  
+     ! It is possible that no disturbance area was generated
+    if ( (site_areadis_primary + site_areadis_secondary) > rsnbl_math_prec) then  
        
        age = 0.0_r8
 
        ! create two empty patches, to absorb newly disturbed primary and secondary forest area
        ! first create patch to receive primary forest area
-       if ( site_areadis_primary .gt. nearzero ) then
+       if ( site_areadis_primary .gt. rsnbl_math_prec ) then
           allocate(new_patch_primary)
 
           call create_patch(currentSite, new_patch_primary, age, &
@@ -457,7 +459,7 @@ contains
 
 
        ! next create patch to receive secondary forest area
-       if ( site_areadis_secondary .gt. nearzero) then
+       if ( site_areadis_secondary .gt. rsnbl_math_prec) then
           allocate(new_patch_secondary)
           call create_patch(currentSite, new_patch_secondary, age, &
                 site_areadis_secondary, bc_in%nlevsoil, secondaryforest)
@@ -486,21 +488,31 @@ contains
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
 
-          if (patch_site_areadis > nearzero ) then
+          ! figure out whether the receiver patch for disturbance from this patch 
+          ! will be primary or secondary land receiver patch is primary forest 
+          ! only if both the donor patch is primary forest and the dominant 
+          ! disturbance type is not logging
+          if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
+                ((currentPatch%disturbance_rates(dtype_ilog) .lt. &
+                currentPatch%disturbance_rates(dtype_ifall)) .or. &
+                (currentPatch%disturbance_rates(dtype_ilog) .lt.  &
+                currentPatch%disturbance_rates(dtype_ifire))) ) then
+              if(site_areadis_primary > rsnbl_math_prec) then
+                  new_patch => new_patch_primary
+              else
+                  new_patch => null()
+              end if
+          else
+              if(site_areadis_secondary > rsnbl_math_prec) then
+                  new_patch => new_patch_secondary
+              else
+                  new_patch => null()
+              end if
+          endif
+          
+          
+          if ( associated(new_patch) ) then
 
-             ! figure out whether the receiver patch for disturbance from this patch 
-             ! will be primary or secondary land receiver patch is primary forest 
-             ! only if both the donor patch is primary forest and the dominant 
-             ! disturbance type is not logging
-             if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
-                  ((currentPatch%disturbance_rates(dtype_ilog) .lt. &
-                    currentPatch%disturbance_rates(dtype_ifall)) .or. &
-                   (currentPatch%disturbance_rates(dtype_ilog) .lt.  &
-                    currentPatch%disturbance_rates(dtype_ifire)))) then
-                new_patch => new_patch_primary
-             else
-                new_patch => new_patch_secondary
-             endif
 
              ! for the case where the donating patch is secondary forest, if 
              ! the dominant disturbance from this patch is non-anthropogenic,
@@ -751,9 +763,20 @@ contains
                    else
                        leaf_burn_frac = currentPatch%burnt_frac_litter(6)
                    endif
+                   
+                   leaf_c0   = nc%prt%GetState(leaf_organ, carbon12_element)
+
                    call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
                    currentCohort%fraction_crown_burned = 0.0_r8     
                    
+                   leaf_c1 = nc%prt%GetState(leaf_organ, carbon12_element)
+
+                   if( abs( (leaf_c0-leaf_c1)/leaf_c0 - leaf_burn_frac) > 0.0001_r8 ) then
+                       write(fates_log(),*) 'Error implementing leaf burn fractions'
+                       write(fates_log(),*) leaf_c1/leaf_c0,leaf_burn_frac
+                       call endrun(msg=errMsg(sourcefile, __LINE__))
+                   end if
+
                    
                    ! Logging is the dominant disturbance  
                 elseif ((currentPatch%disturbance_rates(dtype_ilog) > &
@@ -921,7 +944,7 @@ contains
              call terminate_cohorts(currentSite, currentPatch, 2)
              call sort_cohorts(currentPatch)
              
-          end if    ! if (patch_site_areadis > nearzero) then
+          end if    ! if ( new_patch%area > rsnbl_math_prec ) then 
        
           !zero disturbance rate trackers
           currentPatch%disturbance_rate  = 0._r8
@@ -937,7 +960,7 @@ contains
        !**  INSERT NEW PATCH(ES) INTO LINKED LIST    
        !**********`***************/
        
-       if ( site_areadis_primary .gt. nearzero) then
+       if ( site_areadis_primary .gt. rsnbl_math_prec) then
           currentPatch               => currentSite%youngest_patch
           new_patch_primary%older    => currentPatch
           new_patch_primary%younger  => NULL()
@@ -945,7 +968,7 @@ contains
           currentSite%youngest_patch => new_patch_primary
        endif
        
-       if ( site_areadis_secondary .gt. nearzero) then
+       if ( site_areadis_secondary .gt. rsnbl_math_prec) then
           currentPatch               => currentSite%youngest_patch
           new_patch_secondary%older  => currentPatch
           new_patch_secondary%younger=> NULL()
@@ -958,14 +981,14 @@ contains
        ! the second call removes for all other reasons (sparse culling must happen
        ! before fusion)
 
-       if ( site_areadis_primary .gt. nearzero) then
+       if ( site_areadis_primary .gt. rsnbl_math_prec) then
           call terminate_cohorts(currentSite, new_patch_primary, 1)
           call fuse_cohorts(currentSite,new_patch_primary, bc_in)
           call terminate_cohorts(currentSite, new_patch_primary, 2)
           call sort_cohorts(new_patch_primary)
        endif
        
-       if ( site_areadis_secondary .gt. nearzero) then
+       if ( site_areadis_secondary .gt. rsnbl_math_prec) then
           call terminate_cohorts(currentSite, new_patch_secondary, 1)
           call fuse_cohorts(currentSite,new_patch_secondary, bc_in)
           call terminate_cohorts(currentSite, new_patch_secondary, 2)
@@ -1128,6 +1151,8 @@ contains
     real(r8) :: donatable_mass             ! mass of donatable litter [kg]
     real(r8) :: donate_frac                ! the fraction of litter mass sent to the new patch
     real(r8) :: retain_frac                ! the fraction of litter mass retained by the donor patch
+    real(r8) :: donate_m2                  ! area normalization for litter mass destined to new patch [m-2]
+    real(r8) :: retain_m2                  ! area normalization for litter mass destined to old patch [m-2]
     integer  :: el                         ! element loop counter
     integer  :: c                          ! CWD loop counter
     integer  :: pft                        ! PFT loop counter
@@ -1192,8 +1217,14 @@ contains
        retain_frac = (1.0_r8-existing_litt_localization) * &
              remainder_area/(newPatch%area+remainder_area)
        donate_frac = 1.0_r8-retain_frac
-       
-       
+        
+       if(remainder_area > rsnbl_math_prec) then
+           retain_m2 = retain_frac/remainder_area
+           donate_m2 = (1.0_r8-retain_frac)/newPatch%area
+       else
+           retain_m2 = 0._r8
+           donate_m2  = 1./newPatch%area
+       end if
 
        do c = 1,ncwd
              
@@ -1205,8 +1236,8 @@ contains
           burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
                                currentPatch%burnt_frac_litter(c)
  
-          new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_frac / newPatch%area
-          curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_frac / remainder_area
+          new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
+          curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
 
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
              
@@ -1214,8 +1245,8 @@ contains
           
           do sl = 1,currentSite%nlevsoil
              donatable_mass         = curr_litt%bg_cwd(c,sl) * patch_site_areadis
-             new_litt%bg_cwd(c,sl) = new_litt%bg_cwd(c,sl) + donatable_mass*donate_frac / newPatch%area
-             curr_litt%bg_cwd(c,sl) = curr_litt%bg_cwd(c,sl) + donatable_mass*retain_frac / remainder_area
+             new_litt%bg_cwd(c,sl)  = new_litt%bg_cwd(c,sl) + donatable_mass*donate_m2
+             curr_litt%bg_cwd(c,sl) = curr_litt%bg_cwd(c,sl) + donatable_mass*retain_m2
           end do
           
        enddo
@@ -1229,16 +1260,16 @@ contains
                                      (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
           burned_mass              = curr_litt%leaf_fines(pft) * patch_site_areadis * &
                                      currentPatch%burnt_frac_litter(dl_sf)
-          new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + donatable_mass*donate_frac/newPatch%area
-          curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + donatable_mass*retain_frac/remainder_area
+          new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + donatable_mass*donate_m2
+          curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + donatable_mass*retain_m2
 
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
           
           ! Transfer root fines (none burns)
           do sl = 1,currentSite%nlevsoil
              donatable_mass = curr_litt%root_fines(pft,sl) * patch_site_areadis             
-             new_litt%root_fines(pft,sl) = new_litt%root_fines(pft,sl) + donatable_mass*donate_frac/newPatch%area
-             curr_litt%root_fines(pft,sl) = curr_litt%root_fines(pft,sl) + donatable_mass*retain_frac/remainder_area
+             new_litt%root_fines(pft,sl) = new_litt%root_fines(pft,sl) + donatable_mass*donate_m2
+             curr_litt%root_fines(pft,sl) = curr_litt%root_fines(pft,sl) + donatable_mass*retain_m2
           end do
           
        enddo
@@ -1272,7 +1303,7 @@ contains
     type(ed_patch_type) , intent(inout), target :: currentPatch
     type(ed_patch_type) , intent(inout), target :: newPatch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
-                                                                      ! by current cohort
+                                                                      ! by current patch
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer      :: currentCohort
@@ -1300,6 +1331,8 @@ contains
     real(r8) :: repro_m              ! Reproductive mass (seeds/flowers) [kg]
     real(r8) :: num_dead_trees       ! total number of dead trees passed in with the burn area
     real(r8) :: num_live_trees       ! total number of live trees passed in with the burn area
+    real(r8) :: donate_m2            ! area normalization for litter mass destined to new patch [m-2]
+    real(r8) :: retain_m2            ! area normalization for litter mass destined to old patch [m-2]
     integer  :: el                   ! element loop index
     integer  :: sl                   ! soil layer index
     integer  :: c                    ! loop index for coarse woody debris pools
@@ -1330,12 +1363,20 @@ contains
     remainder_area = currentPatch%area - patch_site_areadis
    
     ! Calculate the fraction of litter to be retained versus donated
-    ! vis-a-vis the new and donor patch
-    
+    ! vis-a-vis the new and donor patch (if the area remaining
+    ! in the original patch is small, don't bother 
+    ! retaining anything.
     retain_frac = (1.0_r8-burn_localization) * &
           remainder_area/(newPatch%area+remainder_area)
 
-    donate_frac = 1.0_r8-retain_frac
+    if(remainder_area > rsnbl_math_prec) then
+        retain_m2 = retain_frac/remainder_area
+        donate_m2 = (1.0_r8-retain_frac)/newPatch%area
+    else
+        retain_m2 = 0._r8
+        donate_m2  = 1./newPatch%area
+    end if
+
     
     do el = 1,num_elements
        
@@ -1382,9 +1423,9 @@ contains
              burned_mass  = num_dead_trees * (leaf_m+repro_m) * currentCohort%fraction_crown_burned
              
              new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
-                                        donatable_mass*donate_frac/newPatch%area
+                                        donatable_mass*donate_m2
              curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + &
-                                        donatable_mass*retain_frac/remainder_area
+                                        donatable_mass*retain_m2
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
@@ -1395,9 +1436,9 @@ contains
              do sl = 1,currentSite%nlevsoil
                 donatable_mass = num_dead_trees * (fnrt_m+store_m) * currentSite%rootfrac_scr(sl)
                 new_litt%root_fines(pft,sl) = new_litt%root_fines(pft,sl) + &
-                                               donatable_mass*donate_frac/newPatch%area
+                                               donatable_mass*donate_m2
                 curr_litt%root_fines(pft,sl) = curr_litt%root_fines(pft,sl) + &
-                                               donatable_mass*retain_frac/remainder_area
+                                               donatable_mass*retain_m2
              end do
 
              ! Track as diagnostic fluxes
@@ -1419,9 +1460,9 @@ contains
                          bcroot * currentSite%rootfrac_scr(sl)
 
                    new_litt%bg_cwd(c,sl) = new_litt%bg_cwd(c,sl) + &
-                         donatable_mass * donate_frac/newPatch%area
+                         donatable_mass * donate_m2
                    curr_litt%bg_cwd(c,sl) = curr_litt%bg_cwd(c,sl) + &
-                         donatable_mass * retain_frac/remainder_area
+                         donatable_mass * retain_m2
 
                    ! track diagnostics
                    flux_diags%cwd_bg_input(c) = &
@@ -1442,10 +1483,8 @@ contains
                 burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * & 
                       currentCohort%fraction_crown_burned
 
-                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * &
-                      donate_frac/newPatch%area
-                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * &
-                      retain_frac/remainder_area
+                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
+                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
                 
                 ! track as diagnostic fluxes
                 flux_diags%cwd_ag_input(c) = &
@@ -1459,59 +1498,40 @@ contains
              ! and stems: these do not burn in crown fires. 
              do c = 3,4
                 donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
-                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * &
-                      donate_frac/newPatch%area
-                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * &
-                      retain_frac/remainder_area
+                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
+                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
 
                 ! track as diagnostic fluxes
                 flux_diags%cwd_ag_input(c) = &
                      flux_diags%cwd_ag_input(c) + donatable_mass
             enddo
              
-
-!          currentCohort => currentCohort%taller
-
-!       enddo  ! currentCohort
        
-       ! -----------------------------------------------------------------------------
-       ! PART 2) Burn parts of trees that did *not* die in the fire.
-       !         currently we only remove leaves. branch and associated 
-       !         sapwood consumption coming soon.
-       ! PART 3) Burn parts of grass that are consumed by the fire. 
-       !         grasses are not killed directly by fire. They die by losing all 
-       !         of their leaves and starving. 
-       ! -----------------------------------------------------------------------------
+            ! -----------------------------------------------------------------------------
+            ! PART 2) Burn parts of trees that did *not* die in the fire.
+            !         currently we only remove leaves. branch and associated 
+            !         sapwood consumption coming soon.
+            !         Burn parts of grass that are consumed by the fire. 
+            !         grasses are not killed directly by fire. They die by losing all 
+            !         of their leaves and starving. 
+            ! -----------------------------------------------------------------------------
 
-!       currentCohort => newPatch%shortest
-!       do while(associated(currentCohort))
+            num_live_trees = (1.0_r8-currentCohort%fire_mort) * &
+                  currentCohort%n * patch_site_areadis / currentPatch%area
+            
+            if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+                burned_leaves = leaf_m * currentCohort%fraction_crown_burned
+            else
+                burned_leaves = leaf_m * currentPatch%burnt_frac_litter(6)
+            endif
+            
+            burned_mass = burned_leaves * num_live_trees
+            
+            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+            
 
-!          sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
-!          leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
-
-          num_live_trees = (1.0_r8-currentCohort%fire_mort) * &
-                currentCohort%n * patch_site_areadis / currentPatch%area
-
-          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-             burned_leaves = leaf_m * currentCohort%fraction_crown_burned
-          else
-             burned_leaves = leaf_m * currentPatch%burnt_frac_litter(6)
-          endif
-
- 
-! MOVED TO ONLY APPLY TO PLANTS IN THE NEWLY BURNED PATCH            
-!             ! We remove all elements from burning the plant in the same proportion
-!             ! so we only call this for one of the elements (use carbon)
-!             if(element_id.eq.carbon12_element) then
-!                call PRTBurnLosses(currentCohort%prt, leaf_organ, leaf_burn_frac)
-!             end if
-             
-          burned_mass = burned_leaves * num_live_trees
-          
-          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
-          currentCohort => currentCohort%taller
-      enddo
+            currentCohort => currentCohort%taller
+        enddo
 
     end do
     
@@ -1554,6 +1574,8 @@ contains
     real(r8) :: repro_m              ! reproductive mass [kg]
     real(r8) :: retain_frac          ! Fraction of mass to be retained
     real(r8) :: donate_frac          ! Fraction of mass to be donated
+    real(r8) :: donate_m2            ! area normalization for litter mass destined to new patch [m-2]
+    real(r8) :: retain_m2            ! area normalization for litter mass destined to old patch [m-2]
     real(r8) :: ag_wood              ! Total above ground mass in wood [kg]
     real(r8) :: bg_wood              ! Total bg mass in wood [kg]
     real(r8) :: seed_mass            ! Total seed mass generated from storage death [kg]
@@ -1587,6 +1609,15 @@ contains
              remainder_area/(newPatch%area+remainder_area)
        donate_frac = 1.0_r8-retain_frac
 
+       if(remainder_area > rsnbl_math_prec) then
+           retain_m2 = retain_frac/remainder_area
+           donate_m2 = (1.0_r8-retain_frac)/newPatch%area
+       else
+           retain_m2 = 0._r8
+           donate_m2  = 1./newPatch%area
+       end if
+
+
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))       
           pft = currentCohort%pft
@@ -1612,7 +1643,7 @@ contains
              ! function, and the total area of disturbance.
              
              num_dead = ED_val_understorey_death * currentCohort%n * &
-                   (patch_site_areadis/currentPatch%area)  !kgC/site/day
+                   (patch_site_areadis/currentPatch%area) 
 
           else
              
@@ -1632,10 +1663,10 @@ contains
                           
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
           new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
-                num_dead*(leaf_m+repro_m)*donate_frac/newPatch%area
+                num_dead*(leaf_m+repro_m)*donate_m2
 
           curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + &
-                num_dead*(leaf_m+repro_m)*retain_frac/remainder_area
+                num_dead*(leaf_m+repro_m)*retain_m2
 
           ! Pre-calculate Structural and sapwood, below and above ground, total mass [kg]
           ag_wood = num_dead * (struct_m + sapw_m) * EDPftvarcon_inst%allom_agb_frac(pft)
@@ -1648,19 +1679,19 @@ contains
 
              ! Transfer wood of dying trees to AG CWD pools
              new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
-                   SF_val_CWD_frac(c) * donate_frac/newPatch%area
+                   SF_val_CWD_frac(c) * donate_m2
              curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + ag_wood * &
-                   SF_val_CWD_frac(c) * retain_frac/remainder_area
+                   SF_val_CWD_frac(c) * retain_m2
              
              ! Transfer wood of dying trees to BG CWD pools
              do sl = 1,currentSite%nlevsoil
-                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + bg_wood * &
+                new_litt%bg_cwd(c,sl) = new_litt%bg_cwd(c,sl) + bg_wood * &
                       currentSite%rootfrac_scr(sl) * SF_val_CWD_frac(c) * &
-                      donate_frac/newPatch%area
+                      donate_m2
 
-                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + bg_wood * &
+                curr_litt%bg_cwd(c,sl) = curr_litt%bg_cwd(c,sl) + bg_wood * &
                       currentSite%rootfrac_scr(sl) * SF_val_CWD_frac(c) * &
-                      retain_frac/remainder_area
+                      retain_m2
              end do
           end do
 
@@ -1669,12 +1700,12 @@ contains
              new_litt%root_fines(pft,sl) = new_litt%root_fines(pft,sl) + &
                    num_dead * currentSite%rootfrac_scr(sl) * &
                    (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
-                   donate_frac/newPatch%area
+                   donate_m2
              
              curr_litt%root_fines(pft,sl) = curr_litt%root_fines(pft,sl) + &
                    num_dead * currentSite%rootfrac_scr(sl) * &
                    (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
-                   retain_frac/remainder_area
+                   retain_m2
           end do
 
           ! Transfer some of the storage that is shunted to reproduction
@@ -1683,8 +1714,8 @@ contains
 
           seed_mass =  num_dead * store_m * EDPftvarcon_inst%allom_frbstor_repro(pft)
 
-          new_litt%seed(pft) = new_litt%seed(pft) + seed_mass * donate_frac/newPatch%area
-          curr_litt%seed(pft) = curr_litt%seed(pft) + seed_mass * retain_frac/remainder_area
+          new_litt%seed(pft) = new_litt%seed(pft) + seed_mass * donate_m2
+          curr_litt%seed(pft) = curr_litt%seed(pft) + seed_mass * retain_m2
           
           
           ! track diagnostic fluxes

@@ -97,9 +97,9 @@ contains
         ! Total non-seed litter in [kg]
         litter_stock = litter_stock + currentPatch%area * &
              (sum(litt%ag_cwd)                  + &
-              sum(sum(litt%bg_cwd,dim=1)) + &
+              sum(litt%bg_cwd) + &
               sum(litt%leaf_fines)              + &
-              sum(sum(litt%root_fines,dim=1)))
+              sum(litt%root_fines))
 
         ! Total mass of viable seeds in [kg]
         seed_stock = seed_stock + currentPatch%area * &
