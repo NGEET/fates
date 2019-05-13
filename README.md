@@ -15,6 +15,8 @@ For more information on the FATES model, see our [wiki](https://github.com/NGEET
 
 [Code of Conduct](https://github.com/NGEET/fates/blob/master/CODE_OF_CONDUCT.md)
 
+[Choosing a Version of Fates](https://github.com/NGEET/fates/wiki/Choosing-a-Version-of-FATES)
+
 
 ## Important Note:
 ------------------------------
