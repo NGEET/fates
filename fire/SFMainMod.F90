@@ -291,6 +291,9 @@ contains
           currentPatch%litter_moisture(tr_sf)       = fuel_moisture(tr_sf)/MEF(tr_sf)
           currentPatch%litter_moisture(lg_sf)       = fuel_moisture(lg_sf)/MEF(lg_sf)  
 
+       
+       ! The no-fuel condition is possible on the first time-step in a cold-start simulation
+       ! but otherwise, this condition should not happen.  There should always be some non-zero litter
        else
 
           if(write_SF == itrue)then

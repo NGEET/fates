@@ -2016,6 +2016,10 @@ contains
     integer, parameter :: exponential_2p_profile_type = 3
 
     integer :: root_profile_type
+    integer :: corr_id(1)        ! This is the bin with largest fraction
+                                 ! add/subtract any corrections there
+    real(r8) :: correction       ! This correction ensures that root fractions
+                                 ! sum to 1.0
 
     !----------------------------------------------------------------------
     
@@ -2054,11 +2058,16 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
 
-    if( abs(sum(root_fraction)-1.0_r8) > 1.e-9_r8 ) then
-        write(fates_log(),*) 'Root fractions should add up to 1'
-        write(fates_log(),*) root_fraction
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
+!    if( abs(sum(root_fraction)-1.0_r8) > 1.e-9_r8 ) then
+!        write(fates_log(),*) 'Root fractions should add up to 1'
+!        write(fates_log(),*) root_fraction
+!        call endrun(msg=errMsg(sourcefile, __LINE__))
+!    end if
+
+    correction = 1._r8 - sum(root_fraction)
+    corr_id = maxloc(root_fraction)
+    root_fraction(corr_id(1)) = root_fraction(corr_id(1)) + correction
+
 
 
     return

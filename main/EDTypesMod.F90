@@ -931,6 +931,9 @@ module EDTypesMod
 
      type(ed_patch_type),intent(in),target :: cpatch
 
+     ! locals
+     integer :: el  ! element loop counting index
+
      write(fates_log(),*) '----------------------------------------'
      write(fates_log(),*) ' Dumping Patch Information              '
      write(fates_log(),*) ' (omitting arrays)                      '
@@ -952,6 +955,16 @@ module EDTypesMod
      write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
      write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
      write(fates_log(),*) '----------------------------------------'
+     do el = 1,num_elements
+        write(fates_log(),*) 'element id: ',element_list(el)
+        write(fates_log(),*) 'seed mass: ',sum(cpatch%litter(el)%seed)
+        write(fates_log(),*) 'seed germ mass: ',sum(cpatch%litter(el)%seed_germ)
+        write(fates_log(),*) 'leaf fines(pft): ',sum(cpatch%litter(el)%leaf_fines)
+        write(fates_log(),*) 'root fines(pft,sl): ',sum(cpatch%litter(el)%root_fines)
+        write(fates_log(),*) 'ag_cwd(c): ',sum(cpatch%litter(el)%ag_cwd)
+        write(fates_log(),*) 'bg_cwd(c,sl): ',sum(cpatch%litter(el)%bg_cwd)
+     end do
+
      return
 
   end subroutine dump_patch

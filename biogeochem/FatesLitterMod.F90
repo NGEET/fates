@@ -105,6 +105,7 @@ module FatesLitterMod
       procedure,non_overridable :: FuseLitter
       procedure,non_overridable :: CopyLitter
       procedure,non_overridable :: ZeroFlux
+      procedure,non_overridable :: GetTotalLitterMass
       
    end type litter_type
 
@@ -372,6 +373,22 @@ contains
     return
   end subroutine ZeroFlux
 
+  ! ===================================================
+
+  function GetTotalLitterMass(this) result(total_mass)
+    
+    class(litter_type) :: this
+    real(r8) :: total_mass
+    
+    total_mass = sum(this%ag_cwd) + &
+                 sum(this%bg_cwd) + &
+                 sum(this%root_fines) + &
+                 sum(this%leaf_fines) + & 
+                 sum(this%seed) + & 
+                 sum(this%seed_germ)
+    
+    return
+  end function GetTotalLitterMass
 
 
   

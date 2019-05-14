@@ -30,6 +30,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : element_list
   use EDTypesMod           , only : element_pos
   use EDTypesMod           , only : dl_sf
+  use EDTypesMod           , only : dump_patch
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numSWb
@@ -95,7 +96,7 @@ module EDPatchDynamicsMod
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
 
   ! When creating new patches from other patches, we need to send some of the
   ! litter from the old patch to the new patch.  Likewise, when plants die
@@ -113,8 +114,8 @@ module EDPatchDynamicsMod
   ! all litter is sent to the new patch.
 
   real(r8), parameter :: existing_litt_localization = 1.0_r8
-  real(r8), parameter :: treefall_localization = 0.5_r8
-  real(r8), parameter :: burn_localization = 0.5_r8
+  real(r8), parameter :: treefall_localization = 1.0_r8
+  real(r8), parameter :: burn_localization = 1.0_r8
 
 
   ! 10/30/09: Created by Rosie Fisher
@@ -579,7 +580,6 @@ contains
 
              call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
 
-
              ! Transfer in litter fluxes from plants in various contexts of death and destruction
 
              if(currentPatch%disturbance_mode .eq. dtype_ilog) then
@@ -961,19 +961,28 @@ contains
 
              if(debug) then
 
-                 wood_product1 = currentSite%mass_balance(element_pos(carbon12_element))%wood_product
-                 burn_flux1    = currentSite%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm
-                 call SiteMassStock(currentSite,element_pos(carbon12_element),total_stock1,biomass_stock1,litter_stock1,seed_stock1)
+                 c12_el = element_pos(carbon12_element)
+                 wood_product1 = currentSite%mass_balance(c12_el)%wood_product
+                 burn_flux1    = currentSite%mass_balance(c12_el)%burn_flux_to_atm
+                 call SiteMassStock(currentSite,c12_el,total_stock1,biomass_stock1,litter_stock1,seed_stock1)
 
                  error = (total_stock1 - total_stock0) + (burn_flux1-burn_flux0) + (wood_product1-wood_product0)
                  
-                 if(error>1.e-6_r8) then
+                 if(abs(error)>1.e-6_r8) then
                      write(fates_log(),*) 'non trivial carbon mass balance error on patch disturbance'
                      write(fates_log(),*) 'abs error: ',error
+                     write(fates_log(),*) 'disturb mode: ',currentPatch%disturbance_mode
+                     write(fates_log(),*) 'disturb rate',currentPatch%disturbance_rate
                      write(fates_log(),*) 'terms: ',currentPatch%area,(total_stock1 - total_stock0),&
                            (burn_flux1-burn_flux0),(wood_product1-wood_product0)
                      write(fates_log(),*) biomass_stock1-biomass_stock0, &
                            litter_stock1-litter_stock0, seed_stock1-seed_stock0
+                     write(fates_log(),*) ''
+                     write(fates_log(),*) 'donor patch details: '
+                     call dump_patch(currentPatch)
+                     write(fates_log(),*) ''
+                     write(fates_log(),*) 'new patch details: '
+                     call dump_patch(new_patch)
                      call endrun(msg=errMsg(sourcefile, __LINE__))
                  end if
              end if
@@ -1182,12 +1191,18 @@ contains
     integer  :: c                          ! CWD loop counter
     integer  :: pft                        ! PFT loop counter
     integer  :: sl                         ! soil layer loop counter
+    real(r8) :: litter_stock0,litter_stock1
+    real(r8) :: burn_flux0,burn_flux1
+    real(r8) :: error
 
     do el = 1,num_elements
 
        site_mass => currentSite%mass_balance(el)
        curr_litt  => currentPatch%litter(el)
        new_litt  => newPatch%litter(el)
+
+
+
 
        ! Distribute the fragmentation litter flux rates. This is only used for diagnostics
        ! at this point.  Litter fragmentation has already been passed to the output
@@ -1249,6 +1264,15 @@ contains
            donate_m2  = 1./newPatch%area
        end if
 
+
+       if (debug) then
+          burn_flux0    = site_mass%burn_flux_to_atm
+          litter_stock0 = curr_litt%GetTotalLitterMass()*currentPatch%area + & 
+                          new_litt%GetTotalLitterMass()*newPatch%area
+       end if
+
+
+
        do c = 1,ncwd
              
           ! Transfer above ground CWD
@@ -1291,8 +1315,10 @@ contains
           
           donatable_mass           = curr_litt%leaf_fines(pft) * patch_site_areadis * &
                                      (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+
           burned_mass              = curr_litt%leaf_fines(pft) * patch_site_areadis * &
                                      currentPatch%burnt_frac_litter(dl_sf)
+
           new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + donatable_mass*donate_m2
           curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + donatable_mass*retain_m2
 
@@ -1307,6 +1333,19 @@ contains
           
        enddo
 
+       if (debug) then
+          burn_flux1    = site_mass%burn_flux_to_atm
+          litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + & 
+                          new_litt%GetTotalLitterMass()*newPatch%area
+
+          error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
+          if(abs(error)>1.e-6_r8) then
+             write(fates_log(),*) 'non trivial carbon mass balance error in litter transfer'
+             write(fates_log(),*) 'abs error: ',error
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
+       end if
 
 
     end do
@@ -1617,6 +1656,9 @@ contains
     integer  :: el                   ! element loop index
     integer  :: sl                   ! soil layer index
     integer  :: element_id           ! parteh compatible global element index
+    real(r8) :: litter_stock0,litter_stock1,litter_stock2,litter_stock3
+    real(r8) :: mort_flux
+    real(r8) :: error
     !---------------------------------------------------------------------
 
     do el = 1,num_elements
@@ -1650,9 +1692,16 @@ contains
            donate_m2  = 1./newPatch%area
        end if
 
+       if (debug) then
+          mort_flux     = 0._r8
+          litter_stock0 = curr_litt%GetTotalLitterMass()*remainder_area
+          litter_stock1 = new_litt%GetTotalLitterMass()*newPatch%area
+       end if
+
 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))       
+
           pft = currentCohort%pft
    
           sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
@@ -1662,7 +1711,7 @@ contains
           store_m  = currentCohort%prt%GetState(store_organ, element_id)
           repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
 
-          if(currentCohort%canopy_layer == 1)then         
+          if(currentCohort%canopy_layer == 1)then
 
              ! Upper canopy trees. The total dead is based on their disturbance
              ! generating mortality rate.
@@ -1693,8 +1742,11 @@ contains
               (hlm_use_planthydro == itrue) ) then
               call AccumulateMortalityWaterStorage(currentSite,currentCohort, num_dead)
           end if
-                          
+
+          mort_flux = mort_flux + num_dead*(leaf_m+repro_m+sapw_m+fnrt_m+struct_m+store_m)
+          
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
+
           new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
                 num_dead*(leaf_m+repro_m)*donate_m2
 
@@ -1713,6 +1765,7 @@ contains
              ! Transfer wood of dying trees to AG CWD pools
              new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
                    SF_val_CWD_frac(c) * donate_m2
+
              curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + ag_wood * &
                    SF_val_CWD_frac(c) * retain_m2
              
@@ -1750,7 +1803,6 @@ contains
           new_litt%seed(pft) = new_litt%seed(pft) + seed_mass * donate_m2
           curr_litt%seed(pft) = curr_litt%seed(pft) + seed_mass * retain_m2
           
-          
           ! track diagnostic fluxes
           do c=1,ncwd
              flux_diags%cwd_ag_input(c) = & 
@@ -1770,7 +1822,24 @@ contains
           
           currentCohort => currentCohort%taller      
        enddo !currentCohort         
-       
+    
+       if (debug) then
+          litter_stock2 = curr_litt%GetTotalLitterMass()*remainder_area
+          litter_stock3 = new_litt%GetTotalLitterMass()*newPatch%area
+
+          error = ((litter_stock2+litter_stock3) - (litter_stock1+litter_stock0)) - mort_flux
+          if(abs(error)>1.e-6_r8) then
+             write(fates_log(),*) 'non trivial carbon mass balance error in mortality litter fluxes'
+             write(fates_log(),*) 'abs error: ',error,litter_stock2-litter_stock0,litter_stock1-litter_stock3,mort_flux
+             write(fates_log(),*) litter_stock0,litter_stock1,litter_stock2,litter_stock3
+             write(fates_log(),*) retain_frac,donate_frac,donate_m2,retain_m2,newPatch%area
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
+       end if
+
+
+   
     enddo
 
     return
