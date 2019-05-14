@@ -582,6 +582,12 @@ variables:
 	float fates_phen_ncolddayslim ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
+	float fates_q10_froz;
+		fates_q10_froz:units = "unitless" ;
+		fates_q10_froz:long_name = "Q10 for frozen-soil respiration rates" ;
+	float fates_q10_mr;
+		fates_q10_mr:units = "unitless" ;
+		fates_q10_mr:long_name = "Q10 for maintenance respiration" ;
 	float fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
@@ -1173,6 +1179,10 @@ data:
  fates_phen_mindayson = 30 ;
 
  fates_phen_ncolddayslim = 5 ;
+
+ fates_q10_froz = 1.5 ;
+
+ fates_q10_mr = 1.5 ;
 
  fates_soil_salinity = 0.4 ;
 }
