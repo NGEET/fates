@@ -95,6 +95,11 @@ contains
 
 
      integer :: c      ! debris type loop counter
+     integer :: corr_id(1)        ! This is the bin with largest fraction
+                                 ! add/subtract any corrections there
+    real(r8) :: correction       ! This correction ensures that root fractions
+                                 ! sum to 1.0
+
 
      if(.not.is_master) return
      
@@ -106,6 +111,23 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
      end do
+
+     ! Check if the CWD fraction sums to unity, if it is not wayyy off,
+     ! add a small correction to the largest pool. 
+     ! This is important for tight mass conservation
+     ! checks
+
+     if(abs(1.0_r8 - sum(SF_val_CWD_frac(1:ncwd))) > 1.e-5_r8) then
+         write(fates_log(),*) 'The CWD fractions from index 1:4 must sum to unity'
+         write(fates_log(),*) 'SF_val_CWD_frac(1:ncwd) = ',SF_val_CWD_frac(1:ncwd)
+         write(fates_log(),*) 'error = ',1.0_r8 - sum(SF_val_CWD_frac(1:ncwd))
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+     else
+         correction = 1._r8 - sum(SF_val_CWD_frac(1:ncwd))
+         corr_id = maxloc(SF_val_CWD_frac(1:ncwd))
+         SF_val_CWD_frac(corr_id(1)) = SF_val_CWD_frac(corr_id(1)) + correction
+     end if
+
 
      return
   end subroutine SpitFireCheckParams
@@ -287,6 +309,8 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_CWD_frac, &
          data=SF_val_CWD_frac)
+
+    
 
   end subroutine SpitFireReceiveNCWD
 

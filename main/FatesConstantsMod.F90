@@ -63,6 +63,9 @@ module FatesConstantsMod
   ! Conversion factor umols of Carbon -> kg of Carbon (1 mol = 12g)
   ! We do not use umolC_per_kg because it is a non-terminating decimal
   real(fates_r8), parameter :: umolC_to_kgC = 12.0E-9_fates_r8
+
+  ! Conversion factor: miligrams per kilogram
+  real(fates_r8), parameter :: mg_per_kg = 1.0e6_fates_r8
   
   ! Conversion factor: grams per kilograms
   real(fates_r8), parameter :: g_per_kg = 1000.0_fates_r8

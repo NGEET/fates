@@ -406,6 +406,7 @@ contains
                 currentCohort%gpp_acc * currentCohort%n
           site_cmass%aresp_acc = site_cmass%aresp_acc + &
                 currentCohort%resp_acc * currentCohort%n
+
           call currentCohort%prt%CheckMassConservation(ft,5)
 
           ! Update the leaf biophysical rates based on proportion of leaf
@@ -539,34 +540,6 @@ contains
 
     call TotalBalanceCheck(currentSite,final_check_id)
 
-    currentPatch => currentSite%oldest_patch
-    do while(associated(currentPatch))
-
-       ! Is termination really needed here? canopy_structure just called it several times! (rgk)
-       call terminate_cohorts(currentSite, currentPatch, 1) 
-       call terminate_cohorts(currentSite, currentPatch, 2) 
-
-       ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
-       cohort_number = count_cohorts(currentPatch)  
-       if ( debug ) then
-          write(fates_log(),*) 'tempCount ',cohort_number
-       endif
-
-       ! Note (RF)
-       ! This breaks the balance check, but if we leave it out, then 
-       ! the first new patch that isn't fused has no cohorts at the end of the spawn process
-       ! and so there are radiation errors instead. 
-       ! Fixing this would likely require a re-work of how seed germination works which would be tricky. 
-       if(currentPatch%countcohorts < 1)then
-          !write(fates_log(),*) 'ED: calling recruitment for no cohorts',currentSite%clmgcell,currentPatch%patchno
-          !call recruitment(1, currentSite, currentPatch)
-          ! write(fates_log(),*) 'patch empty',currentPatch%area,currentPatch%age
-       endif
-
-       currentPatch => currentPatch%younger    
-
-    enddo
-
     ! FIX(RF,032414). This needs to be monthly, not annual
     ! If this is the second to last day of the year, then perform trimming
     if( hlm_day_of_year == hlm_days_per_year-1) then
@@ -647,12 +620,9 @@ contains
                   site_mass%flux_generic_out + &
                   site_mass%frag_out + & 
                   site_mass%aresp_acc
-       
 
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)   
-       
-
 
        if(change_in_stock>0.0)then
           error_frac      = error/abs(total_stock)
@@ -686,7 +656,7 @@ contains
           write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
           
           ! If this is the first day of simulation, carbon balance reports but does not end the run
-          if(( hlm_current_year*10000 + hlm_current_month*100 + hlm_current_day).ne.hlm_reference_date) then
+!          if(( hlm_current_year*10000 + hlm_current_month*100 + hlm_current_day).ne.hlm_reference_date) then
           
              currentPatch => currentSite%oldest_patch
              do while(associated(currentPatch))
@@ -717,7 +687,7 @@ contains
              enddo !end patch loop
              write(fates_log(),*) 'aborting on date:',hlm_current_year,hlm_current_month,hlm_current_day
              call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
+         !end if
           
       endif
 
@@ -725,7 +695,7 @@ contains
       ! error check and the final fates stock
       if(call_index == final_check_id) then
           site_mass%old_stock = total_stock
-          site_mass%err_fates   = site_mass%err_fates + (net_flux - change_in_stock)
+          site_mass%err_fates = net_flux - change_in_stock
           call site_mass%ZeroMassBalFlux()
       end if
 

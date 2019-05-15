@@ -25,7 +25,7 @@ module FatesIODimensionsMod
     character(*), parameter :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
     character(*), parameter :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
     
-    character(*), parameter :: levelem = 'fates_levelem'
+    character(*), parameter :: levelem =  'fates_levelem'
     character(*), parameter :: levelpft = 'fates_levelpft'
     character(*), parameter :: levelcwd = 'fates_levelcwd'
     character(*), parameter :: levelage = 'fates_levelage'

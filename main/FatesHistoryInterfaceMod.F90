@@ -6,6 +6,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : fates_long_string_length
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : calloc_abs_error
+  use FatesConstantsMod        , only : mg_per_kg
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
@@ -20,6 +21,7 @@ module FatesHistoryInterfaceMod
   use EDtypesMod               , only : AREA_INV
   use EDTypesMod               , only : numWaterMem
   use EDTypesMod               , only : num_vegtemp_mem
+  use EDTypesMod               , only : site_massbal_type
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -144,6 +146,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_fire_fuel_mef_pa
   integer, private :: ih_sum_fuel_pa
 
+  integer, private :: ih_fines_elpft
+  integer, private :: ih_cwd_elcwd
   integer, private :: ih_litter_in_elem
   integer, private :: ih_litter_out_elem
   integer, private :: ih_seed_bank_elem
@@ -194,24 +198,14 @@ module FatesHistoryInterfaceMod
 
   ! Indices to (site) variables
   integer, private :: ih_nep_si
-!  integer, private :: ih_nbp_si
   integer, private :: ih_npp_si
 
   integer, private :: ih_c_stomata_si
   integer, private :: ih_c_lblayer_si
-  integer, private :: ih_fire_c_to_atm_si
-  integer, private :: ih_totecosysc_si
-  integer, private :: ih_totecosysc_old_si
-  integer, private :: ih_totedc_si
-  integer, private :: ih_totedc_old_si
-  integer, private :: ih_totbgcc_si
-  integer, private :: ih_totbgcc_old_si
-  integer, private :: ih_biomass_stock_si
-  integer, private :: ih_litter_stock_si
-  integer, private :: ih_cwd_stock_si
+
   integer, private :: ih_cbal_err_fates_si
-  integer, private :: ih_cbal_err_bgc_si
-  integer, private :: ih_cbal_err_tot_si
+  integer, private :: ih_err_fates_si
+
   integer, private :: ih_npatches_si
   integer, private :: ih_ncohorts_si
   integer, private :: ih_demotion_carbonflux_si
@@ -494,8 +488,9 @@ module FatesHistoryInterfaceMod
 
   ! The number of variable dim/kind types we have defined (static)
 
-  integer, parameter :: fates_history_num_dimensions = 20
-  integer, parameter :: fates_history_num_dim_kinds = 22
+!! 20,22
+  integer, parameter :: fates_history_num_dimensions = 50
+  integer, parameter :: fates_history_num_dim_kinds = 50
 
   
   ! This structure is allocated by thread, and must be calculated after the FATES
@@ -1536,6 +1531,7 @@ end subroutine flush_hvars
     type(litter_type), pointer         :: litt     ! Generic pointer to any litter pool
     type(site_fluxdiags_type), pointer :: flux_diags
     type(site_fluxdiags_type), pointer :: flux_diags_c
+    type(site_massbal_type), pointer :: site_mass
 
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
@@ -1546,6 +1542,8 @@ end subroutine flush_hvars
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
+    integer  :: cwd
+    integer  :: elcwd, elpft            ! combined index of element and pft or cwd
     integer  :: i_scpf,i_pft,i_scls     ! iterators for scpf, pft, and scls dims
     integer  :: i_cwd,i_fuel            ! iterators for cwd and fuel dims
     integer  :: iscag        ! size-class x age index
@@ -1699,9 +1697,9 @@ end subroutine flush_hvars
                hio_m6_si_scls          => this%hvars(ih_m6_si_scls)%r82d, &
                hio_m7_si_scls          => this%hvars(ih_m7_si_scls)%r82d, &
                hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &    
-	       hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &                    
-
-
+               hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &
+               hio_fines_elpft         => this%hvars(ih_fines_elpft)%r82d, &
+               hio_cwd_elcwd           => this%hvars(ih_cwd_elcwd)%r82d, &
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_agb_si_scls          => this%hvars(ih_agb_si_scls)%r82d, &
                hio_biomass_si_scls          => this%hvars(ih_biomass_si_scls)%r82d, &
@@ -1794,7 +1792,9 @@ end subroutine flush_hvars
                hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
                hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
-               hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d )
+               hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
+               hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
+               hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
 
                
       ! ---------------------------------------------------------------------------------
@@ -1822,7 +1822,15 @@ end subroutine flush_hvars
          ! Set trimming on the soil patch to 1.0
          hio_trimming_pa(io_soipa) = 1.0_r8
 
-         
+         ! Total carbon model error [kgC/day -> mgC/day]
+         hio_cbal_err_fates_si(io_si) = &
+               sites(s)%mass_balance(element_pos(carbon12_element))%err_fates * mg_per_kg
+
+         ! Total model error [kg/day -> mg/day]  (all elements)
+         do el = 1, num_elements
+             site_mass => sites(s)%mass_balance(el)
+             hio_err_fates_si(io_si,el) = site_mass%err_fates * mg_per_kg
+         end do
 
          hio_canopy_spread_si(io_si)        = sites(s)%spread
 
@@ -2625,6 +2633,19 @@ end subroutine flush_hvars
 
                hio_seed_in_extern_elem(io_si,el) = hio_seed_in_extern_elem(io_si,el) + & 
                     sum(litt%seed_in_extern(:)) * area_frac
+
+               do ft=1,numpft
+                   elpft = (el-1)*numpft+ft   ! See map in FatesInterface fates_hdim_elmap_levelpft
+                   hio_fines_elpft(io_si,elpft) = hio_fines_elpft(io_si,elpft) + &
+                         (litt%leaf_fines(ft)+sum(litt%root_fines(ft,:))) * area_frac
+               end do
+
+               do cwd=1,ncwd
+                   elcwd = (el-1)*ncwd+cwd
+                   hio_cwd_elcwd(io_si,elcwd) = hio_cwd_elcwd(io_si,elcwd) + & 
+                         (litt%ag_cwd(cwd) + sum(litt%bg_cwd(cwd,:))) * area_frac
+
+               end do
 
                     
                cpatch => cpatch%younger
@@ -4926,10 +4947,15 @@ end subroutine flush_hvars
 !         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
 !         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_totecosysc_si )
     
-!    call this%set_history_var(vname='CBALANCE_ERROR_ED', units='gC/m^2/s',  &
-!         long='total carbon balance error on ED side', use_default='active', &
-!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-!         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_fates_si )
+    call this%set_history_var(vname='CBALANCE_ERROR_FATES', units='mgC/day',  &
+         long='total carbon error, FATES', use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_fates_si )
+
+    call this%set_history_var(vname='ERROR_FATES', units='mg/day',  &
+         long='total error, FATES mass-balance', use_default='active', &
+         avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_err_fates_si )
 
 !    call this%set_history_var(vname='CBALANCE_ERROR_BGC', units='gC/m^2/s',  &
 !         long='total carbon balance error on HLMs BGC side', use_default='active', &
@@ -4946,15 +4972,15 @@ end subroutine flush_hvars
 !          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
 !          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_biomass_stock_si )
     
-!    call this%set_history_var(vname='ED_LITTER_STOCK_COL', units='gC/m^2', &
-!          long='total ED litter carbon at the column level', use_default='active', &
-!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_litter_stock_si )
+    call this%set_history_var(vname='LITTER_FINES', units='kg/m^2', &
+          long='total mass of litter in fines (leaves,fineroot,nonviable seed)', use_default='active', &
+          avgflag='A', vtype=site_elpft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_elpft )
     
-!    call this%set_history_var(vname='CWD_STOCK_COL', units='gC/m^2', &
-!          long='total CWD carbon at the column level', use_default='active', &
-!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cwd_stock_si )
+    call this%set_history_var(vname='LITTER_CWD', units='kg/m^2', &
+          long='total mass of litter in CWD', use_default='active', &
+          avgflag='A', vtype=site_elcwd_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_elcwd )
 
     ! organ-partitioned NPP / allocation fluxes
     call this%set_history_var(vname='NPP_LEAF', units='kgC/m2/yr',       &

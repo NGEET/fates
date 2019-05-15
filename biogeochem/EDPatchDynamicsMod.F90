@@ -96,7 +96,7 @@ module EDPatchDynamicsMod
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
-  logical, parameter :: debug = .false.
+  logical, parameter :: debug = .true.
 
   ! When creating new patches from other patches, we need to send some of the
   ! litter from the old patch to the new patch.  Likewise, when plants die
@@ -114,8 +114,8 @@ module EDPatchDynamicsMod
   ! all litter is sent to the new patch.
 
   real(r8), parameter :: existing_litt_localization = 1.0_r8
-  real(r8), parameter :: treefall_localization = 1.0_r8
-  real(r8), parameter :: burn_localization = 1.0_r8
+  real(r8), parameter :: treefall_localization = 0.5_r8
+  real(r8), parameter :: burn_localization = 0.0_r8
 
 
   ! 10/30/09: Created by Rosie Fisher
@@ -959,16 +959,17 @@ contains
              !update area of donor patch
              currentPatch%area = currentPatch%area - patch_site_areadis
 
+             ! --------------------------------------------------------------------------
+             ! Mass conservation check (carbon only, expand as necessary upon failing
+             ! checks in EDMainMod
+             ! --------------------------------------------------------------------------
              if(debug) then
-
                  c12_el = element_pos(carbon12_element)
                  wood_product1 = currentSite%mass_balance(c12_el)%wood_product
                  burn_flux1    = currentSite%mass_balance(c12_el)%burn_flux_to_atm
                  call SiteMassStock(currentSite,c12_el,total_stock1,biomass_stock1,litter_stock1,seed_stock1)
-
                  error = (total_stock1 - total_stock0) + (burn_flux1-burn_flux0) + (wood_product1-wood_product0)
-                 
-                 if(abs(error)>1.e-6_r8) then
+                 if(abs(error)>1.e-8_r8) then
                      write(fates_log(),*) 'non trivial carbon mass balance error on patch disturbance'
                      write(fates_log(),*) 'abs error: ',error
                      write(fates_log(),*) 'disturb mode: ',currentPatch%disturbance_mode
@@ -1333,18 +1334,20 @@ contains
           
        enddo
 
+       ! --------------------------------------------------------------------------
+       ! Mass conservation check, set debug=.true. if mass imbalances in 
+       ! EDMainMod start triggering.
+       ! --------------------------------------------------------------------------
        if (debug) then
           burn_flux1    = site_mass%burn_flux_to_atm
           litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
-
           error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
           if(abs(error)>1.e-6_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in litter transfer'
              write(fates_log(),*) 'abs error: ',error
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
-
        end if
 
 
@@ -1742,7 +1745,7 @@ contains
               (hlm_use_planthydro == itrue) ) then
               call AccumulateMortalityWaterStorage(currentSite,currentCohort, num_dead)
           end if
-
+          
           mort_flux = mort_flux + num_dead*(leaf_m+repro_m+sapw_m+fnrt_m+struct_m+store_m)
           
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
@@ -1764,7 +1767,7 @@ contains
 
              ! Transfer wood of dying trees to AG CWD pools
              new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
-                   SF_val_CWD_frac(c) * donate_m2
+                    SF_val_CWD_frac(c) * donate_m2
 
              curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + ag_wood * &
                    SF_val_CWD_frac(c) * retain_m2
@@ -1772,8 +1775,8 @@ contains
              ! Transfer wood of dying trees to BG CWD pools
              do sl = 1,currentSite%nlevsoil
                 new_litt%bg_cwd(c,sl) = new_litt%bg_cwd(c,sl) + bg_wood * &
-                      currentSite%rootfrac_scr(sl) * SF_val_CWD_frac(c) * &
-                      donate_m2
+                       currentSite%rootfrac_scr(sl) * SF_val_CWD_frac(c) * &
+                       donate_m2
 
                 curr_litt%bg_cwd(c,sl) = curr_litt%bg_cwd(c,sl) + bg_wood * &
                       currentSite%rootfrac_scr(sl) * SF_val_CWD_frac(c) * &
@@ -1822,23 +1825,23 @@ contains
           
           currentCohort => currentCohort%taller      
        enddo !currentCohort         
-    
+
+       ! --------------------------------------------------------------------------
+       ! Mass conservation check, set debug=.true. if mass imbalances in 
+       ! EDMainMod start triggering.
+       ! --------------------------------------------------------------------------
        if (debug) then
           litter_stock2 = curr_litt%GetTotalLitterMass()*remainder_area
           litter_stock3 = new_litt%GetTotalLitterMass()*newPatch%area
-
           error = ((litter_stock2+litter_stock3) - (litter_stock1+litter_stock0)) - mort_flux
-          if(abs(error)>1.e-6_r8) then
+          if(abs(error)>1.e-8_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in mortality litter fluxes'
              write(fates_log(),*) 'abs error: ',error,litter_stock2-litter_stock0,litter_stock1-litter_stock3,mort_flux
              write(fates_log(),*) litter_stock0,litter_stock1,litter_stock2,litter_stock3
              write(fates_log(),*) retain_frac,donate_frac,donate_m2,retain_m2,newPatch%area
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
-
        end if
-
-
    
     enddo
 

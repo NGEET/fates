@@ -103,10 +103,6 @@ contains
                           (ccohort%gpp_acc + ccohort%gpp_tstep)
                 endif
                 
-                ! Accumulate to [kgc/site]
-                site_cmass%gpp_acc   = site_cmass%gpp_acc  + ccohort%gpp_tstep * ccohort%n
-                site_cmass%aresp_acc = site_cmass%aresp_acc + ccohort%resp_tstep * ccohort%n
-
                 do iv=1,ccohort%nv
                    if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
                       ccohort%year_net_uptake(iv) = 0._r8
