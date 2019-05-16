@@ -29,7 +29,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : num_elements
   use EDTypesMod           , only : element_list
   use EDTypesMod           , only : element_pos
-  use EDTypesMod           , only : dl_sf
+  use EDTypesMod           , only : lg_sf
   use EDTypesMod           , only : dump_patch
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesInterfaceMod    , only : hlm_use_planthydro
@@ -114,7 +114,7 @@ module EDPatchDynamicsMod
   ! all litter is sent to the new patch.
 
   real(r8), parameter :: existing_litt_localization = 1.0_r8
-  real(r8), parameter :: treefall_localization = 0.5_r8
+  real(r8), parameter :: treefall_localization = 0.0_r8
   real(r8), parameter :: burn_localization = 0.0_r8
 
 
@@ -1278,10 +1278,10 @@ contains
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               (1._r8 - currentPatch%burnt_frac_litter(c))
+                               (1._r8 - currentPatch%burnt_frac_litter(c+1))
 
           burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               currentPatch%burnt_frac_litter(c)
+                               currentPatch%burnt_frac_litter(c+1)
  
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
@@ -1315,10 +1315,10 @@ contains
           ! Transfer leaf fines
           
           donatable_mass           = curr_litt%leaf_fines(pft) * patch_site_areadis * &
-                                     (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+                                     (1._r8 - currentPatch%burnt_frac_litter(lg_sf))
 
           burned_mass              = curr_litt%leaf_fines(pft) * patch_site_areadis * &
-                                     currentPatch%burnt_frac_litter(dl_sf)
+                                     currentPatch%burnt_frac_litter(lg_sf)
 
           new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + donatable_mass*donate_m2
           curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + donatable_mass*retain_m2
@@ -1371,7 +1371,6 @@ contains
     !
     ! !USES:
     use SFParamsMod,          only : SF_VAL_CWD_FRAC
-    use EDtypesMod          , only : dl_sf
     !
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(inout), target :: currentSite

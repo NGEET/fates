@@ -582,12 +582,6 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end select
        
-          ! Add these magically appearing cohorts to the mass balance accounting
-          site_in%mass_balance(el)%flux_generic_in =  &
-               site_in%mass_balance(el)%flux_generic_in + &
-               temp_cohort%n * (m_fnrt + m_leaf + m_sapw + m_store + m_struct + m_repro)
-
-   
        end do
 
        call prt_obj%CheckInitialConditions()
