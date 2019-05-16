@@ -578,6 +578,7 @@ contains
     currentcohort%ts_net_uptake(:)   = 0._r8
     currentcohort%fraction_crown_burned = 0._r8 
     currentCohort%size_class            = 1
+    currentCohort%seed_prod          = 0._r8
     currentCohort%size_class_lasttimestep = 0
     currentcohort%npp_acc_hold       = 0._r8 
     currentcohort%gpp_acc_hold       = 0._r8  

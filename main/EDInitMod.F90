@@ -382,8 +382,7 @@ contains
 
            ! make new patch...
 
-           call create_patch(sites(s), newp, age, area, &
-                 bc_in(s)%nlevsoil, primaryforest)
+           call create_patch(sites(s), newp, age, area, primaryforest)
            
            ! Initialize the litter pools to zero, these
            ! pools will be populated by looping over the existing patches

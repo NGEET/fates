@@ -276,8 +276,7 @@ contains
             age_init            = 0.0_r8
             area_init           = 0.0_r8 
 
-            call create_patch(sites(s), newpatch, age_init, area_init, &
-                  bc_in(s)%nlevsoil, primaryforest )
+            call create_patch(sites(s), newpatch, age_init, area_init, primaryforest )
 
 
             if( inv_format_list(invsite) == 1 ) then

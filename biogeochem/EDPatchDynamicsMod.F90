@@ -452,7 +452,7 @@ contains
           allocate(new_patch_primary)
 
           call create_patch(currentSite, new_patch_primary, age, &
-                site_areadis_primary, bc_in%nlevsoil, primaryforest)
+                site_areadis_primary, primaryforest)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -484,7 +484,7 @@ contains
        if ( site_areadis_secondary .gt. rsnbl_math_prec) then
           allocate(new_patch_secondary)
           call create_patch(currentSite, new_patch_secondary, age, &
-                site_areadis_secondary, bc_in%nlevsoil, secondaryforest)
+                site_areadis_secondary, secondaryforest)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -1850,7 +1850,7 @@ contains
 
   ! ============================================================================
 
-  subroutine create_patch(currentSite, new_patch, age, areap, nlevsoil, label)
+  subroutine create_patch(currentSite, new_patch, age, areap, label)
 
     !
     ! !DESCRIPTION:
@@ -1863,7 +1863,6 @@ contains
     type(ed_patch_type), intent(inout), target :: new_patch
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
-    integer, intent(in)  :: nlevsoil             ! number of soil layers
     integer, intent(in)  :: label                ! anthropogenic disturbance label
 
     ! !LOCAL VARIABLES:
@@ -1886,7 +1885,7 @@ contains
     allocate(new_patch%litter(num_elements))
 
     do el=1,num_elements
-        call new_patch%litter(el)%InitAllocate(numpft,nlevsoil,element_list(el))
+        call new_patch%litter(el)%InitAllocate(numpft,currentSite%nlevsoil,element_list(el))
         call new_patch%litter(el)%ZeroFlux()
         call new_patch%litter(el)%InitConditions(init_leaf_fines = fates_unset_r8, &
               init_root_fines = fates_unset_r8, &

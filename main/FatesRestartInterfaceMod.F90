@@ -132,17 +132,20 @@ module FatesRestartInterfaceMod
   integer, private :: ir_pft_co
   integer, private :: ir_status_co
   integer, private :: ir_isnew_co
-  integer, private :: ir_cwd_ag_pacw
-  integer, private :: ir_cwd_bg_pacw
 
   integer, private :: ir_gnd_alb_dif_pasb
   integer, private :: ir_gnd_alb_dir_pasb
 
+  ! Litter
   integer, private :: ir_agcwd_litt
   integer, private :: ir_bgcwd_litt
   integer, private :: ir_leaf_litt
   integer, private :: ir_fnrt_litt
   integer, private :: ir_seed_litt
+  integer, private :: ir_seedgerm_litt
+
+  integer, private :: ir_seed_prod_co
+
 
   integer, private :: ir_livegrass_pa
   integer, private :: ir_age_pa
@@ -637,6 +640,11 @@ contains
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
 
+    call this%set_restart_var(vname='fates_seed_prod', vtype=cohort_r8, &
+         long_name='fates cohort - seed production', units='kgC/plant', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_prod_co )
+
+
     call this%set_restart_var(vname='fates_canopy_layer', vtype=cohort_int, &
          long_name='ed cohort - canopy_layer', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_co )
@@ -835,6 +843,12 @@ contains
             long_name_base='seed bank (non-germinated)',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_seedgerm', vtype=cohort_r8, &
+           long_name_base='seed bank (germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_litt)
+
 
     ! Site level flux diagnostics for each element
 
@@ -1459,6 +1473,7 @@ contains
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
+           rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
            rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
@@ -1483,8 +1498,6 @@ contains
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
            rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
-           rio_cwd_ag_pacw             => this%rvars(ir_cwd_ag_pacw)%r81d, &
-           rio_cwd_bg_pacw             => this%rvars(ir_cwd_bg_pacw)%r81d, &
            rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
            rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
            rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
@@ -1661,6 +1674,7 @@ contains
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
+                rio_seed_prod_co(io_idx_co)    = ccohort%seed_prod
                 rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_height_co(io_idx_co)       = ccohort%hite
@@ -1745,14 +1759,14 @@ contains
                  io_idx_pa_pfsl = io_idx_co_1st
                  
                  litt => cpatch%litter(el)
-                 nlevsoil = size(litt%bg_cwd,dim=2)
 
                  do i = 1,numpft
                      this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_pft) = litt%leaf_fines(i)
                      this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft) = litt%seed(i)
+                     this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ(i)
                      io_idx_pa_pft = io_idx_pa_pft + 1
 
-                     do ilyr=1,nlevsoil
+                     do ilyr=1,sites(s)%nlevsoil
                          this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_pfsl) = litt%root_fines(i,ilyr)
                          io_idx_pa_pfsl = io_idx_pa_pfsl + 1
                      end do
@@ -1763,7 +1777,7 @@ contains
                      this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd(i)
                      io_idx_pa_cwd = io_idx_pa_cwd + 1
                      
-                     do ilyr=1,nlevsoil
+                     do ilyr=1,sites(s)%nlevsoil
                          this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%bg_cwd(i,ilyr)
                          io_idx_pa_cwsl = io_idx_pa_cwsl + 1
                      end do
@@ -1987,7 +2001,7 @@ contains
              
              ! make new patch
 
-             call create_patch(sites(s), newp, patch_age, area, bc_in(s)%nlevsoil, primaryforest )
+             call create_patch(sites(s), newp, patch_age, area, primaryforest )
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches
@@ -2185,6 +2199,7 @@ contains
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
+          rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
           rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
@@ -2209,8 +2224,6 @@ contains
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
           rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
-          rio_cwd_ag_pacw             => this%rvars(ir_cwd_ag_pacw)%r81d, &
-          rio_cwd_bg_pacw             => this%rvars(ir_cwd_bg_pacw)%r81d, &
           rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
           rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
           rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
@@ -2349,6 +2362,7 @@ contains
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
+                ccohort%seed_prod    = rio_seed_prod_co(io_idx_co)
                 ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
                 ccohort%g_sb_laweight= rio_g_sb_laweight_co(io_idx_co)
@@ -2458,6 +2472,7 @@ contains
                  do i = 1,numpft
                      litt%leaf_fines(i) = this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_pft)
                      litt%seed(i)       = this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft)
+                     litt%seed_germ(i)  = this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft)
                      io_idx_pa_pft      = io_idx_pa_pft + 1
 
                      do ilyr=1,nlevsoil
