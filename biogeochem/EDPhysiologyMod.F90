@@ -239,9 +239,6 @@ contains
 
        site_mass => currentSite%mass_balance(el)
        
-       ! Seeds entering externally [kg/site/day]
-       site_mass%seed_in = site_mass%seed_in + sum(litt%seed_in_extern(:))*currentPatch%area
-       
        ! Fragmentation flux to soil decomposition model [kg/site/day]
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
@@ -1160,6 +1157,7 @@ contains
              
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
+             ! Seeds entering externally [kg/site/day]
              site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
 
           enddo
