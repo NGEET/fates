@@ -1095,8 +1095,13 @@ contains
              
              ! Transfer reproductive tissues from "on-plant" to the litter pool
              ! Transfer all reproductive tissues into seed production
+             ! The following call to PRTReproRelease, will return the mass
+             ! of seeds [kg] released by the plant, per the mass_fraction
+             ! specified as input.  This routine will also remove the mass
+             ! from the parteh state-variable.
+
              call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
-                   1.0_r8, seed_prod)
+                   mass_fraction=1.0_r8, seed_prod)
              
              if(element_id==carbon12_element)then
                  currentcohort%seed_prod = seed_prod

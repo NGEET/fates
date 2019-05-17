@@ -345,9 +345,6 @@ contains
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport
           ! -----------------------------------------------------------------------------
-
-          
-
           ! -----------------------------------------------------------------------------
           !  Identify the net carbon gain for this dynamics interval
           !    Set the available carbon pool, identify allocation portions, and 
@@ -379,14 +376,14 @@ contains
           endif
 
           ! Conduct Maintenance Turnover (parteh)
-          call currentCohort%prt%CheckMassConservation(ft,3)
+          if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
           if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
              is_drought = .false.
           else
              is_drought = .true.
           end if
           call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
-          call currentCohort%prt%CheckMassConservation(ft,4)
+          if(debug) call currentCohort%prt%CheckMassConservation(ft,4)
 
           ! If the current diameter of a plant is somehow less than what is consistent
           ! with what is allometrically consistent with the stuctural biomass, then

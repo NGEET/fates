@@ -18,22 +18,12 @@ module FatesLitterMod
 
 
    ! To-do:
-   ! 1) Add the state integration step
-   ! 2) Evaluate how we are handling disturbance
-   ! 3) Add root fraction variable to each cohort?
-   ! 4) Tracking site level mass balances, where should the new litter structure 
-   !    help in tracking that sort of thing? 
-   ! 5) Add a routine that performs all of the site-level mass balance
-   !    integrations from daily sources?
-   ! 6) Add check in the initialization sequence to make sure that the
-   !    first element is carbon12_element, and carbon12_element is 1
    ! 7) In SFMain, make the indexing consistent with Jackie's changes
    ! 8) In CWD_IN, add the flux diagnostics, then remove the
    !    patch level rate in the history code
    ! 9) Add litter_flux_output to the flux_diags, add it to history
    ! 10) Add termination fluxes to the flux_diags array as well
-   ! 11) re-evaluate the removed FATES_BGC_Carbon_Balancecheck
-   !     re-write per its original intent
+
    
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : i4 => fates_int
