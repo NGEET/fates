@@ -1101,7 +1101,7 @@ contains
              ! from the parteh state-variable.
 
              call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
-                   mass_fraction=1.0_r8, seed_prod)
+                   1.0_r8, seed_prod)
              
              if(element_id==carbon12_element)then
                  currentcohort%seed_prod = seed_prod
