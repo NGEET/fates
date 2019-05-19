@@ -117,7 +117,6 @@ contains
       real(r8) :: pftgs(maxpft)     ! pft weighted stomatal conductance m/s
       real(r8) :: temprootr
       real(r8) :: sum_pftgs         ! sum of weighted conductances (for normalization)
-      real(r8), allocatable :: rootfr(:)        ! Root fraction in each soil layer
       real(r8), allocatable :: root_resis(:,:)  ! Root resistance in each pft x layer
       !------------------------------------------------------------------------------
       

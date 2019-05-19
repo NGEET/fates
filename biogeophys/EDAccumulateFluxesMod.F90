@@ -13,9 +13,6 @@ module EDAccumulateFluxesMod
   use FatesGlobals, only      : fates_log
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8
-  use EDTypesMod          , only : element_pos
-  use EDTypesMod          , only : site_massbal_type
-  use PRTGenericMod, only : carbon12_element
 
 
   implicit none
@@ -59,17 +56,11 @@ contains
     integer :: c  ! clm/alm column
     integer :: s  ! ed site
     integer :: ifp ! index fates patch
-    integer :: c12_id
-    type(site_massbal_type),pointer :: site_cmass ! point to carbon12
-                                                    ! mass balance
     !----------------------------------------------------------------------
-
-    c12_id = element_pos(carbon12_element)
 
     do s = 1, nsites
        
        ifp = 0
-       site_cmass => sites(s)%mass_balance(c12_id)
 
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 

@@ -29,44 +29,13 @@ module ChecksBalancesMod
    
    private
    public :: SiteMassStock
-   public :: InitMassBalanceColdStart
+
 
    character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
 contains
    
-  subroutine InitMassBalanceColdStart(sites)
-    
-    ! arguments
-    type(ed_site_type), intent(inout), target :: sites(:)
-
-    ! locals
-    type(site_massbal_type),pointer :: site_mass
-    integer :: el
-    integer :: s
-    real(r8) :: total_stock
-    real(r8) :: biomass_stock
-    real(r8) :: litter_stock
-    real(r8) :: seed_stock
-    
-    do s = 1,size(sites(:),dim=1)
-    
-       do el = 1,num_elements
-      
-          site_mass => sites(s)%mass_balance(el)
-          
-          call SiteMassStock(sites(s),el,total_stock,biomass_stock,litter_stock,seed_stock)
-          
-          site_mass%old_stock     = total_stock
-          
-       end do
-       
-    end do
-    
-    return
-  end subroutine InitMassBalanceColdStart  
-
   ! ==============================================================================================
 
   subroutine SiteMassStock(currentSite,i_element,total_stock,biomass_stock,litter_stock,seed_stock)

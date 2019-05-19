@@ -218,7 +218,7 @@ contains
   end subroutine zero_site
 
   ! ============================================================================
-  subroutine set_site_properties( nsites, sites, bc_in)
+  subroutine set_site_properties( nsites, sites )
     !
     ! !DESCRIPTION:
     !
@@ -228,7 +228,6 @@ contains
 
     integer, intent(in)                        :: nsites
     type(ed_site_type) , intent(inout), target :: sites(nsites)
-    type(bc_in_type), intent(in)               :: bc_in(nsites)
 
     !
     ! !LOCAL VARIABLES:

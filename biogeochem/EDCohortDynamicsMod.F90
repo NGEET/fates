@@ -633,7 +633,6 @@ contains
     real(r8) :: fnrt_c    ! fineroot carbon [kg]
     real(r8) :: repro_c   ! reproductive carbon [kg]
     real(r8) :: struct_c  ! structural carbon [kg]
-    real(r8), allocatable :: rootfr(:)  ! Root fraction
 
     integer :: terminate   ! do we terminate (1) or not (0) 
     integer :: c           ! counter for litter size class. 
@@ -802,7 +801,7 @@ contains
     integer  :: el        ! loop index for elements
     integer  :: c         ! loop index for CWD
     integer  :: pft       ! pft index of the cohort
-    integer  :: ilyr      ! loop index for soil layers
+    integer  :: sl        ! loop index for soil layers
     !----------------------------------------------------------------------
 
     pft = ccohort%pft
@@ -830,11 +829,11 @@ contains
                (struct_m+sapw_m)  * SF_val_CWD_frac(c) * &
                EDPftvarcon_inst%allom_agb_frac(pft)
        
-          do ilyr=1,csite%nlevsoil
-             litt%bg_cwd(c,ilyr) = litt%bg_cwd(c,ilyr) + plant_dens * &
+          do sl=1,csite%nlevsoil
+             litt%bg_cwd(c,sl) = litt%bg_cwd(c,sl) + plant_dens * &
                   (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
                   (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(pft)) * &
-                  csite%rootfrac_scr(ilyr)
+                  csite%rootfrac_scr(sl)
           enddo
 
           flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
@@ -854,9 +853,9 @@ contains
              flux_diags%leaf_litter_input(pft) +  &
              (leaf_m+repro_m) * nplant
        
-       do ilyr=1,csite%nlevsoil
-           litt%root_fines(pft,ilyr) = litt%root_fines(pft,ilyr) + &
-                 plant_dens * (fnrt_m+store_m) * csite%rootfrac_scr(ilyr)
+       do sl=1,csite%nlevsoil
+           litt%root_fines(pft,sl) = litt%root_fines(pft,sl) + &
+                 plant_dens * (fnrt_m+store_m) * csite%rootfrac_scr(sl)
        end do
        
        flux_diags%root_litter_input(pft) = &
@@ -1200,7 +1199,8 @@ contains
                                 ! their initization values, which should be the same for eahc
                                 
                                 if ( .not.currentCohort%isnew) then
-
+                                   currentCohort%seed_prod      = (currentCohort%n*currentCohort%seed_prod + &
+                                         nextc%n*nextc%seed_prod)/newn
                                    currentCohort%gpp_acc        = (currentCohort%n*currentCohort%gpp_acc     + &
                                          nextc%n*nextc%gpp_acc)/newn
                                    currentCohort%npp_acc        = (currentCohort%n*currentCohort%npp_acc     + &

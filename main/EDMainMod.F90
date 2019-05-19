@@ -311,11 +311,6 @@ contains
     do while(associated(currentPatch))
 
 
-       ! Zero all fluxes into and out of the litter pools
-       do el = 1, num_elements
-          call currentPatch%litter(el)%ZeroFlux()
-       end do
-
        currentPatch%age = currentPatch%age + hlm_freq_day
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
        if( currentPatch%age  <  0._r8 )then
@@ -536,6 +531,18 @@ contains
     call canopy_structure(currentSite, bc_in)
 
     call TotalBalanceCheck(currentSite,final_check_id)
+
+    currentPatch => currentSite%oldest_patch
+    do while(associated(currentPatch))
+        
+        ! Is termination really needed here? 
+        ! Canopy_structure just called it several times! (rgk)
+        call terminate_cohorts(currentSite, currentPatch, 1) 
+        call terminate_cohorts(currentSite, currentPatch, 2)
+        
+        currentPatch => currentPatch%younger    
+        
+    enddo
 
     ! FIX(RF,032414). This needs to be monthly, not annual
     ! If this is the second to last day of the year, then perform trimming
