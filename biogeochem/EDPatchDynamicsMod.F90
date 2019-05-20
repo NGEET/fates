@@ -442,13 +442,13 @@ contains
     enddo ! end loop over patches. sum area disturbed for all patches. 
 
      ! It is possible that no disturbance area was generated
-    if ( (site_areadis_primary + site_areadis_secondary) > rsnbl_math_prec) then  
+    if ( (site_areadis_primary + site_areadis_secondary) > nearzero) then  
        
        age = 0.0_r8
 
        ! create two empty patches, to absorb newly disturbed primary and secondary forest area
        ! first create patch to receive primary forest area
-       if ( site_areadis_primary .gt. rsnbl_math_prec ) then
+       if ( site_areadis_primary .gt. nearzero ) then
           allocate(new_patch_primary)
 
           call create_patch(currentSite, new_patch_primary, age, &
@@ -481,7 +481,7 @@ contains
 
 
        ! next create patch to receive secondary forest area
-       if ( site_areadis_secondary .gt. rsnbl_math_prec) then
+       if ( site_areadis_secondary .gt. nearzero) then
           allocate(new_patch_secondary)
           call create_patch(currentSite, new_patch_secondary, age, &
                 site_areadis_secondary, secondaryforest)
@@ -531,13 +531,13 @@ contains
           ! disturbance type is not logging
           if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
                 (currentPatch%disturbance_mode .ne. dtype_ilog)) then
-              if(site_areadis_primary > rsnbl_math_prec) then
+              if(site_areadis_primary > nearzero) then
                   new_patch => new_patch_primary
               else
                   new_patch => null()
               end if
           else
-              if(site_areadis_secondary > rsnbl_math_prec) then
+              if(site_areadis_secondary > nearzero) then
                   new_patch => new_patch_secondary
               else
                   new_patch => null()
@@ -997,7 +997,7 @@ contains
              call terminate_cohorts(currentSite, currentPatch, 2)
              call sort_cohorts(currentPatch)
 
-          end if    ! if ( new_patch%area > rsnbl_math_prec ) then 
+          end if    ! if ( new_patch%area > nearzero ) then 
        
           !zero disturbance rate trackers
           currentPatch%disturbance_rate  = 0._r8
@@ -1016,14 +1016,14 @@ contains
        ! the second call removes for all other reasons (sparse culling must happen
        ! before fusion)
 
-       if ( site_areadis_primary .gt. rsnbl_math_prec) then
+       if ( site_areadis_primary .gt. nearzero) then
           call terminate_cohorts(currentSite, new_patch_primary, 1)
           call fuse_cohorts(currentSite,new_patch_primary, bc_in)
           call terminate_cohorts(currentSite, new_patch_primary, 2)
           call sort_cohorts(new_patch_primary)
        endif
        
-       if ( site_areadis_secondary .gt. rsnbl_math_prec) then
+       if ( site_areadis_secondary .gt. nearzero) then
           call terminate_cohorts(currentSite, new_patch_secondary, 1)
           call fuse_cohorts(currentSite,new_patch_secondary, bc_in)
           call terminate_cohorts(currentSite, new_patch_secondary, 2)
@@ -1661,6 +1661,7 @@ contains
     real(r8) :: litter_stock0,litter_stock1,litter_stock2,litter_stock3
     real(r8) :: mort_flux
     real(r8) :: error
+    logical, parameter :: b4b_old = .true.
     !---------------------------------------------------------------------
 
     do el = 1,num_elements
@@ -1686,12 +1687,21 @@ contains
              remainder_area/(newPatch%area+remainder_area)
        donate_frac = 1.0_r8-retain_frac
 
-       if(remainder_area > rsnbl_math_prec) then
-           retain_m2 = retain_frac/remainder_area
-           donate_m2 = (1.0_r8-retain_frac)/newPatch%area
+       if(b4b_old) then
+           
+           ! This is an equal distribution of
+           ! mass/m2
+           retain_m2 = 1._r8/(currentPatch%area)
+           donate_m2 = 1._r8/(currentPatch%area)
+
        else
-           retain_m2 = 0._r8
-           donate_m2  = 1./newPatch%area
+           if(remainder_area > rsnbl_math_prec) then
+               retain_m2 = retain_frac/remainder_area
+               donate_m2 = (1.0_r8-retain_frac)/newPatch%area
+           else
+               retain_m2 = 0._r8
+               donate_m2  = 1./newPatch%area
+           end if
        end if
 
        if (debug) then
@@ -1880,9 +1890,9 @@ contains
 
 
     ! Litter
+    ! Allocate, Zero Fluxes, and Initialize to "unset" values
 
     allocate(new_patch%litter(num_elements))
-
     do el=1,num_elements
         call new_patch%litter(el)%InitAllocate(numpft,currentSite%nlevsoil,element_list(el))
         call new_patch%litter(el)%ZeroFlux()

@@ -54,6 +54,7 @@ module EDMainMod
   use EDTypesMod               , only : phen_dstat_timeon
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : primaryforest, secondaryforest
+  use FatesConstantsMod        , only : nearzero
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
@@ -292,7 +293,6 @@ contains
     integer  :: c                     ! Counter for litter size class 
     integer  :: ft                    ! Counter for PFT
     integer  :: el                    ! Counter for element type (c,n,p,etc)
-    real(r8) :: small_no              ! to circumvent numerical errors that cause negative values of things that can't be negative
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
@@ -490,12 +490,11 @@ contains
 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
-         currentCohort%n = max(small_no,currentCohort%n + currentCohort%dndt * hlm_freq_day )  
+         currentCohort%n = max(nearzero,currentCohort%n + currentCohort%dndt * hlm_freq_day )  
          currentCohort => currentCohort%taller
        enddo
 
        currentPatch => currentPatch%older
-
    enddo
 
    return
@@ -520,8 +519,6 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch   
-    integer :: cohort_number ! To print out the number of cohorts.  
-    integer :: g             ! Counter for sites
     !-----------------------------------------------------------------------
 
     call canopy_spread(currentSite)

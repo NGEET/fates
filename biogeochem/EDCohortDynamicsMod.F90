@@ -189,6 +189,11 @@ contains
 
     ! Point to the PARTEH object
     new_cohort%prt => prt
+    
+    ! The PARTEH cohort object should be allocated and already
+    ! initialized in this routine.
+    call new_cohort%prt%CheckInitialConditions()
+
 
     !**********************/
     ! Define cohort state variable
