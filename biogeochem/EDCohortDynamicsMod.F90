@@ -223,7 +223,7 @@ contains
     ! In these cases, testing if things like biomass are reasonable is pre-mature
     ! However, in this part of the code, we will pass in nominal values for size, number and type
     
-    if (new_cohort%dbh <= nearzero .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
+    if (new_cohort%dbh <= 0._r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
        write(fates_log(),*) 'ED: something is zero in create_cohort', &
                              new_cohort%dbh,new_cohort%n, &
                              new_cohort%pft
