@@ -408,6 +408,8 @@ contains
           call UpdateCohortBioPhysRates(currentCohort)
 
 
+          ! UPDATE CROWN AREA BEFORE CALCULATING LAI, THIS VALUE
+          ! IS WRONG.
           leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
@@ -490,7 +492,7 @@ contains
 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
-         currentCohort%n = max(nearzero,currentCohort%n + currentCohort%dndt * hlm_freq_day )  
+         currentCohort%n = max(0._r8,currentCohort%n + currentCohort%dndt * hlm_freq_day )  
          currentCohort => currentCohort%taller
        enddo
 
