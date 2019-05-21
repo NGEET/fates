@@ -545,7 +545,7 @@ contains
           endif
           
           
-          if ( associated(new_patch) ) then
+          if ( associated(new_patch) .and. patch_site_areadis > nearzero ) then
 
               ! This  is a useful check to see if each individual patch disturbance, 
               ! and mass transfer is conserving mass
@@ -1343,7 +1343,7 @@ contains
           litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
           error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
-          if(abs(error)>1.e-6_r8) then
+          if(abs(error)>1.e-8_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in litter transfer'
              write(fates_log(),*) 'abs error: ',error
              call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1661,7 +1661,6 @@ contains
     real(r8) :: litter_stock0,litter_stock1,litter_stock2,litter_stock3
     real(r8) :: mort_flux
     real(r8) :: error
-    logical, parameter :: b4b_old = .true.
     !---------------------------------------------------------------------
 
     do el = 1,num_elements
@@ -1669,7 +1668,7 @@ contains
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
        flux_diags => currentSite%flux_diags(el)
-       curr_litt   => currentPatch%litter(el)   ! Litter pool of "current" patch
+       curr_litt  => currentPatch%litter(el)   ! Litter pool of "current" patch
        new_litt   => newPatch%litter(el)       ! Litter pool of "new" patch
 
        ! -----------------------------------------------------------------------------
@@ -1683,26 +1682,19 @@ contains
        ! area of the patch once disturbance is completed
 
        remainder_area = currentPatch%area - patch_site_areadis
+
        retain_frac = (1.0_r8-treefall_localization) * &
              remainder_area/(newPatch%area+remainder_area)
        donate_frac = 1.0_r8-retain_frac
 
-       if(b4b_old) then
-           
-           ! This is an equal distribution of
-           ! mass/m2
-           retain_m2 = 1._r8/(currentPatch%area)
-           donate_m2 = 1._r8/(currentPatch%area)
-
+       if(remainder_area > rsnbl_math_prec) then
+           retain_m2 = retain_frac/remainder_area
+           donate_m2 = (1.0_r8-retain_frac)/newPatch%area
        else
-           if(remainder_area > rsnbl_math_prec) then
-               retain_m2 = retain_frac/remainder_area
-               donate_m2 = (1.0_r8-retain_frac)/newPatch%area
-           else
-               retain_m2 = 0._r8
-               donate_m2  = 1./newPatch%area
-           end if
+           retain_m2 = 0._r8
+           donate_m2  = 1._r8/newPatch%area
        end if
+
 
        if (debug) then
           mort_flux     = 0._r8
@@ -1845,7 +1837,7 @@ contains
           error = ((litter_stock2+litter_stock3) - (litter_stock1+litter_stock0)) - mort_flux
           if(abs(error)>1.e-8_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in mortality litter fluxes'
-             write(fates_log(),*) 'abs error: ',error,litter_stock2-litter_stock0,litter_stock1-litter_stock3,mort_flux
+             write(fates_log(),*) 'abs error: ',error,litter_stock2-litter_stock0,litter_stock3-litter_stock1,mort_flux
              write(fates_log(),*) litter_stock0,litter_stock1,litter_stock2,litter_stock3
              write(fates_log(),*) retain_frac,donate_frac,donate_m2,retain_m2,newPatch%area
              call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1853,6 +1845,7 @@ contains
        end if
    
     enddo
+
 
     return
   end subroutine mortality_litter_fluxes
