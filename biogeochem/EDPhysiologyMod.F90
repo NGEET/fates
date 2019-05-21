@@ -1220,12 +1220,13 @@ contains
     ! !LOCAL VARIABLES:
     integer :: pft
 
-    ! Turning of this cap, because the cap will impose changes on proportionality
-    ! of nutrients. (RGK 02-2019)
-    !real(r8), parameter ::  max_germination 1.0_r8 ! Cap on germination rates. 
+   
+    real(r8), parameter ::  max_germination 1.0_r8 ! Cap on germination rates. 
                                                     ! KgC/m2/yr Lishcke et al. 2009
 
-    real(r8), parameter :: max_germination = 1.e6_r8  ! Force to very high number
+    ! Turning of this cap? because the cap will impose changes on proportionality
+    ! of nutrients. (RGK 02-2019)
+    !real(r8), parameter :: max_germination = 1.e6_r8  ! Force to very high number
 
     !----------------------------------------------------------------------
 
