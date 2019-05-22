@@ -344,7 +344,6 @@ module EDTypesMod
      real(r8) ::  dhdt                                   ! time derivative of height       : m/year
      real(r8) ::  ddbhdt                                 ! time derivative of dbh          : cm/year
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
-     real(r8) ::  dbstoredt                              ! time derivative of stored biomass       : KgC/year
 
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
@@ -1033,7 +1032,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt
      write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
      write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
-     write(fates_log(),*) 'co%dbstoredt              = ', ccohort%dbstoredt
      write(fates_log(),*) 'co%fraction_crown_burned  = ', ccohort%fraction_crown_burned
      write(fates_log(),*) 'co%fire_mort              = ', ccohort%fire_mort
      write(fates_log(),*) 'co%crownfire_mort         = ', ccohort%crownfire_mort

@@ -1221,7 +1221,7 @@ contains
     integer :: pft
 
    
-    real(r8), parameter ::  max_germination 1.0_r8 ! Cap on germination rates. 
+    real(r8), parameter ::  max_germination = 1.0_r8 ! Cap on germination rates. 
                                                     ! KgC/m2/yr Lishcke et al. 2009
 
     ! Turning of this cap? because the cap will impose changes on proportionality

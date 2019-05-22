@@ -194,7 +194,7 @@ contains
             
             ! Its possible that before we even enter this scheme
             ! some cohort numbers are very low.  Terminate them.
-            call terminate_cohorts(currentSite, currentPatch, 1)
+            call terminate_cohorts(currentSite, currentPatch, 1, 12)
 
             ! Calculate how many layers we have in this canopy
             ! This also checks the understory to see if its crown 
@@ -207,12 +207,12 @@ contains
             
             ! After demotions, we may then again have cohorts that are very very
             ! very sparse, remove them
-            call terminate_cohorts(currentSite, currentPatch, 1)
+            call terminate_cohorts(currentSite, currentPatch, 1,13)
             
             call fuse_cohorts(currentSite, currentPatch, bc_in)
             
             ! Remove cohorts for various other reasons
-            call terminate_cohorts(currentSite, currentPatch, 2)
+            call terminate_cohorts(currentSite, currentPatch, 2,13)
 
             
             ! ---------------------------------------------------------------------------------------
@@ -231,12 +231,12 @@ contains
                end do
                
                ! Remove cohorts that are incredibly sparse
-               call terminate_cohorts(currentSite, currentPatch, 1)
+               call terminate_cohorts(currentSite, currentPatch, 1,14)
                
                call fuse_cohorts(currentSite, currentPatch, bc_in)
                
                ! Remove cohorts for various other reasons
-               call terminate_cohorts(currentSite, currentPatch, 2)
+               call terminate_cohorts(currentSite, currentPatch, 2,14)
                
             end if
             

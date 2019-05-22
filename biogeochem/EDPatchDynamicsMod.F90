@@ -176,6 +176,12 @@ contains
           ! Mortality for trees in the understorey.
           currentCohort%patchptr => currentPatch
 
+          if(currentCohort%isnew) then
+              write(fates_log(),*) 'new cohorts should not exist during disturbance rate calculations'
+              write(fates_log(),*) 'cohort%isnew: ',currentCohort%isnew
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
           call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
           currentCohort%dmort  = cmort+hmort+bmort+frmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
@@ -945,9 +951,7 @@ contains
                 else
                    
                    ! Get rid of the new temporary cohort
-                   if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nc)
-                   call nc%prt%DeallocatePRTVartypes()
-                   deallocate(nc%prt)
+                   call DeallocateCohort(nc)
                    deallocate(nc)
                    
                 endif
@@ -992,9 +996,9 @@ contains
              ! the first call to terminate cohorts removes sparse number densities,
              ! the second call removes for all other reasons (sparse culling must happen
              ! before fusion)
-             call terminate_cohorts(currentSite, currentPatch, 1)
+             call terminate_cohorts(currentSite, currentPatch, 1,16)
              call fuse_cohorts(currentSite,currentPatch, bc_in)
-             call terminate_cohorts(currentSite, currentPatch, 2)
+             call terminate_cohorts(currentSite, currentPatch, 2,16)
              call sort_cohorts(currentPatch)
 
           end if    ! if ( new_patch%area > nearzero ) then 
@@ -1017,16 +1021,16 @@ contains
        ! before fusion)
 
        if ( site_areadis_primary .gt. nearzero) then
-          call terminate_cohorts(currentSite, new_patch_primary, 1)
+          call terminate_cohorts(currentSite, new_patch_primary, 1,17)
           call fuse_cohorts(currentSite,new_patch_primary, bc_in)
-          call terminate_cohorts(currentSite, new_patch_primary, 2)
+          call terminate_cohorts(currentSite, new_patch_primary, 2,17)
           call sort_cohorts(new_patch_primary)
        endif
        
        if ( site_areadis_secondary .gt. nearzero) then
-          call terminate_cohorts(currentSite, new_patch_secondary, 1)
+          call terminate_cohorts(currentSite, new_patch_secondary, 1,18)
           call fuse_cohorts(currentSite,new_patch_secondary, bc_in)
-          call terminate_cohorts(currentSite, new_patch_secondary, 2)
+          call terminate_cohorts(currentSite, new_patch_secondary, 2,18)
           call sort_cohorts(new_patch_secondary)
        endif
        
