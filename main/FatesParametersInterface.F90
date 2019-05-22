@@ -39,7 +39,7 @@ module FatesParametersInterface
   ! Dimensions in the host namespace:
   character(len=*), parameter, public :: dimension_name_host_allpfts = 'allpfts'
   
-  type, private ::  parameter_type
+  type ::  parameter_type
      character(len=param_string_length) :: name
      logical :: sync_with_host
      integer :: dimension_shape
@@ -54,19 +54,21 @@ module FatesParametersInterface
      type(parameter_type), private :: parameters(max_params)
 
    contains
-     procedure, public :: Init
-     procedure, public :: Destroy
-     procedure, public :: RegisterParameter
-     generic, public :: RetreiveParameter => RetreiveParameterScalar, RetreiveParameter1D, RetreiveParameter2D
-     generic, public :: RetreiveParameterAllocate => RetreiveParameter1DAllocate, RetreiveParameter2DAllocate
-     generic, public :: SetData => SetDataScalar, SetData1D, SetData2D
-     procedure, public :: GetUsedDimensions
-     procedure, public :: SetDimensionSizes
-     procedure, public :: GetMaxDimensionSize
-     procedure, public :: GetMetaData
-     procedure, public :: num_params
-     procedure, public :: FindIndex
+     ! Public functions
+     procedure :: Init
+     procedure :: Destroy
+     procedure :: RegisterParameter
+     generic   :: RetreiveParameter => RetreiveParameterScalar, RetreiveParameter1D, RetreiveParameter2D
+     generic   :: RetreiveParameterAllocate => RetreiveParameter1DAllocate, RetreiveParameter2DAllocate
+     generic   :: SetData => SetDataScalar, SetData1D, SetData2D
+     procedure :: GetUsedDimensions
+     procedure :: SetDimensionSizes
+     procedure :: GetMaxDimensionSize
+     procedure :: GetMetaData
+     procedure :: num_params
+     procedure :: FindIndex
 
+     ! Private functions
      procedure, private :: RetreiveParameterScalar
      procedure, private :: RetreiveParameter1D
      procedure, private :: RetreiveParameter2D

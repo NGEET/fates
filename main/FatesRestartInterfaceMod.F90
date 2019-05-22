@@ -36,6 +36,7 @@ module FatesRestartInterfaceMod
 
 
   implicit none
+  private ! Modules are private by default
 
   ! ------------------------------------------------------------
   ! A note on variable naming conventions.
