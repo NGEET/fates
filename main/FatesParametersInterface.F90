@@ -7,6 +7,7 @@ module FatesParametersInterface
   use FatesGlobals, only : fates_log
   
   implicit none
+  private ! Modules are private by default
 
   integer, parameter, public :: max_params = 250
   integer, parameter, public :: max_dimensions = 2
