@@ -649,7 +649,7 @@ data:
 
  fates_phen_b = 638 ;
 
- fates_phen_c = -0.001 ;
+ fates_phen_c = -0.01 ;
 
  fates_phen_chiltemp = 5 ;
 
