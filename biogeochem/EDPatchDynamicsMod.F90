@@ -20,6 +20,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
   use EDTypesMod           , only : ican_upper
+  use EDTypesMod           , only : lg_sf
   use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
@@ -151,7 +152,7 @@ contains
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
                 lmort_direct,lmort_collateral,lmort_infra,l_degrad )
          
-          currentCohort%lmort_direct    = lmort_direct
+          currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
           currentCohort%lmort_infra      = lmort_infra
           currentCohort%l_degrad         = l_degrad
@@ -186,7 +187,7 @@ contains
 
              ! Logging Disturbance Rate
              currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
-                   min(1.0_r8, currentCohort%lmort_direct +                         & 
+                   min(1.0_r8, currentCohort%lmort_direct +                          & 
                                currentCohort%lmort_collateral +                      &
                                currentCohort%lmort_infra +                           &
                                currentCohort%l_degrad ) *                            &
@@ -226,7 +227,7 @@ contains
        ! to still diagnose and track the non-disturbance rate
        ! ------------------------------------------------------------------------------------------
        
-       
+       ! DISTURBANCE IS LOGGING
        if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
              currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) ) then 
           
@@ -245,7 +246,7 @@ contains
              currentCohort => currentCohort%taller
           enddo !currentCohort
           
-          ! DISTURBANCE IS FIRE
+       ! DISTURBANCE IS FIRE
        elseif (currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ifall) .and. &
              currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ilog) ) then  
 
@@ -275,7 +276,7 @@ contains
              currentCohort => currentCohort%taller
           enddo !currentCohort
 
-       else  ! If fire and loggin are not greater than treefall, just set disturbance rate to tree-fall
+       else  ! If fire and logging are not greater than treefall, just set disturbance rate to tree-fall
              ! which is most likely a 0.0
 
           currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ifall)
@@ -477,6 +478,8 @@ contains
                 
                 call logging_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
                 
+                if(debug) write(fates_log(),*) "Logging disturbance generated:",patch_site_areadis
+
              elseif ((currentPatch%disturbance_rates(dtype_ifire) > &
                       currentPatch%disturbance_rates(dtype_ifall)) .and. &
                      (currentPatch%disturbance_rates(dtype_ifire) > &
@@ -681,7 +684,7 @@ contains
                    nc%lmort_infra      = currentCohort%lmort_infra
                    
                    
-                   ! Logging is the dominant disturbance  
+                ! Logging is the dominant disturbance  
                 elseif ((currentPatch%disturbance_rates(dtype_ilog) > &
                          currentPatch%disturbance_rates(dtype_ifall)) .and. &
                         (currentPatch%disturbance_rates(dtype_ilog) > &
@@ -756,7 +759,7 @@ contains
                          ! LOGGING SURVIVORSHIP OF UNDERSTORY PLANTS IS SET AS A NEW PARAMETER 
                          ! in the fatesparameter files 
                          nc%n = nc%n * (1.0_r8 - &
-                               currentPatch%fract_ldist_not_harvested * logging_coll_under_frac)
+                              (1.0_r8-currentPatch%fract_ldist_not_harvested) * logging_coll_under_frac)
                          
                          ! Step 3: Reduce the number count of cohorts in the 
                          !         original/donor/non-disturbed patch to reflect the area change
@@ -1085,7 +1088,7 @@ contains
        !************************************/ 
        do c = 1,ncwd
           burned_litter = new_patch%cwd_ag(c) * patch_site_areadis/new_patch%area * &
-                currentPatch%burnt_frac_litter(c+1) !kG/m2/day
+                currentPatch%burnt_frac_litter(c) !kG/m2/day
           new_patch%cwd_ag(c) = new_patch%cwd_ag(c) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
           currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + &
@@ -1240,7 +1243,7 @@ contains
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              burned_leaves = leaf_c * currentCohort%fraction_crown_burned
           else
-             burned_leaves = leaf_c * currentPatch%burnt_frac_litter(6)
+             burned_leaves = leaf_c * currentPatch%burnt_frac_litter(lg_sf)
           endif
 
           if (burned_leaves > 0.0_r8) then

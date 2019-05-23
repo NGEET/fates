@@ -126,25 +126,26 @@ module EDTypesMod
 
   ! Phenology status flag definitions (cold type is cstat, dry type is dstat)
 
-  integer, parameter :: phen_cstat_nevercold = 0        ! This (location/plant) has not experienced a cold period over a large number
+  integer, parameter, public :: phen_cstat_nevercold = 0        ! This (location/plant) has not experienced a cold period over a large number
                                                         ! of days, leaves are dropped and flagged as non-cold region
-  integer, parameter :: phen_cstat_iscold    = 1        ! This (location/plant) is in a cold-state where leaves should have fallen
-  integer, parameter :: phen_cstat_notcold   = 2        ! This site is in a warm-state where leaves are allowed to flush
+  integer, parameter, public :: phen_cstat_iscold    = 1        ! This (location/plant) is in a cold-state where leaves should have fallen
+  integer, parameter, public :: phen_cstat_notcold   = 2        ! This site is in a warm-state where leaves are allowed to flush
 
-  integer, parameter :: phen_dstat_timeoff   = 0       ! Leaves off due to time exceedance (drought phenology)
-  integer, parameter :: phen_dstat_moistoff  = 1       ! Leaves off due to moisture avail  (drought phenology)
-  integer, parameter :: phen_dstat_moiston   = 2       ! Leaves on due to moisture avail   (drought phenology)
-  integer, parameter :: phen_dstat_timeon    = 3       ! Leaves on due to time exceedance  (drought phenology)
+  integer, parameter, public :: phen_dstat_timeoff   = 0       ! Leaves off due to time exceedance (drought phenology)
+  integer, parameter, public :: phen_dstat_moistoff  = 1       ! Leaves off due to moisture avail  (drought phenology)
+  integer, parameter, public :: phen_dstat_moiston   = 2       ! Leaves on due to moisture avail   (drought phenology)
+  integer, parameter, public :: phen_dstat_timeon    = 3       ! Leaves on due to time exceedance  (drought phenology)
 
 
   ! SPITFIRE     
   integer,  parameter, public :: NCWD                 = 4          ! number of coarse woody debris pools (twig,s branch,l branch, trunk)
   integer , parameter, public :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
+  integer,  parameter, public :: tw_sf                = 1          ! array index of twig pool for spitfire
+  integer,  parameter, public :: lb_sf                = 3          ! array index of large branch pool for spitfire
+  integer,  parameter, public :: tr_sf                = 4          ! array index of dead trunk pool for spitfire
+  integer,  parameter, public :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter, public :: lg_sf                = 6          ! array index of live grass pool for spitfire
-  integer,  parameter, public :: dl_sf                = 1          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
-  integer,  parameter, public :: tw_sf                = 2          ! array index of twig pool for spitfire
-  integer,  parameter, public :: tr_sf                = 5          ! array index of dead trunk pool for spitfire
-  integer,  parameter, public :: lb_sf                = 4          ! array index of large branch pool for spitfire 
+
   real(r8), parameter, public :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
 
   ! PATCH FUSION 
@@ -322,7 +323,8 @@ module EDTypesMod
      real(r8) ::  lmort_collateral                       ! collaterally damaged rate        fraction /per logging activity
      real(r8) ::  lmort_infra                            ! mechanically damaged rate        fraction /per logging activity
      real(r8) ::  l_degrad                               ! rate of trees that are not killed but suffer from forest degradation
-                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary forest patch).  fraction /per logging activity
+                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary 
+                                                         !  forest patch).  fraction /per logging activity
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
