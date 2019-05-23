@@ -356,13 +356,22 @@ contains
              if (currentCohort%canopy_layer .eq. 1) then
                 currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ft) &
                      * currentCohort%c_area / currentCohort%n
-                ! add these for balance checking purposes
+
                 currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year 
+
+                ! for mass balancing
+                currentCohort%gpp_acc  = currentCohort%npp_acc
+                currentCohort%resp_acc = 0._r8
+
              else
                 currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ft) &
                      * currentCohort%c_area / currentCohort%n
-                ! add these for balance checking purposes
+                
                 currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year
+             
+                ! for mass balancing
+                currentCohort%gpp_acc  = currentCohort%npp_acc
+                currentCohort%resp_acc = 0._r8
              endif
           else
              currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)

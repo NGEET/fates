@@ -179,7 +179,6 @@ contains
           if(currentCohort%isnew) then
               write(fates_log(),*) 'new cohorts should not exist during disturbance rate calculations'
               write(fates_log(),*) 'cohort%isnew: ',currentCohort%isnew
-              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
           call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
