@@ -417,7 +417,10 @@ contains
             ! Perform Cohort Fusion
             call fuse_cohorts(sites(s), currentpatch,bc_in(s))
             call sort_cohorts(currentpatch)
-            total_cohorts = total_cohorts + count_cohorts(currentpatch)
+
+            ! This calculates %countcohorts
+            call count_cohorts(currentpatch)
+            total_cohorts = total_cohorts + currentPatch%countcohorts
 
             currentPatch => currentpatch%older
          enddo

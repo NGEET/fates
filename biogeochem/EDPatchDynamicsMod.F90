@@ -407,7 +407,6 @@ contains
     real(r8) :: total_stock2,biomass_stock2,litter_stock2,seed_stock2
     real(r8) :: burn_flux2,burn_flux1,burn_flux0
     real(r8) :: wood_product2,wood_product1,wood_product0
-    integer  :: npatches_old,npatches_tot,npatches_new,npatches_old2,npatches_new2
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -419,7 +418,6 @@ contains
     site_areadis_primary = 0.0_r8
     site_areadis_secondary = 0.0_r8    
 
-    npatches_old = 0
     do while(associated(currentPatch))
 
        !FIX(RF,032414) Does using the max(fire,mort) actually make sense here?
@@ -451,13 +449,10 @@ contains
           
        end if
 
-       npatches_old = npatches_old + 1
-
        currentPatch => currentPatch%older     
     enddo ! end loop over patches. sum area disturbed for all patches. 
 
     ! It is possible that no disturbance area was generated
-    npatches_new = 0
     if ( (site_areadis_primary + site_areadis_secondary) > nearzero) then  
        
        age = 0.0_r8
@@ -492,9 +487,6 @@ contains
           new_patch_primary%younger  => null()
           currentPatch%younger       => new_patch_primary
           currentSite%youngest_patch => new_patch_primary
-
-          npatches_new = npatches_new + 1
-
        endif
 
 
@@ -525,46 +517,8 @@ contains
           new_patch_secondary%younger=> null()
           currentPatch%younger       => new_patch_secondary
           currentSite%youngest_patch => new_patch_secondary
-
-          npatches_new = npatches_new + 1
-
        endif
     
-       ! Perform check on the new patch list
-       npatches_tot = 0
-       npatches_old2 = 0
-       npatches_new2 = 0
-       currentPatch => currentSite%oldest_patch
-       do while(associated(currentPatch))
-             
-           if(.not.associated(currentPatch,new_patch_secondary) .and. &
-                 .not.associated(currentPatch,new_patch_primary)) then
-               npatches_old2 = npatches_old2 + 1
-           else
-               npatches_new2 = npatches_new2 + 1
-           end if
-           
-           npatches_tot = npatches_tot + 1
-           currentPatch => currentPatch%younger
-       enddo ! currentPatch patch loop. 
-
-
-       if(npatches_tot .ne. (npatches_old+npatches_new))then
-           write(fates_log(),*) 'patch counts dont add up? : ',npatches_old,npatches_new,npatches_tot
-           call endrun(msg=errMsg(sourcefile, __LINE__))    
-       end if
-
-       if(npatches_new2 .ne. npatches_new)then
-           write(fates_log(),*) 'number of new patches dont add up',npatches_new,npatches_new2
-           call endrun(msg=errMsg(sourcefile, __LINE__))    
-       end if
-
-       if(npatches_old2 .ne. npatches_old)then
-           write(fates_log(),*) 'number of old patches dont add up',npatches_old,npatches_old2
-           call endrun(msg=errMsg(sourcefile, __LINE__))    
-       end if
-
-       
        ! loop round all the patches that contribute surviving indivduals and litter 
        ! pools to the new patch.  We only loop the pre-existing patches, so 
        ! quit the loop if the current patch is either null, or matches the
