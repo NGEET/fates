@@ -55,7 +55,8 @@ module FatesIOVariableKindMod
 
   end type fates_io_variable_kind_type
 
-
+  ! Make necessary functions public
+  public :: iotype_index
 
 contains
 
