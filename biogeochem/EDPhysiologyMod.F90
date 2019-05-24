@@ -114,14 +114,6 @@ module EDPhysiologyMod
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
-  integer, parameter :: i_dbh  = 1    ! Array index associated with dbh
-  integer, parameter :: i_cleaf = 2   ! Array index associated with leaf carbon
-  integer, parameter :: i_cfroot = 3  ! Array index associated with fine-root carbon
-  integer, parameter :: i_csap   = 4  ! Array index associated with sapwood carbon
-  integer, parameter :: i_cstore = 5  ! Array index associated with storage carbon
-  integer, parameter :: i_cdead = 6   ! Array index associated with structural carbon
-  integer, parameter :: i_crepro = 7  ! Array index associated with reproductive carbon 
-  integer, parameter :: n_cplantpools = 7 ! Size of the carbon only integration framework
   integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter 
 
   ! ============================================================================
