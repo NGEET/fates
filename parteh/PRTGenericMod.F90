@@ -356,7 +356,7 @@ module PRTGenericMod
   end type prt_global_type
 
   
-  type(prt_global_type),pointer :: prt_global
+  type(prt_global_type),pointer,public :: prt_global
 
   ! Make necessary procedures public
   public :: GetCoordVal
