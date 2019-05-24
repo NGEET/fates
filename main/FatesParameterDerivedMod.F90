@@ -32,7 +32,7 @@ module FatesParameterDerivedMod
      
   end type param_derived_type
   
-  type(param_derived_type) :: param_derived ! Why is this defined here
+  type(param_derived_type), public :: param_derived
   
 contains
   
