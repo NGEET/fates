@@ -547,9 +547,12 @@ contains
         ! Canopy_structure just called it several times! (rgk)
         call terminate_cohorts(currentSite, currentPatch, 1, 11) 
         call terminate_cohorts(currentSite, currentPatch, 2, 11)
-        
+
+        ! This cohort count is used in the photosynthesis loop
+        call count_cohorts(currentPatch)
+
+
         currentPatch => currentPatch%younger    
-        
     enddo
 
     ! FIX(RF,032414). This needs to be monthly, not annual

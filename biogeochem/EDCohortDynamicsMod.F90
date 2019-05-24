@@ -1667,7 +1667,7 @@ contains
   end subroutine copy_cohort
 
   !-------------------------------------------------------------------------------------!
-  function count_cohorts( currentPatch ) result ( backcount )
+  subroutine count_cohorts( currentPatch )
     !
     ! !DESCRIPTION:
     !
@@ -1677,8 +1677,8 @@ contains
     type(ed_patch_type), intent(inout), target :: currentPatch      !new site
     !
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer ::currentCohort   !new patch
-    integer backcount
+    type(ed_cohort_type), pointer :: currentCohort   !new patch
+    integer                       :: backcount
     !----------------------------------------------------------------------
 
     currentCohort => currentPatch%shortest
@@ -1700,7 +1700,7 @@ contains
        write(fates_log(),*) 'problem with linked list, not symmetrical' 
     endif
 
-  end function count_cohorts
+  end subroutine count_cohorts
 
   ! ===================================================================================
 
