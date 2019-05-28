@@ -1078,11 +1078,14 @@ contains
              pft = currentCohort%pft
           
              ! a certain fraction of bstore might go to clonal reproduction when plants die
+             ! (since this is only applied to the dying portion of the cohort
+             !  we do not actually pair down the storage via PARTEH, instead
+             !  we just make sure that we don't send a portion of the storage
+             !  to the litter in CWDInput)
+             ! units = [kg/ha/day] = [kg] * [fraction] * [plants/ha/year] * [year/day]
              store_m_to_repro = -currentCohort%prt%GetState(store_organ,element_id) * &
-                   EDPftvarcon_inst%allom_frbstor_repro(pft)*currentCohort%dndt
+                   EDPftvarcon_inst%allom_frbstor_repro(pft)*currentCohort%dndt*years_per_day
              
-             
-             ! Transfer reproductive tissues from "on-plant" to the litter pool
              ! Transfer all reproductive tissues into seed production
              ! The following call to PRTReproRelease, will return the mass
              ! of seeds [kg] released by the plant, per the mass_fraction
@@ -1706,7 +1709,7 @@ contains
       
       root_fines_tot =  dead_n * (fnrt_m + &
            store_m*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) )
-      
+
       do ilyr = 1, numlevsoil
          litt%root_fines_in(pft,ilyr) = litt%root_fines_in(pft,ilyr) + &
               root_fines_tot * currentSite%rootfrac_scr(ilyr)

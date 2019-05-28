@@ -362,8 +362,8 @@ contains
       ! tissues (ie seeds, flowers, etc). but now we just have 1.
      
       if (organ_id .ne. repro_organ) then
-         write(fates_log(),*) 'Reproductive tissue releases were called for a non-reproductive'
-         write(fates_log(),*) 'organ.'
+         write(fates_log(),*) 'Reproductive tissue releases were called'
+         write(fates_log(),*) 'for a non-reproductive organ.'
          call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
 
