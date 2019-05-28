@@ -22,7 +22,6 @@ module FatesCohortWrapMod
 
   use EDPftvarcon,            only : EDPftvarcon_inst
 
-  use PRTGenericMod,          only : InitPRTVartype
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
