@@ -21,8 +21,8 @@ module FatesHistoryVariableType
      integer              :: upfreq  ! Update frequency (this is for checks and flushing)
                                      ! 1 = dynamics "dyn" (daily)
                                      ! 2 = production "prod" (prob model tstep)
-     real(r8)             :: flushval
-     integer :: dim_kinds_index
+     real(r8)              :: flushval
+     integer               :: dim_kinds_index
      ! Pointers (only one of these is allocated per variable)
      real(r8), pointer     :: r81d(:)
      real(r8), pointer     :: r82d(:,:)

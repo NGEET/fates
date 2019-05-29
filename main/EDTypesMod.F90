@@ -45,8 +45,8 @@ module EDTypesMod
 
   integer, parameter :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
  
-  integer, parameter :: idirect   = 1           ! This is the array index for direct radiation
-  integer, parameter :: idiffuse  = 2           ! This is the array index for diffuse radiation
+  integer, parameter :: idirect   = 1             ! This is the array index for direct radiation
+  integer, parameter :: idiffuse  = 2             ! This is the array index for diffuse radiation
 
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
@@ -76,6 +76,7 @@ module EDTypesMod
 
   integer, parameter :: leaves_on  = 2  ! Flag specifying that a deciduous plant has leaves
                                         ! and should be allocating to them as well
+
   integer, parameter :: leaves_off = 1  ! Flag specifying that a deciduous plant has dropped
                                         ! its leaves and should not be trying to allocate
                                         ! towards any growth.
@@ -107,7 +108,7 @@ module EDTypesMod
   integer, parameter :: numWaterMem           = 10         ! watermemory saved as site level var
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
-  integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
+  integer , parameter :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter :: dinc_ed              = 1.0_r8     ! size of VAI bins (LAI+SAI)  [CHANGE THIS NAME WITH NEXT INTERFACE
                                                            ! UPDATE]
   integer , parameter :: N_DIST_TYPES         = 3          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
@@ -115,14 +116,29 @@ module EDTypesMod
   integer , parameter :: dtype_ifire          = 2          ! index for fire generated disturbance event
   integer , parameter :: dtype_ilog           = 3          ! index for logging generated disturbance event
 
+
+  ! Phenology status flag definitions (cold type is cstat, dry type is dstat)
+
+  integer, parameter :: phen_cstat_nevercold = 0        ! This (location/plant) has not experienced a cold period over a large number
+                                                        ! of days, leaves are dropped and flagged as non-cold region
+  integer, parameter :: phen_cstat_iscold    = 1        ! This (location/plant) is in a cold-state where leaves should have fallen
+  integer, parameter :: phen_cstat_notcold   = 2        ! This site is in a warm-state where leaves are allowed to flush
+
+  integer, parameter :: phen_dstat_timeoff   = 0       ! Leaves off due to time exceedance (drought phenology)
+  integer, parameter :: phen_dstat_moistoff  = 1       ! Leaves off due to moisture avail  (drought phenology)
+  integer, parameter :: phen_dstat_moiston   = 2       ! Leaves on due to moisture avail   (drought phenology)
+  integer, parameter :: phen_dstat_timeon    = 3       ! Leaves on due to time exceedance  (drought phenology)
+
+
   ! SPITFIRE     
   integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools (twig,s branch,l branch, trunk)
   integer , parameter :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
+  integer,  parameter :: tw_sf                = 1          ! array index of twig pool for spitfire
+  integer,  parameter :: lb_sf                = 3          ! array index of large branch pool for spitfire
+  integer,  parameter :: tr_sf                = 4          ! array index of dead trunk pool for spitfire
+  integer,  parameter :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter :: lg_sf                = 6          ! array index of live grass pool for spitfire
-  integer,  parameter :: dl_sf                = 1          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
-  integer,  parameter :: tw_sf                = 2          ! array index of twig pool for spitfire
-  integer,  parameter :: tr_sf                = 5          ! array index of dead trunk pool for spitfire
-  integer,  parameter :: lb_sf                = 4          ! array index of large branch pool for spitfire 
+
   real(r8), parameter :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
 
   ! PATCH FUSION 
@@ -300,7 +316,8 @@ module EDTypesMod
      real(r8) ::  lmort_collateral                       ! collaterally damaged rate        fraction /per logging activity
      real(r8) ::  lmort_infra                            ! mechanically damaged rate        fraction /per logging activity
      real(r8) ::  l_degrad                               ! rate of trees that are not killed but suffer from forest degradation
-                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary forest patch).  fraction /per logging activity
+                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary 
+                                                         !  forest patch).  fraction /per logging activity
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
@@ -611,15 +628,26 @@ module EDTypesMod
 
 
      ! PHENOLOGY 
-     real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
-     logical  ::  is_cold                                      ! is this site/column in a cold-status where its cohorts drop leaves?
-     logical  ::  is_drought                                   ! is this site/column in a drought-status where its cohorts drop leaves?
-     real(r8) ::  ncd                                          ! no chilling days:-
-     real(r8) ::  last_n_days(senes)                           ! record of last 10 days temperature for senescence model. deg C
-     integer  ::  leafondate                                   ! doy of leaf on:-
-     integer  ::  leafoffdate                                  ! doy of leaf off:-
-     integer  ::  dleafondate                                  ! doy of leaf on drought:-
-     integer  ::  dleafoffdate                                 ! doy of leaf on drought:-
+     real(r8) ::  grow_deg_days                                ! Phenology growing degree days
+
+     integer  ::  cstatus                                      ! are leaves in this pixel on or off for cold decid
+                                                               ! 0 = this site has not experienced a cold period over at least
+                                                               !     400 days, leaves are dropped and flagged as non-cold region
+                                                               ! 1 = this site is in a cold-state where leaves should have fallen
+                                                               ! 2 = this site is in a warm-state where leaves are allowed to flush
+     integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
+                                                               ! 0 = leaves off due to time exceedance
+                                                               ! 1 = leaves off due to moisture avail
+                                                               ! 2 = leaves on due to moisture avail
+                                                               ! 3 = leaves on due to time exceedance
+     integer  ::  nchilldays                                   ! num chilling days: (for botta gdd trheshold calculation)
+     integer  ::  ncolddays                                    ! num cold days: (must exceed threshold to drop leaves)
+     real(r8) ::  vegtemp_memory(num_vegtemp_mem)              ! record of last 10 days temperature for senescence model. deg C
+     integer  ::  cleafondate                                  ! model date (day integer) of leaf on (cold):-
+     integer  ::  cleafoffdate                                 ! model date (day integer) of leaf off (cold):-
+     integer  ::  dleafondate                                  ! model date (day integer) of leaf on drought:-
+     integer  ::  dleafoffdate                                 ! model date (day integer) of leaf off drought:-
+
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
      !SEED BANK

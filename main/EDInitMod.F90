@@ -7,6 +7,7 @@ module EDInitMod
   use FatesConstantsMod         , only : r8 => fates_r8
   use FatesConstantsMod         , only : ifalse
   use FatesConstantsMod         , only : itrue
+  use FatesConstantsMod         , only : fates_unset_int
   use FatesConstantsMod         , only : primaryforest
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
@@ -17,7 +18,8 @@ module EDInitMod
   use EDPatchDynamicsMod        , only : create_patch
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod                , only : ncwd
-  use EDTypesMod                , only : nuMWaterMem
+  use EDTypesMod                , only : numWaterMem
+  use EDTypesMod                , only : num_vegtemp_mem
   use EDTypesMod                , only : maxpft
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
@@ -25,6 +27,12 @@ module EDInitMod
   use EDTypesMod                , only : first_leaf_aclass
   use EDTypesMod                , only : leaves_on
   use EDTypesMod                , only : leaves_off
+  use EDTypesMod                , only : phen_cstat_nevercold
+  use EDTypesMod                , only : phen_cstat_iscold
+  use EDTypesMod                , only : phen_dstat_timeoff
+  use EDTypesMod                , only : phen_dstat_moistoff
+  use EDTypesMod                , only : phen_cstat_notcold
+  use EDTypesMod                , only : phen_dstat_moiston
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
@@ -110,17 +118,18 @@ contains
     site_in%total_burn_flux_to_atm = 0._r8
 
     ! PHENOLOGY 
-    site_in%is_cold          = .false.    ! Is cold deciduous leaf-off triggered?
-    site_in%is_drought       = .false.    ! Is drought deciduous leaf-off triggered?
-    site_in%ED_GDD_site      = nan  ! growing degree days
-    site_in%ncd              = nan  ! no chilling days
-    site_in%last_n_days(:)   = 999  ! record of last 10 days temperature for senescence model.
-    site_in%leafondate       = 999  ! doy of leaf on
-    site_in%leafoffdate      = 999  ! doy of leaf off
-    site_in%dleafondate      = 999  ! doy of leaf on drought
-    site_in%dleafoffdate     = 999  ! doy of leaf on drought
-    site_in%water_memory(:)  = nan
 
+    site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
+    site_in%dstatus          = fates_unset_int
+    site_in%grow_deg_days    = nan  ! growing degree days
+    site_in%nchilldays       = fates_unset_int
+    site_in%ncolddays        = fates_unset_int
+    site_in%cleafondate      = fates_unset_int  ! doy of leaf on
+    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off
+    site_in%dleafondate      = fates_unset_int  ! doy of leaf on drought
+    site_in%dleafoffdate     = fates_unset_int  ! doy of leaf on drought
+    site_in%water_memory(:)  = nan
+    site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
 
     ! SEED
     site_in%seed_bank(:)     = 0._r8
@@ -185,66 +194,61 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  :: s
-    real(r8) :: leafon
-    real(r8) :: leafoff
-    logical  :: stat
-    real(r8) :: NCD
+    integer  :: cstat      ! cold status phenology flag
     real(r8) :: GDD
-    logical  :: dstat
+    integer  :: dstat      ! drought status phenology flag
     real(r8) :: acc_NI
-    real(r8) :: watermem
-    integer  :: dleafoff
-    integer  :: dleafon
+    real(r8) :: watermem 
+    integer  :: cleafon    ! DOY for cold-decid leaf-on, initial guess
+    integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
+    integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
+    integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
     !----------------------------------------------------------------------
 
+
+    ! If this is not a restart, we need to start with some reasonable
+    ! starting points. If this is a restart, we leave the values
+    ! as unset ints and reals, and let the restart values be read in
+    ! after this routine
+
     if ( hlm_is_restart == ifalse ) then
-       !initial guess numbers for site condition.
-       NCD      = 0.0_r8
+
        GDD      = 30.0_r8
-       leafon   = 100.0_r8
-       leafoff  = 300.0_r8
-       stat     = .false.
+       cleafon  = 100
+       cleafoff = 300 
+       cstat    = phen_cstat_notcold     ! Leaves are on
        acc_NI   = 0.0_r8
-       dstat    = .false.
+       dstat    = phen_dstat_moiston     ! Leaves are on
        dleafoff = 300
        dleafon  = 100
        watermem = 0.5_r8
 
-    else ! assignements for restarts
+       do s = 1,nsites
+          sites(s)%nchilldays    = 0
+          sites(s)%ncolddays     = 0        ! recalculated in phenology
+                                            ! immediately, so yes this
+                                            ! is memory-less, but needed
+                                            ! for first value in history file
 
-       NCD      = 1.0_r8 ! NCD should be 1 on restart
-       GDD      = 0.0_r8
-       leafon   = 0.0_r8
-       leafoff  = 0.0_r8
-       stat     = .false.
-       acc_NI   = 0.0_r8
-       dstat    = .false.
-       dleafoff = 300
-       dleafon  = 100
-       watermem = 0.5_r8
-
-    endif
-
-    do s = 1,nsites
-       sites(s)%ncd          = NCD
-       sites(s)%leafondate   = leafon
-       sites(s)%leafoffdate  = leafoff
-       sites(s)%dleafoffdate = dleafoff
-       sites(s)%dleafondate  = dleafon
-       sites(s)%ED_GDD_site  = GDD
-
-       if ( hlm_is_restart == ifalse ) then
+          sites(s)%cleafondate   = cleafon
+          sites(s)%cleafoffdate  = cleafoff
+          sites(s)%dleafoffdate  = dleafoff
+          sites(s)%dleafondate   = dleafon
+          sites(s)%grow_deg_days = GDD
+          
           sites(s)%water_memory(1:numWaterMem) = watermem
-       end if
+          sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
+          
+          sites(s)%cstatus = cstat
+          sites(s)%dstatus = dstat
+          
+          sites(s)%acc_NI     = acc_NI
+          sites(s)%frac_burnt = 0.0_r8
+          sites(s)%old_stock  = 0.0_r8
+          
+       end do
 
-       sites(s)%is_cold    = stat
-       sites(s)%is_drought = dstat
-       
-       sites(s)%acc_NI     = acc_NI
-       sites(s)%frac_burnt = 0.0_r8
-       sites(s)%old_stock  = 0.0_r8
-
-    end do
+    end if
 
     return
   end subroutine set_site_properties
@@ -439,13 +443,15 @@ contains
        temp_cohort%laimemory = 0._r8
        cstatus = leaves_on
        
-       if( EDPftvarcon_inst%season_decid(pft) == itrue .and. site_in%is_cold ) then
+       if( EDPftvarcon_inst%season_decid(pft) == itrue .and. &
+            any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0._r8
           cstatus = leaves_off
        endif
-       
-       if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. site_in%is_drought ) then
+
+       if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. &
+            any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0._r8
           cstatus = leaves_off
