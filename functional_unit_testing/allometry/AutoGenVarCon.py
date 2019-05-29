@@ -49,17 +49,15 @@ def CheckFile(filename,check_str):
 
 
 
-
-
-
-
-
-
 check_str = 'EDPftvarcon_inst%'
 filename  = '../../biogeochem/FatesAllometryMod.F90'
 
 var_list = CheckFile(filename,check_str)
 
+
+# Add symbols here
+
+var_list.append(ParamType('hgt_min',1))
 
 
 # Now look through EDPftvarcon.F90 to determine the variable name in file
