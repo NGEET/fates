@@ -51,6 +51,7 @@ module EDPhysiologyMod
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
   use EDParamsMod           , only : q10_mr
   use EDParamsMod           , only : q10_froz
+  use EDParamsMod           , only : logging_export_frac
 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   
@@ -1264,120 +1265,136 @@ contains
               (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
       enddo
 
-      !if (currentCohort%canopy_layer > 1)then   
-
-          ! ================================================        
-          ! Litter fluxes for understorey  mortality. KgC/m2/year
-          ! ================================================
-
-          ! Total number of dead understory (n/m2)
-          dead_n = -1.0_r8 * currentCohort%dndt / currentPatch%area
-
-          ! Total number of dead understory from direct logging
-          ! (it is possible that large harvestable trees are in the understory)
-          dead_n_dlogging = ( currentCohort%lmort_direct) * &
-               currentCohort%n/hlm_freq_day/currentPatch%area
-          
-          ! Total number of dead understory from indirect logging
-          dead_n_ilogging = ( currentCohort%lmort_collateral + currentCohort%lmort_infra) * &
-                currentCohort%n/hlm_freq_day/currentPatch%area
-          
-          dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
-
-          
-          currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
-               (leaf_c)* dead_n
-                ! %n has not been updated due to mortality yet, thus
-                ! the litter flux has already been counted since it captured
-                ! the losses of live trees and those flagged for death
-
-          currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
+      ! ================================================        
+      ! Litter fluxes for understorey  mortality. KgC/m2/year
+      ! ================================================
+      
+      ! Total number of dead understory (n/m2)
+      dead_n = -1.0_r8 * currentCohort%dndt / currentPatch%area
+      
+      if(currentCohort%canopy_layer > 1)then   
+         
+         ! Total number of dead understory from direct logging
+         ! (it is possible that large harvestable trees are in the understory)
+         dead_n_dlogging = ( currentCohort%lmort_direct) * &
+              currentCohort%n/hlm_freq_day/currentPatch%area
+         
+         ! Total number of dead understory from indirect logging
+         dead_n_ilogging = ( currentCohort%lmort_collateral + currentCohort%lmort_infra) * &
+              currentCohort%n/hlm_freq_day/currentPatch%area
+         
+      else
+         
+         ! All mortality from logging in the canopy is
+         ! is disturbance generating
+         
+         dead_n_dlogging = 0._r8
+         dead_n_ilogging = 0._r8
+         
+      end if
+      
+      dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
+      
+      
+      currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
+           (leaf_c)* dead_n
+      
+      ! %n has not been updated due to mortality yet, thus
+      ! the litter flux has already been counted since it captured
+      ! the losses of live trees and those flagged for death
+      
+      currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
                (fnrt_c + store_c*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) ) * dead_n
 
-          ! Update diagnostics that track resource management
-          currentSite%resources_management%delta_litter_stock  = &
-                currentSite%resources_management%delta_litter_stock + &
-                (leaf_c + fnrt_c + store_c ) * &
-                (dead_n_ilogging+dead_n_dlogging) * & 
-                hlm_freq_day * currentPatch%area
+      ! Update diagnostics that track resource management
+      currentSite%resources_management%delta_litter_stock  = &
+           currentSite%resources_management%delta_litter_stock + &
+           (leaf_c + fnrt_c + store_c ) * &
+           (dead_n_ilogging+dead_n_dlogging) * & 
+           hlm_freq_day * currentPatch%area
+      
+      ! Update diagnostics that track resource management
+      currentSite%resources_management%delta_biomass_stock = &
+           currentSite%resources_management%delta_biomass_stock + &
+           (leaf_c + fnrt_c + store_c ) * & 
+           (dead_n_ilogging+dead_n_dlogging) * & 
+           hlm_freq_day * currentPatch%area
+      
+      if( hlm_use_planthydro == itrue ) then
+         !call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_n)
+         call AccumulateMortalityWaterStorage(currentSite,currentCohort,&
+              -1.0_r8 * currentCohort%dndt * hlm_freq_day)
+      end if
+      
 
-          ! Update diagnostics that track resource management
-          currentSite%resources_management%delta_biomass_stock = &
-                currentSite%resources_management%delta_biomass_stock + &
-                (leaf_c + fnrt_c + store_c ) * & 
-                (dead_n_ilogging+dead_n_dlogging) * & 
-                hlm_freq_day * currentPatch%area
-
-          if( hlm_use_planthydro == itrue ) then
-             !call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_n)
-             call AccumulateMortalityWaterStorage(currentSite,currentCohort,&
-                                                  -1.0_r8 * currentCohort%dndt * hlm_freq_day)
-          end if
-          
-
-          do c = 1,ncwd
+      do c = 1,ncwd
              
-             currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + (struct_c + sapw_c) * & 
-                   SF_val_CWD_frac(c) * dead_n * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
-
-             ! Send AGB component of boles from non direct-logging activities to AGB litter pool
-             if (c==ncwd) then
+         currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + (struct_c + sapw_c) * & 
+              SF_val_CWD_frac(c) * dead_n * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+         
+         ! Send AGB component of boles from non direct-logging activities to AGB litter pool
+         if (c==ncwd) then
+            
+            ! CWD contributed by indirect damage
+            currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (struct_c + sapw_c) * & 
+                 SF_val_CWD_frac(c) * (dead_n_natural+ dead_n_ilogging) * &
+                 EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+            
+            ! CWD contributed by logged boles due to losses in transportation
+            currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + &
+                 (1.0_r8 - logging_export_frac) * (struct_c + sapw_c) * SF_val_CWD_frac(c) * &
+                 dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+            
+            ! Send AGB component of boles from direct-logging activities to
+            ! export/harvest pool
+            ! Generate trunk product (kgC/day/site)
+            trunk_product =  logging_export_frac * (struct_c + sapw_c) * &
+                 SF_val_CWD_frac(c) * dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                 hlm_freq_day * currentPatch%area
+            
+            currentSite%flux_out = currentSite%flux_out + trunk_product
+            
+            ! Update diagnostics that track resource management
+            currentSite%resources_management%trunk_product_site  = &
+                 currentSite%resources_management%trunk_product_site + &
+                 trunk_product
                 
-                currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (struct_c + sapw_c) * & 
-                     SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
-                     EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
-                
-             else
+         else
+            
+            currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (struct_c + sapw_c) * & 
+                 SF_val_CWD_frac(c) * dead_n  * &
+                 EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
 
-                currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (struct_c + sapw_c) * & 
-                     SF_val_CWD_frac(c) * dead_n  * &
-                     EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+         end if
 
-                ! Send AGB component of boles from direct-logging activities to export/harvest pool
-                ! Generate trunk product (kgC/day/site)
-                trunk_product =  (struct_c + sapw_c) * &
-                      SF_val_CWD_frac(c) * dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                      hlm_freq_day * currentPatch%area
-                
-                currentSite%flux_out = currentSite%flux_out + trunk_product
-
-                ! Update diagnostics that track resource management
-                currentSite%resources_management%trunk_product_site  = &
-                      currentSite%resources_management%trunk_product_site + &
-                      trunk_product
-                ! Update diagnostics that track resource management
-                currentSite%resources_management%trunk_product_site  = &
-                      currentSite%resources_management%trunk_product_site + &
-                      trunk_product
-             end if
-
-             ! Update diagnostics that track resource management
-             currentSite%resources_management%delta_litter_stock  = &
-                   currentSite%resources_management%delta_litter_stock + &
-                   (struct_c + sapw_c) * &
-                   SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * & 
-                   hlm_freq_day * currentPatch%area
-             ! Update diagnostics that track resource management
-             currentSite%resources_management%delta_biomass_stock = &
-                   currentSite%resources_management%delta_biomass_stock + &
-                   (struct_c + sapw_c) * &
-                   SF_val_CWD_frac(c) * dead_n * & 
-                   hlm_freq_day * currentPatch%area
-             
-             if (currentPatch%cwd_AG_in(c) < 0.0_r8)then
-                write(fates_log(),*) 'negative CWD in flux',currentPatch%cwd_AG_in(c), &
-                      (struct_c + sapw_c), dead_n
-             endif
-
-          end do
-          ! Update diagnostics that track resource management
-          currentSite%resources_management%delta_individual    = &
-                currentSite%resources_management%delta_individual + &
-                (dead_n_dlogging+dead_n_ilogging) * hlm_freq_day * currentPatch%area
-          
-       !endif !canopy layer
+         ! Update diagnostics that track resource management
+         currentSite%resources_management%delta_litter_stock  = &
+              currentSite%resources_management%delta_litter_stock + &
+              (struct_c + sapw_c) * &
+              SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * & 
+              hlm_freq_day * currentPatch%area
+         
+         ! Update diagnostics that track resource management
+         currentSite%resources_management%delta_biomass_stock = &
+              currentSite%resources_management%delta_biomass_stock + &
+              (struct_c + sapw_c) * &
+              SF_val_CWD_frac(c) * dead_n * & 
+              hlm_freq_day * currentPatch%area
+         
+         if (currentPatch%cwd_AG_in(c) < 0.0_r8)then
+            write(fates_log(),*) 'negative CWD in flux',currentPatch%cwd_AG_in(c), &
+                 (struct_c + sapw_c), dead_n, dead_n_natural, dead_n_ilogging, dead_n_dlogging
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         endif
+         
+      end do
+      ! Update diagnostics that track resource management
+      currentSite%resources_management%delta_individual    = &
+           currentSite%resources_management%delta_individual + &
+           (dead_n_dlogging+dead_n_ilogging) * hlm_freq_day * currentPatch%area
+      
        
-       currentCohort => currentCohort%taller
+      currentCohort => currentCohort%taller
     enddo  ! end loop over cohorts 
 
     do p = 1,numpft
@@ -1482,9 +1499,9 @@ contains
     
     do c = 1,ncwd  
        currentPatch%cwd_ag_out(c)      = max(0.0_r8,   currentPatch%cwd_ag(c) * &
-            SF_val_max_decomp(c+1) * currentPatch%fragmentation_scaler )  
+            SF_val_max_decomp(c) * currentPatch%fragmentation_scaler )  
        currentPatch%cwd_bg_out(c)      = max(0.0_r8,   currentPatch%cwd_bg(c) * &
-            SF_val_max_decomp(c+1) * currentPatch%fragmentation_scaler )
+            SF_val_max_decomp(c) * currentPatch%fragmentation_scaler )
     enddo
 
     ! this is the rate at which dropped leaves stop being part of the burnable pool and begin to be part of the 

@@ -179,6 +179,7 @@ contains
     
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
+
     hydr_psi0                             = nan
     hydr_psicap                           = nan
     
@@ -191,10 +192,8 @@ contains
     logging_event_code                    = nan
     logging_dbhmax_infra                  = nan
     logging_export_frac                   = nan
-
     q10_mr                                = nan
     q10_froz                              = nan
-
 
   end subroutine FatesParamsInit
 
@@ -331,6 +330,9 @@ contains
          dimension_names=dim_names_scalar)
 
 
+!    call fates_params%RegisterParameter(name=logging_export_frac, dimension_shape=dimension_shape_1d, &
+!         dimension_names=dim_names)
+
     ! non-scalar parameters
     call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_sizeclass)
@@ -463,7 +465,6 @@ contains
     
     call fates_params%RetreiveParameter(name=fates_name_q10_froz, &
           data=q10_froz)
-
 
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
