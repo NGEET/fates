@@ -1070,11 +1070,9 @@ data:
 
  fates_fire_FBD = 15.4, 16.8, 19.6, 999, 4, 4 ;
 
- fates_fire_low_moisture_Coeff = 1.12, 1.09, 0.98, 0.8, 1.15, 1.15;
+ fates_fire_low_moisture_Coeff = 1.12, 1.09, 0.98, 0.8, 1.15, 1.15 ;
 
- fates_fire_low_moisture_Slope = 0.62, 0.72, 0.85, 0.8, 0.62, 0.62;
-
- fates_max_decomp = 0.52, 0.383, 0.383, 0.19, 1, 999 ;
+ fates_fire_low_moisture_Slope = 0.62, 0.72, 0.85, 0.8, 0.62, 0.62 ;
 
  fates_fire_mid_moisture = 0.72, 0.51, 0.38, 1, 0.8, 0.8 ;
 
@@ -1084,7 +1082,9 @@ data:
 
  fates_fire_min_moisture = 0.18, 0.12, 0, 0, 0.24, 0.24 ;
 
- fates_fire_SAV = 13, 3.58, 0.98, 0.2, 66, 66;
+ fates_fire_SAV = 13, 3.58, 0.98, 0.2, 66, 66 ;
+
+ fates_max_decomp = 0.52, 0.383, 0.383, 0.19, 1, 999 ;
 
  fates_CWD_frac = 0.045, 0.075, 0.21, 0.67 ;
 
