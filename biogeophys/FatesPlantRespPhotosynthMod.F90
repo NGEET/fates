@@ -1,3 +1,4 @@
+
 module FATESPlantRespPhotosynthMod
    
    !-------------------------------------------------------------------------------------
@@ -44,6 +45,7 @@ module FATESPlantRespPhotosynthMod
    use PRTGenericMod,     only : store_organ
    use PRTGenericMod,     only : repro_organ
    use PRTGenericMod,     only : struct_organ
+   use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
 
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -58,7 +60,7 @@ module FATESPlantRespPhotosynthMod
    !-------------------------------------------------------------------------------------
    
    ! maximum stomatal resistance [s/m] (used across several procedures)
-   real(r8),parameter :: rsmax0 =  2.e4_r8                    
+   real(r8),parameter :: rsmax0 =  2.e8_r8                    
    
    logical   ::  debug = .false.
 
@@ -95,7 +97,7 @@ contains
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
-    use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
+    
     use FatesAllometryMod, only : bleaf
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
@@ -393,10 +395,10 @@ contains
                                  (hlm_use_planthydro.eq.itrue) .or. &
                                  (nleafage > 1) .or. &
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
-                              
-                              if (hlm_use_planthydro.eq.itrue ) then
-
-                                 bbb       = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
+                               
+                               if (hlm_use_planthydro.eq.itrue ) then
+                                   
+                                 bbb = max( cf/rsmax0, bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1) ) 
                                  btran_eff = currentCohort%co_hydr%btran(1) 
                                  
                                  ! dinc_ed is the total vegetation area index of each "leaf" layer
@@ -413,7 +415,7 @@ contains
 
                               else
                                  
-                                 bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
+                                 bbb = max( cf/rsmax0, bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft) ) 
                                  btran_eff = currentPatch%btran_ft(ft)
                                  ! For consistency sake, we use total LAI here, and not exposed
                                  ! if the plant is under-snow, it will be effectively dormant for 
@@ -831,7 +833,7 @@ contains
                                      psn_out,           &  ! out
                                      rstoma_out,        &  ! out
                                      anet_av_out,       &  ! out
-				     c13disc_z)            ! out
+                                     c13disc_z)            ! out
 
     ! ------------------------------------------------------------------------------------
     ! This subroutine calculates photosynthesis and stomatal conductance within each leaf 
@@ -843,6 +845,7 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use EDPftvarcon       , only : EDPftvarcon_inst
+
     
     ! Arguments
     ! ------------------------------------------------------------------------------------
@@ -916,10 +919,19 @@ contains
    real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
    real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
+
+   real(r8), dimension(0:1) :: bbbopt ! Cuticular conductance at full water potential (umol H2O /m2/s)
+
+
+
    ! Parameters
    ! ------------------------------------------------------------------------
    ! Fraction of light absorbed by non-photosynthetic pigments
    real(r8),parameter :: fnps = 0.15_r8       
+
+   ! For plants with no leaves, a miniscule amount of conductance
+   ! can happen through the stems, at a partial rate of cuticular conductance
+   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
 
    ! empirical curvature parameter for electron transport rate
    real(r8),parameter :: theta_psii = 0.7_r8   
@@ -939,12 +951,16 @@ contains
 
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
-
+   
    associate( bb_slope  => EDPftvarcon_inst%BB_slope)    ! slope of BB relationship
+   
 
      ! photosynthetic pathway: 0. = c4, 1. = c3
      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
      
+     bbbopt(0) = ED_val_bbopt_c4
+     bbbopt(1) = ED_val_bbopt_c3
+
      if (c3c4_path_index == 1) then
         init_co2_inter_c = init_a2l_co2_c3 * can_co2_ppress
      else
@@ -955,22 +971,22 @@ contains
      ! ----------------------------------------------------------------------------------
      
      if ( parsun_lsl <= 0._r8 ) then  ! night time
-
+         
         anet_av_out = -lmr
         psn_out     = 0._r8
-        rstoma_out  = min(rsmax0, 1._r8/bbb * cf)
-	c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
+
+        ! The cuticular conductance already factored in maximum resistance as a bound
+        ! no need to re-bound it
+
+        rstoma_out = cf/bbb
+        
+        c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
         
      else ! day time (a little bit more complicated ...)
         
-!        if ( debug ) write(fates_log(),*) 'EDphot 594 ',laisun_lsl
-!        if ( debug ) write(fates_log(),*) 'EDphot 595 ',laisha_lsl
+         !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
+         if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
 
-        !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
-        if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
-
-!           if ( debug ) write(fates_log(),*) '600 in laisun, laisha loop '
-           
            !Loop aroun shaded and unshaded leaves          
            psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves. 
            rstoma_out  = 0._r8    ! 1/rs is accumulated across sun and shaded leaves. 
@@ -1120,19 +1136,16 @@ contains
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
 	      
-	      ! estimate carbon 13 discrimination in leaf level carbon flux Liang WEI and Hang ZHOU 2018, based on
+              ! estimate carbon 13 discrimination in leaf level carbon 
+              ! flux Liang WEI and Hang ZHOU 2018, based on
               ! Ubierna and Farquhar, 2014 doi:10.1111/pce.12346, using the simplified model:
               ! $\Delta ^{13} C = \alpha_s + (b - \alpha_s) \cdot \frac{C_i}{C_a}$
               ! just hard code b and \alpha_s for now, might move to parameter set in future
               ! b = 27.0 alpha_s = 4.4
               ! TODO, not considering C4 or CAM right now, may need to address this
-	      ! note co2_inter_c is intracelluar CO2, not intercelluar 
-              c13disc_z = 4.4_r8 + (27.0_r8 - 4.4_r8) * min (can_co2_ppress, max (co2_inter_c, 0._r8)) / can_co2_ppress 
-
-	                    
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 737 ', psn_out
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 738 ', agross
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 739 ', f_sun_lsl
+              ! note co2_inter_c is intracelluar CO2, not intercelluar 
+              c13disc_z = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
+                    min (can_co2_ppress, max (co2_inter_c, 0._r8)) / can_co2_ppress 
 
               ! Accumulate total photosynthesis umol/m2 ground/s-1. 
               ! weight per unit sun and sha leaves.
@@ -1146,10 +1159,6 @@ contains
                  gstoma  = gstoma + &
                        1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-f_sun_lsl) 
               end if
-
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 758 ', psn_out
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 759 ', agross
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 760 ', f_sun_lsl
               
               ! Make sure iterative solution is correct
               if (gs_mol < 0._r8) then
@@ -1171,19 +1180,25 @@ contains
 
            ! This is the stomatal resistance of the leaf layer
            rstoma_out = 1._r8/gstoma
-           
+	   
         else
-           !No leaf area. This layer is present only because of stems. 
-           ! (leaves are off, or have reduced to 0)
-           psn_out = 0._r8
-           rstoma_out = min(rsmax0, 1._r8/bbb * cf)
 
-	   c13disc_z = 0.0_r8
+           ! No leaf area. This layer is present only because of stems. 
+           ! Net assimilation is zero, not negative because there are 
+           ! no leaves to even respire
+           ! (leaves are off, or have reduced to 0)
+
+           psn_out     = 0._r8
+           anet_av_out = 0._r8
+           rstoma_out  = min(rsmax0, cf/(stem_cuticle_loss_frac*bbbopt(c3c4_path_index)))
+           c13disc_z = 0.0_r8
            
-        end if !is there leaf area? 
+       end if !is there leaf area? 
         
         
      end if    ! night or day 
+     
+
    end associate
    return
   end subroutine LeafLayerPhotosynthesis
