@@ -49,8 +49,9 @@ module EDPhysiologyMod
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
-  use EDLoggingMortalityMod , only : logging_export_frac
-  !use EDParamsMod           , only : logging_export_frac
+  use EDParamsMod           , only : q10_mr
+  use EDParamsMod           , only : q10_froz
+  use EDParamsMod           , only : logging_export_frac
 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   
@@ -986,12 +987,12 @@ contains
 
     do p = 1,numpft
        currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
-                 EDPftvarcon_inst%seed_rain(p) !KgC/m2/year
+                 EDPftvarcon_inst%seed_suppl(p) !KgC/m2/year
        currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + &
-                 EDPftvarcon_inst%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
+                 EDPftvarcon_inst%seed_suppl(p) * currentPatch%area/AREA !KgC/m2/year
 
        currentSite%flux_in = currentSite%flux_in + &
-             EDPftvarcon_inst%seed_rain(p) * currentPatch%area * hlm_freq_day
+             EDPftvarcon_inst%seed_suppl(p) * currentPatch%area * hlm_freq_day
 
     enddo
 
@@ -1430,28 +1431,21 @@ contains
     real(r8) :: catanf                ! hyperbolic temperature function from CENTURY
     real(r8) :: catanf_30             ! hyperbolic temperature function from CENTURY
     real(r8) :: t1                    ! temperature argument
-    real(r8) :: Q10                   ! temperature dependence
-    real(r8) :: froz_q10              ! separate q10 for frozen soil respiration rates.
-                                      ! default to same as above zero rates
     !----------------------------------------------------------------------
 
     catanf(t1) = 11.75_r8 +(29.7_r8 / pi) * atan( pi * 0.031_r8  * ( t1 - 15.4_r8 ))
     catanf_30 = catanf(30._r8)
     
     ifp = currentPatch%patchno 
-    
-    ! set "froz_q10" parameter
-    froz_q10  = FatesSynchronizedParamsInst%froz_q10  
-    Q10       = FatesSynchronizedParamsInst%Q10
 
     if ( .not. use_century_tfunc ) then
     !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
     !are assigned for non-moisture limiting conditions at 25C. 
       if (bc_in%t_veg24_pa(ifp)  >=  tfrz) then
-        t_scalar = Q10**((bc_in%t_veg24_pa(ifp)-(tfrz+25._r8))/10._r8)
+        t_scalar = q10_mr**((bc_in%t_veg24_pa(ifp)-(tfrz+25._r8))/10._r8)
                  !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
       else
-        t_scalar = (Q10**(-25._r8/10._r8))*(froz_q10**((bc_in%t_veg24_pa(ifp)-tfrz)/10._r8))
+        t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((bc_in%t_veg24_pa(ifp)-tfrz)/10._r8))
                   !Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-tfrz)/10._r8)
       endif
     else

@@ -41,8 +41,8 @@ module FatesPlantHydraulicsMod
    use FatesConstantsMod, only : g_per_kg
 
    use EDParamsMod       , only : hydr_kmax_rsurf1
-   !   use EDParamsMod       , only : hydr_kmax_rsurf2
-   
+   use EDParamsMod       , only : hydr_kmax_rsurf2
+
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_patch_type
    use EDTypesMod        , only : ed_cohort_type
@@ -885,10 +885,6 @@ contains
       real(r8) :: kmax_soil_total                    ! maximum conducitivity for from root surface to soil shell(kg water/Mpa/s) 
                                                      ! which is equiv to   [kg m-1 s-1 MPa-1]    
       real(r8) :: kmax_root_surf                     ! maximum conducitivity for unit root surface (kg water/m2 root area/Mpa/s) 
-
-      ! (RGK 4-2019) THE FOLLOWING SHOULD BE ADDED TO THE PARAMETER FILE IN NEXT GROUPING
-      real(r8), parameter :: hydr_kmax_rsurf2 = 0.0001_r8  ! kg water/m2 root area/Mpa/s
-
 
       ccohort_hydr => ccohort%co_hydr
       csite_hydr => currentSite%si_hydr
@@ -1743,7 +1739,7 @@ contains
        enddo !cohort
        cPatch => cPatch%older
     enddo !patch
-   
+
     csite_hydr%l_aroot_1D = sum( csite_hydr%l_aroot_layer(:))
     
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)

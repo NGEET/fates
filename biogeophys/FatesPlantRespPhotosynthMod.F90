@@ -35,6 +35,7 @@ module FATESPlantRespPhotosynthMod
    use EDTypesMod,        only : nclmax
    use EDTypesMod,        only : max_nleafage
    use EDTypesMod,        only : do_fates_salinity 
+   use EDParamsMod,       only : q10_mr
    use PRTGenericMod,     only : prt_carbon_allom_hyp
    use PRTGenericMod,     only : prt_cnp_flex_allom_hyp 
    use PRTGenericMod,     only : all_carbon_elements
@@ -246,8 +247,8 @@ contains
          c3psn     => EDPftvarcon_inst%c3psn  , &
          slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
                                                   ! projected area basis [m^2/gC]
-         woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
-         q10       => FatesSynchronizedParamsInst%Q10 )
+         woody     => EDPftvarcon_inst%woody)     ! Is vegetation woody or not? 
+
 
       bbbopt(0) = ED_val_bbopt_c4
       bbbopt(1) = ED_val_bbopt_c3
@@ -640,7 +641,7 @@ contains
                      ! Live stem MR (kgC/plant/s) (above ground sapwood)
                      ! ------------------------------------------------------------------
                      if (woody(ft) == 1) then
-                        tcwood = q10**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
+                        tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
                         ! kgC/s = kgN * kgC/kgN/s
                         currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood * maintresp_reduction_factor
                      else
@@ -652,7 +653,7 @@ contains
                      ! ------------------------------------------------------------------
                      currentCohort%froot_mr = 0._r8
                      do j = 1,bc_in(s)%nlevsoil
-                        tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
+                        tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
                               fnrt_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
                      enddo
@@ -663,7 +664,7 @@ contains
                         currentCohort%livecroot_mr = 0._r8
                         do j = 1,bc_in(s)%nlevsoil
                            ! Soil temperature used to adjust base rate of MR
-                           tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
+                           tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
                                  live_croot_n * ED_val_base_mr_20 * tcsoi * &
                                  currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
