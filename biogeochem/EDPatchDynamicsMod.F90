@@ -11,6 +11,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : area_site => area
   use FatesLitterMod       , only : ncwd
   use FatesLitterMod       , only : litter_type
+  use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : maxPatchesPerSite
@@ -175,11 +176,6 @@ contains
        do while(associated(currentCohort))        
           ! Mortality for trees in the understorey.
           currentCohort%patchptr => currentPatch
-
-          if(currentCohort%isnew) then
-              write(fates_log(),*) 'new cohorts should not exist during disturbance rate calculations'
-              write(fates_log(),*) 'cohort%isnew: ',currentCohort%isnew
-          end if
 
           call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
           currentCohort%dmort  = cmort+hmort+bmort+frmort
@@ -447,6 +443,11 @@ contains
              site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate          
           endif
           
+          ! We go ahead and modify the area immediately, this is important be cause we will be performing
+          ! patch by patch mass-balance checks. These checks will do site level mass sums, therefore
+          ! the areas must be adjusted already
+!          currentPatch%area = currentPatch%area - currentPatch%disturbance_rate
+
        end if
 
        currentPatch => currentPatch%older     
@@ -968,13 +969,13 @@ contains
              ! Mass conservation check (carbon only, expand as necessary upon failing
              ! checks in EDMainMod
              ! --------------------------------------------------------------------------
-             if(debug) then
+             if(.false.) then
                  c12_el = element_pos(carbon12_element)
                  wood_product1 = currentSite%mass_balance(c12_el)%wood_product
                  burn_flux1    = currentSite%mass_balance(c12_el)%burn_flux_to_atm
                  call SiteMassStock(currentSite,c12_el,total_stock1,biomass_stock1,litter_stock1,seed_stock1)
                  error = (total_stock1 - total_stock0) + (burn_flux1-burn_flux0) + (wood_product1-wood_product0)
-                 if(abs(error)>1.e-8_r8) then
+                 if(abs(error)>1.e-7_r8) then
                      write(fates_log(),*) 'non trivial carbon mass balance error on patch disturbance'
                      write(fates_log(),*) 'abs error: ',error
                      write(fates_log(),*) 'disturb mode: ',currentPatch%disturbance_mode
@@ -1664,7 +1665,8 @@ contains
     integer  :: sl                   ! soil layer index
     integer  :: element_id           ! parteh compatible global element index
     real(r8) :: litter_stock0,litter_stock1,litter_stock2,litter_stock3
-    real(r8) :: mort_flux
+    real(r8) :: mort_flux            ! For error tracking
+    real(r8) :: seed_flux            ! For error tracking
     real(r8) :: error
     !---------------------------------------------------------------------
 
@@ -1703,6 +1705,7 @@ contains
 
        if (debug) then
           mort_flux     = 0._r8
+          seed_flux     = 0._r8
           litter_stock0 = curr_litt%GetTotalLitterMass()*remainder_area
           litter_stock1 = new_litt%GetTotalLitterMass()*newPatch%area
        end if
@@ -1807,10 +1810,13 @@ contains
           ! upon death, to the seed-pool. This is was designed for grasses,
           ! but it is possible that some trees may utilize this behavior too
 
-          seed_mass =  num_dead * store_m * EDPftvarcon_inst%allom_frbstor_repro(pft)
+          seed_mass = num_dead * store_m * EDPftvarcon_inst%allom_frbstor_repro(pft)
+          seed_flux = seed_flux + seed_mass
+          call DistributeSeeds(currentSite,seed_mass,el,pft)
 
-          new_litt%seed(pft) = new_litt%seed(pft) + seed_mass * donate_m2
-          curr_litt%seed(pft) = curr_litt%seed(pft) + seed_mass * retain_m2
+
+          !new_litt%seed(pft) = new_litt%seed(pft) + seed_mass * donate_m2
+          !curr_litt%seed(pft) = curr_litt%seed(pft) + seed_mass * retain_m2
           
           ! track diagnostic fluxes
           do c=1,ncwd
@@ -1835,19 +1841,21 @@ contains
        ! --------------------------------------------------------------------------
        ! Mass conservation check, set debug=.true. if mass imbalances in 
        ! EDMainMod start triggering.
+       ! DISABLING BECAUSE OF SEED MIXING TERM. RE-INTRODUCE IF SITE LEVEL
+       ! CHECK DURING DISTURBANCE FAILS
        ! --------------------------------------------------------------------------
-       if (debug) then
-          litter_stock2 = curr_litt%GetTotalLitterMass()*remainder_area
-          litter_stock3 = new_litt%GetTotalLitterMass()*newPatch%area
-          error = ((litter_stock2+litter_stock3) - (litter_stock1+litter_stock0)) - mort_flux
-          if(abs(error)>1.e-8_r8) then
-             write(fates_log(),*) 'non trivial carbon mass balance error in mortality litter fluxes'
-             write(fates_log(),*) 'abs error: ',error,litter_stock2-litter_stock0,litter_stock3-litter_stock1,mort_flux
-             write(fates_log(),*) litter_stock0,litter_stock1,litter_stock2,litter_stock3
-             write(fates_log(),*) retain_frac,donate_frac,donate_m2,retain_m2,newPatch%area
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-       end if
+!       if (debug) then
+!          litter_stock2 = curr_litt%GetTotalLitterMass()*remainder_area
+!          litter_stock3 = new_litt%GetTotalLitterMass()*newPatch%area
+!          error = ((litter_stock2+litter_stock3) - (litter_stock1+litter_stock0)) - (mort_flux - seed_flux)
+!          if(abs(error)>1.e-8_r8) then
+!             write(fates_log(),*) 'non trivial carbon mass balance error in mortality litter fluxes'
+!             write(fates_log(),*) 'abs error: ',error,litter_stock2-litter_stock0,litter_stock3-litter_stock1,mort_flux
+!             write(fates_log(),*) litter_stock0,litter_stock1,litter_stock2,litter_stock3
+!             write(fates_log(),*) retain_frac,donate_frac,donate_m2,retain_m2,newPatch%area
+!             call endrun(msg=errMsg(sourcefile, __LINE__))
+!          end if
+!       end if
    
     enddo
 
@@ -2547,6 +2555,40 @@ contains
 
     return
   end subroutine terminate_patches
+
+  ! =====================================================================================
+
+  subroutine DistributeSeeds(currentSite,seed_mass,el,pft)
+      
+      ! !ARGUMENTS:
+      type(ed_site_type), target, intent(inout) :: currentSite  !
+      real(r8), intent(in)                      :: seed_mass    ! mass of seed input [kg]
+      integer, intent(in)                       :: el           ! element index
+      integer, intent(in)                       :: pft          ! pft index
+
+
+      ! !LOCAL VARIABLES:
+      type(ed_patch_type), pointer              :: currentPatch
+      type(litter_type), pointer                :: litt
+
+      
+      currentPatch => currentSite%oldest_patch
+      do while(associated(currentPatch)) 
+          litt => currentPatch%litter(el)
+          
+          if(homogenize_seed_pfts) then
+              litt%seed(:) = litt%seed(:) + seed_mass/(AREA*real(numpft,r8))
+          else
+              litt%seed(pft) = litt%seed(pft) + seed_mass/AREA
+          end if
+          
+          currentPatch => currentPatch%younger
+      end do
+          
+
+      return
+  end subroutine DistributeSeeds
+
 
   ! =====================================================================================
 

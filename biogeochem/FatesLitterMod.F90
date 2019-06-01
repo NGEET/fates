@@ -41,6 +41,8 @@ module FatesLitterMod
 
    integer, public,  parameter :: ncwd  = 4   ! number of coarse woody debris pools 
                                               ! (twig,s branch,l branch, trunk)
+
+
    type, public ::  litter_type
 
       

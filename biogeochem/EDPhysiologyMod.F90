@@ -1030,6 +1030,11 @@ contains
     ! Flux from plants into the seed pool. 
     ! It is assumed that allocation to seed on living pools has already been calculated
     ! at the daily time step.
+    ! Note: Some seed generation can occur during disturbance. It is assumed that
+    !       some plants use their storage upon death to create seeds, but this in only
+    !       triggered during non-fire and non-logging events.  See 
+    !       subroutine mortality_litter_fluxes() and DistributeSeeds(), look for 
+    !       parameter allom_frbstor_repro
     ! -----------------------------------------------------------------------------------
 
 

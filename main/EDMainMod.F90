@@ -645,7 +645,7 @@ contains
           error_frac      = 0.0_r8
        end if
 
-       if ( error_frac > 10e-6_r8 ) then
+       if ( error > 10e-6_r8 ) then
           write(fates_log(),*) 'mass balance error detected'
           write(fates_log(),*) 'element type (see PRTGenericMod.F90): ',element_list(el)
           write(fates_log(),*) 'error fraction relative to biomass stock: ',error_frac
