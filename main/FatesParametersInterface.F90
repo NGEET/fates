@@ -20,7 +20,6 @@ module FatesParametersInterface
 
   ! Dimensions in the fates namespace:
   character(len=*), parameter, public :: dimension_name_scalar = ''
-  character(len=*), parameter, public :: dimension_name_scalar1d = 'fates_scalar'
   character(len=*), parameter, public :: dimension_name_pft = 'fates_pft'
   character(len=*), parameter, public :: dimension_name_segment = 'fates_segment'
   character(len=*), parameter, public :: dimension_name_cwd = 'fates_NCWD'

@@ -191,7 +191,7 @@ contains
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
                 lmort_direct,lmort_collateral,lmort_infra,l_degrad )
          
-          currentCohort%lmort_direct    = lmort_direct
+          currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
           currentCohort%lmort_infra      = lmort_infra
           currentCohort%l_degrad         = l_degrad
@@ -226,7 +226,7 @@ contains
 
              ! Logging Disturbance Rate
              currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
-                   min(1.0_r8, currentCohort%lmort_direct +                         & 
+                   min(1.0_r8, currentCohort%lmort_direct +                          & 
                                currentCohort%lmort_collateral +                      &
                                currentCohort%lmort_infra +                           &
                                currentCohort%l_degrad ) *                            &
@@ -266,7 +266,7 @@ contains
        ! to still diagnose and track the non-disturbance rate
        ! ------------------------------------------------------------------------------------------
        
-       
+       ! DISTURBANCE IS LOGGING
        if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
              currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) ) then 
           
@@ -286,7 +286,7 @@ contains
              currentCohort => currentCohort%taller
           enddo !currentCohort
           
-          ! DISTURBANCE IS FIRE
+       ! DISTURBANCE IS FIRE
        elseif (currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ifall) .and. &
              currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ilog) ) then  
 
@@ -317,7 +317,7 @@ contains
              currentCohort => currentCohort%taller
           enddo !currentCohort
 
-       else  ! If fire and loggin are not greater than treefall, just set disturbance rate to tree-fall
+       else  ! If fire and logging are not greater than treefall, just set disturbance rate to tree-fall
              ! which is most likely a 0.0
 
           currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ifall)
@@ -812,7 +812,6 @@ contains
                        call endrun(msg=errMsg(sourcefile, __LINE__))
                    end if
 
-                   
                ! Logging is the dominant disturbance  
                elseif (currentPatch%disturbance_mode .eq. dtype_ilog ) then
                    
@@ -885,7 +884,7 @@ contains
                          ! LOGGING SURVIVORSHIP OF UNDERSTORY PLANTS IS SET AS A NEW PARAMETER 
                          ! in the fatesparameter files 
                          nc%n = nc%n * (1.0_r8 - &
-                               currentPatch%fract_ldist_not_harvested * logging_coll_under_frac)
+                              (1.0_r8-currentPatch%fract_ldist_not_harvested) * logging_coll_under_frac)
                          
                          ! Step 3: Reduce the number count of cohorts in the 
                          !         original/donor/non-disturbed patch to reflect the area change
@@ -1284,10 +1283,10 @@ contains
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               (1._r8 - currentPatch%burnt_frac_litter(c+1))
+                               (1._r8 - currentPatch%burnt_frac_litter(c))
 
           burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               currentPatch%burnt_frac_litter(c+1)
+                               currentPatch%burnt_frac_litter(c)
  
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
@@ -1586,7 +1585,6 @@ contains
                      flux_diags%cwd_ag_input(c) + donatable_mass
             enddo
              
-       
             ! -----------------------------------------------------------------------------
             ! PART 2) Burn parts of trees that did *not* die in the fire.
             !         currently we only remove leaves. branch and associated 
@@ -1599,10 +1597,10 @@ contains
             num_live_trees = (1.0_r8-currentCohort%fire_mort) * &
                   currentCohort%n * patch_site_areadis / currentPatch%area
             
-            if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+            if(EDPftvarcon_inst%woody(currentCohort%pft) == itrue)then
                 burned_leaves = leaf_m * currentCohort%fraction_crown_burned
             else
-                burned_leaves = leaf_m * currentPatch%burnt_frac_litter(6)
+                burned_leaves = leaf_m * currentPatch%burnt_frac_litter(lg_sf)
             endif
             
             burned_mass = burned_leaves * num_live_trees

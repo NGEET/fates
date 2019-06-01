@@ -59,6 +59,9 @@ module EDPhysiologyMod
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
+  use EDParamsMod           , only : q10_mr
+  use EDParamsMod           , only : q10_froz
+  use EDParamsMod           , only : logging_export_frac
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   
   use FatesConstantsMod     , only : itrue,ifalse
@@ -1148,12 +1151,12 @@ contains
 
           litt => currentPatch%litter(el)
           do pft = 1,numpft
-
+             
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
              
              ! Seed input from external sources (user param seed rain, or dispersal model)
-             seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_rain(pft)*years_per_day
+             seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day
              
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
@@ -1679,7 +1682,6 @@ contains
          flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
                bg_cwd_tot*currentPatch%area
          
-
       enddo
 
 
@@ -1689,15 +1691,28 @@ contains
 
       ! Total number of dead (n/m2/day)
       dead_n = -1.0_r8 * currentCohort%dndt/currentPatch%area*years_per_day
-      
-      ! Total number of dead understory from direct logging (n/m2/day)
-      ! (it is possible that large harvestable trees are in the understory)
-      dead_n_dlogging = currentCohort%lmort_direct*currentCohort%n/currentPatch%area
-          
-      ! Total number of dead understory from indirect logging
-      dead_n_ilogging = ( currentCohort%lmort_collateral + currentCohort%lmort_infra) * &
-           currentCohort%n/currentPatch%area
-          
+
+      if(currentCohort%canopy_layer > 1)then   
+
+         ! Total number of dead understory from direct logging
+         ! (it is possible that large harvestable trees are in the understory)
+         dead_n_dlogging = currentCohort%lmort_direct * &
+              currentCohort%n/currentPatch%area
+
+         ! Total number of dead understory from indirect logging
+         dead_n_ilogging = (currentCohort%lmort_collateral + currentCohort%lmort_infra) * &
+              currentCohort%n/currentPatch%area
+
+      else
+
+         ! All mortality from logging in the canopy is
+         ! is disturbance generating
+
+         dead_n_dlogging = 0._r8
+         dead_n_ilogging = 0._r8
+
+      end if
+
       dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
 
      
@@ -1723,8 +1738,6 @@ contains
       flux_diags%root_litter_input(pft) = &
             flux_diags%root_litter_input(pft) +  &
             root_fines_tot*currentPatch%area
-
-
 
       ! Track CWD inputs from mortal plants
       
@@ -1752,19 +1765,33 @@ contains
 
          if (c==ncwd) then
             
+            ! Send AGB component of boles from direct-logging activities to 
+            ! export/harvest pool.  Generate trunk product (kg/day/m2)
+
+            trunk_wood =  (struct_m + sapw_m) * &
+                 SF_val_CWD_frac(c) * dead_n_dlogging * &
+                 EDPftvarcon_inst%allom_agb_frac(pft) 
+            
+            site_mass%wood_product = site_mass%wood_product + &
+                 trunk_wood * currentPatch%area * logging_export_frac
+
+            ! Add AG wood to litter from the non-exported fraction of wood 
+            ! from direct anthro sources
+
+            litt%ag_cwd_in(c) = litt%ag_cwd_in(c) +  &
+                 trunk_wood * (1._r8-logging_export_frac)
+
+            flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+                 trunk_wood * (1._r8-logging_export_frac) * currentPatch%area
+
+            ! Add AG wood to litter from indirect anthro sources
+
             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * & 
                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
                  EDPftvarcon_inst%allom_agb_frac(pft)
-            
-            ! Send AGB component of boles from direct-logging activities to export/harvest pool
-            ! Generate trunk product (kg/day/m2)
-            trunk_product =  (struct_m + sapw_m) * &
-                 SF_val_CWD_frac(c) * dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(pft)
-            
-            site_mass%wood_product = site_mass%wood_product + trunk_product
-            
+
             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
+                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * &
                   currentPatch%area * EDPftvarcon_inst%allom_agb_frac(pft)
 
          else
@@ -1784,8 +1811,7 @@ contains
 
       ! Update diagnostics that track resource management
 
-      if( (element_id .eq. all_carbon_elements) .or. &
-            (element_id .eq. carbon12_element) ) then
+      if( element_id .eq. carbon12_element ) then
       
          currentSite%resources_management%delta_litter_stock  = &
               currentSite%resources_management%delta_litter_stock + &
@@ -1799,7 +1825,7 @@ contains
 
          currentSite%resources_management%trunk_product_site = &
                currentSite%resources_management%trunk_product_site + &
-               trunk_product * currentPatch%area
+               trunk_wood * logging_export_frac * currentPatch%area
 
          do c = 1,ncwd
             currentSite%resources_management%delta_litter_stock  = &
@@ -1880,28 +1906,21 @@ contains
     real(r8) :: catanf                ! hyperbolic temperature function from CENTURY
     real(r8) :: catanf_30             ! hyperbolic temperature function from CENTURY
     real(r8) :: t1                    ! temperature argument
-    real(r8) :: Q10                   ! temperature dependence
-    real(r8) :: froz_q10              ! separate q10 for frozen soil respiration rates.
-                                      ! default to same as above zero rates
     !----------------------------------------------------------------------
 
     catanf(t1) = 11.75_r8 +(29.7_r8 / pi) * atan( pi * 0.031_r8  * ( t1 - 15.4_r8 ))
     catanf_30 = catanf(30._r8)
     
     ifp = currentPatch%patchno 
-    
-    ! set "froz_q10" parameter
-    froz_q10  = FatesSynchronizedParamsInst%froz_q10  
-    Q10       = FatesSynchronizedParamsInst%Q10
 
     if ( .not. use_century_tfunc ) then
     !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
     !are assigned for non-moisture limiting conditions at 25C. 
       if (bc_in%t_veg24_pa(ifp)  >=  tfrz) then
-        t_scalar = Q10**((bc_in%t_veg24_pa(ifp)-(tfrz+25._r8))/10._r8)
+        t_scalar = q10_mr**((bc_in%t_veg24_pa(ifp)-(tfrz+25._r8))/10._r8)
                  !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
       else
-        t_scalar = (Q10**(-25._r8/10._r8))*(froz_q10**((bc_in%t_veg24_pa(ifp)-tfrz)/10._r8))
+        t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((bc_in%t_veg24_pa(ifp)-tfrz)/10._r8))
                   !Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-tfrz)/10._r8)
       endif
     else
@@ -1952,12 +1971,12 @@ contains
 
     do c = 1,ncwd  
 
-       litt%ag_cwd_frag(c)   = litt%ag_cwd(c) * SF_val_max_decomp(c+1) * &
+       litt%ag_cwd_frag(c)   = litt%ag_cwd(c) * SF_val_max_decomp(c) * &
              years_per_day * fragmentation_scaler
        
        do ilyr = 1,nlev_eff_decomp
            
-           litt%bg_cwd_frag(c,ilyr) = litt%bg_cwd(c,ilyr) * SF_val_max_decomp(c+1) * &
+           litt%bg_cwd_frag(c,ilyr) = litt%bg_cwd(c,ilyr) * SF_val_max_decomp(c) * &
                 years_per_day * fragmentation_scaler
 
        enddo

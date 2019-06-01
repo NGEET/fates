@@ -48,8 +48,8 @@ module EDTypesMod
 
   integer, parameter :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
  
-  integer, parameter :: idirect   = 1           ! This is the array index for direct radiation
-  integer, parameter :: idiffuse  = 2           ! This is the array index for diffuse radiation
+  integer, parameter :: idirect   = 1             ! This is the array index for direct radiation
+  integer, parameter :: idiffuse  = 2             ! This is the array index for diffuse radiation
 
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
@@ -137,12 +137,13 @@ module EDTypesMod
 
 
   ! SPITFIRE     
-  integer , parameter :: NFSC                 = ncwd+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
+  integer , parameter :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
+  integer,  parameter :: tw_sf                = 1          ! array index of twig pool for spitfire
+  integer,  parameter :: lb_sf                = 3          ! array index of large branch pool for spitfire
+  integer,  parameter :: tr_sf                = 4          ! array index of dead trunk pool for spitfire
+  integer,  parameter :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter :: lg_sf                = 6          ! array index of live grass pool for spitfire
-  integer,  parameter :: dl_sf                = 1          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
-  integer,  parameter :: tw_sf                = 2          ! array index of twig pool for spitfire
-  integer,  parameter :: tr_sf                = 5          ! array index of dead trunk pool for spitfire
-  integer,  parameter :: lb_sf                = 4          ! array index of large branch pool for spitfire 
+
   real(r8), parameter :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
 
   ! PATCH FUSION 
@@ -328,7 +329,8 @@ module EDTypesMod
      real(r8) ::  lmort_collateral                       ! collaterally damaged rate        fraction /per logging activity
      real(r8) ::  lmort_infra                            ! mechanically damaged rate        fraction /per logging activity
      real(r8) ::  l_degrad                               ! rate of trees that are not killed but suffer from forest degradation
-                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary forest patch).  fraction /per logging activity
+                                                         ! (i.e. they are moved to newly-anthro-disturbed secondary 
+                                                         !  forest patch).  fraction /per logging activity
 
      real(r8) :: seed_prod                               ! diagnostic seed production rate [kgC/plant/day]
 

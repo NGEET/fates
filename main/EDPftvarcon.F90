@@ -35,7 +35,6 @@ module EDPftvarcon
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
 
-     real(r8), allocatable :: pft_used(:)            ! Switch to turn on and off PFTs
      real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
      real(r8), allocatable :: wood_density(:)        ! wood density  g cm^-3  ...
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
@@ -51,7 +50,7 @@ module EDPftvarcon
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model. 
      real(r8), allocatable :: initd(:)               ! initial seedling density 
-     real(r8), allocatable :: seed_rain(:)           ! seeds that come from outside the gridbox.
+     real(r8), allocatable :: seed_suppl(:)           ! seeds that come from outside the gridbox.
      real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
      
      real(r8), allocatable :: seed_alloc_mature(:)   ! fraction of carbon balance allocated to 
@@ -345,10 +344,6 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
     !X!         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_pft_used'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_seed_dbh_repro_threshold'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -389,7 +384,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_rain'
+    name = 'fates_seed_suppl'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -781,10 +776,6 @@ contains
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
 
-    name = 'fates_pft_used'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%pft_used)
-
     name = 'fates_seed_dbh_repro_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%dbh_repro_threshold)
@@ -825,9 +816,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%initd)
 
-    name = 'fates_seed_rain'
+    name = 'fates_seed_suppl'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%seed_rain)
+         data=this%seed_suppl)
 
     name = 'fates_leaf_BB_slope'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1705,7 +1696,7 @@ contains
 
      integer :: npft,ipft
      
-     npft = size(EDPftvarcon_inst%pft_used,1)
+     npft = size(EDPftvarcon_inst%evergreen,1)
      
      if(debug_report .and. is_master) then
         
@@ -1717,7 +1708,6 @@ contains
         end if
 
         write(fates_log(),*) '-----------  FATES PFT Parameters -----------------'
-        write(fates_log(),fmt0) 'pft_used = ',EDPftvarcon_inst%pft_used
         write(fates_log(),fmt0) 'dbh max height = ',EDPftvarcon_inst%allom_dbh_maxheight
         write(fates_log(),fmt0) 'dbh mature = ',EDPftvarcon_inst%dbh_repro_threshold
         write(fates_log(),fmt0) 'freezetol = ',EDPftvarcon_inst%freezetol
@@ -1732,7 +1722,7 @@ contains
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
-        write(fates_log(),fmt0) 'seed_rain = ',EDPftvarcon_inst%seed_rain
+        write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
         write(fates_log(),fmt0) 'senleaf_long_fdrought = ',EDPftvarcon_inst%senleaf_long_fdrought
@@ -1875,7 +1865,7 @@ contains
      integer :: iage     ! leaf age class index
      integer :: norgans  ! size of the plant organ dimension
 
-     npft = size(EDPftvarcon_inst%pft_used,1)
+     npft = size(EDPftvarcon_inst%evergreen,1)
 
      ! Prior to performing checks copy grperc to the 
      ! organ dimensioned version
