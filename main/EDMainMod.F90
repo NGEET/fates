@@ -354,15 +354,6 @@ contains
           
           currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
-          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-               currentCohort%vcmax25top)
-          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,6 )
-          
-
           ! Conduct Maintenance Turnover (parteh)
           call currentCohort%prt%CheckMassConservation(ft,3)
           if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
@@ -372,15 +363,6 @@ contains
           end if
           call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
           call currentCohort%prt%CheckMassConservation(ft,4)
-
-          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-               currentCohort%vcmax25top)
-          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,7 )
-          
 
           ! If the current diameter of a plant is somehow less than what is consistent
           ! with what is allometrically consistent with the stuctural biomass, then
@@ -401,14 +383,6 @@ contains
           ! routine is also called following fusion
           call UpdateCohortBioPhysRates(currentCohort)
 
-          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-               currentCohort%vcmax25top)
-          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,3 ) 
-          
           ! Transfer all reproductive tissues into seed production
           call PRTReproRelease(currentCohort%prt,repro_organ,carbon12_element, &
                                1.0_r8, currentCohort%seed_prod)
