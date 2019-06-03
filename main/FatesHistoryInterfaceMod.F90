@@ -1705,6 +1705,10 @@ end subroutine flush_hvars
                hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &
                hio_fines_elpft         => this%hvars(ih_fines_elpft)%r82d, &
                hio_cwd_elcwd           => this%hvars(ih_cwd_elcwd)%r82d, &
+               hio_cwd_ag_elem         => this%hvars(ih_cwd_ag_elem)%r82d, & 
+               hio_cwd_bg_elem         => this%hvars(ih_cwd_bg_elem)%r82d, & 
+               hio_fines_ag_elem       => this%hvars(ih_fines_bg_elem)%r82d, & 
+               hio_fines_bg_elem       => this%hvars(ih_fines_ag_elem)%r82d, & 
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_agb_si_scls          => this%hvars(ih_agb_si_scls)%r82d, &
                hio_biomass_si_scls          => this%hvars(ih_biomass_si_scls)%r82d, &

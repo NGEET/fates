@@ -1589,7 +1589,7 @@ contains
                                   ! woody debris
     integer  :: element_id        ! element id consistent with parteh/PRTGenericMod.F90
 
-    real(r8) :: trunk_product   ! carbon flux into trunk products kgC/day/site
+    real(r8) :: trunk_wood        ! carbon flux into trunk products kgC/day/site
     integer  :: ilyr
     integer  :: pft
     integer  :: numlevsoil              ! Actual number of soil layers
