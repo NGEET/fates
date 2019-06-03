@@ -156,6 +156,11 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_seed_decay_elem
   integer, private :: ih_seed_germ_elem
 
+  integer, private :: ih_fines_ag_elem
+  integer, private :: ih_fines_bg_elem
+  integer, private :: ih_cwd_ag_elem
+  integer, private :: ih_cwd_bg_elem
+
   integer, private :: ih_daily_temp
   integer, private :: ih_daily_rh
   integer, private :: ih_daily_prec
@@ -2593,6 +2598,9 @@ end subroutine flush_hvars
          ! Diagnostics discretized by element type
          ! ------------------------------------------------------------------------------
 
+         hio_fines_elpft(io_si,:) = 0._r8
+         hio_cwd_elcwd(io_si,:)   = 0._r8
+
          do el = 1, num_elements
             
             flux_diags => sites(s)%flux_diags(el)
@@ -2604,6 +2612,15 @@ end subroutine flush_hvars
                  sum(flux_diags%leaf_litter_input(:)) + &
                  sum(flux_diags%root_litter_input(:))
 
+            hio_cwd_ag_elem(io_si,el)         = 0._r8
+            hio_cwd_bg_elem(io_si,el)         = 0._r8
+            hio_fines_ag_elem(io_si,el)       = 0._r8
+            hio_fines_bg_elem(io_si,el)       = 0._r8
+            hio_seed_bank_elem(io_si,el)      = 0._r8
+            hio_seed_germ_elem(io_si,el)      = 0._r8
+            hio_seed_decay_elem(io_si,el)     = 0._r8
+            hio_seeds_in_local_elem(io_si,el) = 0._r8
+            hio_seed_in_extern_elem(io_si,el) = 0._r8
             
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
@@ -2633,6 +2650,20 @@ end subroutine flush_hvars
 
                hio_seed_in_extern_elem(io_si,el) = hio_seed_in_extern_elem(io_si,el) + & 
                     sum(litt%seed_in_extern(:)) * area_frac
+
+               hio_cwd_ag_elem(io_si,el) = hio_cwd_ag_elem(io_si,el) + &
+                     sum(litt%ag_cwd(:)) * area_frac
+               
+               hio_cwd_bg_elem(io_si,el) = hio_cwd_bg_elem(io_si,el) + &
+                     sum(litt%bg_cwd(:,:)) * area_frac
+               
+               hio_fines_ag_elem(io_si,el) = hio_fines_ag_elem(io_si,el) + & 
+                     sum(litt%leaf_fines(:)) * area_frac
+               
+               hio_fines_bg_elem(io_si,el) = hio_fines_bg_elem(io_si,el) + &
+                     sum(litt%root_fines(:,:)) * area_frac
+               
+
 
                do ft=1,numpft
                    elpft = (el-1)*numpft+ft   ! See map in FatesInterface fates_hdim_elmap_levelpft
@@ -4957,22 +4988,27 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_err_fates_si )
 
-!    call this%set_history_var(vname='CBALANCE_ERROR_BGC', units='gC/m^2/s',  &
-!         long='total carbon balance error on HLMs BGC side', use_default='active', &
-!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-!         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_bgc_si )
-    
-!    call this%set_history_var(vname='CBALANCE_ERROR_TOTAL', units='gC/m^2/s', &
-!          long='total carbon balance error total', use_default='active', &
-!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_tot_si )
-    
-!    call this%set_history_var(vname='BIOMASS_STOCK_COL', units='gC/m^2',  &
-!          long='total ED biomass carbon at the column level', use_default='active', &
-!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_biomass_stock_si )
-    
-    call this%set_history_var(vname='LITTER_FINES', units='kg/m^2', &
+    call this%set_history_var(vname='LITTER_FINES_AG', units='kg/m^2', &
+          long='mass of above ground  litter in fines (leaves,nonviable seed)', use_default='active', &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_ag_elem )
+
+    call this%set_history_var(vname='LITTER_FINES_BG', units='kg/m^2', &
+          long='mass of below ground litter in fines (fineroots)', use_default='active', &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_bg_elem )
+
+    call this%set_history_var(vname='LITTER_CWD_BG', units='kg/m^2', &
+          long='mass of below ground litter in CWD (coarse roots)', use_default='active', &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_elem )
+
+    call this%set_history_var(vname='LITTER_CWD_AG', units='kg/m^2', &
+          long='mass of above ground litter in CWD (trunks/branches/twigs)', use_default='active', &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_elem )
+
+    call this%set_history_var(vname='LITTER_FINES_PFT', units='kg/m^2', &
           long='total mass of litter in fines (leaves,fineroot,nonviable seed)', use_default='active', &
           avgflag='A', vtype=site_elpft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_elpft )
