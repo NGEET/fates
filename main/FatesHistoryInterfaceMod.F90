@@ -22,6 +22,7 @@ module FatesHistoryInterfaceMod
   use EDTypesMod               , only : numWaterMem
   use EDTypesMod               , only : num_vegtemp_mem
   use EDTypesMod               , only : site_massbal_type
+  use EDTypesMod               , only : element_list
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -1705,10 +1706,15 @@ end subroutine flush_hvars
                hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &
                hio_fines_elpft         => this%hvars(ih_fines_elpft)%r82d, &
                hio_cwd_elcwd           => this%hvars(ih_cwd_elcwd)%r82d, &
-               hio_cwd_ag_elem         => this%hvars(ih_cwd_ag_elem)%r82d, & 
-               hio_cwd_bg_elem         => this%hvars(ih_cwd_bg_elem)%r82d, & 
-               hio_fines_ag_elem       => this%hvars(ih_fines_bg_elem)%r82d, & 
-               hio_fines_bg_elem       => this%hvars(ih_fines_ag_elem)%r82d, & 
+               ! SWAP THIS BACK TO 2D WHEN TESTING COMPLETE (RGK 06-2019)
+               hio_cwd_ag_elem         => this%hvars(ih_cwd_ag_elem)%r81d, &
+               hio_cwd_bg_elem         => this%hvars(ih_cwd_bg_elem)%r81d, &
+               hio_fines_ag_elem       => this%hvars(ih_fines_bg_elem)%r81d, &
+               hio_fines_bg_elem       => this%hvars(ih_fines_ag_elem)%r81d, &     
+!               hio_cwd_ag_elem         => this%hvars(ih_cwd_ag_elem)%r82d, & 
+!               hio_cwd_bg_elem         => this%hvars(ih_cwd_bg_elem)%r82d, & 
+!               hio_fines_ag_elem       => this%hvars(ih_fines_bg_elem)%r82d, & 
+!               hio_fines_bg_elem       => this%hvars(ih_fines_ag_elem)%r82d, & 
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_agb_si_scls          => this%hvars(ih_agb_si_scls)%r82d, &
                hio_biomass_si_scls          => this%hvars(ih_biomass_si_scls)%r82d, &
@@ -2616,10 +2622,16 @@ end subroutine flush_hvars
                  sum(flux_diags%leaf_litter_input(:)) + &
                  sum(flux_diags%root_litter_input(:))
 
-            hio_cwd_ag_elem(io_si,el)         = 0._r8
-            hio_cwd_bg_elem(io_si,el)         = 0._r8
-            hio_fines_ag_elem(io_si,el)       = 0._r8
-            hio_fines_bg_elem(io_si,el)       = 0._r8
+            ! SWITCH BACK AFTER TESTING (RGK 06-2019)
+            hio_cwd_ag_elem(io_si)         = 0._r8
+            hio_cwd_bg_elem(io_si)         = 0._r8
+            hio_fines_ag_elem(io_si)       = 0._r8
+            hio_fines_bg_elem(io_si)       = 0._r8
+
+        !    hio_cwd_ag_elem(io_si,el)         = 0._r8
+        !    hio_cwd_bg_elem(io_si,el)         = 0._r8
+        !    hio_fines_ag_elem(io_si,el)       = 0._r8
+        !    hio_fines_bg_elem(io_si,el)       = 0._r8
             hio_seed_bank_elem(io_si,el)      = 0._r8
             hio_seed_germ_elem(io_si,el)      = 0._r8
             hio_seed_decay_elem(io_si,el)     = 0._r8
@@ -2655,17 +2667,33 @@ end subroutine flush_hvars
                hio_seed_in_extern_elem(io_si,el) = hio_seed_in_extern_elem(io_si,el) + & 
                     sum(litt%seed_in_extern(:)) * area_frac
 
-               hio_cwd_ag_elem(io_si,el) = hio_cwd_ag_elem(io_si,el) + &
-                     sum(litt%ag_cwd(:)) * area_frac
+               ! SWITCH BACK AFTER TESTING IS COMPLETE (RGK 06-2019)
+               if(element_list(el)==carbon12_element) then
+                   hio_cwd_ag_elem(io_si) = hio_cwd_ag_elem(io_si) + &
+                         sum(litt%ag_cwd(:)) * area_frac
+                   
+                   hio_cwd_bg_elem(io_si) = hio_cwd_bg_elem(io_si) + &
+                         sum(litt%bg_cwd(:,:)) * area_frac
+                   
+                   hio_fines_ag_elem(io_si) = hio_fines_ag_elem(io_si) + &
+                         sum(litt%leaf_fines(:)) * area_frac
+                   
+                   hio_fines_bg_elem(io_si) = hio_fines_bg_elem(io_si) + &
+                         sum(litt%root_fines(:,:)) * area_frac
+                   
+               end if
+
+!               hio_cwd_ag_elem(io_si,el) = hio_cwd_ag_elem(io_si,el) + &
+!                     sum(litt%ag_cwd(:)) * area_frac
                
-               hio_cwd_bg_elem(io_si,el) = hio_cwd_bg_elem(io_si,el) + &
-                     sum(litt%bg_cwd(:,:)) * area_frac
+!               hio_cwd_bg_elem(io_si,el) = hio_cwd_bg_elem(io_si,el) + &
+!                     sum(litt%bg_cwd(:,:)) * area_frac
                
-               hio_fines_ag_elem(io_si,el) = hio_fines_ag_elem(io_si,el) + & 
-                     sum(litt%leaf_fines(:)) * area_frac
+!               hio_fines_ag_elem(io_si,el) = hio_fines_ag_elem(io_si,el) + & 
+!                     sum(litt%leaf_fines(:)) * area_frac
                
-               hio_fines_bg_elem(io_si,el) = hio_fines_bg_elem(io_si,el) + &
-                     sum(litt%root_fines(:,:)) * area_frac
+!               hio_fines_bg_elem(io_si,el) = hio_fines_bg_elem(io_si,el) + &
+!                     sum(litt%root_fines(:,:)) * area_frac
                
 
 
@@ -4992,24 +5020,27 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_err_fates_si )
 
+
+    ! THE NEXT FOUR ENTRIES SHOULD BE SWITCHED BACK TO site_elem_r8 AFTER TESTING (RGK 06-2019)
+
     call this%set_history_var(vname='LITTER_FINES_AG', units='kg/m^2', &
           long='mass of above ground  litter in fines (leaves,nonviable seed)', use_default='active', &
-          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_ag_elem )
 
     call this%set_history_var(vname='LITTER_FINES_BG', units='kg/m^2', &
           long='mass of below ground litter in fines (fineroots)', use_default='active', &
-          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_bg_elem )
 
     call this%set_history_var(vname='LITTER_CWD_BG', units='kg/m^2', &
           long='mass of below ground litter in CWD (coarse roots)', use_default='active', &
-          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_elem )
 
     call this%set_history_var(vname='LITTER_CWD_AG', units='kg/m^2', &
           long='mass of above ground litter in CWD (trunks/branches/twigs)', use_default='active', &
-          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_elem )
 
     call this%set_history_var(vname='LITTER_FINES_PFT', units='kg/m^2', &
