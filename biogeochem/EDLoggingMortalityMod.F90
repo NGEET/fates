@@ -59,6 +59,9 @@ module EDLoggingMortalityMod
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
+
+
+   real(r8), public, parameter :: logging_export_frac = 0.8_r8
    
    public :: LoggingMortality_frac
    public :: logging_litter_fluxes
@@ -170,6 +173,8 @@ contains
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates
  
       if (logging_time) then 
+
+         
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
 
             ! Pass logging rates to cohort level 
@@ -192,8 +197,14 @@ contains
 
             ! Collateral damage to smaller plants below the canopy layer
             ! will be applied via "understory_death" via the disturbance algorithm
+            ! Important: Degredation rates really only have an impact when
+            ! applied to the canopy layer. So we don't add to degredation
+            ! for collateral damage, even understory collateral damage.
+
             if (canopy_layer .eq. 1) then
                lmort_collateral = logging_collateral_frac * adjustment
+            else
+               lmort_collateral = 0._r8
             endif
 
          else
@@ -202,6 +213,7 @@ contains
             lmort_infra      = 0.0_r8
             l_degrad         = 0.0_r8
          end if
+
       else 
          lmort_direct    = 0.0_r8
          lmort_collateral = 0.0_r8
@@ -309,10 +321,19 @@ contains
                   (currentCohort%lmort_collateral + currentCohort%lmort_infra)
 
          else
+
+            ! This routine is only called during disturbance.  The litter
+            ! fluxes from non-disturbance generating mortality are 
+            ! handled in EDPhysiology.  Disturbance generating mortality
+            ! are those cohorts in the top canopy layer, or those
+            ! plants that were impacted. Thus, no direct dead can occur
+            ! here, and indirect are impacts.
+
             if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
                direct_dead   = 0.0_r8
-               indirect_dead = logging_coll_under_frac * currentCohort%n * &
-                     (patch_site_areadis/currentPatch%area)  !kgC/site/day
+               indirect_dead = logging_coll_under_frac * &
+                    (1._r8-currentPatch%fract_ldist_not_harvested) * currentCohort%n * &
+                    (patch_site_areadis/currentPatch%area)   !kgC/site/day
             else
                ! If the cohort of interest is grass, it will not experience
                ! any mortality associated with the logging disturbance

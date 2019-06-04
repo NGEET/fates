@@ -70,6 +70,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_cd_status_si
   integer, private :: ir_dd_status_si
   integer, private :: ir_nchill_days_si
+  integer, private :: ir_ncold_days_si
   integer, private :: ir_leafondate_si
   integer, private :: ir_leafoffdate_si
   integer, private :: ir_dleafondate_si
@@ -147,6 +148,7 @@ module FatesRestartInterfaceMod
   ! Site level
 
   integer, private :: ir_watermem_siwm
+  integer, private :: ir_vegtempmem_sitm
   integer, private :: ir_seed_bank_sift
   integer, private :: ir_spread_si
   integer, private :: ir_recrate_sift
@@ -566,24 +568,28 @@ contains
          long_name='status flag for drought deciduous plants', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dd_status_si )
 
-    call this%set_restart_var(vname='fates_chilling_days', vtype=site_r8, &
-         long_name='chilling day counter', units='unitless', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_chilling_days', vtype=site_int, &
+         long_name='chilling day counter', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nchill_days_si )
 
-    call this%set_restart_var(vname='fates_leafondate', vtype=site_r8, &
-         long_name='the day of year for leaf on', units='day of year', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_cold_days', vtype=site_int, &
+         long_name='cold day counter', units='unitless', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ncold_days_si )
+
+    call this%set_restart_var(vname='fates_leafondate', vtype=site_int, &
+         long_name='the day of year for leaf on', units='day of year', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafondate_si )
 
-    call this%set_restart_var(vname='fates_leafoffdate', vtype=site_r8, &
-         long_name='the day of year for leaf off', units='day of year', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_leafoffdate', vtype=site_int, &
+         long_name='the day of year for leaf off', units='day of year', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafoffdate_si )
 
-    call this%set_restart_var(vname='fates_drought_leafondate', vtype=site_r8, &
-         long_name='the day of year for drought based leaf-on', units='day of year', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_drought_leafondate', vtype=site_int, &
+         long_name='the day of year for drought based leaf-on', units='day of year', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafondate_si )
 
-    call this%set_restart_var(vname='fates_drought_leafoffdate', vtype=site_r8, &
-         long_name='the day of year for drought based leaf-off', units='day of year', flushval = flushzero, &
+    call this%set_restart_var(vname='fates_drought_leafoffdate', vtype=site_int, &
+         long_name='the day of year for drought based leaf-off', units='day of year', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafoffdate_si )
 
     call this%set_restart_var(vname='fates_acc_nesterov_id', vtype=site_r8, &
@@ -981,6 +987,10 @@ contains
          units='m3/m3', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_watermem_siwm )
 
+    call this%set_restart_var(vname='fates_vegtemp_memory', vtype=cohort_r8, &
+         long_name='last 10 days of 24-hour vegetation temperature, by site x day-index', &
+         units='m3/m3', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_vegtempmem_sitm )
     
     call this%set_restart_var(vname='fates_recrate', vtype=cohort_r8, &
          long_name='fates diagnostics on recruitment', &
@@ -1394,6 +1404,7 @@ contains
    use EDTypesMod, only : ncwd
    use EDTypesMod, only : maxSWb
    use EDTypesMod, only : numWaterMem
+   use EDTypesMod, only : num_vegtemp_mem
 
     ! Arguments
     class(fates_restart_interface_type)             :: this
@@ -1422,6 +1433,7 @@ contains
     integer  :: io_idx_si_lyr_shell ! site - layer x shell index
     integer  :: io_idx_si_scpf ! each size-class x pft index within site
     integer  :: io_idx_si_sc   ! each size-class index within site
+    integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1442,14 +1454,15 @@ contains
 
 
     associate( rio_npatch_si           => this%rvars(ir_npatch_si)%int1d, &
-           rio_old_stock_si             => this%rvars(ir_oldstock_si)%r81d, &
+           rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
            rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
            rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
-           rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%r81d, &
-           rio_leafondate_si           => this%rvars(ir_leafondate_si)%r81d, &
-           rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%r81d, &
-           rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%r81d, &
-           rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%r81d, &
+           rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
+           rio_ncold_days_si           => this%rvars(ir_ncold_days_si)%int1d, &
+           rio_leafondate_si           => this%rvars(ir_leafondate_si)%int1d, &
+           rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%int1d, &
+           rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%int1d, &
+           rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%int1d, &
            rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
            rio_nep_timeintegrated_si   => this%rvars(ir_nep_timeintegrated_si)%r81d, &
@@ -1511,6 +1524,7 @@ contains
            rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &           
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
+           rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
            rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
            rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
            rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
@@ -1554,6 +1568,7 @@ contains
           io_idx_pa_cwd  = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
+          io_idx_si_vtmem = io_idx_co_1st
 
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
@@ -1803,28 +1818,17 @@ contains
           rio_fmortcflux_cano_si(io_idx_si) = sites(s)%fmort_carbonflux_canopy
           rio_fmortcflux_usto_si(io_idx_si) = sites(s)%fmort_carbonflux_ustory
 
-
-
           rio_old_stock_si(io_idx_si)    = sites(s)%old_stock
-
-          if(sites(s)%is_cold) then
-             rio_cd_status_si(io_idx_si) = itrue
-          else
-             rio_cd_status_si(io_idx_si) = ifalse
-          end if
-          if(sites(s)%is_drought) then
-             rio_dd_status_si(io_idx_si) = itrue
-          else
-             rio_dd_status_si(io_idx_si) = ifalse
-          end if
-
-          rio_nchill_days_si(io_idx_si)  = sites(s)%ncd 
-          rio_leafondate_si(io_idx_si)   = sites(s)%leafondate
-          rio_leafoffdate_si(io_idx_si)  = sites(s)%leafoffdate
+          rio_cd_status_si(io_idx_si)    = sites(s)%cstatus
+          rio_dd_status_si(io_idx_si)    = sites(s)%dstatus
+          rio_nchill_days_si(io_idx_si)  = sites(s)%nchilldays
+          rio_ncold_days_si(io_idx_si)   = sites(s)%ncolddays
+          rio_leafondate_si(io_idx_si)   = sites(s)%cleafondate
+          rio_leafoffdate_si(io_idx_si)  = sites(s)%cleafoffdate
           rio_dleafondate_si(io_idx_si)  = sites(s)%dleafondate
           rio_dleafoffdate_si(io_idx_si) = sites(s)%dleafoffdate
           rio_acc_ni_si(io_idx_si)       = sites(s)%acc_NI
-          rio_gdd_si(io_idx_si)          = sites(s)%ED_GDD_site
+          rio_gdd_si(io_idx_si)          = sites(s)%grow_deg_days 
           
           ! Carbon Balance and Checks
           rio_nep_timeintegrated_si(io_idx_si) = sites(s)%nep_timeintegrated 
@@ -1849,6 +1853,11 @@ contains
           do i = 1,numWaterMem ! numWaterMem currently 10
              rio_watermem_siwm( io_idx_si_wmem ) = sites(s)%water_memory(i)
              io_idx_si_wmem = io_idx_si_wmem + 1
+          end do
+
+          do i = 1, num_vegtemp_mem
+             rio_vegtempmem_sitm( io_idx_si_vtmem ) = sites(s)%vegtemp_memory(i)
+             io_idx_si_vtmem = io_idx_si_vtmem + 1
           end do
 
           ! -----------------------------------------------------------------------------
@@ -1969,13 +1978,6 @@ contains
           
           call init_site_vars( sites(s) )
           call zero_site( sites(s) )
-
-          ! 
-          ! set a few items that are necessary on restart for ED but not on the 
-          ! restart file
-          !
-          
-          sites(s)%ncd = 0.0_r8
 
           if ( rio_npatch_si(io_idx_si)<0 .or. rio_npatch_si(io_idx_si) > 10000 ) then
              write(fates_log(),*) 'a column was expected to contain a valid number of patches'
@@ -2107,6 +2109,7 @@ contains
      use FatesInterfaceMod, only : numpft
      use FatesInterfaceMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
+     use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
 
      ! !ARGUMENTS:
@@ -2140,6 +2143,7 @@ contains
      integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
      integer  :: io_idx_pa_ib   ! each SW radiation band per patch (pa_ib)
      integer  :: io_idx_si_wmem ! each water memory class within each site
+     integer  :: io_idx_si_vtmem ! counter for vegetation temp memory
      integer  :: io_idx_si_lyr_shell ! site - layer x shell index
      integer  :: io_idx_si_scpf ! each size-class x pft index within site
      integer  :: io_idx_si_sc   ! each size-class index within site
@@ -2158,11 +2162,12 @@ contains
           rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
           rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
-          rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%r81d, &
-          rio_leafondate_si           => this%rvars(ir_leafondate_si)%r81d, &
-          rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%r81d, &
-          rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%r81d, &
-          rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%r81d, &
+          rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
+          rio_ncold_days_si           => this%rvars(ir_ncold_days_si)%int1d, &
+          rio_leafondate_si           => this%rvars(ir_leafondate_si)%int1d, &
+          rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%int1d, &
+          rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%int1d, &
+          rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%int1d, &
           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
           rio_nep_timeintegrated_si   => this%rvars(ir_nep_timeintegrated_si)%r81d, &
@@ -2224,6 +2229,7 @@ contains
           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
+          rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
           rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
           rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
           rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
@@ -2256,6 +2262,7 @@ contains
           io_idx_pa_cwd  = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
+          io_idx_si_vtmem = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -2486,6 +2493,11 @@ contains
              io_idx_si_wmem = io_idx_si_wmem + 1
           end do
 
+          do i = 1, num_vegtemp_mem
+             sites(s)%vegtemp_memory(i) = rio_vegtempmem_sitm( io_idx_si_vtmem )
+             io_idx_si_vtmem = io_idx_si_vtmem + 1
+          end do
+
           ! -----------------------------------------------------------------------------
           ! Retrieve site-level hydraulics arrays
           ! Note that Hydraulics structures, their allocations, and the length
@@ -2550,34 +2562,17 @@ contains
           sites(s)%old_stock      = rio_old_stock_si(io_idx_si)
           
           ! Site level phenology status flags
-          if(rio_cd_status_si(io_idx_si) .eq. itrue) then
-             sites(s)%is_cold         = .true.
-          elseif(rio_cd_status_si(io_idx_si) .eq. ifalse) then
-             sites(s)%is_cold         = .false.
-          else
-             write(fates_log(),*) 'An invalid site level cold stress status was found'
-             write(fates_log(),*) 'io_idx_si = ',io_idx_si
-             write(fates_log(),*) 'rio_cd_status_si(io_idx_si) = ',rio_cd_status_si(io_idx_si)
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-          if(rio_dd_status_si(io_idx_si) .eq. itrue)then
-             sites(s)%is_drought      = .true.
-          elseif(rio_dd_status_si(io_idx_si) .eq. ifalse) then
-             sites(s)%is_drought      = .false.
-          else
-             write(fates_log(),*) 'An invalid site level drought stress status was found'
-             write(fates_log(),*) 'io_idx_si = ',io_idx_si
-             write(fates_log(),*) 'rio_dd_status_si(io_idx_si) = ',rio_dd_status_si(io_idx_si)
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
 
-          sites(s)%ncd            = rio_nchill_days_si(io_idx_si)
-          sites(s)%leafondate     = rio_leafondate_si(io_idx_si)
-          sites(s)%leafoffdate    = rio_leafoffdate_si(io_idx_si)
+          sites(s)%cstatus        = rio_cd_status_si(io_idx_si)
+          sites(s)%dstatus        = rio_dd_status_si(io_idx_si)
+          sites(s)%nchilldays     = rio_nchill_days_si(io_idx_si)
+          sites(s)%ncolddays      = rio_ncold_days_si(io_idx_si)
+          sites(s)%cleafondate    = rio_leafondate_si(io_idx_si)
+          sites(s)%cleafoffdate   = rio_leafoffdate_si(io_idx_si)
           sites(s)%dleafondate    = rio_dleafondate_si(io_idx_si)
           sites(s)%dleafoffdate   = rio_dleafoffdate_si(io_idx_si)
           sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
-          sites(s)%ED_GDD_site    = rio_gdd_si(io_idx_si)
+          sites(s)%grow_deg_days  = rio_gdd_si(io_idx_si)
 
           ! Carbon Balance and Checks
           sites(s)%nep_timeintegrated   = rio_nep_timeintegrated_si(io_idx_si)
