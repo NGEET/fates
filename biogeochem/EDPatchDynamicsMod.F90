@@ -98,6 +98,7 @@ module EDPatchDynamicsMod
         __FILE__
 
   logical, parameter :: debug = .true.
+  logical, parameter :: match_base = .true.
 
   ! When creating new patches from other patches, we need to send some of the
   ! litter from the old patch to the new patch.  Likewise, when plants die
@@ -396,7 +397,7 @@ contains
     real(r8) :: total_c                      ! total carbon of plant [kg]
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
-    real(r8) :: leaf_c1,leaf_c0
+    real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
     real(r8) :: error
     real(r8) :: total_stock1,biomass_stock1,litter_stock1,seed_stock1
     real(r8) :: total_stock0,biomass_stock0,litter_stock0,seed_stock0
@@ -742,7 +743,7 @@ contains
                    nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
                    
                    ! loss of individuals from source patch due to area shrinking
-                   currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area) 
+                   currentCohort%n = currentCohort%n - nc%n
                    
                    levcan = currentCohort%canopy_layer 
                    
@@ -789,28 +790,59 @@ contains
 
 
                    ! Some of of the leaf mass from living plants has been
-                   ! burned off.  We have already tallied this mass at the site
-                   ! level during fire_litter_fluxes, now we remove this mass from
-                   ! the trees in the burned patch
+                   ! burned off.  Here, we remove that mass, and
+                   ! tally it in the flux we sent to the atmosphere
                    
                    if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
                        leaf_burn_frac = currentCohort%fraction_crown_burned
                    else
-                       leaf_burn_frac = currentPatch%burnt_frac_litter(6)
+                       leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
                    endif
                    
-                   leaf_c0   = nc%prt%GetState(leaf_organ, carbon12_element)
 
-                   call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
-                   currentCohort%fraction_crown_burned = 0.0_r8     
-                   
-                   leaf_c1 = nc%prt%GetState(leaf_organ, carbon12_element)
-
-                   if( abs( (leaf_c0-leaf_c1)/leaf_c0 - leaf_burn_frac) > 0.0001_r8 ) then
-                       write(fates_log(),*) 'Error implementing leaf burn fractions'
-                       write(fates_log(),*) leaf_c1/leaf_c0,leaf_burn_frac
+                   if( (leaf_burn_frac < 0._r8) .or. &
+                       (leaf_burn_frac > 1._r8) .or. &
+                       (currentCohort%fire_mort < 0._r8) .or. &
+                       (currentCohort%fire_mort > 1._r8)) then
+                       write(fates_log(),*) 'unexpected fire fractions'
+                       write(fates_log(),*) EDPftvarcon_inst%woody(currentCohort%pft)
+                       write(fates_log(),*) leaf_burn_frac
+                       write(fates_log(),*) currentCohort%fire_mort
                        call endrun(msg=errMsg(sourcefile, __LINE__))
                    end if
+
+                   do el = 1,num_elements
+
+                       leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
+
+                       currentSite%mass_balance(el)%burn_flux_to_atm = &
+                             currentSite%mass_balance(el)%burn_flux_to_atm + & 
+                             leaf_burn_frac * leaf_m * nc%n
+                   end do
+
+                   ! Here the mass is removed from the plant
+                   call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                   currentCohort%fraction_crown_burned = 0.0_r8
+                   nc%fraction_crown_burned            = 0.0_r8
+
+                   ! This is necessary for reproducing previous results
+                   ! In the base, we were burning plants in both the
+                   ! new and old patches (because cohorts had not been copied yet)
+
+                   if(match_base)then
+                       do el = 1,num_elements
+                           
+                           leaf_m = currentCohort%prt%GetState(leaf_organ, element_list(el))
+                           
+                           currentSite%mass_balance(el)%burn_flux_to_atm = &
+                                 currentSite%mass_balance(el)%burn_flux_to_atm + & 
+                                 leaf_burn_frac * leaf_m * currentCohort%n
+                       end do
+                       ! Here the mass is removed from the plant
+                       call PRTBurnLosses(currentCohort%prt, leaf_organ, leaf_burn_frac)
+                       
+                   end if
+
 
                ! Logging is the dominant disturbance  
                elseif (currentPatch%disturbance_mode .eq. dtype_ilog ) then
@@ -1456,7 +1488,6 @@ contains
         donate_m2  = 1./newPatch%area
     end if
 
-    
     do el = 1,num_elements
        
        element_id = element_list(el)
@@ -1487,8 +1518,6 @@ contains
              fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
              store_m  = currentCohort%prt%GetState(store_organ, element_id)
              repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
-             
-            
              
              ! Absolute number of dead trees being transfered in with the donated area
              num_dead_trees = (currentCohort%fire_mort*currentCohort%n * &
@@ -1585,28 +1614,6 @@ contains
                      flux_diags%cwd_ag_input(c) + donatable_mass
             enddo
              
-            ! -----------------------------------------------------------------------------
-            ! PART 2) Burn parts of trees that did *not* die in the fire.
-            !         currently we only remove leaves. branch and associated 
-            !         sapwood consumption coming soon.
-            !         Burn parts of grass that are consumed by the fire. 
-            !         grasses are not killed directly by fire. They die by losing all 
-            !         of their leaves and starving. 
-            ! -----------------------------------------------------------------------------
-
-            num_live_trees = (1.0_r8-currentCohort%fire_mort) * &
-                  currentCohort%n * patch_site_areadis / currentPatch%area
-            
-            if(EDPftvarcon_inst%woody(currentCohort%pft) == itrue)then
-                burned_leaves = leaf_m * currentCohort%fraction_crown_burned
-            else
-                burned_leaves = leaf_m * currentPatch%burnt_frac_litter(lg_sf)
-            endif
-            
-            burned_mass = burned_leaves * num_live_trees
-            
-            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-            
 
             currentCohort => currentCohort%taller
         enddo
