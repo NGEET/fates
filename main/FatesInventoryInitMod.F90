@@ -73,7 +73,7 @@ module FatesInventoryInitMod
                                                            ! defined in model memory and a physical
                                                            ! site listed in the file
 
-   logical, parameter :: do_inventory_out = .true.
+   logical, parameter :: do_inventory_out = .false.
 
 
    public :: initialize_sites_by_inventory
@@ -138,9 +138,6 @@ contains
       character(len=patchname_strlen), allocatable :: patch_name_vec(:)    ! vector of patch ID strings
       real(r8)                                     :: basal_area_postf     ! basal area before fusion (m2/ha)
       real(r8)                                     :: basal_area_pref      ! basal area after fusion (m2/ha)
-
-      real(r8), parameter                          :: max_ba_diff = 1.0e-2 ! 1% is the maximum allowable
-                                                                           ! change in BA due to fusion
 
       ! I. Load the inventory list file, do some file handle checks
       ! ------------------------------------------------------------------------------------------
@@ -444,24 +441,11 @@ contains
          write(fates_log(),*) basal_area_postf,' [m2/ha]'
          write(fates_log(),*) '-------------------------------------------------------'
 
-         ! Check to see if the fusion process has changed too much
-         ! We are sensitive to fusion in inventories because we may be asking for a massive amount
-         ! of fusion. For instance some init files are directly from inventory, where a cohort
-         ! is synomomous with a single plant.
-
-         if( abs(basal_area_postf-basal_area_pref)/basal_area_pref > max_ba_diff ) then
-            write(fates_log(),*) 'Inventory Fusion Changed total biomass beyond reasonable limit'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
          
+         ! If this is flagged as true, the post-fusion inventory will be written to file
+         ! in the run directory.
          if(do_inventory_out)then
-             
              call write_inventory_type1(sites(s))
-
-
-
-             
-
          end if
 
       end do
@@ -1006,7 +990,7 @@ contains
        use shr_file_mod, only        : shr_file_freeUnit
        
        ! Arguments
-       type(ed_site_type),intent(in), target :: currentSite
+       type(ed_site_type), target :: currentSite
        
        ! Locals
        type(ed_patch_type), pointer          :: currentpatch
@@ -1022,19 +1006,29 @@ contains
        character(len=32)                     :: cohort_str
        integer                               :: ipatch
        integer                               :: icohort
-       
+       character(len=1)                      :: ilat_sign,ilon_sign
+
        ! Generate pss/css file name based on the location of the site
-       ilat_int = floor(currentSite%lat)
-       ilat_dec = int(100000*(currentSite%lat - real(ilat_int,r8)))
-       ilon_int = floor(currentSite%lon)
-       ilon_dec = int(100000*(currentSite%lon - real(ilon_int,r8)))
+       ilat_int = abs(int(currentSite%lat))
+       ilat_dec = int(100000*(abs(currentSite%lat) - real(ilat_int,r8)))
+       ilon_int = abs(int(currentSite%lon))
+       ilon_dec = int(100000*(abs(currentSite%lon) - real(ilon_int,r8)))
        
-       write(pss_name_out,'(A8,i3.3,A,i5.5,A2,i3.3,A,i5.5,A5)') &
-             'pss_out_',ilat_int,'.',ilat_dec,'N_',ilon_int,'.',ilon_dec,'E.txt'
-       write(css_name_out,'(A8,i3.3,A,i5.5,A2,i3.3,A,i5.5,A5)') &
-             'css_out_',ilat_int,'.',ilat_dec,'N_',ilon_int,'.',ilon_dec,'E.txt'
-       !print*,"---",trim(pss_name_out),"---"
-       !print*,"---",trim(css_name_out),"---"
+       if(currentSite%lat>=0._r8)then
+           ilat_sign = 'N'
+       else
+           ilat_sign = 'S'
+       end if
+       if(currentSite%lon>=0._r8)then
+           ilon_sign = 'E'
+       else
+           ilon_sign = 'W'
+       end if
+
+       write(pss_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
+             'pss_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
+       write(css_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
+             'css_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
 
        pss_file_out       = shr_file_getUnit()
        css_file_out       = shr_file_getUnit()
@@ -1073,7 +1067,6 @@ contains
        
        call shr_file_freeUnit(css_file_out)
        call shr_file_freeUnit(pss_file_out)
-       
        
    end subroutine write_inventory_type1
 
