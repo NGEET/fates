@@ -598,8 +598,14 @@ contains
                 call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
              endif
 
+             ! --------------------------------------------------------------------------
+             ! The newly formed patch from disturbance (new_patch), has now been given 
+             ! some litter from dead plants and pre-existing litter from the donor patches.
+             !
+             ! Next, we loop through the cohorts in the donor patch, copy them with 
+             ! area modified number density into the new-patch, and apply survivorship.
+             ! -------------------------------------------------------------------------
 
-             !INSERT SURVIVORS FROM DISTURBANCE INTO NEW PATCH 
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))       
                  
@@ -795,10 +801,15 @@ contains
                    if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
                        leaf_burn_frac = currentCohort%fraction_crown_burned
                    else
+
+                       ! GRASS! Grasses determine their fraction of
+                       ! leaves burned right here!
                        leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
                    endif
                    
-
+                   ! Perform a check to make sure that spitfire gave
+                   ! us reasonable mortality and burn fraction rates
+                   
                    if( (leaf_burn_frac < 0._r8) .or. &
                        (leaf_burn_frac > 1._r8) .or. &
                        (currentCohort%fire_mort < 0._r8) .or. &
