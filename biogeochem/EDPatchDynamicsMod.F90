@@ -6,11 +6,14 @@ module EDPatchDynamicsMod
   use FatesGlobals         , only : fates_log 
   use FatesInterfaceMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
+  use EDPftvarcon          , only : GetDecompyFrac
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDCohortDynamicsMod  , only : DeallocateCohort
   use EDTypesMod           , only : area_site => area
   use FatesLitterMod       , only : ncwd
+  use FatesLitterMod       , only : ndcmpy
   use FatesLitterMod       , only : litter_type
+  use FatesLitterMod       , only : ilabi,icell,ilign
   use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
@@ -1222,6 +1225,7 @@ contains
     integer  :: el                         ! element loop counter
     integer  :: c                          ! CWD loop counter
     integer  :: pft                        ! PFT loop counter
+    integer  :: dcmpy                      ! Decomposibility loop counter
     integer  :: sl                         ! soil layer loop counter
     real(r8) :: litter_stock0,litter_stock1
     real(r8) :: burn_flux0,burn_flux1
@@ -1250,14 +1254,14 @@ contains
           end do
        enddo
        
-       do pft = 1,numpft
+       do dcmpy = 1,ndmpy
 
-          new_litt%leaf_fines_frag(pft) = new_litt%leaf_fines_frag(pft) + &
-               curr_litt%leaf_fines_frag(pft) * patch_site_areadis/newPatch%area
+          new_litt%leaf_fines_frag(dcmpy) = new_litt%leaf_fines_frag(dcmpy) + &
+               curr_litt%leaf_fines_frag(dcmpy) * patch_site_areadis/newPatch%area
           
           do sl=1,currentSite%nlevsoil
-             new_litt%root_fines_frag(pft,sl) = new_litt%root_fines_frag(pft,sl) + &
-                   curr_litt%root_fines_frag(pft,sl) * patch_site_areadis/newPatch%area
+             new_litt%root_fines_frag(dcmpy,sl) = new_litt%root_fines_frag(dcmpy,sl) + &
+                   curr_litt%root_fines_frag(dcmpy,sl) * patch_site_areadis/newPatch%area
           end do
           
        enddo
@@ -1303,8 +1307,6 @@ contains
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
 
-
-
        do c = 1,ncwd
              
           ! Transfer above ground CWD
@@ -1329,7 +1331,29 @@ contains
           
        enddo
           
-       
+       do dcmpy=1,ndcmpy
+
+           ! Transfer leaf fines
+           donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
+                                      (1._r8 - currentPatch%burnt_frac_litter(lg_sf))
+
+           burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
+                                      currentPatch%burnt_frac_litter(lg_sf)
+
+           new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
+           curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
+           
+           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+           
+           ! Transfer root fines (none burns)
+           do sl = 1,currentSite%nlevsoil
+               donatable_mass = curr_litt%root_fines(dcmpy,sl) * patch_site_areadis             
+               new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + donatable_mass*donate_m2
+               curr_litt%root_fines(dcmpy,sl) = curr_litt%root_fines(dcmpy,sl) + donatable_mass*retain_m2
+          end do
+          
+       end do
+             
        do pft = 1,numpft
 
           ! Transfer seeds (currently we don't burn seeds)
@@ -1343,25 +1367,7 @@ contains
           new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + donatable_mass * donate_m2
           curr_litt%seed_germ(pft) = curr_litt%seed_germ(pft) + donatable_mass * retain_m2
 
-          ! Transfer leaf fines
           
-          donatable_mass           = curr_litt%leaf_fines(pft) * patch_site_areadis * &
-                                     (1._r8 - currentPatch%burnt_frac_litter(lg_sf))
-
-          burned_mass              = curr_litt%leaf_fines(pft) * patch_site_areadis * &
-                                     currentPatch%burnt_frac_litter(lg_sf)
-
-          new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + donatable_mass*donate_m2
-          curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + donatable_mass*retain_m2
-
-          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-          
-          ! Transfer root fines (none burns)
-          do sl = 1,currentSite%nlevsoil
-             donatable_mass = curr_litt%root_fines(pft,sl) * patch_site_areadis             
-             new_litt%root_fines(pft,sl) = new_litt%root_fines(pft,sl) + donatable_mass*donate_m2
-             curr_litt%root_fines(pft,sl) = curr_litt%root_fines(pft,sl) + donatable_mass*retain_m2
-          end do
           
        enddo
 
@@ -1442,6 +1448,7 @@ contains
     integer  :: sl                   ! soil layer index
     integer  :: c                    ! loop index for coarse woody debris pools
     integer  :: pft                  ! loop index for plant functional types
+    integer  :: dcmpy                ! loop index for decomposability pool
     integer  :: element_id           ! parteh compatible global element index
 
     !---------------------------------------------------------------------
@@ -1524,10 +1531,13 @@ contains
              ! Contribution of dead trees to leaf burn-flux
              burned_mass  = num_dead_trees * (leaf_m+repro_m) * currentCohort%fraction_crown_burned
              
-             new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
-                                        donatable_mass*donate_m2
-             curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + &
-                                        donatable_mass*retain_m2
+             do dcmpy=1,ndcmpy
+                 dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+                 new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+                                              donatable_mass*donate_m2*dcmpy_frac
+                 curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
+                                               donatable_mass*retain_m2*dcmpy_frac
+             end do
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
@@ -1535,12 +1545,15 @@ contains
                    icontext = i_biomass_rootprof_context)
 
              ! Contribution of dead trees to root litter (no root burn flux)
-             do sl = 1,currentSite%nlevsoil
-                donatable_mass = num_dead_trees * (fnrt_m+store_m) * currentSite%rootfrac_scr(sl)
-                new_litt%root_fines(pft,sl) = new_litt%root_fines(pft,sl) + &
-                                               donatable_mass*donate_m2
-                curr_litt%root_fines(pft,sl) = curr_litt%root_fines(pft,sl) + &
-                                               donatable_mass*retain_m2
+             do dcmpy=1,ndcmpy
+                 dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+                 do sl = 1,currentSite%nlevsoil
+                     donatable_mass = num_dead_trees * (fnrt_m+store_m) * currentSite%rootfrac_scr(sl)
+                     new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + &
+                                                     donatable_mass*donate_m2*dcmpy_frac
+                     curr_litt%root_fines(dcmpy,sl) = curr_litt%root_fines(dcmpy,sl) + &
+                                                      donatable_mass*retain_m2*dcmpy_frac
+                 end do
              end do
 
              ! Track as diagnostic fluxes
@@ -1757,13 +1770,15 @@ contains
           mort_flux = mort_flux + num_dead*(leaf_m+repro_m+sapw_m+fnrt_m+struct_m+store_m)
           
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
-
-          new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
-                num_dead*(leaf_m+repro_m)*donate_m2
-
-          curr_litt%leaf_fines(pft) = curr_litt%leaf_fines(pft) + &
-                num_dead*(leaf_m+repro_m)*retain_m2
-
+          do dcmpy=1,ndcmpy
+              dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+              new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+                    num_dead*(leaf_m+repro_m)*donate_m2*dcmpy_frac
+              
+              curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
+                    num_dead*(leaf_m+repro_m)*retain_m2*dcmpy_frac
+          end do
+                 
           ! Pre-calculate Structural and sapwood, below and above ground, total mass [kg]
           ag_wood = num_dead * (struct_m + sapw_m) * EDPftvarcon_inst%allom_agb_frac(pft)
           bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
@@ -1793,18 +1808,21 @@ contains
           end do
 
           ! Transfer fine roots of dying trees to below ground litter pools
-          do sl=1,currentSite%nlevsoil
-             new_litt%root_fines(pft,sl) = new_litt%root_fines(pft,sl) + &
-                   num_dead * currentSite%rootfrac_scr(sl) * &
-                   (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
-                   donate_m2
-             
-             curr_litt%root_fines(pft,sl) = curr_litt%root_fines(pft,sl) + &
-                   num_dead * currentSite%rootfrac_scr(sl) * &
-                   (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
-                   retain_m2
+          do dcmpy=1,ndcmpy
+              dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+              do sl=1,currentSite%nlevsoil
+                  new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + &
+                        num_dead * currentSite%rootfrac_scr(sl) * &
+                        (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
+                        donate_m2 * dcmpy_frac
+                  
+                  curr_litt%root_fines(dcmpy,sl) = curr_litt%root_fines(dcmpy,sl) + &
+                        num_dead * currentSite%rootfrac_scr(sl) * &
+                        (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
+                        retain_m2 * dcmpy_frac
+              end do
           end do
-
+              
           ! Transfer some of the storage that is shunted to reproduction
           ! upon death, to the seed-pool. This is was designed for grasses,
           ! but it is possible that some trees may utilize this behavior too

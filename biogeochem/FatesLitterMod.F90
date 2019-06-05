@@ -11,6 +11,13 @@ module FatesLitterMod
   !                    3) Reproductive materials (seeds, nuts, fruits)
   !
   ! Important point:   THESE POOLS DO NOT CONTAIN DECOMPOSING MATTER !!!!!
+  !
+  ! Another Important Point: We track the fine litter by its "decomposability" pool.
+  !                          However, we don't actually apply any differential
+  !                          turnover rates based on these pools, we are just
+  !                          differentiating, tracking and preserving them to be 
+  !                          passed in the correct partitions to the BGC model. 
+  !                          Their partitions are a PFT parameter.
   ! 
   ! Continued: These litter pools will fragment, and then be passed to a 
   ! soil-biogeochemical model (NOT FATES) to handle decomposition.
@@ -39,8 +46,15 @@ module FatesLitterMod
    private
 
 
-   integer, public,  parameter :: ncwd  = 4   ! number of coarse woody debris pools 
+   integer, public, parameter :: ncwd  = 4    ! number of coarse woody debris pools 
                                               ! (twig,s branch,l branch, trunk)
+
+   integer, public, parameter :: ndcmpy = 3   ! number of "decomposability" pools in
+                                              ! fines (lignin, cellulose, labile)
+
+   integer, public, parameter :: ilabi  = 1   ! Array index for labile portion
+   integer, public, parameter :: icell  = 2   ! Array index for cellulose portion
+   integer, public, parameter :: ilign  = 3   ! Array index for the lignin portion
 
 
    type, public ::  litter_type
@@ -52,25 +66,29 @@ module FatesLitterMod
                                                     ! be associated with the element
                                                     ! types listed in parteh/PRTGenericMod.F90
 
-                                                    ! Prognostic variables (litter and coarse woody debris)
+      ! Prognostic variables (litter and coarse woody debris)
+      ! Note that we do not track the fines (leaf/fine-root debris) by PFT. We track them 
+      ! by their decomposing pools (i.e. chemical fraction).  This is the same dimensioning
+      ! that gets passed back to the external BGC model, and saves a lot of space.
 
-      real(r8)             :: ag_cwd(ncwd)          ! above ground coarse wood debris (cwd)        [kg/m2]
-      real(r8),allocatable :: bg_cwd(:,:)           ! below ground coarse wood debris (cwd x soil) [kg/m2]
-      real(r8),allocatable :: leaf_fines(:)         ! above ground leaf litter (pft)               [kg/m2]
-      real(r8),allocatable :: root_fines(:,:)       ! below ground fine root litter (pft x soil)   [kg/m2]
+
+      real(r8)             :: ag_cwd(ncwd)          ! above ground coarse wood debris (cwd)         [kg/m2]
+      real(r8),allocatable :: bg_cwd(:,:)           ! below ground coarse wood debris (cwd x soil)  [kg/m2]
+      real(r8),allocatable :: leaf_fines(:)         ! above ground leaf litter (dcmpy)               [kg/m2]
+      real(r8),allocatable :: root_fines(:,:)       ! below ground fine root litter (dcmpy x soil)   [kg/m2]
       
       real(r8),allocatable :: seed(:)               ! the seed pool (viable)    (pft) [kg/m2]
       real(r8),allocatable :: seed_germ(:)          ! the germinated seed pool  (pft) [kg/m2]
 
       ! Fluxes in - dying trees / seed rain  (does not include disturbance fluxes)
       
-      real(r8)             ::  ag_cwd_in(ncwd)      ! kg/m2/day
-      real(r8),allocatable ::  bg_cwd_in(:,:)       ! kg/m2/day
-      real(r8),allocatable ::  leaf_fines_in(:)     ! kg/m2/day
-      real(r8),allocatable ::  root_fines_in(:,:)   ! kg/m2/day
+      real(r8)             ::  ag_cwd_in(ncwd)      ! (cwd)        [kg/m2/day]
+      real(r8),allocatable ::  bg_cwd_in(:,:)       ! (cwd x soil) [kg/m2/day]
+      real(r8),allocatable ::  leaf_fines_in(:)     ! (dcmpy)       [kg/m2/day]
+      real(r8),allocatable ::  root_fines_in(:,:)   ! (dcmpy x soil [kg/m2/day]
 
-      real(r8),allocatable ::  seed_in_local(:)     ! kg/m2/day (from local sources)
-      real(r8),allocatable ::  seed_in_extern(:)    ! kg/m2/day (from outside cell)
+      real(r8),allocatable ::  seed_in_local(:)     ! (pft)        [kg/m2/day] (from local sources)
+      real(r8),allocatable ::  seed_in_extern(:)    ! (pft)        [kg/m2/day] (from outside cell)
 
                                                     ! Fluxes out - fragmentation
       
@@ -119,13 +137,15 @@ contains
     integer  :: c               ! cwd index
     integer  :: pft             ! pft index
     integer  :: ilyr            ! soil layer index
+    integer  :: dcmpy            ! dcmpyical pool index
     integer  :: npft            ! number of PFTs
+    integer  :: ndcmpy           ! number of decomposing pools
     real(r8) :: self_weight
     real(r8) :: donor_weight
     
 
     nlevsoil = size(this%bg_cwd,dim=2)
-    npft     = size(this%leaf_fines,dim=1)
+    npft     = size(this%seed,dim=1)
 
     self_weight  = self_area /(donor_area+self_area)
     donor_weight = 1._r8 - self_weight
@@ -146,38 +166,47 @@ contains
           this%bg_cwd_frag(c,ilyr) = this%bg_cwd_frag(c,ilyr) * self_weight + &
                                      donor_litt%bg_cwd_frag(c,ilyr) * donor_weight
        end do
+
     end do
-    
+
     
     do pft=1,npft
-       this%leaf_fines(pft)      = this%leaf_fines(pft) * self_weight + &
-                                   donor_litt%leaf_fines(pft) * donor_weight
+       
        this%seed(pft)            = this%seed(pft) * self_weight + &
                                    donor_litt%seed(pft) * donor_weight
        this%seed_germ(pft)       = this%seed_germ(pft) * self_weight + &
                                    donor_litt%seed_germ(pft) * donor_weight
-       this%leaf_fines_in(pft)   = this%leaf_fines_in(pft) * self_weight + &
-                                   donor_litt%leaf_fines_in(pft) * donor_weight
+       
        this%seed_in_local(pft)   = this%seed_in_local(pft) * self_weight + &
                                    donor_litt%seed_in_local(pft) * donor_weight
        this%seed_in_extern(pft)  = this%seed_in_extern(pft) * self_weight + &
                                    donor_litt%seed_in_extern(pft) * donor_weight
-       this%leaf_fines_frag(pft) = this%leaf_fines_frag(pft) * self_weight + &
-                                   donor_litt%leaf_fines_frag(pft) * donor_weight
+       
        this%seed_decay(pft)      = this%seed_decay(pft) * self_weight + &
                                    donor_litt%seed_decay(pft) * donor_weight
        this%seed_germ_decay(pft) = this%seed_germ_decay(pft) * self_weight + &
                                    donor_litt%seed_germ_decay(pft) * donor_weight
        this%seed_germ_in(pft)    = this%seed_germ_in(pft) * self_weight + &
                                    donor_litt%seed_germ_in(pft) * donor_weight
+   end do
+
+
+   do dcmpy=1,ndcmpy
+
+       this%leaf_fines(dcmpy)      = this%leaf_fines(dcmpy) * self_weight + &
+                                   donor_litt%leaf_fines(dcmpy) * donor_weight
+       this%leaf_fines_in(dcmpy)   = this%leaf_fines_in(dcmpy) * self_weight + &
+                                   donor_litt%leaf_fines_in(dcmpy) * donor_weight
+       this%leaf_fines_frag(dcmpy) = this%leaf_fines_frag(dcmpy) * self_weight + &
+                                   donor_litt%leaf_fines_frag(dcmpy) * donor_weight
 
        do ilyr=1,nlevsoil
-          this%root_fines(pft,ilyr)      = this%root_fines(pft,ilyr) * self_weight + &
-                                           donor_litt%root_fines(pft,ilyr) * donor_weight
-          this%root_fines_in(pft,ilyr)   = this%root_fines_in(pft,ilyr) * self_weight + &
-                                           donor_litt%root_fines_in(pft,ilyr) * donor_weight
-          this%root_fines_frag(pft,ilyr) = this%root_fines_frag(pft,ilyr) * self_weight + &
-                                           donor_litt%root_fines_frag(pft,ilyr) * donor_weight
+           this%root_fines(dcmpy,ilyr)     = this%root_fines(dcmpy,ilyr) * self_weight + &
+                                            donor_litt%root_fines(dcmpy,ilyr) * donor_weight
+          this%root_fines_in(dcmpy,ilyr)   = this%root_fines_in(dcmpy,ilyr) * self_weight + &
+                                            donor_litt%root_fines_in(dcmpy,ilyr) * donor_weight
+          this%root_fines_frag(dcmpy,ilyr) = this%root_fines_frag(dcmpy,ilyr) * self_weight + &
+                                            donor_litt%root_fines_frag(dcmpy,ilyr) * donor_weight
        end do
     end do
 
@@ -234,26 +263,24 @@ contains
 
     this%element_id = element_id
 
-    allocate(this%bg_cwd(ncwd,numlevsoil))
-    allocate(this%leaf_fines(numpft))
-    allocate(this%root_fines(numpft,numlevsoil))
-    allocate(this%seed(numpft))
-    allocate(this%seed_germ(numpft))
-
     allocate(this%bg_cwd_in(ncwd,numlevsoil))
-    allocate(this%leaf_fines_in(numpft))
-    allocate(this%root_fines_in(numpft,numlevsoil))
+    allocate(this%bg_cwd(ncwd,numlevsoil))
+    allocate(this%bg_cwd_frag(ncwd,numlevsoil))
+
+    allocate(this%leaf_fines(ndcmpy))
+    allocate(this%root_fines(ndcmpy,numlevsoil))
+    allocate(this%leaf_fines_in(ndcmpy))
+    allocate(this%root_fines_in(ndcmpy,numlevsoil))
+    allocate(this%leaf_fines_frag(ndcmpy))
+    allocate(this%root_fines_frag(ndcmpy,numlevsoil))
+
     allocate(this%seed_in_local(numpft))
     allocate(this%seed_in_extern(numpft))
-
-    allocate(this%bg_cwd_frag(ncwd,numlevsoil))
-    allocate(this%leaf_fines_frag(numpft))
-    allocate(this%root_fines_frag(numpft,numlevsoil))
-
+    allocate(this%seed(numpft))
+    allocate(this%seed_germ(numpft))
     allocate(this%seed_germ_in(numpft))
     allocate(this%seed_germ_decay(numpft))
     allocate(this%seed_decay(numpft))
-
 
     ! Initialize everything to a nonsense flag
     this%ag_cwd(:)            = fates_unset_r8
@@ -381,7 +408,6 @@ contains
     
     return
   end function GetTotalLitterMass
-
 
   
 end module FatesLitterMod

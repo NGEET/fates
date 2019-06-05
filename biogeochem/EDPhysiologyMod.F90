@@ -34,6 +34,10 @@ module EDPhysiologyMod
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
   use FatesLitterMod      , only : ncwd
+  use FatesLitterMod      , only : ndcmpy
+  use FatesLitterMod      , only : ilabi
+  use FatesLitterMod      , only : ilign
+  use FatesLitterMod      , only : icell
   use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
@@ -318,15 +322,17 @@ contains
        ! Update the fine litter pools from leaves and fine-roots
        ! -----------------------------------------------------------------------------------
        
-       do pft = 1,numpft
-          litt%leaf_fines(pft) = litt%leaf_fines(pft) &
-               + litt%leaf_fines_in(pft)              &
-               - litt%leaf_fines_frag(pft)
-          do ilyr=1,nlevsoil
-             litt%root_fines(pft,ilyr) = litt%root_fines(pft,ilyr) &
-                  + litt%root_fines_in(pft,ilyr)      &
-                  - litt%root_fines_frag(pft,ilyr)
-          enddo
+       do dcmpy = 1,ndcmpy
+
+           litt%leaf_fines(dcmpy) = litt%leaf_fines(dcmpy) &
+                 + litt%leaf_fines_in(dcmpy)              &
+                 - litt%leaf_fines_frag(dcmpy)
+           do ilyr=1,nlevsoil
+               litt%root_fines(dcmpy,ilyr) = litt%root_fines(dcmpy,ilyr) &
+                     + litt%root_fines_in(dcmpy,ilyr)      &
+                     - litt%root_fines_frag(dcmpy,ilyr)
+           enddo
+
        end do
        
     end do     ! litter element loop
@@ -1638,8 +1644,14 @@ contains
       !        about double counting.
       ! ---------------------------------------------------------------------------------
 
-      litt%leaf_fines_in(pft) = litt%leaf_fines_in(pft) + & 
-           leaf_m_turnover * plant_dens
+      litt%leaf_fines_in(ilabi) = litt%leaf_fines_in(ilabi) + & 
+            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_flab(ft)
+      
+      litt%leaf_fines_in(icell) = litt%leaf_fines_in(icell) + & 
+            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_fcel(ft)
+
+      litt%leaf_fines_in(ilign) = litt%leaf_fines_in(ilign) + & 
+            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_flig(ft)
 
       flux_diags%leaf_litter_input(pft) = &
             flux_diags%leaf_litter_input(pft) +  &
@@ -1715,8 +1727,16 @@ contains
 
       dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
 
-     
-      litt%leaf_fines_in(pft) = litt%leaf_fines_in(pft) + leaf_m * dead_n
+
+      litt%leaf_fines_in(ilabi) = litt%leaf_fines_in(ilabi) + & 
+            leaf_m * dead_n * EDPftvarcon_inst%lf_flab(pft)
+      
+      litt%leaf_fines_in(icell) = litt%leaf_fines_in(icell) + & 
+            leaf_m * dead_n * EDPftvarcon_inst%lf_fcel(pft)
+
+      litt%leaf_fines_in(ilign) = litt%leaf_fines_in(ilign) + & 
+            leaf_m * dead_n * EDPftvarcon_inst%lf_flig(pft)
+
 
       flux_diags%leaf_litter_input(pft) = &
             flux_diags%leaf_litter_input(pft) +  &
@@ -1731,8 +1751,16 @@ contains
            store_m*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) )
 
       do ilyr = 1, numlevsoil
-         litt%root_fines_in(pft,ilyr) = litt%root_fines_in(pft,ilyr) + &
-              root_fines_tot * currentSite%rootfrac_scr(ilyr)
+
+          litt%root_fines_in(ilabi,ilyr) = litt%root_fines_in(ilabi,ilyr) + &
+                root_fines_tot * currentSite%rootfrac_scr(ilyr) * EDPftvarcon_inst%lf_flab(pft)
+          
+          litt%root_fines_in(icell,ilyr) = litt%root_fines_in(icell,ilyr) + &
+                root_fines_tot * currentSite%rootfrac_scr(ilyr) * EDPftvarcon_inst%lf_fcel(pft)
+          
+          litt%root_fines_in(ilign,ilyr) = litt%root_fines_in(ilign,ilyr) + &
+                root_fines_tot * currentSite%rootfrac_scr(ilyr) * EDPftvarcon_inst%lf_flig(pft)
+
       end do
 
       flux_diags%root_litter_input(pft) = &
@@ -1865,19 +1893,28 @@ contains
 
     ! Add decaying seeds to the leaf litter
     ! -----------------------------------------------------------------------------------
-    
+
     do pft = 1,numpft
-       litt%leaf_fines_in(pft) = litt%leaf_fines_in(pft) + &
-                                 litt%seed_decay(pft) +    &
-                                 litt%seed_germ_decay(pft)
+        litt%leaf_fines_in(ilabi) = litt%leaf_fines_in(ilabi) + & 
+              (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flab(pft)
+        
+        litt%leaf_fines_in(icell) = litt%leaf_fines_in(icell) + & 
+              (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_fcel(pft)
+        
+        litt%leaf_fines_in(ilign) = litt%leaf_fines_in(ilign) + & 
+              (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flig(pft)
+
     enddo
     
     
     return
   end subroutine SeedDecayToFines
   
+  
 
-  ! ============================================================================
+
+
+  ! =====================================================================================
 
   subroutine fragmentation_scaler( currentPatch, bc_in) 
     !
@@ -1987,14 +2024,14 @@ contains
     ! sensitive to moisture, but also to the type of leaf thick leaves can dry out 
     ! before they are decomposed, for example. This section needs further scientific input. 
 
-    do pft = 1,numpft
-       
-       litt%leaf_fines_frag(pft) = litt%leaf_fines(pft) * &
-             years_per_day * SF_val_max_decomp(dl_sf) * fragmentation_scaler
+    do dcmpy = 1,ndcmpy
 
+       litt%leaf_fines_frag(dcmpy) = litt%leaf_fines(dcmpy) * &
+             years_per_day * SF_val_max_decomp(dl_sf) * fragmentation_scaler
+       
        do ilyr = 1,nlev_eff_decomp
-          litt%root_fines_frag(pft,ilyr) = litt%root_fines(pft,ilyr) * &
-                years_per_day *  SF_val_max_decomp(dl_sf) * fragmentation_scaler
+           litt%root_fines_frag(dcmpy,ilyr) = litt%root_fines(dcmpy,ilyr) * &
+                 years_per_day *  SF_val_max_decomp(dl_sf) * fragmentation_scaler
        end do
     enddo
 
@@ -2172,39 +2209,35 @@ contains
              end do
              
              ! leaf and fine root fragmentation fluxes
-             do ft = 1,numpft
                 
-                do id = 1,nlev_eff_decomp
+             do id = 1,nlev_eff_decomp
                    
-                   flux_lab_si(id) = flux_lab_si(id) + &
-                         litt%leaf_fines_frag(ft) * EDPftvarcon_inst%lf_flab(ft) * &
-                         area_frac* surface_prof(id)
+                 flux_lab_si(id) = flux_lab_si(id) + &
+                       litt%leaf_fines_frag(ilabi) * area_frac* surface_prof(id)
                    
-                   flux_cel_si(id) = flux_cel_si(id) + &
-                         litt%leaf_fines_frag(ft) * EDPftvarcon_inst%lf_fcel(ft) * &
-                         area_frac* surface_prof(id)
-                   
-                   flux_lig_si(id) = flux_lig_si(id) + &
-                         litt%leaf_fines_frag(ft) * EDPftvarcon_inst%lf_flig(ft) * &
-                         area_frac* surface_prof(id)
-
-                end do
-
-                do j = 1, nlev_eff_soil
-                   
-                   id = bc_in(s)%decomp_id(j)
-                   
-                   bc_out(s)%litt_flux_lab_c_si(id) = bc_out(s)%litt_flux_lab_c_si(id) + &
-                         litt%root_fines_frag(ft,j) * EDPftvarcon_inst%fr_flab(ft) * area_frac
-                   
-                   bc_out(s)%litt_flux_cel_c_si(id) = bc_out(s)%litt_flux_cel_c_si(id) + &
-                         litt%root_fines_frag(ft,j) * EDPftvarcon_inst%fr_fcel(ft) * area_frac
-                   
-                   bc_out(s)%litt_flux_lig_c_si(id) = bc_out(s)%litt_flux_lig_c_si(id) + &
-                         litt%root_fines_frag(ft,j) * EDPftvarcon_inst%fr_flig(ft) * area_frac
-                enddo
+                 flux_cel_si(id) = flux_cel_si(id) + &
+                       litt%leaf_fines_frag(icell) * area_frac* surface_prof(id)
+                 
+                 flux_lig_si(id) = flux_lig_si(id) + &
+                       litt%leaf_fines_frag(ilign) * area_frac* surface_prof(id)
+                 
              end do
-               
+
+             do j = 1, nlev_eff_soil
+                 
+                 id = bc_in(s)%decomp_id(j)
+                 
+                 bc_out(s)%litt_flux_lab_c_si(id) = bc_out(s)%litt_flux_lab_c_si(id) + &
+                       litt%root_fines_frag(ilabi,j) * area_frac
+                 
+                 bc_out(s)%litt_flux_cel_c_si(id) = bc_out(s)%litt_flux_cel_c_si(id) + &
+                       litt%root_fines_frag(icell,j) * area_frac
+                 
+                 bc_out(s)%litt_flux_lig_c_si(id) = bc_out(s)%litt_flux_lig_c_si(id) + &
+                       litt%root_fines_frag(ilign,j) * area_frac
+             enddo
+
+         
              currentPatch => currentPatch%younger
           end do
           

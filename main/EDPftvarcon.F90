@@ -13,7 +13,7 @@ module EDPftvarcon
   use FatesConstantsMod, only : years_per_day
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
-
+  use FatesLitterMod, only : ilabi,icell,ilign
   use PRTGenericMod,  only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,  only : prt_carbon_allom_hyp
   use PRTGenericMod,  only : num_organ_types
@@ -270,6 +270,7 @@ module EDPftvarcon
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: FatesReportPFTParams
   public :: FatesCheckParams
+  public :: GetDecompyFrac
   !-----------------------------------------------------------------------
 
 contains
@@ -2400,7 +2401,31 @@ contains
      return
   end subroutine FatesCheckParams
 
+  ! =====================================================================================
 
+
+  function GetDecompyFrac(pft,dcmpy) result(decompy_frac)
+
+      ! This simple routine matches the correct decomposibility pool's
+      ! material fraction with the pft parameter data.
+
+      integer, intent(in) :: pft
+      integer, intent(in) :: dcmpy
+      real(r8) :: decompy_frac        
+      
+      select case(dcmpy)
+      case(ilabi)
+          decompy_frac=EDPftvarcon_inst%lf_flab(pft)
+      case(icell)
+          decompy_frac=EDPftvarcon_inst%lf_fcel(pft)
+      case(ilign)
+          decompy_frac=EDPftvarcon_inst%lf_flig(pft)
+      case default
+          write(fates_log(),*) 'Unknown decompositiblity pool index: ',dcmpy
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+      return
+  end function GetDecompyFrac
 
 
 end module EDPftvarcon
