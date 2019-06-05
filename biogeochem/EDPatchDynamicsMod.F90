@@ -98,7 +98,6 @@ module EDPatchDynamicsMod
         __FILE__
 
   logical, parameter :: debug = .true.
-  logical, parameter :: match_base = .true.
 
   ! When creating new patches from other patches, we need to send some of the
   ! litter from the old patch to the new patch.  Likewise, when plants die
@@ -821,27 +820,11 @@ contains
                    end do
 
                    ! Here the mass is removed from the plant
+
                    call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
                    currentCohort%fraction_crown_burned = 0.0_r8
                    nc%fraction_crown_burned            = 0.0_r8
 
-                   ! This is necessary for reproducing previous results
-                   ! In the base, we were burning plants in both the
-                   ! new and old patches (because cohorts had not been copied yet)
-
-                   if(match_base)then
-                       do el = 1,num_elements
-                           
-                           leaf_m = currentCohort%prt%GetState(leaf_organ, element_list(el))
-                           
-                           currentSite%mass_balance(el)%burn_flux_to_atm = &
-                                 currentSite%mass_balance(el)%burn_flux_to_atm + & 
-                                 leaf_burn_frac * leaf_m * currentCohort%n
-                       end do
-                       ! Here the mass is removed from the plant
-                       call PRTBurnLosses(currentCohort%prt, leaf_organ, leaf_burn_frac)
-                       
-                   end if
 
 
                ! Logging is the dominant disturbance  
