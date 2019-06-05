@@ -273,7 +273,6 @@ contains
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
     logical  :: is_drought            ! logical for if the plant (site) is in a drought state
-    real(r8) :: leaf_c
     real(r8) :: delta_dbh             ! correction for dbh
     real(r8) :: delta_hite            ! correction for hite
 
