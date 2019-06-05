@@ -297,7 +297,6 @@ contains
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
     logical  :: is_drought            ! logical for if the plant (site) is in a drought state
-    real(r8) :: leaf_c
     real(r8) :: delta_dbh             ! correction for dbh
     real(r8) :: delta_hite            ! correction for hite
 
@@ -387,7 +386,6 @@ contains
              is_drought = .true.
           end if
           call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
-          if(debug) call currentCohort%prt%CheckMassConservation(ft,4)
 
           ! If the current diameter of a plant is somehow less than what is consistent
           ! with what is allometrically consistent with the stuctural biomass, then
@@ -415,18 +413,6 @@ contains
           ! and turnover, these proportions won't change again. This
           ! routine is also called following fusion
           call UpdateCohortBioPhysRates(currentCohort)
-
-
-          ! UPDATE CROWN AREA BEFORE CALCULATING LAI, THIS VALUE
-          ! IS WRONG.
-          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-               currentCohort%vcmax25top)
-          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,3 ) 
-          
 
           ! This cohort has grown, it is no longer "new"
           currentCohort%isnew = .false.
