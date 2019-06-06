@@ -139,7 +139,6 @@ contains
     integer  :: ilyr            ! soil layer index
     integer  :: dcmpy            ! dcmpyical pool index
     integer  :: npft            ! number of PFTs
-    integer  :: ndcmpy           ! number of decomposing pools
     real(r8) :: self_weight
     real(r8) :: donor_weight
     
