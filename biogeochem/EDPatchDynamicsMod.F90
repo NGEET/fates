@@ -1091,6 +1091,7 @@ contains
     real(r8) :: bcroot               ! amount of below ground coarse root per cohort  kgC. (goes into CWD_BG)
     real(r8) :: bstem                ! amount of above ground stem biomass per cohort  kgC.(goes into CWG_AG)
     real(r8) :: dead_tree_density    ! no trees killed by fire per m2
+    real(r8) :: dead_tree_num        ! total number of trees killed by fire
     reaL(r8) :: burned_litter        ! amount of each litter pool burned by fire.  kgC/m2/day
     real(r8) :: leaf_c               ! leaf carbon [kg]
     real(r8) :: fnrt_c               ! fineroot carbon [kg]
@@ -1155,22 +1156,30 @@ contains
              bstem  = (sapw_c + struct_c) * EDPftvarcon_inst%allom_agb_frac(p)
              ! coarse root biomass per tree
              bcroot = (sapw_c + struct_c) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p) )
-             ! density of dead trees per m2. 
-             dead_tree_density  = (currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area) / AREA  
+             
+             ! Total number of dead trees
+             dead_tree_num = currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area
+
+             ! density of dead trees per m2 (spread over the new and pre-existing patch) 
+             dead_tree_density  = dead_tree_num / (new_patch%area + currentPatch%area-patch_site_areadis )  !AREA  
              
              if( hlm_use_planthydro == itrue ) then
-                call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_tree_density*AREA)
+                call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_tree_num)
              end if
 
              ! Unburned parts of dead tree pool. 
              ! Unburned leaves and roots    
              
-             new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + dead_tree_density * leaf_c * (1.0_r8-currentCohort%fraction_crown_burned)
-
-             new_patch%root_litter(p) = new_patch%root_litter(p) + dead_tree_density * (fnrt_c+store_c)
+             new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + &
+                   dead_tree_density * leaf_c * (1.0_r8-currentCohort%fraction_crown_burned)
 
              currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + dead_tree_density * &
                    leaf_c * (1.0_r8-currentCohort%fraction_crown_burned)
+
+
+             new_patch%root_litter(p) = new_patch%root_litter(p) + dead_tree_density * (fnrt_c+store_c)
+
+             
 
              currentPatch%root_litter(p) = currentPatch%root_litter(p) + dead_tree_density * &
                   (fnrt_c + store_c)
@@ -1186,7 +1195,7 @@ contains
       
              ! below ground coarse woody debris from burned trees
              do c = 1,ncwd
-                new_patch%cwd_bg(c) = new_patch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot
+                new_patch%cwd_bg(c)    = new_patch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot
                 currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot
 
                 ! track as diagnostic fluxes
