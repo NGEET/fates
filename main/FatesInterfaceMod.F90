@@ -19,7 +19,6 @@ module FatesInterfaceMod
    use EDTypesMod          , only : nlevleaf
    use EDTypesMod          , only : maxpft
    use EDTypesMod          , only : do_fates_salinity
-   use EDTypesMod          , only : ncwd
    use EDTypesMod          , only : numWaterMem
    use EDTypesMod          , only : numlevsoil_max
    use EDTypesMod          , only : num_elements
@@ -30,6 +29,8 @@ module FatesInterfaceMod
    use FatesGlobals        , only : fates_global_verbose
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
+   use FatesLitterMod      , only : ncwd
+   use FatesLitterMod      , only : ndcmpy
    use EDPftvarcon         , only : FatesReportPFTParams
    use EDPftvarcon         , only : FatesCheckParams
    use EDPftvarcon         , only : EDPftvarcon_inst
@@ -686,15 +687,15 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      if( (nlevsoil_in*numpft) > fates_maxElementsPerPatch .or. &
+      if( (nlevsoil_in*ndcmpy) > fates_maxElementsPerPatch .or. &
           (nlevsoil_in*ncwd) > fates_maxElementsPerPatch) then
           write(fates_log(), *) 'The restart files require that space is allocated'
           write(fates_log(), *) 'to accomodate the multi-dimensional patch arrays'
           write(fates_log(), *) 'that are nlevsoil*numpft and nlevsoil*ncwd'
           write(fates_log(), *) 'fates_maxElementsPerPatch = ',fates_maxElementsPerPatch
           write(fates_log(), *) 'nlevsoil = ',nlevsoil_in
-          write(fates_log(), *) 'numpft = ',numpft
-          write(fates_log(), *) 'ncwd   = ',ncwd
+          write(fates_log(), *) 'dcmpy = ',ndcmpy
+          write(fates_log(), *) 'ncwd  = ',ncwd
           write(fates_log(), *) 'numpft*nlevsoil = ',nlevsoil_in*numpft
           write(fates_log(), *) 'ncwd*nlevsoil = ',ncwd * nlevsoil_in
           write(fates_log(), *) 'To increase max_elements, change numlevsoil_max'
@@ -1083,7 +1084,7 @@ contains
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          
-         fates_maxElementsPerPatch = max(maxCohortsPerPatch, numpft*numlevsoil_max ,ncwd*numlevsoil_max)
+         fates_maxElementsPerPatch = max(maxCohortsPerPatch, ndcmpy*numlevsoil_max ,ncwd*numlevsoil_max)
 
          if (maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
             write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
@@ -1158,7 +1159,6 @@ contains
     subroutine fates_history_maps
        
        use EDTypesMod, only : NFSC
-       use EDTypesMod, only : NCWD
        use EDTypesMod, only : nclmax
        use EDTypesMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges

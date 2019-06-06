@@ -27,7 +27,6 @@ module EDPhysiologyMod
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : decay_coeff_kn
-
   use EDTypesMod          , only : litter_type
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
@@ -283,6 +282,7 @@ contains
     integer :: c           ! CWD loop counter
     integer :: nlevsoil    ! number of soil layers
     integer :: ilyr        ! soil layer loop counter
+    integer :: dcmpy       ! decomposability index
 
     do el = 1, num_elements
        
@@ -1645,13 +1645,13 @@ contains
       ! ---------------------------------------------------------------------------------
 
       litt%leaf_fines_in(ilabi) = litt%leaf_fines_in(ilabi) + & 
-            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_flab(ft)
+            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_flab(pft)
       
       litt%leaf_fines_in(icell) = litt%leaf_fines_in(icell) + & 
-            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_fcel(ft)
+            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_fcel(pft)
 
       litt%leaf_fines_in(ilign) = litt%leaf_fines_in(ilign) + & 
-            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_flig(ft)
+            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_flig(pft)
 
       flux_diags%leaf_litter_input(pft) = &
             flux_diags%leaf_litter_input(pft) +  &
@@ -2001,8 +2001,8 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer :: c
-    integer :: pft
     integer :: ilyr
+    integer :: dcmpy
     integer :: numlevsoil
     !----------------------------------------------------------------------
 

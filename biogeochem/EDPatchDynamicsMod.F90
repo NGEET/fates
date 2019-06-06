@@ -1254,7 +1254,7 @@ contains
           end do
        enddo
        
-       do dcmpy = 1,ndmpy
+       do dcmpy = 1,ndcmpy
 
           new_litt%leaf_fines_frag(dcmpy) = new_litt%leaf_fines_frag(dcmpy) + &
                curr_litt%leaf_fines_frag(dcmpy) * patch_site_areadis/newPatch%area
@@ -1444,6 +1444,7 @@ contains
     real(r8) :: num_live_trees       ! total number of live trees passed in with the burn area
     real(r8) :: donate_m2            ! area normalization for litter mass destined to new patch [m-2]
     real(r8) :: retain_m2            ! area normalization for litter mass destined to old patch [m-2]
+    real(r8) :: dcmpy_frac           ! fraction of mass going to each decomposability partition
     integer  :: el                   ! element loop index
     integer  :: sl                   ! soil layer index
     integer  :: c                    ! loop index for coarse woody debris pools
@@ -1672,10 +1673,12 @@ contains
     real(r8) :: bg_wood              ! Total bg mass in wood [kg]
     real(r8) :: seed_mass            ! Total seed mass generated from storage death [kg]
     integer  :: pft                  ! plant functional type index
+    integer  :: dcmpy                ! decomposability index
     integer  :: c                    ! coarse woody debris pool index
     integer  :: el                   ! element loop index
     integer  :: sl                   ! soil layer index
     integer  :: element_id           ! parteh compatible global element index
+    real(r8) :: dcmpy_frac           ! decomposability fraction 
     real(r8) :: litter_stock0,litter_stock1,litter_stock2,litter_stock3
     real(r8) :: mort_flux            ! For error tracking
     real(r8) :: seed_flux            ! For error tracking

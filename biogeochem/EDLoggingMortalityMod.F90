@@ -20,6 +20,7 @@ module EDLoggingMortalityMod
    use EDTypesMod        , only : site_massbal_type
    use EDTypesMod        , only : site_fluxdiags_type
    use FatesLitterMod    , only : ncwd
+   use FatesLitterMod    , only : ndcmpy
    use FatesLitterMod    , only : litter_type
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_resources_management_type
@@ -27,6 +28,7 @@ module EDLoggingMortalityMod
    use EDTypesMod        , only : dtype_ifall
    use EDTypesMod        , only : dtype_ifire
    use EDPftvarcon       , only : EDPftvarcon_inst
+   use EDPftvarcon       , only : GetDecompyFrac
    use EDTypesMod        , only : num_elements
    use EDTypesMod        , only : element_list
    use EDParamsMod       , only : logging_event_code
@@ -299,6 +301,8 @@ contains
       real(r8) :: repro_m             ! reproductive mass [kg]
       real(r8) :: retain_frac         ! fraction of litter retained in the donor patch
       real(r8) :: donate_frac         ! fraction of litter sent to newly formed patch
+      real(r8) :: dcmpy_frac          ! fraction going into each decomposability pool
+      integer  :: dcmpy               ! index for decomposability pools
       integer  :: element_id          ! parteh global element index
       integer  :: pft                 ! pft index
       integer  :: c                   ! cwd index
@@ -527,22 +531,28 @@ contains
             leaf_litter = (direct_dead+indirect_dead)*(leaf_m + repro_m)
             root_litter = (direct_dead+indirect_dead)*(fnrt_m + store_m)
 
-            new_litt%leaf_fines(pft) = new_litt%leaf_fines(pft) + &
-                  leaf_litter * donate_frac/newPatch%area
-            
-            cur_litt%leaf_fines(pft) = cur_litt%leaf_fines(pft) + &
-                  leaf_litter * retain_frac/remainder_area
 
-            do ilyr = 1,nlevsoil
-               new_litt%root_fines(pft,ilyr) = new_litt%root_fines(pft,ilyr) + &
-                     root_litter * rootfr(ilyr) * &
-                     donate_frac/newPatch%area
+            do dcmpy=1,ndcmpy
+
+               dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+
+               new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+                    leaf_litter * donate_frac/newPatch%area * dcmpy_frac
                
-               cur_litt%root_fines(pft,ilyr) = cur_litt%root_fines(pft,ilyr) + &
-                     root_litter * rootfr(ilyr) * &
-                     retain_frac/remainder_area
+               cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + &
+                    leaf_litter * retain_frac/remainder_area * dcmpy_frac
+               
+               do ilyr = 1,nlevsoil
+                  new_litt%root_fines(dcmpy,ilyr) = new_litt%root_fines(dcmpy,ilyr) + &
+                       root_litter * rootfr(ilyr) * dcmpy_frac * &
+                       donate_frac/newPatch%area
+                  
+                  cur_litt%root_fines(dcmpy,ilyr) = cur_litt%root_fines(dcmpy,ilyr) + &
+                       root_litter * rootfr(ilyr) * dcmpy_frac * &
+                       retain_frac/remainder_area
+               end do
             end do
-         
+               
             ! track as diagnostic fluxes
             flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + & 
                  leaf_litter

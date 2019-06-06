@@ -102,9 +102,6 @@ contains
       ! !USES:
       use shr_file_mod, only        : shr_file_getUnit
       use shr_file_mod, only        : shr_file_freeUnit
-      use EDTypesMod, only          : nclmax
-      use EDTypesMod, only          : maxpft
-      use EDTypesMod, only          : ncwd
       use EDPatchDynamicsMod, only  : create_patch
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
@@ -132,10 +129,6 @@ contains
       character(len=line_strlen)                   :: header_str           ! large string for whole lines
       real(r8)                                     :: age_init             ! dummy value for creating a patch
       real(r8)                                     :: area_init            ! dummy value for creating a patch
-      real(r8)                                     :: cwd_ag_init(ncwd)    ! dummy value for creating a patch
-      real(r8)                                     :: cwd_bg_init(ncwd)    ! dummy value for creating a patch
-      real(r8)                                     :: leaf_litter_init(maxpft) ! dummy value for creating a patch
-      real(r8)                                     :: root_litter_init(maxpft) ! dummy value for creating a patch
       integer                                      :: s                    ! site index
       integer                                      :: ipa                  ! patch index
       integer                                      :: total_cohorts        ! cohort counter for error checking
@@ -448,22 +441,12 @@ contains
             end do
             currentPatch => currentpatch%older
          enddo
-
+         
          write(fates_log(),*) '-------------------------------------------------------'
          write(fates_log(),*) 'Basal Area from inventory, AFTER fusion'
          write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
          write(fates_log(),*) basal_area_postf,' [m2/ha]'
          write(fates_log(),*) '-------------------------------------------------------'
-
-         ! Check to see if the fusion process has changed too much
-         ! We are sensitive to fusion in inventories because we may be asking for a massive amount
-         ! of fusion. For instance some init files are directly from inventory, where a cohort
-         ! is synomomous with a single plant.
-
-         if( abs(basal_area_postf-basal_area_pref)/basal_area_pref > max_ba_diff ) then
-            write(fates_log(),*) 'Inventory Fusion Changed total biomass beyond reasonable limit'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
          
       end do
 
@@ -667,7 +650,6 @@ contains
 
       use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
       use EDtypesMod, only: AREA
-      use EDTypesMod, only: ncwd
       use SFParamsMod , only : SF_val_CWD_frac
 
       ! Arguments

@@ -19,7 +19,6 @@ module EDInitMod
   use EDPatchDynamicsMod        , only : create_patch
   use ChecksBalancesMod         , only : SiteMassStock
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod                , only : ncwd
   use EDTypesMod                , only : numWaterMem
   use EDTypesMod                , only : num_vegtemp_mem
   use EDTypesMod                , only : maxpft
@@ -314,10 +313,6 @@ contains
      !
      ! !LOCAL VARIABLES:
      integer  :: s
-     real(r8) :: cwd_ag_local(ncwd)
-     real(r8) :: cwd_bg_local(ncwd)
-     real(r8) :: leaf_litter_local(maxpft)
-     real(r8) :: root_litter_local(maxpft)
      integer  :: el
      real(r8) :: age !notional age of this patch
 

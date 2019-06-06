@@ -1,38 +1,40 @@
 module FatesRestartInterfaceMod
 
 
-  use FatesConstantsMod , only : r8 => fates_r8
-  use FatesConstantsMod , only : fates_avg_flag_length
-  use FatesConstantsMod , only : fates_short_string_length
-  use FatesConstantsMod , only : fates_long_string_length
-  use FatesConstantsMod , only : itrue
-  use FatesConstantsMod , only : ifalse
-  use FatesConstantsMod, only : fates_unset_r8
-  use FatesConstantsMod , only : primaryforest
-  use FatesGlobals      , only : fates_log
-  use FatesGlobals      , only : endrun => fates_endrun
-  use FatesIODimensionsMod, only : fates_io_dimension_type
-  use FatesIOVariableKindMod, only : fates_io_variable_kind_type
+  use FatesConstantsMod,       only : r8 => fates_r8
+  use FatesConstantsMod,       only : fates_avg_flag_length
+  use FatesConstantsMod,       only : fates_short_string_length
+  use FatesConstantsMod,       only : fates_long_string_length
+  use FatesConstantsMod,       only : itrue
+  use FatesConstantsMod,       only : ifalse
+  use FatesConstantsMod,       only : fates_unset_r8
+  use FatesConstantsMod,       only : primaryforest
+  use FatesGlobals,            only : fates_log
+  use FatesGlobals,            only : endrun => fates_endrun
+  use FatesIODimensionsMod,    only : fates_io_dimension_type
+  use FatesIOVariableKindMod,  only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
-  use FatesInterfaceMod, only : bc_in_type 
-  use FatesInterfaceMod, only : bc_out_type
-  use FatesInterfaceMod, only : hlm_use_planthydro
-  use FatesInterfaceMod, only : fates_maxElementsPerSite
-  use EDCohortDynamicsMod, only : UpdateCohortBioPhysRates
-  use FatesHydraulicsMemMod,  only : nshell
-  use FatesHydraulicsMemMod,  only : n_hypool_ag
-  use FatesHydraulicsMemMod,  only : n_hypool_troot
-  use FatesHydraulicsMemMod,  only : nlevsoi_hyd_max
-  use PRTGenericMod,          only : prt_global
-  use EDCohortDynamicsMod,      only : nan_cohort
-  use EDCohortDynamicsMod,      only : zero_cohort
-  use EDCohortDynamicsMod,      only : InitPRTObject
-  use EDCohortDynamicsMod,      only : InitPRTBoundaryConditions
-  use FatesPlantHydraulicsMod,  only : InitHydrCohort
-  use FatesInterfaceMod, only : nlevsclass
-  use FatesLitterMod, only : litter_type
-  use PRTGenericMod, only : prt_global
-  use EDTypesMod, only     : num_elements
+  use FatesInterfaceMod,       only : bc_in_type 
+  use FatesInterfaceMod,       only : bc_out_type
+  use FatesInterfaceMod,       only : hlm_use_planthydro
+  use FatesInterfaceMod,       only : fates_maxElementsPerSite
+  use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
+  use FatesHydraulicsMemMod,   only : nshell
+  use FatesHydraulicsMemMod,   only : n_hypool_ag
+  use FatesHydraulicsMemMod,   only : n_hypool_troot
+  use FatesHydraulicsMemMod,   only : nlevsoi_hyd_max
+  use PRTGenericMod,           only : prt_global
+  use EDCohortDynamicsMod,     only : nan_cohort
+  use EDCohortDynamicsMod,     only : zero_cohort
+  use EDCohortDynamicsMod,     only : InitPRTObject
+  use EDCohortDynamicsMod,     only : InitPRTBoundaryConditions
+  use FatesPlantHydraulicsMod, only : InitHydrCohort
+  use FatesInterfaceMod,       only : nlevsclass
+  use FatesLitterMod,          only : litter_type
+  use FatesLitterMod,          only : ncwd
+  use FatesLitterMod,          only : ndcmpy
+  use PRTGenericMod,           only : prt_global
+  use EDTypesMod,              only : num_elements
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -1394,7 +1396,6 @@ contains
    use EDTypesMod, only : ed_site_type
    use EDTypesMod, only : ed_cohort_type
    use EDTypesMod, only : ed_patch_type
-   use EDTypesMod, only : ncwd
    use EDTypesMod, only : maxSWb
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
@@ -1423,7 +1424,8 @@ contains
     integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
     integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
     integer  :: io_idx_pa_cwsl ! each cwd x soil layer
-    integer  :: io_idx_pa_pfsl ! each pft x soil layer
+    integer  :: io_idx_pa_dcsl ! each decomposability x soil layer
+    integer  :: io_idx_pa_dc   ! each decomposability index
     integer  :: io_idx_pa_ib   ! each SW band (vis/ir) per patch (pa_ib)
     integer  :: io_idx_si_wmem ! each water memory class within each site
     integer  :: io_idx_si_lyr_shell ! site - layer x shell index
@@ -1756,19 +1758,24 @@ contains
                  io_idx_pa_pft  = io_idx_co_1st
                  io_idx_pa_cwd  = io_idx_co_1st
                  io_idx_pa_cwsl = io_idx_co_1st
-                 io_idx_pa_pfsl = io_idx_co_1st
+                 io_idx_pa_dcsl = io_idx_co_1st
+                 io_idx_pa_dc   = io_idx_co_1st
                  
                  litt => cpatch%litter(el)
 
                  do i = 1,numpft
-                     this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_pft) = litt%leaf_fines(i)
-                     this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft) = litt%seed(i)
-                     this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ(i)
-                     io_idx_pa_pft = io_idx_pa_pft + 1
+                    this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft) = litt%seed(i)
+                    this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ(i)
+                    io_idx_pa_pft = io_idx_pa_pft + 1
+                 end do
 
+
+                 do i = 1,ndcmpy
+                     this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc) = litt%leaf_fines(i)
+                     io_idx_pa_dc = io_idx_pa_dc + 1
                      do ilyr=1,sites(s)%nlevsoil
-                         this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_pfsl) = litt%root_fines(i,ilyr)
-                         io_idx_pa_pfsl = io_idx_pa_pfsl + 1
+                         this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_dcsl) = litt%root_fines(i,ilyr)
+                         io_idx_pa_dcsl = io_idx_pa_dcsl + 1
                      end do
                  end do
                  
@@ -1923,7 +1930,6 @@ contains
      use EDTypesMod,           only : ed_site_type
      use EDTypesMod,           only : ed_cohort_type
      use EDTypesMod,           only : ed_patch_type
-     use EDTypesMod,           only : ncwd
      use EDTypesMod,           only : maxSWb
      use EDTypesMod,           only : nan_leaf_aclass
      use FatesInterfaceMod,    only : fates_maxElementsPerPatch
@@ -2119,7 +2125,6 @@ contains
      use EDTypesMod, only : ed_site_type
      use EDTypesMod, only : ed_cohort_type
      use EDTypesMod, only : ed_patch_type
-     use EDTypesMod, only : ncwd
      use EDTypesMod, only : maxSWb
      use FatesInterfaceMod, only : numpft
      use FatesInterfaceMod, only : fates_maxElementsPerPatch
@@ -2157,7 +2162,8 @@ contains
      integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
      integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
      integer  :: io_idx_pa_cwsl ! each cwd x soil layer
-     integer  :: io_idx_pa_pfsl ! each pft x soil layer
+     integer  :: io_idx_pa_dcsl ! each decomposability x soil layer
+     integer  :: io_idx_pa_dc   ! each decomposability index 
      integer  :: io_idx_pa_ib   ! each SW radiation band per patch (pa_ib)
      integer  :: io_idx_si_wmem ! each water memory class within each site
      integer  :: io_idx_si_vtmem ! counter for vegetation temp memory
@@ -2464,20 +2470,24 @@ contains
                  io_idx_pa_pft  = io_idx_co_1st
                  io_idx_pa_cwd  = io_idx_co_1st
                  io_idx_pa_cwsl = io_idx_co_1st
-                 io_idx_pa_pfsl = io_idx_co_1st
-                 
+                 io_idx_pa_dcsl = io_idx_co_1st
+                 io_idx_pa_dc   = io_idx_co_1st
+
                  litt => cpatch%litter(el)
                  nlevsoil = size(litt%bg_cwd,dim=2)
 
                  do i = 1,numpft
-                     litt%leaf_fines(i) = this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_pft)
                      litt%seed(i)       = this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft)
                      litt%seed_germ(i)  = this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft)
                      io_idx_pa_pft      = io_idx_pa_pft + 1
+                  end do
 
+                  do i = 1,ndcmpy
+                     litt%leaf_fines(i) = this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc)
+                     io_idx_pa_dc       = io_idx_pa_dc + 1
                      do ilyr=1,nlevsoil
-                         litt%root_fines(i,ilyr) = this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_pfsl)
-                         io_idx_pa_pfsl = io_idx_pa_pfsl + 1
+                         litt%root_fines(i,ilyr) = this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_dcsl)
+                         io_idx_pa_dcsl = io_idx_pa_dcsl + 1
                      end do
                  end do
                  

@@ -14,6 +14,7 @@ module ChecksBalancesMod
    use FatesInterfaceMod, only : bc_in_type
    use FatesLitterMod,    only : litter_type
    use FatesLitterMod,    only : ncwd
+   use FatesLitterMod,    only : ndcmpy
    use PRTGenericMod,     only : all_carbon_elements
    use PRTGenericMod,     only : leaf_organ
    use PRTGenericMod,     only : fnrt_organ
@@ -123,6 +124,7 @@ contains
     integer :: c                            ! CWD loop index
     integer :: ilyr                         ! soil layer index
     integer :: pft                          ! pft index
+    integer :: dcmpy                        ! decomposability index
     integer :: numlevsoil                   ! number of soil layers
 
     ! We only really run this scheme if we think things are really broken.  
@@ -176,20 +178,25 @@ contains
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
              
-             if(litt%leaf_fines(pft)<0._r8)then
+
+          end do
+
+          do dcmpy = 1,ndcmpy
+             
+             if(litt%leaf_fines(dcmpy)<0._r8)then
                 write(fates_log(),*) 'For PFT: ',pft
                 write(fates_log(),*) 'Element id: ',element_id
-                write(fates_log(),*) 'Negative leaf fine litter: ',litt%leaf_fines(pft)
+                write(fates_log(),*) 'Negative leaf fine litter: ',litt%leaf_fines(dcmpy)
                 write(fates_log(),*) 'lat/lon: ',currentSite%lat,currentSite%lon
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
              
              do ilyr = 1,numlevsoil
-                if(litt%root_fines(pft,ilyr)<0._r8)then
-                   write(fates_log(),*) 'For PFT: ',pft
+                if(litt%root_fines(dcmpy,ilyr)<0._r8)then
+                   write(fates_log(),*) 'For PFT: ',dcmpy
                    write(fates_log(),*) 'Soil layer: ',ilyr
                    write(fates_log(),*) 'Element id: ',element_id
-                   write(fates_log(),*) 'Negative leaf fine litter: ',litt%root_fines(pft,ilyr)
+                   write(fates_log(),*) 'Negative leaf fine litter: ',litt%root_fines(dcmpy,ilyr)
                    write(fates_log(),*) 'lat/lon: ',currentSite%lat,currentSite%lon
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
