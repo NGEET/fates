@@ -1161,7 +1161,7 @@ contains
              dead_tree_num = currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area
 
              ! density of dead trees per m2 (spread over the new and pre-existing patch) 
-             dead_tree_density  = dead_tree_num / (new_patch%area + currentPatch%area-patch_site_areadis )  !AREA  
+             dead_tree_density  = dead_tree_num / (new_patch%area + currentPatch%area-patch_site_areadis )
              
              if( hlm_use_planthydro == itrue ) then
                 call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_tree_num)
@@ -1176,10 +1176,7 @@ contains
              currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + dead_tree_density * &
                    leaf_c * (1.0_r8-currentCohort%fraction_crown_burned)
 
-
              new_patch%root_litter(p) = new_patch%root_litter(p) + dead_tree_density * (fnrt_c+store_c)
-
-             
 
              currentPatch%root_litter(p) = currentPatch%root_litter(p) + dead_tree_density * &
                   (fnrt_c + store_c)
