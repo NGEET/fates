@@ -71,7 +71,6 @@ module FatesRestartInterfaceMod
   
   ! Indices to the restart variable object
   integer, private :: ir_npatch_si 
-  integer, private :: ir_oldstock_si
   integer, private :: ir_cd_status_si
   integer, private :: ir_dd_status_si
   integer, private :: ir_nchill_days_si
@@ -1571,19 +1570,19 @@ contains
              io_idx_si_pft = io_idx_co_1st
 
              do i_cwd=1,ncwd
-                this%rvars(ir_cwdagin_flxdg+el)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_ag_input(i_cwd)
-                this%rvars(ir_cwdbgin_flxdg+el)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_bg_input(i_cwd)
+                this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_ag_input(i_cwd)
+                this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_bg_input(i_cwd)
                 io_idx_si_cwd = io_idx_si_cwd + 1
              end do
              
              do i_pft=1,numpft
-                this%rvars(ir_leaflittin_flxdg+el)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
-                this%rvars(ir_rootlittin_flxdg+el)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%root_litter_input(i_pft)
+                this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
+                this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%root_litter_input(i_pft)
                 io_idx_si_pft = io_idx_si_pft + 1
              end do
 
-             this%rvars(ir_oldstock_mbal+el)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
-             this%rvars(ir_errfates_mbal+el)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
+             this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
+             this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
 
           end do
 
@@ -1753,7 +1752,7 @@ contains
              ! we keep re-setting this 
              ! --------------------------------------------------------------------------
 
-             do el = 1, num_elements
+             do el = 0, num_elements-1
                  
                  io_idx_pa_pft  = io_idx_co_1st
                  io_idx_pa_cwd  = io_idx_co_1st
@@ -1761,7 +1760,7 @@ contains
                  io_idx_pa_dcsl = io_idx_co_1st
                  io_idx_pa_dc   = io_idx_co_1st
                  
-                 litt => cpatch%litter(el)
+                 litt => cpatch%litter(el+1)
 
                  do i = 1,numpft
                     this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft) = litt%seed(i)
@@ -1780,12 +1779,10 @@ contains
                  end do
                  
                  do i = 1,ncwd
-
                      this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd(i)
                      io_idx_pa_cwd = io_idx_pa_cwd + 1
-                     
                      do ilyr=1,sites(s)%nlevsoil
-                         this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%bg_cwd(i,ilyr)
+                         this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwsl) = litt%bg_cwd(i,ilyr)
                          io_idx_pa_cwsl = io_idx_pa_cwsl + 1
                      end do
                  end do
@@ -1956,7 +1953,6 @@ contains
      type(ed_patch_type) , pointer     :: newp
      type(ed_cohort_type), pointer     :: new_cohort
      type(ed_cohort_type), pointer     :: prev_cohort
-     real(r8)                          :: patch_age
      integer                           :: cohortstatus
      integer                           :: s             ! site index
      integer                           :: idx_pa        ! local patch index
@@ -2006,8 +2002,7 @@ contains
              allocate(newp)    
              
              ! make new patch
-
-             call create_patch(sites(s), newp, patch_age, area, primaryforest )
+             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest )
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches
@@ -2291,19 +2286,19 @@ contains
              io_idx_si_pft = io_idx_co_1st
 
              do i_cwd=1,ncwd
-                sites(s)%flux_diags(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el)%r81d(io_idx_si_cwd)
-                sites(s)%flux_diags(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el)%r81d(io_idx_si_cwd)
+                sites(s)%flux_diags(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
+                sites(s)%flux_diags(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd)
                 io_idx_si_cwd = io_idx_si_cwd + 1
              end do
              
              do i_pft=1,numpft
-                sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el)%r81d(io_idx_si_pft)
-                sites(s)%flux_diags(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el)%r81d(io_idx_si_pft)
+                sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                sites(s)%flux_diags(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft)
                 io_idx_si_pft = io_idx_si_pft + 1
             end do
             
-            sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el)%r81d(io_idx_si)
-            sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el)%r81d(io_idx_si)
+            sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
+            sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
 
           end do
 
@@ -2465,7 +2460,7 @@ contains
              ! we keep re-setting this 
              ! --------------------------------------------------------------------------
 
-             do el = 1, num_elements
+             do el = 0, num_elements-1
                  
                  io_idx_pa_pft  = io_idx_co_1st
                  io_idx_pa_cwd  = io_idx_co_1st
@@ -2473,7 +2468,7 @@ contains
                  io_idx_pa_dcsl = io_idx_co_1st
                  io_idx_pa_dc   = io_idx_co_1st
 
-                 litt => cpatch%litter(el)
+                 litt => cpatch%litter(el+1)
                  nlevsoil = size(litt%bg_cwd,dim=2)
 
                  do i = 1,numpft
@@ -2491,14 +2486,13 @@ contains
                      end do
                  end do
                  
-                 
                  do i = 1,ncwd
 
                      litt%ag_cwd(i) = this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd)
                      io_idx_pa_cwd = io_idx_pa_cwd + 1
                      
                      do ilyr=1,nlevsoil
-                         litt%bg_cwd(i,ilyr) = this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwd)
+                         litt%bg_cwd(i,ilyr) = this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwsl)
                          io_idx_pa_cwsl = io_idx_pa_cwsl + 1
                      end do
                  end do
