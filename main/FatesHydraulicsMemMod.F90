@@ -16,9 +16,6 @@ module FatesHydraulicsMemMod
    ! communications with the LSM.  Please do not set nlevsoi_hyd_max
    ! to 1 unless you are developing and testing.
 
-   ! Make public necessary subroutines and functions
-   public :: InitHydraulicsDerived
-
    integer, parameter, public                  :: nlevsoi_hyd_max = 40
 
    ! number of distinct types of plant porous media (leaf, stem, troot, aroot)
@@ -289,6 +286,9 @@ module FatesHydraulicsMemMod
      
   end type ed_cohort_hydr_type
    
+  ! Make public necessary subroutines and functions
+  public :: InitHydraulicsDerived
+
  contains
     
     subroutine AllocateHydrCohortArrays(this,nlevsoil_hydr)

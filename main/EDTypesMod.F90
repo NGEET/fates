@@ -17,13 +17,6 @@ module EDTypesMod
   private               ! By default everything is private
   save
 
-  ! Make public necessary subroutines and functions
-  public :: val_check_ed_vars
-  public :: dump_site
-  public :: dump_patch
-  public :: dump_cohort
-  public :: dump_cohort_hydr
-
   integer, parameter, public :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
   integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
                                                      (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
@@ -720,6 +713,12 @@ module EDTypesMod
      
   end type ed_site_type
 
+  ! Make public necessary subroutines and functions
+  public :: val_check_ed_vars
+  public :: dump_site
+  public :: dump_patch
+  public :: dump_cohort
+  public :: dump_cohort_hydr
 
   contains
    
