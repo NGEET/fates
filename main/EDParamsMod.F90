@@ -42,8 +42,8 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_patch_fusion_tol
    real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
 
-   real(r8),protected :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
-   real(r8),protected :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
+   real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
+   real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
    ! two special parameters whose size is defined in the parameter file
    real(r8),protected,allocatable,public :: ED_val_history_sizeclass_bin_edges(:)
@@ -81,10 +81,6 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
    character(len=param_string_length),parameter,public :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
-
-
-   
-
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
