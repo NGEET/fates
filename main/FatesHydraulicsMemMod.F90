@@ -130,6 +130,7 @@ module FatesHydraulicsMemMod
      
      real(r8),allocatable :: psisoi_liq_innershell(:) ! Matric potential of the inner rhizosphere shell (MPa)
      
+     
      real(r8),allocatable :: recruit_w_uptake(:)    ! recruitment water uptake (kg H2o/m2/s)
 
     
@@ -211,6 +212,8 @@ module FatesHydraulicsMemMod
      real(r8),allocatable :: v_aroot_layer_init(:) ! previous day's volume of absorbing roots by soil layer    [m3]
      real(r8),allocatable :: v_aroot_layer(:)      ! volume of absorbing roots by soil layer                   [m3]
      real(r8),allocatable :: l_aroot_layer(:)      ! length of absorbing roots by soil layer                   [m]
+     
+     real(r8),allocatable :: kmax_innershell(:)    ! Maximum  hydraulic conductivity of the inner rhizosphere shell (kg s-1 MPa-1)
 
                                                   ! BC PLANT HYDRAULICS - state variables
      real(r8) ::  th_ag(n_hypool_ag)              ! water in aboveground compartments                                 [kgh2o/indiv]
@@ -310,6 +313,7 @@ module FatesHydraulicsMemMod
        allocate(this%flc_min_aroot(1:nlevsoil_hydr))
        allocate(this%errh2o_growturn_aroot(1:nlevsoil_hydr))
        allocate(this%errh2o_pheno_aroot(1:nlevsoil_hydr))
+       allocate(this%kmax_innershell(1:nlevsoil_hydr))
        
        return
     end subroutine AllocateHydrCohortArrays
@@ -332,6 +336,7 @@ module FatesHydraulicsMemMod
        deallocate(this%flc_min_aroot)
        deallocate(this%errh2o_growturn_aroot)
        deallocate(this%errh2o_pheno_aroot)
+       deallocate(this%kmax_innershell)
 
        return
     end subroutine DeallocateHydrCohortArrays
