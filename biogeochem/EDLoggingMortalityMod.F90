@@ -64,7 +64,7 @@ module EDLoggingMortalityMod
                                         ! performed during the current time-step
 
 
-   real(r8), parameter :: harvest_litter_localization = 0.75_r8
+   real(r8), parameter :: harvest_litter_localization = 0.0_r8
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
