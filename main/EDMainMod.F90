@@ -613,14 +613,15 @@ contains
        flux_in  = site_mass%seed_in + & 
                   site_mass%net_root_uptake + &
                   site_mass%gpp_acc + &
-                  site_mass%flux_generic_in
+                  site_mass%flux_generic_in + &
+                  site_mass%patch_resize_err
 
        flux_out = site_mass%wood_product + &
                   site_mass%burn_flux_to_atm + & 
                   site_mass%seed_out + & 
                   site_mass%flux_generic_out + &
                   site_mass%frag_out + & 
-                  site_mass%aresp_acc
+                  site_mass%aresp_acc 
 
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)   
@@ -644,6 +645,7 @@ contains
           write(fates_log(),*) 'gpp_acc: ',site_mass%gpp_acc
           write(fates_log(),*) 'flux_generic_in: ',site_mass%flux_generic_in
           write(fates_log(),*) 'wood_product: ',site_mass%wood_product
+          write(fates_log(),*) 'error from patch resizing: ',site_mass%patch_resize_err
           write(fates_log(),*) 'burn_flux_to_atm: ',site_mass%burn_flux_to_atm
           write(fates_log(),*) 'seed_out: ',site_mass%seed_out
           write(fates_log(),*) 'flux_generic_out: ',site_mass%flux_generic_out

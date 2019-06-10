@@ -147,7 +147,6 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_fire_fuel_mef_pa
   integer, private :: ih_sum_fuel_pa
 
-  integer, private :: ih_fines_elpft
   integer, private :: ih_cwd_elcwd
   integer, private :: ih_litter_in_elem
   integer, private :: ih_litter_out_elem
@@ -1704,7 +1703,6 @@ end subroutine flush_hvars
                hio_m7_si_scls          => this%hvars(ih_m7_si_scls)%r82d, &
                hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &    
                hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &
-               hio_fines_elpft         => this%hvars(ih_fines_elpft)%r82d, &
                hio_cwd_elcwd           => this%hvars(ih_cwd_elcwd)%r82d, &
                ! SWAP THIS BACK TO 2D WHEN TESTING COMPLETE (RGK 06-2019)
                hio_cwd_ag_elem         => this%hvars(ih_cwd_ag_elem)%r81d, &
@@ -2608,7 +2606,6 @@ end subroutine flush_hvars
          ! Diagnostics discretized by element type
          ! ------------------------------------------------------------------------------
 
-         hio_fines_elpft(io_si,:) = 0._r8
          hio_cwd_elcwd(io_si,:)   = 0._r8
 
          do el = 1, num_elements
@@ -2696,12 +2693,6 @@ end subroutine flush_hvars
 !                     sum(litt%root_fines(:,:)) * area_frac
                
 
-
-               do ft=1,numpft
-                   elpft = (el-1)*numpft+ft   ! See map in FatesInterface fates_hdim_elmap_levelpft
-                   hio_fines_elpft(io_si,elpft) = hio_fines_elpft(io_si,elpft) + &
-                         (litt%leaf_fines(ft)+sum(litt%root_fines(ft,:))) * area_frac
-               end do
 
                do cwd=1,ncwd
                    elcwd = (el-1)*ncwd+cwd
@@ -5043,11 +5034,6 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_elem )
 
-    call this%set_history_var(vname='LITTER_FINES_PFT', units='kg/m^2', &
-          long='total mass of litter in fines (leaves,fineroot,nonviable seed)', use_default='active', &
-          avgflag='A', vtype=site_elpft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_elpft )
-    
     call this%set_history_var(vname='LITTER_CWD', units='kg/m^2', &
           long='total mass of litter in CWD', use_default='active', &
           avgflag='A', vtype=site_elcwd_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &

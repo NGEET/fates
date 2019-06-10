@@ -19,11 +19,13 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
   use EDPftvarcon           , only : EDPftvarcon_inst
+  use EDPftvarcon           , only : GetDecompyFrac
   use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : element_list
   use FatesLitterMod        , only : ncwd
+  use FatesLitterMod        , only : ndcmpy
   use FatesLitterMod        , only : litter_type
   use EDTypesMod            , only : maxCohortsPerPatch
   use EDTypesMod            , only : AREA
@@ -804,10 +806,13 @@ contains
     real(r8) :: repro_m   ! reproductive mass [kg]
     real(r8) :: struct_m  ! structural mass [kg]
     real(r8) :: plant_dens! plant density [/m2]
+    real(r8) :: dcmpy_frac! fraction of mass going to each decomposability partition
     integer  :: el        ! loop index for elements
     integer  :: c         ! loop index for CWD
     integer  :: pft       ! pft index of the cohort
     integer  :: sl        ! loop index for soil layers
+    integer  :: dcmpy     ! loop index for decomposability
+    
     !----------------------------------------------------------------------
 
     pft = ccohort%pft
@@ -852,18 +857,22 @@ contains
 
        enddo
        
-       litt%leaf_fines(pft) = litt%leaf_fines(pft) + &
-             plant_dens * (leaf_m + repro_m)
+       do dcmpy=1,ndcmpy
+           dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+           
+           litt%leaf_fines(dcmpy) = litt%leaf_fines(dcmpy) + &
+                 plant_dens * (leaf_m+repro_m) * dcmpy_frac
+       
+           do sl=1,csite%nlevsoil
+               litt%root_fines(dcmpy,sl) = litt%root_fines(dcmpy,sl) + &
+                     plant_dens * (fnrt_m+store_m) * csite%rootfrac_scr(sl) * dcmpy_frac
+           end do
+
+       end do
 
        flux_diags%leaf_litter_input(pft) = &
              flux_diags%leaf_litter_input(pft) +  &
              (leaf_m+repro_m) * nplant
-       
-       do sl=1,csite%nlevsoil
-           litt%root_fines(pft,sl) = litt%root_fines(pft,sl) + &
-                 plant_dens * (fnrt_m+store_m) * csite%rootfrac_scr(sl)
-       end do
-       
        flux_diags%root_litter_input(pft) = &
              flux_diags%root_litter_input(pft) +  &
              (fnrt_m+store_m) * nplant

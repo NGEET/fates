@@ -30,7 +30,7 @@ module ChecksBalancesMod
    
    private
    public :: SiteMassStock
-
+   public :: PatchMassStock
 
    character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -52,6 +52,9 @@ contains
      type(litter_type), pointer              :: litt           ! litter object
      type(ed_patch_type), pointer            :: currentPatch
      type(ed_cohort_type), pointer           :: currentCohort
+     real(r8)                                :: patch_biomass
+     real(r8)                                :: patch_seed
+     real(r8)                                :: patch_litter
      
      litter_stock  = 0.0_r8
      biomass_stock = 0.0_r8
@@ -62,32 +65,11 @@ contains
      currentPatch => currentSite%oldest_patch 
      do while(associated(currentPatch))
 
-        litt => currentPatch%litter(i_element)
+        call PatchMassStock(currentPatch,i_element,patch_biomass,patch_seed,patch_litter)
+        litter_stock  = litter_stock + patch_litter
+        biomass_stock = biomass_stock + patch_biomass
+        seed_stock    = seed_stock + patch_seed
 
-        ! Total non-seed litter in [kg]
-        litter_stock = litter_stock + currentPatch%area * &
-             (sum(litt%ag_cwd)                  + &
-              sum(litt%bg_cwd) + &
-              sum(litt%leaf_fines)              + &
-              sum(litt%root_fines))
-
-        ! Total mass of viable seeds in [kg]
-        seed_stock = seed_stock + currentPatch%area * &
-             (sum(litt%seed) + sum(litt%seed_germ))
-
-        ! Total mass on living plants
-        currentCohort => currentPatch%tallest
-        do while(associated(currentCohort))
-           biomass_stock =  biomass_stock + &
-                 (currentCohort%prt%GetState(struct_organ,element_id) + &
-                 currentCohort%prt%GetState(sapw_organ,element_id) + &
-                 currentCohort%prt%GetState(leaf_organ,element_id) + &
-                 currentCohort%prt%GetState(fnrt_organ,element_id) + &
-                 currentCohort%prt%GetState(store_organ,element_id) + &
-                 currentCohort%prt%GetState(repro_organ,element_id) ) &
-                 * currentCohort%n
-           currentCohort => currentCohort%shorter
-        enddo !end cohort loop 
         currentPatch => currentPatch%younger
      enddo !end patch loop
      
@@ -95,6 +77,57 @@ contains
 
      return
   end subroutine SiteMassStock
+
+  ! =====================================================================================
+
+  subroutine PatchMassStock(currentPatch,el,live_stock,seed_stock,litter_stock)
+
+      ! ---------------------------------------------------------------------------------
+      ! Sum up the mass of the different stocks on a patch for each element
+      ! ---------------------------------------------------------------------------------
+      type(ed_patch_type),intent(in),target :: currentPatch
+      integer                               :: el
+      real(r8)                              :: live_stock
+      real(r8)                              :: seed_stock
+      real(r8)                              :: litter_stock
+
+      type(litter_type), pointer            :: litt           ! litter object
+      type(ed_cohort_type), pointer         :: currentCohort
+      integer                               :: element_id
+
+      litt => currentPatch%litter(el)
+      element_id = element_list(el)
+
+      ! Total non-seed litter in [kg]
+      litter_stock = currentPatch%area * &
+            (sum(litt%ag_cwd)                  + &
+            sum(litt%bg_cwd) + &
+            sum(litt%leaf_fines)              + &
+            sum(litt%root_fines))
+      
+        ! Total mass of viable seeds in [kg]
+      seed_stock = currentPatch%area * &
+            (sum(litt%seed) + sum(litt%seed_germ))
+
+      ! Total mass on living plants
+      live_stock = 0._r8
+      currentCohort => currentPatch%tallest
+      do while(associated(currentCohort))
+          live_stock = live_stock + &
+                (currentCohort%prt%GetState(struct_organ,element_id) + &
+                currentCohort%prt%GetState(sapw_organ,element_id) + &
+                currentCohort%prt%GetState(leaf_organ,element_id) + &
+                currentCohort%prt%GetState(fnrt_organ,element_id) + &
+                currentCohort%prt%GetState(store_organ,element_id) + &
+                currentCohort%prt%GetState(repro_organ,element_id) ) &
+                * currentCohort%n
+          currentCohort => currentCohort%shorter
+      enddo !end cohort loop 
+
+      return
+  end subroutine PatchMassStock
+
+
   
   ! =====================================================================================
   

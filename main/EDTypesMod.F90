@@ -652,6 +652,10 @@ module EDTypesMod
                                        ! and initialization [kg/site/day]
      real(r8) :: flux_generic_out      ! Used for prescribed or artificial output fluxes
                                        ! for instance when prescribed physiology is on
+     real(r8) :: patch_resize_err      ! This is the amount of mass gained (or loss when negative)
+                                       ! due to re-sizing patches when area math starts to lose
+                                       ! precision
+
    contains
 
      procedure :: ZeroMassBalState
@@ -833,7 +837,8 @@ module EDTypesMod
       this%burn_flux_to_atm  = 0._r8
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8
-      
+      this%patch_resize_err  = 0._r8
+
       return
   end subroutine ZeroMassBalFlux
 

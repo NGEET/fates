@@ -10,6 +10,7 @@ module EDPatchDynamicsMod
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDCohortDynamicsMod  , only : DeallocateCohort
   use EDTypesMod           , only : area_site => area
+  use ChecksBalancesMod    , only : PatchMassStock
   use FatesLitterMod       , only : ncwd
   use FatesLitterMod       , only : ndcmpy
   use FatesLitterMod       , only : litter_type
@@ -1086,11 +1087,16 @@ contains
     type(ed_site_type), intent(in), target  :: currentSite 
     !
     ! !LOCAL VARIABLES:
-    real(r8) :: areatot
+    real(r8)                     :: areatot
     type(ed_patch_type), pointer :: currentPatch 
     type(ed_patch_type), pointer :: largestPatch
-    real(r8) :: largest_area
-    real(r8), parameter :: area_error_fail = 1.0e-6_r8
+    real(r8)                     :: largest_area
+    integer                      :: el
+    real(r8)                     :: live_stock
+    real(r8)                     :: seed_stock
+    real(r8)                     :: litter_stock
+    real(r8)                     :: mass_gain
+    real(r8), parameter          :: area_error_fail = 1.0e-6_r8
     !---------------------------------------------------------------------
 
     areatot = 0._r8
@@ -1120,6 +1126,19 @@ contains
           write(fates_log(),*) 'Total patch area precision being fixed, adjusting'
           write(fates_log(),*) 'largest patch. This may have slight impacts on carbon balance.'
        end if
+       
+       do el = 1,num_elements
+           ! This returns the total mass on the patch for the current area [kg]
+           call PatchMassStock(largestPatch,el,live_stock,seed_stock,litter_stock)
+           
+           ! Then we scale the total mass by the added area
+           mass_gain = (live_stock+seed_stock+litter_stock) * &
+                 (area_site-areatot)/largestPatch%area
+
+           currentSite%mass_balance(el)%patch_resize_err = &
+                 currentSite%mass_balance(el)%patch_resize_err + mass_gain
+
+       end do
        
        largestPatch%area = largestPatch%area + (area_site-areatot)
        
