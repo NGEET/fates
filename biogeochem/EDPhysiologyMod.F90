@@ -129,6 +129,12 @@ contains
 
   subroutine ZeroLitterFluxes( currentSite )
 
+    ! This routine loops through all patches in a site
+    ! and zero's the flux terms for the litter pools.
+    ! This is typically called at the beginning of the dynamics
+    ! call sequence.
+
+
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type), pointer               :: currentPatch
@@ -186,6 +192,11 @@ contains
     !
     ! At this time we do not have explicit herbivory, and burning losses to litter
     ! are handled elsewhere.
+    !
+    ! Note: The processes conducted here DO NOT handle litter fluxes associated
+    !       with disturbance.  Those fluxes are handled elsewhere (EDPatchDynamcisMod)
+    !       because the fluxes are potentially cross patch, and also dealing
+    !       patch areas that are changing.
     ! 
     ! -----------------------------------------------------------------------------------
      
@@ -198,7 +209,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(site_massbal_type), pointer :: site_mass 
-    type(litter_type), pointer :: litt    ! Points to the litter object for 
+    type(litter_type), pointer :: litt     ! Points to the litter object for 
                                            ! the different element types
     integer :: el                          ! Litter element loop index
     integer :: nlev_eff_decomp             ! Number of active layers over which
@@ -220,7 +231,9 @@ contains
        ! to the litter input flux
        call SeedDecayToFines(litt)
        
-       ! Calculate seed germination rate
+       ! Calculate seed germination rate, the status flags prevent
+       ! germination from occuring when the site is in a drought 
+       ! (for drought deciduous) or too cold (for cold deciduous)
        call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus)
        
        ! Send fluxes from newly created litter into the litter pools
@@ -1381,16 +1394,16 @@ contains
                
                case(nitrogen_element)
                
-                  mass_demand = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,struct_organ)   + &
-                                 c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)     + &
+                  mass_demand = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,struct_organ) + &
+                                 c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ) + &
                                  c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)  + & 
+                                 c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ) + & 
                                  c_store*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,store_organ)
                
                case(phosphorus_element)
                
-                  mass_demand = c_struct*EDPftvarcon_inst%prt_phos_stoich_p1(ft,struct_organ)   + &
-                                 c_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(ft,leaf_organ)     + &
+                  mass_demand = c_struct*EDPftvarcon_inst%prt_phos_stoich_p1(ft,struct_organ) + &
+                                 c_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(ft,leaf_organ) + &
                                  c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(ft,fnrt_organ) + & 
                                  c_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(ft,sapw_organ)  + & 
                                  c_store*EDPftvarcon_inst%prt_phos_stoich_p1(ft,store_organ)

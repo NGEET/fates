@@ -2,9 +2,13 @@ module FatesLitterMod
 
   ! -------------------------------------------------------------------------------------
   ! This module contains methods and type definitions for all things litter.
-  ! "litter" is used here in the broadest sense.  It means all organic material
-  ! that is no longer associated with a live plant.
-  !
+  ! "litter" means all organic material that is no longer associated with a live plant.
+  ! Also, in FATES we only track "un-fragmented" and "un-decomposed" litter. This
+  ! is a decision of pragmatism, as FATES is not a soil decomposition model, yet FATES
+  ! does need to retain litter for fire calculations.  THerefore, we raitain
+  ! undecomposed litter for a period of time in FATES, until it fragments and is passed
+  ! to another model to handle deocomposition.
+  ! 
   ! This encompasses:  1) "Coarse Woody Debris"
   !                    2) fine materials leaves, roots etc 
   !                       (sometimes exclusively refered to as litter)
@@ -19,17 +23,12 @@ module FatesLitterMod
   !                          passed in the correct partitions to the BGC model. 
   !                          Their partitions are a PFT parameter.
   ! 
-  ! Continued: These litter pools will fragment, and then be passed to a 
-  ! soil-biogeochemical model (NOT FATES) to handle decomposition.
   ! -------------------------------------------------------------------------------------
 
 
    ! To-do:
-   ! 7) In SFMain, make the indexing consistent with Jackie's changes
    ! 8) In CWD_IN, add the flux diagnostics, then remove the
    !    patch level rate in the history code
-   ! 9) Add litter_flux_output to the flux_diags, add it to history
-   ! 10) Add termination fluxes to the flux_diags array as well
 
    
    use FatesConstantsMod, only : r8 => fates_r8
@@ -66,22 +65,27 @@ module FatesLitterMod
                                                     ! be associated with the element
                                                     ! types listed in parteh/PRTGenericMod.F90
 
+      ! ---------------------------------------------------------------------------------
       ! Prognostic variables (litter and coarse woody debris)
       ! Note that we do not track the fines (leaf/fine-root debris) by PFT. We track them 
       ! by their decomposing pools (i.e. chemical fraction).  This is the same dimensioning
       ! that gets passed back to the external BGC model, and saves a lot of space.
+      ! ---------------------------------------------------------------------------------
 
 
       real(r8)             :: ag_cwd(ncwd)          ! above ground coarse wood debris (cwd)         [kg/m2]
       real(r8),allocatable :: bg_cwd(:,:)           ! below ground coarse wood debris (cwd x soil)  [kg/m2]
-      real(r8),allocatable :: leaf_fines(:)         ! above ground leaf litter (dcmpy)               [kg/m2]
-      real(r8),allocatable :: root_fines(:,:)       ! below ground fine root litter (dcmpy x soil)   [kg/m2]
+      real(r8),allocatable :: leaf_fines(:)         ! above ground leaf litter (dcmpy)              [kg/m2]
+      real(r8),allocatable :: root_fines(:,:)       ! below ground fine root litter (dcmpy x soil)  [kg/m2]
       
       real(r8),allocatable :: seed(:)               ! the seed pool (viable)    (pft) [kg/m2]
       real(r8),allocatable :: seed_germ(:)          ! the germinated seed pool  (pft) [kg/m2]
 
+
+      ! ---------------------------------------------------------------------------------
       ! Fluxes in - dying trees / seed rain  (does not include disturbance fluxes)
-      
+      ! ---------------------------------------------------------------------------------
+
       real(r8)             ::  ag_cwd_in(ncwd)      ! (cwd)        [kg/m2/day]
       real(r8),allocatable ::  bg_cwd_in(:,:)       ! (cwd x soil) [kg/m2/day]
       real(r8),allocatable ::  leaf_fines_in(:)     ! (dcmpy)       [kg/m2/day]
@@ -90,20 +94,17 @@ module FatesLitterMod
       real(r8),allocatable ::  seed_in_local(:)     ! (pft)        [kg/m2/day] (from local sources)
       real(r8),allocatable ::  seed_in_extern(:)    ! (pft)        [kg/m2/day] (from outside cell)
 
-                                                    ! Fluxes out - fragmentation
-      
-      real(r8)             ::  ag_cwd_frag(ncwd)    ! kg/m2/day
-      real(r8),allocatable ::  bg_cwd_frag(:,:)     ! kg/m2/day
-      real(r8),allocatable ::  leaf_fines_frag(:)   ! kg/m2/day
+                                                    
+      ! ---------------------------------------------------------------------------------
+      ! Fluxes out - fragmentation, seed decay (does not include disturbance)
+      ! ---------------------------------------------------------------------------------
+
+      real(r8)             ::  ag_cwd_frag(ncwd)    ! above ground cwd fragmentation flux   [kg/m2/day]
+      real(r8),allocatable ::  bg_cwd_frag(:,:)     ! below ground cwd fragmentation flux   [kg/m2/day]
+      real(r8),allocatable ::  leaf_fines_frag(:)   ! above ground fines fragmentation flux [kg/m2/day]
       real(r8),allocatable ::  root_fines_frag(:,:) ! kg/m2/day
 
-      ! Fluxes out from burning are not tracked here because this process changes 
-      ! the size of the patch as well, and the unit fluxes that would be tracked
-      ! here are convoluted
-
-      ! Flux (in/out ... transfer) of seeds
-      
-      real(r8), allocatable :: seed_decay(:)      ! decay of viable seeds to litter [kg/m2/day]
+      real(r8), allocatable :: seed_decay(:)      ! decay of viable seeds to litter     [kg/m2/day]
       real(r8), allocatable :: seed_germ_decay(:) ! decay of germinated seeds to litter [kg/m2/day]
       real(r8), allocatable :: seed_germ_in(:)    ! flux from viable to germinated seed [kg/m2/day]
 
@@ -127,6 +128,15 @@ contains
 
   subroutine FuseLitter(this,self_area,donor_area,donor_litt)
 
+    ! -----------------------------------------------------------------------------------
+    ! The litter pools are all area normalized.  This routine
+    ! will use area weighting to determine the resulting
+    ! litter density per area of all the pools. Essentially
+    ! summing up the total mass by multiplying each component
+    ! area, and then normalizing by the new total.
+    ! -----------------------------------------------------------------------------------
+
+
     class(litter_type) :: this
     real(r8),intent(in)           :: self_area
     real(r8),intent(in)           :: donor_area
@@ -137,10 +147,10 @@ contains
     integer  :: c               ! cwd index
     integer  :: pft             ! pft index
     integer  :: ilyr            ! soil layer index
-    integer  :: dcmpy            ! dcmpyical pool index
+    integer  :: dcmpy           ! dcmpyical pool index
     integer  :: npft            ! number of PFTs
-    real(r8) :: self_weight
-    real(r8) :: donor_weight
+    real(r8) :: self_weight     ! weighting of the recieving litter pool
+    real(r8) :: donor_weight    ! weighting of the donating litter pool
     
 
     nlevsoil = size(this%bg_cwd,dim=2)
@@ -318,6 +328,13 @@ contains
                             init_seed,       &
                             init_seed_germ)
     
+    ! This procedure initialized litter pools.  This does not allow initialization
+    ! of each soil layer depth, or decomposability pool. This is meant for
+    ! uniform initializations. This is used for cold-starts, but is not
+    ! used in restarts.  For patch fusion, this routine is used to zero the pools
+    ! before accumulating debris from multiple patches.
+
+
     class(litter_type) :: this
     real(r8),intent(in) :: init_leaf_fines
     real(r8),intent(in) :: init_root_fines
