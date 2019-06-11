@@ -2217,14 +2217,12 @@ contains
              do j = 1, nlev_eff_soil
                  
                  id = bc_in(s)%decomp_id(j)
-                 
-                 bc_out(s)%litt_flux_lab_c_si(id) = bc_out(s)%litt_flux_lab_c_si(id) + &
+
+                 flux_lab_si(id) = flux_lab_si(id) + &
                        litt%root_fines_frag(ilabi,j) * area_frac
-                 
-                 bc_out(s)%litt_flux_cel_c_si(id) = bc_out(s)%litt_flux_cel_c_si(id) + &
+                 flux_cel_si(id) = flux_cel_si(id) + &
                        litt%root_fines_frag(icell,j) * area_frac
-                 
-                 bc_out(s)%litt_flux_lig_c_si(id) = bc_out(s)%litt_flux_lig_c_si(id) + &
+                 flux_lig_si(id) = flux_lig_si(id) + &
                        litt%root_fines_frag(ilign,j) * area_frac
              enddo
 
