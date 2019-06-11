@@ -20,6 +20,7 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : days_per_sec
   use EDPftvarcon      , only    : EDPftvarcon_inst
+  use EDPftvarcon      , only    : GetDecompyFrac
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
@@ -1588,6 +1589,7 @@ contains
     real(r8) :: sapw_m_turnover
     real(r8) :: struct_m_turnover
     real(r8) :: store_m_turnover
+    real(r8) :: dcmpy_frac        ! Fraction of mass sent to decomposability pool
     real(r8) :: plant_dens        ! Number of plants per m2
     real(r8) :: bg_cwd_tot        ! Total below-ground coarse woody debris
                                   ! input flux
@@ -1598,7 +1600,8 @@ contains
     real(r8) :: trunk_wood        ! carbon flux into trunk products kgC/day/site
     integer  :: ilyr
     integer  :: pft
-    integer  :: numlevsoil              ! Actual number of soil layers
+    integer  :: dcmpy             ! decomposability pool index
+    integer  :: numlevsoil        ! Actual number of soil layers
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
@@ -1644,25 +1647,23 @@ contains
       !        about double counting.
       ! ---------------------------------------------------------------------------------
 
-      litt%leaf_fines_in(ilabi) = litt%leaf_fines_in(ilabi) + & 
-            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_flab(pft)
-      
-      litt%leaf_fines_in(icell) = litt%leaf_fines_in(icell) + & 
-            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_fcel(pft)
-
-      litt%leaf_fines_in(ilign) = litt%leaf_fines_in(ilign) + & 
-            leaf_m_turnover * plant_dens * EDPftvarcon_inst%lf_flig(pft)
-
       flux_diags%leaf_litter_input(pft) = &
             flux_diags%leaf_litter_input(pft) +  &
             leaf_m_turnover * currentCohort%n
       
       root_fines_tot = (fnrt_m_turnover + store_m_turnover ) * &
             plant_dens
-      
-      do ilyr = 1, numlevsoil
-         litt%root_fines_in(pft,ilyr) = litt%root_fines_in(pft,ilyr) + &
-               currentSite%rootfrac_scr(ilyr) * root_fines_tot
+
+      do dcmpy=1,ndcmpy
+          dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+
+          litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
+                leaf_m_turnover * plant_dens * dcmpy_frac
+
+          do ilyr = 1, numlevsoil
+              litt%root_fines_in(dcmpy,ilyr) = litt%root_fines_in(dcmpy,ilyr) + &
+                    currentSite%rootfrac_scr(ilyr) * root_fines_tot * dcmpy_frac
+          end do
       end do
       
       flux_diags%root_litter_input(pft) = &
@@ -1728,16 +1729,6 @@ contains
       dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
 
 
-      litt%leaf_fines_in(ilabi) = litt%leaf_fines_in(ilabi) + & 
-            leaf_m * dead_n * EDPftvarcon_inst%lf_flab(pft)
-      
-      litt%leaf_fines_in(icell) = litt%leaf_fines_in(icell) + & 
-            leaf_m * dead_n * EDPftvarcon_inst%lf_fcel(pft)
-
-      litt%leaf_fines_in(ilign) = litt%leaf_fines_in(ilign) + & 
-            leaf_m * dead_n * EDPftvarcon_inst%lf_flig(pft)
-
-
       flux_diags%leaf_litter_input(pft) = &
             flux_diags%leaf_litter_input(pft) +  &
             leaf_m * dead_n*currentPatch%area
@@ -1750,17 +1741,16 @@ contains
       root_fines_tot =  dead_n * (fnrt_m + &
            store_m*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) )
 
-      do ilyr = 1, numlevsoil
-
-          litt%root_fines_in(ilabi,ilyr) = litt%root_fines_in(ilabi,ilyr) + &
-                root_fines_tot * currentSite%rootfrac_scr(ilyr) * EDPftvarcon_inst%lf_flab(pft)
+      do dcmpy=1,ndcmpy
+          dcmpy_frac = GetDecompyFrac(pft,dcmpy)
           
-          litt%root_fines_in(icell,ilyr) = litt%root_fines_in(icell,ilyr) + &
-                root_fines_tot * currentSite%rootfrac_scr(ilyr) * EDPftvarcon_inst%lf_fcel(pft)
+          litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
+                leaf_m * dead_n * dcmpy_frac
           
-          litt%root_fines_in(ilign,ilyr) = litt%root_fines_in(ilign,ilyr) + &
-                root_fines_tot * currentSite%rootfrac_scr(ilyr) * EDPftvarcon_inst%lf_flig(pft)
-
+          do ilyr = 1, numlevsoil
+              litt%root_fines_in(dcmpy,ilyr) = litt%root_fines_in(dcmpy,ilyr) + &
+                    root_fines_tot * currentSite%rootfrac_scr(ilyr) * dcmpy_frac
+          end do
       end do
 
       flux_diags%root_litter_input(pft) = &
@@ -1895,6 +1885,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     do pft = 1,numpft
+
         litt%leaf_fines_in(ilabi) = litt%leaf_fines_in(ilabi) + & 
               (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flab(pft)
         

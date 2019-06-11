@@ -595,6 +595,9 @@ contains
     type(ed_patch_type)  , pointer :: currentPatch
     type(ed_cohort_type) , pointer :: currentCohort
     type(litter_type), pointer     :: litt
+    logical, parameter :: print_cohorts = .false.   ! Set to true if you want
+                                                    ! to print cohort data
+                                                    ! upon fail (lots of text)
     !-----------------------------------------------------------------------
 
     change_in_stock = 0.0_r8
@@ -670,22 +673,26 @@ contains
                 write(fates_log(),*) 'BG CWD (by layer): ', sum(litt%bg_cwd,dim=1)
                 write(fates_log(),*) 'leaf litter:',sum(litt%leaf_fines)
                 write(fates_log(),*) 'root litter (by layer): ',sum(litt%root_fines,dim=1)
-                write(fates_log(),*) '---- Biomass by cohort and organ -----'
-                currentCohort => currentPatch%tallest
-                do while(associated(currentCohort))
-                   write(fates_log(),*) 'pft: ',currentCohort%pft
-                   write(fates_log(),*) 'dbh: ',currentCohort%dbh
-                   leaf_m   = currentCohort%prt%GetState(leaf_organ,element_list(el))
-                   struct_m = currentCohort%prt%GetState(struct_organ,element_list(el))
-                   store_m  = currentCohort%prt%GetState(store_organ,element_list(el))
-                   fnrt_m   = currentCohort%prt%GetState(fnrt_organ,element_list(el))
-                   repro_m  = currentCohort%prt%GetState(repro_organ,element_list(el))
-                   sapw_m   = currentCohort%prt%GetState(sapw_organ,element_list(el))
-                   write(fates_log(),*) 'leaf: ',leaf_m,' structure: ',struct_m,' store: ',store_m
-                   write(fates_log(),*) 'fineroot: ',fnrt_m,' repro: ',repro_m,' sapwood: ',sapw_m
-                   write(fates_log(),*) 'num plant: ',currentCohort%n
-                   currentCohort => currentCohort%shorter
-                enddo !end cohort loop
+                write(fates_log(),*) 'dist mode: ',currentPatch%disturbance_mode
+                write(fates_log(),*) 'anthro_disturbance_label: ',currentPatch%anthro_disturbance_label
+                if(print_cohorts)then
+                    write(fates_log(),*) '---- Biomass by cohort and organ -----'
+                    currentCohort => currentPatch%tallest
+                    do while(associated(currentCohort))
+                        write(fates_log(),*) 'pft: ',currentCohort%pft
+                        write(fates_log(),*) 'dbh: ',currentCohort%dbh
+                        leaf_m   = currentCohort%prt%GetState(leaf_organ,element_list(el))
+                        struct_m = currentCohort%prt%GetState(struct_organ,element_list(el))
+                        store_m  = currentCohort%prt%GetState(store_organ,element_list(el))
+                        fnrt_m   = currentCohort%prt%GetState(fnrt_organ,element_list(el))
+                        repro_m  = currentCohort%prt%GetState(repro_organ,element_list(el))
+                        sapw_m   = currentCohort%prt%GetState(sapw_organ,element_list(el))
+                        write(fates_log(),*) 'leaf: ',leaf_m,' structure: ',struct_m,' store: ',store_m
+                        write(fates_log(),*) 'fineroot: ',fnrt_m,' repro: ',repro_m,' sapwood: ',sapw_m
+                        write(fates_log(),*) 'num plant: ',currentCohort%n
+                        currentCohort => currentCohort%shorter
+                    enddo !end cohort loop
+                end if
                 currentPatch => currentPatch%younger
              enddo !end patch loop
              write(fates_log(),*) 'aborting on date:',hlm_current_year,hlm_current_month,hlm_current_day

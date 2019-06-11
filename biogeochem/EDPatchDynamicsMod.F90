@@ -1836,11 +1836,13 @@ contains
                   new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + &
                         num_dead * currentSite%rootfrac_scr(sl) * &
                         (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
+!                        (fnrt_m + store_m) * &
                         donate_m2 * dcmpy_frac
                   
                   curr_litt%root_fines(dcmpy,sl) = curr_litt%root_fines(dcmpy,sl) + &
                         num_dead * currentSite%rootfrac_scr(sl) * &
                         (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
+!                        (fnrt_m + store_m) * & 
                         retain_m2 * dcmpy_frac
               end do
           end do
@@ -1850,12 +1852,12 @@ contains
           ! but it is possible that some trees may utilize this behavior too
 
           seed_mass = num_dead * store_m * EDPftvarcon_inst%allom_frbstor_repro(pft)
-          seed_flux = seed_flux + seed_mass
-          call DistributeSeeds(currentSite,seed_mass,el,pft)
 
+          ! SEED DISTRIBUTION IS BREAKING MASS CONSERVATION RIGHT NOW...
+!          call DistributeSeeds(currentSite,seed_mass,el,pft)
 
-          !new_litt%seed(pft) = new_litt%seed(pft) + seed_mass * donate_m2
-          !curr_litt%seed(pft) = curr_litt%seed(pft) + seed_mass * retain_m2
+          new_litt%seed(pft) = new_litt%seed(pft) + seed_mass * donate_m2
+          curr_litt%seed(pft) = curr_litt%seed(pft) + seed_mass * retain_m2
           
           ! track diagnostic fluxes
           do c=1,ncwd
@@ -2605,7 +2607,6 @@ contains
       integer, intent(in)                       :: el           ! element index
       integer, intent(in)                       :: pft          ! pft index
 
-
       ! !LOCAL VARIABLES:
       type(ed_patch_type), pointer              :: currentPatch
       type(litter_type), pointer                :: litt
@@ -2616,9 +2617,9 @@ contains
           litt => currentPatch%litter(el)
           
           if(homogenize_seed_pfts) then
-              litt%seed(:) = litt%seed(:) + seed_mass/(AREA*real(numpft,r8))
+              litt%seed(:) = litt%seed(:) + seed_mass/(area_site*real(numpft,r8))
           else
-              litt%seed(pft) = litt%seed(pft) + seed_mass/AREA
+              litt%seed(pft) = litt%seed(pft) + seed_mass/area_site
           end if
           
           currentPatch => currentPatch%younger
