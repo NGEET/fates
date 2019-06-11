@@ -447,11 +447,6 @@ contains
              site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate          
           endif
           
-          ! We go ahead and modify the area immediately, this is important be cause we will be performing
-          ! patch by patch mass-balance checks. These checks will do site level mass sums, therefore
-          ! the areas must be adjusted already
-!          currentPatch%area = currentPatch%area - currentPatch%disturbance_rate
-
        end if
 
        currentPatch => currentPatch%older     
