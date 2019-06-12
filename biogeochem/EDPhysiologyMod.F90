@@ -1786,8 +1786,7 @@ contains
          end do
 
          flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
-               SF_val_CWD_frac(c) * dead_n * currentPatch%area * &
-               (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
+               bg_cwd_tot * currentPatch%area
 
          ! Send AGB component of boles from logging activities into the litter.
          ! This includes fluxes from indirect modes of death, as well as the
