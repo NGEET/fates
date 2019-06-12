@@ -11,7 +11,6 @@ module EDLoggingMortalityMod
    !
    !  Yi Xu & M.Huang
    !  Date: 09/2017
-   !  Last updated: 10/2017
    ! ====================================================================================
 
    use FatesConstantsMod , only : r8 => fates_r8
@@ -31,6 +30,7 @@ module EDLoggingMortalityMod
    use EDPftvarcon       , only : GetDecompyFrac
    use EDTypesMod        , only : num_elements
    use EDTypesMod        , only : element_list
+   use EDParamsMod       , only : logging_export_frac
    use EDParamsMod       , only : logging_event_code
    use EDParamsMod       , only : logging_dbhmin
    use EDParamsMod       , only : logging_collateral_frac 
@@ -62,6 +62,14 @@ module EDLoggingMortalityMod
 
    logical, protected :: logging_time   ! If true, logging should be 
                                         ! performed during the current time-step
+
+
+   ! harvest litter localization specifies how much of the litter from a falling
+   ! tree lands within the newly generated patch, and how much lands outside of 
+   ! the new patch, and thus in the original patch.  By setting this to zero,
+   ! it is assumed that there is no preference, and thus the mass is distributed
+   ! equally.  If this is set to 1, then all of the mass lands in the new
+   ! patch, and is thus "completely local".
 
 
    real(r8), parameter :: harvest_litter_localization = 0.0_r8
@@ -252,9 +260,10 @@ contains
       !        the mortality rates governing the fluxes, follow a different rule set.
       !        We also compute an export flux (product) that does not go to litter.  
       !
-      !  Trunk Product Flux: Only usable wood is exported from a site.  This is the above-ground
-      !                      portion of the bole, and only boles associated with direct-logging,
-      !                      not inftrastructure or collateral damage mortality.
+      !  Trunk Product Flux: Only usable wood is exported from a site, substracted by a 
+      !        transportation loss fraction. This is the above-ground portion of the bole,
+      !        and only boles associated with direct-logging, not inftrastructure or
+      !        collateral damage mortality.
       !        
       ! -------------------------------------------------------------------------------------------
 
@@ -309,13 +318,9 @@ contains
       integer  :: nlevsoil            ! number of soil layers
       integer  :: ilyr                ! soil layer loop index
       integer  :: el                  ! elemend loop index
-      real(r8), allocatable :: rootfr(:)   ! Root mass fraction array
       
 
-      nlevsoil = size(currentPatch%litter(1)%bg_cwd(:,:),dim=2)
-
-      allocate(rootfr(nlevsoil))
-
+      nlevsoil = currentSite%nlevsoil
 
       ! If/when sending litter fluxes to the old patch, we divide the total 
       ! mass sent to that patch, by the area it will have remaining
@@ -362,7 +367,7 @@ contains
             store_m  = currentCohort%prt%GetState(store_organ, element_id)
             repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
          
-            if(currentCohort%canopy_layer == 1)then         
+            if(currentCohort%canopy_layer == 1)then
                direct_dead   = currentCohort%n * currentCohort%lmort_direct
                indirect_dead = currentCohort%n * &
                      (currentCohort%lmort_collateral + currentCohort%lmort_infra)
@@ -404,7 +409,7 @@ contains
             ! derived from the current patch, so we need to multiply by patch_areadis/np%area
             ! ----------------------------------------------------------------------------------------
 
-            call set_root_fraction(rootfr, pft, currentSite%zi_soil, &
+            call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   icontext = i_biomass_rootprof_context)
 
          
@@ -423,11 +428,11 @@ contains
                do ilyr = 1,nlevsoil
                   
                   new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
-                        bg_wood * rootfr(ilyr) * &
+                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
                         SF_val_CWD_frac(c) * donate_frac/newPatch%area
                   
                   cur_litt%bg_cwd(c,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
-                        bg_wood * rootfr(ilyr) * &
+                        bg_wood * currentSite%rootfrac_scr(ilyr) * &
                         SF_val_CWD_frac(c) * retain_frac/remainder_area
                end do
 
@@ -440,17 +445,15 @@ contains
                     SF_val_CWD_frac(c) * bg_wood
             
                ! Diagnostic specific to resource management code
-               delta_litter_stock  = delta_litter_stock  + (ag_wood + bg_wood) * SF_val_CWD_frac(c)
-                  
+               if( element_id .eq. carbon12_element) then
+                   delta_litter_stock  = delta_litter_stock  + &
+                         (ag_wood + bg_wood) * SF_val_CWD_frac(c)
+               end if
+
             enddo
             
-            
-
             ! ----------------------------------------------------------------------------------------
-            ! Handle litter flux for the BOLES of infrastucture and collateral damage mort
-            ! In this case the boles from direct logging are exported off-site and are not added 
-            ! to the litter pools.  That is why we handle this outside the loop above. Only the 
-            ! collateral damange and infrastructure logging is applied to bole litter
+            ! Handle litter flux for the trunk wood of infrastucture and collateral damage mort
             ! ----------------------------------------------------------------------------------------
             
             ag_wood = indirect_dead * (struct_m + sapw_m ) * &
@@ -466,12 +469,12 @@ contains
             
             do ilyr = 1,nlevsoil
                
-               new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(c,ilyr) + &
-                     bg_wood * rootfr(ilyr) * &
+               new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
+                     bg_wood * currentSite%rootfrac_scr(ilyr) * &
                      SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
                
-               cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
-                     bg_wood * rootfr(ilyr) * &
+               cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
+                     bg_wood * currentSite%rootfrac_scr(ilyr) * &
                      SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
 
             end do
@@ -482,8 +485,11 @@ contains
             flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + & 
                  SF_val_CWD_frac(ncwd) * bg_wood
 
-            delta_litter_stock  = delta_litter_stock + (ag_wood+bg_wood) * SF_val_CWD_frac(ncwd)
-            
+            if( element_id .eq. carbon12_element) then
+                delta_litter_stock  = delta_litter_stock + &
+                      (ag_wood+bg_wood) * SF_val_CWD_frac(ncwd)
+            end if
+
             ! ---------------------------------------------------------------------------------------
             ! Handle below-ground trunk flux for directly logged trees (c = ncwd)
             ! ----------------------------------------------------------------------------------------
@@ -492,23 +498,22 @@ contains
                   (1._r8 - EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
 
             do ilyr = 1,nlevsoil
-               new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(c,ilyr) + &
-                     bg_wood * rootfr(ilyr) * &
-                     donate_frac/newPatch%area
-               
-               cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
-                     bg_wood * rootfr(ilyr) * &
-                     retain_frac/remainder_area
+                new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
+                      bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                      donate_frac/newPatch%area
+                
+                cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
+                      bg_wood * currentSite%rootfrac_scr(ilyr) * &
+                      retain_frac/remainder_area
             end do
             
             flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + &
-                 bg_wood
+                  bg_wood
             
             ! ----------------------------------------------------------------------------------------
             ! Handle harvest (export, flux-out) flux for the above ground boles 
-            ! In this case the boles from direct logging are exported off-site and are not added 
-            ! to the litter pools.  That is why we handle this outside the loop above. Only the 
-            ! collateral damange and infrastructure logging is applied to litter
+            ! In this case a fraction (export_frac) of the boles from direct logging are 
+            ! exported off-site, while the remainder (1-export_frac) is added to the litter pools.
             ! 
             ! Losses to the system as a whole, for C-balancing (kGC/site/day)
             ! Site level product, (kgC/site, accumulated over simulation)
@@ -518,11 +523,19 @@ contains
                   EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
                   SF_val_CWD_frac(ncwd)
 
-            trunk_product_site = trunk_product_site + ag_wood
+            trunk_product_site = trunk_product_site + &
+                  ag_wood * logging_export_frac
 
             ! This is for checking the total mass balance [kg/site/day]
-            site_mass%wood_product = site_mass%wood_product + ag_wood
+            site_mass%wood_product = site_mass%wood_product + &
+                  ag_wood * logging_export_frac
             
+            new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
+                  (1._r8-logging_export_frac)*donate_frac/newPatch%area
+            
+            cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
+                  (1._r8-logging_export_frac)*retain_frac/remainder_area
+
             ! ---------------------------------------------------------------------------
             ! Handle fluxes of leaf, root and storage carbon into litter pools. 
             !  (none of these are exported)
@@ -544,11 +557,11 @@ contains
                
                do ilyr = 1,nlevsoil
                   new_litt%root_fines(dcmpy,ilyr) = new_litt%root_fines(dcmpy,ilyr) + &
-                       root_litter * rootfr(ilyr) * dcmpy_frac * &
+                       root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
                        donate_frac/newPatch%area
                   
                   cur_litt%root_fines(dcmpy,ilyr) = cur_litt%root_fines(dcmpy,ilyr) + &
-                       root_litter * rootfr(ilyr) * dcmpy_frac * &
+                       root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
                        retain_frac/remainder_area
                end do
             end do
@@ -564,19 +577,20 @@ contains
             ! ----------------------------------------------------------------------------------------
             
             ! Note that litter stock also has terms above in the CWD loop
-            
-            delta_litter_stock  = delta_litter_stock  + &
-                  leaf_litter         + &
-                  root_litter
-            
-            delta_biomass_stock = delta_biomass_stock + &
-                  leaf_litter         + &
-                  root_litter         + &
-                  (direct_dead+indirect_dead) * (struct_m + sapw_m)
-               
-            delta_individual    = delta_individual    + &
-                  direct_dead         + &
-                  indirect_dead
+            if( element_id .eq. carbon12_element) then
+                delta_litter_stock  = delta_litter_stock  + &
+                      leaf_litter         + &
+                      root_litter
+                
+                delta_biomass_stock = delta_biomass_stock + &
+                      leaf_litter         + &
+                      root_litter         + &
+                      (direct_dead+indirect_dead) * (struct_m + sapw_m)
+                
+                delta_individual    = delta_individual    + &
+                      direct_dead         + &
+                      indirect_dead
+            end if
 
             currentCohort => currentCohort%taller
          end do
@@ -607,14 +621,16 @@ contains
 
       end do
 
+      ! Not sure why this is called here, but I suppose it can't hurt
+      ! (rgk 06-2019)
+
       currentCohort => newPatch%shortest
       do while(associated(currentCohort))
-         call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
+         call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+               currentCohort%pft,currentCohort%c_area)
          currentCohort => currentCohort%taller
       enddo
       
-      deallocate(rootfr)
-
       return
    end subroutine logging_litter_fluxes
 

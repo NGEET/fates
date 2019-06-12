@@ -1789,15 +1789,12 @@ contains
                SF_val_CWD_frac(c) * dead_n * currentPatch%area * &
                (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
 
-         ! The bole of the plant is the last index of the cwd array. So any harvesting
-         ! mortality is diverted away from above-ground CWD and sent to harvest
-         ! and flux out. Send AGB component of boles from non direct-logging activities 
-         ! to AGB litter pool
+         ! Send AGB component of boles from logging activities into the litter.
+         ! This includes fluxes from indirect modes of death, as well as the
+         ! non-exported boles due to direct harvesting.
 
          if (c==ncwd) then
             
-            ! Send AGB component of boles from direct-logging activities to 
-            ! export/harvest pool.  Generate trunk product (kg/day/m2)
 
             trunk_wood =  (struct_m + sapw_m) * &
                  SF_val_CWD_frac(c) * dead_n_dlogging * &
