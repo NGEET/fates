@@ -51,6 +51,7 @@ module EDPhysiologyMod
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
   use EDParamsMod           , only : q10_mr
   use EDParamsMod           , only : q10_froz
+  use EDParamsMod           , only : logging_export_frac
 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   
@@ -1331,14 +1332,34 @@ contains
          currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + (struct_c + sapw_c) * & 
               SF_val_CWD_frac(c) * dead_n * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
          
-         ! Send AGB component of boles from non direct-logging activities to AGB litter pool
+         ! Send AGB component of boles from both direct and non-direct logging activities to AGB litter pool
          if (c==ncwd) then
             
             ! CWD contributed by indirect damage
             currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (struct_c + sapw_c) * & 
                  SF_val_CWD_frac(c) * (dead_n_natural+ dead_n_ilogging) * &
                  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+
+            ! CWD contributed by logged boles due to losses in transportation
+            currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + &
+                 (1.0_r8 - logging_export_frac) * (struct_c + sapw_c) * &
+                 SF_val_CWD_frac(c) * dead_n_dlogging * &
+                 EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
             
+            ! Send AGB component of boles from direct-logging activities to
+            ! export/harvest pool
+            ! Generate trunk product (kgC/day/site)
+            trunk_product =  logging_export_frac * (struct_c + sapw_c) * &
+                 SF_val_CWD_frac(c) * dead_n_dlogging * &
+                 EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                 hlm_freq_day * currentPatch%area
+            
+            currentSite%flux_out = currentSite%flux_out + trunk_product
+            
+            ! Update diagnostics that track resource management
+            currentSite%resources_management%trunk_product_site  = &
+                 currentSite%resources_management%trunk_product_site + &
+                 trunk_product            
          else
             
             currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (struct_c + sapw_c) * & 
