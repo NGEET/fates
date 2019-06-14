@@ -10,7 +10,10 @@ module EDPftvarcon
   use iso_c_binding, only : i4 => c_int
   use iso_c_binding, only : c_char
   
-  integer,parameter :: SHR_KIND_CS = 80                     ! short char
+  implicit none
+  private ! Modules are private by default
+
+  integer,parameter,public :: SHR_KIND_CS = 80                     ! short char
   
   type, public :: EDPftvarcon_inst_type
 
@@ -106,24 +109,27 @@ module EDPftvarcon
 
   end type EDPftvarcon_inst_type
   
-  type pftptr_var
+  type, public :: pftptr_var
      real(r8), dimension(:),   pointer :: rp_1d
      real(r8), dimension(:,:), pointer :: rp_2d
      character(len=shr_kind_cs) :: var_name
   end type pftptr_var
   
-  type EDPftvarcon_ptr_type
+  type, public :: EDPftvarcon_ptr_type
      type(pftptr_var), allocatable :: var(:)
   end type EDPftvarcon_ptr_type
   
   type(EDPftvarcon_inst_type), public :: EDPftvarcon_inst ! ED ecophysiological constants structure
   type(EDPftvarcon_ptr_type),  public :: EDPftvarcon_ptr  ! Pointer structure for obj-oriented id
   
-  integer :: numparm     ! Number of different PFT parameters
-  integer :: num_pft     ! Number of PFTs
-  integer :: num_organs  ! Number of organs
+  integer, public :: numparm     ! Number of different PFT parameters
+  integer, public :: num_pft     ! Number of PFTs
+  integer, public :: num_organs  ! Number of organs
 
-
+  ! Make necessary procedures public 
+  public :: EDPftvarconPySet
+  public :: EDPftvarconAlloc
+  
 contains
 
   

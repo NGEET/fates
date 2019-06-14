@@ -36,6 +36,7 @@ module FatesRestartInterfaceMod
 
 
   implicit none
+  private ! Modules are private by default
 
   ! ------------------------------------------------------------
   ! A note on variable naming conventions.
@@ -65,146 +66,143 @@ module FatesRestartInterfaceMod
   
   
   ! Indices to the restart variable object
-  integer, private :: ir_npatch_si 
-  integer, private :: ir_oldstock_si
-  integer, private :: ir_cd_status_si
-  integer, private :: ir_dd_status_si
-  integer, private :: ir_nchill_days_si
-  integer, private :: ir_ncold_days_si
-  integer, private :: ir_leafondate_si
-  integer, private :: ir_leafoffdate_si
-  integer, private :: ir_dleafondate_si
-  integer, private :: ir_dleafoffdate_si
-  integer, private :: ir_acc_ni_si
-  integer, private :: ir_gdd_si
-  integer, private :: ir_nep_timeintegrated_si
-  integer, private :: ir_npp_timeintegrated_si
-  integer, private :: ir_hr_timeintegrated_si
-  integer, private :: ir_cbal_error_fates_si
-  integer, private :: ir_cbal_error_bgc_si
-  integer, private :: ir_cbal_error_total_si
-  integer, private :: ir_totecosysc_old_si
-  integer, private :: ir_totfatesc_old_si
-  integer, private :: ir_totbgcc_old_si
-  integer, private :: ir_fates_to_bgc_this_ts_si
-  integer, private :: ir_fates_to_bgc_last_ts_si
-  integer, private :: ir_seedrainflux_si
-  integer, private :: ir_trunk_product_si
-  integer, private :: ir_ncohort_pa
+  integer :: ir_npatch_si 
+  integer :: ir_oldstock_si
+  integer :: ir_cd_status_si
+  integer :: ir_dd_status_si
+  integer :: ir_nchill_days_si
+  integer :: ir_ncold_days_si
+  integer :: ir_leafondate_si
+  integer :: ir_leafoffdate_si
+  integer :: ir_dleafondate_si
+  integer :: ir_dleafoffdate_si
+  integer :: ir_acc_ni_si
+  integer :: ir_gdd_si
+  integer :: ir_nep_timeintegrated_si
+  integer :: ir_npp_timeintegrated_si
+  integer :: ir_hr_timeintegrated_si
+  integer :: ir_cbal_error_fates_si
+  integer :: ir_cbal_error_bgc_si
+  integer :: ir_cbal_error_total_si
+  integer :: ir_totecosysc_old_si
+  integer :: ir_totfatesc_old_si
+  integer :: ir_totbgcc_old_si
+  integer :: ir_fates_to_bgc_this_ts_si
+  integer :: ir_fates_to_bgc_last_ts_si
+  integer :: ir_seedrainflux_si
+  integer :: ir_trunk_product_si
+  integer :: ir_ncohort_pa
 
-  integer, private :: ir_canopy_layer_co
-  integer, private :: ir_canopy_layer_yesterday_co
-  integer, private :: ir_canopy_trim_co
-  integer, private :: ir_size_class_lasttimestep_co
-  integer, private :: ir_dbh_co
-  integer, private :: ir_g_sb_laweight_co
-  integer, private :: ir_height_co
-  integer, private :: ir_laimemory_co
-  integer, private :: ir_nplant_co
-  integer, private :: ir_gpp_acc_co
-  integer, private :: ir_npp_acc_co
-  integer, private :: ir_resp_acc_co
-  integer, private :: ir_gpp_acc_hold_co
-  integer, private :: ir_npp_acc_hold_co
-  integer, private :: ir_resp_acc_hold_co
+  integer :: ir_canopy_layer_co
+  integer :: ir_canopy_layer_yesterday_co
+  integer :: ir_canopy_trim_co
+  integer :: ir_size_class_lasttimestep_co
+  integer :: ir_dbh_co
+  integer :: ir_g_sb_laweight_co
+  integer :: ir_height_co
+  integer :: ir_laimemory_co
+  integer :: ir_nplant_co
+  integer :: ir_gpp_acc_co
+  integer :: ir_npp_acc_co
+  integer :: ir_resp_acc_co
+  integer :: ir_gpp_acc_hold_co
+  integer :: ir_npp_acc_hold_co
+  integer :: ir_resp_acc_hold_co
 
-  integer, private :: ir_bmort_co
-  integer, private :: ir_hmort_co
-  integer, private :: ir_cmort_co
-  integer, private :: ir_frmort_co
+  integer :: ir_bmort_co
+  integer :: ir_hmort_co
+  integer :: ir_cmort_co
+  integer :: ir_frmort_co
 
    !Logging
-  integer, private :: ir_lmort_direct_co
-  integer, private :: ir_lmort_collateral_co
-  integer, private :: ir_lmort_infra_co
+  integer :: ir_lmort_direct_co
+  integer :: ir_lmort_collateral_co
+  integer :: ir_lmort_infra_co
 
   ! Radiation
-  integer, private :: ir_solar_zenith_flag_pa
-  integer, private :: ir_solar_zenith_angle_pa
+  integer :: ir_solar_zenith_flag_pa
+  integer :: ir_solar_zenith_angle_pa
 
-  integer, private :: ir_ddbhdt_co
-  integer, private :: ir_resp_tstep_co
-  integer, private :: ir_pft_co
-  integer, private :: ir_status_co
-  integer, private :: ir_isnew_co
-  integer, private :: ir_cwd_ag_pacw
-  integer, private :: ir_cwd_bg_pacw
+  integer :: ir_ddbhdt_co
+  integer :: ir_resp_tstep_co
+  integer :: ir_pft_co
+  integer :: ir_status_co
+  integer :: ir_isnew_co
+  integer :: ir_cwd_ag_pacw
+  integer :: ir_cwd_bg_pacw
 
-  integer, private :: ir_gnd_alb_dif_pasb
-  integer, private :: ir_gnd_alb_dir_pasb
+  integer :: ir_gnd_alb_dif_pasb
+  integer :: ir_gnd_alb_dir_pasb
 
-  integer, private :: ir_leaf_litter_paft
-  integer, private :: ir_root_litter_paft
-  integer, private :: ir_leaf_litter_in_paft
-  integer, private :: ir_root_litter_in_paft
+  integer :: ir_leaf_litter_paft
+  integer :: ir_root_litter_paft
+  integer :: ir_leaf_litter_in_paft
+  integer :: ir_root_litter_in_paft
   
-  integer, private :: ir_livegrass_pa
-  integer, private :: ir_age_pa
-  integer, private :: ir_area_pa
-  integer, private :: ir_agesinceanthrodist_pa
-  integer, private :: ir_patchdistturbcat_pa
+  integer :: ir_livegrass_pa
+  integer :: ir_age_pa
+  integer :: ir_area_pa
+  integer :: ir_agesinceanthrodist_pa
+  integer :: ir_patchdistturbcat_pa
   
 
   ! Site level
 
-  integer, private :: ir_watermem_siwm
-  integer, private :: ir_vegtempmem_sitm
-  integer, private :: ir_seed_bank_sift
-  integer, private :: ir_spread_si
-  integer, private :: ir_recrate_sift
-  integer, private :: ir_fmortrate_cano_siscpf
-  integer, private :: ir_fmortrate_usto_siscpf
-  integer, private :: ir_imortrate_siscpf
-  integer, private :: ir_fmortrate_crown_siscpf
-  integer, private :: ir_fmortrate_cambi_siscpf
-  integer, private :: ir_termnindiv_cano_siscpf
-  integer, private :: ir_termnindiv_usto_siscpf
-  integer, private :: ir_growflx_fusion_siscpf
-  integer, private :: ir_demorate_sisc
-  integer, private :: ir_promrate_sisc
-  integer, private :: ir_termcflux_cano_si
-  integer, private :: ir_termcflux_usto_si
-  integer, private :: ir_democflux_si
-  integer, private :: ir_promcflux_si
-  integer, private :: ir_imortcflux_si
-  integer, private :: ir_fmortcflux_cano_si
-  integer, private :: ir_fmortcflux_usto_si
+  integer :: ir_watermem_siwm
+  integer :: ir_vegtempmem_sitm
+  integer :: ir_seed_bank_sift
+  integer :: ir_spread_si
+  integer :: ir_recrate_sift
+  integer :: ir_fmortrate_cano_siscpf
+  integer :: ir_fmortrate_usto_siscpf
+  integer :: ir_imortrate_siscpf
+  integer :: ir_fmortrate_crown_siscpf
+  integer :: ir_fmortrate_cambi_siscpf
+  integer :: ir_termnindiv_cano_siscpf
+  integer :: ir_termnindiv_usto_siscpf
+  integer :: ir_growflx_fusion_siscpf
+  integer :: ir_demorate_sisc
+  integer :: ir_promrate_sisc
+  integer :: ir_termcflux_cano_si
+  integer :: ir_termcflux_usto_si
+  integer :: ir_democflux_si
+  integer :: ir_promcflux_si
+  integer :: ir_imortcflux_si
+  integer :: ir_fmortcflux_cano_si
+  integer :: ir_fmortcflux_usto_si
 
-
-
-  integer, private :: ir_prt_base     ! Base index for all PRT variables
+  integer :: ir_prt_base     ! Base index for all PRT variables
 
   ! Hydraulic indices
-  integer, private :: ir_hydro_th_ag_covec
-  integer, private :: ir_hydro_th_troot_covec
-  integer, private :: ir_hydro_th_aroot_covec 
-  integer, private :: ir_hydro_liqvol_shell_si
-  integer, private :: ir_hydro_err_growturn_aroot_covec
-  integer, private :: ir_hydro_err_growturn_ag_covec
-  integer, private :: ir_hydro_err_growturn_troot_covec
-  integer, private :: ir_hydro_recruit_si
-  integer, private :: ir_hydro_dead_si
-  integer, private :: ir_hydro_growturn_err_si
-  integer, private :: ir_hydro_pheno_err_si
-  integer, private :: ir_hydro_hydro_err_si
+  integer :: ir_hydro_th_ag_covec
+  integer :: ir_hydro_th_troot_covec
+  integer :: ir_hydro_th_aroot_covec 
+  integer :: ir_hydro_liqvol_shell_si
+  integer :: ir_hydro_err_growturn_aroot_covec
+  integer :: ir_hydro_err_growturn_ag_covec
+  integer :: ir_hydro_err_growturn_troot_covec
+  integer :: ir_hydro_recruit_si
+  integer :: ir_hydro_dead_si
+  integer :: ir_hydro_growturn_err_si
+  integer :: ir_hydro_pheno_err_si
+  integer :: ir_hydro_hydro_err_si
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_restart_num_dimensions = 2   !(cohort,column)
-  integer, parameter :: fates_restart_num_dim_kinds = 4    !(cohort-int,cohort-r8,site-int,site-r8)
+  integer, parameter, public :: fates_restart_num_dimensions = 2   !(cohort,column)
+  integer, parameter, public :: fates_restart_num_dim_kinds = 4    !(cohort-int,cohort-r8,site-int,site-r8)
 
   ! integer constants for storing logical data
-  integer, parameter :: old_cohort = 0
-  integer, parameter :: new_cohort = 1  
+  integer, parameter, public :: old_cohort = 0
+  integer, parameter, public :: new_cohort = 1  
 
-  real(r8), parameter :: flushinvalid = -9999.0
-  real(r8), parameter :: flushzero = 0.0
-  real(r8), parameter :: flushone  = 1.0
+  real(r8), parameter, public :: flushinvalid = -9999.0
+  real(r8), parameter, public :: flushzero = 0.0
+  real(r8), parameter, public :: flushone  = 1.0
   
-
   ! Local debug flag
-  logical, parameter :: debug=.false.
+  logical, parameter, public :: debug=.false.
 
-  character(len=*), parameter, private :: sourcefile = &
+  character(len=*), parameter :: sourcefile = &
        __FILE__
 
   ! This structure is allocated by thread, and must be calculated after the FATES
@@ -212,7 +210,7 @@ module FatesRestartInterfaceMod
   ! is not combined with iovar_bounds, because that one is multi-instanced.  This
   ! structure is used more during the update phase, wherease _bounds is used
   ! more for things like flushing
-  type restart_map_type
+  type, public :: restart_map_type
      integer, allocatable :: site_index(:)   ! maps site indexes to the HIO site position
      integer, allocatable :: cohort1_index(:) ! maps site index to the HIO cohort 1st position
   end type restart_map_type
@@ -241,17 +239,19 @@ module FatesRestartInterfaceMod
 
    contains
      
-     procedure, public :: Init
-     procedure, public :: SetThreadBoundsEach
-     procedure, public :: assemble_restart_output_types
-     procedure, public :: initialize_restart_vars
-     procedure, public :: num_restart_vars
-     procedure, public :: column_index
-     procedure, public :: cohort_index
-     procedure, public :: set_restart_vectors
-     procedure, public :: create_patchcohort_structure
-     procedure, public :: get_restart_vectors
-     procedure, public :: update_3dpatch_radiation
+     ! public functions
+     procedure :: Init
+     procedure :: SetThreadBoundsEach
+     procedure :: assemble_restart_output_types
+     procedure :: initialize_restart_vars
+     procedure :: num_restart_vars
+     procedure :: column_index
+     procedure :: cohort_index
+     procedure :: set_restart_vectors
+     procedure :: create_patchcohort_structure
+     procedure :: get_restart_vectors
+     procedure :: update_3dpatch_radiation
+     
      ! private work functions
      procedure, private :: init_dim_kinds_maps
      procedure, private :: set_dim_indices

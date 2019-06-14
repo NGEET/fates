@@ -11,7 +11,9 @@ module FatesSynchronizedParamsMod
   !
   ! !USES:
   use FatesConstantsMod, only : r8 => fates_r8
+  
   implicit none
+  private ! Modules are private by default
 
   ! FatesSynchronizedParamsInst.  PGI wants the type decl. public but the instance
   ! is indeed protected.  A generic private statement at the start of the module
@@ -21,16 +23,21 @@ module FatesSynchronizedParamsMod
 !      real(r8) :: Q10      ! temperature dependence
 !      real(r8) :: froz_q10 ! separate q10 for frozen soil respiration rates
     contains
-      procedure, public :: RegisterParams
-      procedure, public :: ReceiveParams
+
+      ! Public member functions
+      procedure :: RegisterParams
+      procedure :: ReceiveParams
+
+      ! Private member functions
       procedure, private :: Init
       procedure, private :: RegisterParamsScalar
       procedure, private :: ReceiveParamsScalar
+
   end type FatesSynchronizedParamsType
 
   type(FatesSynchronizedParamsType), public :: FatesSynchronizedParamsInst
   
-  character(len=*), parameter, private :: sourcefile = &
+  character(len=*), parameter :: sourcefile = &
        __FILE__
 
   !-----------------------------------------------------------------------

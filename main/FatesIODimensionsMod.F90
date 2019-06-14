@@ -3,27 +3,28 @@ module FatesIODimensionsMod
   use FatesConstantsMod, only : fates_short_string_length
   
   implicit none
+  private
 
     ! The following dimension names must be replicated in
     ! CLM/ALMs histFileMod.F90 and 
 
-    character(*), parameter :: cohort = 'cohort'           ! matches clm_varcon
-    character(*), parameter :: patch = 'patch'             ! matches clm_varcon
-    character(*), parameter :: column = 'column'           ! matches clm_varcon
-    character(*), parameter :: levgrnd = 'levgrnd'         ! matches clm_varcon
-    character(*), parameter :: levscag = 'fates_levscag'      ! matches histFileMod
-    character(*), parameter :: levscagpft = 'fates_levscagpf' ! matches histFileMod
-    character(*), parameter :: levagepft = 'fates_levagepft'  ! matches histFileMod
-    character(*), parameter :: levscpf = 'fates_levscpf'      ! matches histFileMod
-    character(*), parameter :: levscls = 'fates_levscls'      ! matches histFileMod
-    character(*), parameter :: levpft = 'fates_levpft'        ! matches histFileMod
-    character(*), parameter :: levage = 'fates_levage'        ! matches histFileMod
-    character(*), parameter :: levheight = 'fates_levheight'  ! matches histFileMod
-    character(*), parameter :: levfuel = 'fates_levfuel'      ! matches histFileMod
-    character(*), parameter :: levcwdsc = 'fates_levcwdsc'    ! matches histFileMod
-    character(*), parameter :: levcan = 'fates_levcan'        ! matches histFileMod
-    character(*), parameter :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
-    character(*), parameter :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
+    character(*), parameter, public :: cohort = 'cohort'           ! matches clm_varcon
+    character(*), parameter, public :: patch = 'patch'             ! matches clm_varcon
+    character(*), parameter, public :: column = 'column'           ! matches clm_varcon
+    character(*), parameter, public :: levgrnd = 'levgrnd'         ! matches clm_varcon
+    character(*), parameter, public :: levscag = 'fates_levscag'      ! matches histFileMod
+    character(*), parameter, public :: levscagpft = 'fates_levscagpf' ! matches histFileMod
+    character(*), parameter, public :: levagepft = 'fates_levagepft'  ! matches histFileMod
+    character(*), parameter, public :: levscpf = 'fates_levscpf'      ! matches histFileMod
+    character(*), parameter, public :: levscls = 'fates_levscls'      ! matches histFileMod
+    character(*), parameter, public :: levpft = 'fates_levpft'        ! matches histFileMod
+    character(*), parameter, public :: levage = 'fates_levage'        ! matches histFileMod
+    character(*), parameter, public :: levheight = 'fates_levheight'  ! matches histFileMod
+    character(*), parameter, public :: levfuel = 'fates_levfuel'      ! matches histFileMod
+    character(*), parameter, public :: levcwdsc = 'fates_levcwdsc'    ! matches histFileMod
+    character(*), parameter, public :: levcan = 'fates_levcan'        ! matches histFileMod
+    character(*), parameter, public :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
+    character(*), parameter, public :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
 
     ! patch = This is a structure that records where FATES patch boundaries
     ! on each thread point to in the host IO array, this structure
@@ -117,20 +118,16 @@ module FatesIODimensionsMod
 
   ! This structure is not allocated by thread, but the upper and lower boundaries
   ! of the dimension for each thread is saved in the clump_ entry
-  type fates_io_dimension_type
+  type, public :: fates_io_dimension_type
      character(len=fates_short_string_length) :: name
      integer :: lower_bound
      integer :: upper_bound
      integer, allocatable :: clump_lower_bound(:) ! lower bound of thread's portion of HIO array
      integer, allocatable :: clump_upper_bound(:) ! upper bound of thread's portion of HIO array
    contains
-     procedure, public :: Init
-     procedure, public :: SetThreadBounds
+     procedure :: Init
+     procedure :: SetThreadBounds
   end type fates_io_dimension_type
-
-
-
-
 
 contains
 

@@ -931,7 +931,6 @@ contains
     !
     ! !USES:
     use FatesUtilsMod  , only : check_var_real
-    use EDTypesMod     , only : dump_cohort
     use EDTypesMod     , only : AREA
     
     ! !ARGUMENTS:
@@ -973,11 +972,6 @@ contains
                                   ccohort_hydr%v_aroot_layer_init(j)/ccohort_hydr%v_aroot_layer(j)
        ccohort_hydr%th_aroot(j) = constrain_water_contents(th_aroot_uncorr(j), small_theta_num, ft, 4)
        ccohort_hydr%errh2o_growturn_aroot(j) = ccohort_hydr%th_aroot(j) - th_aroot_uncorr(j)
-       !call check_var_real(ccohort_hydr%errh2o_growturn_aroot(j),'ccohort_hydr%errh2o_growturn_aroot(j)',err_code)
-       !if ((abs(ccohort_hydr%errh2o_growturn_aroot(j)) > 1.0_r8) .or. &
-       !     err_code == 1 .or. err_code == 10) then
-       !  call dump_cohort(cCohort)
-       !end if
     enddo
     
     ! Storing mass balance error
@@ -1428,7 +1422,6 @@ contains
      ! ----------------------------------------------------------------------------------
 
      use EDTypesMod, only : AREA
-     use EDTypesMod     , only : dump_cohort
 
      ! Arguments
      integer, intent(in)                       :: nsites
@@ -2264,8 +2257,7 @@ contains
      !s
      ! !USES:
      use EDTypesMod        , only : AREA
-    use FatesUtilsMod  , only : check_var_real
-    use EDTypesMod     , only : dump_cohort
+     use FatesUtilsMod  , only : check_var_real
 
      ! ARGUMENTS:
      ! -----------------------------------------------------------------------------------

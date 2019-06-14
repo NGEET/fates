@@ -12,131 +12,125 @@ module EDParamsMod
    use shr_kind_mod        , only: r8 => shr_kind_r8
 
    implicit none
+   private
    save
-   ! private - if we allow this module to be private, it does not allow the protected values below to be 
-   ! seen outside of this module.
 
    !
    ! this is what the user can use for the actual values
    !
    
-   real(r8),protected :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
-   real(r8),protected :: ED_val_comp_excln
-   real(r8),protected :: ED_val_init_litter
-   real(r8),protected :: ED_val_nignitions
-   real(r8),protected :: ED_val_understorey_death
-   real(r8),protected :: ED_val_cwd_fcel
-   real(r8),protected :: ED_val_cwd_flig
-   real(r8),protected :: ED_val_bbopt_c3
-   real(r8),protected :: ED_val_bbopt_c4
-   real(r8),protected :: ED_val_base_mr_20
-   real(r8),protected :: ED_val_phen_drought_threshold
-   real(r8),protected :: ED_val_phen_doff_time
-   real(r8),protected :: ED_val_phen_a
-   real(r8),protected :: ED_val_phen_b
-   real(r8),protected :: ED_val_phen_c
-   real(r8),protected :: ED_val_phen_chiltemp
-   real(r8),protected :: ED_val_phen_mindayson
-   real(r8),protected :: ED_val_phen_ncolddayslim
-   real(r8),protected :: ED_val_phen_coldtemp
-   real(r8),protected :: ED_val_cohort_fusion_tol
-   real(r8),protected :: ED_val_patch_fusion_tol
-   real(r8),protected :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
+   real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
+   real(r8),protected, public :: ED_val_comp_excln
+   real(r8),protected, public :: ED_val_init_litter
+   real(r8),protected, public :: ED_val_nignitions
+   real(r8),protected, public :: ED_val_understorey_death
+   real(r8),protected, public :: ED_val_cwd_fcel
+   real(r8),protected, public :: ED_val_cwd_flig
+   real(r8),protected, public :: ED_val_bbopt_c3
+   real(r8),protected, public :: ED_val_bbopt_c4
+   real(r8),protected, public :: ED_val_base_mr_20
+   real(r8),protected, public :: ED_val_phen_drought_threshold
+   real(r8),protected, public :: ED_val_phen_doff_time
+   real(r8),protected, public :: ED_val_phen_a
+   real(r8),protected, public :: ED_val_phen_b
+   real(r8),protected, public :: ED_val_phen_c
+   real(r8),protected, public :: ED_val_phen_chiltemp
+   real(r8),protected, public :: ED_val_phen_mindayson
+   real(r8),protected, public :: ED_val_phen_ncolddayslim
+   real(r8),protected, public :: ED_val_phen_coldtemp
+   real(r8),protected, public :: ED_val_cohort_fusion_tol
+   real(r8),protected, public :: ED_val_patch_fusion_tol
+   real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
 
-   real(r8),protected :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
-   real(r8),protected :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
+   real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
+   real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
    ! two special parameters whose size is defined in the parameter file
-   real(r8),protected,allocatable :: ED_val_history_sizeclass_bin_edges(:)
-   real(r8),protected,allocatable :: ED_val_history_ageclass_bin_edges(:)
-   real(r8),protected,allocatable :: ED_val_history_height_bin_edges(:)
+   real(r8),protected,allocatable,public :: ED_val_history_sizeclass_bin_edges(:)
+   real(r8),protected,allocatable,public :: ED_val_history_ageclass_bin_edges(:)
+   real(r8),protected,allocatable,public :: ED_val_history_height_bin_edges(:)
 
-   character(len=param_string_length),parameter :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
-   character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
-   character(len=param_string_length),parameter :: ED_name_init_litter = "fates_init_litter"
-   character(len=param_string_length),parameter :: ED_name_nignitions = "fates_fire_nignitions"
-   character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_mort_understorey_death"
-   character(len=param_string_length),parameter :: ED_name_cwd_fcel= "fates_cwd_fcel"   
-   character(len=param_string_length),parameter :: ED_name_cwd_flig= "fates_cwd_flig"   
-   character(len=param_string_length),parameter :: ED_name_bbopt_c3= "fates_bbopt_c3"   
-   character(len=param_string_length),parameter :: ED_name_bbopt_c4= "fates_bbopt_c4"   
-   character(len=param_string_length),parameter :: ED_name_base_mr_20= "fates_base_mr_20"   
-   character(len=param_string_length),parameter :: ED_name_phen_drought_threshold= "fates_phen_drought_threshold"   
-   character(len=param_string_length),parameter :: ED_name_phen_doff_time= "fates_phen_doff_time"   
-   character(len=param_string_length),parameter :: ED_name_phen_a= "fates_phen_a"   
-   character(len=param_string_length),parameter :: ED_name_phen_b= "fates_phen_b"   
-   character(len=param_string_length),parameter :: ED_name_phen_c= "fates_phen_c"   
-   character(len=param_string_length),parameter :: ED_name_phen_chiltemp= "fates_phen_chiltemp"   
-   character(len=param_string_length),parameter :: ED_name_phen_mindayson= "fates_phen_mindayson"   
-   character(len=param_string_length),parameter :: ED_name_phen_ncolddayslim= "fates_phen_ncolddayslim"   
-   character(len=param_string_length),parameter :: ED_name_phen_coldtemp= "fates_phen_coldtemp"   
-   character(len=param_string_length),parameter :: ED_name_cohort_fusion_tol= "fates_cohort_fusion_tol"   
-   character(len=param_string_length),parameter :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
-   character(len=param_string_length),parameter :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
+   character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
+   character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
+   character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
+   character(len=param_string_length),parameter,public :: ED_name_nignitions = "fates_fire_nignitions"
+   character(len=param_string_length),parameter,public :: ED_name_understorey_death = "fates_mort_understorey_death"
+   character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_cwd_fcel"   
+   character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_cwd_flig"   
+   character(len=param_string_length),parameter,public :: ED_name_bbopt_c3= "fates_bbopt_c3"   
+   character(len=param_string_length),parameter,public :: ED_name_bbopt_c4= "fates_bbopt_c4"   
+   character(len=param_string_length),parameter,public :: ED_name_base_mr_20= "fates_base_mr_20"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_drought_threshold= "fates_phen_drought_threshold"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_doff_time= "fates_phen_doff_time"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_a= "fates_phen_a"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_b= "fates_phen_b"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_c= "fates_phen_c"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_chiltemp= "fates_phen_chiltemp"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_mindayson= "fates_phen_mindayson"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_ncolddayslim= "fates_phen_ncolddayslim"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_coldtemp= "fates_phen_coldtemp"   
+   character(len=param_string_length),parameter,public :: ED_name_cohort_fusion_tol= "fates_cohort_fusion_tol"   
+   character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
+   character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
 
    character(len=param_string_length),parameter :: fates_name_q10_mr="fates_q10_mr"
    character(len=param_string_length),parameter :: fates_name_q10_froz="fates_q10_froz"
 
 
    ! non-scalar parameter names
-   character(len=param_string_length),parameter :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
-   character(len=param_string_length),parameter :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
-   character(len=param_string_length),parameter :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
-
-
-   
-
+   character(len=param_string_length),parameter,public :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
+   character(len=param_string_length),parameter,public :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
+   character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
-   real(r8),protected :: hydr_kmax_rsurf1         !  maximum conducitivity for unit root surface 
+   real(r8),protected,public :: hydr_kmax_rsurf1         !  maximum conducitivity for unit root surface 
                                                   !  soil to root direction (kg water/m2 root area/Mpa/s)
-   character(len=param_string_length),parameter :: hydr_name_kmax_rsurf1 = "fates_hydr_kmax_rsurf1"  
+   character(len=param_string_length),parameter,public :: hydr_name_kmax_rsurf1 = "fates_hydr_kmax_rsurf1"  
    
-   real(r8),protected :: hydr_kmax_rsurf2         !  maximum conducitivity for unit root surface 
+   real(r8),protected,public :: hydr_kmax_rsurf2         !  maximum conducitivity for unit root surface 
                                                   !  root to soil direciton (kg water/m2 root area/Mpa/s)
-   character(len=param_string_length),parameter :: hydr_name_kmax_rsurf2 = "fates_hydr_kmax_rsurf2" 
+   character(len=param_string_length),parameter,public :: hydr_name_kmax_rsurf2 = "fates_hydr_kmax_rsurf2" 
 
-   real(r8),protected :: hydr_psi0          !  sapwood water potential at saturation (MPa)
-   character(len=param_string_length),parameter :: hydr_name_psi0 = "fates_hydr_psi0"
+   real(r8),protected,public :: hydr_psi0          !  sapwood water potential at saturation (MPa)
+   character(len=param_string_length),parameter,public :: hydr_name_psi0 = "fates_hydr_psi0"
 
-   real(r8),protected :: hydr_psicap        !  sapwood water potential at which capillary reserves exhausted (MPa)
-   character(len=param_string_length),parameter :: hydr_name_psicap = "fates_hydr_psicap"
+   real(r8),protected,public :: hydr_psicap        !  sapwood water potential at which capillary reserves exhausted (MPa)
+   character(len=param_string_length),parameter,public :: hydr_name_psicap = "fates_hydr_psicap"
 
    !Soil BGC parameters, mostly used for testing FATES when not coupled to the dynamics bgc hlm
    ! ----------------------------------------------------------------------------------------------
-   real(r8),protected :: bgc_soil_salinity ! site-level soil salinity for FATES when not coupled to dynamic soil BGC of salinity
-   character(len=param_string_length),parameter :: bgc_name_soil_salinity= "fates_soil_salinity"      
+   real(r8),protected,public :: bgc_soil_salinity ! site-level soil salinity for FATES when not coupled to dynamic soil BGC of salinity
+   character(len=param_string_length),parameter,public :: bgc_name_soil_salinity= "fates_soil_salinity"      
    
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
 
-   real(r8),protected :: logging_dbhmin              ! Minimum dbh at which logging is applied (cm)
-   character(len=param_string_length),parameter :: logging_name_dbhmin = "fates_logging_dbhmin"
+   real(r8),protected,public :: logging_dbhmin              ! Minimum dbh at which logging is applied (cm)
+   character(len=param_string_length),parameter,public :: logging_name_dbhmin = "fates_logging_dbhmin"
 
-   real(r8),protected :: logging_collateral_frac     ! Ratio of collateral mortality to direct logging mortality
-   character(len=param_string_length),parameter :: logging_name_collateral_frac = "fates_logging_collateral_frac"
+   real(r8),protected,public :: logging_collateral_frac     ! Ratio of collateral mortality to direct logging mortality
+   character(len=param_string_length),parameter,public :: logging_name_collateral_frac = "fates_logging_collateral_frac"
 
-   real(r8),protected :: logging_coll_under_frac ! Fraction of understory plants that die when logging disturbance
+   real(r8),protected,public :: logging_coll_under_frac ! Fraction of understory plants that die when logging disturbance
                                                  ! is generated
-   character(len=param_string_length),parameter :: logging_name_coll_under_frac = "fates_logging_coll_under_frac"
+   character(len=param_string_length),parameter,public :: logging_name_coll_under_frac = "fates_logging_coll_under_frac"
    
-   real(r8),protected :: logging_direct_frac         ! Fraction of stems logged per event
-   character(len=param_string_length),parameter :: logging_name_direct_frac = "fates_logging_direct_frac"
+   real(r8),protected,public :: logging_direct_frac         ! Fraction of stems logged per event
+   character(len=param_string_length),parameter,public :: logging_name_direct_frac = "fates_logging_direct_frac"
 
-   real(r8),protected :: logging_mechanical_frac         ! Fraction of stems logged per event
-   character(len=param_string_length),parameter :: logging_name_mechanical_frac = "fates_logging_mechanical_frac"
+   real(r8),protected,public :: logging_mechanical_frac         ! Fraction of stems logged per event
+   character(len=param_string_length),parameter,public :: logging_name_mechanical_frac = "fates_logging_mechanical_frac"
 
-   real(r8),protected :: logging_event_code          ! Code that options how logging events are structured 
-   character(len=param_string_length),parameter :: logging_name_event_code = "fates_logging_event_code"
+   real(r8),protected,public :: logging_event_code          ! Code that options how logging events are structured 
+   character(len=param_string_length),parameter,public :: logging_name_event_code = "fates_logging_event_code"
    
-   real(r8),protected :: logging_dbhmax_infra        ! "Tree diameter, above which infrastructure from logging does not impact damage or mortality.
-   character(len=param_string_length),parameter :: logging_name_dbhmax_infra = "fates_logging_dbhmax_infra"
+   real(r8),protected,public :: logging_dbhmax_infra        ! "Tree diameter, above which infrastructure from logging does not impact damage or mortality.
+   character(len=param_string_length),parameter,public :: logging_name_dbhmax_infra = "fates_logging_dbhmax_infra"
    
-   real(r8),protected :: logging_export_frac        ! "fraction of trunk product being shipped offsite, the 
+   real(r8),protected,public :: logging_export_frac        ! "fraction of trunk product being shipped offsite, the 
                                                     ! leftovers will be left onsite as large CWD
-   character(len=param_string_length),parameter :: logging_name_export_frac ="fates_logging_export_frac"   
-
+   character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_logging_export_frac"   
 
    public :: FatesParamsInit
    public :: FatesRegisterParams

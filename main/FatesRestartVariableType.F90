@@ -5,10 +5,11 @@ module FatesRestartVariableMod
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
 
   implicit none
+  private ! Modules are private by default
 
   ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
   
-  type fates_restart_variable_type
+  type, public :: fates_restart_variable_type
      character(len=32)    :: vname
      character(len=24)    :: units
      character(len=128)   :: long
@@ -23,9 +24,14 @@ module FatesRestartVariableMod
      real(r8), pointer     :: r81d(:)
      integer,  pointer     :: int1d(:)
    contains
-     procedure, public :: Init
-     procedure, public :: Flush
+     
+     ! Public restart type functions
+     procedure :: Init
+     procedure :: Flush
+
+     ! Private restart type functions
      procedure, private :: GetBounds
+     
   end type fates_restart_variable_type
 
 contains

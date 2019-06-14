@@ -7,6 +7,7 @@ module FatesHydraulicsMemMod
    use EDParamsMod      , only : hydr_psicap
    
    implicit none
+   private
 
    ! Number of soil layers for indexing cohort fine root quanitities
    ! NOTE: The hydraulics code does have some capacity to run a single soil
@@ -15,67 +16,66 @@ module FatesHydraulicsMemMod
    ! communications with the LSM.  Please do not set nlevsoi_hyd_max
    ! to 1 unless you are developing and testing.
 
-
-   integer, parameter                            :: nlevsoi_hyd_max = 40
+   integer, parameter, public                  :: nlevsoi_hyd_max = 40
 
    ! number of distinct types of plant porous media (leaf, stem, troot, aroot)
-   integer, parameter                            :: n_porous_media = 4
+   integer, parameter, public                  :: n_porous_media = 4
 
-   integer, parameter                            :: n_hypool_leaf  = 1
-   integer, parameter                            :: n_hypool_stem  = 1
-   integer, parameter                            :: n_hypool_troot = 1
-   integer, parameter                            :: n_hypool_aroot = 1
-   integer, parameter                            :: nshell      = 5
+   integer, parameter, public                  :: n_hypool_leaf  = 1
+   integer, parameter, public                  :: n_hypool_stem  = 1
+   integer, parameter, public                  :: n_hypool_troot = 1
+   integer, parameter, public                  :: n_hypool_aroot = 1
+   integer, parameter, public                  :: nshell         = 5
 
    ! number of aboveground plant water storage nodes
-   integer, parameter                            :: n_hypool_ag    = n_hypool_leaf+n_hypool_stem
+   integer, parameter, public                  :: n_hypool_ag    = n_hypool_leaf+n_hypool_stem
 
    ! total number of water storage nodes
-   integer, parameter                            :: n_hypool_tot   = n_hypool_ag + n_hypool_troot + n_hypool_aroot + nshell
+   integer, parameter, public                  :: n_hypool_tot = n_hypool_ag + n_hypool_troot + n_hypool_aroot + nshell
 
    ! vector indexing the type of porous medium over an arbitrary number of plant pools
-   integer, parameter,dimension(n_hypool_tot)       :: porous_media = (/1,2,3,4,5,5,5,5,5/) 
+   integer, parameter, public, dimension(n_hypool_tot) :: porous_media = (/1,2,3,4,5,5,5,5,5/) 
 
    ! number of previous timestep's leaf water potential to be retained
-   integer, parameter                            :: numLWPmem             = 4
+   integer, parameter, public                          :: numLWPmem             = 4
 
    ! mirror of nlevcan, hard-set for simplicity, remove nlevcan_hyd on a rainy day
    ! Note (RGK): uscing nclmax causes annoying circular dependency (this needs EDTypes, EDTypes needs this)
    ! way around that: dynamic allocation, or just keep this, but set the value high
-   integer, parameter                            :: nlevcan_hyd = 2                       
+   integer, parameter, public                          :: nlevcan_hyd = 2                       
                        
    ! Mean fine root radius expected in the bulk soil                
-   real(r8), parameter                           :: fine_root_radius_const = 0.001_r8               
+   real(r8), parameter, public                         :: fine_root_radius_const = 0.001_r8               
    
    ! Constant parameters (for time being, C2B is constant, 
    ! slated for addition to parameter file (RGK 08-2017))
    ! Carbon 2 biomass ratio
-   real(r8), parameter                           :: C2B        = 2.0_r8 
+   real(r8), parameter, public                         :: C2B        = 2.0_r8 
               
    ! P-V curve: total RWC @ which elastic drainage begins     [-]        
-   real(r8), parameter,dimension(n_porous_media) :: rwcft   = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
+   real(r8), parameter, public, dimension(n_porous_media) :: rwcft   = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
 
    ! P-V curve: total RWC @ which capillary reserves exhausted
-   real(r8), parameter,dimension(n_porous_media) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
+   real(r8), parameter, public, dimension(n_porous_media) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
 
    ! Derived parameters
    ! ----------------------------------------------------------------------------------------------
 
    ! P-V curve: slope of capillary region of curve
-   real(r8), dimension(n_porous_media)           :: cap_slp                                         
+   real(r8), public, dimension(n_porous_media)           :: cap_slp                                         
 
    ! P-V curve: intercept of capillary region of curve
-   real(r8), dimension(n_porous_media)           :: cap_int   
+   real(r8), public, dimension(n_porous_media)           :: cap_int   
 
    ! P-V curve: correction for nonzero psi0x
-   real(r8), dimension(n_porous_media)           :: cap_corr                                        
+   real(r8), public, dimension(n_porous_media)           :: cap_corr                                        
    
    !temporatory variables
-   real(r8) :: cohort_recruit_water_layer(nlevsoi_hyd_max)   ! the recruit water requirement for a 
+   real(r8), public :: cohort_recruit_water_layer(nlevsoi_hyd_max)   ! the recruit water requirement for a 
                                                              ! single individual at different layer (kg H2o/m2)
-   real(r8) :: recruit_water_avail_layer(nlevsoi_hyd_max)    ! the recruit water avaibility from soil (kg H2o/m2)
+   real(r8), public :: recruit_water_avail_layer(nlevsoi_hyd_max)    ! the recruit water avaibility from soil (kg H2o/m2)
 
-   type ed_site_hydr_type
+   type, public :: ed_site_hydr_type
 
       ! Plant Hydraulics
      
@@ -185,7 +185,7 @@ module FatesHydraulicsMemMod
   !end type ed_patch_hydr_type
 
 
-  type ed_cohort_hydr_type
+  type, public :: ed_cohort_hydr_type
      
                                                   ! BC...PLANT HYDRAULICS - "constants" that change with size. 
                                                   ! Heights are referenced to soil surface (+ = above; - = below)
@@ -289,6 +289,9 @@ module FatesHydraulicsMemMod
      
   end type ed_cohort_hydr_type
    
+  ! Make public necessary subroutines and functions
+  public :: InitHydraulicsDerived
+
  contains
     
     subroutine AllocateHydrCohortArrays(this,nlevsoil_hydr)

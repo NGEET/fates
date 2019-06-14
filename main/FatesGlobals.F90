@@ -7,13 +7,16 @@ module FatesGlobals
   use FatesConstantsMod         , only : r8 => fates_r8
    
   implicit none
+  private         ! By default everything is private
 
+  integer :: fates_log_
+  logical :: fates_global_verbose_
+
+  ! Make public necessary subroutines and functions
   public :: FatesGlobalsInit
   public :: fates_log
   public :: fates_global_verbose
-
-  integer, private :: fates_log_
-  logical, private :: fates_global_verbose_
+  public :: fates_endrun
 
 contains
 

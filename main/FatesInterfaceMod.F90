@@ -45,15 +45,6 @@ module FatesInterfaceMod
 
    private        ! By default everything is private
 
-   public :: FatesInterfaceInit
-   public :: set_fates_ctrlparms
-   public :: SetFatesTime
-   public :: set_fates_global_elements
-   public :: FatesReportParameters
-   public :: InitPARTEHGlobals
-   public :: allocate_bcin
-   public :: allocate_bcout
-
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
    
@@ -597,8 +588,16 @@ module FatesInterfaceMod
 
    end type fates_interface_type
 
-  
-
+ 
+   ! Make public necessary subroutines and functions
+   public :: FatesInterfaceInit
+   public :: set_fates_ctrlparms
+   public :: SetFatesTime
+   public :: set_fates_global_elements
+   public :: FatesReportParameters
+   public :: InitPARTEHGlobals
+   public :: allocate_bcin
+   public :: allocate_bcout
 
 contains
 
