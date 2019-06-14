@@ -1650,7 +1650,15 @@ contains
   subroutine mortality_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
     !
     ! !DESCRIPTION:
-    !  Carbon going from ongoing mortality into CWD pools. 
+    ! Carbon going from mortality associated with disturbance into CWD pools. 
+    ! By "associated with disturbance", this includes tree death that
+    ! forms gaps, as well as tree death due to impacts from those trees.
+    !
+    ! We calculate the fraction of litter to be retained versus donated
+    ! vis-a-vis the new and donor patch. At this step, we have not
+    ! yet removed the area from the pre-existing patch (currentPatch),
+    ! so we pre-compute "remainder_area", which is the soon-to-be
+    ! area of the patch once disturbance is completed.
     !
     ! !USES:
     use EDParamsMod,  only : ED_val_understorey_death
@@ -1693,11 +1701,22 @@ contains
     integer  :: sl                   ! soil layer index
     integer  :: element_id           ! parteh compatible global element index
     real(r8) :: dcmpy_frac           ! decomposability fraction 
-    real(r8) :: litter_stock0,litter_stock1,litter_stock2,litter_stock3
-    real(r8) :: mort_flux            ! For error tracking
-    real(r8) :: seed_flux            ! For error tracking
-    real(r8) :: error
     !---------------------------------------------------------------------
+
+    remainder_area = currentPatch%area - patch_site_areadis
+    
+    retain_frac = (1.0_r8-treefall_localization) * &
+         remainder_area/(newPatch%area+remainder_area)
+    donate_frac = 1.0_r8-retain_frac
+    
+    if(remainder_area > rsnbl_math_prec) then
+       retain_m2 = retain_frac/remainder_area
+       donate_m2 = (1.0_r8-retain_frac)/newPatch%area
+    else
+       retain_m2 = 0._r8
+       donate_m2  = 1._r8/newPatch%area
+    end if
+
 
     do el = 1,num_elements
        
@@ -1706,39 +1725,6 @@ contains
        flux_diags => currentSite%flux_diags(el)
        curr_litt  => currentPatch%litter(el)   ! Litter pool of "current" patch
        new_litt   => newPatch%litter(el)       ! Litter pool of "new" patch
-
-       ! -----------------------------------------------------------------------------
-       ! Part 1: Send parts of dying plants to the litter pool.
-       ! -----------------------------------------------------------------------------
-
-       ! Calculate the fraction of litter to be retained versus donated
-       ! vis-a-vis the new and donor patch. At this step, we have not
-       ! yet removed the area from the pre-existing patch (currentPatch),
-       ! so we pre-compute "remainder_area", which is the soon-to-be
-       ! area of the patch once disturbance is completed
-
-       remainder_area = currentPatch%area - patch_site_areadis
-
-       retain_frac = (1.0_r8-treefall_localization) * &
-             remainder_area/(newPatch%area+remainder_area)
-       donate_frac = 1.0_r8-retain_frac
-
-       if(remainder_area > rsnbl_math_prec) then
-           retain_m2 = retain_frac/remainder_area
-           donate_m2 = (1.0_r8-retain_frac)/newPatch%area
-       else
-           retain_m2 = 0._r8
-           donate_m2  = 1._r8/newPatch%area
-       end if
-
-
-       if (debug) then
-          mort_flux     = 0._r8
-          seed_flux     = 0._r8
-          litter_stock0 = curr_litt%GetTotalLitterMass()*remainder_area
-          litter_stock1 = new_litt%GetTotalLitterMass()*newPatch%area
-       end if
-
 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))       
@@ -1760,7 +1746,7 @@ contains
              num_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
                    hlm_freq_day * fates_mortality_disturbance_fraction)
              
-          elseif(EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then
+          elseif(EDPftvarcon_inst%woody(pft) == itrue) then
              
              ! Understorey trees. The total dead is based on their survivorship
              ! function, and the total area of disturbance.
@@ -1783,8 +1769,6 @@ contains
               (hlm_use_planthydro == itrue) ) then
               call AccumulateMortalityWaterStorage(currentSite,currentCohort, num_dead)
           end if
-          
-          mort_flux = mort_flux + num_dead*(leaf_m+repro_m+sapw_m+fnrt_m+struct_m+store_m)
           
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
           do dcmpy=1,ndcmpy
@@ -1831,13 +1815,11 @@ contains
                   new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + &
                         num_dead * currentSite%rootfrac_scr(sl) * &
                         (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
-!                        (fnrt_m + store_m) * &
                         donate_m2 * dcmpy_frac
                   
                   curr_litt%root_fines(dcmpy,sl) = curr_litt%root_fines(dcmpy,sl) + &
                         num_dead * currentSite%rootfrac_scr(sl) * &
                         (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft))) * &
-!                        (fnrt_m + store_m) * & 
                         retain_m2 * dcmpy_frac
               end do
           end do
@@ -1874,25 +1856,6 @@ contains
           currentCohort => currentCohort%taller      
        enddo !currentCohort         
 
-       ! --------------------------------------------------------------------------
-       ! Mass conservation check, set debug=.true. if mass imbalances in 
-       ! EDMainMod start triggering.
-       ! DISABLING BECAUSE OF SEED MIXING TERM. RE-INTRODUCE IF SITE LEVEL
-       ! CHECK DURING DISTURBANCE FAILS
-       ! --------------------------------------------------------------------------
-!       if (debug) then
-!          litter_stock2 = curr_litt%GetTotalLitterMass()*remainder_area
-!          litter_stock3 = new_litt%GetTotalLitterMass()*newPatch%area
-!          error = ((litter_stock2+litter_stock3) - (litter_stock1+litter_stock0)) - (mort_flux - seed_flux)
-!          if(abs(error)>1.e-8_r8) then
-!             write(fates_log(),*) 'non trivial carbon mass balance error in mortality litter fluxes'
-!             write(fates_log(),*) 'abs error: ',error,litter_stock2-litter_stock0,litter_stock3-litter_stock1,mort_flux
-!             write(fates_log(),*) litter_stock0,litter_stock1,litter_stock2,litter_stock3
-!             write(fates_log(),*) retain_frac,donate_frac,donate_m2,retain_m2,newPatch%area
-!             call endrun(msg=errMsg(sourcefile, __LINE__))
-!          end if
-!       end if
-   
     enddo
 
 
