@@ -28,7 +28,7 @@ module EDPhysiologyMod
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : decay_coeff_kn
-  use EDTypesMod          , only : litter_type
+  use FatesLitterMod      , only : litter_type
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
@@ -42,7 +42,6 @@ module EDPhysiologyMod
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod          , only : dump_cohort
   use EDTypesMod          , only : first_leaf_aclass
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off

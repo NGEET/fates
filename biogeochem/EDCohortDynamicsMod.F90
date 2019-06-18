@@ -67,7 +67,6 @@ module EDCohortDynamicsMod
   use FatesAllometryMod    , only : set_root_fraction
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
-  use PRTGenericMod,          only : InitPRTVartype
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : carbon12_element

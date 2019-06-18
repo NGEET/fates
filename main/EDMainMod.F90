@@ -41,7 +41,7 @@ module EDMainMod
   use SFMainMod                , only : fire_model 
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use FatesLitterMod           , only : litter_type
-  use EDtypesMod               , only : ncwd
+  use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type

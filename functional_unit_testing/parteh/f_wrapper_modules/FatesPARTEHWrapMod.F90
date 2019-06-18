@@ -22,8 +22,13 @@ module FatesPARTEHWrapMod
   use iso_c_binding, only : c_char
 
   implicit none
+  private
 
   character(len=*), parameter, private :: sourcefile = __FILE__
+
+  ! Make necessary procedures public
+
+  public :: SPMapPyset
 
 contains
 

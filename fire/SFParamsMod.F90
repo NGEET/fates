@@ -11,33 +11,33 @@ module SFParamsMod
    use shr_log_mod      , only : errMsg => shr_log_errMsg
 
    implicit none
+   private ! Modules are private by default
    save
-   ! private - if we allow this module to be private, it does not allow the protected values below to be
-   ! seen outside of this module.
 
    !
    ! this is what the user can use for the actual values
    !
-   real(r8),protected :: SF_val_fdi_a
-   real(r8),protected :: SF_val_fdi_b
-   real(r8),protected :: SF_val_fdi_alpha
-   real(r8),protected :: SF_val_miner_total
-   real(r8),protected :: SF_val_fuel_energy
-   real(r8),protected :: SF_val_part_dens
-   real(r8),protected :: SF_val_miner_damp
-   real(r8),protected :: SF_val_max_durat
-   real(r8),protected :: SF_val_durat_slope
-   real(r8),protected :: SF_val_drying_ratio
-   real(r8),protected :: SF_val_CWD_frac(ncwd)
-   real(r8),protected :: SF_val_max_decomp(NFSC)
-   real(r8),protected :: SF_val_SAV(NFSC)
-   real(r8),protected :: SF_val_FBD(NFSC)
-   real(r8),protected :: SF_val_min_moisture(NFSC)
-   real(r8),protected :: SF_val_mid_moisture(NFSC)
-   real(r8),protected :: SF_val_low_moisture_Coeff(NFSC)
-   real(r8),protected :: SF_val_low_moisture_Slope(NFSC)
-   real(r8),protected :: SF_val_mid_moisture_Coeff(NFSC)
-   real(r8),protected :: SF_val_mid_moisture_Slope(NFSC)
+
+   real(r8),protected, public :: SF_val_fdi_a
+   real(r8),protected, public :: SF_val_fdi_b
+   real(r8),protected, public :: SF_val_fdi_alpha
+   real(r8),protected, public :: SF_val_miner_total
+   real(r8),protected, public :: SF_val_fuel_energy
+   real(r8),protected, public :: SF_val_part_dens
+   real(r8),protected, public :: SF_val_miner_damp
+   real(r8),protected, public :: SF_val_max_durat
+   real(r8),protected, public :: SF_val_durat_slope
+   real(r8),protected, public :: SF_val_drying_ratio
+   real(r8),protected, public :: SF_val_CWD_frac(ncwd)
+   real(r8),protected, public :: SF_val_max_decomp(NFSC)
+   real(r8),protected, public :: SF_val_SAV(NFSC)
+   real(r8),protected, public :: SF_val_FBD(NFSC)
+   real(r8),protected, public :: SF_val_min_moisture(NFSC)
+   real(r8),protected, public :: SF_val_mid_moisture(NFSC)
+   real(r8),protected, public :: SF_val_low_moisture_Coeff(NFSC)
+   real(r8),protected, public :: SF_val_low_moisture_Slope(NFSC)
+   real(r8),protected, public :: SF_val_mid_moisture_Coeff(NFSC)
+   real(r8),protected, public :: SF_val_mid_moisture_Slope(NFSC)
 
    character(len=param_string_length),parameter :: SF_name_fdi_a = "fates_fire_fdi_a"
    character(len=param_string_length),parameter :: SF_name_fdi_b = "fates_fire_fdi_b"
@@ -67,16 +67,7 @@ module SFParamsMod
    public :: SpitFireReceiveParams
    public :: SpitFireCheckParams
 
-   private :: SpitFireParamsInit
-   private :: SpitFireRegisterScalars
-   private :: SpitFireReceiveScalars
-  
-   private :: SpitFireRegisterNCWD
-   private :: SpitFireReceiveNCWD
-  
-   private :: SpitFireRegisterNFSC
-   private :: SpitFireReceiveNFSC
-  
+
 contains
 
   ! =====================================================================================
@@ -96,9 +87,9 @@ contains
 
      integer :: c      ! debris type loop counter
      integer :: corr_id(1)        ! This is the bin with largest fraction
-                                 ! add/subtract any corrections there
-    real(r8) :: correction       ! This correction ensures that root fractions
-                                 ! sum to 1.0
+                                  ! add/subtract any corrections there
+     real(r8) :: correction       ! This correction ensures that root fractions
+                                  ! sum to 1.0
 
 
      if(.not.is_master) return

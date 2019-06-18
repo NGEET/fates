@@ -60,6 +60,7 @@ module FatesHistoryInterfaceMod
 
 
   implicit none
+  private          ! By default everything is private
 
   ! These variables hold the index of the history output structure so we don't
   ! have to constantly do name lookup when we want to populate the dataset
@@ -131,379 +132,378 @@ module FatesHistoryInterfaceMod
   
   ! Indices to 1D Patch variables
 
-  integer, private :: ih_trimming_pa
-  integer, private :: ih_area_plant_pa
-  integer, private :: ih_area_treespread_pa
-  integer, private :: ih_nesterov_fire_danger_pa
-  integer, private :: ih_spitfire_ROS_pa
-  integer, private :: ih_effect_wspeed_pa
-  integer, private :: ih_TFC_ROS_pa
-  integer, private :: ih_fire_intensity_pa
-  integer, private :: ih_fire_area_pa
-  integer, private :: ih_scorch_height_pa
-  integer, private :: ih_fire_fuel_bulkd_pa
-  integer, private :: ih_fire_fuel_eff_moist_pa
-  integer, private :: ih_fire_fuel_sav_pa
-  integer, private :: ih_fire_fuel_mef_pa
-  integer, private :: ih_sum_fuel_pa
+  integer :: ih_trimming_pa
+  integer :: ih_area_plant_pa
+  integer :: ih_area_treespread_pa
+  integer :: ih_nesterov_fire_danger_pa
+  integer :: ih_spitfire_ROS_pa
+  integer :: ih_effect_wspeed_pa
+  integer :: ih_TFC_ROS_pa
+  integer :: ih_fire_intensity_pa
+  integer :: ih_fire_area_pa
+  integer :: ih_scorch_height_pa
+  integer :: ih_fire_fuel_bulkd_pa
+  integer :: ih_fire_fuel_eff_moist_pa
+  integer :: ih_fire_fuel_sav_pa
+  integer :: ih_fire_fuel_mef_pa
+  integer :: ih_sum_fuel_pa
 
-  integer, private :: ih_cwd_elcwd
-  integer, private :: ih_litter_in_elem
-  integer, private :: ih_litter_out_elem
-  integer, private :: ih_seed_bank_elem
-  integer, private :: ih_seeds_in_local_elem
-  integer, private :: ih_seeds_in_extern_elem
-  integer, private :: ih_seed_decay_elem
-  integer, private :: ih_seed_germ_elem
+  integer :: ih_cwd_elcwd
+  integer :: ih_litter_in_elem
+  integer :: ih_litter_out_elem
+  integer :: ih_seed_bank_elem
+  integer :: ih_seeds_in_local_elem
+  integer :: ih_seeds_in_extern_elem
+  integer :: ih_seed_decay_elem
+  integer :: ih_seed_germ_elem
 
-  integer, private :: ih_fines_ag_elem
-  integer, private :: ih_fines_bg_elem
-  integer, private :: ih_cwd_ag_elem
-  integer, private :: ih_cwd_bg_elem
+  integer :: ih_fines_ag_elem
+  integer :: ih_fines_bg_elem
+  integer :: ih_cwd_ag_elem
+  integer :: ih_cwd_bg_elem
 
-  integer, private :: ih_daily_temp
-  integer, private :: ih_daily_rh
-  integer, private :: ih_daily_prec
+  integer :: ih_daily_temp
+  integer :: ih_daily_rh
+  integer :: ih_daily_prec
  
-  integer, private :: ih_bstore_pa
-  integer, private :: ih_bdead_pa
-  integer, private :: ih_balive_pa
-  integer, private :: ih_bleaf_pa
-  integer, private :: ih_bsapwood_pa
-  integer, private :: ih_bfineroot_pa
-  integer, private :: ih_btotal_pa
-  integer, private :: ih_agb_pa
-  integer, private :: ih_npp_pa
-  integer, private :: ih_gpp_pa
-  integer, private :: ih_aresp_pa
-  integer, private :: ih_maint_resp_pa
-  integer, private :: ih_growth_resp_pa
-  integer, private :: ih_ar_canopy_pa
-  integer, private :: ih_gpp_canopy_pa
-  integer, private :: ih_ar_understory_pa
-  integer, private :: ih_gpp_understory_pa
-  integer, private :: ih_canopy_biomass_pa
-  integer, private :: ih_understory_biomass_pa
-  
+  integer :: ih_bstore_pa
+  integer :: ih_bdead_pa
+  integer :: ih_balive_pa
+  integer :: ih_bleaf_pa
+  integer :: ih_bsapwood_pa
+  integer :: ih_bfineroot_pa
+  integer :: ih_btotal_pa
+  integer :: ih_agb_pa
+  integer :: ih_npp_pa
+  integer :: ih_gpp_pa
+  integer :: ih_aresp_pa
+  integer :: ih_maint_resp_pa
+  integer :: ih_growth_resp_pa
+  integer :: ih_ar_canopy_pa
+  integer :: ih_gpp_canopy_pa
+  integer :: ih_ar_understory_pa
+  integer :: ih_gpp_understory_pa
+  integer :: ih_canopy_biomass_pa
+  integer :: ih_understory_biomass_pa
+
   ! Indices to site by size-class by age variables
-  integer, private :: ih_nplant_si_scag
-  integer, private :: ih_nplant_canopy_si_scag
-  integer, private :: ih_nplant_understory_si_scag
-  integer, private :: ih_ddbh_canopy_si_scag
-  integer, private :: ih_ddbh_understory_si_scag
-  integer, private :: ih_mortality_canopy_si_scag
-  integer, private :: ih_mortality_understory_si_scag
+  integer :: ih_nplant_si_scag
+  integer :: ih_nplant_canopy_si_scag
+  integer :: ih_nplant_understory_si_scag
+  integer :: ih_ddbh_canopy_si_scag
+  integer :: ih_ddbh_understory_si_scag
+  integer :: ih_mortality_canopy_si_scag
+  integer :: ih_mortality_understory_si_scag
 
   ! Indices to site by size-class by age by pft variables
-  integer, private :: ih_nplant_si_scagpft
+  integer :: ih_nplant_si_scagpft
 
   ! Indices to site by patch age by pft variables
-  integer, private :: ih_biomass_si_agepft
-  integer, private :: ih_npp_si_agepft
+  integer :: ih_biomass_si_agepft
+  integer :: ih_npp_si_agepft
 
   ! Indices to (site) variables
-  integer, private :: ih_nep_si
-  integer, private :: ih_npp_si
 
-  integer, private :: ih_c_stomata_si
-  integer, private :: ih_c_lblayer_si
+  integer :: ih_nep_si
+  integer :: ih_npp_si
 
-  integer, private :: ih_cbal_err_fates_si
-  integer, private :: ih_err_fates_si
+  integer :: ih_c_stomata_si
+  integer :: ih_c_lblayer_si
 
-  integer, private :: ih_npatches_si
-  integer, private :: ih_ncohorts_si
-  integer, private :: ih_demotion_carbonflux_si
-  integer, private :: ih_promotion_carbonflux_si
-  integer, private :: ih_canopy_mortality_carbonflux_si
-  integer, private :: ih_understory_mortality_carbonflux_si
-  integer, private :: ih_canopy_spread_si
-  integer, private :: ih_npp_leaf_si
-  integer, private :: ih_npp_seed_si
-  integer, private :: ih_npp_stem_si
-  integer, private :: ih_npp_froot_si
-  integer, private :: ih_npp_croot_si
-  integer, private :: ih_npp_stor_si
-  integer, private :: ih_leaf_mr_si
-  integer, private :: ih_froot_mr_si
-  integer, private :: ih_livestem_mr_si
-  integer, private :: ih_livecroot_mr_si
-  integer, private :: ih_fraction_secondary_forest_si
-  integer, private :: ih_biomass_secondary_forest_si
-  integer, private :: ih_woodproduct_si
-  integer, private :: ih_h2oveg_si
-  integer, private :: ih_h2oveg_dead_si
-  integer, private :: ih_h2oveg_recruit_si
-  integer, private :: ih_h2oveg_growturn_err_si
-  integer, private :: ih_h2oveg_pheno_err_si
-  integer, private :: ih_h2oveg_hydro_err_si
+  integer :: ih_cbal_err_fates_si
+  integer :: ih_err_fates_si
 
-  integer, private :: ih_site_cstatus_si
-  integer, private :: ih_site_dstatus_si
-  integer, private :: ih_gdd_si
-  integer, private :: ih_site_nchilldays_si
-  integer, private :: ih_site_ncolddays_si
-  integer, private :: ih_cleafoff_si
-  integer, private :: ih_cleafon_si
-  integer, private :: ih_dleafoff_si
-  integer, private :: ih_dleafon_si
-  integer, private :: ih_meanliqvol_si
+  integer :: ih_npatches_si
+  integer :: ih_ncohorts_si
+  integer :: ih_demotion_carbonflux_si
+  integer :: ih_promotion_carbonflux_si
+  integer :: ih_canopy_mortality_carbonflux_si
+  integer :: ih_understory_mortality_carbonflux_si
+  integer :: ih_canopy_spread_si
+  integer :: ih_npp_leaf_si
+  integer :: ih_npp_seed_si
+  integer :: ih_npp_stem_si
+  integer :: ih_npp_froot_si
+  integer :: ih_npp_croot_si
+  integer :: ih_npp_stor_si
+  integer :: ih_leaf_mr_si
+  integer :: ih_froot_mr_si
+  integer :: ih_livestem_mr_si
+  integer :: ih_livecroot_mr_si
+  integer :: ih_fraction_secondary_forest_si
+  integer :: ih_biomass_secondary_forest_si
+  integer :: ih_woodproduct_si
+  integer :: ih_h2oveg_si
+  integer :: ih_h2oveg_dead_si
+  integer :: ih_h2oveg_recruit_si
+  integer :: ih_h2oveg_growturn_err_si
+  integer :: ih_h2oveg_pheno_err_si
+  integer :: ih_h2oveg_hydro_err_si
+
+  integer :: ih_site_cstatus_si
+  integer :: ih_site_dstatus_si
+  integer :: ih_gdd_si
+  integer :: ih_site_nchilldays_si
+  integer :: ih_site_ncolddays_si
+  integer :: ih_cleafoff_si
+  integer :: ih_cleafon_si
+  integer :: ih_dleafoff_si
+  integer :: ih_dleafon_si
+  integer :: ih_meanliqvol_si
 
 
-  integer, private :: ih_nplant_si_scpf
-  integer, private :: ih_gpp_si_scpf
-  integer, private :: ih_npp_totl_si_scpf
-  integer, private :: ih_npp_leaf_si_scpf
-  integer, private :: ih_npp_seed_si_scpf
-  integer, private :: ih_npp_fnrt_si_scpf
-  integer, private :: ih_npp_bgsw_si_scpf
-  integer, private :: ih_npp_bgdw_si_scpf
-  integer, private :: ih_npp_agsw_si_scpf
-  integer, private :: ih_npp_agdw_si_scpf
-  integer, private :: ih_npp_stor_si_scpf
+  integer :: ih_nplant_si_scpf
+  integer :: ih_gpp_si_scpf
+  integer :: ih_npp_totl_si_scpf
+  integer :: ih_npp_leaf_si_scpf
+  integer :: ih_npp_seed_si_scpf
+  integer :: ih_npp_fnrt_si_scpf
+  integer :: ih_npp_bgsw_si_scpf
+  integer :: ih_npp_bgdw_si_scpf
+  integer :: ih_npp_agsw_si_scpf
+  integer :: ih_npp_agdw_si_scpf
+  integer :: ih_npp_stor_si_scpf
   
-  integer, private :: ih_bstor_canopy_si_scpf
-  integer, private :: ih_bstor_understory_si_scpf
-  integer, private :: ih_bleaf_canopy_si_scpf
-  integer, private :: ih_bleaf_understory_si_scpf
-  integer, private :: ih_mortality_canopy_si_scpf
-  integer, private :: ih_mortality_understory_si_scpf
-  integer, private :: ih_nplant_canopy_si_scpf
-  integer, private :: ih_nplant_understory_si_scpf
-  integer, private :: ih_ddbh_canopy_si_scpf
-  integer, private :: ih_ddbh_understory_si_scpf
-  integer, private :: ih_gpp_canopy_si_scpf
-  integer, private :: ih_gpp_understory_si_scpf
-  integer, private :: ih_ar_canopy_si_scpf
-  integer, private :: ih_ar_understory_si_scpf
+  integer :: ih_bstor_canopy_si_scpf
+  integer :: ih_bstor_understory_si_scpf
+  integer :: ih_bleaf_canopy_si_scpf
+  integer :: ih_bleaf_understory_si_scpf
+  integer :: ih_mortality_canopy_si_scpf
+  integer :: ih_mortality_understory_si_scpf
+  integer :: ih_nplant_canopy_si_scpf
+  integer :: ih_nplant_understory_si_scpf
+  integer :: ih_ddbh_canopy_si_scpf
+  integer :: ih_ddbh_understory_si_scpf
+  integer :: ih_gpp_canopy_si_scpf
+  integer :: ih_gpp_understory_si_scpf
+  integer :: ih_ar_canopy_si_scpf
+  integer :: ih_ar_understory_si_scpf
 
-  integer, private :: ih_ddbh_si_scpf
-  integer, private :: ih_growthflux_si_scpf
-  integer, private :: ih_growthflux_fusion_si_scpf
-  integer, private :: ih_ba_si_scpf
-  integer, private :: ih_m1_si_scpf
-  integer, private :: ih_m2_si_scpf
-  integer, private :: ih_m3_si_scpf
-  integer, private :: ih_m4_si_scpf
-  integer, private :: ih_m5_si_scpf
-  integer, private :: ih_m6_si_scpf
-  integer, private :: ih_m7_si_scpf  
-  integer, private :: ih_m8_si_scpf
-  integer, private :: ih_crownfiremort_si_scpf
-  integer, private :: ih_cambialfiremort_si_scpf
+  integer :: ih_ddbh_si_scpf
+  integer :: ih_growthflux_si_scpf
+  integer :: ih_growthflux_fusion_si_scpf
+  integer :: ih_ba_si_scpf
+  integer :: ih_m1_si_scpf
+  integer :: ih_m2_si_scpf
+  integer :: ih_m3_si_scpf
+  integer :: ih_m4_si_scpf
+  integer :: ih_m5_si_scpf
+  integer :: ih_m6_si_scpf
+  integer :: ih_m7_si_scpf  
+  integer :: ih_m8_si_scpf
+  integer :: ih_crownfiremort_si_scpf
+  integer :: ih_cambialfiremort_si_scpf
 
 
-  integer, private :: ih_ar_si_scpf
-  integer, private :: ih_ar_grow_si_scpf
-  integer, private :: ih_ar_maint_si_scpf
-  integer, private :: ih_ar_darkm_si_scpf
-  integer, private :: ih_ar_agsapm_si_scpf
-  integer, private :: ih_ar_crootm_si_scpf
-  integer, private :: ih_ar_frootm_si_scpf
+  integer :: ih_ar_si_scpf
+  integer :: ih_ar_grow_si_scpf
+  integer :: ih_ar_maint_si_scpf
+  integer :: ih_ar_darkm_si_scpf
+  integer :: ih_ar_agsapm_si_scpf
+  integer :: ih_ar_crootm_si_scpf
+  integer :: ih_ar_frootm_si_scpf
   
-  integer, private :: ih_c13disc_si_scpf
+  integer :: ih_c13disc_si_scpf
 
 
   ! indices to (site x scls [size class bins]) variables
-  integer, private :: ih_ba_si_scls
-  integer, private :: ih_nplant_si_scls
-  integer, private :: ih_nplant_canopy_si_scls
-  integer, private :: ih_nplant_understory_si_scls
-  integer, private :: ih_lai_canopy_si_scls
-  integer, private :: ih_lai_understory_si_scls
-  integer, private :: ih_sai_canopy_si_scls
-  integer, private :: ih_sai_understory_si_scls
-  integer, private :: ih_mortality_canopy_si_scls
-  integer, private :: ih_mortality_understory_si_scls
-  integer, private :: ih_demotion_rate_si_scls
-  integer, private :: ih_promotion_rate_si_scls
-  integer, private :: ih_trimming_canopy_si_scls
-  integer, private :: ih_trimming_understory_si_scls
-  integer, private :: ih_crown_area_canopy_si_scls
-  integer, private :: ih_crown_area_understory_si_scls
-  integer, private :: ih_ddbh_canopy_si_scls
-  integer, private :: ih_ddbh_understory_si_scls
-  integer, private :: ih_agb_si_scls
-  integer, private :: ih_biomass_si_scls
+  integer :: ih_ba_si_scls
+  integer :: ih_nplant_si_scls
+  integer :: ih_nplant_canopy_si_scls
+  integer :: ih_nplant_understory_si_scls
+  integer :: ih_lai_canopy_si_scls
+  integer :: ih_lai_understory_si_scls
+  integer :: ih_sai_canopy_si_scls
+  integer :: ih_sai_understory_si_scls
+  integer :: ih_mortality_canopy_si_scls
+  integer :: ih_mortality_understory_si_scls
+  integer :: ih_demotion_rate_si_scls
+  integer :: ih_promotion_rate_si_scls
+  integer :: ih_trimming_canopy_si_scls
+  integer :: ih_trimming_understory_si_scls
+  integer :: ih_crown_area_canopy_si_scls
+  integer :: ih_crown_area_understory_si_scls
+  integer :: ih_ddbh_canopy_si_scls
+  integer :: ih_ddbh_understory_si_scls
+  integer :: ih_agb_si_scls
+  integer :: ih_biomass_si_scls
 
   ! mortality vars
-  integer, private :: ih_m1_si_scls
-  integer, private :: ih_m2_si_scls
-  integer, private :: ih_m3_si_scls
-  integer, private :: ih_m4_si_scls
-  integer, private :: ih_m5_si_scls
-  integer, private :: ih_m6_si_scls
-  integer, private :: ih_m7_si_scls  
-  integer, private :: ih_m8_si_scls
+  integer :: ih_m1_si_scls
+  integer :: ih_m2_si_scls
+  integer :: ih_m3_si_scls
+  integer :: ih_m4_si_scls
+  integer :: ih_m5_si_scls
+  integer :: ih_m6_si_scls
+  integer :: ih_m7_si_scls  
+  integer :: ih_m8_si_scls
 
   ! lots of non-default diagnostics for understanding canopy versus understory carbon balances
-  integer, private :: ih_rdark_canopy_si_scls
-  integer, private :: ih_livestem_mr_canopy_si_scls
-  integer, private :: ih_livecroot_mr_canopy_si_scls
-  integer, private :: ih_froot_mr_canopy_si_scls
-  integer, private :: ih_resp_g_canopy_si_scls
-  integer, private :: ih_resp_m_canopy_si_scls
-  integer, private :: ih_leaf_md_canopy_si_scls
-  integer, private :: ih_root_md_canopy_si_scls
-  integer, private :: ih_carbon_balance_canopy_si_scls
-  integer, private :: ih_bstore_md_canopy_si_scls
-  integer, private :: ih_bdead_md_canopy_si_scls
-  integer, private :: ih_bsw_md_canopy_si_scls
-  integer, private :: ih_seed_prod_canopy_si_scls
-  integer, private :: ih_npp_leaf_canopy_si_scls
-  integer, private :: ih_npp_fnrt_canopy_si_scls
-  integer, private :: ih_npp_sapw_canopy_si_scls
-  integer, private :: ih_npp_dead_canopy_si_scls
-  integer, private :: ih_npp_seed_canopy_si_scls
-  integer, private :: ih_npp_stor_canopy_si_scls
+  integer :: ih_rdark_canopy_si_scls
+  integer :: ih_livestem_mr_canopy_si_scls
+  integer :: ih_livecroot_mr_canopy_si_scls
+  integer :: ih_froot_mr_canopy_si_scls
+  integer :: ih_resp_g_canopy_si_scls
+  integer :: ih_resp_m_canopy_si_scls
+  integer :: ih_leaf_md_canopy_si_scls
+  integer :: ih_root_md_canopy_si_scls
+  integer :: ih_carbon_balance_canopy_si_scls
+  integer :: ih_bstore_md_canopy_si_scls
+  integer :: ih_bdead_md_canopy_si_scls
+  integer :: ih_bsw_md_canopy_si_scls
+  integer :: ih_seed_prod_canopy_si_scls
+  integer :: ih_npp_leaf_canopy_si_scls
+  integer :: ih_npp_fnrt_canopy_si_scls
+  integer :: ih_npp_sapw_canopy_si_scls
+  integer :: ih_npp_dead_canopy_si_scls
+  integer :: ih_npp_seed_canopy_si_scls
+  integer :: ih_npp_stor_canopy_si_scls
 
-  integer, private :: ih_rdark_understory_si_scls
-  integer, private :: ih_livestem_mr_understory_si_scls
-  integer, private :: ih_livecroot_mr_understory_si_scls
-  integer, private :: ih_froot_mr_understory_si_scls
-  integer, private :: ih_resp_g_understory_si_scls
-  integer, private :: ih_resp_m_understory_si_scls
-  integer, private :: ih_leaf_md_understory_si_scls
-  integer, private :: ih_root_md_understory_si_scls
-  integer, private :: ih_carbon_balance_understory_si_scls
-  integer, private :: ih_bsw_md_understory_si_scls
-  integer, private :: ih_bdead_md_understory_si_scls
-  integer, private :: ih_bstore_md_understory_si_scls
-  integer, private :: ih_seed_prod_understory_si_scls
-  integer, private :: ih_npp_leaf_understory_si_scls
-  integer, private :: ih_npp_fnrt_understory_si_scls
-  integer, private :: ih_npp_sapw_understory_si_scls
-  integer, private :: ih_npp_dead_understory_si_scls
-  integer, private :: ih_npp_seed_understory_si_scls
-  integer, private :: ih_npp_stor_understory_si_scls
+  integer :: ih_rdark_understory_si_scls
+  integer :: ih_livestem_mr_understory_si_scls
+  integer :: ih_livecroot_mr_understory_si_scls
+  integer :: ih_froot_mr_understory_si_scls
+  integer :: ih_resp_g_understory_si_scls
+  integer :: ih_resp_m_understory_si_scls
+  integer :: ih_leaf_md_understory_si_scls
+  integer :: ih_root_md_understory_si_scls
+  integer :: ih_carbon_balance_understory_si_scls
+  integer :: ih_bsw_md_understory_si_scls
+  integer :: ih_bdead_md_understory_si_scls
+  integer :: ih_bstore_md_understory_si_scls
+  integer :: ih_seed_prod_understory_si_scls
+  integer :: ih_npp_leaf_understory_si_scls
+  integer :: ih_npp_fnrt_understory_si_scls
+  integer :: ih_npp_sapw_understory_si_scls
+  integer :: ih_npp_dead_understory_si_scls
+  integer :: ih_npp_seed_understory_si_scls
+  integer :: ih_npp_stor_understory_si_scls
 
-  integer, private :: ih_yesterdaycanopylevel_canopy_si_scls
-  integer, private :: ih_yesterdaycanopylevel_understory_si_scls
+  integer :: ih_yesterdaycanopylevel_canopy_si_scls
+  integer :: ih_yesterdaycanopylevel_understory_si_scls
 
   ! indices to (site x pft) variables
-  integer, private :: ih_biomass_si_pft
-  integer, private :: ih_leafbiomass_si_pft
-  integer, private :: ih_storebiomass_si_pft
-  integer, private :: ih_nindivs_si_pft
-  integer, private :: ih_recruitment_si_pft
-  integer, private :: ih_mortality_si_pft
-  integer, private :: ih_crownarea_si_pft
+  integer :: ih_biomass_si_pft
+  integer :: ih_leafbiomass_si_pft
+  integer :: ih_storebiomass_si_pft
+  integer :: ih_nindivs_si_pft
+  integer :: ih_recruitment_si_pft
+  integer :: ih_mortality_si_pft
+  integer :: ih_crownarea_si_pft
 
 
   ! indices to (site x patch-age) variables
-  integer, private :: ih_area_si_age
-  integer, private :: ih_lai_si_age
-  integer, private :: ih_canopy_area_si_age
-  integer, private :: ih_gpp_si_age
-  integer, private :: ih_npp_si_age
-  integer, private :: ih_ncl_si_age
-  integer, private :: ih_npatches_si_age
-  integer, private :: ih_zstar_si_age
-  integer, private :: ih_biomass_si_age
-  integer, private :: ih_c_stomata_si_age
-  integer, private :: ih_c_lblayer_si_age
-  integer, private :: ih_agesince_anthrodist_si_age
-  integer, private :: ih_secondaryforest_area_si_age
+  integer :: ih_area_si_age
+  integer :: ih_lai_si_age
+  integer :: ih_canopy_area_si_age
+  integer :: ih_gpp_si_age
+  integer :: ih_npp_si_age
+  integer :: ih_ncl_si_age
+  integer :: ih_npatches_si_age
+  integer :: ih_zstar_si_age
+  integer :: ih_biomass_si_age
+  integer :: ih_c_stomata_si_age
+  integer :: ih_c_lblayer_si_age
+  integer :: ih_agesince_anthrodist_si_age
+  integer :: ih_secondaryforest_area_si_age
 
   ! indices to (site x height) variables
-  integer, private :: ih_canopy_height_dist_si_height
-  integer, private :: ih_leaf_height_dist_si_height
+  integer :: ih_canopy_height_dist_si_height
+  integer :: ih_leaf_height_dist_si_height
 
   ! Indices to hydraulics variables
   
-  integer, private :: ih_errh2o_scpf
-  integer, private :: ih_tran_scpf
-  integer, private :: ih_rootuptake_scpf
-  integer, private :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
-  integer, private :: ih_rootuptake01_scpf
-  integer, private :: ih_rootuptake02_scpf
-  integer, private :: ih_rootuptake03_scpf
-  integer, private :: ih_rootuptake04_scpf
-  integer, private :: ih_rootuptake05_scpf
-  integer, private :: ih_rootuptake06_scpf
-  integer, private :: ih_rootuptake07_scpf
-  integer, private :: ih_rootuptake08_scpf
-  integer, private :: ih_rootuptake09_scpf
-  integer, private :: ih_rootuptake10_scpf
-  integer, private :: ih_sapflow_scpf
-  integer, private :: ih_iterh1_scpf          
-  integer, private :: ih_iterh2_scpf           
-  integer, private :: ih_supsub_scpf              
-  integer, private :: ih_ath_scpf               
-  integer, private :: ih_tth_scpf               
-  integer, private :: ih_sth_scpf                     
-  integer, private :: ih_lth_scpf                     
-  integer, private :: ih_awp_scpf                     
-  integer, private :: ih_twp_scpf  
-  integer, private :: ih_swp_scpf                     
-  integer, private :: ih_lwp_scpf  
-  integer, private :: ih_aflc_scpf                     
-  integer, private :: ih_tflc_scpf  
-  integer, private :: ih_sflc_scpf                     
-  integer, private :: ih_lflc_scpf                   
-  integer, private :: ih_btran_scpf
+  integer :: ih_errh2o_scpf
+  integer :: ih_tran_scpf
+  integer :: ih_rootuptake_scpf
+  integer :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
+  integer :: ih_rootuptake01_scpf
+  integer :: ih_rootuptake02_scpf
+  integer :: ih_rootuptake03_scpf
+  integer :: ih_rootuptake04_scpf
+  integer :: ih_rootuptake05_scpf
+  integer :: ih_rootuptake06_scpf
+  integer :: ih_rootuptake07_scpf
+  integer :: ih_rootuptake08_scpf
+  integer :: ih_rootuptake09_scpf
+  integer :: ih_rootuptake10_scpf
+  integer :: ih_sapflow_scpf
+  integer :: ih_iterh1_scpf          
+  integer :: ih_iterh2_scpf           
+  integer :: ih_supsub_scpf              
+  integer :: ih_ath_scpf               
+  integer :: ih_tth_scpf               
+  integer :: ih_sth_scpf                     
+  integer :: ih_lth_scpf                     
+  integer :: ih_awp_scpf                     
+  integer :: ih_twp_scpf  
+  integer :: ih_swp_scpf                     
+  integer :: ih_lwp_scpf  
+  integer :: ih_aflc_scpf                     
+  integer :: ih_tflc_scpf  
+  integer :: ih_sflc_scpf                     
+  integer :: ih_lflc_scpf                   
+  integer :: ih_btran_scpf
 
   ! indices to (site x fuel class) variables
-  integer, private :: ih_litter_moisture_si_fuel
+  integer :: ih_litter_moisture_si_fuel
 
   ! indices to (site x cwd size class) variables
-  integer, private :: ih_cwd_ag_si_cwdsc
-  integer, private :: ih_cwd_bg_si_cwdsc
-  integer, private :: ih_cwd_ag_in_si_cwdsc
-  integer, private :: ih_cwd_bg_in_si_cwdsc
-  integer, private :: ih_cwd_ag_out_si_cwdsc
-  integer, private :: ih_cwd_bg_out_si_cwdsc
+  integer :: ih_cwd_ag_si_cwdsc
+  integer :: ih_cwd_bg_si_cwdsc
+  integer :: ih_cwd_ag_in_si_cwdsc
+  integer :: ih_cwd_bg_in_si_cwdsc
+  integer :: ih_cwd_ag_out_si_cwdsc
+  integer :: ih_cwd_bg_out_si_cwdsc
 
   ! indices to (site x [canopy layer x leaf layer]) variables
-  integer, private :: ih_parsun_z_si_cnlf
-  integer, private :: ih_parsha_z_si_cnlf
-  integer, private :: ih_laisun_z_si_cnlf
-  integer, private :: ih_laisha_z_si_cnlf
-  integer, private :: ih_fabd_sun_si_cnlf
-  integer, private :: ih_fabd_sha_si_cnlf
-  integer, private :: ih_fabi_sun_si_cnlf
-  integer, private :: ih_fabi_sha_si_cnlf
-  integer, private :: ih_ts_net_uptake_si_cnlf
-  integer, private :: ih_crownarea_si_cnlf
-  integer, private :: ih_parprof_dir_si_cnlf
-  integer, private :: ih_parprof_dif_si_cnlf
+  integer :: ih_parsun_z_si_cnlf
+  integer :: ih_parsha_z_si_cnlf
+  integer :: ih_laisun_z_si_cnlf
+  integer :: ih_laisha_z_si_cnlf
+  integer :: ih_fabd_sun_si_cnlf
+  integer :: ih_fabd_sha_si_cnlf
+  integer :: ih_fabi_sun_si_cnlf
+  integer :: ih_fabi_sha_si_cnlf
+  integer :: ih_ts_net_uptake_si_cnlf
+  integer :: ih_crownarea_si_cnlf
+  integer :: ih_parprof_dir_si_cnlf
+  integer :: ih_parprof_dif_si_cnlf
 
   ! indices to (site x [canopy layer x leaf layer x pft]) variables
-  integer, private :: ih_parsun_z_si_cnlfpft
-  integer, private :: ih_parsha_z_si_cnlfpft
-  integer, private :: ih_laisun_z_si_cnlfpft
-  integer, private :: ih_laisha_z_si_cnlfpft
-  integer, private :: ih_fabd_sun_si_cnlfpft
-  integer, private :: ih_fabd_sha_si_cnlfpft
-  integer, private :: ih_fabi_sun_si_cnlfpft
-  integer, private :: ih_fabi_sha_si_cnlfpft
-  integer, private :: ih_parprof_dir_si_cnlfpft
-  integer, private :: ih_parprof_dif_si_cnlfpft
+  integer :: ih_parsun_z_si_cnlfpft
+  integer :: ih_parsha_z_si_cnlfpft
+  integer :: ih_laisun_z_si_cnlfpft
+  integer :: ih_laisha_z_si_cnlfpft
+  integer :: ih_fabd_sun_si_cnlfpft
+  integer :: ih_fabd_sha_si_cnlfpft
+  integer :: ih_fabi_sun_si_cnlfpft
+  integer :: ih_fabi_sha_si_cnlfpft
+  integer :: ih_parprof_dir_si_cnlfpft
+  integer :: ih_parprof_dif_si_cnlfpft
 
   ! indices to (site x canopy layer) variables
-  integer, private :: ih_parsun_top_si_can
-  integer, private :: ih_parsha_top_si_can
-  integer, private :: ih_laisun_top_si_can
-  integer, private :: ih_laisha_top_si_can
-  integer, private :: ih_fabd_sun_top_si_can
-  integer, private :: ih_fabd_sha_top_si_can
-  integer, private :: ih_fabi_sun_top_si_can
-  integer, private :: ih_fabi_sha_top_si_can
-  integer, private :: ih_crownarea_si_can
+  integer :: ih_parsun_top_si_can
+  integer :: ih_parsha_top_si_can
+  integer :: ih_laisun_top_si_can
+  integer :: ih_laisha_top_si_can
+  integer :: ih_fabd_sun_top_si_can
+  integer :: ih_fabd_sha_top_si_can
+  integer :: ih_fabi_sun_top_si_can
+  integer :: ih_fabi_sha_top_si_can
+  integer :: ih_crownarea_si_can
 
   ! The number of variable dim/kind types we have defined (static)
 
-!! 20,22
-  integer, parameter :: fates_history_num_dimensions = 50
-  integer, parameter :: fates_history_num_dim_kinds = 50
+  integer, parameter, public :: fates_history_num_dimensions = 50
+  integer, parameter, public :: fates_history_num_dim_kinds = 50
 
-  
   ! This structure is allocated by thread, and must be calculated after the FATES
   ! sites are allocated, and their mapping to the HLM is identified.  This structure
   ! is not combined with iovar_bounds, because that one is multi-instanced.  This
   ! structure is used more during the update phase, wherease _bounds is used
   ! more for things like flushing
-  type iovar_map_type
+  type, public :: iovar_map_type
      integer, allocatable :: site_index(:)   ! maps site indexes to the HIO site position
      integer, allocatable :: patch1_index(:) ! maps site index to the HIO patch 1st position
   end type iovar_map_type
@@ -527,6 +527,7 @@ module FatesHistoryInterfaceMod
      
      type(iovar_map_type), pointer :: iovar_map(:)
 
+     !! THESE WERE EXPLICITLY PRIVATE WHEN TYPE WAS PUBLIC
      integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_
      integer, private :: levscls_index_, levpft_index_, levage_index_
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
@@ -538,38 +539,39 @@ module FatesHistoryInterfaceMod
 
    contains
      
-     procedure, public :: Init
-     procedure, public :: SetThreadBoundsEach
-     procedure, public :: initialize_history_vars
-     procedure, public :: assemble_history_output_types
+     procedure :: Init
+     procedure :: SetThreadBoundsEach
+     procedure :: initialize_history_vars
+     procedure :: assemble_history_output_types
      
-     procedure, public :: update_history_dyn
-     procedure, public :: update_history_prod
-     procedure, public :: update_history_cbal
-     procedure, public :: update_history_hydraulics
+     procedure :: update_history_dyn
+     procedure :: update_history_prod
+     procedure :: update_history_cbal
+     procedure :: update_history_hydraulics
 
      ! 'get' methods used by external callers to access private read only data
-     procedure, public :: num_history_vars
-     procedure, public :: patch_index
-     procedure, public :: column_index
-     procedure, public :: levgrnd_index
-     procedure, public :: levscpf_index
-     procedure, public :: levscls_index
-     procedure, public :: levpft_index
-     procedure, public :: levage_index
-     procedure, public :: levfuel_index
-     procedure, public :: levcwdsc_index
-     procedure, public :: levcan_index
-     procedure, public :: levcnlf_index
-     procedure, public :: levcnlfpft_index
-     procedure, public :: levscag_index
-     procedure, public :: levscagpft_index
-     procedure, public :: levagepft_index
-     procedure, public :: levheight_index
-     procedure, public :: levelem_index
-     procedure, public :: levelpft_index
-     procedure, public :: levelcwd_index
-     procedure, public :: levelage_index
+
+     procedure :: num_history_vars
+     procedure :: patch_index
+     procedure :: column_index
+     procedure :: levgrnd_index
+     procedure :: levscpf_index
+     procedure :: levscls_index
+     procedure :: levpft_index
+     procedure :: levage_index
+     procedure :: levfuel_index
+     procedure :: levcwdsc_index
+     procedure :: levcan_index
+     procedure :: levcnlf_index
+     procedure :: levcnlfpft_index
+     procedure :: levscag_index
+     procedure :: levscagpft_index
+     procedure :: levagepft_index
+     procedure :: levheight_index
+     procedure :: levelem_index
+     procedure :: levelpft_index
+     procedure :: levelcwd_index
+     procedure :: levelage_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -603,7 +605,7 @@ module FatesHistoryInterfaceMod
 
   end type fates_history_interface_type
    
-  character(len=*), parameter, private :: sourcefile = &
+  character(len=*), parameter :: sourcefile = &
          __FILE__
 
 contains
@@ -1513,7 +1515,7 @@ end subroutine flush_hvars
     
 
     use EDtypesMod          , only : nfsc
-    use EDtypesMod          , only : ncwd
+    use FatesLitterMod      , only : ncwd
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
     use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index

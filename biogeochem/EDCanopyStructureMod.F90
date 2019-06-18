@@ -120,7 +120,6 @@ contains
 
       use EDParamsMod, only : ED_val_comp_excln
       use EDTypesMod , only : min_patch_area
-      use EDTypesMod , only : val_check_ed_vars
       use FatesInterfaceMod, only : bc_in_type
       !
       ! !ARGUMENTS    
