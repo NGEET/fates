@@ -42,10 +42,10 @@ PartehInterpretParameters = imp.load_source('PartehInterpretParameters', \
                                             'py_modules/PartehInterpretParameters.py')
 PartehTypes = imp.load_source('PartehTypes', 'py_modules/PartehTypes.py')
 SyntheticBoundaries = imp.load_source('SyntheticBoundaries','py_modules/SyntheticBoundaries.py')
-#CDLParse = imp.load_source('CDLParse','py_modules/CDLParse.py')
+CDLParse = imp.load_source('CDLParse','py_modules/CDLParse.py')
 
 from PartehInterpretParameters import load_xml
-#from CDLParse import CDLParser
+from CDLParse import CDLParseDims, CDLParseParam, cdl_param_type
 
 f90_fates_integrators_obj_name = 'bld/FatesIntegratorsMod.o'
 f90_fates_partehwrap_obj_name  = 'bld/FatesPARTEHWrapMod.o'
@@ -62,8 +62,6 @@ f90_fates_allom_obj_name = 'bld/FatesAllometryMod.o'
 
 ## The name of the xml file containing site data (should not change)
 xml_file = ''
-
-parteh_mode = 1
 
 
 # ========================================================================================
@@ -100,7 +98,21 @@ def main(argv):
     # This loads the dictionaries of, and lists of objects that
     # define the variables, parameters and forms that govern the
     # system of equations and solution
-    load_xml(xml_file,time_control,parameters)
+    #    load_xml(xml_file,time_control,parameters)
+
+    # Read in the parameters of interest that are used in the fortran objects. These
+    # parameters will be passed to the fortran allocation.
+    # =======================================================================================
+
+
+    dims = CDLParseDims(xml_file)
+
+    parms = {}
+    parms['dbh_maxheight'] = CDLParseParam(xml_file,cdl_param_type('fates_allom_dbh_maxheight'),dims)
+
+#    parms['hmode']         = CDLParser(xml_file,parameter('fates_allom_hmode'))
+
+
 
     # -----------------------------------------------------------------------------------
     #
