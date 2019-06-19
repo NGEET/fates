@@ -51,17 +51,11 @@ python AutoGenVarCon.py
 
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/FatesConstantsMod.o  f90src/FatesConstantsMod.F90
 
-${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/UnitWrap.o f90src/UnitWrap.F90
+${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/UnitWrapMod.o f90src/UnitWrapMod.F90
 
 
 # Generic Integration routines (all native types except defined constants)
 gfortran $F_OPTS $MOD_FLAG bld/ -I bld/  -o bld/FatesIntegratorsMod.o ../../main/FatesIntegratorsMod.F90
-
-# Support Modules, fairly trivial contents
-#gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ -o bld/FatesWrapMod.o f_wrapper_modules/FatesWrapMod.F90
-
-# This defines and fills the global pft parameter structures (stripped down from fates version)
-#gfortran $F_OPTS $MOD_FLAG bld/ -I bld/ -o bld/FatesPFTWrapMod.o f_wrapper_modules/FatesPFTWrapMod.F90
 
 # Allometry Module, take this from FATES directly
 ${FC} ${F_OPTS} $MOD_FLAG bld/ -I bld/ -o bld/FatesAllometryMod.o ../../biogeochem/FatesAllometryMod.F90 

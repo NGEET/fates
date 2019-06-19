@@ -80,8 +80,6 @@ module FatesCohortWrapMod
   implicit none
   private ! Modules are private by default
 
-  integer :: parteh_mode
-  
   type, public :: ed_cohort_type
      
      integer  :: pft             ! pft number
@@ -103,7 +101,9 @@ module FatesCohortWrapMod
      real(r8) :: carbon_root_exudate           !
      real(r8) :: nitrogen_root_exudate         !
      real(r8) :: phosphorus_root_exudate      !
-
+     integer  :: parteh_mode                 ! THIS IS NOT IN FATES
+                                             ! WE MAKE THIS A PER-TREE
+                                             ! ATTRIBUTE HERE FOR INTERCOMPARISON
      
      ! Multi-species, multi-pool Reactive Transport 
      class(prt_vartypes), pointer :: prt
@@ -126,19 +126,16 @@ module FatesCohortWrapMod
   
 contains
   
-  subroutine CohortInitAlloc(numcohorts,parteh_mode_in)
+  subroutine CohortInitAlloc(numcohorts)
     
     ! Arguments
     integer(i4), intent(in) :: numcohorts
-    integer(i4), intent(in) :: parteh_mode_in
     
     ! Locals
     integer(i4)                   :: ico
     type(ed_cohort_type), pointer :: ccohort
     
 
-    parteh_mode = parteh_mode_in
-    
     allocate(cohort_array(numcohorts))
     
     do ico = 1,numcohorts
@@ -146,6 +143,7 @@ contains
        ccohort%pft                      = -9
        ccohort%dbh                      = -999.9_r8
        ccohort%status_coh               = -1
+       ccohort%parteh_mode              = -1
        ccohort%canopy_trim              = -999.9_r8
        ccohort%dhdt                     = -999.9_r8
        ccohort%ddbhdt                   = -999.9_r8
@@ -240,11 +238,13 @@ contains
     
     repro_c = 0.0_r8
 
+    ccohort%parteh_mode = int(EDPftvarcon_inst%parteh_mode(ipft))
+
     ! -----------------------------------------------------
     ! THIS IS A COPY OF InitPRTObject
     ! -----------------------------------------------------
     
-    select case(parteh_mode)
+    select case(ccohort%parteh_mode)
     case (prt_carbon_allom_hyp)
        prt_global => prt_global_ac
        allocate(callom_prt)
@@ -263,7 +263,7 @@ contains
 
     call ccohort%prt%InitPRTVartype()
 
-    select case(parteh_mode)
+    select case(ccohort%parteh_mode)
     case (prt_carbon_allom_hyp)
 
        call SetState(ccohort%prt,leaf_organ, carbon12_element, leaf_c)
@@ -381,7 +381,7 @@ contains
 
     call PRTMaintTurnover(ccohort%prt, ipft, is_drought)
 
-    select case(parteh_mode)
+    select case(ccohort%parteh_mode)
     case (prt_carbon_allom_hyp)
        prt_global => prt_global_ac
        ccohort%daily_carbon_gain = daily_carbon_gain
@@ -443,7 +443,7 @@ contains
 
     canopy_lai(:) = 0._r8
 
-    select case(parteh_mode)
+    select case(ccohort%parteh_mode)
     case (prt_carbon_allom_hyp)
        prt_global => prt_global_ac
     case (prt_cnp_flex_allom_hyp)
@@ -532,7 +532,7 @@ contains
 
     ccohort => cohort_array(ipft)   
     
-    select case(parteh_mode)
+    select case(ccohort%parteh_mode)
     case (prt_carbon_allom_hyp )
        prt_global => prt_global_ac
     case (prt_cnp_flex_allom_hyp)

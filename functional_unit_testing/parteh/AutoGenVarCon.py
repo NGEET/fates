@@ -63,7 +63,7 @@ var_list0.extend(CheckFile('../../parteh/PRTAllometricCarbonMod.F90',check_str))
 var_list0.extend(CheckFile('../../parteh/PRTAllometricCNPMod.F90',check_str))
 var_list0.append(ParamType('hgt_min',1))
 var_list0.append(ParamType('seed_alloc_mature',1))
-
+var_list0.append(ParamType('parteh_mode',1))
 
 var_list = MakeListUnique(var_list0)
 
@@ -91,7 +91,7 @@ for var in var_list:
             print("{} {} {}".format(var.var_sym,var.var_name,var.n_dims))
 
 
-f = open("f90src/UnitWrap.F90_in", "r")
+f = open("f90src/UnitWrapMod.F90_in", "r")
 contents = f.readlines()
 f.close()
 
@@ -148,7 +148,7 @@ for ivar,var in enumerate(var_list):
     index=index+7
 
 
-f = open("f90src/UnitWrap.F90", "w+")
+f = open("f90src/UnitWrapMod.F90", "w+")
 contents = "".join(contents)
 f.write(contents)
 f.close()

@@ -42,15 +42,16 @@ PartehInterpretParameters = imp.load_source('PartehInterpretParameters', \
                                             'py_modules/PartehInterpretParameters.py')
 PartehTypes = imp.load_source('PartehTypes', 'py_modules/PartehTypes.py')
 SyntheticBoundaries = imp.load_source('SyntheticBoundaries','py_modules/SyntheticBoundaries.py')
+#CDLParse = imp.load_source('CDLParse','py_modules/CDLParse.py')
 
 from PartehInterpretParameters import load_xml
+#from CDLParse import CDLParser
 
-f90_fates_wrap_obj_name = 'bld/FatesWrapMod.o'
 f90_fates_integrators_obj_name = 'bld/FatesIntegratorsMod.o'
 f90_fates_partehwrap_obj_name  = 'bld/FatesPARTEHWrapMod.o'
 f90_fates_lossfluxes_obj_name  = 'bld/PRTLossFluxesMod.o'
 f90_fates_parteh_generic_obj_name = 'bld/PRTGenericMod.o'
-f90_fates_pftwrap_obj_name = 'bld/FatesPFTWrapMod.o'
+f90_fates_unitwrap_obj_name = 'bld/UnitWrapMod.o'
 f90_fates_parteh_callom_obj_name = 'bld/PRTAllometricCarbonMod.o'
 f90_fates_parteh_cnpallom_obj_name = 'bld/PRTAllometricCNPMod.o'
 f90_fates_cohortwrap_obj_name = 'bld/FatesCohortWrapMod.o'
@@ -61,6 +62,8 @@ f90_fates_allom_obj_name = 'bld/FatesAllometryMod.o'
 
 ## The name of the xml file containing site data (should not change)
 xml_file = ''
+
+parteh_mode = 1
 
 
 # ========================================================================================
@@ -107,13 +110,13 @@ def main(argv):
     # and functions are held inside globally defined objects fates_f90_obj
     #
     # -----------------------------------------------------------------------------------
-    
+
     # Define the F90 objects
     # These must be loaded according to the module dependency order
     # Note that these calls instantiate the modules
-    f90_fates_wrap_obj           = ctypes.CDLL(f90_fates_wrap_obj_name,mode=ctypes.RTLD_GLOBAL)
+
     f90_fates_integrators_obj    = ctypes.CDLL(f90_fates_integrators_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_pftwrap_obj        = ctypes.CDLL(f90_fates_pftwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
+    f90_fates_unitwrap_obj        = ctypes.CDLL(f90_fates_unitwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
     f90_fates_parteh_generic_obj = ctypes.CDLL(f90_fates_parteh_generic_obj_name,mode=ctypes.RTLD_GLOBAL)
     f90_fates_allom_obj          = ctypes.CDLL(f90_fates_allom_obj_name,mode=ctypes.RTLD_GLOBAL)
     f90_fates_parteh_callom_obj  = ctypes.CDLL(f90_fates_parteh_callom_obj_name,mode=ctypes.RTLD_GLOBAL)
@@ -121,15 +124,15 @@ def main(argv):
     f90_fates_parteh_cnpallom_obj = ctypes.CDLL(f90_fates_parteh_cnpallom_obj_name,mode=ctypes.RTLD_GLOBAL)
     f90_fates_partehwrap_obj = ctypes.CDLL(f90_fates_partehwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
     f90_fates_cohortwrap_obj = ctypes.CDLL(f90_fates_cohortwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
-    
+
     # Initialize the PARTEH instance
     iret=f90_fates_partehwrap_obj.__fatespartehwrapmod_MOD_spmappyset() #byref(c_int(parameters.prt_model)))
-    
+
     # Allocate the PFT and ORGAN arrays  (leaf+root+sap+store+structure+repro = 6)
     max_num_organs = 6
-    iret=f90_fates_pftwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(parameters.num_pfts)), \
+    iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(parameters.num_pfts)), \
                                                                   byref(c_int(max_num_organs)))
-    
+
     # Set the phenology type
     phen_type = []
     for pft_idx,pft_obj in enumerate(parameters.parteh_pfts):
@@ -177,21 +180,21 @@ def main(argv):
 
             # The dictionary of parameters is populated with lists of floats, even
             # scalars are single entry lists
-            
+
             if( len(pval)==1 ):
-                iret = f90_fates_pftwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_int(pft_idx+1)), \
+                iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_int(pft_idx+1)), \
                                                                                 byref(c_int(0)), \
                                                                                 byref(c_double(pval[0])), \
                                                                                 c_char_p(par_key.strip()), \
                                                                                 c_long(len(par_key.strip())))
             else:
                 for i2d in range(len(pval)):
-                    iret = f90_fates_pftwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_int(pft_idx+1)), \
+                    iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_int(pft_idx+1)), \
                                                                                     byref(c_int(i2d+1)), \
                                                                                     byref(c_double(pval[i2d])), \
                                                                                     c_char_p(par_key.strip()), \
                                                                                     c_long(len(par_key.strip())))
-            
+
     # Allocate the cohort array (We create on cohort per PFT)
     iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortinitalloc(byref(c_int(parameters.num_pfts)))
 
@@ -200,11 +203,10 @@ def main(argv):
         init_canopy_trim = 1.0
         iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortpyset(byref(c_int(pft_idx+1)), \
                                                                            byref(c_double(hgt_min[0])), \
-                                                                           byref(c_double(init_canopy_trim))) #, \
-            #                                                                           byref(c_int(parameters.prt_model)))
-    
+                                                                           byref(c_double(init_canopy_trim)))
+
     # Initialize diagnostics
-    diagnostics = [] 
+    diagnostics = []
     for pft_idx, pft_obj in enumerate(parameters.parteh_pfts):
         diagnostics.append(PartehTypes.diagnostics_type())
 
@@ -213,7 +215,7 @@ def main(argv):
     # Time Initialization
     # --------------------------------------------------------------------------------
     time_control.ResetTime()
-    
+
       # --------------------------------------------------------------------------------
     # Time integration (outer) loop
     # --------------------------------------------------------------------------------
@@ -226,7 +228,7 @@ def main(argv):
 
         for pft_idx, pft_obj in enumerate(parameters.parteh_pfts):
 
-            
+
             # Generate the boundary condition for the current time-step
             # ---------------------------------------------------------------------------
 
@@ -284,7 +286,7 @@ def main(argv):
                                                                                  byref(store_c),\
                                                                                  byref(target_leaf_c))
 
-           
+
 
             doy = time_control.datetime.astype(object).timetuple().tm_yday
 
@@ -296,7 +298,7 @@ def main(argv):
                                                                                      store_c.value, phen_type[pft_idx])
 
             if(parameters.boundary_method=="DailyCFromCArea"):
-                
+
                 presc_npp_p1     = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_npp_p1']
 
                 net_daily_c = SyntheticBoundaries.DailyCFromCArea(presc_npp_p1, \
@@ -306,7 +308,7 @@ def main(argv):
                 net_daily_n = 0.0
                 net_daily_p = 0.0
                 r_maint_demand = 0.0
-                
+
 
             elif(parameters.boundary_method=="DailyCNPFromCArea"):
 
@@ -329,9 +331,9 @@ def main(argv):
                 presc_npp_p1   = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_npp_p1']
                 presc_nflux_p1 = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_nflux_p1']
                 presc_pflux_p1 = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_pflux_p1']
-                
-                
-               
+
+
+
 
                 net_daily_c, net_daily_n, net_daily_p = SyntheticBoundaries.DailyCNPFromStorageSinWave(doy,\
                                                                                  store_c.value,\
@@ -350,8 +352,8 @@ def main(argv):
                 exit()
 
 
-            
-            
+
+
 
 
             # This function will pass in all boundary conditions, some will be dummy arguments
@@ -365,9 +367,9 @@ def main(argv):
                                                                                 byref(c_double(net_daily_n)), \
                                                                                 byref(c_double(net_daily_p)), \
                                                                                 byref(c_double(r_maint_demand)))
-                                                                                
 
-            
+
+
             # This function will retrieve diagnostics
             iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapquerydiagnostics(byref(c_int(pft_idx+1)),  \
                                                                                         byref(dbh),     \
@@ -417,7 +419,7 @@ def main(argv):
             diagnostics[pft_idx].fnrt_c.append(fnrt_c.value)
             diagnostics[pft_idx].sapw_c.append(sapw_c.value)
             diagnostics[pft_idx].store_c.append(store_c.value)
-            diagnostics[pft_idx].struct_c.append(struct_c.value) 
+            diagnostics[pft_idx].struct_c.append(struct_c.value)
             diagnostics[pft_idx].repro_c.append(repro_c.value)
             diagnostics[pft_idx].leaf_cturn.append(leaf_cturn.value)
             diagnostics[pft_idx].fnrt_cturn.append(fnrt_cturn.value)
@@ -426,14 +428,14 @@ def main(argv):
             diagnostics[pft_idx].struct_cturn.append(struct_cturn.value)
             diagnostics[pft_idx].dailyc.append(net_daily_c)
             diagnostics[pft_idx].crown_area.append(crown_area.value)
-            
+
             diagnostics[pft_idx].growth_resp.append(growth_resp.value)
 
             diagnostics[pft_idx].leaf_n.append(leaf_n.value)
             diagnostics[pft_idx].fnrt_n.append(fnrt_n.value)
             diagnostics[pft_idx].sapw_n.append(sapw_n.value)
             diagnostics[pft_idx].store_n.append(store_n.value)
-            diagnostics[pft_idx].struct_n.append(struct_n.value) 
+            diagnostics[pft_idx].struct_n.append(struct_n.value)
             diagnostics[pft_idx].repro_n.append(repro_n.value)
             diagnostics[pft_idx].leaf_nturn.append(leaf_nturn.value)
             diagnostics[pft_idx].fnrt_nturn.append(fnrt_nturn.value)
@@ -445,7 +447,7 @@ def main(argv):
             diagnostics[pft_idx].fnrt_p.append(fnrt_p.value)
             diagnostics[pft_idx].sapw_p.append(sapw_p.value)
             diagnostics[pft_idx].store_p.append(store_p.value)
-            diagnostics[pft_idx].struct_p.append(struct_p.value) 
+            diagnostics[pft_idx].struct_p.append(struct_p.value)
             diagnostics[pft_idx].repro_p.append(repro_p.value)
             diagnostics[pft_idx].leaf_pturn.append(leaf_pturn.value)
             diagnostics[pft_idx].fnrt_pturn.append(fnrt_pturn.value)
@@ -481,7 +483,7 @@ def main(argv):
     linestyles  = ['-','-.','--','-',':','-.','--',':','-','-.','--',':' ]
 
 
-    
+
 
     fig1, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4 , sharex='col') #, sharey='row')
     fig1.set_size_inches(12, 6)
@@ -533,7 +535,7 @@ def main(argv):
     ax8.grid(True)
 
 
-    
+
 
 
     plt.tight_layout()
@@ -568,35 +570,35 @@ def main(argv):
     ax4.set_title('Crown Area [m2]')
     ax4.grid(True)
 
-    
 
 
-   
-    
+
+
+
 
     plt.tight_layout()
 
 
     # Error (bias)
     # ---------------------------------------------------------------------------------
-    
+
     fig4 = plt.figure()
     for ipft in range(parameters.num_pfts):
-        
+
         total_plant_carbon0 = np.array(diagnostics[ipft].struct_c[0]) + \
                               np.array(diagnostics[ipft].leaf_c[0])   + \
                               np.array(diagnostics[ipft].fnrt_c[0])   + \
                               np.array(diagnostics[ipft].sapw_c[0])   + \
                               np.array(diagnostics[ipft].store_c[0])  + \
                               np.array(diagnostics[ipft].repro_c[0])
-        
+
         total_plant_carbon = np.array(diagnostics[ipft].struct_c) + \
                              np.array(diagnostics[ipft].leaf_c)   + \
                              np.array(diagnostics[ipft].fnrt_c)   + \
                              np.array(diagnostics[ipft].sapw_c)   + \
                              np.array(diagnostics[ipft].store_c)  + \
                              np.array(diagnostics[ipft].repro_c)
-        
+
         integrated_plant_turnover = np.cumsum(diagnostics[ipft].struct_cturn) + \
                                     np.cumsum(diagnostics[ipft].leaf_cturn) +  \
                                     np.cumsum(diagnostics[ipft].fnrt_cturn) +  \
@@ -609,7 +611,7 @@ def main(argv):
                             (total_plant_carbon + \
                              integrated_plant_turnover - \
                              total_plant_carbon0 ) ) / total_plant_carbon )
-                 
+
     plt.xlabel('Integrated Daily Carbon Gain [kg]')
     plt.ylabel('Integrated Bias [kg]')
     plt.grid(True)
@@ -624,14 +626,14 @@ def main(argv):
     plt.ylabel('Daily Carbon Flux')
     plt.grid(True)
     plt.legend(loc='upper left')
-    
-        
+
+
     # Special Focus plots for a PFT of interest
 
     figs = {}
     for ipft in range(parameters.num_pfts):
         figs[ipft], (ax1, ax2, ax3) = plt.subplots(1, 3)
-        
+
         figs[ipft].set_size_inches(8, 4)
         ax1.stackplot(np.cumsum(diagnostics[ipft].dailyc), \
                       np.array(diagnostics[ipft].struct_c)+np.cumsum(diagnostics[ipft].struct_cturn), \
@@ -657,7 +659,7 @@ def main(argv):
         ax2.set_xlabel('Integrated Daily\n Carbon Gain [kg]')
         ax2.set_title('Integrated Turnover\n by Pool [kg]')
 
-    
+
         #code.interact(local=locals())
         npp_leaf = np.array(diagnostics[ipft].leaf_c[1:]) - \
                    np.array(diagnostics[ipft].leaf_c[0:-1]) + \
@@ -673,10 +675,10 @@ def main(argv):
                     np.array(diagnostics[ipft].store_cturn[1:])
         npp_struct = np.array(diagnostics[ipft].struct_c[1:]) - \
                      np.array(diagnostics[ipft].struct_c[0:-1]) + \
-                     np.array(diagnostics[ipft].struct_cturn[1:])    
+                     np.array(diagnostics[ipft].struct_cturn[1:])
         npp_repro = np.array(diagnostics[ipft].repro_c[1:]) - \
                     np.array(diagnostics[ipft].repro_c[0:-1])
-    
+
         ax3.stackplot(np.cumsum(diagnostics[ipft].dailyc[1:]), \
                       npp_struct, npp_leaf, npp_fnrt, npp_sapw, npp_store,  npp_repro)
 
@@ -695,7 +697,7 @@ def main(argv):
     #exit(0)
 
 
-            
+
 # =======================================================================================
 
 
@@ -765,6 +767,6 @@ def interp_args(argv):
     return(xmlfile)
 # =======================================================================================
 # This is the actual call to main
-   
+
 if __name__ == "__main__":
     main(sys.argv)
