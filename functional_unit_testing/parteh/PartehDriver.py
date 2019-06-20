@@ -108,7 +108,7 @@ def main(argv):
     dims = CDLParseDims(xml_file)
 
     parms = {}
-    parms['dbh_maxheight'] = CDLParseParam(xml_file,cdl_param_type('fates_allom_dbh_maxheight'),dims)
+    parms['hydr_thetas_node'] = CDLParseParam(xml_file,cdl_param_type('fates_hydr_thetas_node'),dims)
 
 #    parms['hmode']         = CDLParser(xml_file,parameter('fates_allom_hmode'))
 

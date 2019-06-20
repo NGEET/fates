@@ -24,10 +24,37 @@ class cdl_param_type:
     def __init__(self,symbol):
 
         self.datatype = -9
-        self.dim_list = []
+        self.dim_namelist = []
+        self.dim_sizelist = []
         self.ndims    = -9
         self.symbol   = symbol
         self.units    = 'NA'
+
+    def Add1DToXD(self,val,indx):
+
+        if(self.ndims==0):
+            self.data[indx] = val
+
+        elif(self.ndims==1):
+            n1 = self.dim_sizelist[0]
+            if((indx<0) or (indx>=n1)):
+                print('Problem in CDLParse filling data array')
+                print('index must be between {} {}, value = {}'.format(0,n1,indx))
+                exit(2)
+            else:
+                self.data[indx] = val
+
+        elif(self.ndims==2):
+            n1 = self.dim_sizelist[0]
+            n2 = self.dim_sizelist[1]
+            i2 = np.mod(indx+1,n2)
+            i1 = int(indx/n2)
+            self.data[i1,i2] = val
+
+        else:
+            print('No more than 2 dimensions can be processed by Add1dToXd()')
+            exit(2)
+
 
 
 # This routine adds a new parameter to the list of cdl_param_types
@@ -42,7 +69,6 @@ def CDLParseParam(file_name,param,dim_dic):
     # of interest, note its specified dimensions and cross
     # ref against the dictionary of known dimensions
     # ---------------------------------------------------------
-    dim_size_list = []
     isfound = False
     for i,line in enumerate(contents):
         if((param.symbol in line) and \
@@ -74,19 +100,19 @@ def CDLParseParam(file_name,param,dim_dic):
             for dimname in dims_splt:
                 dimsize = dim_dic.get(dimname.strip())
                 if dimsize:
-                    param.dim_list.append(dimname.strip())
-                    dim_size_list.append(dimsize)
+                    param.dim_namelist.append(dimname.strip())
+                    param.dim_sizelist.append(dimsize)
                 else:
                     print('An unknown dimension was requested:')
                     print(' parameter: {}'.format(param.symbol))
                     print(' dimension name: {}'.format(dimname.strip()))
                     exit(2)
 
-            param.ndims = len(param.dim_list)
+            param.ndims = len(param.dim_namelist)
 
             # Allocate and initialize the data space
             if(param.ndims>0):
-                param.data = -999*np.ones((dim_size_list))
+                param.data = -999*np.ones((param.dim_sizelist))
             else:
                 param.data = -999*np.ones((1))
 
@@ -136,7 +162,6 @@ def CDLParseParam(file_name,param,dim_dic):
                     search_field=True
                 lcount=lcount+1
 
-            code.interact(local=dict(globals(), **locals()))
 
             # Parse the line
             line_split = re.split(',|=',multi_line)
@@ -147,7 +172,7 @@ def CDLParseParam(file_name,param,dim_dic):
             if((param.datatype == float_type) or \
                (param.datatype == double_type)):
                 ival=0
-                code.interact(local=dict(globals(), **locals()))
+                indx=0
                 for str0 in line_split:
                     str=""
                     isnum=False
@@ -155,21 +180,28 @@ def CDLParseParam(file_name,param,dim_dic):
                         if (s.isdigit() or s=='.'):
                             str+=s
                             isnum=True
-                        if(isnum):
-                            param.vals.append(float(str))
+                    if(isnum):
+                        param.Add1DToXD(float(str),indx)
+                        indx=indx+1
+
+
+            # This is a string
+            #            elif(param.datatype == 1):
+            #                for str0 in line_split:
+            #                    # Loop several times to trim stuff off
+            #                    for i in range(5):
+            #                        str0=str0.strip().strip('\"').strip(';').strip()
+            #                        param.vals.append(str0)
+
+
+#            if(param.symbol == 'fates_hydr_thetas_node'):
 
 
 
-
-        # This is a sting
-        elif(param.datatype == 1):
-            for str0 in line_split:
-                # Loop several times to trim stuff off
-                for i in range(5):
-                    str0=str0.strip().strip('\"').strip(';').strip()
-                param.vals.append(str0)
 
     return(param)
+
+
 
 
 
