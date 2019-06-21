@@ -72,10 +72,15 @@ def CDLParseParam(file_name,param,dim_dic):
     isfound = False
     for i,line in enumerate(contents):
         if((param.symbol in line) and \
+           (not isfound) and \
            (('double' in line) or \
             ('char' in line) or \
             ('float' in line) or \
             ('int' in line))):
+
+            isfound = True
+
+            print('Filling {}'.format(param.symbol))
 
             datatype = line.split()[0]
             if(datatype.strip()=="float"):
@@ -91,30 +96,40 @@ def CDLParseParam(file_name,param,dim_dic):
                 print(' was encountered for parameter: {}'.format(param.symbol))
                 exit(2)
 
-            isfound = True
+
             p1=line.find('(')+1
-            p2=line.find(')')
-            dims_str = line[p1:p2]
-            dims_splt = dims_str.split(',')
+            if(p1>0):
+                p2=line.find(')')
+                dims_str = line[p1:p2]
+                dims_splt = dims_str.split(',')
 
-            for dimname in dims_splt:
-                dimsize = dim_dic.get(dimname.strip())
-                if dimsize:
-                    param.dim_namelist.append(dimname.strip())
-                    param.dim_sizelist.append(dimsize)
-                else:
-                    print('An unknown dimension was requested:')
-                    print(' parameter: {}'.format(param.symbol))
-                    print(' dimension name: {}'.format(dimname.strip()))
-                    exit(2)
+                for dimname in dims_splt:
+                    dimsize = dim_dic.get(dimname.strip())
+                    if dimsize:
+                        param.dim_namelist.append(dimname.strip())
+                        param.dim_sizelist.append(dimsize)
+                    else:
+                        print('An unknown dimension was requested:')
+                        print(' parameter: {}'.format(param.symbol))
+                        print(' dimension name: {}'.format(dimname.strip()))
+                        exit(2)
 
-            param.ndims = len(param.dim_namelist)
+                param.ndims = len(param.dim_namelist)
+
+            else:
+                param.ndims = 0
+
+
 
             # Allocate and initialize the data space
             if(param.ndims>0):
+
                 param.data = -999*np.ones((param.dim_sizelist))
             else:
                 param.data = -999*np.ones((1))
+
+
+
 
     if(not isfound):
         print('An unknown parameter was requested:')
@@ -162,7 +177,6 @@ def CDLParseParam(file_name,param,dim_dic):
                     search_field=True
                 lcount=lcount+1
 
-
             # Parse the line
             line_split = re.split(',|=',multi_line)
             # Remove the variable name entry
@@ -183,7 +197,12 @@ def CDLParseParam(file_name,param,dim_dic):
                     if(isnum):
                         param.Add1DToXD(float(str),indx)
                         indx=indx+1
-
+                    else:
+                        print('No-data values encountered during parameter read in')
+                        print('for parameter {}'.format(param.symbol))
+                        print('bad value: {}'.format(str0))
+                        print('data: {}'.format(line_split))
+                        exit(2)
 
             # This is a string
             #            elif(param.datatype == 1):

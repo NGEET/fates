@@ -43,9 +43,12 @@ PartehInterpretParameters = imp.load_source('PartehInterpretParameters', \
 PartehTypes = imp.load_source('PartehTypes', 'py_modules/PartehTypes.py')
 SyntheticBoundaries = imp.load_source('SyntheticBoundaries','py_modules/SyntheticBoundaries.py')
 CDLParse = imp.load_source('CDLParse','py_modules/CDLParse.py')
+F90ParamParse = imp.load_source('F90ParamParse','py_modules/F90ParamParse.py')
 
 from PartehInterpretParameters import load_xml
 from CDLParse import CDLParseDims, CDLParseParam, cdl_param_type
+from F90ParamParse import f90_param_type, GetSymbolUsage, GetPFTParmFileSymbols, MakeListUnique
+
 
 f90_fates_integrators_obj_name = 'bld/FatesIntegratorsMod.o'
 f90_fates_partehwrap_obj_name  = 'bld/FatesPARTEHWrapMod.o'
@@ -92,26 +95,44 @@ def main(argv):
     # Initialize the time structure
     time_control = PartehTypes.timetype()
 
-    # Initialize the parameter structure
-    parameters = PartehTypes.param_type()
+    # -------------------------------------------------------------------------------------
+    # Check through the fortran Code we are coupling with, determine the list of parameters
+    # that we need.
+    # The procedure GetSymbolUsage() returns a list of strings (non-unique)
+    # -------------------------------------------------------------------------------------
 
-    # This loads the dictionaries of, and lists of objects that
-    # define the variables, parameters and forms that govern the
-    # system of equations and solution
-    #    load_xml(xml_file,time_control,parameters)
+    check_str = 'EDPftvarcon_inst%'
 
-    # Read in the parameters of interest that are used in the fortran objects. These
-    # parameters will be passed to the fortran allocation.
-    # =======================================================================================
+    var_list0 = GetSymbolUsage('../../parteh/PRTLossFluxesMod.F90',check_str)
+    var_list0.extend(GetSymbolUsage('../../biogeochem/FatesAllometryMod.F90',check_str))
+    var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCarbonMod.F90',check_str))
+    var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCNPMod.F90',check_str))
+
+    # This is the unique list of PFT parameters found in the salient Fortran code
+    var_list = MakeListUnique(var_list0)
+
+    # Now look through EDPftvarcon.F90 to determine the variable name in file
+    # that is associated with the variable pointer
+
+    var_list = GetPFTParmFileSymbols(var_list,'../../main/EDPftvarcon.F90')
+
+    # -------------------------------------------------------------
+    # We can now cross reference our list of parameters against
+    # the parameter file. This will create a new list of parameters
+    # however in the form of a dictionary. This dictionary of
+    # entries is accessible by its symbol name, and will also
+    # read in and store the actual parameter values from the file.
+    # -------------------------------------------------------------
 
 
     dims = CDLParseDims(xml_file)
 
     parms = {}
-    parms['hydr_thetas_node'] = CDLParseParam(xml_file,cdl_param_type('fates_hydr_thetas_node'),dims)
+    for elem in var_list:
+        parms[elem.var_sym] = CDLParseParam(xml_file,cdl_param_type(elem.var_name),dims)
 
-#    parms['hmode']         = CDLParser(xml_file,parameter('fates_allom_hmode'))
-
+    print('Finished loading PFT parameters')
+    code.interact(local=dict(globals(), **locals()))
 
 
     # -----------------------------------------------------------------------------------

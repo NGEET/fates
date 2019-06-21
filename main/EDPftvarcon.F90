@@ -182,15 +182,15 @@ module EDPftvarcon
                                                         ! One value for whole plant
                                                         ! ONLY parteh_mode == 1  [kg/kg]
 
-     real(r8), allocatable :: prt_grperc_organ(:,:)     ! Unit growth respiration (pft x organ) [kg/kg]
-                                                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                                                        ! THIS IS NOT READ IN BY THE PARAMETER FILE
-                                                        ! THIS IS JUST FILLED BY GRPERC.  WE KEEP THIS
-                                                        ! PARAMETER FOR HYPOTHESIS TESTING (ADVANCED USE)
-                                                        ! IT HAS THE PRT_ TAG BECAUSE THIS PARAMETER
-                                                        ! IS USED INSIDE PARTEH, WHILE GRPERC IS APPLIED
-                                                        ! IN THE LEAF BIOPHYSICS SCHEME
-                                                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!     real(r8), allocatable :: prt_grperc_organ(:,:)     ! Unit growth respiration (pft x organ) [kg/kg]
+!                                                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                        ! THIS IS NOT READ IN BY THE PARAMETER FILE
+!                                                        ! THIS IS JUST FILLED BY GRPERC.  WE KEEP THIS
+!                                                        ! PARAMETER FOR HYPOTHESIS TESTING (ADVANCED USE)
+!                                                        ! IT HAS THE PRT_ TAG BECAUSE THIS PARAMETER
+!                                                        ! IS USED INSIDE PARTEH, WHILE GRPERC IS APPLIED
+!                                                        ! IN THE LEAF BIOPHYSICS SCHEME
+!                                                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      real(r8), allocatable :: prt_nitr_stoich_p1(:,:)   ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
      real(r8), allocatable :: prt_nitr_stoich_p2(:,:)   ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
@@ -1825,7 +1825,7 @@ contains
         write(fates_log(),fmt0) 'prt_nitr_stoich_p2 = ',EDPftvarcon_inst%prt_nitr_stoich_p2
         write(fates_log(),fmt0) 'prt_phos_stoich_p1 = ',EDPftvarcon_inst%prt_phos_stoich_p1
         write(fates_log(),fmt0) 'prt_phos_stoich_p2 = ',EDPftvarcon_inst%prt_phos_stoich_p2
-        write(fates_log(),fmt0) 'prt_grperc_organ   = ',EDPftvarcon_inst%prt_grperc_organ
+!        write(fates_log(),fmt0) 'prt_grperc_organ   = ',EDPftvarcon_inst%prt_grperc_organ
         write(fates_log(),fmt0) 'prt_alloc_priority = ',EDPftvarcon_inst%prt_alloc_priority
 
         write(fates_log(),fmt0) 'turnover_carb_retrans = ',EDPftvarcon_inst%turnover_carb_retrans
@@ -1872,10 +1872,11 @@ contains
      ! organ dimensioned version
 
      norgans = size(EDPftvarcon_inst%prt_nitr_stoich_p1,2)
-     allocate(EDPftvarcon_inst%prt_grperc_organ(npft,norgans))
-     do ipft = 1,npft
-        EDPftvarcon_inst%prt_grperc_organ(ipft,1:norgans) = EDPftvarcon_inst%grperc(ipft)
-     end do
+
+!     allocate(EDPftvarcon_inst%prt_grperc_organ(npft,norgans))
+!     do ipft = 1,npft
+!        EDPftvarcon_inst%prt_grperc_organ(ipft,1:norgans) = EDPftvarcon_inst%grperc(ipft)
+!     end do
 
      
      if(.not.is_master) return
@@ -2198,7 +2199,7 @@ contains
         end if
 
         ! Growth respiration
-        if (parteh_mode .eq. prt_carbon_allom_hyp) then
+!        if (parteh_mode .eq. prt_carbon_allom_hyp) then
            if ( ( EDPftvarcon_inst%grperc(ipft) < 0.0_r8) .or. &
                 ( EDPftvarcon_inst%grperc(ipft) > 1.0_r8 ) ) then
               write(fates_log(),*) ' PFT#: ',ipft
@@ -2206,15 +2207,15 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
-        elseif(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ( ( any(EDPftvarcon_inst%prt_grperc_organ(ipft,:) < 0.0_r8)) .or. &
-                ( any(EDPftvarcon_inst%prt_grperc_organ(ipft,:) >= 1.0_r8)) ) then
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',EDPftvarcon_inst%prt_grperc_organ(ipft,:)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
+!        elseif(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+!           if ( ( any(EDPftvarcon_inst%prt_grperc_organ(ipft,:) < 0.0_r8)) .or. &
+!                ( any(EDPftvarcon_inst%prt_grperc_organ(ipft,:) >= 1.0_r8)) ) then
+!              write(fates_log(),*) ' PFT#: ',ipft
+!              write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',EDPftvarcon_inst%prt_grperc_organ(ipft,:)
+!              write(fates_log(),*) ' Aborting'
+!              call endrun(msg=errMsg(sourcefile, __LINE__))
+!           end if
+!        end if
         
         ! Stoichiometric Ratios
 
