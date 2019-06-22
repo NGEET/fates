@@ -61,8 +61,6 @@ module EDLoggingMortalityMod
          __FILE__
 
 
-   real(r8), public, parameter :: logging_export_frac = 0.8_r8
-   
    public :: LoggingMortality_frac
    public :: logging_litter_fluxes
    public :: logging_time
