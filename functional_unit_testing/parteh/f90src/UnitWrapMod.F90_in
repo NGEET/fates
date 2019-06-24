@@ -106,14 +106,15 @@ module EDPftvarcon
 contains
   
 
-   subroutine EDPftvarconPySet(ipft,rval,ival,name)
+   subroutine EDPftvarconPySet(rval,ival,name,indx1,indx2)
 
       implicit none
       ! Arguments
-      integer(i4),intent(in) :: ipft
       character(kind=c_char,len=*), intent(in) :: name
       real(r8),intent(in) :: rval
       integer(i4),intent(in) :: ival
+	  integer(i4),intent(in) :: indx1
+	  integer(i4),intent(in) :: indx2
       ! Locals
       logical :: npfound
       integer :: ip
@@ -121,19 +122,19 @@ contains
       
       namelen = len(trim(name))
 
-	  if(debug) print*,"F90: ARGS: ",trim(name)," IPFT: ",ipft," RVAL: ",rval," IVAL: ",ival
+	  if(debug) print*,"F90: ARGS: ",trim(name)," IPFT: ",indx1," D2: ",indx2," RVAL: ",rval," IVAL: ",ival
 
       ip=0
-      npfound = .true.
+      npfound = .false.
       do ip=1,numparm1d
 
          if (trim(name) == trim(EDPftvarcon_ptr%var1d(ip)%var_name ) ) then
             print*,"F90: Found ",trim(name)," in lookup table"
-            npfound = .false.
+            npfound = .true.
             if(EDPftvarcon_ptr%var1d(ip)%vtype == 1) then ! real
-               EDPftvarcon_ptr%var1d(ip)%var_rp(ipft) = rval
+               EDPftvarcon_ptr%var1d(ip)%var_rp(indx1) = rval
             elseif(EDPftvarcon_ptr%var1d(ip)%vtype == 2) then ! integer
-               EDPftvarcon_ptr%var1d(ip)%var_ip(ipft) = ival
+               EDPftvarcon_ptr%var1d(ip)%var_ip(indx1) = ival
             else
                print*,"F90: STRANGE TYPE"
                stop
@@ -141,19 +142,27 @@ contains
          end if
       end do
 
-      if(npfound)then
+      do ip=1,numparm2d
+         if (trim(name) == trim(EDPftvarcon_ptr%var2d(ip)%var_name ) ) then
+            print*,"F90: Found ",trim(name)," in lookup table"
+            npfound = .true.
+            if(EDPftvarcon_ptr%var2d(ip)%vtype == 1) then ! real
+               EDPftvarcon_ptr%var2d(ip)%var_rp(indx1,indx2) = rval
+            elseif(EDPftvarcon_ptr%var2d(ip)%vtype == 2) then ! integer
+               EDPftvarcon_ptr%var2d(ip)%var_ip(indx1,indx2) = ival
+            else
+               print*,"F90: STRANGE TYPE"
+               stop
+            end if
+         end if
+      end do
+
+
+
+      if(.not.npfound)then
          print*,"F90: The parameter you loaded DNE: ",name(:)
          stop
       end if
-
-      do ip=1,numparm2d
-         if (trim(name) == trim(EDPftvarcon_ptr%var2d(ip)%var_name)) then
-            print*,"F90: Found ",trim(name)," in lookup table"
-			print*,"BUT... WE AVOID USING 2D VARIABLES FOR NOW..."
-			print*,"REMOVE THIS TEST"
-            stop
-         end if
-      end do
 
 
 	  ! Perform a check to see if the target array is being filled
@@ -179,17 +188,15 @@ contains
    end subroutine EDPftvarconPySet
 
 
-  subroutine EDPftvarconAlloc(numpft_in)
+  subroutine EDPftvarconAlloc(ARGUMENT_IN1)
     !
 
-    ! !ARGUMENTS:
-    integer(i4), intent(in) :: numpft_in
+    ! ARGUMENT_DEF1
+
     ! LOCALS:
     integer                    :: iv1   ! The parameter incrementer
 	integer                    :: iv2  
     !------------------------------------------------------------------------
-
-    numpft = numpft_in
 
     allocate( EDPftvarcon_ptr%var1d(100)) ! Make this plenty large
 	allocate( EDPftvarcon_ptr%var2d(100))

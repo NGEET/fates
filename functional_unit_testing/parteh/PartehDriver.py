@@ -130,10 +130,10 @@ def main(argv):
     parms = {}
     for elem in var_list:
         parms[elem.var_sym] = CDLParseParam(xml_file,cdl_param_type(elem.var_name),dims)
-
     print('Finished loading PFT parameters')
-    code.interact(local=dict(globals(), **locals()))
 
+    num_pfts   = dims['fates_pft']
+    num_organs = dims['fates_prt_organs']
 
     # -----------------------------------------------------------------------------------
     #
@@ -159,12 +159,13 @@ def main(argv):
     f90_fates_cohortwrap_obj = ctypes.CDLL(f90_fates_cohortwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
 
     # Initialize the PARTEH instance
-    iret=f90_fates_partehwrap_obj.__fatespartehwrapmod_MOD_spmappyset() #byref(c_int(parameters.prt_model)))
+    iret=f90_fates_partehwrap_obj.__fatespartehwrapmod_MOD_spmappyset()
 
     # Allocate the PFT and ORGAN arrays  (leaf+root+sap+store+structure+repro = 6)
-    max_num_organs = 6
-    iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(parameters.num_pfts)), \
-                                                                  byref(c_int(max_num_organs)))
+
+
+    WrapEDPFTAllocArbitrary([val for val in dims])
+
 
     # Set the phenology type
     phen_type = []
@@ -730,6 +731,42 @@ def main(argv):
     #exit(0)
 
 
+
+def WrapEDPFTAllocArbitrary(*args):
+
+    nargs = len(args)
+    if(nargs==1):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))))
+    elif(nargs==2):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))))
+    elif(nargs==3):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))))
+    elif(nargs==4):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
+                                                                       byref(c_int(args(3))))
+    elif(nargs==5):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
+                                                                       byref(c_int(args(3))), byref(c_int(args(4))))
+    elif(nargs==6):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
+                                                                       byref(c_int(args(3))), byref(c_int(args(4))), byref(c_int(args(5))))
+    elif(nargs==7):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
+                                                                       byref(c_int(args(3))), byref(c_int(args(4))), byref(c_int(args(5))), \
+                                                                       byref(c_int(args(6))))
+    elif(nargs==8):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
+                                                                       byref(c_int(args(3))), byref(c_int(args(4))), byref(c_int(args(5))), \
+                                                                       byref(c_int(args(6))), byref(c_int(args(7))))
+
+    elif(nargs==9):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
+                                                                       byref(c_int(args(3))), byref(c_int(args(4))), byref(c_int(args(5))), \
+                                                                       byref(c_int(args(6))), byref(c_int(args(7))), byref(c_int(args(8))))
+    else:
+        print('So many dimensions...')
+        print('add more clauses')
+        exit(2)
 
 # =======================================================================================
 

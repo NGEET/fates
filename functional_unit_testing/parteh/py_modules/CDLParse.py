@@ -16,6 +16,9 @@ int_type    = 1
 float_type  = 2
 double_type = 3
 
+# If we encounter a "_", ie no data?
+no_data_fill='1.e-32'
+
 
 # This is base object for a parameter
 # ===================================
@@ -40,6 +43,7 @@ class cdl_param_type:
             if((indx<0) or (indx>=n1)):
                 print('Problem in CDLParse filling data array')
                 print('index must be between {} {}, value = {}'.format(0,n1,indx))
+                print('param: {}'.format(self.symbol))
                 exit(2)
             else:
                 self.data[indx] = val
@@ -194,6 +198,9 @@ def CDLParseParam(file_name,param,dim_dic):
                         if (s.isdigit() or s=='.'):
                             str+=s
                             isnum=True
+                        elif(s == '_'):
+                            str+=no_data_fill
+                            isnum=True
                     if(isnum):
                         param.Add1DToXD(float(str),indx)
                         indx=indx+1
@@ -224,7 +231,7 @@ def CDLParseParam(file_name,param,dim_dic):
 
 
 
-# This routine returns a dictionary with the dimension names and sizes
+# This routine returns a dictionary with dimension names and sizes
 # ====================================================================
 
 def CDLParseDims(file_name):
