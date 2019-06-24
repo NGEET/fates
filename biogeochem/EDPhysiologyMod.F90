@@ -1827,7 +1827,7 @@ contains
                  EDPftvarcon_inst%allom_agb_frac(pft)
 
             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-                  SF_val_CWD_frac(c) * dead_n * &
+                  SF_val_CWD_frac(c) * dead_n * (struct_m + sapw_m) * &
                   currentPatch%area * EDPftvarcon_inst%allom_agb_frac(pft)
             
          end if
