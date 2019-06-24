@@ -35,6 +35,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : element_list
   use EDTypesMod           , only : element_pos
   use EDTypesMod           , only : lg_sf
+  use EDTypesMod           , only : dl_sf
   use EDTypesMod           , only : dump_patch
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesInterfaceMod    , only : hlm_use_planthydro
