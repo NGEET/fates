@@ -203,6 +203,7 @@ contains
           
           currentCohort => currentCohort%taller
        end do
+       currentPatch%disturbance_mode = fates_unset_int
        currentPatch => currentPatch%younger
     end do
 
@@ -949,7 +950,11 @@ contains
                       
                    endif  ! Select canopy layer
                    
-                end if   ! Select disturbance mode
+               else
+                  write(fates_log(),*) 'unknown disturbance mode?'
+                  write(fates_log(),*) 'disturbance_mode: ',currentPatch%disturbance_mode 
+                  call endrun(msg=errMsg(sourcefile, __LINE__))          
+               end if   ! Select disturbance mode
                 
                 if (nc%n > 0.0_r8) then   
                    storebigcohort   =>  new_patch%tallest
@@ -1037,7 +1042,7 @@ contains
           
           currentPatch => currentPatch%younger
           
-       enddo ! currentPatch patch loop. 
+      enddo ! currentPatch patch loop. 
 
           
  
