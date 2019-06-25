@@ -51,6 +51,8 @@ def GetSymbolUsage(filename,checkstr_in):
 
     var_list = []
     found = False
+
+
     for line in contents:
         if checkstr in line.lower():
 
@@ -61,32 +63,47 @@ def GetSymbolUsage(filename,checkstr_in):
                 exit(2)
 
             # We compare all in lower-case
+            # There may be more than one parameter in a line,
+            # so evaluate, pop-off, and try again
+
             substr   = line.lower()
 
-            p1 = substr.find(checkstr)+len(checkstr)
+            search_substr=True
 
-            pcomment = substr.find('!')
-            if(pcomment<0):
-                pcomment=1000
+            while(search_substr):
 
-            # This makes sure that if the line
-            # has a comment, that it does not come before
-            # the parameter symbol
+                p1 = substr.find(checkstr)+len(checkstr)
 
-            if( (p1>len(checkstr)) and (p1 < pcomment)):
-                found = True
+                pcomment = substr.find('!')
+                if(pcomment<0):
+                    pcomment=1000
 
-                # Identify the symbol by starting at the first
-                # character after the %, and ending at a list
-                # of possible symols including space
+                # This makes sure that if the line
+                # has a comment, that it does not come before
+                # the parameter symbol
 
-                substr=substr[p1:]
-                for ch in strclose:
-                    pend = substr.find(ch)
-                    if(pend>0):
-                        substr=substr[:pend]
+                if( (p1>len(checkstr)) and (p1 < pcomment)):
+                    found = True
 
-                var_list.append(f90_param_type(substr))
+                    # Identify the symbol by starting at the first
+                    # character after the %, and ending at a list
+                    # of possible symols including space
+                    substr2=substr[p1:]
+                    pend0=-1
+                    for ch in strclose:
+                        pend = substr2.find(ch)
+                        if(pend>0):
+                            substr2=substr2[:pend]
+                            pend0=pend
+
+                    var_list.append(f90_param_type(substr2))
+                    if(pend0~=):
+                        substr=substr[pend0:]
+
+
+                else:
+                    search_substr=False
+
 
 
     if(not found):

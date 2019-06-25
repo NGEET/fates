@@ -31,7 +31,7 @@ import numpy as np
 import os
 import sys
 import getopt
-import code  # For development: code.interact(local=locals())
+import code  # For development: code.interact(local=dict(globals(), **locals()))
 import time
 import imp
 import ctypes
@@ -59,6 +59,30 @@ f90_fates_parteh_callom_obj_name = 'bld/PRTAllometricCarbonMod.o'
 f90_fates_parteh_cnpallom_obj_name = 'bld/PRTAllometricCNPMod.o'
 f90_fates_cohortwrap_obj_name = 'bld/FatesCohortWrapMod.o'
 f90_fates_allom_obj_name = 'bld/FatesAllometryMod.o'
+
+# -----------------------------------------------------------------------------------
+#
+# We may be calling fortran, if so, we need to initialize the modules
+# This includes building the library objects, calling those objects
+# and possibly allocating memory in those objects.  The fortran libraries
+# and functions are held inside globally defined objects fates_f90_obj
+#
+# -----------------------------------------------------------------------------------
+
+# Define the F90 objects
+# These must be loaded according to the module dependency order
+# Note that these calls instantiate the modules
+
+f90_fates_integrators_obj    = ctypes.CDLL(f90_fates_integrators_obj_name,mode=ctypes.RTLD_GLOBAL)
+f90_fates_unitwrap_obj        = ctypes.CDLL(f90_fates_unitwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
+f90_fates_parteh_generic_obj = ctypes.CDLL(f90_fates_parteh_generic_obj_name,mode=ctypes.RTLD_GLOBAL)
+f90_fates_allom_obj          = ctypes.CDLL(f90_fates_allom_obj_name,mode=ctypes.RTLD_GLOBAL)
+f90_fates_parteh_callom_obj  = ctypes.CDLL(f90_fates_parteh_callom_obj_name,mode=ctypes.RTLD_GLOBAL)
+f90_fates_lossfluxes_obj     = ctypes.CDLL(f90_fates_lossfluxes_obj_name,mode=ctypes.RTLD_GLOBAL)
+f90_fates_parteh_cnpallom_obj = ctypes.CDLL(f90_fates_parteh_cnpallom_obj_name,mode=ctypes.RTLD_GLOBAL)
+f90_fates_partehwrap_obj = ctypes.CDLL(f90_fates_partehwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
+f90_fates_cohortwrap_obj = ctypes.CDLL(f90_fates_cohortwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
+
 
 # =======================================================================================
 # Some Global Parmaeters
@@ -135,37 +159,15 @@ def main(argv):
     num_pfts   = dims['fates_pft']
     num_organs = dims['fates_prt_organs']
 
-    # -----------------------------------------------------------------------------------
-    #
-    # We may be calling fortran, if so, we need to initialize the modules
-    # This includes building the library objects, calling those objects
-    # and possibly allocating memory in those objects.  The fortran libraries
-    # and functions are held inside globally defined objects fates_f90_obj
-    #
-    # -----------------------------------------------------------------------------------
 
-    # Define the F90 objects
-    # These must be loaded according to the module dependency order
-    # Note that these calls instantiate the modules
-
-    f90_fates_integrators_obj    = ctypes.CDLL(f90_fates_integrators_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_unitwrap_obj        = ctypes.CDLL(f90_fates_unitwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_parteh_generic_obj = ctypes.CDLL(f90_fates_parteh_generic_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_allom_obj          = ctypes.CDLL(f90_fates_allom_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_parteh_callom_obj  = ctypes.CDLL(f90_fates_parteh_callom_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_lossfluxes_obj     = ctypes.CDLL(f90_fates_lossfluxes_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_parteh_cnpallom_obj = ctypes.CDLL(f90_fates_parteh_cnpallom_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_partehwrap_obj = ctypes.CDLL(f90_fates_partehwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
-    f90_fates_cohortwrap_obj = ctypes.CDLL(f90_fates_cohortwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
 
     # Initialize the PARTEH instance
     iret=f90_fates_partehwrap_obj.__fatespartehwrapmod_MOD_spmappyset()
 
     # Allocate the PFT and ORGAN arrays  (leaf+root+sap+store+structure+repro = 6)
 
-
-    WrapEDPFTAllocArbitrary([val for val in dims])
-
+    WrapEDPFTAllocArbitrary([val for key,val in dims.iteritems()])
+    exit(0)
 
     # Set the phenology type
     phen_type = []
@@ -734,35 +736,47 @@ def main(argv):
 
 def WrapEDPFTAllocArbitrary(*args):
 
-    nargs = len(args)
+    nargs = len(args[0])
     if(nargs==1):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))))
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])))
     elif(nargs==2):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))))
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])))
     elif(nargs==3):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))))
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])))
     elif(nargs==4):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
-                                                                       byref(c_int(args(3))))
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+                                                                       byref(c_int(args[0][3])))
     elif(nargs==5):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
-                                                                       byref(c_int(args(3))), byref(c_int(args(4))))
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+                                                                       byref(c_int(args[0][3])), byref(c_int(args[0][4])))
     elif(nargs==6):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
-                                                                       byref(c_int(args(3))), byref(c_int(args(4))), byref(c_int(args(5))))
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+                                                                       byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])))
     elif(nargs==7):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
-                                                                       byref(c_int(args(3))), byref(c_int(args(4))), byref(c_int(args(5))), \
-                                                                       byref(c_int(args(6))))
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+                                                                       byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])), \
+                                                                       byref(c_int(args[0][6])))
     elif(nargs==8):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
-                                                                       byref(c_int(args(3))), byref(c_int(args(4))), byref(c_int(args(5))), \
-                                                                       byref(c_int(args(6))), byref(c_int(args(7))))
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+                                                                       byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])), \
+                                                                       byref(c_int(args[0][6])), byref(c_int(args[0][7])))
 
     elif(nargs==9):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args(0))), byref(c_int(args(1))), byref(c_int(args(2))), \
-                                                                       byref(c_int(args(3))), byref(c_int(args(4))), byref(c_int(args(5))), \
-                                                                       byref(c_int(args(6))), byref(c_int(args(7))), byref(c_int(args(8))))
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+                                                                       byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])), \
+                                                                       byref(c_int(args[0][6])), byref(c_int(args[0][7])), byref(c_int(args[0][8])))
+    elif(nargs==10):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+                                                                       byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])), \
+                                                                       byref(c_int(args[0][6])), byref(c_int(args[0][7])), byref(c_int(args[0][8])), \
+                                                                       byref(c_int(args[0][9])))
+    elif(nargs==11):
+        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+                                                                       byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])), \
+                                                                       byref(c_int(args[0][6])), byref(c_int(args[0][7])), byref(c_int(args[0][8])), \
+                                                                       byref(c_int(args[0][9])), byref(c_int(args[0][10])))
+
+
     else:
         print('So many dimensions...')
         print('add more clauses')

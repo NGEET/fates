@@ -167,19 +167,19 @@ contains
 
 	  ! Perform a check to see if the target array is being filled
       if (trim(name) == 'fates_allom_d2h1') then
-         if (EDPftvarcon_inst%allom_d2h1(ipft) == rval) then
-            print*,"F90: POINTER CHECK PASSES:",rval," = ",EDPftvarcon_inst%allom_d2h1(ipft)
+         if (EDPftvarcon_inst%allom_d2h1(indx1) == rval) then
+            print*,"F90: POINTER CHECK PASSES:",rval," = ",EDPftvarcon_inst%allom_d2h1(indx1)
          else
-            print*,"F90: POINTER CHECK FAILS:",rval," != ",EDPftvarcon_inst%allom_d2h1(ipft)
+            print*,"F90: POINTER CHECK FAILS:",rval," != ",EDPftvarcon_inst%allom_d2h1(indx1)
             stop
          end if
       end if
 
       if (trim(name) == 'fates_wood_density' ) then
-         if (EDPftvarcon_inst%wood_density(ipft) == rval) then
-            print*,"F90: POINTER CHECK PASSES:",rval," = ",EDPftvarcon_inst%wood_density(ipft)
+         if (EDPftvarcon_inst%wood_density(indx1) == rval) then
+            print*,"F90: POINTER CHECK PASSES:",rval," = ",EDPftvarcon_inst%wood_density(indx1)
          else
-            print*,"F90: POINTER CHECK FAILS:",rval," != ",EDPftvarcon_inst%wood_density(ipft)
+            print*,"F90: POINTER CHECK FAILS:",rval," != ",EDPftvarcon_inst%wood_density(indx1)
             stop
          end if
       end if
