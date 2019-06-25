@@ -72,6 +72,8 @@ module EDPftvarcon
 
    ! VARIABLE-DEFINITIONS-HERE (DO NOT REMOVE THIS LINE, OR MOVE IT)
 
+    real(r8),pointer :: parteh_mode(:)
+
    end type EDPftvarcon_inst_type
  
   type ptr_var1
@@ -205,11 +207,11 @@ contains
 
 	! POINTER-SPECIFICATION-HERE (DO NOT REMOVE THIS LINE, OR MOVE IT)
 
-!    allocate( EDPftvarcon_inst%allom_dbh_maxheight   (1:numpft)); EDPftvarcon_inst%allom_dbh_maxheight (:) = nan
-!    iv = iv + 1
-!    EDPftvarcon_ptr%var1d(iv)%var_name = "fates_allom_dbh_maxheight"
-!    EDPftvarcon_ptr%var1d(iv)%var_rp   => EDPftvarcon_inst%allom_dbh_maxheight
-!    EDPftvarcon_ptr%var1d(iv)%vtype    = 1
+    allocate( EDPftvarcon_inst%parteh_mode   (fates_pft)); EDPftvarcon_inst%allom_dbh_maxheight (:) = nan
+    iv = iv + 1
+    EDPftvarcon_ptr%var1d(iv)%var_name = "fates_parteh_mode"
+    EDPftvarcon_ptr%var1d(iv)%var_rp   => EDPftvarcon_inst%parteh_mode
+    EDPftvarcon_ptr%var1d(iv)%vtype    = 1
 
     
     numparm1d = iv1

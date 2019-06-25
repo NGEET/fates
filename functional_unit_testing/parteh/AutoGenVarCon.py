@@ -29,6 +29,8 @@ var_list0.extend(GetSymbolUsage('../../biogeochem/FatesAllometryMod.F90',check_s
 var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCarbonMod.F90',check_str))
 var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCNPMod.F90',check_str))
 
+
+
 # This is the unique list of PFT parameters found in the salient Fortran code
 
 var_list = MakeListUnique(var_list0)
@@ -37,6 +39,9 @@ var_list = MakeListUnique(var_list0)
 # that is associated with the variable pointer
 
 var_list = GetPFTParmFileSymbols(var_list,'../../main/EDPftvarcon.F90')
+
+#var_list.append(f90_param_type('parteh_mode'))
+#var_list[-1].var_name = 'fates_parteh_mode'
 
 
 # -------------------------------------------------------------

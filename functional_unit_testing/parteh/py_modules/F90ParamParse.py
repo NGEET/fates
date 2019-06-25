@@ -97,9 +97,11 @@ def GetSymbolUsage(filename,checkstr_in):
                             pend0=pend
 
                     var_list.append(f90_param_type(substr2))
-                    if(pend0~=):
+                    if(pend0!=-1):
                         substr=substr[pend0:]
-
+                    else:
+                        print('Could not correctly identify the parameter string')
+                        exit(2)
 
                 else:
                     search_substr=False
