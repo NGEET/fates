@@ -32,6 +32,7 @@ var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCNPMod.F90',check_str
 # Add some extra parameters (not used in F90 code, but used in python code)
 var_list0.append(f90_param_type('season_decid'))
 var_list0.append(f90_param_type('stress_decid'))
+var_list0.append(f90_param_type('hgt_min'))
 
 # This is the unique list of PFT parameters found in the salient Fortran code
 

@@ -135,7 +135,7 @@ def main(argv):
     # Add some extra parameters (not used in F90 code, but used in python code)
     var_list0.append(f90_param_type('season_decid'))
     var_list0.append(f90_param_type('stress_decid'))
-
+    var_list0.append(f90_param_type('hgt_min'))
 
     # This is the unique list of PFT parameters found in the salient Fortran code
     var_list = MakeListUnique(var_list0)
@@ -178,7 +178,7 @@ def main(argv):
 
     # Set the phenology type
     phen_type = []
-    for ipft in range(dims['fates_pft']):
+    for ipft in range(num_pfts):
 
         evergreen        = np.int(parms['evergreen'].data[ipft])
         cold_deciduous   = np.int(parms['season_decid'].data[ipft])
@@ -221,13 +221,10 @@ def main(argv):
     for parm_key, parm_obj in parms.iteritems():
 
         # Loop through their dimensions
-
-
         # 2D case
         if(parm_obj.ndims>1):
             for idx0 in range(parm_obj.dim_sizelist[0]):
                 for idx1 in range(parm_obj.dim_sizelist[1]):
-
                     iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_double(parm_obj.data[idx0,idx1])), \
                                                                                      byref(c_int(0)), \
                                                                                      byref(c_int(idx0+1)), \
@@ -235,45 +232,33 @@ def main(argv):
                                                                                      c_char_p(parm_key), \
                                                                                      c_long(len(parm_key )))
 
-        for idim in parm_obj.ndims:
+        else:
+            idx1=0.0
+            for idx0 in range(parm_obj.dim_sizelist[0]):
+                iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_double(parm_obj.data[idx0])), \
+                                                                                 byref(c_int(0)), \
+                                                                                 byref(c_int(idx0+1)), \
+                                                                                 byref(c_int(idx1+1)), \
+                                                                                 c_char_p(parm_key), \
+                                                                                 c_long(len(parm_key )))
 
 
 
-
-        for par_idx, par_key in enumerate(pft_obj.param_dic.iterkeys()):
-            pval = pft_obj.param_dic[par_key]
-            print("{} {} {}".format(par_idx,par_key,pval))
-
-            # The dictionary of parameters is populated with lists of floats, even
-            # scalars are single entry lists
-
-            if( len(pval)==1 ):
-                iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_int(pft_idx+1)), \
-                                                                                byref(c_int(0)), \
-                                                                                byref(c_double(pval[0])), \
-                                                                                c_char_p(par_key.strip()), \
-                                                                                c_long(len(par_key.strip())))
-            else:
-                for i2d in range(len(pval)):
-                    iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_int(pft_idx+1)), \
-                                                                                    byref(c_int(i2d+1)), \
-                                                                                    byref(c_double(pval[i2d])), \
-                                                                                    c_char_p(par_key.strip()), \
-                                                                                    c_long(len(par_key.strip())))
 
     # Allocate the cohort array (We create on cohort per PFT)
-    iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortinitalloc(byref(c_int(parameters.num_pfts)))
+    iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortinitalloc(byref(c_int(num_pfts)))
 
-    for pft_idx, pft_obj in enumerate(parameters.parteh_pfts):
-        hgt_min = pft_obj.param_dic['fates_recruit_hgt_min']
+    for ipft in range(num_pfts):
+
+        hgt_min = np.int(parms['hgt_min'].data[ipft])
         init_canopy_trim = 1.0
         iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortpyset(byref(c_int(pft_idx+1)), \
-                                                                           byref(c_double(hgt_min[0])), \
+                                                                           byref(c_double(hgt_min)), \
                                                                            byref(c_double(init_canopy_trim)))
 
     # Initialize diagnostics
     diagnostics = []
-    for pft_idx, pft_obj in enumerate(parameters.parteh_pfts):
+    for ipft in range(num_pfts):
         diagnostics.append(PartehTypes.diagnostics_type())
 
 
@@ -292,8 +277,7 @@ def main(argv):
         # Start the integration substep loop
         endtime = time_control.datetime+np.timedelta64(int(time_control.dt_fullstep),'s')
 
-        for pft_idx, pft_obj in enumerate(parameters.parteh_pfts):
-
+        for ipft in range(num_pfts):
 
             # Generate the boundary condition for the current time-step
             # ---------------------------------------------------------------------------
@@ -345,7 +329,7 @@ def main(argv):
             store_pturn    = c_double(0.0)
             struct_pturn   = c_double(0.0)
 
-            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapqueryvars(byref(c_int(pft_idx+1)), \
+            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapqueryvars(byref(c_int(ipft+1)), \
                                                                                  byref(leaf_area), \
                                                                                  byref(crown_area), \
                                                                                  byref(agb), \
