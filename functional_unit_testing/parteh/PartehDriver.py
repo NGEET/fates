@@ -132,8 +132,14 @@ def main(argv):
     var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCarbonMod.F90',check_str))
     var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCNPMod.F90',check_str))
 
+    # Add some extra parameters (not used in F90 code, but used in python code)
+    var_list0.append(f90_param_type('season_decid'))
+    var_list0.append(f90_param_type('stress_decid'))
+
+
     # This is the unique list of PFT parameters found in the salient Fortran code
     var_list = MakeListUnique(var_list0)
+
 
     # Now look through EDPftvarcon.F90 to determine the variable name in file
     # that is associated with the variable pointer
@@ -167,15 +173,16 @@ def main(argv):
     # Allocate the PFT and ORGAN arrays  (leaf+root+sap+store+structure+repro = 6)
 
     WrapEDPFTAllocArbitrary([val for key,val in dims.iteritems()])
-    exit(0)
+
+    code.interact(local=dict(globals(), **locals()))
 
     # Set the phenology type
     phen_type = []
-    for pft_idx,pft_obj in enumerate(parameters.parteh_pfts):
+    for ipft in range(dims['fates_pft']):
 
-        evergreen        = np.int(parameters.parteh_pfts[pft_idx].param_dic['fates_phen_evergreen'][0])
-        cold_deciduous   = np.int(parameters.parteh_pfts[pft_idx].param_dic['fates_phen_season_decid'][0])
-        stress_deciduous = np.int(parameters.parteh_pfts[pft_idx].param_dic['fates_phen_stress_decid'][0])
+        evergreen        = np.int(parms['evergreen'].data[ipft])
+        cold_deciduous   = np.int(parms['season_decid'].data[ipft])
+        stress_deciduous = np.int(parms['stress_decid'].data[ipft])
         if(evergreen==1):
             if(cold_deciduous==1):
                 print("Poorly defined phenology mode 0")
@@ -205,10 +212,33 @@ def main(argv):
             exit(2)
 
 
+    # -------------------------------------------------------------------------
+    # Loop through all parameters in the "parms" dictionary, send their data
+    # to the FORTRAN code
+    # ------------------------------------------------------------------------
 
-    # Loop through each pft and pft's parameters and pass them to the fortran object
-    # Also, some parameters may be arrays (like organ number)
-    for pft_idx,pft_obj in enumerate(parameters.parteh_pfts):
+    # Loop through parameters
+    for parm_key, parm_obj in parms.iteritems():
+
+        # Loop through their dimensions
+
+
+        # 2D case
+        if(parm_obj.ndims>1):
+            for idx0 in range(parm_obj.dim_sizelist[0]):
+                for idx1 in range(parm_obj.dim_sizelist[1]):
+
+                    iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_double(parm_obj.data[idx0,idx1])), \
+                                                                                     byref(c_int(0)), \
+                                                                                     byref(c_int(idx0+1)), \
+                                                                                     byref(c_int(idx1+1)), \
+                                                                                     c_char_p(parm_key), \
+                                                                                     c_long(len(parm_key )))
+
+        for idim in parm_obj.ndims:
+
+
+
 
         for par_idx, par_key in enumerate(pft_obj.param_dic.iterkeys()):
             pval = pft_obj.param_dic[par_key]

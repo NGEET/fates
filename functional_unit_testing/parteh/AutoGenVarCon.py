@@ -29,7 +29,9 @@ var_list0.extend(GetSymbolUsage('../../biogeochem/FatesAllometryMod.F90',check_s
 var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCarbonMod.F90',check_str))
 var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCNPMod.F90',check_str))
 
-
+# Add some extra parameters (not used in F90 code, but used in python code)
+var_list0.append(f90_param_type('season_decid'))
+var_list0.append(f90_param_type('stress_decid'))
 
 # This is the unique list of PFT parameters found in the salient Fortran code
 
@@ -155,7 +157,7 @@ for symbol, var in parms.iteritems():
 
     if(var.ndims==1):
         ins_l1='\t allocate(EDPftvarcon_inst%{}({}))\n'.format(symbol,dim_alloc_str)
-        ins_l2='\t EDPftvarcon_inst%{}(:) = nan\n'.format(symbol)
+        ins_l2='\t EDPftvarcon_inst%{}(:) = fates_unset_r8\n'.format(symbol)
         ins_l3='\t iv1 = iv1 + 1\n'
         ins_l4='\t EDPftvarcon_ptr%var1d(iv1)%var_name = "{}"\n'.format(var.symbol)
         ins_l5='\t EDPftvarcon_ptr%var1d(iv1)%var_rp   => EDPftvarcon_inst%{}\n'.format(symbol)
@@ -163,7 +165,7 @@ for symbol, var in parms.iteritems():
         ins_l7='\n'
     elif(var.ndims==2):
         ins_l1='\t allocate(EDPftvarcon_inst%{}({}))\n'.format(symbol,dim_alloc_str)
-        ins_l2='\t EDPftvarcon_inst%{}(:,:) = nan\n'.format(symbol)
+        ins_l2='\t EDPftvarcon_inst%{}(:,:) = fates_unset_r8\n'.format(symbol)
         ins_l3='\t iv2 = iv2 + 1\n'
         ins_l4='\t EDPftvarcon_ptr%var2d(iv2)%var_name = "{}"\n'.format(var.symbol)
         ins_l5='\t EDPftvarcon_ptr%var2d(iv2)%var_rp   => EDPftvarcon_inst%{}\n'.format(symbol)

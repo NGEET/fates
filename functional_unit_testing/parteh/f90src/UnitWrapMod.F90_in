@@ -1,11 +1,11 @@
 
 ! =======================================================================================
 !
-! This file is an alternative to key files in the fates 
+! This file is an alternative to key files in the fates
 ! filesystem. Noteably, we replace fates_r8 and fates_in
 ! with types that work with "ctypes".  This is
 ! a key step in working with python
-! 
+!
 ! We also wrap FatesGlobals to reduce the dependancy
 ! cascade that it pulls in from shr_log_mod.
 !
@@ -25,7 +25,7 @@ module shr_log_mod
 
       ans = "source: " // trim(source) // " line: "
    end function shr_log_errMsg
-   
+
 end module shr_log_mod
 
 
@@ -36,12 +36,12 @@ module FatesGlobals
    integer function fates_log()
       fates_log = -1
    end function fates_log
-   
-   subroutine fates_endrun(msg) 
+
+   subroutine fates_endrun(msg)
 
       implicit none
       character(len=*), intent(in) :: msg    ! string to be printed
-      
+
       stop
 
    end subroutine fates_endrun
@@ -61,7 +61,7 @@ end module EDTypesMod
 
 
 module EDPftvarcon
-   
+
    use iso_c_binding, only : r8 => c_double
    use iso_c_binding, only : i4 => c_int
    use iso_c_binding, only : c_char
@@ -75,7 +75,7 @@ module EDPftvarcon
     real(r8),pointer :: parteh_mode(:)
 
    end type EDPftvarcon_inst_type
- 
+
   type ptr_var1
      real(r8), dimension(:), pointer :: var_rp
      integer(i4), dimension(:), pointer :: var_ip
@@ -94,21 +94,20 @@ module EDPftvarcon
      type(ptr_var1), allocatable :: var1d(:)
 	 type(ptr_var2), allocatable :: var2d(:)
   end type EDPftvarcon_ptr_type
-  
+
 
   type(EDPftvarcon_inst_type), public :: EDPftvarcon_inst ! ED ecophysiological constants structure
   type(EDPftvarcon_ptr_type),  public :: EDPftvarcon_ptr  ! Pointer structure for obj-oriented id
-  
+
   integer :: numparm1d ! Number of different PFT parameters
   integer :: numparm2d
   integer :: numpft
-
   logical, parameter ::  debug = .true.
 
 contains
-  
 
-   subroutine EDPftvarconPySet(rval,ival,name,indx1,indx2)
+
+   subroutine EDPftvarconPySet(rval,ival,indx1,indx2,name)
 
       implicit none
       ! Arguments
@@ -121,7 +120,7 @@ contains
       logical :: npfound
       integer :: ip
       integer :: namelen
-      
+
       namelen = len(trim(name))
 
 	  if(debug) print*,"F90: ARGS: ",trim(name)," IPFT: ",indx1," D2: ",indx2," RVAL: ",rval," IVAL: ",ival
@@ -192,12 +191,16 @@ contains
 
   subroutine EDPftvarconAlloc(ARGUMENT_IN1)
     !
+    use FatesConstantsMod, only : fates_unset_r8
+
+	implicit none
 
     ! ARGUMENT_DEF1
 
+
     ! LOCALS:
     integer                    :: iv1   ! The parameter incrementer
-	integer                    :: iv2  
+	integer                    :: iv2
     !------------------------------------------------------------------------
 
     allocate( EDPftvarcon_ptr%var1d(100)) ! Make this plenty large
@@ -207,19 +210,22 @@ contains
 
 	! POINTER-SPECIFICATION-HERE (DO NOT REMOVE THIS LINE, OR MOVE IT)
 
-    allocate( EDPftvarcon_inst%parteh_mode   (fates_pft)); EDPftvarcon_inst%allom_dbh_maxheight (:) = nan
-    iv = iv + 1
-    EDPftvarcon_ptr%var1d(iv)%var_name = "fates_parteh_mode"
-    EDPftvarcon_ptr%var1d(iv)%var_rp   => EDPftvarcon_inst%parteh_mode
-    EDPftvarcon_ptr%var1d(iv)%vtype    = 1
+    allocate( EDPftvarcon_inst%parteh_mode   (fates_pft));
+	EDPftvarcon_inst%parteh_mode (:) = fates_unset_r8
+    iv1 = iv1 + 1
+    EDPftvarcon_ptr%var1d(iv1)%var_name = "fates_parteh_mode"
+    EDPftvarcon_ptr%var1d(iv1)%var_rp   => EDPftvarcon_inst%parteh_mode
+    EDPftvarcon_ptr%var1d(iv1)%vtype    = 1
 
-    
+
     numparm1d = iv1
 	numparm2d = iv2
 
+    print*,"F90: ALLOCATED ",numparm1d," 1D PARAMETERS"
+    print*,"F90: ALLOCATED ",numparm2d," 2D PARAMETERS"
+    print*,"FOR ",fates_pft," PFTs"
 
-    print*,"F90: ALLOCATED ",numparm1d," PARAMETERS, FOR ",numpft," PFTs"
-
+	numpft = fates_pft
 
     return
  end subroutine EDPftvarconAlloc
