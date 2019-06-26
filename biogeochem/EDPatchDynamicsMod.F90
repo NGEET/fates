@@ -481,14 +481,6 @@ contains
           new_patch_primary%tallest  => null()
           new_patch_primary%shortest => null()
 
-          
-          ! Insert New patch into the linked list
-       
-          currentPatch               => currentSite%youngest_patch
-          new_patch_primary%older    => currentPatch
-          new_patch_primary%younger  => null()
-          currentPatch%younger       => new_patch_primary
-          currentSite%youngest_patch => new_patch_primary
        endif
 
 
@@ -512,13 +504,6 @@ contains
           new_patch_secondary%tallest  => null()
           new_patch_secondary%shortest => null() 
 
-          ! Insert New patch into the linked list
-
-          currentPatch               => currentSite%youngest_patch
-          new_patch_secondary%older  => currentPatch
-          new_patch_secondary%younger=> null()
-          currentPatch%younger       => new_patch_secondary
-          currentSite%youngest_patch => new_patch_secondary
        endif
     
        ! loop round all the patches that contribute surviving indivduals and litter 
@@ -527,9 +512,7 @@ contains
        ! two new pointers.
 
        currentPatch => currentSite%oldest_patch
-       do while(associated(currentPatch) .and. &
-             .not.associated(currentPatch,new_patch_secondary) .and. &
-             .not.associated(currentPatch,new_patch_primary))
+       do while(associated(currentPatch))
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
@@ -552,16 +535,6 @@ contains
                   write(fates_log(),*) 'Patch spawning has attempted to point to'
                   write(fates_log(),*) 'an un-allocated patch'
                   call endrun(msg=errMsg(sourcefile, __LINE__)) 
-              end if
-
-              ! This  is a useful check to see if each individual patch disturbance, 
-              ! and mass transfer is conserving mass
-
-              if(debug) then
-                  c12_el = element_pos(carbon12_element)
-                  wood_product0 = currentSite%mass_balance(c12_el)%wood_product
-                  burn_flux0    = currentSite%mass_balance(c12_el)%burn_flux_to_atm
-                  call SiteMassStock(currentSite,c12_el,total_stock0,biomass_stock0,litter_stock0,seed_stock0)
               end if
 
              ! for the case where the donating patch is secondary forest, if 
@@ -995,35 +968,6 @@ contains
              !update area of donor patch
              currentPatch%area = currentPatch%area - patch_site_areadis
 
-             ! --------------------------------------------------------------------------
-             ! Mass conservation check (carbon only, expand as necessary upon failing
-             ! checks in EDMainMod
-             ! --------------------------------------------------------------------------
-             if(.false.) then
-                 c12_el = element_pos(carbon12_element)
-                 wood_product1 = currentSite%mass_balance(c12_el)%wood_product
-                 burn_flux1    = currentSite%mass_balance(c12_el)%burn_flux_to_atm
-                 call SiteMassStock(currentSite,c12_el,total_stock1,biomass_stock1,litter_stock1,seed_stock1)
-                 error = (total_stock1 - total_stock0) + (burn_flux1-burn_flux0) + (wood_product1-wood_product0)
-                 if(abs(error)>1.e-7_r8) then
-                     write(fates_log(),*) 'non trivial carbon mass balance error on patch disturbance'
-                     write(fates_log(),*) 'abs error: ',error
-                     write(fates_log(),*) 'disturb mode: ',currentPatch%disturbance_mode
-                     write(fates_log(),*) 'disturb rate',currentPatch%disturbance_rate
-                     write(fates_log(),*) 'terms: ',currentPatch%area,(total_stock1 - total_stock0),&
-                           (burn_flux1-burn_flux0),(wood_product1-wood_product0)
-                     write(fates_log(),*) biomass_stock1-biomass_stock0, &
-                           litter_stock1-litter_stock0, seed_stock1-seed_stock0
-                     write(fates_log(),*) ''
-                     write(fates_log(),*) 'donor patch details: '
-                     call dump_patch(currentPatch)
-                     write(fates_log(),*) ''
-                     write(fates_log(),*) 'new patch details: '
-                     call dump_patch(new_patch)
-                     call endrun(msg=errMsg(sourcefile, __LINE__))
-                 end if
-             end if
-
              ! sort out the cohorts, since some of them may be so small as to need removing. 
              ! the first call to terminate cohorts removes sparse number densities,
              ! the second call removes for all other reasons (sparse culling must happen
@@ -1044,7 +988,25 @@ contains
           
       enddo ! currentPatch patch loop. 
 
-          
+      !*************************/
+      !**  INSERT NEW PATCH(ES) INTO LINKED LIST    
+      !**********`***************/
+       
+      if ( site_areadis_primary .gt. nearzero) then
+          currentPatch               => currentSite%youngest_patch
+          new_patch_primary%older    => currentPatch
+          new_patch_primary%younger  => null()
+          currentPatch%younger       => new_patch_primary
+          currentSite%youngest_patch => new_patch_primary
+      endif
+      
+      if ( site_areadis_secondary .gt. nearzero) then
+          currentPatch               => currentSite%youngest_patch
+          new_patch_secondary%older  => currentPatch
+          new_patch_secondary%younger=> null()
+          currentPatch%younger       => new_patch_secondary
+          currentSite%youngest_patch => new_patch_secondary
+      endif
  
        
        ! sort out the cohorts, since some of them may be so small as to need removing. 
