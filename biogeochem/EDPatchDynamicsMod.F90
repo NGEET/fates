@@ -403,12 +403,6 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
-    real(r8) :: error
-    real(r8) :: total_stock1,biomass_stock1,litter_stock1,seed_stock1
-    real(r8) :: total_stock0,biomass_stock0,litter_stock0,seed_stock0
-    real(r8) :: total_stock2,biomass_stock2,litter_stock2,seed_stock2
-    real(r8) :: burn_flux2,burn_flux1,burn_flux0
-    real(r8) :: wood_product2,wood_product1,wood_product0
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
