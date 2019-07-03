@@ -913,6 +913,8 @@ contains
       call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim, b_store)
       
       temp_cohort%laimemory = 0._r8
+      temp_cohort%sapwmemory = 0._r8
+      temp_cohort%structmemory = 0._r8
       cstatus = leaves_on
             
       if( EDPftvarcon_inst%season_decid(c_pft) == itrue .and. csite%is_cold ) then
@@ -930,7 +932,8 @@ contains
       ! Since spread is a canopy level calculation, we need to provide an initial guess here.
       call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
            b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &
-           temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
+           temp_cohort%laimemory, temp_cohort%sapwmemory, temp_cohort%structmemory, &
+	   cstatus, rstatus, temp_cohort%canopy_trim, &
            1, csite%spread, equal_leaf_aclass, bc_in)
 
       
