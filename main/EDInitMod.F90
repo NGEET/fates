@@ -436,6 +436,8 @@ contains
        call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, b_store)
 
        temp_cohort%laimemory = 0._r8
+       temp_cohort%sapwmemory = 0._r8
+       temp_cohort%structmemory = 0._r8
        cstatus = leaves_on
        
        if( EDPftvarcon_inst%season_decid(pft) == itrue .and. site_in%is_cold ) then
@@ -454,7 +456,8 @@ contains
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             b_leaf, b_fineroot, b_sapwood, b_dead, b_store, & 
-            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, &
+            temp_cohort%laimemory,temp_cohort%sapwmemory,temp_cohort%structmemory, &
+	    cstatus, rstatus, temp_cohort%canopy_trim, 1, &
             site_in%spread, first_leaf_aclass, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
