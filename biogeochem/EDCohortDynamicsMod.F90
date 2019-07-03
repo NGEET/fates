@@ -106,8 +106,8 @@ contains
   !-------------------------------------------------------------------------------------!
 
   subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh, bleaf, bfineroot, &
-                           bsap, bdead, bstore, laimemory, status, recruitstatus,ctrim, &
-                           clayer, spread, leaf_aclass_init, bc_in)
+                           bsap, bdead, bstore, laimemory, sapwmemory, structmemory, &
+			   status, recruitstatus, ctrim, clayer, spread, leaf_aclass_init, bc_in)
 
     !
     ! !DESCRIPTION:
@@ -144,6 +144,10 @@ contains
     real(r8), intent(in)   :: bstore                     ! stored carbon: kGC per indiv
     real(r8), intent(in)   :: laimemory                  ! target leaf biomass- set from 
                                                          ! previous year: kGC per indiv
+    real(r8), intent(in)   :: sapwmemory                 ! target sapwood biomass- set from 
+                                                         ! previous year: kGC per indiv	
+    real(r8), intent(in)   :: structmemory               ! target structural biomass- set from 
+                                                         ! previous year: kGC per indiv							 
     real(r8), intent(in)   :: ctrim                      ! What is the fraction of the maximum 
                                                          ! leaf biomass that we are targeting?
     real(r8), intent(in)   :: spread                     ! The community assembly effects how 
@@ -187,8 +191,9 @@ contains
     new_cohort%canopy_layer = clayer
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
-
-    
+    new_cohort%sapwmemory   = sapwmemory
+    new_cohort%structmemory = structmemory
+      
     ! All newly initialized cohorts start off with an assumption
     ! about leaf age (depending on what is calling the initialization
     ! of this cohort
@@ -466,6 +471,8 @@ contains
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm                            
     currentCohort%hite               = nan ! height: meters                   
     currentCohort%laimemory          = nan ! target leaf biomass- set from previous year: kGC per indiv
+    currentCohort%sapwmemory         = nan ! target sapwood biomass- set from previous year: kGC per indiv
+    currentCohort%structmemory       = nan ! target structural biomass- set from previous year: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2      
     currentCohort%sai                = nan ! stem area index of cohort   m2/m2
     currentCohort%g_sb_laweight      = nan ! Total leaf conductance of cohort (stomata+blayer) weighted by leaf-area [m/s]*[m2]
@@ -922,6 +929,12 @@ contains
 
                                 currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                       + nextc%n*nextc%laimemory)/newn
+				      
+                                currentCohort%sapwmemory   = (currentCohort%n*currentCohort%sapwmemory   &
+                                      + nextc%n*nextc%sapwmemory)/newn
+				      
+                                currentCohort%structmemory   = (currentCohort%n*currentCohort%structmemory   &
+                                      + nextc%n*nextc%structmemory)/newn				      				      
 
                                 currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
                                       + nextc%n*nextc%dbh)/newn
@@ -1363,6 +1376,8 @@ contains
     n%dbh             = o%dbh                                        
     n%hite            = o%hite
     n%laimemory       = o%laimemory
+    n%sapwmemory      = o%sapwmemory
+    n%structmemory    = o%structmemory
     n%lai             = o%lai                         
     n%sai             = o%sai  
     n%g_sb_laweight   = o%g_sb_laweight
