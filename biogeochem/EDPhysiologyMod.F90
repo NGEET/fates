@@ -64,6 +64,7 @@ module EDPhysiologyMod
   
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : leaf_organ
+  use PRTGenericMod, only : sapw_organ, struct_organ
   use PRTGenericMod, only : all_carbon_elements
   use PRTGenericMod, only : carbon12_element
   use PRTGenericMod, only : nitrogen_element
@@ -421,7 +422,7 @@ contains
     integer  :: day                      ! day of month (1, ..., 31)
     integer  :: sec                      ! seconds of the day
 
-    real(r8) :: leaf_c                       ! leaf carbon [kg]
+    real(r8) :: leaf_c               ! leaf carbon [kg]
     real(r8) :: fnrt_c               ! fineroot carbon [kg]
     real(r8) :: sapw_c               ! sapwood carbon [kg]
     real(r8) :: store_c              ! storage carbon [kg]
@@ -662,10 +663,14 @@ contains
     type(ed_cohort_type), pointer :: currentCohort  
 
     real(r8) :: leaf_c                 ! leaf carbon [kg]
+    real(r8) :: sapw_c                 ! sapwood carbon [kg]
+    real(r8) :: struct_c               ! structural wood carbon [kg]
     real(r8) :: store_c                ! storage carbon [kg]
     real(r8) :: store_c_transfer_frac  ! Fraction of storage carbon used to flush leaves
+    real(r8) :: totalmemory            ! total memory of carbon [kg]
     integer  :: ipft
     real(r8), parameter :: leaf_drop_fraction = 1.0_r8
+    real(r8), parameter :: stem_drop_fraction = 1.0_r8
 
     !------------------------------------------------------------------------
 
@@ -683,6 +688,9 @@ contains
 
           store_c = currentCohort%prt%GetState(store_organ, all_carbon_elements)
           leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          sapw_c  = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+          struct_c  = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+	  
 
           ! COLD LEAF ON
           ! The site level flags signify that it is no-longer too cold
@@ -697,15 +705,37 @@ contains
                    if(store_c>nearzero) then
                       store_c_transfer_frac = &
                             min(EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory, store_c)/store_c
+	              if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+		         totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
+		         store_c_transfer_frac = min(EDPftvarcon_inst%phenflush_fraction(ipft)* &
+		                                 totalmemory, store_c)/store_c
+		      endif
+		     
                    else
                       store_c_transfer_frac = 0.0_r8
                    end if
 
                    ! This call will request that storage carbon will be transferred to 
                    ! leaf tissues. It is specified as a fraction of the available storage
-                   call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, store_c_transfer_frac)
+		   if(EDPftvarcon_inst%woody(ipft) == itrue) then
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, store_c_transfer_frac)
+                      currentCohort%laimemory = 0.0_r8		   
+		   else
+		   
+                     call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+		               store_c_transfer_frac*currentCohort%laimemory/totalmemory)		   
 
-                   currentCohort%laimemory = 0.0_r8
+                     call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
+		               store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
+
+                     call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, & 
+		              store_c_transfer_frac*currentCohort%structmemory/totalmemory)
+			      
+                     currentCohort%laimemory = 0.0_r8
+		     currentCohort%structmemory = 0.0_r8
+		     currentCohort%sapwmemory = 0.0_r8
+		     
+		   endif		   
 
                 endif !pft phenology
              endif ! growing season 
@@ -716,22 +746,36 @@ contains
 
              if (currentSite%is_cold) then 
                 if (currentCohort%status_coh == leaves_on)then ! leaves have not dropped
-                   
-                   ! This sets the cohort to the "leaves off" flag
-                   currentCohort%status_coh  = leaves_off
+		   ! leaf off occur on big individuals
+                   if (currentCohort%dbh > EDPftvarcon_inst%phmort_size_threshold(ipft)) then 
+                      ! This sets the cohort to the "leaves off" flag
+                      currentCohort%status_coh  = leaves_off
 
-                   ! Remember what the lai was (leaf mass actually) was for next year
-                   ! the same amount back on in the spring...
+                      ! Remember what the lai was (leaf mass actually) was for next year
+                      ! the same amount back on in the spring...
 
-                   currentCohort%laimemory   = leaf_c
+                      currentCohort%laimemory   = leaf_c
 
-                   ! Drop Leaves (this routine will update the leaf state variables,
-                   ! for carbon and any other element that are prognostic. It will
-                   ! also track the turnover masses that will be sent to litter later on)
+                      ! Drop Leaves (this routine will update the leaf state variables,
+                      ! for carbon and any other element that are prognostic. It will
+                      ! also track the turnover masses that will be sent to litter later on)
 
-                   call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                         leaf_organ, leaf_drop_fraction)
-                   
+                      call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                           leaf_organ, leaf_drop_fraction)
+			 
+	              if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+			 
+                         currentCohort%sapwmemory   = sapw_c
+		   
+		         currentCohort%structmemory   = struct_c			 
+
+                         call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                              sapw_organ, stem_drop_fraction)
+
+                         call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                              struct_organ, stem_drop_fraction)
+	              endif	
+                    endif ! individual dbh
 
                 endif !leaf status
              endif !currentSite status
@@ -756,16 +800,40 @@ contains
                    if(store_c>nearzero) then
                       store_c_transfer_frac = &
                             min(EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory, store_c)/store_c
+	              if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+		         totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
+		         store_c_transfer_frac = min(EDPftvarcon_inst%phenflush_fraction(ipft)* &
+		                                 totalmemory, store_c)/store_c
+		      endif			    
                    else
                       store_c_transfer_frac = 0.0_r8
                    end if
                    
                    ! This call will request that storage carbon will be transferred to 
                    ! leaf tissues. It is specified as a fraction of the available storage
-                   call PRTPhenologyFlush(currentCohort%prt, ipft, &
+		   if(EDPftvarcon_inst%woody(ipft) == itrue) then
+		   
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, &
                          leaf_organ, store_c_transfer_frac)
 
-                   currentCohort%laimemory = 0.0_r8
+                       currentCohort%laimemory = 0.0_r8
+	   
+		   else
+		   
+                     call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+		               store_c_transfer_frac*currentCohort%laimemory/totalmemory)		   
+
+                     call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
+		               store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
+
+                     call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, & 
+		              store_c_transfer_frac*currentCohort%structmemory/totalmemory)
+			      
+		     currentCohort%laimemory = 0.0_r8
+		     currentCohort%structmemory = 0.0_r8
+		     currentCohort%sapwmemory = 0.0_r8
+		     
+		   endif
 
                 endif !currentCohort status again?
              endif   !currentSite status
@@ -782,9 +850,22 @@ contains
                    
                    ! Remember what the lai (leaf mass actually) was for next year
                    currentCohort%laimemory   = leaf_c
-
+		   
                    call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                          leaf_organ, leaf_drop_fraction)
+			 
+	           if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+			 
+                      currentCohort%sapwmemory   = sapw_c
+		   
+		      currentCohort%structmemory   = struct_c			 
+
+                      call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                         sapw_organ, stem_drop_fraction)
+
+                      call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                         struct_organ, stem_drop_fraction)
+	           endif			 			 
 
                 endif
              endif !status
@@ -989,6 +1070,7 @@ contains
     integer :: ft
     type (ed_cohort_type) , pointer :: temp_cohort
     integer :: cohortstatus
+    integer :: ipft
     integer,parameter :: recruitstatus = 1 !weather it the new created cohorts is recruited or initialized
     real(r8) :: b_leaf
     real(r8) :: b_fineroot    ! fine root biomass [kgC]
@@ -997,7 +1079,8 @@ contains
     real(r8) :: b_agw         ! Above ground biomass [kgC]
     real(r8) :: b_bgw         ! Below ground biomass [kgC]
     real(r8) :: b_dead
-    real(r8) :: b_store
+    real(r8) :: b_store    
+    real(r8), parameter :: stem_drop_fraction = 1.0_r8 
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
@@ -1022,12 +1105,21 @@ contains
        ! Default assumption is that leaves are on
        cohortstatus = leaves_on
        temp_cohort%laimemory = 0.0_r8     
+       temp_cohort%sapwmemory = 0.0_r8     
+       temp_cohort%structmemory = 0.0_r8     
+   
 
        ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
        ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
        if (EDPftvarcon_inst%season_decid(ft) == itrue .and. currentSite%is_cold)then
-          temp_cohort%laimemory = b_leaf
+          temp_cohort%laimemory = b_leaf 
           b_leaf = 0.0_r8
+	 if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+	    temp_cohort%sapwmemory = b_sapwood * stem_drop_fraction
+            temp_cohort%structmemory = b_dead * stem_drop_fraction
+	    b_sapwood = (1.0_r8 - stem_drop_fraction) * b_sapwood 
+	    b_dead = (1.0_r8 - stem_drop_fraction) * b_dead
+	  endif
           cohortstatus = leaves_off
        endif
        
@@ -1037,6 +1129,12 @@ contains
        if (EDPftvarcon_inst%stress_decid(ft) == itrue .and. currentSite%is_drought )then
           temp_cohort%laimemory = b_leaf
           b_leaf = 0.0_r8
+	 if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+	    temp_cohort%sapwmemory = b_sapwood * stem_drop_fraction
+            temp_cohort%structmemory = b_dead * stem_drop_fraction
+	    b_sapwood = (1.0_r8 - stem_drop_fraction) * b_sapwood 
+	    b_dead = (1.0_r8 - stem_drop_fraction) * b_dead
+	  endif
           cohortstatus = leaves_off
        endif
 
@@ -1055,7 +1153,8 @@ contains
 
           call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                b_leaf, b_fineroot, b_sapwood, b_dead, b_store, &  
-               temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
+               temp_cohort%laimemory, temp_cohort%sapwmemory, temp_cohort%structmemory, cohortstatus,recruitstatus, &
+	       temp_cohort%canopy_trim, currentPatch%NCL_p, &
                currentSite%spread, first_leaf_aclass, bc_in)
 
           ! Note that if hydraulics is on, the number of cohorts may had changed due to hydraulic constraints.
