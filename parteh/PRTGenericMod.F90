@@ -31,18 +31,19 @@ module PRTGenericMod
  
   
   implicit none
+  private ! Modules are private by default
 
-  integer, parameter :: maxlen_varname   = 128
-  integer, parameter :: maxlen_varsymbol = 32
-  integer, parameter :: maxlen_varunits  = 32
-  integer, parameter :: len_baseunit     = 6
+  integer, parameter, public :: maxlen_varname   = 128
+  integer, parameter, public :: maxlen_varsymbol = 32
+  integer, parameter, public :: maxlen_varunits  = 32
+  integer, parameter, public :: len_baseunit     = 6
 
 
   ! We use this parameter as the value for which we set un-initialized values
-  real(r8), parameter :: un_initialized = -9.9e32_r8
+  real(r8), parameter, public :: un_initialized = -9.9e32_r8
 
   ! We use this parameter as the value for which we check un-initialized values
-  real(r8), parameter :: check_initialized = -8.8e32_r8
+  real(r8), parameter, public :: check_initialized = -8.8e32_r8
 
 
   ! -------------------------------------------------------------------------------------
@@ -52,16 +53,16 @@ module PRTGenericMod
   ! This assumption cannot be broken!
   ! -------------------------------------------------------------------------------------
   
-  character(len=len_baseunit), parameter :: mass_unit = 'kg'
-  character(len=len_baseunit), parameter :: mass_rate_unit = 'kg/day'
+  character(len=len_baseunit), parameter, public :: mass_unit = 'kg'
+  character(len=len_baseunit), parameter, public :: mass_rate_unit = 'kg/day'
 
   ! -------------------------------------------------------------------------------------
   ! Allocation Hypothesis Types
   ! These should each have their own module
   ! -------------------------------------------------------------------------------------
 
-  integer, parameter :: prt_carbon_allom_hyp   = 1
-  integer, parameter :: prt_cnp_flex_allom_hyp = 2   ! Still under development
+  integer, parameter, public :: prt_carbon_allom_hyp   = 1
+  integer, parameter, public :: prt_cnp_flex_allom_hyp = 2   ! Still under development
 
 
   ! -------------------------------------------------------------------------------------
@@ -70,14 +71,14 @@ module PRTGenericMod
   ! in each hypothesis to organs that acknowledged in the calling model
   ! -------------------------------------------------------------------------------------
 
-  integer, parameter :: num_organ_types = 6
-  integer, parameter :: all_organs    = 0    ! index for all organs
-  integer, parameter :: leaf_organ    = 1    ! index for leaf organs
-  integer, parameter :: fnrt_organ    = 2    ! index for fine-root organs
-  integer, parameter :: sapw_organ    = 3    ! index for sapwood organs
-  integer, parameter :: store_organ   = 4    ! index for storage organs
-  integer, parameter :: repro_organ   = 5    ! index for reproductive organs
-  integer, parameter :: struct_organ  = 6    ! index for structure (dead) organs
+  integer, parameter, public :: num_organ_types = 6
+  integer, parameter, public :: all_organs    = 0    ! index for all organs
+  integer, parameter, public :: leaf_organ    = 1    ! index for leaf organs
+  integer, parameter, public :: fnrt_organ    = 2    ! index for fine-root organs
+  integer, parameter, public :: sapw_organ    = 3    ! index for sapwood organs
+  integer, parameter, public :: store_organ   = 4    ! index for storage organs
+  integer, parameter, public :: repro_organ   = 5    ! index for reproductive organs
+  integer, parameter, public :: struct_organ  = 6    ! index for structure (dead) organs
 
   ! -------------------------------------------------------------------------------------
   ! Element types
@@ -85,7 +86,7 @@ module PRTGenericMod
   ! to the element that are acknowledged in the calling model
   ! -------------------------------------------------------------------------------------
 
-  integer, parameter :: num_element_types     = 6    ! Total number of unique element
+  integer, parameter, public :: num_element_types     = 6    ! Total number of unique element
                                                      ! curently recognized by PARTEH
                                                      ! should be max index in list below
 
@@ -94,36 +95,36 @@ module PRTGenericMod
   ! element.  At the time of writing this, we are very far away from
   ! creating allocation schemes that even use potassium.
   
-  integer, parameter :: all_carbon_elements = 0
-  integer, parameter :: carbon12_element    = 1
-  integer, parameter :: carbon13_element    = 2
-  integer, parameter :: carbon14_element    = 3
-  integer, parameter :: nitrogen_element    = 4
-  integer, parameter :: phosphorous_element = 5
-  integer, parameter :: potassium_element   = 6
+  integer, parameter, public :: all_carbon_elements = 0
+  integer, parameter, public :: carbon12_element    = 1
+  integer, parameter, public :: carbon13_element    = 2
+  integer, parameter, public :: carbon14_element    = 3
+  integer, parameter, public :: nitrogen_element    = 4
+  integer, parameter, public :: phosphorous_element = 5
+  integer, parameter, public :: potassium_element   = 6
 
   !  The following elements are just placeholders. In the future
   !  if someone wants to develope an allocation hypothesis
   !  that uses nickel, we can just uncomment it from this list
 
-  !  integer, parameter :: calcium_element     = 7
-  !  integer, parameter :: magnesium_element   = 8
-  !  integer, parameter :: sulfur_element      = 9
-  !  integer, parameter :: chlorine_element    = 10
-  !  integer, parameter :: iron_element        = 11
-  !  integer, parameter :: manganese_element   = 12
-  !  integer, parameter :: zinc_element        = 13
-  !  integer, parameter :: copper_element      = 14
-  !  integer, parameter :: boron_element       = 15
-  !  integer, parameter :: molybdenum_element  = 16
-  !  integer, parameter :: nickel_element      = 17
+  !  integer, parameter, public :: calcium_element     = 7
+  !  integer, parameter, public :: magnesium_element   = 8
+  !  integer, parameter, public :: sulfur_element      = 9
+  !  integer, parameter, public :: chlorine_element    = 10
+  !  integer, parameter, public :: iron_element        = 11
+  !  integer, parameter, public :: manganese_element   = 12
+  !  integer, parameter, public :: zinc_element        = 13
+  !  integer, parameter, public :: copper_element      = 14
+  !  integer, parameter, public :: boron_element       = 15
+  !  integer, parameter, public :: molybdenum_element  = 16
+  !  integer, parameter, public :: nickel_element      = 17
 
   
   ! We have some lists of elements or lists of organs, such as
   ! a list of all carbon elements.  To keep routines simple
   ! we set a global to the maximum list size for scratch arrays.
 
-  integer, parameter :: max_spec_per_group = 3    ! we may query these lists
+  integer, parameter, public :: max_spec_per_group = 3    ! we may query these lists
                                                   ! the carbon elements are the biggest list
                                                   ! right now
 
@@ -131,7 +132,7 @@ module PRTGenericMod
   ! List of all carbon elements, the special index "all_carbon_elements"
   ! implies the following list of carbon organs
   
-  integer, parameter, dimension(3) :: carbon_elements_list   = &
+  integer, parameter, dimension(3), public :: carbon_elements_list   = &
        [carbon12_element, carbon13_element, carbon14_element]
 
   
@@ -160,7 +161,7 @@ module PRTGenericMod
   !
   ! -------------------------------------------------------------------------------------
 
-  type prt_vartype
+  type, public :: prt_vartype
      
      real(r8),allocatable :: val(:)       ! Instantaneous state variable           [kg]
      real(r8),allocatable :: val0(:)      ! State variable at the beginning 
@@ -189,7 +190,7 @@ module PRTGenericMod
   ! output only, and input-output.
   ! -------------------------------------------------------------------------------------
 
-  type prt_bctype
+  type, public :: prt_bctype
      
      real(r8), pointer :: rval
      integer, pointer  :: ival
@@ -213,15 +214,15 @@ module PRTGenericMod
   ! all the different modules.
   ! -------------------------------------------------------------------------------------
 
-  type prt_vartypes
+  type, public :: prt_vartypes
      
      type(prt_vartype),allocatable :: variables(:)    ! The state variables and fluxes
      type(prt_bctype), allocatable :: bc_inout(:)     ! These boundaries may be changed
      type(prt_bctype), allocatable :: bc_in(:)        ! These are protected
      type(prt_bctype), allocatable :: bc_out(:)       ! These are overwritten
      real(r8)                      :: ode_opt_step
-     
-  contains
+
+   contains
      
      ! These are extendable procedures that have specialized
      ! content in each of the different hypotheses
@@ -270,7 +271,7 @@ module PRTGenericMod
   ! the variables for any given hypothesis
   ! -------------------------------------------------------------------------------------
   
-  type :: state_descriptor_type
+  type, public :: state_descriptor_type
      character(len=maxlen_varname)   :: longname
      character(len=maxlen_varsymbol) :: symbol
      integer                         :: organ_id    ! global id for organ
@@ -289,7 +290,7 @@ module PRTGenericMod
   ! element, the number of unique variables is capped at the number of elements
   ! per each organ.
   
-  type organ_map_type
+  type, public :: organ_map_type
      integer, dimension(1:num_element_types) :: var_id
      integer                                 :: num_vars
   end type organ_map_type
@@ -315,7 +316,7 @@ module PRTGenericMod
   !     
   ! -------------------------------------------------------------------------------------
 
-  type prt_global_type
+  type, public :: prt_global_type
      
      ! Note that index 0 is reserved for "all" or "irrelevant"
      character(len=maxlen_varname)                             :: hyp_name
@@ -355,8 +356,11 @@ module PRTGenericMod
   end type prt_global_type
 
   
-  type(prt_global_type),pointer :: prt_global
+  type(prt_global_type),pointer,public :: prt_global
 
+  ! Make necessary procedures public
+  public :: GetCoordVal
+  public :: SetState
 
 contains
 

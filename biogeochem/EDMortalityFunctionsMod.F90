@@ -210,20 +210,24 @@ contains
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
     call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,phmort)
-    call LoggingMortality_frac(ipft, currentCohort%dbh, &
+    call LoggingMortality_frac(ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
-                               currentCohort%lmort_infra )
+                               currentCohort%lmort_infra,                        &
+                               currentCohort%l_degrad)
+
+    
+    
 
     if (currentCohort%canopy_layer > 1)then 
-       
        ! Include understory logging mortality rates not associated with disturbance
        dndt_logging = (currentCohort%lmort_direct     + &
                        currentCohort%lmort_collateral + &
                        currentCohort%lmort_infra)/hlm_freq_day
-
        currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+frmort+dndt_logging) * currentCohort%n
     else
+       ! Mortality from logging in the canopy is ONLY disturbance generating, don't
+       ! update number densities via non-disturbance inducing death
        currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
             * (cmort+hmort+bmort+frmort+phmort) * currentCohort%n
     endif

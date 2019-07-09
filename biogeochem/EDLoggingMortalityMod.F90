@@ -59,6 +59,9 @@ module EDLoggingMortalityMod
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
+
+
+   real(r8), public, parameter :: logging_export_frac = 0.8_r8
    
    public :: LoggingMortality_frac
    public :: logging_litter_fluxes
@@ -112,7 +115,7 @@ contains
 
       else if(icode < 0 .and. icode > -366) then
          ! Logging event every year on specific day of year
-         if(hlm_day_of_year .eq. icode  ) then
+         if(hlm_day_of_year .eq. abs(icode)  ) then
             logging_time = .true.
          end if
 
@@ -151,50 +154,71 @@ contains
 
    ! ======================================================================================
 
-   subroutine LoggingMortality_frac( pft_i, dbh, lmort_direct,lmort_collateral,lmort_infra )
+   subroutine LoggingMortality_frac( pft_i, dbh, canopy_layer, lmort_direct, &
+        lmort_collateral, lmort_infra, l_degrad )
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
+      integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
+      real(r8), intent(out) :: l_degrad         ! fraction of trees that are not killed
+                                                ! but suffer from forest degradation (i.e. they
+                                                ! are moved to newly-anthro-disturbed secondary
+                                                ! forest patch)
 
       ! Parameters
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates
  
       if (logging_time) then 
+
+         
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
 
             ! Pass logging rates to cohort level 
 
             if (dbh >= logging_dbhmin ) then
                lmort_direct = logging_direct_frac * adjustment
-               lmort_collateral = logging_collateral_frac * adjustment
+               l_degrad = 0._r8
             else
                lmort_direct = 0.0_r8 
-               lmort_collateral = 0.0_r8
+               l_degrad = logging_direct_frac * adjustment
             end if
            
             if (dbh >= logging_dbhmax_infra) then
                lmort_infra      = 0.0_r8
+               l_degrad         = l_degrad + logging_mechanical_frac * adjustment
             else
                lmort_infra      = logging_mechanical_frac * adjustment
             end if
             !damage rates for size class < & > threshold_size need to be specified seperately
 
-            ! Collateral damage to smaller plants below the direct logging size threshold
+            ! Collateral damage to smaller plants below the canopy layer
             ! will be applied via "understory_death" via the disturbance algorithm
+            ! Important: Degredation rates really only have an impact when
+            ! applied to the canopy layer. So we don't add to degredation
+            ! for collateral damage, even understory collateral damage.
+
+            if (canopy_layer .eq. 1) then
+               lmort_collateral = logging_collateral_frac * adjustment
+            else
+               lmort_collateral = 0._r8
+            endif
 
          else
             lmort_direct    = 0.0_r8
             lmort_collateral = 0.0_r8
             lmort_infra      = 0.0_r8
+            l_degrad         = 0.0_r8
          end if
+
       else 
          lmort_direct    = 0.0_r8
          lmort_collateral = 0.0_r8
          lmort_infra      = 0.0_r8
+         l_degrad         = 0.0_r8
       end if
 
    end subroutine LoggingMortality_frac
@@ -297,10 +321,19 @@ contains
                   (currentCohort%lmort_collateral + currentCohort%lmort_infra)
 
          else
+
+            ! This routine is only called during disturbance.  The litter
+            ! fluxes from non-disturbance generating mortality are 
+            ! handled in EDPhysiology.  Disturbance generating mortality
+            ! are those cohorts in the top canopy layer, or those
+            ! plants that were impacted. Thus, no direct dead can occur
+            ! here, and indirect are impacts.
+
             if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
                direct_dead   = 0.0_r8
-               indirect_dead = logging_coll_under_frac * currentCohort%n * &
-                     (patch_site_areadis/currentPatch%area)  !kgC/site/day
+               indirect_dead = logging_coll_under_frac * &
+                    (1._r8-currentPatch%fract_ldist_not_harvested) * currentCohort%n * &
+                    (patch_site_areadis/currentPatch%area)   !kgC/site/day
             else
                ! If the cohort of interest is grass, it will not experience
                ! any mortality associated with the logging disturbance

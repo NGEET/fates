@@ -9,6 +9,16 @@ module FatesSizeAgeTypeIndicesMod
   use EDParamsMod,           only : ED_val_history_height_bin_edges
 
   implicit none
+  private ! Modules are private by default
+
+  ! Make public necessary subroutines and functions
+  public :: get_age_class_index
+  public :: get_sizeage_class_index
+  public :: sizetype_class_index
+  public :: get_size_class_index
+  public :: get_height_index
+  public :: get_sizeagepft_class_index
+  public :: get_agepft_class_index
 
 contains
 

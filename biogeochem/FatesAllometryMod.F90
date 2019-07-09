@@ -90,6 +90,8 @@ module FatesAllometryMod
   use FatesConstantsMod, only : cm2_per_m2
   use FatesConstantsMod, only : kg_per_Megag
   use FatesConstantsMod, only : calloc_abs_error
+  use FatesConstantsMod, only : fates_unset_r8
+  use FatesConstantsMod, only : itrue
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
@@ -115,7 +117,8 @@ module FatesAllometryMod
   public :: carea_allom   ! Generic crown area wrapper
   public :: bstore_allom  ! Generic maximum storage carbon wrapper
   public :: decay_coeff_kn
-  public :: StructureResetOfDH ! Method to set DBH to sync with structure biomass
+  public :: ForceDBH      ! Method to set DBH to sync with structure
+                          ! or fineroot biomass
   public :: CheckIntegratedAllometries
   public :: CrownDepth
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
@@ -449,15 +452,22 @@ contains
   ! Generic crown area allometry wrapper
   ! ============================================================================
   
-  subroutine carea_allom(d,nplant,site_spread,ipft,c_area)
+  subroutine carea_allom(dbh,nplant,site_spread,ipft,c_area,inverse)
      
-     real(r8),intent(in)    :: d           ! plant diameter [cm]
-     real(r8),intent(in)    :: site_spread ! site level spread factor (crowdedness)
-     real(r8),intent(in)    :: nplant      ! number of plants [1/ha]
-     integer(i4),intent(in) :: ipft        ! PFT index
-     real(r8),intent(out)   :: c_area      ! crown area per cohort (m2)
+     real(r8),intent(inout) :: dbh          ! plant diameter at breast (reference) height [cm]
+     real(r8),intent(in)    :: site_spread  ! site level spread factor (crowdedness)
+     real(r8),intent(in)    :: nplant       ! number of plants [1/ha]
+     integer(i4),intent(in) :: ipft         ! PFT index
+     real(r8),intent(inout) :: c_area       ! crown area per cohort (m2)
+     logical,optional,intent(in) :: inverse ! if true, calculate dbh from crown area 
+                                            ! instead of crown area from dbh
 
-     real(r8)               :: d_eff     ! Effective diameter (cm)
+     real(r8)               :: dbh_eff      ! Effective diameter (cm)
+     logical                :: do_inverse   ! local copy of the inverse argument
+                                            ! defaults to false
+     logical                :: capped_allom ! if we are using an allometry that caps
+                                            ! crown area at height, we need to make
+                                            ! special considerations
      
      associate( dbh_maxh    => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
                 allom_lmode => EDPftvarcon_inst%allom_lmode(ipft),  &
@@ -466,24 +476,49 @@ contains
                 d2ca_min    => EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft), &
                 d2ca_max    => EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft))
        
+       if( .not. present(inverse) ) then 
+          do_inverse = .false.
+       else
+          do_inverse = inverse
+          if (do_inverse) then
+             c_area = c_area / nplant
+          endif
+       endif
+
        select case(int(allom_lmode))
        case(1)
-          d_eff = min(d,dbh_maxh)
-          call carea_2pwr(d_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+          dbh_eff = min(dbh,dbh_maxh)
+          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          capped_allom = .true.
        case(2)   ! "2par_pwr")
-          call carea_2pwr(d,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+          call carea_2pwr(dbh,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          capped_allom = .false.
        case(3)
-          d_eff = min(d,dbh_maxh)
-          call carea_2pwr(d_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+          dbh_eff = min(dbh,dbh_maxh)
+          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          capped_allom = .true.
        case DEFAULT
-         write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
+          write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
                allom_lmode
-         write(fates_log(),*) 'Aborting'
-         call endrun(msg=errMsg(sourcefile, __LINE__))
-      end select
+          write(fates_log(),*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end select
+       
 
-      c_area = c_area * nplant
+       if (capped_allom .and. do_inverse) then
+          if (dbh_eff .lt. dbh_maxh) then
+             dbh = dbh_eff
+          else
+             ! In this situation, we are signaling to the
+             ! calling routine that we we cannot calculate
+             ! dbh from crown area, because we have already
+             ! hit the area cap, and the two are not proportional
+             ! anymore.  hopefully, the calling routine has an alternative
+             dbh = fates_unset_r8
+          endif
+       endif
 
+       c_area = c_area * nplant
 
     end associate
     return
@@ -679,7 +714,8 @@ contains
 
   ! ============================================================================
 
-  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, canopy_lai, treelai, vcmax25top )
+  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, &
+                              canopy_lai, treelai, vcmax25top, call_id )
 
     ! ============================================================================
     !  SAI of individual trees is a function of the LAI of individual trees
@@ -695,8 +731,9 @@ contains
                                                ! each canopy layer
     real(r8), intent(in) :: treelai            ! tree LAI for checking purposes only
     real(r8), intent(in) :: vcmax25top         ! maximum carboxylation rate at top of crown
-                                               
-
+    integer,intent(in)   :: call_id            ! flag specifying where this is called
+                                               ! from
+    real(r8)             :: h
     real(r8)             :: target_bleaf
     real(r8)             :: target_lai
 
@@ -706,13 +743,27 @@ contains
 
     tree_sai   =  EDPftvarcon_inst%allom_sai_scaler(pft) * target_lai
 
-
     if( (treelai + tree_sai) > (nlevleaf*dinc_ed) )then
+
+       call h_allom(dbh,pft,h)
+
        write(fates_log(),*) 'The leaf and stem are predicted for a cohort, maxed out the array size'
        write(fates_log(),*) 'lai: ',treelai
        write(fates_log(),*) 'sai: ',tree_sai
+       write(fates_log(),*) 'target_lai: ',target_lai
        write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
        write(fates_log(),*) 'nlevleaf,dinc_ed,nlevleaf*dinc_ed :',nlevleaf,dinc_ed,nlevleaf*dinc_ed
+       write(fates_log(),*) 'pft: ',pft
+       write(fates_log(),*) 'call id: ',call_id
+       write(fates_log(),*) 'n: ',nplant
+       write(fates_log(),*) 'c_area: ',c_area
+       write(fates_log(),*) 'dbh: ',dbh,' dbh_max: ',EDPftvarcon_inst%allom_dbh_maxheight(pft)
+       write(fates_log(),*) 'h: ',h
+       write(fates_log(),*) 'canopy_trim: ',canopy_trim
+       write(fates_log(),*) 'target_bleaf: ',target_bleaf
+       write(fates_log(),*) 'canopy layer: ',cl
+       write(fates_log(),*) 'canopy_tlai: ',canopy_lai(:)
+       write(fates_log(),*) 'vcmax25top: ',vcmax25top
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     
@@ -1880,20 +1931,21 @@ contains
   ! =============================================================================
 
   
-  subroutine carea_2pwr(d,spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+  subroutine carea_2pwr(dbh,spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,inverse)
 
      ! ============================================================================
      ! Calculate area of ground covered by entire cohort. (m2)
      ! Function of DBH (cm) canopy spread (m/cm) and number of individuals. 
      ! ============================================================================
 
-     real(r8),intent(in) :: d           ! diameter [cm]
+     real(r8),intent(inout) :: dbh      ! diameter at breast (refernce) height [cm]
      real(r8),intent(in) :: spread      ! site level relative spread score [0-1]
      real(r8),intent(in) :: d2bl_p2     ! parameter 2 in the diameter->bleaf allometry (exponent)
      real(r8),intent(in) :: d2bl_ediff  ! area difference factor in the diameter-bleaf allometry (exponent)
      real(r8),intent(in) :: d2ca_min    ! minimum diameter to crown area scaling factor
      real(r8),intent(in) :: d2ca_max    ! maximum diameter to crown area scaling factor
-     real(r8),intent(out) :: c_area     ! crown area for one plant [m2]
+     real(r8),intent(inout) :: c_area   ! crown area for one plant [m2]
+     logical,intent(in)  :: inverse     ! if true, calculate dbh from crown area rather than its reverse
      
      real(r8)            :: crown_area_to_dbh_exponent
      real(r8)            :: spreadterm  ! Effective 2bh to crown area scaling factor
@@ -1917,7 +1969,11 @@ contains
     
      spreadterm = spread * d2ca_max + (1._r8 - spread) * d2ca_min
      
-     c_area = spreadterm * d ** crown_area_to_dbh_exponent
+     if ( .not. inverse) then
+        c_area = spreadterm * dbh ** crown_area_to_dbh_exponent
+     else
+        dbh = (c_area / spreadterm) ** (1./crown_area_to_dbh_exponent)
+     endif
      
   end subroutine carea_2pwr
   
@@ -1937,8 +1993,8 @@ contains
     ! !ARGUMENTS
     real(r8),intent(inout) :: root_fraction(:)
     integer, intent(in)    :: ft
-    real(r8),intent(in)    :: zi(lowerb:)
     integer,intent(in)     :: lowerb
+    real(r8),intent(in)    :: zi(lowerb:)
     integer,intent(in)     :: icontext
 
     ! Parameters
@@ -2144,90 +2200,141 @@ contains
 
   ! =====================================================================================
 
-  subroutine StructureResetOfDH( bdead, ipft, canopy_trim, d, h )
+
+  subroutine ForceDBH( ipft, canopy_trim, d, h, bdead, bl )
 
      ! =========================================================================
-     ! This subroutine estimates the diameter based on the structural biomass
-     ! using the allometric functions. Since allometry is specified with diameter
+     ! This subroutine estimates the diameter based on either the structural biomass
+     ! (if woody) or the leaf biomass using the allometric 
+     ! functions. Since allometry is specified with diameter
      ! as the independant variable, we must do this through a search algorithm.
      ! Here, we keep searching until the difference between actual structure and
      ! the predicted structure based on the searched diameter is within a tolerance.
-     ! T
      ! ============================================================================
 
      use FatesConstantsMod     , only : calloc_abs_error
      ! Arguments
 
-     real(r8),intent(in)           :: bdead ! actual bdead [kgC]
+
      integer(i4),intent(in)        :: ipft  ! PFT index
      real(r8),intent(in)           :: canopy_trim
      real(r8),intent(inout)        :: d     ! plant diameter [cm]
      real(r8),intent(out)          :: h     ! plant height
+     real(r8),intent(in),optional  :: bdead ! Structural biomass
+     real(r8),intent(in),optional  :: bl    ! Leaf biomass
+
      
      ! Locals
      real(r8)  :: bt_sap,dbt_sap_dd  ! target sap wood at current d
      real(r8)  :: bt_agw,dbt_agw_dd  ! target AG wood at current d
      real(r8)  :: bt_bgw,dbt_bgw_dd  ! target BG wood at current d
      real(r8)  :: bt_dead,dbt_dead_dd ! target struct wood at current d
+     real(r8)  :: bt_leaf,dbt_leaf_dd ! target leaf at current d
      real(r8)  :: at_sap              ! sapwood area (dummy) m2
      real(r8)  :: dd                  ! diameter increment for each step
      real(r8)  :: d_try               ! trial diameter
      real(r8)  :: bt_dead_try         ! trial structure biomasss
      real(r8)  :: dbt_dead_dd_try     ! trial structural derivative
+     real(r8)  :: bt_leaf_try         ! trial leaf biomass
+     real(r8)  :: dbt_leaf_dd_try     ! trial leaf derivative
      real(r8)  :: step_frac           ! step fraction
      integer   :: counter 
      real(r8), parameter :: step_frac0  = 0.9_r8
      integer, parameter  :: max_counter = 200
+     
+     ! Do reduce "if" calls, we break this call into two parts
+     if ( EDPftvarcon_inst%woody(ipft) == itrue ) then
 
-     call bsap_allom(d,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
-     call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
-     call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
-     call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
-                      dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
-
-     ! This calculates a diameter increment based on the difference
-     ! in structural mass and the target mass, and sets it to a fraction
-     ! of the diameter increment
-     counter = 0
-     step_frac = step_frac0
-     do while( (bdead-bt_dead) > calloc_abs_error .and. dbt_dead_dd>0.0_r8)
-
-        ! vulnerable to div0
-        dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
-        d_try = d + dd
-        
-        call bsap_allom(d_try,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
-        call bagw_allom(d_try,ipft,bt_agw,dbt_agw_dd)
-        call bbgw_allom(d_try,ipft,bt_bgw,dbt_bgw_dd)
-        call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead_try, dbt_agw_dd, &
-              dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd_try)
-
-        ! Prevent overshooting
-        if(bt_dead_try > (bdead+calloc_abs_error)) then
-           step_frac = step_frac*0.5_r8
-        else
-           step_frac = step_frac0
-           d         = d_try
-           bt_dead   = bt_dead_try
-           dbt_dead_dd = dbt_dead_dd_try
-        end if
-        counter = counter + 1
-        if (counter>max_counter) then
-           write(fates_log(),*) 'Having trouble converging on dbh reset'
+        if(.not.present(bdead)) then
+           write(fates_log(),*) 'woody plants must use structure for dbh reset'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-     end do
+        
+        call bsap_allom(d,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
+        call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
+        call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
+        call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
+             dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
+
+        ! This calculates a diameter increment based on the difference
+        ! in structural mass and the target mass, and sets it to a fraction
+        ! of the diameter increment
+        counter = 0
+        step_frac = step_frac0
+        do while( (bdead-bt_dead) > calloc_abs_error .and. dbt_dead_dd>0.0_r8)
+           
+           ! vulnerable to div0
+           dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
+           d_try = d + dd
+        
+           call bsap_allom(d_try,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
+           call bagw_allom(d_try,ipft,bt_agw,dbt_agw_dd)
+           call bbgw_allom(d_try,ipft,bt_bgw,dbt_bgw_dd)
+           call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead_try, dbt_agw_dd, &
+                dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd_try)
+           
+           ! Prevent overshooting
+           if(bt_dead_try > (bdead+calloc_abs_error)) then
+              step_frac = step_frac*0.5_r8
+           else
+              step_frac = step_frac0
+              d         = d_try
+              bt_dead   = bt_dead_try
+              dbt_dead_dd = dbt_dead_dd_try
+           end if
+           counter = counter + 1
+           if (counter>max_counter) then
+              write(fates_log(),*) 'Having trouble converging on dbh reset'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end do
+        
+
+     else
+
+        if(.not.present(bl)) then
+           write(fates_log(),*) 'grasses must use leaf for dbh reset'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        call bleaf(d,ipft,canopy_trim,bt_leaf,dbt_leaf_dd)
+
+        counter = 0
+        step_frac = step_frac0
+        do while( (bl-bt_leaf) > calloc_abs_error .and. dbt_leaf_dd>0.0_r8)
+
+           dd    = step_frac*(bl-bt_leaf)/dbt_leaf_dd
+           d_try = d + dd
+           
+           call bleaf(d_try,ipft,canopy_trim,bt_leaf_try,dbt_leaf_dd_try)
+
+           ! Prevent overshooting                                                                                           
+           if(bt_leaf_try > (bl+calloc_abs_error)) then
+              step_frac = step_frac*0.5_r8
+           else
+              step_frac = step_frac0
+              d         = d_try
+              bt_leaf   = bt_leaf_try
+              dbt_leaf_dd = dbt_leaf_dd_try
+           end if
+           counter = counter + 1
+           if (counter>max_counter) then
+              write(fates_log(),*) 'Having trouble converging on dbh reset'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end do
+
+     end if
 
      call h_allom(d,ipft,h)
      if(counter>10)then
-        write(fates_log(),*) 'dbh counter: ',counter
+        write(fates_log(),*) 'dbh counter: ',counter,EDPftvarcon_inst%woody(ipft)
      end if
 
-     ! At this point, the diameter, height and their target structural biomass
-     ! should be pretty close to and greater than actual
+     
 
      return
-  end subroutine StructureResetOfDH
+  end subroutine ForceDBH
 
   ! =========================================================================
   

@@ -5,32 +5,33 @@ module FatesIOVariableKindMod
   use FatesIODimensionsMod, only : fates_io_dimension_type
 
   implicit none
+  private
 
   ! FIXME(bja, 2016-10) do these need to be strings, or can they be integer enumerations?
   ! FIXME(rgk, 2016-11) these should probably be moved to varkindmod?
   
-  character(*), parameter :: patch_r8 = 'PA_R8'
-  character(*), parameter :: patch_ground_r8 = 'PA_GRND_R8'
-  character(*), parameter :: patch_size_pft_r8 = 'PA_SCPF_R8'
-  character(*), parameter :: site_r8 = 'SI_R8'
-  character(*), parameter :: site_int = 'SI_INT'
-  character(*), parameter :: site_ground_r8 = 'SI_GRND_R8'
-  character(*), parameter :: site_size_pft_r8 = 'SI_SCPF_R8'
-  character(*), parameter :: site_size_r8 = 'SI_SCLS_R8'
-  character(*), parameter :: patch_int = 'PA_INT'
-  character(*), parameter :: cohort_r8 = 'CO_R8'
-  character(*), parameter :: cohort_int = 'CO_INT'
-  character(*), parameter :: site_pft_r8 = 'SI_PFT_R8'
-  character(*), parameter :: site_age_r8 = 'SI_AGE_R8'
-  character(*), parameter :: site_height_r8 = 'SI_HEIGHT_R8'
-  character(*), parameter :: site_fuel_r8 = 'SI_FUEL_R8'
-  character(*), parameter :: site_cwdsc_r8 = 'SI_CWDSC_R8'
-  character(*), parameter :: site_can_r8 = 'SI_CAN_R8'
-  character(*), parameter :: site_cnlf_r8 = 'SI_CNLF_R8'
-  character(*), parameter :: site_cnlfpft_r8 = 'SI_CNLFPFT_R8'
-  character(*), parameter :: site_scag_r8 = 'SI_SCAG_R8'
-  character(*), parameter :: site_scagpft_r8 = 'SI_SCAGPFT_R8'
-  character(*), parameter :: site_agepft_r8 = 'SI_AGEPFT_R8'
+  character(*), parameter, public :: patch_r8 = 'PA_R8'
+  character(*), parameter, public :: patch_ground_r8 = 'PA_GRND_R8'
+  character(*), parameter, public :: patch_size_pft_r8 = 'PA_SCPF_R8'
+  character(*), parameter, public :: site_r8 = 'SI_R8'
+  character(*), parameter, public :: site_int = 'SI_INT'
+  character(*), parameter, public :: site_ground_r8 = 'SI_GRND_R8'
+  character(*), parameter, public :: site_size_pft_r8 = 'SI_SCPF_R8'
+  character(*), parameter, public :: site_size_r8 = 'SI_SCLS_R8'
+  character(*), parameter, public :: patch_int = 'PA_INT'
+  character(*), parameter, public :: cohort_r8 = 'CO_R8'
+  character(*), parameter, public :: cohort_int = 'CO_INT'
+  character(*), parameter, public :: site_pft_r8 = 'SI_PFT_R8'
+  character(*), parameter, public :: site_age_r8 = 'SI_AGE_R8'
+  character(*), parameter, public :: site_height_r8 = 'SI_HEIGHT_R8'
+  character(*), parameter, public :: site_fuel_r8 = 'SI_FUEL_R8'
+  character(*), parameter, public :: site_cwdsc_r8 = 'SI_CWDSC_R8'
+  character(*), parameter, public :: site_can_r8 = 'SI_CAN_R8'
+  character(*), parameter, public :: site_cnlf_r8 = 'SI_CNLF_R8'
+  character(*), parameter, public :: site_cnlfpft_r8 = 'SI_CNLFPFT_R8'
+  character(*), parameter, public :: site_scag_r8 = 'SI_SCAG_R8'
+  character(*), parameter, public :: site_scagpft_r8 = 'SI_SCAGPFT_R8'
+  character(*), parameter, public :: site_agepft_r8 = 'SI_AGEPFT_R8'
 
   ! NOTE(RGK, 2016) %active is not used yet. Was intended as a check on the HLM->FATES
   ! control parameter passing to ensure all active dimension types received all
@@ -38,7 +39,7 @@ module FatesIOVariableKindMod
   ! passing functions..
 
   ! This structure is not multi-threaded
-  type fates_io_variable_kind_type
+  type, public :: fates_io_variable_kind_type
      character(len=fates_long_string_length) :: name ! String labelling this IO type
      integer              :: ndims       ! number of dimensions in this IO type
      integer, allocatable :: dimsize(:)  ! The size of each dimension
@@ -48,13 +49,14 @@ module FatesIOVariableKindMod
 
    contains
 
-     procedure, public :: Init
-     procedure, public :: set_active
-     procedure, public :: is_active
+     procedure :: Init
+     procedure :: set_active
+     procedure :: is_active
 
   end type fates_io_variable_kind_type
 
-
+  ! Make necessary functions public
+  public :: iotype_index
 
 contains
 

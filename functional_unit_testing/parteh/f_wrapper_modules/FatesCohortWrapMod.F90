@@ -22,7 +22,6 @@ module FatesCohortWrapMod
 
   use EDPftvarcon,            only : EDPftvarcon_inst
 
-  use PRTGenericMod,          only : InitPRTVartype
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
@@ -74,12 +73,10 @@ module FatesCohortWrapMod
   use FatesGlobals          , only : fates_log
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   
-
-  
   implicit none
+  private ! Modules are private by default
   
-  
-  type ed_cohort_type
+  type, public :: ed_cohort_type
      
      integer  :: pft             ! pft number
      integer  :: parteh_model        ! The PARTEH allocation hypothesis used
@@ -109,10 +106,17 @@ module FatesCohortWrapMod
   
   ! Global Instances
   
-  type(ed_cohort_type), pointer       :: cohort_array(:)
-  integer :: numcohort
+  type(ed_cohort_type), pointer, public       :: cohort_array(:)
+  integer, public :: numcohort
 
   character(len=*), parameter, private :: sourcefile = __FILE__
+
+  ! Make necessary procedures public
+  public :: CohortInitAlloc
+  public :: CohortPySet
+  public :: WrapDailyPRT
+  public :: WrapQueryVars
+  public :: WrapQueryDiagnostics
   
 contains
   

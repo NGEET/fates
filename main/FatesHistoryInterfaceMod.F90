@@ -10,6 +10,8 @@ module FatesHistoryInterfaceMod
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
   use EDTypesMod               , only : ican_upper
+  use EDTypesMod               , only : numWaterMem
+  use EDTypesMod               , only : num_vegtemp_mem
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -19,8 +21,10 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceMod        , only : numpft
   use FatesInterfaceMod        , only : hlm_freq_day
   use EDParamsMod              , only : ED_val_comp_excln
+  use EDParamsMod              , only : ED_val_phen_coldtemp
   use FatesInterfaceMod        , only : nlevsclass, nlevage
   use FatesInterfaceMod        , only : nlevheight
+  use FatesInterfaceMod        , only : hlm_model_day
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -34,6 +38,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : sec_per_day
   use FatesConstantsMod        , only : days_per_year
   use FatesConstantsMod        , only : years_per_day
+  use FatesConstantsMod        , only : secondaryforest
 
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
@@ -41,366 +46,447 @@ module FatesHistoryInterfaceMod
 
 
   implicit none
+  private          ! By default everything is private
 
   ! These variables hold the index of the history output structure so we don't
   ! have to constantly do name lookup when we want to populate the dataset
   ! These indices are set during "define_history_vars()" call to "set_history_var()"
-  ! during the initialize phase.  Definitions are not provide, for an explanation of
+  ! during the initialize phase.  Definitions are not provided, for an explanation of
   ! the variable go to its registry.  (IH_ signifies "index history")
+  !
+  ! Because of the complex sub-gridscale structure of FATES, in which multiple patches and cohorts
+  ! exist within a gridcell, along with vertical gradients within and between canopy layers, as well
+  ! as distinct classes such as PFTs or fuel size bins, there are multiple different dimensions in
+  ! which it is possible to output history variables to better understand what's going on.
+  !
+  ! a key point is that, while the number of patches or cohorts can in principle be large, and 
+  ! the age and size indices of a given patch or cohort can be finely resolved, we collapse these 
+  ! continuously varying indices into bins of time-invariant width for the purposes of history 
+  ! outputting.  This is because a given patch or cohort may not persist across a given interval
+  ! of history averaging, so it is better to output all patches of cohorts whose index is within 
+  ! a given interval along the size or age bin.
+  !
+  ! Another particularity of the issue of FATES shifting its subgrid structure frequently 
+  ! and possibly having multiple (or zero) patches or cohorts within a given bin is that, if you
+  ! want to output an average quantities across some dimension, such as a mean carbon flux across 
+  ! patch area of a given age, in general it is better to output both the numerator and denominator
+  ! of the averaging calculation separately, rather than the average itself, and then calculate 
+  ! the average in post-processing. So, e.g. this means outputting both the patch area and the 
+  ! product of the flux within each patch and the patch area as separate variables.  Doing this 
+  ! allows conservation even when the weights are changing rapidly and simplifies the logic when
+  ! the number of patches or cohorts may be anywhere from zero to a large number.
+  !
+  ! So what this means is that anything that is disaggregated at the patch area requires 
+  ! outputting the patch age distribution (in units of patch area / site area) as the denominator
+  ! of the average and then calculating the numerator of the average as XXX times the patch 
+  ! area so (so in units of XXX * patch area / site area). For cohort-level quantities,
+  ! this requires outputting the number density (in units of individuals per site area), etc.
+  !
+  ! For reference, some standardized abbreviations of the FATES dimensions are listed here:
+  ! scls = size-class dimension
+  ! pft  = the pft dimension
+  ! age  = the age bin dimension
+  ! height = the height bin dimension
+  ! cwdsc  = the coarse woody debris size class dimension
+  ! 
+  ! Since the netcdf interface can only handle variables with a certain number of dimensions,
+  ! we have create some "multiplexed" dimensions that combine two or more dimensions into a
+  ! single dimension.  Examples of these are the following:
+  ! scpf = size class x PFT
+  ! cnlf = canopy layer x leaf layer
+  ! cnlfpft = canopy layer x leaf layer x PFT
+  ! scag = size class bin x age bin
+  ! scagpft = size class bin x age bin x PFT
+  ! agepft  = age bin x PFT
+  !
+  ! A recipe for adding a new history variable to this module:
+  ! (1) decide what time frequency it makes sense to update the variable at, and what dimension(s)
+  !     you want to output the variable on
+  ! (2) add the ih_ integer variable in the immediately following section of the module.  
+  !     use the suffix as outlined above for the dimension you are using.
+  ! (3) define a corresponding hio_ variable by associating it to the ih_ variable 
+  !     in the associate section of the subroutine that corresponds to the time-updating 
+  !     frequency that you've chosen
+  !     (i.e. if half-hourly, then work in subroutine update_history_prod; if daily, 
+  !     then work in subroutine update_history_dyn)
+  ! (4) within that subroutine, add the logic that passes the information from the 
+  !     fates-native variable (possibly on a patch or cohort structure) to the history 
+  !     hio_ variable that you've associated to.
+  ! (5) add the variable name, metadata, units, dimension, updating frequency, the ih_ variable 
+  !     index, etc via a call to the set_history_var method in the subroutine define_history_vars.
+  !
   
   ! Indices to 1D Patch variables
 
-  integer, private :: ih_trimming_pa
-  integer, private :: ih_area_plant_pa
-  integer, private :: ih_area_treespread_pa
-  integer, private :: ih_nesterov_fire_danger_pa
-  integer, private :: ih_spitfire_ROS_pa
-  integer, private :: ih_effect_wspeed_pa
-  integer, private :: ih_TFC_ROS_pa
-  integer, private :: ih_fire_intensity_pa
-  integer, private :: ih_fire_area_pa
-  integer, private :: ih_scorch_height_pa
-  integer, private :: ih_fire_fuel_bulkd_pa
-  integer, private :: ih_fire_fuel_eff_moist_pa
-  integer, private :: ih_fire_fuel_sav_pa
-  integer, private :: ih_fire_fuel_mef_pa
-  integer, private :: ih_sum_fuel_pa
-  integer, private :: ih_litter_in_si
-  integer, private :: ih_litter_out_pa
+  integer :: ih_trimming_pa
+  integer :: ih_area_plant_pa
+  integer :: ih_area_treespread_pa
+  integer :: ih_nesterov_fire_danger_pa
+  integer :: ih_spitfire_ROS_pa
+  integer :: ih_effect_wspeed_pa
+  integer :: ih_TFC_ROS_pa
+  integer :: ih_fire_intensity_pa
+  integer :: ih_fire_area_pa
+  integer :: ih_scorch_height_pa
+  integer :: ih_fire_fuel_bulkd_pa
+  integer :: ih_fire_fuel_eff_moist_pa
+  integer :: ih_fire_fuel_sav_pa
+  integer :: ih_fire_fuel_mef_pa
+  integer :: ih_sum_fuel_pa
+  integer :: ih_litter_in_si
+  integer :: ih_litter_out_pa
 
-  integer, private :: ih_daily_temp
-  integer, private :: ih_daily_rh
-  integer, private :: ih_daily_prec
-  integer, private :: ih_seed_bank_si
-  integer, private :: ih_seeds_in_pa
-  integer, private :: ih_seed_decay_pa
-  integer, private :: ih_seed_germination_pa
-  integer, private :: ih_bstore_pa
-  integer, private :: ih_bdead_pa
-  integer, private :: ih_balive_pa
-  integer, private :: ih_bleaf_pa
-  integer, private :: ih_bsapwood_pa
-  integer, private :: ih_bfineroot_pa
-  integer, private :: ih_btotal_pa
-  integer, private :: ih_agb_pa
-  integer, private :: ih_npp_pa
-  integer, private :: ih_gpp_pa
-  integer, private :: ih_aresp_pa
-  integer, private :: ih_maint_resp_pa
-  integer, private :: ih_growth_resp_pa
-  integer, private :: ih_ar_canopy_pa
-  integer, private :: ih_gpp_canopy_pa
-  integer, private :: ih_ar_understory_pa
-  integer, private :: ih_gpp_understory_pa
-  integer, private :: ih_canopy_biomass_pa
-  integer, private :: ih_understory_biomass_pa
+  integer :: ih_daily_temp
+  integer :: ih_daily_rh
+  integer :: ih_daily_prec
+  integer :: ih_seed_bank_si
+  integer :: ih_seeds_in_pa
+  integer :: ih_seed_decay_pa
+  integer :: ih_seed_germination_pa
+  integer :: ih_bstore_pa
+  integer :: ih_bdead_pa
+  integer :: ih_balive_pa
+  integer :: ih_bleaf_pa
+  integer :: ih_bsapwood_pa
+  integer :: ih_bfineroot_pa
+  integer :: ih_btotal_pa
+  integer :: ih_agb_pa
+  integer :: ih_npp_pa
+  integer :: ih_gpp_pa
+  integer :: ih_aresp_pa
+  integer :: ih_maint_resp_pa
+  integer :: ih_growth_resp_pa
+  integer :: ih_ar_canopy_pa
+  integer :: ih_gpp_canopy_pa
+  integer :: ih_ar_understory_pa
+  integer :: ih_gpp_understory_pa
+  integer :: ih_canopy_biomass_pa
+  integer :: ih_understory_biomass_pa
   
   ! Indices to site by size-class by age variables
-  integer, private :: ih_nplant_si_scag
-  integer, private :: ih_nplant_canopy_si_scag
-  integer, private :: ih_nplant_understory_si_scag
-  integer, private :: ih_ddbh_canopy_si_scag
-  integer, private :: ih_ddbh_understory_si_scag
-  integer, private :: ih_mortality_canopy_si_scag
-  integer, private :: ih_mortality_understory_si_scag
+  integer :: ih_nplant_si_scag
+  integer :: ih_nplant_canopy_si_scag
+  integer :: ih_nplant_understory_si_scag
+  integer :: ih_ddbh_canopy_si_scag
+  integer :: ih_ddbh_understory_si_scag
+  integer :: ih_mortality_canopy_si_scag
+  integer :: ih_mortality_understory_si_scag
 
   ! Indices to site by size-class by age by pft variables
-  integer, private :: ih_nplant_si_scagpft
+  integer :: ih_nplant_si_scagpft
 
   ! Indices to site by patch age by pft variables
-  integer, private :: ih_biomass_si_agepft
-  integer, private :: ih_npp_si_agepft
+  integer :: ih_biomass_si_agepft
+  integer :: ih_npp_si_agepft
 
   ! Indices to (site) variables
-  integer, private :: ih_nep_si
-  integer, private :: ih_nep_timeintegrated_si
-  integer, private :: ih_npp_timeintegrated_si
-  integer, private :: ih_hr_timeintegrated_si
-  integer, private :: ih_nbp_si
-  integer, private :: ih_npp_si
-  integer, private :: ih_c_stomata_si
-  integer, private :: ih_c_lblayer_si
-  integer, private :: ih_fire_c_to_atm_si
-  integer, private :: ih_ed_to_bgc_this_edts_si
-  integer, private :: ih_ed_to_bgc_last_edts_si
-  integer, private :: ih_totecosysc_si
-  integer, private :: ih_totecosysc_old_si
-  integer, private :: ih_totedc_si
-  integer, private :: ih_totedc_old_si
-  integer, private :: ih_totbgcc_si
-  integer, private :: ih_totbgcc_old_si
-  integer, private :: ih_biomass_stock_si
-  integer, private :: ih_litter_stock_si
-  integer, private :: ih_cwd_stock_si
-  integer, private :: ih_cbal_err_fates_si
-  integer, private :: ih_cbal_err_bgc_si
-  integer, private :: ih_cbal_err_tot_si
-  integer, private :: ih_npatches_si
-  integer, private :: ih_ncohorts_si
-  integer, private :: ih_demotion_carbonflux_si
-  integer, private :: ih_promotion_carbonflux_si
-  integer, private :: ih_canopy_mortality_carbonflux_si
-  integer, private :: ih_understory_mortality_carbonflux_si
-  integer, private :: ih_canopy_spread_si
-  integer, private :: ih_npp_leaf_si
-  integer, private :: ih_npp_seed_si
-  integer, private :: ih_npp_stem_si
-  integer, private :: ih_npp_froot_si
-  integer, private :: ih_npp_croot_si
-  integer, private :: ih_npp_stor_si
-  integer, private :: ih_leaf_mr_si
-  integer, private :: ih_froot_mr_si
-  integer, private :: ih_livestem_mr_si
-  integer, private :: ih_livecroot_mr_si
-  integer, private :: ih_h2oveg_si
-  integer, private :: ih_h2oveg_dead_si
-  integer, private :: ih_h2oveg_recruit_si
-  integer, private :: ih_h2oveg_growturn_err_si
-  integer, private :: ih_h2oveg_pheno_err_si
-  integer, private :: ih_h2oveg_hydro_err_si
-    
-  ! Indices to (site x scpf) variables
-  integer, private :: ih_nplant_si_scpf
-  integer, private :: ih_gpp_si_scpf
-  integer, private :: ih_npp_totl_si_scpf
-  integer, private :: ih_npp_leaf_si_scpf
-  integer, private :: ih_npp_seed_si_scpf
-  integer, private :: ih_npp_fnrt_si_scpf
-  integer, private :: ih_npp_bgsw_si_scpf
-  integer, private :: ih_npp_bgdw_si_scpf
-  integer, private :: ih_npp_agsw_si_scpf
-  integer, private :: ih_npp_agdw_si_scpf
-  integer, private :: ih_npp_stor_si_scpf
+  integer :: ih_nep_si
+  integer :: ih_nep_timeintegrated_si
+  integer :: ih_npp_timeintegrated_si
+  integer :: ih_hr_timeintegrated_si
+  integer :: ih_nbp_si
+  integer :: ih_npp_si
+  integer :: ih_c_stomata_si
+  integer :: ih_c_lblayer_si
+  integer :: ih_fire_c_to_atm_si
+  integer :: ih_totecosysc_si
+  integer :: ih_totecosysc_old_si
+  integer :: ih_totedc_si
+  integer :: ih_totedc_old_si
+  integer :: ih_totbgcc_si
+  integer :: ih_totbgcc_old_si
+  integer :: ih_biomass_stock_si
+  integer :: ih_litter_stock_si
+  integer :: ih_cwd_stock_si
+  integer :: ih_cbal_err_fates_si
+  integer :: ih_cbal_err_bgc_si
+  integer :: ih_cbal_err_tot_si
+  integer :: ih_npatches_si
+  integer :: ih_ncohorts_si
+  integer :: ih_demotion_carbonflux_si
+  integer :: ih_promotion_carbonflux_si
+  integer :: ih_canopy_mortality_carbonflux_si
+  integer :: ih_understory_mortality_carbonflux_si
+  integer :: ih_canopy_spread_si
+  integer :: ih_npp_leaf_si
+  integer :: ih_npp_seed_si
+  integer :: ih_npp_stem_si
+  integer :: ih_npp_froot_si
+  integer :: ih_npp_croot_si
+  integer :: ih_npp_stor_si
+  integer :: ih_leaf_mr_si
+  integer :: ih_froot_mr_si
+  integer :: ih_livestem_mr_si
+  integer :: ih_livecroot_mr_si
+  integer :: ih_fraction_secondary_forest_si
+  integer :: ih_biomass_secondary_forest_si
+  integer :: ih_woodproduct_si
+  integer :: ih_h2oveg_si
+  integer :: ih_h2oveg_dead_si
+  integer :: ih_h2oveg_recruit_si
+  integer :: ih_h2oveg_growturn_err_si
+  integer :: ih_h2oveg_pheno_err_si
+  integer :: ih_h2oveg_hydro_err_si
+
+  integer :: ih_site_cstatus_si
+  integer :: ih_site_dstatus_si
+  integer :: ih_gdd_si
+  integer :: ih_site_nchilldays_si
+  integer :: ih_site_ncolddays_si
+  integer :: ih_cleafoff_si
+  integer :: ih_cleafon_si
+  integer :: ih_dleafoff_si
+  integer :: ih_dleafon_si
+  integer :: ih_meanliqvol_si
+  integer :: ih_nplant_si_scpf
+  integer :: ih_gpp_si_scpf
+  integer :: ih_npp_totl_si_scpf
+  integer :: ih_npp_leaf_si_scpf
+  integer :: ih_npp_seed_si_scpf
+  integer :: ih_npp_fnrt_si_scpf
+  integer :: ih_npp_bgsw_si_scpf
+  integer :: ih_npp_bgdw_si_scpf
+  integer :: ih_npp_agsw_si_scpf
+  integer :: ih_npp_agdw_si_scpf
+  integer :: ih_npp_stor_si_scpf
   
-  integer, private :: ih_bstor_canopy_si_scpf
-  integer, private :: ih_bstor_understory_si_scpf
-  integer, private :: ih_bleaf_canopy_si_scpf
-  integer, private :: ih_bleaf_understory_si_scpf
-  integer, private :: ih_mortality_canopy_si_scpf
-  integer, private :: ih_mortality_understory_si_scpf
-  integer, private :: ih_nplant_canopy_si_scpf
-  integer, private :: ih_nplant_understory_si_scpf
-  integer, private :: ih_ddbh_canopy_si_scpf
-  integer, private :: ih_ddbh_understory_si_scpf
-  integer, private :: ih_gpp_canopy_si_scpf
-  integer, private :: ih_gpp_understory_si_scpf
-  integer, private :: ih_ar_canopy_si_scpf
-  integer, private :: ih_ar_understory_si_scpf
+  integer :: ih_bstor_canopy_si_scpf
+  integer :: ih_bstor_understory_si_scpf
+  integer :: ih_bleaf_canopy_si_scpf
+  integer :: ih_bleaf_understory_si_scpf
+  integer :: ih_mortality_canopy_si_scpf
+  integer :: ih_mortality_understory_si_scpf
+  integer :: ih_nplant_canopy_si_scpf
+  integer :: ih_nplant_understory_si_scpf
+  integer :: ih_ddbh_canopy_si_scpf
+  integer :: ih_ddbh_understory_si_scpf
+  integer :: ih_gpp_canopy_si_scpf
+  integer :: ih_gpp_understory_si_scpf
+  integer :: ih_ar_canopy_si_scpf
+  integer :: ih_ar_understory_si_scpf
 
-  integer, private :: ih_ddbh_si_scpf
-  integer, private :: ih_growthflux_si_scpf
-  integer, private :: ih_growthflux_fusion_si_scpf
-  integer, private :: ih_ba_si_scpf
-  integer, private :: ih_m1_si_scpf
-  integer, private :: ih_m2_si_scpf
-  integer, private :: ih_m3_si_scpf
-  integer, private :: ih_m4_si_scpf
-  integer, private :: ih_m5_si_scpf
-  integer, private :: ih_m6_si_scpf
-  integer, private :: ih_m7_si_scpf  
-  integer, private :: ih_m8_si_scpf
-  integer, private :: ih_crownfiremort_si_scpf
-  integer, private :: ih_cambialfiremort_si_scpf
-
-
-  integer, private :: ih_ar_si_scpf
-  integer, private :: ih_ar_grow_si_scpf
-  integer, private :: ih_ar_maint_si_scpf
-  integer, private :: ih_ar_darkm_si_scpf
-  integer, private :: ih_ar_agsapm_si_scpf
-  integer, private :: ih_ar_crootm_si_scpf
-  integer, private :: ih_ar_frootm_si_scpf
+  integer :: ih_ddbh_si_scpf
+  integer :: ih_growthflux_si_scpf
+  integer :: ih_growthflux_fusion_si_scpf
+  integer :: ih_ba_si_scpf
+  integer :: ih_m1_si_scpf
+  integer :: ih_m2_si_scpf
+  integer :: ih_m3_si_scpf
+  integer :: ih_m4_si_scpf
+  integer :: ih_m5_si_scpf
+  integer :: ih_m6_si_scpf
+  integer :: ih_m7_si_scpf  
+  integer :: ih_m8_si_scpf
+  integer :: ih_crownfiremort_si_scpf
+  integer :: ih_cambialfiremort_si_scpf
 
 
-  ! indices to (site x scls) variables
-  integer, private :: ih_ba_si_scls
-  integer, private :: ih_nplant_si_scls
-  integer, private :: ih_nplant_canopy_si_scls
-  integer, private :: ih_nplant_understory_si_scls
-  integer, private :: ih_lai_canopy_si_scls
-  integer, private :: ih_lai_understory_si_scls
-  integer, private :: ih_sai_canopy_si_scls
-  integer, private :: ih_sai_understory_si_scls
-  integer, private :: ih_mortality_canopy_si_scls
-  integer, private :: ih_mortality_understory_si_scls
-  integer, private :: ih_demotion_rate_si_scls
-  integer, private :: ih_promotion_rate_si_scls
-  integer, private :: ih_trimming_canopy_si_scls
-  integer, private :: ih_trimming_understory_si_scls
-  integer, private :: ih_crown_area_canopy_si_scls
-  integer, private :: ih_crown_area_understory_si_scls
-  integer, private :: ih_ddbh_canopy_si_scls
-  integer, private :: ih_ddbh_understory_si_scls
-  integer, private :: ih_agb_si_scls
-  integer, private :: ih_biomass_si_scls
+  integer :: ih_ar_si_scpf
+  integer :: ih_ar_grow_si_scpf
+  integer :: ih_ar_maint_si_scpf
+  integer :: ih_ar_darkm_si_scpf
+  integer :: ih_ar_agsapm_si_scpf
+  integer :: ih_ar_crootm_si_scpf
+  integer :: ih_ar_frootm_si_scpf
+  
+  integer :: ih_c13disc_si_scpf
+
+
+  ! indices to (site x scls [size class bins]) variables
+  integer :: ih_ba_si_scls
+  integer :: ih_nplant_si_scls
+  integer :: ih_nplant_canopy_si_scls
+  integer :: ih_nplant_understory_si_scls
+  integer :: ih_lai_canopy_si_scls
+  integer :: ih_lai_understory_si_scls
+  integer :: ih_sai_canopy_si_scls
+  integer :: ih_sai_understory_si_scls
+  integer :: ih_mortality_canopy_si_scls
+  integer :: ih_mortality_understory_si_scls
+  integer :: ih_demotion_rate_si_scls
+  integer :: ih_promotion_rate_si_scls
+  integer :: ih_trimming_canopy_si_scls
+  integer :: ih_trimming_understory_si_scls
+  integer :: ih_crown_area_canopy_si_scls
+  integer :: ih_crown_area_understory_si_scls
+  integer :: ih_ddbh_canopy_si_scls
+  integer :: ih_ddbh_understory_si_scls
+  integer :: ih_agb_si_scls
+  integer :: ih_biomass_si_scls
 
   ! mortality vars
-  integer, private :: ih_m1_si_scls
-  integer, private :: ih_m2_si_scls
-  integer, private :: ih_m3_si_scls
-  integer, private :: ih_m4_si_scls
-  integer, private :: ih_m5_si_scls
-  integer, private :: ih_m6_si_scls
-  integer, private :: ih_m7_si_scls  
-  integer, private :: ih_m8_si_scls
+  integer :: ih_m1_si_scls
+  integer :: ih_m2_si_scls
+  integer :: ih_m3_si_scls
+  integer :: ih_m4_si_scls
+  integer :: ih_m5_si_scls
+  integer :: ih_m6_si_scls
+  integer :: ih_m7_si_scls  
+  integer :: ih_m8_si_scls
 
   ! lots of non-default diagnostics for understanding canopy versus understory carbon balances
-  integer, private :: ih_rdark_canopy_si_scls
-  integer, private :: ih_livestem_mr_canopy_si_scls
-  integer, private :: ih_livecroot_mr_canopy_si_scls
-  integer, private :: ih_froot_mr_canopy_si_scls
-  integer, private :: ih_resp_g_canopy_si_scls
-  integer, private :: ih_resp_m_canopy_si_scls
-  integer, private :: ih_leaf_md_canopy_si_scls
-  integer, private :: ih_root_md_canopy_si_scls
-  integer, private :: ih_carbon_balance_canopy_si_scls
-  integer, private :: ih_bstore_md_canopy_si_scls
-  integer, private :: ih_bdead_md_canopy_si_scls
-  integer, private :: ih_bsw_md_canopy_si_scls
-  integer, private :: ih_seed_prod_canopy_si_scls
-  integer, private :: ih_npp_leaf_canopy_si_scls
-  integer, private :: ih_npp_fnrt_canopy_si_scls
-  integer, private :: ih_npp_sapw_canopy_si_scls
-  integer, private :: ih_npp_dead_canopy_si_scls
-  integer, private :: ih_npp_seed_canopy_si_scls
-  integer, private :: ih_npp_stor_canopy_si_scls
+  integer :: ih_rdark_canopy_si_scls
+  integer :: ih_livestem_mr_canopy_si_scls
+  integer :: ih_livecroot_mr_canopy_si_scls
+  integer :: ih_froot_mr_canopy_si_scls
+  integer :: ih_resp_g_canopy_si_scls
+  integer :: ih_resp_m_canopy_si_scls
+  integer :: ih_leaf_md_canopy_si_scls
+  integer :: ih_root_md_canopy_si_scls
+  integer :: ih_carbon_balance_canopy_si_scls
+  integer :: ih_bstore_md_canopy_si_scls
+  integer :: ih_bdead_md_canopy_si_scls
+  integer :: ih_bsw_md_canopy_si_scls
+  integer :: ih_seed_prod_canopy_si_scls
+  integer :: ih_npp_leaf_canopy_si_scls
+  integer :: ih_npp_fnrt_canopy_si_scls
+  integer :: ih_npp_sapw_canopy_si_scls
+  integer :: ih_npp_dead_canopy_si_scls
+  integer :: ih_npp_seed_canopy_si_scls
+  integer :: ih_npp_stor_canopy_si_scls
 
-  integer, private :: ih_rdark_understory_si_scls
-  integer, private :: ih_livestem_mr_understory_si_scls
-  integer, private :: ih_livecroot_mr_understory_si_scls
-  integer, private :: ih_froot_mr_understory_si_scls
-  integer, private :: ih_resp_g_understory_si_scls
-  integer, private :: ih_resp_m_understory_si_scls
-  integer, private :: ih_leaf_md_understory_si_scls
-  integer, private :: ih_root_md_understory_si_scls
-  integer, private :: ih_carbon_balance_understory_si_scls
-  integer, private :: ih_bsw_md_understory_si_scls
-  integer, private :: ih_bdead_md_understory_si_scls
-  integer, private :: ih_bstore_md_understory_si_scls
-  integer, private :: ih_seed_prod_understory_si_scls
-  integer, private :: ih_npp_leaf_understory_si_scls
-  integer, private :: ih_npp_fnrt_understory_si_scls
-  integer, private :: ih_npp_sapw_understory_si_scls
-  integer, private :: ih_npp_dead_understory_si_scls
-  integer, private :: ih_npp_seed_understory_si_scls
-  integer, private :: ih_npp_stor_understory_si_scls
+  integer :: ih_rdark_understory_si_scls
+  integer :: ih_livestem_mr_understory_si_scls
+  integer :: ih_livecroot_mr_understory_si_scls
+  integer :: ih_froot_mr_understory_si_scls
+  integer :: ih_resp_g_understory_si_scls
+  integer :: ih_resp_m_understory_si_scls
+  integer :: ih_leaf_md_understory_si_scls
+  integer :: ih_root_md_understory_si_scls
+  integer :: ih_carbon_balance_understory_si_scls
+  integer :: ih_bsw_md_understory_si_scls
+  integer :: ih_bdead_md_understory_si_scls
+  integer :: ih_bstore_md_understory_si_scls
+  integer :: ih_seed_prod_understory_si_scls
+  integer :: ih_npp_leaf_understory_si_scls
+  integer :: ih_npp_fnrt_understory_si_scls
+  integer :: ih_npp_sapw_understory_si_scls
+  integer :: ih_npp_dead_understory_si_scls
+  integer :: ih_npp_seed_understory_si_scls
+  integer :: ih_npp_stor_understory_si_scls
 
-  integer, private :: ih_yesterdaycanopylevel_canopy_si_scls
-  integer, private :: ih_yesterdaycanopylevel_understory_si_scls
+  integer :: ih_yesterdaycanopylevel_canopy_si_scls
+  integer :: ih_yesterdaycanopylevel_understory_si_scls
 
   ! indices to (site x pft) variables
-  integer, private :: ih_biomass_si_pft
-  integer, private :: ih_leafbiomass_si_pft
-  integer, private :: ih_storebiomass_si_pft
-  integer, private :: ih_nindivs_si_pft
-  integer, private :: ih_recruitment_si_pft
-  integer, private :: ih_mortality_si_pft
-  integer, private :: ih_crownarea_si_pft
+  integer :: ih_biomass_si_pft
+  integer :: ih_leafbiomass_si_pft
+  integer :: ih_storebiomass_si_pft
+  integer :: ih_nindivs_si_pft
+  integer :: ih_recruitment_si_pft
+  integer :: ih_mortality_si_pft
+  integer :: ih_crownarea_si_pft
 
 
   ! indices to (site x patch-age) variables
-  integer, private :: ih_area_si_age
-  integer, private :: ih_lai_si_age
-  integer, private :: ih_canopy_area_si_age
-  integer, private :: ih_gpp_si_age
-  integer, private :: ih_npp_si_age
-  integer, private :: ih_ncl_si_age
-  integer, private :: ih_npatches_si_age
-  integer, private :: ih_zstar_si_age
-  integer, private :: ih_biomass_si_age
-  integer, private :: ih_c_stomata_si_age
-  integer, private :: ih_c_lblayer_si_age
+  integer :: ih_area_si_age
+  integer :: ih_lai_si_age
+  integer :: ih_canopy_area_si_age
+  integer :: ih_gpp_si_age
+  integer :: ih_npp_si_age
+  integer :: ih_ncl_si_age
+  integer :: ih_npatches_si_age
+  integer :: ih_zstar_si_age
+  integer :: ih_biomass_si_age
+  integer :: ih_c_stomata_si_age
+  integer :: ih_c_lblayer_si_age
+  integer :: ih_agesince_anthrodist_si_age
+  integer :: ih_secondaryforest_area_si_age
 
   ! indices to (site x height) variables
-  integer, private :: ih_canopy_height_dist_si_height
-  integer, private :: ih_leaf_height_dist_si_height
+  integer :: ih_canopy_height_dist_si_height
+  integer :: ih_leaf_height_dist_si_height
 
   ! Indices to hydraulics variables
   
-  integer, private :: ih_errh2o_scpf
-  integer, private :: ih_tran_scpf
-  integer, private :: ih_rootuptake_scpf
-  integer, private :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
-  integer, private :: ih_rootuptake01_scpf
-  integer, private :: ih_rootuptake02_scpf
-  integer, private :: ih_rootuptake03_scpf
-  integer, private :: ih_rootuptake04_scpf
-  integer, private :: ih_rootuptake05_scpf
-  integer, private :: ih_rootuptake06_scpf
-  integer, private :: ih_rootuptake07_scpf
-  integer, private :: ih_rootuptake08_scpf
-  integer, private :: ih_rootuptake09_scpf
-  integer, private :: ih_rootuptake10_scpf
-  integer, private :: ih_sapflow_scpf
-  integer, private :: ih_iterh1_scpf          
-  integer, private :: ih_iterh2_scpf           
-  integer, private :: ih_supsub_scpf              
-  integer, private :: ih_ath_scpf               
-  integer, private :: ih_tth_scpf               
-  integer, private :: ih_sth_scpf                     
-  integer, private :: ih_lth_scpf                     
-  integer, private :: ih_awp_scpf                     
-  integer, private :: ih_twp_scpf  
-  integer, private :: ih_swp_scpf                     
-  integer, private :: ih_lwp_scpf  
-  integer, private :: ih_aflc_scpf                     
-  integer, private :: ih_tflc_scpf  
-  integer, private :: ih_sflc_scpf                     
-  integer, private :: ih_lflc_scpf                   
-  integer, private :: ih_btran_scpf
+  integer :: ih_errh2o_scpf
+  integer :: ih_tran_scpf
+  integer :: ih_rootuptake_scpf
+  integer :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
+  integer :: ih_rootuptake01_scpf
+  integer :: ih_rootuptake02_scpf
+  integer :: ih_rootuptake03_scpf
+  integer :: ih_rootuptake04_scpf
+  integer :: ih_rootuptake05_scpf
+  integer :: ih_rootuptake06_scpf
+  integer :: ih_rootuptake07_scpf
+  integer :: ih_rootuptake08_scpf
+  integer :: ih_rootuptake09_scpf
+  integer :: ih_rootuptake10_scpf
+  integer :: ih_sapflow_scpf
+  integer :: ih_iterh1_scpf          
+  integer :: ih_iterh2_scpf           
+  integer :: ih_supsub_scpf              
+  integer :: ih_ath_scpf               
+  integer :: ih_tth_scpf               
+  integer :: ih_sth_scpf                     
+  integer :: ih_lth_scpf                     
+  integer :: ih_awp_scpf                     
+  integer :: ih_twp_scpf  
+  integer :: ih_swp_scpf                     
+  integer :: ih_lwp_scpf  
+  integer :: ih_aflc_scpf                     
+  integer :: ih_tflc_scpf  
+  integer :: ih_sflc_scpf                     
+  integer :: ih_lflc_scpf                   
+  integer :: ih_btran_scpf
 
   ! indices to (site x fuel class) variables
-  integer, private :: ih_litter_moisture_si_fuel
+  integer :: ih_litter_moisture_si_fuel
 
   ! indices to (site x cwd size class) variables
-  integer, private :: ih_cwd_ag_si_cwdsc
-  integer, private :: ih_cwd_bg_si_cwdsc
-  integer, private :: ih_cwd_ag_in_si_cwdsc
-  integer, private :: ih_cwd_bg_in_si_cwdsc
-  integer, private :: ih_cwd_ag_out_si_cwdsc
-  integer, private :: ih_cwd_bg_out_si_cwdsc
+  integer :: ih_cwd_ag_si_cwdsc
+  integer :: ih_cwd_bg_si_cwdsc
+  integer :: ih_cwd_ag_in_si_cwdsc
+  integer :: ih_cwd_bg_in_si_cwdsc
+  integer :: ih_cwd_ag_out_si_cwdsc
+  integer :: ih_cwd_bg_out_si_cwdsc
 
   ! indices to (site x [canopy layer x leaf layer]) variables
-  integer, private :: ih_parsun_z_si_cnlf
-  integer, private :: ih_parsha_z_si_cnlf
-  integer, private :: ih_laisun_z_si_cnlf
-  integer, private :: ih_laisha_z_si_cnlf
-  integer, private :: ih_fabd_sun_si_cnlf
-  integer, private :: ih_fabd_sha_si_cnlf
-  integer, private :: ih_fabi_sun_si_cnlf
-  integer, private :: ih_fabi_sha_si_cnlf
-  integer, private :: ih_ts_net_uptake_si_cnlf
-  integer, private :: ih_crownarea_si_cnlf
-  integer, private :: ih_parprof_dir_si_cnlf
-  integer, private :: ih_parprof_dif_si_cnlf
+  integer :: ih_parsun_z_si_cnlf
+  integer :: ih_parsha_z_si_cnlf
+  integer :: ih_laisun_z_si_cnlf
+  integer :: ih_laisha_z_si_cnlf
+  integer :: ih_fabd_sun_si_cnlf
+  integer :: ih_fabd_sha_si_cnlf
+  integer :: ih_fabi_sun_si_cnlf
+  integer :: ih_fabi_sha_si_cnlf
+  integer :: ih_ts_net_uptake_si_cnlf
+  integer :: ih_crownarea_si_cnlf
+  integer :: ih_parprof_dir_si_cnlf
+  integer :: ih_parprof_dif_si_cnlf
 
   ! indices to (site x [canopy layer x leaf layer x pft]) variables
-  integer, private :: ih_parsun_z_si_cnlfpft
-  integer, private :: ih_parsha_z_si_cnlfpft
-  integer, private :: ih_laisun_z_si_cnlfpft
-  integer, private :: ih_laisha_z_si_cnlfpft
-  integer, private :: ih_fabd_sun_si_cnlfpft
-  integer, private :: ih_fabd_sha_si_cnlfpft
-  integer, private :: ih_fabi_sun_si_cnlfpft
-  integer, private :: ih_fabi_sha_si_cnlfpft
-  integer, private :: ih_parprof_dir_si_cnlfpft
-  integer, private :: ih_parprof_dif_si_cnlfpft
+  integer :: ih_parsun_z_si_cnlfpft
+  integer :: ih_parsha_z_si_cnlfpft
+  integer :: ih_laisun_z_si_cnlfpft
+  integer :: ih_laisha_z_si_cnlfpft
+  integer :: ih_fabd_sun_si_cnlfpft
+  integer :: ih_fabd_sha_si_cnlfpft
+  integer :: ih_fabi_sun_si_cnlfpft
+  integer :: ih_fabi_sha_si_cnlfpft
+  integer :: ih_parprof_dir_si_cnlfpft
+  integer :: ih_parprof_dif_si_cnlfpft
 
   ! indices to (site x canopy layer) variables
-  integer, private :: ih_parsun_top_si_can
-  integer, private :: ih_parsha_top_si_can
-  integer, private :: ih_laisun_top_si_can
-  integer, private :: ih_laisha_top_si_can
-  integer, private :: ih_fabd_sun_top_si_can
-  integer, private :: ih_fabd_sha_top_si_can
-  integer, private :: ih_fabi_sun_top_si_can
-  integer, private :: ih_fabi_sha_top_si_can
-  integer, private :: ih_crownarea_si_can
+  integer :: ih_parsun_top_si_can
+  integer :: ih_parsha_top_si_can
+  integer :: ih_laisun_top_si_can
+  integer :: ih_laisha_top_si_can
+  integer :: ih_fabd_sun_top_si_can
+  integer :: ih_fabd_sha_top_si_can
+  integer :: ih_fabi_sun_top_si_can
+  integer :: ih_fabi_sha_top_si_can
+  integer :: ih_crownarea_si_can
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_history_num_dimensions = 16
-  integer, parameter :: fates_history_num_dim_kinds = 18
-  
+  integer, parameter, public :: fates_history_num_dimensions = 16
+  integer, parameter, public :: fates_history_num_dim_kinds = 18
+
+  ! These flags are used to help specify what to do with non-fates
+  ! locations in the host model
+  integer, parameter, public :: zero_flag   = 0
+  integer, parameter, public :: ignore_flag = 1
 
   
   ! This structure is allocated by thread, and must be calculated after the FATES
@@ -408,7 +494,7 @@ module FatesHistoryInterfaceMod
   ! is not combined with iovar_bounds, because that one is multi-instanced.  This
   ! structure is used more during the update phase, wherease _bounds is used
   ! more for things like flushing
-  type iovar_map_type
+  type, public :: iovar_map_type
      integer, allocatable :: site_index(:)   ! maps site indexes to the HIO site position
      integer, allocatable :: patch1_index(:) ! maps site index to the HIO patch 1st position
   end type iovar_map_type
@@ -432,6 +518,7 @@ module FatesHistoryInterfaceMod
      
      type(iovar_map_type), pointer :: iovar_map(:)
 
+     !! THESE WERE EXPLICITLY PRIVATE WHEN TYPE WAS PUBLIC
      integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_
      integer, private :: levscls_index_, levpft_index_, levage_index_
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
@@ -440,34 +527,34 @@ module FatesHistoryInterfaceMod
      integer, private :: levheight_index_
    contains
      
-     procedure, public :: Init
-     procedure, public :: SetThreadBoundsEach
-     procedure, public :: initialize_history_vars
-     procedure, public :: assemble_history_output_types
+     procedure :: Init
+     procedure :: SetThreadBoundsEach
+     procedure :: initialize_history_vars
+     procedure :: assemble_history_output_types
      
-     procedure, public :: update_history_dyn
-     procedure, public :: update_history_prod
-     procedure, public :: update_history_cbal
-     procedure, public :: update_history_hydraulics
+     procedure :: update_history_dyn
+     procedure :: update_history_prod
+     procedure :: update_history_cbal
+     procedure :: update_history_hydraulics
 
      ! 'get' methods used by external callers to access private read only data
-     procedure, public :: num_history_vars
-     procedure, public :: patch_index
-     procedure, public :: column_index
-     procedure, public :: levgrnd_index
-     procedure, public :: levscpf_index
-     procedure, public :: levscls_index
-     procedure, public :: levpft_index
-     procedure, public :: levage_index
-     procedure, public :: levfuel_index
-     procedure, public :: levcwdsc_index
-     procedure, public :: levcan_index
-     procedure, public :: levcnlf_index
-     procedure, public :: levcnlfpft_index
-     procedure, public :: levscag_index
-     procedure, public :: levscagpft_index
-     procedure, public :: levagepft_index
-     procedure, public :: levheight_index
+     procedure :: num_history_vars
+     procedure :: patch_index
+     procedure :: column_index
+     procedure :: levgrnd_index
+     procedure :: levscpf_index
+     procedure :: levscls_index
+     procedure :: levpft_index
+     procedure :: levage_index
+     procedure :: levfuel_index
+     procedure :: levcwdsc_index
+     procedure :: levcan_index
+     procedure :: levcnlf_index
+     procedure :: levcnlfpft_index
+     procedure :: levscag_index
+     procedure :: levscagpft_index
+     procedure :: levagepft_index
+     procedure :: levheight_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -495,7 +582,7 @@ module FatesHistoryInterfaceMod
 
   end type fates_history_interface_type
    
-  character(len=*), parameter, private :: sourcefile = &
+  character(len=*), parameter :: sourcefile = &
          __FILE__
 
 contains
@@ -1073,6 +1160,7 @@ end subroutine flush_hvars
                                            ! explict name (for fast reference during update)
                                            ! A zero is passed back when the variable is
                                            ! not used
+    
 
     ! locals
     integer :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
@@ -1087,8 +1175,8 @@ end subroutine flush_hvars
        
        if (initialize) then
           call this%hvars(ivar)%Init(vname, units, long, use_default, &
-               vtype, avgflag, flushval, upfreq, fates_history_num_dim_kinds, this%dim_kinds, &
-               this%dim_bounds)
+               vtype, avgflag, flushval, upfreq, &
+               fates_history_num_dim_kinds, this%dim_kinds, this%dim_bounds)
        end if
     else
        index = 0
@@ -1310,6 +1398,11 @@ end subroutine flush_hvars
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
+    integer  :: i_tmem        ! iterator for veg temp bins
+    integer  :: model_day_int ! integer model day from reference 
+    integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
+                                           ! time-since-anthropogenic-disturbance of secondary forest
+
     
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -1318,6 +1411,8 @@ end subroutine flush_hvars
     real(r8) :: npp_partition_error ! a check that the NPP partitions sum to carbon allocation
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
     real(r8) :: binbottom,bintop    ! edges of height bins
+    
+    real(r8) :: gpp_cached ! variable used to cache gpp value in previous time step; for C13 discrimination
 
     ! The following are all carbon states, turnover and net allocation flux variables
     ! the organs of relevance should be self explanatory
@@ -1444,7 +1539,9 @@ end subroutine flush_hvars
                hio_m5_si_scls          => this%hvars(ih_m5_si_scls)%r82d, &
                hio_m6_si_scls          => this%hvars(ih_m6_si_scls)%r82d, &
                hio_m7_si_scls          => this%hvars(ih_m7_si_scls)%r82d, &
-               hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &                        
+               hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &    
+	       hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &                    
+
 
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_agb_si_scls          => this%hvars(ih_agb_si_scls)%r82d, &
@@ -1506,6 +1603,11 @@ end subroutine flush_hvars
                hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d, &
                hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
                hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
+               hio_fraction_secondary_forest_si   => this%hvars(ih_fraction_secondary_forest_si)%r81d, &
+               hio_biomass_secondary_forest_si    => this%hvars(ih_biomass_secondary_forest_si)%r81d, &
+               hio_woodproduct_si                 => this%hvars(ih_woodproduct_si)%r81d, &
+               hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
+               hio_secondaryforest_area_si_age    => this%hvars(ih_secondaryforest_area_si_age)%r82d, &
                hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
                hio_leaf_height_dist_si_height     => this%hvars(ih_leaf_height_dist_si_height)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
@@ -1523,7 +1625,17 @@ end subroutine flush_hvars
                hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
                hio_ddbh_understory_si_scag          => this%hvars(ih_ddbh_understory_si_scag)%r82d, &
                hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
-               hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d)
+               hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
+               hio_site_cstatus_si                  => this%hvars(ih_site_cstatus_si)%r81d, &
+               hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d, &
+               hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
+               hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
+               hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
+               hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
+               hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
+               hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
+               hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
+               hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d )
 
                
       ! ---------------------------------------------------------------------------------
@@ -1535,6 +1647,8 @@ end subroutine flush_hvars
 
       ! If we don't have dynamics turned on, we just abort these diagnostics
       if (hlm_use_ed_st3.eq.itrue) return
+
+      model_day_int = nint(hlm_model_day)
 
       ! ---------------------------------------------------------------------------------
       ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -1554,7 +1668,31 @@ end subroutine flush_hvars
 
          hio_canopy_spread_si(io_si)        = sites(s)%spread
 
+         ! Update the site statuses (stati?)
+         hio_site_cstatus_si(io_si)   = real(sites(s)%cstatus,r8)
+         hio_site_dstatus_si(io_si)   = real(sites(s)%dstatus,r8)
+
+         !count number of days for leaves off
+         hio_site_nchilldays_si(io_si) = real(sites(s)%nchilldays,r8)
+         hio_site_ncolddays_si(io_si)  = real(sites(s)%ncolddays,r8)
+
+            
+         hio_gdd_si(io_si)      = sites(s)%grow_deg_days
+         hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
+         hio_cleafon_si(io_si)  = real(model_day_int - sites(s)%cleafondate,r8)
+         hio_dleafoff_si(io_si) = real(model_day_int - sites(s)%dleafoffdate,r8)
+         hio_dleafon_si(io_si)  = real(model_day_int - sites(s)%dleafondate,r8)
+
+         if(model_day_int>numWaterMem)then
+            hio_meanliqvol_si(io_si) = &
+                 sum(sites(s)%water_memory(1:numWaterMem))/real(numWaterMem,r8)
+         end if
+
+         ! track total wood product accumulation at the site level
+         hio_woodproduct_si(io_si)          = sites(s)%resources_management%trunk_product_site &
+              * AREA_INV * g_per_kg
          
+
          ! If hydraulics are turned on, track the error terms
          ! associated with dynamics
 
@@ -1565,7 +1703,6 @@ end subroutine flush_hvars
             this%hvars(ih_h2oveg_pheno_err_si)%r81d(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
          end if
 
-            
          ipa = 0
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -1593,6 +1730,22 @@ end subroutine flush_hvars
                     + cpatch%zstar * cpatch%area * AREA_INV
             endif
 
+            ! some diagnostics on secondary forest area and its age distribution
+            if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+               hio_fraction_secondary_forest_si(io_si) = hio_fraction_secondary_forest_si(io_si) + &
+                    cpatch%area * AREA_INV
+               
+               ageclass_since_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
+               
+               hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist) = &
+                    hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
+                    + cpatch%area * AREA_INV
+
+               hio_secondaryforest_area_si_age(io_si,cpatch%age_class) = &
+                    hio_secondaryforest_area_si_age(io_si,cpatch%age_class)  &
+                    + cpatch%area * AREA_INV
+            endif
+            
             ccohort => cpatch%shortest
             do while(associated(ccohort))
                
@@ -1714,6 +1867,12 @@ end subroutine flush_hvars
                hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
                     + total_c * ccohort%n * AREA_INV
 
+               ! track the total biomass on all secondary lands
+               if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  hio_biomass_secondary_forest_si(io_si) = hio_biomass_secondary_forest_si(io_si) + &
+                       total_c * ccohort%n * AREA_INV
+               endif
+
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
 
@@ -1752,6 +1911,8 @@ end subroutine flush_hvars
 
                   associate( scpf => ccohort%size_by_pft_class, &
                              scls => ccohort%size_class )
+			     
+		    gpp_cached = hio_gpp_si_scpf(io_si,scpf)
 
                     hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
                                                        n_perm2*ccohort%gpp_acc_hold  ! [kgC/m2/yr]
@@ -1778,39 +1939,49 @@ end subroutine flush_hvars
                     hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
                                                        store_c_net_alloc*n_perm2
 
-                    ! Woody State Variables (basal area and number density and mortality)
+                    ! Woody State Variables (basal area growth increment)
                     if (EDPftvarcon_inst%woody(ft) == 1) then
-                       
-                       hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) + ccohort%bmort*ccohort%n
-                       hio_m2_si_scpf(io_si,scpf) = hio_m2_si_scpf(io_si,scpf) + ccohort%hmort*ccohort%n
-                       hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) + ccohort%cmort*ccohort%n
-                       hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) + &
-                            (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
-                       hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) + ccohort%frmort*ccohort%n
-
-                       hio_m1_si_scls(io_si,scls) = hio_m1_si_scls(io_si,scls) + ccohort%bmort*ccohort%n
-                       hio_m2_si_scls(io_si,scls) = hio_m2_si_scls(io_si,scls) + ccohort%hmort*ccohort%n
-                       hio_m3_si_scls(io_si,scls) = hio_m3_si_scls(io_si,scls) + ccohort%cmort*ccohort%n
-		       hio_m7_si_scls(io_si,scls) = hio_m7_si_scls(io_si,scls) + &
-                             (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
-                       hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
-                             ccohort%frmort*ccohort%n
 
                        ! basal area  [m2/ha]
                        hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
                             0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*ccohort%n
+
                        ! also by size class only
                        hio_ba_si_scls(io_si,scls) = hio_ba_si_scls(io_si,scls) + &
                             0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*ccohort%n
-                       
-                       ! number density [/ha]
-                       hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n
-                       
+
                        ! growth increment
                        hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
                             ccohort%ddbhdt*ccohort%n
 
                     end if
+
+                    hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) + ccohort%bmort*ccohort%n
+                    hio_m2_si_scpf(io_si,scpf) = hio_m2_si_scpf(io_si,scpf) + ccohort%hmort*ccohort%n
+                    hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) + ccohort%cmort*ccohort%n
+                    hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) + &
+                         (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
+                    hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) + ccohort%frmort*ccohort%n
+
+                    hio_m1_si_scls(io_si,scls) = hio_m1_si_scls(io_si,scls) + ccohort%bmort*ccohort%n
+                    hio_m2_si_scls(io_si,scls) = hio_m2_si_scls(io_si,scls) + ccohort%hmort*ccohort%n
+                    hio_m3_si_scls(io_si,scls) = hio_m3_si_scls(io_si,scls) + ccohort%cmort*ccohort%n
+                    hio_m7_si_scls(io_si,scls) = hio_m7_si_scls(io_si,scls) + &
+                         (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
+                    hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
+                         ccohort%frmort*ccohort%n
+
+                    !C13 discrimination
+                    if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
+                       hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
+                            (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
+                    else
+                       hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
+                    endif
+
+                    ! number density [/ha]
+                    hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n
+
 
                     hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
                           total_c * ccohort%n * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) * AREA_INV
@@ -2469,7 +2640,6 @@ end subroutine flush_hvars
             
             hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) + &
                  cpatch%c_lblayer * cpatch%total_canopy_area
-            
 
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -2542,8 +2712,6 @@ end subroutine flush_hvars
                   ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
                   hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
                         ccohort%froot_mr * n_perm2  * sec_per_day * days_per_year
-
-                  
 
 
                   ! accumulate fluxes per patch age bin
@@ -3089,6 +3257,12 @@ end subroutine flush_hvars
          if(hlm_use_ed_st3.eq.ifalse) then
             do scpf=1,nlevsclass*numpft
                if( abs(hio_nplant_si_scpf(io_si, scpf)-ncohort_scpf(scpf)) > 1.0E-8_r8 ) then
+                  write(fates_log(),*) 'numpft:',numpft
+                  write(fates_log(),*) 'nlevsclass:',nlevsclass
+                  write(fates_log(),*) 'scpf:',scpf
+                  write(fates_log(),*) 'io_si:',io_si
+                  write(fates_log(),*) 'hio_nplant_si_scpf:',hio_nplant_si_scpf(io_si, scpf)
+                  write(fates_log(),*) 'ncohort_scpf:',ncohort_scpf(scpf)
                   write(fates_log(),*) 'nplant check on hio_nplant_si_scpf fails during hydraulics history updates'
                   call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
@@ -3211,6 +3385,66 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_area_treespread_pa)
 
+    call this%set_history_var(vname='SITE_COLD_STATUS', units='0,1,2', &
+          long='Site level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not-too cold',  &
+          use_default='active',                                                  &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+          ivar=ivar, initialize=initialize_variables, index = ih_site_cstatus_si )
+
+    call this%set_history_var(vname='SITE_DROUGHT_STATUS', units='0,1,2,3', &
+          long='Site level drought status, <2 too dry for leaves, >=2 not-too dry', &
+          use_default='active',                                                  &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+          ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si)
+
+    call this%set_history_var(vname='SITE_GDD', units='degC',  &
+         long='site level growing degree days',                &
+         use_default='active',                                                 &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_gdd_si)
+    
+    call this%set_history_var(vname='SITE_NCHILLDAYS', units = 'days', &
+         long='site level number of chill days', &
+         use_default='active',                                                 &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_site_nchilldays_si)
+
+    call this%set_history_var(vname='SITE_NCOLDDAYS', units = 'days', &
+         long='site level number of cold days', &
+         use_default='active',                                                 &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_site_ncolddays_si)
+
+    call this%set_history_var(vname='SITE_DAYSINCE_COLDLEAFOFF', units='days', &
+         long='site level days elapsed since cold leaf drop', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_cleafoff_si)
+
+    call this%set_history_var(vname='SITE_DAYSINCE_COLDLEAFON', units='days', &
+         long='site level days elapsed since cold leaf flush', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_cleafon_si) 
+
+    call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFOFF', units='days', &
+         long='site level days elapsed since drought leaf drop', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_dleafoff_si)
+    
+    call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFON', units='days', &
+         long='site level days elapsed since drought leaf flush', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_dleafon_si)
+
+    call this%set_history_var(vname='SITE_MEANLIQVOL_DROUGHTPHEN', units='m3/m3', &
+         long='site level mean liquid water volume for drought phen', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_meanliqvol_si)
+
     call this%set_history_var(vname='CANOPY_SPREAD', units='0-1',               &
          long='Scaling factor between tree basal area and canopy area',         &
          use_default='active',                                                  &
@@ -3304,6 +3538,37 @@ end subroutine flush_hvars
          use_default='inactive',                     &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_age )
+
+    ! Secondary forest area and age diagnostics
+
+    call this%set_history_var(vname='SECONDARY_FOREST_FRACTION', units='m2/m2', &
+         long='Secondary forest fraction', use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_fraction_secondary_forest_si )
+
+    call this%set_history_var(vname='WOOD_PRODUCT', units='gC/m2', &
+         long='Total wood product from logging', use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_woodproduct_si )
+
+    call this%set_history_var(vname='SECONDARY_FOREST_BIOMASS', units='kgC/m2', &
+         long='Biomass on secondary lands (per total site area, mult by SECONDARY_FOREST_FRACTION to get per secondary forest area)',&
+         use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_biomass_secondary_forest_si )
+
+    call this%set_history_var(vname='SECONDARY_AREA_AGE_ANTHRO_DIST', units='m2/m2', &
+         long='Secondary forest patch area age distribution since anthropgenic disturbance', &
+         use_default='inactive', &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_agesince_anthrodist_si_age )
+
+    call this%set_history_var(vname='SECONDARY_AREA_PATCH_AGE_DIST', units='m2/m2', &
+         long='Secondary forest patch area age distribution since any kind of disturbance', &
+         use_default='inactive', &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_secondaryforest_area_si_age )
+
 
     ! Fire Variables
 
@@ -3972,6 +4237,11 @@ end subroutine flush_hvars
           long='total mortality of canopy plants by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_canopy_si_scpf )
+
+    call this%set_history_var(vname='C13disc_SCPF', units = 'per mil',               &
+         long='C13 discrimination by pft/size',use_default='inactive',           &
+         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_c13disc_si_scpf )	  
 
     call this%set_history_var(vname='BSTOR_CANOPY_SCPF', units = 'kgC/ha',          &
           long='biomass carbon in storage pools of canopy plants by pft/size', use_default='inactive', &
