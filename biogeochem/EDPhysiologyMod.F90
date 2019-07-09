@@ -670,7 +670,7 @@ contains
     real(r8) :: totalmemory            ! total memory of carbon [kg]
     integer  :: ipft
     real(r8), parameter :: leaf_drop_fraction = 1.0_r8
-    real(r8), parameter :: stem_drop_fraction = 1.0_r8
+    real(r8) :: stem_drop_fraction
 
     !------------------------------------------------------------------------
 
@@ -691,7 +691,8 @@ contains
           sapw_c  = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
           struct_c  = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
 	  
-
+          stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ipft)
+	  
           ! COLD LEAF ON
           ! The site level flags signify that it is no-longer too cold
           ! for leaves. Time to signal flushing
@@ -765,9 +766,9 @@ contains
 			 
 	              if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
 			 
-                         currentCohort%sapwmemory   = sapw_c
+                         currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
 		   
-		         currentCohort%structmemory   = struct_c			 
+		         currentCohort%structmemory   = struct_c * stem_drop_fraction			 
 
                          call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                               sapw_organ, stem_drop_fraction)
@@ -856,9 +857,9 @@ contains
 			 
 	           if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
 			 
-                      currentCohort%sapwmemory   = sapw_c
+                      currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
 		   
-		      currentCohort%structmemory   = struct_c			 
+		      currentCohort%structmemory   = struct_c * stem_drop_fraction			 
 
                       call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                          sapw_organ, stem_drop_fraction)
@@ -1080,7 +1081,7 @@ contains
     real(r8) :: b_bgw         ! Below ground biomass [kgC]
     real(r8) :: b_dead
     real(r8) :: b_store    
-    real(r8), parameter :: stem_drop_fraction = 1.0_r8 
+    real(r8) :: stem_drop_fraction 
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
@@ -1091,6 +1092,7 @@ contains
        temp_cohort%canopy_trim = 0.8_r8  !starting with the canopy not fully expanded 
        temp_cohort%pft         = ft
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
+       stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
        call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
 
        ! Initialize live pools
@@ -1107,7 +1109,6 @@ contains
        temp_cohort%laimemory = 0.0_r8     
        temp_cohort%sapwmemory = 0.0_r8     
        temp_cohort%structmemory = 0.0_r8     
-   
 
        ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
        ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
