@@ -200,6 +200,10 @@ variables:
 		fates_phenflush_fraction:units = "fraction" ;
 		fates_phenflush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
 
+	float fates_phen_stem_drop_fraction(fates_pft) ;
+		fates_phenflush_fraction:units = "fraction" ;
+		fates_phenflush_fraction:long_name = "fraction of stems to drop for non-woody species during drought/cold" ;
+
 	float fates_turnover_retrans_mode(fates_pft) ;
 		fates_turnover_retrans_mode:units = "index" ;
 		fates_turnover_retrans_mode:long_name = "retranslocation method for leaf/fineroot turnover" ;
@@ -803,6 +807,9 @@ data:
 
  fates_phenflush_fraction = 
   0.5, 0.5;
+  
+ fates_phen_stem_drop_fraction = 
+  1.0, 1.0; 
 
  fates_turnover_retrans_mode = 
   1, 1;
