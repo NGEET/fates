@@ -205,6 +205,8 @@ module EDPftvarcon
 
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
+     real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Fraction of stem dropped/senescened for decidious 
+                                                          ! non-woody plants						  
 
      real(r8), allocatable :: senleaf_long_fdrought(:)    ! Multiplication factor for leaf longevity of senescent 
                                                           ! leaves during drought( 1.0 indicates no change)
@@ -772,6 +774,9 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
   end subroutine Register_PFT
 
@@ -1214,6 +1219,11 @@ contains
     name = 'fates_phenflush_fraction'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
+	 
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%phen_stem_drop_fraction)	 
+	 
 
   end subroutine Receive_PFT
 
@@ -1806,6 +1816,7 @@ contains
         write(fates_log(),fmt0) 'taul = ',EDPftvarcon_inst%taul 
         write(fates_log(),fmt0) 'taus = ',EDPftvarcon_inst%taus
         write(fates_log(),fmt0) 'phenflush_fraction',EDpftvarcon_inst%phenflush_fraction
+        write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'rootprof_beta = ',EDPftvarcon_inst%rootprof_beta
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
         write(fates_log(),fmt0) 'allom_hmode = ',EDPftvarcon_inst%allom_hmode
@@ -2022,6 +2033,17 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
+           if ( ( EDPftvarcon_inst%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or. &
+                ( EDPFtvarcon_inst%phen_stem_drop_fraction(ipft) > 1 ) ) then
+              
+              write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
+              write(fates_log(),*) ' during the dedicous period.'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(EDPftvarcon_inst%evergreen(ipft))
+              write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if	   
         end if
 
  
