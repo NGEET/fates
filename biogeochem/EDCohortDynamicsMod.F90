@@ -834,11 +834,13 @@ contains
        flux_diags => csite%flux_diags(el)
 
        do c=1,ncwd
-                   
+
+! above ground CWD
           litt%ag_cwd(c) = litt%ag_cwd(c) + plant_dens * &
                (struct_m+sapw_m)  * SF_val_CWD_frac(c) * &
                EDPftvarcon_inst%allom_agb_frac(pft)
-       
+
+! below ground CWD
           do sl=1,csite%nlevsoil
              litt%bg_cwd(c,sl) = litt%bg_cwd(c,sl) + plant_dens * &
                   (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
@@ -846,10 +848,12 @@ contains
                   csite%rootfrac_scr(sl)
           enddo
 
+! above ground
           flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                 (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
                 EDPftvarcon_inst%allom_agb_frac(pft) * nplant
 
+! below ground
           flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
                 (struct_m + sapw_m) * SF_val_CWD_frac(c) * &
                 (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(pft)) * nplant
