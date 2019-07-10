@@ -582,7 +582,7 @@ contains
     
     real(r8) :: moist           !effective fuel moisture
     real(r8) :: tau_b(nfsc)     !lethal heating rates for each fuel class (min) 
-    real(r8) :: fc_ground(nfsc) !propn of fuel consumed
+    real(r8) :: fc_ground(nfsc) !proportion of fuel consumed
 
     integer  :: c
 
