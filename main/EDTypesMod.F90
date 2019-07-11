@@ -311,7 +311,6 @@ module EDTypesMod
      real(r8) ::  cmort                                  ! carbon starvation mortality rate n/year
      real(r8) ::  hmort                                  ! hydraulic failure mortality rate n/year
      real(r8) ::  frmort                                 ! freezing mortality               n/year
-     real(r8) ::  phmort                                 ! phenology mortality for grass    n/year
 
       ! Logging Mortality Rate 
       ! Yi Xu & M. Huang
