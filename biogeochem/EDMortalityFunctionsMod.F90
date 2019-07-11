@@ -10,7 +10,6 @@ module EDMortalityFunctionsMod
    use EDTypesMod            , only : ed_cohort_type
    use EDTypesMod            , only : ed_site_type
    use EDTypesMod            , only : ed_patch_type
-   use EDTypesMod            , only : leaves_off
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
@@ -43,7 +42,7 @@ contains
 
 
 
-  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort,phmort )
+  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort )
 
     ! ============================================================================
     !  Calculate mortality rates from carbon storage, hydraulic cavitation, 
@@ -59,8 +58,7 @@ contains
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
     real(r8),intent(out) :: frmort ! freezing stress mortality
-    real(r8),intent(out) :: phmort ! mortality as a result of phenology, for example, 
-                                   ! the grass tiller mortality in the winter for salt marsh)
+
 
     real(r8) :: frac  ! relativised stored carbohydrate
     real(r8) :: leaf_c_target      ! target leaf biomass kgC
@@ -129,17 +127,6 @@ contains
             cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
     endif
     !-------------------------------------------------------------------------------- 
-    ! motality due to phenolgoy for grass, only a certain large size culms will die
-    ! as they are older,Reidenbaugh 1983, American Journal of Botany, 70, pp. 47-52
-    phmort = 0.0_r8
-    if(EDPftvarcon_inst%woody(cohort_in%pft)==0) then
-       if ( cohort_in%dbh  >  EDPftvarcon_inst%phmort_size_threshold(cohort_in%pft)  ) then
-          if(cohort_in %status_coh  == leaves_off )then
-	       phmort=EDPftvarcon_inst%phmort_rate(cohort_in%pft)
-	  endif
-      endif           
-    endif
-    !-------------------------------------------------------------------------------- 
     !    Mortality due to cold and freezing stress (frmort), based on ED2 and:           
     !      Albani, M.; D. Medvigy; G. C. Hurtt; P. R. Moorcroft, 2006: The contributions 
     !           of land-use change, CO2 fertilization, and climate variability to the    
@@ -152,7 +139,7 @@ contains
     frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
 
 
-    !mortality_rates = bmort + hmort + cmort + phmort
+    !mortality_rates = bmort + hmort + cmort
 
     else ! i.e. hlm_use_ed_prescribed_phys is true
        if ( cohort_in%canopy_layer .eq. 1) then
@@ -163,7 +150,6 @@ contains
        cmort  = 0._r8
        hmort  = 0._r8
        frmort = 0._r8
-       phmort = 0.0_r8
     endif
 
     if (test_zero_mortality) then
@@ -171,7 +157,6 @@ contains
        hmort = 0.0_r8
        frmort = 0.0_r8
        bmort = 0.0_r8
-       phmort = 0.0_r8
     end if
        
     return
@@ -200,7 +185,6 @@ contains
     real(r8) :: bmort    ! background mortality rate (fraction per year)
     real(r8) :: hmort    ! hydraulic failure mortality rate (fraction per year)
     real(r8) :: frmort   ! freezing mortality rate (fraction per year)
-    real(r8) :: phmort   ! phenology mortality(fraction per year); the mortality rate due to leaf off for grasses
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
     integer  :: ipft              ! local copy of the pft index
     !----------------------------------------------------------------------
@@ -209,7 +193,7 @@ contains
     
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,phmort)
+    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
     call LoggingMortality_frac(ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
@@ -229,7 +213,7 @@ contains
        ! Mortality from logging in the canopy is ONLY disturbance generating, don't
        ! update number densities via non-disturbance inducing death
        currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
-            * (cmort+hmort+bmort+frmort+phmort) * currentCohort%n
+            * (cmort+hmort+bmort+frmort) * currentCohort%n
     endif
 
     return
