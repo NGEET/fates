@@ -843,7 +843,7 @@ contains
 
                 if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
 		   ! leaf off occur on individuals bigger than specific size for grass
-                   if (currentCohort%dbh > EDPftvarcon_inst%phmort_size_threshold(ipft) &
+                   if (currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) &
 		       .or. EDPftvarcon_inst%woody(ipft)==itrue) then 
                       ! This sets the cohort to the "leaves off" flag
                       currentCohort%status_coh  = leaves_off
