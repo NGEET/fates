@@ -61,8 +61,6 @@ module EDLoggingMortalityMod
          __FILE__
 
 
-   real(r8), public, parameter :: logging_export_frac = 0.8_r8
-   
    public :: LoggingMortality_frac
    public :: logging_litter_fluxes
    public :: logging_time
@@ -249,15 +247,17 @@ contains
       !        the mortality rates governing the fluxes, follow a different rule set.
       !        We also compute an export flux (product) that does not go to litter.  
       !
-      !  Trunk Product Flux: Only usable wood is exported from a site.  This is the above-ground
-      !                      portion of the bole, and only boles associated with direct-logging,
-      !                      not inftrastructure or collateral damage mortality.
+      !  Trunk Product Flux: Only usable wood is exported from a site, substracted by a 
+      !        transportation loss fraction. This is the above-ground portion of the bole, 
+      !        and only boles associated with direct-logging, not inftrastructure or 
+      !        collateral damage mortality.
       !        
       ! -------------------------------------------------------------------------------------------
 
 
       !USES:
       use SFParamsMod,  only : SF_val_cwd_frac
+      use EDParamsMod,  only : logging_export_frac
       use EDtypesMod,   only : area
       use EDtypesMod,   only : ed_site_type
       use EDtypesMod,   only : ed_patch_type
@@ -432,17 +432,33 @@ contains
          
          ! ----------------------------------------------------------------------------------------
          ! Handle harvest (export, flux-out) flux for the above ground boles 
-         ! In this case the boles from direct logging are exported off-site and are not added 
-         ! to the litter pools.  That is why we handle this outside the loop above. Only the 
-         ! collateral damange and infrastructure logging is applied to litter
+         ! In this case a fraction (export_frac) of the boles from direct logging are 
+         ! exported off-site, while the remainder (1-export_frac) is added to the litter pools.   
          ! 
          ! Losses to the system as a whole, for C-balancing (kGC/site/day)
          ! Site level product, (kgC/site, accumulated over simulation)
          ! ----------------------------------------------------------------------------------------
-         
-         trunk_product_site = trunk_product_site + &
-               SF_val_CWD_frac(ncwd) * agb_frac * direct_dead * (struct_c + sapw_c)
 
+         ! CWD contributed by logged boles due to losses in transportation
+         newPatch%cwd_ag(ncwd)     = newPatch%cwd_ag(ncwd)     + agb_frac * &
+               (1.0_r8-logging_export_frac) * cwd_litter_density * np_mult
+         currentPatch%cwd_ag(ncwd) = currentPatch%cwd_ag(ncwd) + &
+               (1.0_r8 - logging_export_frac) * agb_frac * cwd_litter_density 
+
+         currentSite%CWD_AG_diagnostic_input_carbonflux(ncwd) =       &
+               currentSite%CWD_AG_diagnostic_input_carbonflux(ncwd) + &
+               (1.0_r8-logging_export_frac) * SF_val_CWD_frac(ncwd) * &
+               woody_litter * hlm_days_per_year * agb_frac/ AREA
+
+         delta_litter_stock  = delta_litter_stock  + (1.0_r8-logging_export_frac) *&
+               woody_litter * SF_val_CWD_frac(ncwd)
+
+         ! Send export_frac * AGB component of boles from direct-logging activities to
+         ! export/harvest pool
+         ! Generate trunk product (kgC/day/site)
+         trunk_product_site = trunk_product_site + &
+               logging_export_frac * SF_val_CWD_frac(ncwd) * agb_frac * &
+               direct_dead * (struct_c + sapw_c)
 
          ! ----------------------------------------------------------------------------------------
          ! Handle fluxes of leaf, root and storage carbon into litter pools. 
