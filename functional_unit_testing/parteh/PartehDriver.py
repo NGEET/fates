@@ -154,7 +154,7 @@ def main(argv):
     # read in and store the actual parameter values from the file.
     # -------------------------------------------------------------
 
-
+    code.interact(local=dict(globals(), **locals()))
     dims = CDLParseDims(xml_file)
 
     parms = {}
