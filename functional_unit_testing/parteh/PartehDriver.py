@@ -105,7 +105,7 @@ def main(argv):
     verlist = version.split('.')
 
     if( not ((verlist[0] == '2') & (verlist[1] ==  '7') & (int(verlist[2])>=15) )  ):
-        print("The PARTEH driver mus be run with python 2.7")
+        print("The PARTEH driver must be run with python 2.7")
         print(" with tertiary version >=15.")
         print(" your version is {}".format(version))
         print(" exiting...")
@@ -537,48 +537,48 @@ def main(argv):
 
     fig1, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4 , sharex='col') #, sharey='row')
     fig1.set_size_inches(12, 6)
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax1.plot_date(diagnostics[ipft].dates,diagnostics[ipft].struct_c,linestyles[ipft],label=parameters.parteh_pfts[ipft].name)
     ax1.set_title('Structural\n Carbon')
     ax1.legend(loc='upper left')
     ax1.set_ylabel('[kg C]')
     ax1.grid(True)
 
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax2.plot_date(diagnostics[ipft].dates,diagnostics[ipft].leaf_c,linestyles[ipft])
     ax2.set_title('Leaf\n Carbon')
     ax2.grid(True)
 
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax3.plot_date(diagnostics[ipft].dates,diagnostics[ipft].fnrt_c,linestyles[ipft])
     ax3.set_title('Fineroot\n Carbon')
     ax3.grid(True)
 
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax4.plot_date(diagnostics[ipft].dates,diagnostics[ipft].sapw_c,linestyles[ipft])
     ax4.set_title('Sapwood\n Carbon')
     ax4.set_ylabel('[kg C]')
     ax4.grid(True)
 
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax5.plot_date(diagnostics[ipft].dates,diagnostics[ipft].store_c,linestyles[ipft])
     ax5.set_title('Storage\n Carbon')
     ax5.set_xlabel('Year')
     ax5.grid(True)
 
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax6.plot_date(diagnostics[ipft].dates,diagnostics[ipft].repro_c,linestyles[ipft])
     ax6.set_title('Integrated\n Reproductive\n Carbon')
     ax6.set_xlabel('Year')
     ax6.grid(True)
 
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax7.plot_date(diagnostics[ipft].dates,np.cumsum(diagnostics[ipft].root_c_exudate),linestyles[ipft])
     ax7.set_title('Integrated\n Exudated\n Carbon')
     ax7.set_xlabel('Year')
     ax7.grid(True)
 
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax8.plot_date(diagnostics[ipft].dates,np.cumsum(diagnostics[ipft].growth_resp),linestyles[ipft])
     ax8.set_title('Integrated\n Growth\n Respiration')
     ax8.set_xlabel('Year')
@@ -594,27 +594,27 @@ def main(argv):
     #  ---------------------------------------------------------------------------------
     fig2, ( (ax1,ax2),(ax3,ax4) ) = plt.subplots(2,2)
     fig2.set_size_inches(7, 6)
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax1.plot_date(diagnostics[ipft].dates,diagnostics[ipft].dbh,linestyles[ipft],label=parameters.parteh_pfts[ipft].name)
     ax1.set_xlabel('Date')
     ax1.set_title('DBH [cm]')
     ax1.legend(loc='upper left')
     ax1.grid(True)
 
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax2.plot_date(diagnostics[ipft].dates,diagnostics[ipft].crown_area,linestyles[ipft])
     ax2.set_xlabel('Date')
     ax2.set_title('Crown Area [m2]')
     ax2.grid(True)
 
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax3.plot(diagnostics[ipft].dbh,1000.0*np.array(diagnostics[ipft].dailyc))
 
     ax3.set_xlabel('DBH [cm]')
     ax3.set_title('Daily Carbon Gain [g]')
     ax3.grid(True)
 
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         ax4.plot(diagnostics[ipft].dbh,diagnostics[ipft].crown_area)
     ax4.set_xlabel('DBH [cm]')
     ax4.set_title('Crown Area [m2]')
@@ -633,7 +633,7 @@ def main(argv):
     # ---------------------------------------------------------------------------------
 
     fig4 = plt.figure()
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
 
         total_plant_carbon0 = np.array(diagnostics[ipft].struct_c[0]) + \
                               np.array(diagnostics[ipft].leaf_c[0])   + \
@@ -669,7 +669,7 @@ def main(argv):
     # Plot out the input fluxes
 
     fig5= plt.figure()
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         plt.plot_date(diagnostics[ipft].dates,diagnostics[ipft].dailyc,linestyles[ipft],label=parameters.parteh_pfts[ipft].name)
 
     plt.xlabel('Date')
@@ -681,7 +681,7 @@ def main(argv):
     # Special Focus plots for a PFT of interest
 
     figs = {}
-    for ipft in range(parameters.num_pfts):
+    for ipft in range(num_pfts):
         figs[ipft], (ax1, ax2, ax3) = plt.subplots(1, 3)
 
         figs[ipft].set_size_inches(8, 4)
