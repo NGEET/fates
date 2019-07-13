@@ -61,33 +61,6 @@ def load_xml(xmlfile, time_control, parameters ):
         print("boundary formulation: {}".format(parameters.boundary_method))
         exit(2)
 
-
-    # Find the name of the CDL file that contains the FATES parameters.
-    # -----------------------------------------------------------------
-
-    cdl_file_name = xmlroot.find('parameter_file').text.strip()
-
-
-    # PFT parameters for PARTEH Internals
-    # -----------------------------------------------------------------------------------
-
-    pft_names_root = parameters_root.find('pft_names')
-    for pft_idx, pft_elem in enumerate(pft_names_root.iter('pft_par')):
-
-        pft_name = pft_elem.text.strip()
-
-        # Initialize the pft's parameters for the boundary conditions
-        parameters.boundary_pfts.append(PartehTypes.pft_type(pft_name))
-
-
-    # Simply generate a list of organ names as strings
-    organ_names_root = parameters_root.find('organ_names')
-    for organ_idx, organ_elem in enumerate(organ_names_root.iter('organ_par')):
-        organ_name = organ_elem.text.strip()
-        parameters.parteh_organs.append(organ_name)
-
-    parameters.num_organs = len(parameters.parteh_organs)
-
     # Load up all the pft parameters that are specific to the Boundary Condition method
     # Must add a check to see if all correct parameters are loaded
     # -----------------------------------------------------------------------------------
