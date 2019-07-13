@@ -119,6 +119,14 @@ def main(argv):
     # Initialize the time structure
     time_control = PartehTypes.timetype()
 
+    # This loads the dictionaries of, and lists of objects that
+    # define the variables, parameters and forms that govern the
+    # system of equations and solution
+    load_xml(xml_file,time_control,parameters)
+
+    code.interact(local=dict(globals(), **locals()))
+
+
     # -------------------------------------------------------------------------------------
     # Check through the fortran Code we are coupling with, determine the list of parameters
     # that we need.
@@ -154,7 +162,7 @@ def main(argv):
     # read in and store the actual parameter values from the file.
     # -------------------------------------------------------------
 
-
+    code.interact(local=dict(globals(), **locals()))
     dims = CDLParseDims(xml_file)
 
     parms = {}

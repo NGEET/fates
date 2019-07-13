@@ -23,21 +23,17 @@
     <max_trunc_error> 0.001 </max_trunc_error>
   </time_control>
 
-  
-  <!-- Specify which PRT Hypothesis you would like to use -->
-  <!-- AllometricCarbon == 1 -->
-  <!-- AllometricCNP    == 2 -->
 
-  <!--<hypothesis> AllometricCNP </hypothesis> -->
-  <hypothesis> AllometricCNP </hypothesis>
-   
+  <parameter_file>fates_params_3trop.c190701.cdl</parameter_file>
+
+
   <!-- <boundary_formulation method="AllometricCarbon"> DailyCFromCArea  </boundary_formulation> -->
-  <boundary_formulation>DailyCNPFromStorageSinWaveNoMaint</boundary_formulation>
 
-  <parameter_file>fates_params_6trees_0625.cdl</parameter_file>
+  <boundary_formulation>DailyCNPFromStorageSinWaveNoMaint</boundary_formulation>
       
   <boundary_parameters >
-    <pft_par name="fates_prescribed_npp_p1">    0.4, 0.4  </pft_par>
+	<pft_par name="parteh_model"> 1,2,2  </pft_par>
+    <pft_par name="fates_prescribed_npp_p1">    0.4, 0.4, 0.4  </pft_par>
     <pft_par name="fates_prescribed_nflux_p1"> -9.9, -9.9 </pft_par>
     <pft_par name="fates_prescribed_pflux_p1"> -9.9, -9.9 </pft_par>
     <pft_par name="fates_prescribed_npp_amp">   0.0, 1.2  </pft_par> 
