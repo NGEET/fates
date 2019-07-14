@@ -809,6 +809,7 @@ contains
       real(r8) :: b_dead
       real(r8) :: b_store 
       real(r8) :: a_sapwood  ! area of sapwood at reference height [m2]
+      real(r8) :: stem_drop_fraction
       integer                                     :: i_pft, ncohorts_to_create
 
 
@@ -940,13 +941,14 @@ contains
          temp_cohort%sapwmemory = 0._r8
          temp_cohort%structmemory = 0._r8	 
          cstatus = leaves_on
-
+         
+	 stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( EDPftvarcon_inst%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
             temp_cohort%laimemory = b_leaf
-            temp_cohort%sapwmemory = b_sapwood
-            temp_cohort%structmemory = b_dead	    
+            temp_cohort%sapwmemory = b_sapwood * stem_drop_fraction
+            temp_cohort%structmemory = b_dead * stem_drop_fraction	    
             b_leaf  = 0._r8
 	    b_sapwood = 0._r8
 	    b_dead  = 0._r8
