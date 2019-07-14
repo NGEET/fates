@@ -396,6 +396,7 @@ contains
     real(r8) :: b_dead     ! biomass in structure (dead) [kgC]
     real(r8) :: b_store    ! biomass in storage [kgC]
     real(r8) :: a_sapwood  ! area in sapwood (dummy) [m2]
+    real(r8) :: stem_drop_fraction
 
     integer, parameter :: rstatus = 0
 
@@ -445,11 +446,17 @@ contains
        temp_cohort%structmemory = 0._r8
        cstatus = leaves_on
        
+       stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
+       
        if( EDPftvarcon_inst%season_decid(pft) == itrue .and. &
             any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
           temp_cohort%laimemory = b_leaf
+	  temp_cohort%sapwmemory = b_sapwood * stem_drop_fraction
+          temp_cohort%structmemory = b_dead * stem_drop_fraction
           b_leaf = 0._r8
-          cstatus = leaves_off
+          b_sapwood = 0._r8
+	  b_dead  = 0._r8
+	  cstatus = leaves_off
        endif
 
        if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. &
