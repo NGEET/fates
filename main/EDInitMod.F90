@@ -454,8 +454,8 @@ contains
 	  temp_cohort%sapwmemory = b_sapwood * stem_drop_fraction
           temp_cohort%structmemory = b_dead * stem_drop_fraction
           b_leaf = 0._r8
-          b_sapwood = 0._r8
-	  b_dead  = 0._r8
+          b_sapwood = (1.0_r8-stem_drop_fraction) * b_sapwood
+	  b_dead  = (1.0_r8-stem_drop_fraction) * b_dead
 	  cstatus = leaves_off
        endif
 
