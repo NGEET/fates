@@ -950,20 +950,19 @@ contains
             temp_cohort%sapwmemory = b_sapwood * stem_drop_fraction
             temp_cohort%structmemory = b_dead * stem_drop_fraction	    
             b_leaf  = 0._r8
-	    b_sapwood = 0._r8
-	    b_dead  = 0._r8
+	    b_sapwood = (1._r8 - stem_drop_fraction) * b_sapwood
+	    b_dead  = (1._r8 - stem_drop_fraction) * b_dead
             cstatus = leaves_off
          endif
          
          if ( EDPftvarcon_inst%stress_decid(temp_cohort%pft) == itrue .and. &
               any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
             temp_cohort%laimemory = b_leaf
-            temp_cohort%sapwmemory = b_sapwood
-            temp_cohort%structmemory = b_dead	    
+            temp_cohort%sapwmemory = b_sapwood * stem_drop_fraction
+            temp_cohort%structmemory = b_dead * stem_drop_fraction	    
             b_leaf  = 0._r8
-	    b_sapwood = 0._r8
-	    b_dead  = 0._r8	    
-            b_leaf  = 0._r8
+	    b_sapwood = (1._r8 - stem_drop_fraction) * b_sapwood
+	    b_dead  = (1._r8 - stem_drop_fraction) * b_dead	    
             cstatus = leaves_off
          endif
 
