@@ -1688,13 +1688,13 @@ contains
     do i_disttype = 1, n_anthro_disturbance_categories
 
        !---------------------------------------------------------------------!
-       !  We only really care about fusing patches if nopatches > 1           !
+       !  We only really care about fusing patches if nopatches > 1          !
        !---------------------------------------------------------------------!
 
        iterate = 1
 
        !---------------------------------------------------------------------!
-       !  Keep doing this until nopatches >= maxPatchesPerSite                         !
+       !  Keep doing this until nopatches <= maxPatchesPerSite               !
        !---------------------------------------------------------------------!
 
        do while(iterate == 1)
@@ -1707,9 +1707,9 @@ contains
              currentPatch => currentPatch%older
           enddo
 
-          !---------------------------------------------------------------------!
+          !-------------------------------------------------------------------------------!
           ! Loop round current & target (currentPatch,tpp) patches to assess combinations !
-          !---------------------------------------------------------------------!   
+          !-------------------------------------------------------------------------------!   
           currentPatch => currentSite%youngest_patch
           do while(associated(currentPatch))      
              tpp => currentSite%youngest_patch
@@ -1720,8 +1720,10 @@ contains
                 endif
 
                 if(associated(tpp).and.associated(currentPatch))then
-
-                   ! only fuse patches whose anthropogenic disturbance categroy matches taht of the outer loop that we are in
+                   !--------------------------------------------------------------------!
+                   ! only fuse patches whose anthropogenic disturbance category matches !
+                   ! that of the outer loop that we are in                              !
+                   !--------------------------------------------------------------------!
                    if ( tpp%anthro_disturbance_label .eq. i_disttype .and. &
                         currentPatch%anthro_disturbance_label .eq. i_disttype) then
 
@@ -1767,15 +1769,16 @@ contains
                                   do z = 1,n_dbh_bins      ! loop over hgt bins 
 
                                      !----------------------------------
-                                     !is there biomass in this category?
+                                     ! is there biomass in this category?
                                      !----------------------------------
 
                                      if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8 .or.  &
                                           tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
 
-                                        !-------------------------------------------------------------------------------------
-                                        ! what is the relative difference in biomass i nthis category between the two patches?
-                                        !-------------------------------------------------------------------------------------
+                                        !---------------------------------------------------------------------!
+                                        ! what is the relative difference in biomass in this category between
+                                        ! the two patches?
+                                        !---------------------------------------------------------------------!
 
                                         norm = abs(currentPatch%pft_agb_profile(ft,z) - &
                                              tpp%pft_agb_profile(ft,z))/(0.5_r8 * &
@@ -1802,12 +1805,31 @@ contains
                          ! or both are older than forced fusion age                                !
                          !-------------------------------------------------------------------------!
 
-                         if(fuse_flag  ==  1)then 
+                         if(fuse_flag  ==  1)then
+                            
+                            !-----------------------!
+                            ! fuse the two patches  !
+                            !-----------------------!
+                            
                             tmpptr => currentPatch%older       
                             call fuse_2_patches(csite, currentPatch, tpp)
                             call fuse_cohorts(csite,tpp, bc_in)
                             call sort_cohorts(tpp)
                             currentPatch => tmpptr
+
+                            !------------------------------------------------------------------------!
+                            ! since we've just fused two patches, but are still in the midst of      !
+                            ! a patch x patch loop, reset the patch fusion tolerance to the starting !
+                            ! value so that any subsequent fusions in this loop are done with that   !
+                            ! value. otherwise we can end up in a situation where we've loosened the !
+                            ! fusion tolerance to get nopatches <= maxPatchesPerSite, but then,      !
+                            ! having accomplished that, we continue through all the patch x patch    !
+                            ! combinations and then all the patches get fused, ending up with        !
+                            ! nopatches << maxPatchesPerSite and losing all heterogeneity.           !
+                            !------------------------------------------------------------------------!
+
+                            profiletol = ED_val_patch_fusion_tol
+                            
                          else
                             ! write(fates_log(),*) 'patches not fused'
                          endif
