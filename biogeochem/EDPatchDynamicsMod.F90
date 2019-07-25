@@ -393,7 +393,6 @@ contains
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
     integer  :: levcan                       ! canopy level
-    real(r8) :: leaf_burn_frac
     real(r8) :: leaf_c                       ! leaf carbon [kg]
     real(r8) :: fnrt_c                       ! fineroot carbon [kg]
     real(r8) :: sapw_c                       ! sapwood carbon [kg]
