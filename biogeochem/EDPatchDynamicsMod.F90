@@ -393,6 +393,7 @@ contains
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
     integer  :: levcan                       ! canopy level
+    real(r8) :: leaf_burn_frac
     real(r8) :: leaf_c                       ! leaf carbon [kg]
     real(r8) :: fnrt_c                       ! fineroot carbon [kg]
     real(r8) :: sapw_c                       ! sapwood carbon [kg]
@@ -1392,6 +1393,7 @@ contains
                                                                       ! by current patch
     !
     ! !LOCAL VARIABLES:
+
     type(ed_cohort_type), pointer      :: currentCohort
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
@@ -1442,6 +1444,7 @@ contains
           call AccumulateMortalityWaterStorage(currentSite,currentCohort,num_dead_trees)
        end do
     end if
+
 
     ! If/when sending litter fluxes to the old patch, we divide the total 
     ! mass sent to that patch, by the area it will have remaining
@@ -1600,7 +1603,6 @@ contains
 
             currentCohort => currentCohort%taller
         enddo
-
     end do
     
     return
@@ -1984,6 +1986,7 @@ contains
 
 
     ! FIRE
+    currentPatch%litter_moisture(:)         = 0.0_r8 ! litter moisture
     currentPatch%fuel_eff_moist             = 0.0_r8 ! average fuel moisture content of the ground fuel 
     ! (incl. live grasses. omits 1000hr fuels)
     currentPatch%livegrass                  = 0.0_r8 ! total ag grass biomass in patch. 1=c3 grass, 2=c4 grass. gc/m2
