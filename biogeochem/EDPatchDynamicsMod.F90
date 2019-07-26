@@ -474,6 +474,14 @@ contains
           new_patch_primary%tallest  => null()
           new_patch_primary%shortest => null()
 
+          ! Insert New patch into the linked list
+       
+          currentPatch               => currentSite%youngest_patch
+          new_patch_primary%older    => currentPatch
+          new_patch_primary%younger  => null()
+          currentPatch%younger       => new_patch_primary
+          currentSite%youngest_patch => new_patch_primary
+
        endif
 
 
@@ -497,6 +505,14 @@ contains
           new_patch_secondary%tallest  => null()
           new_patch_secondary%shortest => null() 
 
+          ! Insert New patch into the linked list
+
+          currentPatch               => currentSite%youngest_patch
+          new_patch_secondary%older  => currentPatch
+          new_patch_secondary%younger=> null()
+          currentPatch%younger       => new_patch_secondary
+          currentSite%youngest_patch => new_patch_secondary
+
        endif
     
        ! loop round all the patches that contribute surviving indivduals and litter 
@@ -505,7 +521,11 @@ contains
        ! two new pointers.
 
        currentPatch => currentSite%oldest_patch
-       do while(associated(currentPatch))
+       do while(associated(currentPatch) .and. &
+             .not.associated(currentPatch,new_patch_secondary) .and. &
+             .not.associated(currentPatch,new_patch_primary))
+
+!       do while(associated(currentPatch))
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
@@ -715,7 +735,7 @@ contains
                    nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
                    
                    ! loss of individuals from source patch due to area shrinking
-                   currentCohort%n = currentCohort%n - nc%n
+                   currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
                    
                    levcan = currentCohort%canopy_layer 
                    
@@ -769,8 +789,8 @@ contains
                        leaf_burn_frac = currentCohort%fraction_crown_burned
                    else
 
-                       ! GRASS! Grasses determine their fraction of
-                       ! leaves burned right here!
+                       ! Grasses determine their fraction of leaves burned here
+
                        leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
                    endif
                    
@@ -985,21 +1005,21 @@ contains
       !**  INSERT NEW PATCH(ES) INTO LINKED LIST    
       !**********`***************/
        
-      if ( site_areadis_primary .gt. nearzero) then
-          currentPatch               => currentSite%youngest_patch
-          new_patch_primary%older    => currentPatch
-          new_patch_primary%younger  => null()
-          currentPatch%younger       => new_patch_primary
-          currentSite%youngest_patch => new_patch_primary
-      endif
+!      if ( site_areadis_primary .gt. nearzero) then
+!          currentPatch               => currentSite%youngest_patch
+!          new_patch_primary%older    => currentPatch
+!          new_patch_primary%younger  => null()
+!          currentPatch%younger       => new_patch_primary
+!          currentSite%youngest_patch => new_patch_primary
+!      endif
       
-      if ( site_areadis_secondary .gt. nearzero) then
-          currentPatch               => currentSite%youngest_patch
-          new_patch_secondary%older  => currentPatch
-          new_patch_secondary%younger=> null()
-          currentPatch%younger       => new_patch_secondary
-          currentSite%youngest_patch => new_patch_secondary
-      endif
+!      if ( site_areadis_secondary .gt. nearzero) then
+!          currentPatch               => currentSite%youngest_patch
+!          new_patch_secondary%older  => currentPatch
+!          new_patch_secondary%younger=> null()
+!          currentPatch%younger       => new_patch_secondary
+!          currentSite%youngest_patch => new_patch_secondary
+!      endif
  
        
        ! sort out the cohorts, since some of them may be so small as to need removing. 
@@ -1212,9 +1232,6 @@ contains
        curr_litt  => currentPatch%litter(el)
        new_litt  => newPatch%litter(el)
 
-
-
-
        ! Distribute the fragmentation litter flux rates. This is only used for diagnostics
        ! at this point.  Litter fragmentation has already been passed to the output
        ! boundary flux arrays.
@@ -1272,7 +1289,7 @@ contains
            donate_m2 = (1.0_r8-retain_frac)/newPatch%area
        else
            retain_m2 = 0._r8
-           donate_m2  = 1./newPatch%area
+           donate_m2 = 1.0_r8/newPatch%area
        end if
 
 
@@ -1341,8 +1358,6 @@ contains
 
           new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + donatable_mass * donate_m2
           curr_litt%seed_germ(pft) = curr_litt%seed_germ(pft) + donatable_mass * retain_m2
-
-          
           
        enddo
 
@@ -1392,6 +1407,7 @@ contains
                                                                       ! by current patch
     !
     ! !LOCAL VARIABLES:
+
     type(ed_cohort_type), pointer      :: currentCohort
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
@@ -1403,7 +1419,6 @@ contains
     real(r8) :: burned_mass          ! the mass of litter that was supposed to be provided
                                      ! by the donor, but was burned [kg]
     real(r8) :: remainder_area       ! current patch's remaining area after donation [m2]
-    real(r8) :: donate_frac          ! the fraction of litter mass sent to the new patch
     real(r8) :: retain_frac          ! the fraction of litter mass retained by the donor patch
     real(r8) :: bcroot               ! amount of below ground coarse root per cohort kg
     real(r8) :: bstem                ! amount of above ground stem biomass per cohort kg
@@ -1442,6 +1457,7 @@ contains
        end do
     end if
 
+
     ! If/when sending litter fluxes to the donor patch, we divide the total 
     ! mass sent to that patch, by the area it will have remaining
     ! after it donates area.
@@ -1461,7 +1477,7 @@ contains
         donate_m2 = (1.0_r8-retain_frac)/newPatch%area
     else
         retain_m2 = 0._r8
-        donate_m2  = 1./newPatch%area
+        donate_m2 = 1.0_r8/newPatch%area
     end if
 
     do el = 1,num_elements
@@ -1599,7 +1615,6 @@ contains
 
             currentCohort => currentCohort%taller
         enddo
-
     end do
     
     return
@@ -1674,7 +1689,7 @@ contains
        donate_m2 = (1.0_r8-retain_frac)/newPatch%area
     else
        retain_m2 = 0._r8
-       donate_m2  = 1._r8/newPatch%area
+       donate_m2 = 1._r8/newPatch%area
     end if
 
 
@@ -1983,6 +1998,7 @@ contains
 
 
     ! FIRE
+    currentPatch%litter_moisture(:)         = 0.0_r8 ! litter moisture
     currentPatch%fuel_eff_moist             = 0.0_r8 ! average fuel moisture content of the ground fuel 
     ! (incl. live grasses. omits 1000hr fuels)
     currentPatch%livegrass                  = 0.0_r8 ! total ag grass biomass in patch. 1=c3 grass, 2=c4 grass. gc/m2

@@ -936,7 +936,6 @@ contains
     ! !DESCRIPTION: 
     !
     ! !USES:
-    use FatesUtilsMod  , only : check_var_real
     use EDTypesMod     , only : AREA
     
     ! !ARGUMENTS:
@@ -2263,7 +2262,6 @@ contains
      !s
      ! !USES:
      use EDTypesMod        , only : AREA
-     use FatesUtilsMod  , only : check_var_real
 
      ! ARGUMENTS:
      ! -----------------------------------------------------------------------------------

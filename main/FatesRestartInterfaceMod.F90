@@ -1911,7 +1911,6 @@ contains
      use EDTypesMod,           only : ed_cohort_type
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : maxSWb
-     use EDTypesMod,           only : nan_leaf_aclass
      use FatesInterfaceMod,    only : fates_maxElementsPerPatch
      
      use EDTypesMod,           only : maxpft

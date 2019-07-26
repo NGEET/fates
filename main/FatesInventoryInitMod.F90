@@ -36,7 +36,6 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : ed_patch_type
    use EDTypesMod       , only : ed_cohort_type 
    use EDTypesMod       , only : area
-   use EDTypesMod       , only : equal_leaf_aclass
    use EDTypesMod       , only : leaves_on
    use EDTypesMod       , only : leaves_off
    use EDTypesMod       , only : num_elements
@@ -91,6 +90,9 @@ module FatesInventoryInitMod
                                                            ! defined in model memory and a physical
                                                            ! site listed in the file
 
+   logical, parameter :: do_inventory_out = .false.
+
+
    public :: initialize_sites_by_inventory
 
 contains
@@ -135,6 +137,7 @@ contains
       integer,                         allocatable :: inv_format_list(:)   ! list of format specs
       character(len=path_strlen),      allocatable :: inv_css_list(:)      ! list of css file names
       character(len=path_strlen),      allocatable :: inv_pss_list(:)      ! list of pss file names
+ 
       real(r8),                        allocatable :: inv_lat_list(:)      ! list of lat coords
       real(r8),                        allocatable :: inv_lon_list(:)      ! list of lon coords
       integer                                      :: invsite              ! index of inventory site 
@@ -147,13 +150,12 @@ contains
       real(r8)                                     :: basal_area_postf     ! basal area before fusion (m2/ha)
       real(r8)                                     :: basal_area_pref      ! basal area after fusion (m2/ha)
 
-      real(r8), parameter                          :: max_ba_diff = 1.0e-2 ! 1% is the maximum allowable
-                                                                           ! change in BA due to fusion
-
       ! I. Load the inventory list file, do some file handle checks
       ! ------------------------------------------------------------------------------------------
 
       sitelist_file_unit = shr_file_getUnit()
+     
+
       inquire(file=trim(hlm_inventory_ctrl_file),exist=lexist,opened=lopen)
       if( .not.lexist ) then   ! The inventory file list DNE
          write(fates_log(), *) 'An inventory Initialization was requested.'
@@ -448,8 +450,13 @@ contains
          write(fates_log(),*) basal_area_postf,' [m2/ha]'
          write(fates_log(),*) '-------------------------------------------------------'
          
-      end do
+         ! If this is flagged as true, the post-fusion inventory will be written to file
+         ! in the run directory.
+         if(do_inventory_out)then
+             call write_inventory_type1(sites(s))
+         end if
 
+      end do
       deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list)
 
       return
@@ -1034,5 +1041,102 @@ contains
 
       return
     end subroutine set_inventory_edcohort_type1
+
+   ! ====================================================================================
+
+   subroutine write_inventory_type1(currentSite)
+
+       ! --------------------------------------------------------------------------------
+       ! This subroutine writes the cohort/patch inventory type files in the "type 1"
+       ! format.  Note that for compatibility with ED2, we chose an old type that has
+       ! both extra unused fields and is missing fields from FATES. THis is not
+       ! a recommended file type for restarting a run.
+       ! The files will have a lat/long tag added to their name, and will be
+       ! generated in the run folder.
+       ! --------------------------------------------------------------------------------
+
+       use shr_file_mod, only        : shr_file_getUnit
+       use shr_file_mod, only        : shr_file_freeUnit
+       
+       ! Arguments
+       type(ed_site_type), target :: currentSite
+       
+       ! Locals
+       type(ed_patch_type), pointer          :: currentpatch
+       type(ed_cohort_type), pointer         :: currentcohort
+       
+       character(len=128)                    :: pss_name_out         ! output file string
+       character(len=128)                    :: css_name_out         ! output file string
+       integer                               :: pss_file_out
+       integer                               :: css_file_out
+       integer                               :: ilat_int,ilat_dec    ! for output string parsing
+       integer                               :: ilon_int,ilon_dec    ! for output string parsing
+       character(len=32)                     :: patch_str
+       character(len=32)                     :: cohort_str
+       integer                               :: ipatch
+       integer                               :: icohort
+       character(len=1)                      :: ilat_sign,ilon_sign
+
+       ! Generate pss/css file name based on the location of the site
+       ilat_int = abs(int(currentSite%lat))
+       ilat_dec = int(100000*(abs(currentSite%lat) - real(ilat_int,r8)))
+       ilon_int = abs(int(currentSite%lon))
+       ilon_dec = int(100000*(abs(currentSite%lon) - real(ilon_int,r8)))
+       
+       if(currentSite%lat>=0._r8)then
+           ilat_sign = 'N'
+       else
+           ilat_sign = 'S'
+       end if
+       if(currentSite%lon>=0._r8)then
+           ilon_sign = 'E'
+       else
+           ilon_sign = 'W'
+       end if
+
+       write(pss_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
+             'pss_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
+       write(css_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
+             'css_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
+
+       pss_file_out       = shr_file_getUnit()
+       css_file_out       = shr_file_getUnit()
+       
+       open(unit=pss_file_out,file=trim(pss_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
+       open(unit=css_file_out,file=trim(css_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
+       
+       write(pss_file_out,*) 'time patch trk age area water fsc stsc stsl ssc psc msn fsn'
+       write(css_file_out,*) 'time patch cohort dbh hite pft nplant bdead alive Avgrg'
+             
+       ipatch=0
+       currentpatch => currentSite%youngest_patch
+       do while(associated(currentpatch))
+           ipatch=ipatch+1
+           
+           write(patch_str,'(A7,i4.4,A)') '<patch_',ipatch,'>'
+           
+           write(pss_file_out,*) '0000 ',trim(patch_str),' 2 ',currentPatch%age,currentPatch%area/AREA, &
+                 '0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000'
+           
+           icohort=0
+           currentcohort => currentpatch%tallest
+           do while(associated(currentcohort))
+               icohort=icohort+1
+               write(cohort_str,'(A7,i4.4,A)') '<coh_',icohort,'>'
+               write(css_file_out,*) '0000 ',trim(patch_str),' ',trim(cohort_str), &
+                     currentCohort%dbh,0.0,currentCohort%pft,currentCohort%n/currentPatch%area,0.0,0.0,0.0
+               
+               currentcohort => currentcohort%shorter
+           end do
+           currentPatch => currentpatch%older
+       enddo
+       
+       close(css_file_out)
+       close(pss_file_out)
+       
+       call shr_file_freeUnit(css_file_out)
+       call shr_file_freeUnit(pss_file_out)
+       
+   end subroutine write_inventory_type1
 
 end module FatesInventoryInitMod
