@@ -415,7 +415,7 @@ contains
 
     do while(associated(currentPatch))
 
-       !FIX(RF,032414) Does using the max(fire,mort) actually make sense here?
+    
        if(currentPatch%disturbance_rate>1.0_r8) then
           write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
           call endrun(msg=errMsg(sourcefile, __LINE__))          
@@ -546,8 +546,8 @@ contains
              ! Transfer the litter existing already in the donor patch to the new patch
              ! This call will only transfer non-burned litter to new patch
              ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
-             ! fire is not the dominant disturbance regime. Make sure to zero out the
-             ! burnt fraction of litter if fire was not dominant.
+             ! fire is not the dominant disturbance regime. 
+            
 
              if(currentPatch%disturbance_mode .ne. dtype_ifire) then
                  currentPatch%burnt_frac_litter(:) = 0._r8
@@ -1155,8 +1155,8 @@ contains
     !
     ! The "newPatch" is the newly created patch. This patch has already been given
     ! an area which is the sum of disturbed area from a list of donors.  
-    ! At this point in the call seequence, we are looping over a list of
-    ! donot patches, and transfering over their litter pools which is in units 
+    ! At this point in the call sequence, we are looping over a list of
+    ! donor patches, and transferring over their litter pools which is in units 
     ! kg/m2, we need to make sure that we are conserving mass.
     !
     ! AD = Area of each Donor    [m2]
@@ -1169,7 +1169,7 @@ contains
     !
     ! The fragmentation/decomposition flux from donor patches has 
     ! already occured in existing patches.  However some of their area 
-    ! has been carved out for this new patches which is receiving donations.
+    ! has been carved out for this new patch which is receiving donations.
     ! Lets maintain conservation on that pre-existing mass flux in these 
     ! newly disturbed patches.  Include only the fragmentation flux.
     ! -----------------------------------------------------------------------------------
@@ -1243,7 +1243,7 @@ contains
 
        ! -----------------------------------------------------------------------------
        ! Distribute the existing litter that was already in place on the donor
-       ! patch.  Some of this burns and is sent to the atosphere, and some goes to the 
+       ! patch.  Some of this burns and is sent to the atmosphere, and some goes to the 
        ! litter stocks of the newly created patch. ALso, some may be retained in the 
        ! donor patch.
        !
@@ -1386,8 +1386,8 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(inout), target :: currentSite
-    type(ed_patch_type) , intent(inout), target :: currentPatch
-    type(ed_patch_type) , intent(inout), target :: newPatch
+    type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
+    type(ed_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
                                                                       ! by current patch
     !
@@ -1407,7 +1407,6 @@ contains
     real(r8) :: retain_frac          ! the fraction of litter mass retained by the donor patch
     real(r8) :: bcroot               ! amount of below ground coarse root per cohort kg
     real(r8) :: bstem                ! amount of above ground stem biomass per cohort kg
-    real(r8) :: burned_leaves        ! amount of tissue consumed by fire for leaves. KgC/individual/day
     real(r8) :: leaf_burn_frac       ! fraction of leaves burned 
     real(r8) :: leaf_m               ! leaf mass [kg]
     real(r8) :: fnrt_m               ! fineroot mass [kg]
@@ -1418,7 +1417,7 @@ contains
     real(r8) :: num_dead_trees       ! total number of dead trees passed in with the burn area
     real(r8) :: num_live_trees       ! total number of live trees passed in with the burn area
     real(r8) :: donate_m2            ! area normalization for litter mass destined to new patch [m-2]
-    real(r8) :: retain_m2            ! area normalization for litter mass destined to old patch [m-2]
+    real(r8) :: retain_m2            ! area normalization for litter mass staying in donor patch [m-2]
     real(r8) :: dcmpy_frac           ! fraction of mass going to each decomposability partition
     integer  :: el                   ! element loop index
     integer  :: sl                   ! soil layer index
@@ -1443,7 +1442,7 @@ contains
        end do
     end if
 
-    ! If/when sending litter fluxes to the old patch, we divide the total 
+    ! If/when sending litter fluxes to the donor patch, we divide the total 
     ! mass sent to that patch, by the area it will have remaining
     ! after it donates area.
     ! i.e. subtract the area it is donating.
@@ -1452,8 +1451,8 @@ contains
    
     ! Calculate the fraction of litter to be retained versus donated
     ! vis-a-vis the new and donor patch (if the area remaining
-    ! in the original patch is small, don't bother 
-    ! retaining anything.
+    ! in the original donor patch is small, don't bother 
+    ! retaining anything.)
     retain_frac = (1.0_r8-burn_localization) * &
           remainder_area/(newPatch%area+remainder_area)
 
@@ -1520,7 +1519,7 @@ contains
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                    icontext = i_biomass_rootprof_context)
 
-             ! Contribution of dead trees to root litter (no root burn flux)
+             ! Contribution of dead trees to root litter (no root burn flux to atm)
              do dcmpy=1,ndcmpy
                  dcmpy_frac = GetDecompyFrac(pft,dcmpy)
                  do sl = 1,currentSite%nlevsoil
@@ -1586,7 +1585,7 @@ contains
              enddo
              
              ! Above ground coarse woody debris from large branches 
-             ! and stems: these do not burn in crown fires. 
+             ! and stems: these do not burn in crown scorch fires. 
              do c = 3,4
                 donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
