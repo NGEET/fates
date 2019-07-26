@@ -1444,7 +1444,7 @@ contains
        end do
     end if
 
-    ! If/when sending litter fluxes to the old patch, we divide the total 
+    ! If/when sending litter fluxes to the donor patch, we divide the total 
     ! mass sent to that patch, by the area it will have remaining
     ! after it donates area.
     ! i.e. subtract the area it is donating.
