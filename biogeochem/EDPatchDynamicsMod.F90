@@ -1156,7 +1156,7 @@ contains
     !
     ! The "newPatch" is the newly created patch. This patch has already been given
     ! an area which is the sum of disturbed area from a list of donors.  
-    ! At this point in the call seequence, we are looping over a list of
+    ! At this point in the call sequence, we are looping over a list of
     ! donot patches, and transfering over their litter pools which is in units 
     ! kg/m2, we need to make sure that we are conserving mass.
     !
