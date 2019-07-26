@@ -548,7 +548,7 @@ contains
              ! This call will only transfer non-burned litter to new patch
              ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
              ! fire is not the dominant disturbance regime. 
-             ! burnt fraction of litter if fire was not dominant.
+            
 
              if(currentPatch%disturbance_mode .ne. dtype_ifire) then
                  currentPatch%burnt_frac_litter(:) = 0._r8
