@@ -1244,7 +1244,7 @@ contains
 
        ! -----------------------------------------------------------------------------
        ! Distribute the existing litter that was already in place on the donor
-       ! patch.  Some of this burns and is sent to the atosphere, and some goes to the 
+       ! patch.  Some of this burns and is sent to the atmosphere, and some goes to the 
        ! litter stocks of the newly created patch. ALso, some may be retained in the 
        ! donor patch.
        !
@@ -1387,8 +1387,8 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(inout), target :: currentSite
-    type(ed_patch_type) , intent(inout), target :: currentPatch
-    type(ed_patch_type) , intent(inout), target :: newPatch
+    type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
+    type(ed_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
                                                                       ! by current patch
     !
@@ -1408,7 +1408,6 @@ contains
     real(r8) :: retain_frac          ! the fraction of litter mass retained by the donor patch
     real(r8) :: bcroot               ! amount of below ground coarse root per cohort kg
     real(r8) :: bstem                ! amount of above ground stem biomass per cohort kg
-    real(r8) :: burned_leaves        ! amount of tissue consumed by fire for leaves. KgC/individual/day
     real(r8) :: leaf_burn_frac       ! fraction of leaves burned 
     real(r8) :: leaf_m               ! leaf mass [kg]
     real(r8) :: fnrt_m               ! fineroot mass [kg]
@@ -1419,7 +1418,7 @@ contains
     real(r8) :: num_dead_trees       ! total number of dead trees passed in with the burn area
     real(r8) :: num_live_trees       ! total number of live trees passed in with the burn area
     real(r8) :: donate_m2            ! area normalization for litter mass destined to new patch [m-2]
-    real(r8) :: retain_m2            ! area normalization for litter mass destined to old patch [m-2]
+    real(r8) :: retain_m2            ! area normalization for litter mass staying in donor patch [m-2]
     real(r8) :: dcmpy_frac           ! fraction of mass going to each decomposability partition
     integer  :: el                   ! element loop index
     integer  :: sl                   ! soil layer index
@@ -1453,8 +1452,8 @@ contains
    
     ! Calculate the fraction of litter to be retained versus donated
     ! vis-a-vis the new and donor patch (if the area remaining
-    ! in the original patch is small, don't bother 
-    ! retaining anything.
+    ! in the original donor patch is small, don't bother 
+    ! retaining anything.)
     retain_frac = (1.0_r8-burn_localization) * &
           remainder_area/(newPatch%area+remainder_area)
 
@@ -1521,7 +1520,7 @@ contains
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                    icontext = i_biomass_rootprof_context)
 
-             ! Contribution of dead trees to root litter (no root burn flux)
+             ! Contribution of dead trees to root litter (no root burn flux to atm)
              do dcmpy=1,ndcmpy
                  dcmpy_frac = GetDecompyFrac(pft,dcmpy)
                  do sl = 1,currentSite%nlevsoil
@@ -1587,7 +1586,7 @@ contains
              enddo
              
              ! Above ground coarse woody debris from large branches 
-             ! and stems: these do not burn in crown fires. 
+             ! and stems: these do not burn in crown scorch fires. 
              do c = 3,4
                 donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
