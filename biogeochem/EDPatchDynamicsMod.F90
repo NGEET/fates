@@ -1232,9 +1232,6 @@ contains
        curr_litt  => currentPatch%litter(el)
        new_litt  => newPatch%litter(el)
 
-
-
-
        ! Distribute the fragmentation litter flux rates. This is only used for diagnostics
        ! at this point.  Litter fragmentation has already been passed to the output
        ! boundary flux arrays.
@@ -1292,7 +1289,7 @@ contains
            donate_m2 = (1.0_r8-retain_frac)/newPatch%area
        else
            retain_m2 = 0._r8
-           donate_m2  = 1./newPatch%area
+           donate_m2 = 1.0_r8/newPatch%area
        end if
 
 
@@ -1361,8 +1358,6 @@ contains
 
           new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + donatable_mass * donate_m2
           curr_litt%seed_germ(pft) = curr_litt%seed_germ(pft) + donatable_mass * retain_m2
-
-          
           
        enddo
 
@@ -1424,7 +1419,6 @@ contains
     real(r8) :: burned_mass          ! the mass of litter that was supposed to be provided
                                      ! by the donor, but was burned [kg]
     real(r8) :: remainder_area       ! current patch's remaining area after donation [m2]
-    real(r8) :: donate_frac          ! the fraction of litter mass sent to the new patch
     real(r8) :: retain_frac          ! the fraction of litter mass retained by the donor patch
     real(r8) :: bcroot               ! amount of below ground coarse root per cohort kg
     real(r8) :: bstem                ! amount of above ground stem biomass per cohort kg
@@ -1484,7 +1478,7 @@ contains
         donate_m2 = (1.0_r8-retain_frac)/newPatch%area
     else
         retain_m2 = 0._r8
-        donate_m2  = 1./newPatch%area
+        donate_m2 = 1.0_r8/newPatch%area
     end if
 
     do el = 1,num_elements
@@ -1696,7 +1690,7 @@ contains
        donate_m2 = (1.0_r8-retain_frac)/newPatch%area
     else
        retain_m2 = 0._r8
-       donate_m2  = 1._r8/newPatch%area
+       donate_m2 = 1._r8/newPatch%area
     end if
 
 
