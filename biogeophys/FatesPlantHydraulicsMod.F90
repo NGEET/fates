@@ -2290,7 +2290,7 @@ contains
      real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
      
      ! hydraulics timestep adjustments for acceptable water balance error
-     integer  :: maxiter        = 1            ! maximum iterations for timestep reduction                       [-]
+     integer  :: maxiter        = 5            ! maximum iterations for timestep reduction                       [-]
      integer  :: imult          = 3            ! iteration index multiplier                                      [-]
      real(r8) :: we_area_outer                 ! 1D plant-soil continuum water error                             [kgh2o m-2 individual-1]
      
