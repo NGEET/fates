@@ -36,7 +36,6 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : ed_patch_type
    use EDTypesMod       , only : ed_cohort_type 
    use EDTypesMod       , only : area
-   use EDTypesMod       , only : equal_leaf_aclass
    use EDTypesMod       , only : leaves_on
    use EDTypesMod       , only : leaves_off
    use EDTypesMod       , only : num_elements

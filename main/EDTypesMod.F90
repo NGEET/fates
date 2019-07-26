@@ -179,14 +179,8 @@ module EDTypesMod
   logical, parameter, public :: homogenize_seed_pfts  = .false.
 
   
-  ! Leaf age class initialization schemes
-  integer, parameter, public :: nan_leaf_aclass = 0     ! initialize leaf age classes as undefined
-                                                        ! (used when copying)
-  integer, parameter, public :: equal_leaf_aclass = 1   ! initialize leaf age classes equal
-                                                        ! (used for inventory initialization)
-  integer, parameter, public :: first_leaf_aclass = 2   ! initialize leaf age classes as all in
-                                                        ! youngest class (used for recruitment)
 
+  ! Global identifiers for which elements we are using (apply mostly to litter)
 
   integer, public              :: num_elements          ! This is the number of elements in this simulation
                                                         ! e.g. (C,N,P,K, etc)

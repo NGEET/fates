@@ -42,7 +42,6 @@ module EDPhysiologyMod
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod          , only : first_leaf_aclass
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
   use EDTypesMod          , only : min_n_safemath

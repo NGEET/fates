@@ -32,9 +32,6 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
-  use EDTypesMod            , only : equal_leaf_aclass
-  use EDTypesMod            , only : first_leaf_aclass
-  use EDTypesMod            , only : nan_leaf_aclass
   use EDTypesMod            , only : max_nleafage
   use EDTypesMod            , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
