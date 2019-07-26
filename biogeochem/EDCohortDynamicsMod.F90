@@ -637,8 +637,7 @@ contains
     real(r8) :: fnrt_c    ! fineroot carbon [kg]
     real(r8) :: repro_c   ! reproductive carbon [kg]
     real(r8) :: struct_c  ! structural carbon [kg]
-
-    integer :: terminate   ! do we terminate (1) or not (0) 
+    integer :: terminate  ! do we terminate (itrue) or not (ifalse)
     integer :: c           ! counter for litter size class. 
     integer :: levcan      ! canopy level
     !----------------------------------------------------------------------
