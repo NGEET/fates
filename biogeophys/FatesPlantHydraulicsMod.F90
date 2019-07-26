@@ -39,6 +39,7 @@ module FatesPlantHydraulicsMod
    use FatesConstantsMod, only : pi_const
    use FatesConstantsMod, only : cm2_per_m2
    use FatesConstantsMod, only : g_per_kg
+   use FatesConstantsMod, only : nearzero
 
    use EDParamsMod       , only : hydr_kmax_rsurf1
    use EDParamsMod       , only : hydr_kmax_rsurf2
