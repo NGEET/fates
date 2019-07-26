@@ -773,7 +773,8 @@ contains
     ! on a vegetation cohort, into the litter pool.
     ! 
     ! Important: (1) This IS NOT turnover, this is not a partial transfer.
-    !            (2) This is from a select number of the cohort
+    !            (2) This is from a select number of plants in the cohort. ie this is
+    !                not a "whole-sale" sending of all plants to litter.
     !            (3) This does not affect the PER PLANT mass pools, so 
     !                do not update any PARTEH structures.
     !            (4) The change in plant number density (due to death or termination)
