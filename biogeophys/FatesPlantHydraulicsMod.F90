@@ -2474,11 +2474,6 @@ contains
            do while(associated(ccohort))
               ccohort_hydr => ccohort%co_hydr
               gscan_patch       = gscan_patch + ccohort%g_sb_laweight
-              if (ccohort%g_sb_laweight < 0._r8) then
-                 write(fates_log(),*) 'ERROR: negative gscan_patch!' 
-                 write(fates_log(),*) 'g_sb_laweight: ',ccohort%g_sb_laweight
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
               ccohort => ccohort%shorter
            enddo !cohort
            
