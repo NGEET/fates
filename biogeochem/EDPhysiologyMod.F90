@@ -35,9 +35,9 @@ module EDPhysiologyMod
   use EDTypesMod          , only : dl_sf, dinc_ed
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
-  use FatesLitterMod      , only : ilabi
-  use FatesLitterMod      , only : ilign
-  use FatesLitterMod      , only : icell
+  use FatesLitterMod      , only : ilabile
+  use FatesLitterMod      , only : ilignin
+  use FatesLitterMod      , only : icellulose
   use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
@@ -1893,13 +1893,13 @@ contains
 
     do pft = 1,numpft
 
-        litt%leaf_fines_in(ilabi) = litt%leaf_fines_in(ilabi) + & 
+        litt%leaf_fines_in(ilabile) = litt%leaf_fines_in(ilabile) + & 
               (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flab(pft)
         
-        litt%leaf_fines_in(icell) = litt%leaf_fines_in(icell) + & 
+        litt%leaf_fines_in(icellulose) = litt%leaf_fines_in(icellulose) + & 
               (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_fcel(pft)
         
-        litt%leaf_fines_in(ilign) = litt%leaf_fines_in(ilign) + & 
+        litt%leaf_fines_in(ilignin) = litt%leaf_fines_in(ilignin) + & 
               (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flig(pft)
 
     enddo
@@ -2211,13 +2211,13 @@ contains
              do id = 1,nlev_eff_decomp
                    
                  flux_lab_si(id) = flux_lab_si(id) + &
-                       litt%leaf_fines_frag(ilabi) * area_frac* surface_prof(id)
+                       litt%leaf_fines_frag(ilabile) * area_frac* surface_prof(id)
                    
                  flux_cel_si(id) = flux_cel_si(id) + &
-                       litt%leaf_fines_frag(icell) * area_frac* surface_prof(id)
+                       litt%leaf_fines_frag(icellulose) * area_frac* surface_prof(id)
                  
                  flux_lig_si(id) = flux_lig_si(id) + &
-                       litt%leaf_fines_frag(ilign) * area_frac* surface_prof(id)
+                       litt%leaf_fines_frag(ilignin) * area_frac* surface_prof(id)
                  
              end do
 
@@ -2226,11 +2226,11 @@ contains
                  id = bc_in(s)%decomp_id(j)
 
                  flux_lab_si(id) = flux_lab_si(id) + &
-                       litt%root_fines_frag(ilabi,j) * area_frac
+                       litt%root_fines_frag(ilabile,j) * area_frac
                  flux_cel_si(id) = flux_cel_si(id) + &
-                       litt%root_fines_frag(icell,j) * area_frac
+                       litt%root_fines_frag(icellulose,j) * area_frac
                  flux_lig_si(id) = flux_lig_si(id) + &
-                       litt%root_fines_frag(ilign,j) * area_frac
+                       litt%root_fines_frag(ilignin,j) * area_frac
              enddo
 
          

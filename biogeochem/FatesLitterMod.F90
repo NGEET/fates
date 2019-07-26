@@ -51,9 +51,9 @@ module FatesLitterMod
    integer, public, parameter :: ndcmpy = 3   ! number of "decomposability" pools in
                                               ! fines (lignin, cellulose, labile)
 
-   integer, public, parameter :: ilabile  = 1   ! Array index for labile portion
-   integer, public, parameter :: icell  = 2   ! Array index for cellulose portion
-   integer, public, parameter :: ilignin  = 3   ! Array index for the lignin portion
+   integer, public, parameter :: ilabile     = 1   ! Array index for labile portion
+   integer, public, parameter :: icellulose  = 2   ! Array index for cellulose portion
+   integer, public, parameter :: ilignin     = 3   ! Array index for the lignin portion
 
 
    type, public ::  litter_type

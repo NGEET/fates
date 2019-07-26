@@ -13,7 +13,7 @@ module EDPftvarcon
   use FatesConstantsMod, only : years_per_day
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
-  use FatesLitterMod, only : ilabi,icell,ilign
+  use FatesLitterMod, only : ilabile,icellulose,ilignin
   use PRTGenericMod,  only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,  only : prt_carbon_allom_hyp
   use PRTGenericMod,  only : num_organ_types
@@ -2414,11 +2414,11 @@ contains
       real(r8) :: decompy_frac        
       
       select case(dcmpy)
-      case(ilabi)
+      case(ilabile)
           decompy_frac=EDPftvarcon_inst%lf_flab(pft)
-      case(icell)
+      case(icellulose)
           decompy_frac=EDPftvarcon_inst%lf_fcel(pft)
-      case(ilign)
+      case(ilignin)
           decompy_frac=EDPftvarcon_inst%lf_flig(pft)
       case default
           write(fates_log(),*) 'Unknown decompositiblity pool index: ',dcmpy

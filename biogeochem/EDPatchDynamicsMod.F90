@@ -14,7 +14,6 @@ module EDPatchDynamicsMod
   use FatesLitterMod       , only : ncwd
   use FatesLitterMod       , only : ndcmpy
   use FatesLitterMod       , only : litter_type
-  use FatesLitterMod       , only : ilabi,icell,ilign
   use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
