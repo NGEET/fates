@@ -547,7 +547,7 @@ contains
              ! Transfer the litter existing already in the donor patch to the new patch
              ! This call will only transfer non-burned litter to new patch
              ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
-             ! fire is not the dominant disturbance regime. Make sure to zero out the
+             ! fire is not the dominant disturbance regime. 
              ! burnt fraction of litter if fire was not dominant.
 
              if(currentPatch%disturbance_mode .ne. dtype_ifire) then
