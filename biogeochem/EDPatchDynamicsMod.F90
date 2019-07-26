@@ -735,7 +735,7 @@ contains
                    nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
                    
                    ! loss of individuals from source patch due to area shrinking
-                   currentCohort%n = currentCohort%n - nc%n
+                   currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
                    
                    levcan = currentCohort%canopy_layer 
                    
@@ -789,8 +789,8 @@ contains
                        leaf_burn_frac = currentCohort%fraction_crown_burned
                    else
 
-                       ! GRASS! Grasses determine their fraction of
-                       ! leaves burned right here!
+                       ! Grasses determine their fraction of leaves burned here
+
                        leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
                    endif
                    
