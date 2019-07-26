@@ -1170,7 +1170,7 @@ contains
     !
     ! The fragmentation/decomposition flux from donor patches has 
     ! already occured in existing patches.  However some of their area 
-    ! has been carved out for this new patches which is receiving donations.
+    ! has been carved out for this new patch which is receiving donations.
     ! Lets maintain conservation on that pre-existing mass flux in these 
     ! newly disturbed patches.  Include only the fragmentation flux.
     ! -----------------------------------------------------------------------------------
