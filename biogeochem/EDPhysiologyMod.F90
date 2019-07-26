@@ -1254,7 +1254,7 @@ contains
     ! germination_timescale is being pulled to PFT parameter; units are 1/yr
     ! thus the mortality rate of seed -> recruit (in units of carbon) 
     ! is seed_decay_turnover(p)/germination_timescale(p)
-    ! and thus the mortlaity rate (in units of individuals) is the product of 
+    ! and thus the mortality rate (in units of individuals) is the product of 
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
     do pft = 1,numpft
@@ -1591,10 +1591,10 @@ contains
                                 ! with direct logging
     real(r8) :: leaf_m          ! mass of the element of interest in the 
                                 ! leaf  [kg]
-    real(r8) :: fnrt_m
-    real(r8) :: sapw_m
-    real(r8) :: struct_m
-    real(r8) :: store_m
+    real(r8) :: fnrt_m           ! fine-root [kg]
+    real(r8) :: sapw_m    ! sapwood [kg]
+    real(r8) :: struct_m    ! structural [kg]
+    real(r8) :: store_m    ! storage [kg]
     real(r8) :: leaf_m_turnover ! leaf turnover [kg]
     real(r8) :: fnrt_m_turnover
     real(r8) :: sapw_m_turnover
@@ -1768,7 +1768,7 @@ contains
             flux_diags%root_litter_input(pft) +  &
             root_fines_tot*currentPatch%area
 
-      ! Track CWD inputs from mortal plants
+      ! Track CWD inputs from dead plants
       
       do c = 1,ncwd
 
