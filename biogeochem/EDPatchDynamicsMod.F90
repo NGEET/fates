@@ -416,7 +416,7 @@ contains
 
     do while(associated(currentPatch))
 
-       !FIX(RF,032414) Does using the max(fire,mort) actually make sense here?
+    
        if(currentPatch%disturbance_rate>1.0_r8) then
           write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
           call endrun(msg=errMsg(sourcefile, __LINE__))          
