@@ -474,6 +474,14 @@ contains
           new_patch_primary%tallest  => null()
           new_patch_primary%shortest => null()
 
+          ! Insert New patch into the linked list
+       
+          currentPatch               => currentSite%youngest_patch
+          new_patch_primary%older    => currentPatch
+          new_patch_primary%younger  => null()
+          currentPatch%younger       => new_patch_primary
+          currentSite%youngest_patch => new_patch_primary
+
        endif
 
 
@@ -497,6 +505,14 @@ contains
           new_patch_secondary%tallest  => null()
           new_patch_secondary%shortest => null() 
 
+          ! Insert New patch into the linked list
+
+          currentPatch               => currentSite%youngest_patch
+          new_patch_secondary%older  => currentPatch
+          new_patch_secondary%younger=> null()
+          currentPatch%younger       => new_patch_secondary
+          currentSite%youngest_patch => new_patch_secondary
+
        endif
     
        ! loop round all the patches that contribute surviving indivduals and litter 
@@ -505,7 +521,11 @@ contains
        ! two new pointers.
 
        currentPatch => currentSite%oldest_patch
-       do while(associated(currentPatch))
+       do while(associated(currentPatch) .and. &
+             .not.associated(currentPatch,new_patch_secondary) .and. &
+             .not.associated(currentPatch,new_patch_primary))
+
+!       do while(associated(currentPatch))
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
@@ -985,21 +1005,21 @@ contains
       !**  INSERT NEW PATCH(ES) INTO LINKED LIST    
       !**********`***************/
        
-      if ( site_areadis_primary .gt. nearzero) then
-          currentPatch               => currentSite%youngest_patch
-          new_patch_primary%older    => currentPatch
-          new_patch_primary%younger  => null()
-          currentPatch%younger       => new_patch_primary
-          currentSite%youngest_patch => new_patch_primary
-      endif
+!      if ( site_areadis_primary .gt. nearzero) then
+!          currentPatch               => currentSite%youngest_patch
+!          new_patch_primary%older    => currentPatch
+!          new_patch_primary%younger  => null()
+!          currentPatch%younger       => new_patch_primary
+!          currentSite%youngest_patch => new_patch_primary
+!      endif
       
-      if ( site_areadis_secondary .gt. nearzero) then
-          currentPatch               => currentSite%youngest_patch
-          new_patch_secondary%older  => currentPatch
-          new_patch_secondary%younger=> null()
-          currentPatch%younger       => new_patch_secondary
-          currentSite%youngest_patch => new_patch_secondary
-      endif
+!      if ( site_areadis_secondary .gt. nearzero) then
+!          currentPatch               => currentSite%youngest_patch
+!          new_patch_secondary%older  => currentPatch
+!          new_patch_secondary%younger=> null()
+!          currentPatch%younger       => new_patch_secondary
+!          currentSite%youngest_patch => new_patch_secondary
+!      endif
  
        
        ! sort out the cohorts, since some of them may be so small as to need removing. 
