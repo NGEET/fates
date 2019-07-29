@@ -3784,7 +3784,7 @@ contains
 	     bc_in%bsw_sisl(1),     &
              flc_node)
        case default
-          write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
+          write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = ', iswc
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
     end if
@@ -3838,7 +3838,7 @@ contains
 	     bc_in%bsw_sisl(1),     &
              dflcdpsi_node)
        case default
-          write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
+          write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = ', iswc
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
     end if
@@ -3886,7 +3886,7 @@ contains
        call psi_from_th(ft, pm, th_node, psi_check )
 
        if(psi_check > -1.e-8_r8) then
-          write(fates_log(),*)'bisect_pv returned positive value for water potential at pm = ', char(pm)
+          write(fates_log(),*)'bisect_pv returned positive value for water potential at pm = ', pm
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
        
@@ -3917,7 +3917,7 @@ contains
                   bc_in%watsat_sisl(1),   &
                   th_node)
        case default
-          write(fates_log(),*)  'invalid soil water characteristic function specified, iswc = '//char(iswc)
+          write(fates_log(),*)  'invalid soil water characteristic function specified, iswc = ', iswc
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
     end if
@@ -4035,7 +4035,7 @@ contains
 	          bc_in%bsw_sisl(1),     &
                   psi_node)
        case default
-          write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
+          write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = ', iswc
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
 
@@ -4086,7 +4086,7 @@ contains
 	          bc_in%bsw_sisl(1),     &
                   y)
        case default
-          write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
+          write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = ', iswc
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
     end if
