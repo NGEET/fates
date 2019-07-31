@@ -2483,6 +2483,8 @@ contains
                write(fates_log(),*) 'ERROR in plant hydraulics.'
                write(fates_log(),*) 'The HLM predicted a non-zero total transpiration flux'
                write(fates_log(),*) 'for this patch, yet there is no leaf-area-weighted conductance?'
+               write(fates_log(),*) 'transp: ',bc_in(s)%qflx_transp_pa(ifp)
+               write(fates_log(),*) 'gscan_patch: ',gscan_patch
                call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
 
@@ -3327,6 +3329,9 @@ contains
     real(r8) :: we_k                          ! error for kth node (temporary)                                  [kg]
     real(r8) :: the_k                         ! theta error for kth node (temporary)                            [m3 m-3]
     real(r8) :: supsub_adj_w                  ! water ajustment due to super saturation or sub residual flag 
+    real(r8) :: leaf_water                    ! total water in the leaf (kg/plant)
+    real(r8) :: stem_water                    ! "" kg/plant
+    real(r8) :: root_water                    ! total water in absorbing and transporting roots (kg/plant)
     logical  :: catch_nan                     ! flag for nan returned from Tridiagaonal
     integer  :: index_nan                     ! highest k index possessing a nan
     integer  :: index_stem
@@ -3546,6 +3551,23 @@ contains
              thresh
     else if (abs(we_local) > thresh_break) then
        write(fates_log(),*)'EDPlantHydraulics water balance error exceeds threshold of = ', thresh_break
+       write(fates_log(),*)'transpiration demand: ', dtime*qtop,' kg/step/plant'
+
+       leaf_water = sum(ccohort_hydr%th_ag(1:n_hypool_leaf)* &
+                        ccohort_hydr%v_ag(1:n_hypool_leaf))*denh2o
+       stem_water = sum(ccohort_hydr%th_ag(n_hypool_leaf+1:n_hypool_ag) * &
+                        ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag))*denh2o
+
+       root_water = (sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:)) + &
+                    sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:))) * denh2o
+
+       write(fates_log(),*) 'leaf water: ',leaf_water,' kg/plant'
+       write(fates_log(),*) 'stem_water: ',stem_water,' kg/plant'
+       write(fates_log(),*) 'root_water: ',root_water,' kg/plant'
+       write(fates_log(),*) 'LWP: ',ccohort_hydr%psi_ag(1)
+       write(fates_log(),*) 'dbh: ',ccohort%dbh
+       write(fates_log(),*) 'pft: ',ccohort%pft
+       write(fates_log(),*) 'tree lai: ',ccohort%treelai,' m2/m2 crown'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     
