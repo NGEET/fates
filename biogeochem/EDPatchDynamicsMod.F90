@@ -208,12 +208,11 @@ contains
        endif
 
        ! Fire Disturbance Rate
-       ! Fudge - fires can't burn the whole patch, as this causes /0 errors.
-       ! This is accumulating the daily fires over the whole 30 day patch generation phase.  
-       currentPatch%disturbance_rates(dtype_ifire) = &
-             min(0.99_r8,currentPatch%disturbance_rates(dtype_ifire) + currentPatch%frac_burnt)
+       ! Fires can't burn the whole patch, as this causes /0 errors. 
+       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
 
-       if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
+       if (debug) then
+          if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
           write(fates_log(),*) 'very high fire areas', &
                 currentPatch%disturbance_rates(dtype_ifire),currentPatch%frac_burnt
        endif
@@ -1613,10 +1612,8 @@ contains
     currentPatch%fire                       = 999    ! sr decide_fire.1=fire hot enough to proceed. 0=stop everything- no fires today
     currentPatch%fd                         = 0.0_r8 ! fire duration (mins)
     currentPatch%ros_back                   = 0.0_r8 ! backward ros (m/min)
-    currentPatch%ab                         = 0.0_r8 ! area burnt daily m2
-    currentPatch%nf                         = 0.0_r8 ! number of fires initiated daily 
     currentPatch%sh                         = 0.0_r8 ! average scorch height for the patch(m)
-    currentPatch%frac_burnt                 = 0.0_r8 ! fraction burnt in each timestep. 
+    currentPatch%frac_burnt                 = 0.0_r8 ! fraction burnt daily  
     currentPatch%burnt_frac_litter(:)       = 0.0_r8 
     currentPatch%btran_ft(:)                = 0.0_r8
 
@@ -1953,8 +1950,6 @@ contains
     rp%fi                   = (dp%fi*dp%area + rp%fi*rp%area) * inv_sum_area
     rp%fd                   = (dp%fd*dp%area + rp%fd*rp%area) * inv_sum_area
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
-    rp%ab                   = (dp%ab*dp%area + rp%ab*rp%area) * inv_sum_area
-    rp%nf                   = (dp%nf*dp%area + rp%nf*rp%area) * inv_sum_area
     rp%sh                   = (dp%sh*dp%area + rp%sh*rp%area) * inv_sum_area
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
     rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area) * inv_sum_area

@@ -3598,12 +3598,12 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_pa )
 
     call this%set_history_var(vname='FIRE_AREA', units='fraction',             &
-         long='spitfire fire area:m2', use_default='active',                    &
+         long='spitfire fire area burn fraction:%', use_default='active',                    &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_pa )
 
     call this%set_history_var(vname='SCORCH_HEIGHT', units='m',                &
-         long='spitfire fire area:m2', use_default='active',                    &
+         long='spitfire flame height:m', use_default='active',                    &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_pa )
 
@@ -3612,7 +3612,7 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_mef_pa )
 
-    call this%set_history_var(vname='fire_fuel_bulkd', units='m',              &
+    call this%set_history_var(vname='fire_fuel_bulkd', units='kgbiomass/m2',              &
          long='spitfire fuel bulk density',  use_default='active',              &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_bulkd_pa )

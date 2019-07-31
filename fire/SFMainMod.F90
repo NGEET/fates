@@ -710,7 +710,8 @@ contains
     !currentPatch%AB    !daily area burnt (m2)
     !currentPatch%NF    !Daily number of ignitions (lightning and human-caused), adjusted for size of patch. 
 
-    use EDParamsMod,   only : ED_val_nignitions
+    use EDParamsMod,       only : ED_val_nignitions
+    use FatesConstantsMod, only : years_per_day
 
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type), pointer :: currentPatch
@@ -758,14 +759,12 @@ contains
              
              ! INTERF-TODO:
              ! THIS SHOULD HAVE THE COLUMN AND LU AREA WEIGHT ALSO, NO?
-
-             gridarea = km2_to_m2     ! 1M m2 in a km2
              
              ! NF = number of lighting strikes per day per km2
-             currentPatch%NF = ED_val_nignitions * currentPatch%area/area /365 
+             NF = ED_val_nignitions * years_per_day  
 
-             ! If there are 15  lightening strickes per year, per km2. (approx from NASA product) 
-             ! then there are 15/365 s/km2 each day. 
+             ! If there are 15  lightning strikes per year, per km2. (approx from NASA product) 
+             ! then there are 15 * 1/365 strikes/km2 each day. 
      
              ! Equation 1 in Thonicke et al. 2010
              ! To Do: Connect here with the Li & Levis GDP fire suppression algorithm. 
@@ -777,18 +776,17 @@ contains
 
              !AB = daily area burnt = size fires in m2 * num ignitions * prob ignition starts fire
              ! m2 per km2 per day
-             currentPatch%AB = size_of_fire * currentPatch%NF * currentSite%FDI
+             AB = size_of_fire * NF * currentSite%FDI
              
-             patch_area_in_m2 = gridarea *currentPatch%area/area
+             currentPatch%frac_burnt = min(0.99_r8, AB / km2_to_m2)
              
-             currentPatch%frac_burnt = currentPatch%AB / patch_area_in_m2
              if(write_SF == itrue)then
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
              endif
 
              if (currentPatch%frac_burnt > 1.0_r8 ) then !all of patch burnt. 
                 
-                currentPatch%frac_burnt = 1.0_r8 ! capping at 1 same as %AB/patch_area_in_m2 
+                currentPatch%frac_burnt = 1.0_r8 ! capping at 1 same as %AB/km2_to_m2 
 
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
