@@ -80,7 +80,6 @@ contains
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
        currentPatch%frac_burnt = 0.0_r8
-       currentPatch%AB         = 0.0_r8
        currentPatch%fire       = 0
        currentPatch => currentPatch%older
     enddo
@@ -707,8 +706,6 @@ contains
   !*****************************************************************
   subroutine  area_burnt ( currentSite ) 
     !*****************************************************************
-    !currentPatch%AB    !daily area burnt (m2)
-    !currentPatch%NF    !Daily number of ignitions (lightning and human-caused), adjusted for size of patch. 
 
     use EDParamsMod,       only : ED_val_nignitions
     use FatesConstantsMod, only : years_per_day
@@ -791,7 +788,7 @@ contains
 
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
-                     currentPatch%NF,currentPatch%FI,size_of_fire
+                     currentPatch%FI,size_of_fire
 
              endif           
 
