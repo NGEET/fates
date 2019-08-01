@@ -727,7 +727,6 @@ contains
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
-       currentPatch%AB = 0.0_r8
        currentPatch%frac_burnt = 0.0_r8
        lb = 0.0_r8; db = 0.0_r8; df = 0.0_r8
 
@@ -767,7 +766,7 @@ contains
              ! Equation 1 in Thonicke et al. 2010
              ! To Do: Connect here with the Li & Levis GDP fire suppression algorithm. 
              ! Equation 16 in arora and boer model JGR 2005
-             !currentPatch%AB = currentPatch%AB *3.0_r8
+             ! AB = AB *3.0_r8
 
              !size of fire = equation 14 Arora and Boer JGR 2005
              size_of_fire = ((3.1416_r8/(4.0_r8*lb))*((df+db)**2.0_r8))
