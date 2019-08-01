@@ -214,7 +214,8 @@ contains
        if (debug) then
           if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
           write(fates_log(),*) 'very high fire areas', &
-                currentPatch%disturbance_rates(dtype_ifire),currentPatch%frac_burnt
+               currentPatch%disturbance_rates(dtype_ifire),currentPatch%frac_burnt
+          endif
        endif
 
 
