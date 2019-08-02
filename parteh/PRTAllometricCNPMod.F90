@@ -525,7 +525,7 @@ contains
     carbon_gain                       => this%bc_inout(acnp_bc_inout_id_netdc)%rval
     maint_r_deficit                   => this%bc_inout(acnp_bc_inout_id_rmaint_def)%rval
     nitrogen_gain                     => this%bc_inout(acnp_bc_inout_id_netdn)%rval
-    phosphorus_gain                  => this%bc_inout(acnp_bc_inout_id_netdp)%rval
+    phosphorus_gain                   => this%bc_inout(acnp_bc_inout_id_netdp)%rval
 
     ! Copy the in boundary conditions into readable local variables
     ! We don't use pointers, because inputs should be intent in only
@@ -535,7 +535,10 @@ contains
     leaves_on                         = this%bc_in(acnp_bc_in_id_leafon)%ival
     ipft                              = this%bc_in(acnp_bc_in_id_pft)%ival
 
-! PLACEHOLD IN CASE SOMEONE WANTS TO HAVE VARIABLE GROWTH RESP RATES PER ORGAN
+!    print*,"BCs: ",dbh, carbon_gain,maint_r_deficit,nitrogen_gain,phosphorus_gain,canopy_trim,leaves_on,ipft
+
+
+! PLACEHOLDER IN CASE SOMEONE WANTS TO HAVE VARIABLE GROWTH RESP RATES PER ORGAN
 !    r_g(leaf_organ)                    = EDPftvarcon_inst%prt_grperc_organ(ipft,leaf_organ)
 !    r_g(fnrt_organ)                    = EDPftvarcon_inst%prt_grperc_organ(ipft,fnrt_organ)
 !    r_g(sapw_organ)                    = EDPftvarcon_inst%prt_grperc_organ(ipft,sapw_organ)
@@ -562,8 +565,8 @@ contains
     ! Initialize some fields at the beginning of the routine for balance checking later on
     carbon_gain0      = carbon_gain
     nitrogen_gain0    = nitrogen_gain
-    phosphorus_gain0 = phosphorus_gain
-    maint_r_deficit0   = maint_r_deficit
+    phosphorus_gain0  = phosphorus_gain
+    maint_r_deficit0  = maint_r_deficit
 
 
     ! Initialize Targets and Demands to uninitialized flag
@@ -722,14 +725,14 @@ contains
     ! -----------------------------------------------------------------------------------
 
     sum_c_demand = 0.0_r8
-    if(leaves_on == itrue) then
+    if(leaves_on == 2) then
        do i = 1, num_organs_curpri
           i_cvar       = curpri_c_ids(i)
           sum_c_demand = sum_c_demand + v_demand(i_cvar)
        end do
     end if
 
-    if( (sum_c_demand+maint_r_deficit)>nearzero .or. carbon_gain < 0.0_r8   ) then
+    if( (sum_c_demand+maint_r_deficit) > nearzero .or. carbon_gain < 0.0_r8   ) then
 
        ! the actual amount of carbon that will be used to fulfill the priority flux
        ! to both organ pools and maintenance respiration.
@@ -920,6 +923,8 @@ contains
           ! Update the state (all mass is placed in 1st age bin if exists)
           this%variables(i_nvar)%val(icd) = this%variables(i_nvar)%val(icd) + n_flux
 
+          nitrogen_gain = nitrogen_gain - n_flux
+
           ! Update the demand
           v_demand(i_nvar) = max(0.0_r8,v_target(i_nvar) - this%variables(i_nvar)%val(icd))
 
@@ -933,6 +938,8 @@ contains
 
           ! Update the state
           this%variables(i_pvar)%val(icd) = this%variables(i_pvar)%val(icd) + p_flux
+
+          phosphorus_gain = phosphorus_gain - p_flux
 
           ! Update the demand
           v_demand(i_pvar) = max(0.0_r8,v_target(i_pvar) - this%variables(i_pvar)%val(icd))
@@ -1109,7 +1116,7 @@ contains
     ! the carbon balance sub-step (deltaC) will be halved and tried again
     ! -----------------------------------------------------------------------------------
 
-    if( carbon_gain > nearzero ) then
+    if( carbon_gain > calloc_abs_error) then
 
        state_mask(:) = .false.
 
@@ -1133,6 +1140,8 @@ contains
              write(fates_log(),*) 'A carbon pool has reached the stature growth step'
              write(fates_log(),*) 'yet its deficit is too large to integrate '
              write(fates_log(),*) 'organ: ',i
+             write(fates_log(),*) 'carbon gain: ',carbon_gain
+             write(fates_log(),*) 'leaves on:', leaves_on
              write(fates_log(),*) cdeficit, v_target(i_cvar),sum(this%variables(i_cvar)%val(:))
              call endrun(msg=errMsg(sourcefile, __LINE__))
 
@@ -1223,77 +1232,56 @@ contains
        ! that may or may-not exist above each pool's minimum stoichiometry...
        ! --------------------------------------------------------------------------------
 
-       grow_c_from_c = carbon_gain * struct_c_frac / (1.0_r8 + r_g(struct_organ))
-       grow_c_from_n = nitrogen_gain * struct_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,struct_organ)
-       grow_c_from_p = phosphorus_gain * struct_c_frac / EDPftvarcon_inst%prt_phos_stoich_p1(ipft,struct_organ)
+       grow_c_from_c = 0._r8
+       grow_c_from_n = 0._r8
+       grow_c_from_p = 0._r8
+
+       if (state_mask(intgr_struct_c_id)) then
+          call GrowEquivC(this,carbon_gain,nitrogen_gain,phosphorus_gain, &
+               struct_c_frac,ipft,struct_organ,grow_c_from_c,grow_c_from_n,grow_c_from_p)
+       end if
 
        if (state_mask(intgr_leaf_c_id))  then
-          grow_c_from_c = grow_c_from_c + carbon_gain * leaf_c_frac / (1.0_r8 + r_g(leaf_organ))
-          grow_c_from_n = grow_c_from_n + nitrogen_gain * leaf_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ)
-          grow_c_from_p = grow_c_from_p + phosphorus_gain * leaf_c_frac /  EDPftvarcon_inst%prt_phos_stoich_p1(ipft,leaf_organ)
-
-          ! Nutrient pools may already be above the current minimum target, add that head start onto the equiavelnt
-          ! value so the "head-start" quantity is factored in...
-          grow_c_from_n = grow_c_from_n + &
-                max(0.0_r8,this%variables(leaf_n_id)%val(icd) - v_target(leaf_n_id)) / &
-                EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ)
-          grow_c_from_p = grow_c_from_p + &
-                max(0.0_r8,this%variables(leaf_p_id)%val(icd) - v_target(leaf_p_id)) / &
-                EDPftvarcon_inst%prt_phos_stoich_p1(ipft,leaf_organ)
-
+          call GrowEquivC(this,carbon_gain,nitrogen_gain,phosphorus_gain, &
+               leaf_c_frac,ipft,leaf_organ,grow_c_from_c,grow_c_from_n,grow_c_from_p)
        end if
+
        if (state_mask(intgr_fnrt_c_id)) then
-          grow_c_from_c = grow_c_from_c + carbon_gain * fnrt_c_frac / (1.0_r8 + r_g(fnrt_organ))
-          grow_c_from_n = grow_c_from_n + nitrogen_gain * fnrt_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ)
-          grow_c_from_p = grow_c_from_p + phosphorus_gain * fnrt_c_frac / EDPftvarcon_inst%prt_phos_stoich_p1(ipft,fnrt_organ)
-
-          grow_c_from_n = grow_c_from_n + &
-                max(0.0_r8,this%variables(fnrt_n_id)%val(icd) - v_target(fnrt_n_id)) / &
-                EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ)
-          grow_c_from_p = grow_c_from_p + &
-                max(0.0_r8,this%variables(fnrt_p_id)%val(icd) - v_target(fnrt_p_id)) / &
-                EDPftvarcon_inst%prt_phos_stoich_p1(ipft,fnrt_organ)
-
+          call GrowEquivC(this,carbon_gain,nitrogen_gain,phosphorus_gain, &
+               fnrt_c_frac,ipft,fnrt_organ,grow_c_from_c,grow_c_from_n,grow_c_from_p)
        end if
+
        if (state_mask(intgr_sapw_c_id)) then
-          grow_c_from_c = grow_c_from_c + carbon_gain * sapw_c_frac / (1.0_r8 + r_g(sapw_organ))
-          grow_c_from_n = grow_c_from_n + nitrogen_gain * sapw_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
-          grow_c_from_p = grow_c_from_p + phosphorus_gain * sapw_c_frac / EDPftvarcon_inst%prt_phos_stoich_p1(ipft,sapw_organ)
-
-          grow_c_from_n = grow_c_from_n + &
-                max(0.0_r8,this%variables(sapw_n_id)%val(icd) - v_target(sapw_n_id)) / &
-                EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
-          grow_c_from_p = grow_c_from_p + &
-                max(0.0_r8,this%variables(sapw_p_id)%val(icd) - v_target(sapw_p_id)) / &
-                EDPftvarcon_inst%prt_phos_stoich_p1(ipft,sapw_organ)
-
-
+          call GrowEquivC(this,carbon_gain,nitrogen_gain,phosphorus_gain, &
+               sapw_c_frac,ipft,sapw_organ,grow_c_from_c,grow_c_from_n,grow_c_from_p)
        end if
+
        if (state_mask(intgr_store_c_id)) then
-          grow_c_from_c = grow_c_from_c + carbon_gain * store_c_frac / &
-                          (1.0_r8 + r_g(store_organ))
-          grow_c_from_n = grow_c_from_n + nitrogen_gain * store_c_frac / &
-                          EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,store_organ)
-          grow_c_from_p = grow_c_from_p + phosphorus_gain * store_c_frac / &
-                          EDPftvarcon_inst%prt_phos_stoich_p1(ipft,store_organ)
-
-          grow_c_from_n = grow_c_from_n + &
-                max(0.0_r8,this%variables(store_n_id)%val(icd) - v_target(store_n_id)) / &
-                EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,store_organ)
-          grow_c_from_p = grow_c_from_p + &
-                max(0.0_r8,this%variables(store_p_id)%val(icd) - v_target(store_p_id)) / &
-                EDPftvarcon_inst%prt_phos_stoich_p1(ipft,store_organ)
-
-
+          call GrowEquivC(this,carbon_gain,nitrogen_gain,phosphorus_gain, &
+               store_c_frac,ipft,store_organ,grow_c_from_c,grow_c_from_n,grow_c_from_p)
        end if
+
        if (state_mask(intgr_repro_c_id)) then
           grow_c_from_c = grow_c_from_c + carbon_gain * repro_c_frac / (1.0_r8 + r_g(repro_organ))
           grow_c_from_n = grow_c_from_n + nitrogen_gain * repro_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ)
           grow_c_from_p = grow_c_from_p + phosphorus_gain * repro_c_frac / EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ)
+       end if
 
-          ! The amount of existing reproductive material has no bearing on how much
-          ! is allocated.
 
+       if( (grow_c_from_n<grow_c_from_c) .or. (grow_c_from_p<grow_c_from_c))then
+          print*,"--------------------------------"
+          print*,grow_c_from_c
+          print*,grow_c_from_n
+          print*,grow_c_from_p
+          print*,nitrogen_gain
+          print*,phosphorus_gain
+          print*,state_mask(intgr_leaf_c_id)
+          print*,state_mask(intgr_fnrt_c_id)
+          print*,state_mask(intgr_store_c_id)
+          print*,state_mask(intgr_sapw_c_id)
+          print*,state_mask(intgr_struct_c_id)
+          print*,state_mask(intgr_repro_c_id)
+          stop
        end if
 
        ! --------------------------------------------------------------------------------
@@ -1305,26 +1293,6 @@ contains
        ! the next step. if they dip slightly above or below their target allometries,
        ! its no big deal.
        ! --------------------------------------------------------------------------------
-
-       ! Also, if all stoichiometries are all 0.. then set grow_c_from_x to sufficiently
-       ! high that it does not limit growth
-
-       if (  (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,store_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,struct_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ) < nearzero ) ) then
-          grow_c_from_n = 1.0e10_r8
-       end if
-       if (  (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,leaf_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,fnrt_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,sapw_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,store_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,struct_organ) < nearzero ) .and. &
-             (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ) < nearzero ) ) then
-          grow_c_from_p = 1.0e10_r8
-       end if
 
        if(grow_c_from_c > nearzero) then
           carbon_gstature = carbon_gain * min(grow_c_from_c, grow_c_from_n, grow_c_from_p)/grow_c_from_c
@@ -1589,7 +1557,7 @@ contains
     ! value to draw minimum and optimal nutrient fluxes
     ! -----------------------------------------------------------------------------------
 
-    if(carbon_gain>nearzero) then
+    if(carbon_gain>calloc_abs_error) then
 
        ! Update carbon based allometric targets
        call bstore_allom(dbh,ipft,canopy_trim, store_c_target, store_dcdd_target)
@@ -1598,7 +1566,7 @@ contains
        store_c_target = store_c_target * (1.0_r8 + store_overflow_frac)
 
        store_c_demand = max(0.0,(store_c_target - &
-            this%variables(store_c_id)%val(icd))*(1.0 + r_g(store_organ)))
+            this%variables(store_c_id)%val(icd))*(1.0_r8 + r_g(store_organ)))
 
        store_c_flux   = min(carbon_gain,store_c_demand)
 
@@ -1725,6 +1693,101 @@ contains
 
   ! =====================================================================================
 
+
+  subroutine GrowEquivC(this,carbon_gain,nitrogen_gain,phosphorus_gain, &
+                        alloc_frac,ipft,organ_id, &
+                        grow_c_from_c,grow_c_from_n,grow_c_from_p)
+
+    ! -----------------------------------------------------------------------------------
+    ! This subroutine calculates how much growth to expect in the specified organ
+    ! in terms of equivalent carbon, for each of C, N and P.
+    ! Total carbon allocated is roughly a function of how much carbon is available,
+    ! and the growth respiration tax.
+    ! Equivalent carbon allocated for each nutrient, is roughly the amount of 
+    ! nutrient available, divided through by its stoichiometry, and also incremented
+    ! by any extra nutrient that may be in the tissues because of flexible stoich.
+    ! -----------------------------------------------------------------------------------
+    
+    ! Arguments
+    class(cnp_allom_prt_vartypes) :: this            ! 
+    real(r8),intent(in)           :: carbon_gain     ! Total carbon available for allocation
+    real(r8),intent(in)           :: nitrogen_gain   ! Total N available for allocation
+    real(r8),intent(in)           :: phosphorus_gain ! Total P available for allocation
+    real(r8),intent(in)           :: alloc_frac      ! 
+    integer,intent(in)            :: ipft
+    integer,intent(in)            :: organ_id
+    real(r8),intent(inout)        :: grow_c_from_c
+    real(r8),intent(inout)        :: grow_c_from_n
+    real(r8),intent(inout)        :: grow_c_from_p
+
+    ! Locals
+    integer :: c_var_id
+    integer :: n_var_id
+    integer :: p_var_id
+    real(r8) :: n_target
+    real(r8) :: p_target
+    
+
+    ! Calculate gains from carbon
+    ! -----------------------------------------------------------------------------------
+    grow_c_from_c = grow_c_from_c + carbon_gain * alloc_frac / &
+         (1.0_r8 + EDPftvarcon_inst%grperc(ipft))
+    
+    c_var_id = prt_global%sp_organ_map(organ_id,carbon12_element)
+    
+    ! Calculate gains from Nitrogen
+    ! -----------------------------------------------------------------------------------
+
+    if(EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)>nearzero)then
+       
+       grow_c_from_n = grow_c_from_n + nitrogen_gain * alloc_frac / &
+            EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
+       
+       ! It is possible that the nutrient pool of interest is already above the minimum 
+       ! requirement. In this case, we add that into the amount that the equivalent 
+       ! carbon for that nutrient can get.  Its like giving it a head start.
+       
+       n_var_id = prt_global%sp_organ_map(organ_id,nitrogen_element)
+       n_target = sum(this%variables(c_var_id)%val(:)) * &
+            EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
+
+       grow_c_from_n = grow_c_from_n + &
+            max(0.0_r8, sum(this%variables(n_var_id)%val(:)) - n_target ) / &
+            EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
+            
+    else
+       grow_c_from_n = 1.e8_r8  ! If the stoichiometry is zero, just give it an abundance
+    end if
+    
+    ! Calculate gains from phosphorus
+    ! -----------------------------------------------------------------------------------
+    
+    if(EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)>nearzero) then
+       
+       grow_c_from_p = grow_c_from_p + phosphorus_gain * alloc_frac / &
+            EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
+       
+       ! It is possible that the nutrient pool of interest is already above the minimum 
+       ! requirement. In this case, we add that into the amount that the equivalent 
+       ! carbon for that nutrient can get.  Its like giving it a head start.
+         
+       p_var_id = prt_global%sp_organ_map(organ_id,phosphorus_element)
+       p_target = sum(this%variables(c_var_id)%val(:)) * &
+            EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
+
+       grow_c_from_p = grow_c_from_p + &
+            max(0.0_r8,sum(this%variables(p_var_id)%val(:)) - p_target ) / &
+            EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
+    else
+       grow_c_from_p = 1.e8_r8  ! If the stoichiometry is zero, just give it an abundance
+    end if
+    
+    return
+  end subroutine GrowEquivC
+
+
+  ! =====================================================================================
+
   function AllomCNPGrowthDeriv(l_state_array,l_state_mask,cbalance,intgr_params) result(dCdx)
 
       ! ---------------------------------------------------------------------------------
@@ -1797,8 +1860,8 @@ contains
         ipft        = int(intgr_params(acnp_bc_in_id_pft))
 
         if(dbh>huge(dbh)) then
-           print*,"BIG D IN DERIV:",dbh
-           stop
+           write(fates_log(),*) 'large diameter in stature growth derivative?'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
         call bleaf(dbh,ipft,canopy_trim,leaf_c_target,leaf_dcdd_target)

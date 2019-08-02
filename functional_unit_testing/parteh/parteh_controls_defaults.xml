@@ -1,15 +1,6 @@
 <?xml version="1.0"?>
 <all>
 
-  <!-- If desired, parameters with a vector dimensioned pft -->
-  <!-- can be specified in parameters. This index, or array -->
-  <!-- chooses which type of indices to simulate.           -->
-  <!-- THis convention (like C and python), assumes that    -->
-  <!-- first index in all arrays is zero                    -->
-  <!-- when calling fortran routines, we accomodate offset  -->
-
-  <pft_index> 0 </pft_index>
-  
   <time_control>
     <!-- Specify Dates as YYYY-MM-DD -->
     <!-- You may be thinking that this is silly to specify -->
@@ -23,21 +14,19 @@
     <max_trunc_error> 0.001 </max_trunc_error>
   </time_control>
 
-
-  <parameter_file>fates_params_3trop.c190701.cdl</parameter_file>
-
+  <fates_cdl_file>fates_params_3trop.c190715.cdl</fates_cdl_file>
 
   <!-- <boundary_formulation method="AllometricCarbon"> DailyCFromCArea  </boundary_formulation> -->
 
   <boundary_formulation>DailyCNPFromStorageSinWaveNoMaint</boundary_formulation>
-      
-  <boundary_parameters >
-	<pft_par name="parteh_model"> 1,2,2  </pft_par>
-    <pft_par name="fates_prescribed_npp_p1">    0.4, 0.4, 0.4  </pft_par>
-    <pft_par name="fates_prescribed_nflux_p1"> -9.9, -9.9 </pft_par>
-    <pft_par name="fates_prescribed_pflux_p1"> -9.9, -9.9 </pft_par>
-    <pft_par name="fates_prescribed_npp_amp">   0.0, 1.2  </pft_par> 
-  </boundary_parameters>
-  
-  
+
+  <driver_parameters >
+	<pft_par name="parteh_model"> 1,1,2  </pft_par>
+    <pft_par name="fates_prescribed_npp_p1">   0.4, 0.4, 0.4  </pft_par>
+    <pft_par name="fates_prescribed_nflux_p1"> 4, 4, 4 </pft_par>
+    <pft_par name="fates_prescribed_pflux_p1"> 4, 4, 4 </pft_par>
+    <pft_par name="fates_prescribed_npp_amp">  1.2, 1.2, 1.2  </pft_par>
+  </driver_parameters>
+
+
 </all>

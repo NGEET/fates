@@ -24,38 +24,18 @@ time_precision = 1.0e-10  # Acceptable time error for the
 # will be conducted. These do not hold the PFT type parameters found in the FATES-PARTEH
 # fortran code.
 
-class param_type:
+
+# These unit tests need to be able to provide and external boundary
+# condition to the plants. Most of the PFT level information on these plants is provided
+# in the standard FATES parameter file. However, some information that is specific to the driver
+# is not available.
+
+class driver_param_type:
 
     def __init__(self):
 
-        # Initialize the list of parameters
-
-        self.hypothesis = ""
-
-        self.boundary_method = ""
-
-        # This is a list of the organ names
-        # These names must be consistent
-        # with the indices provided in the parameter file
-        # and that those indices should match the global
-        # indices in PRTGenericMod.F90
-        self.parteh_organs = []
-
-        # These are used in the boundary conditions
-        self.boundary_pfts = []
-
-        # Save the number of pfts (as a convencience)
-        self.numpfts = -9
-
-        # Add other parameter groups as we go
-
-class pft_type:
-
-    def __init__(self,pft_name):
-
         # Initialize a dictionary of parameters for any pft
-        self.name      = pft_name
-        self.param_dic = {}
+        self.param_vals = []
 
 
 class diagnostics_type:

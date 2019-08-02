@@ -116,15 +116,10 @@ def main(argv):
     # from the input arguments
     xml_file = interp_args(argv)
 
-    # Initialize the time structure
-    time_control = PartehTypes.timetype()
-
     # This loads the dictionaries of, and lists of objects that
     # define the variables, parameters and forms that govern the
     # system of equations and solution
-    load_xml(xml_file,time_control,parameters)
-
-    code.interact(local=dict(globals(), **locals()))
+    [time_control, fates_cdl_file, driver_params, boundary_method] = load_xml(xml_file)
 
 
     # -------------------------------------------------------------------------------------
@@ -145,6 +140,7 @@ def main(argv):
     var_list0.append(f90_param_type('stress_decid'))
     var_list0.append(f90_param_type('hgt_min'))
 
+
     # This is the unique list of PFT parameters found in the salient Fortran code
     var_list = MakeListUnique(var_list0)
 
@@ -162,18 +158,25 @@ def main(argv):
     # read in and store the actual parameter values from the file.
     # -------------------------------------------------------------
 
-    code.interact(local=dict(globals(), **locals()))
-    dims = CDLParseDims(xml_file)
+    dims = CDLParseDims(fates_cdl_file)
 
-    parms = {}
+    fates_params = {}
     for elem in var_list:
-        parms[elem.var_sym] = CDLParseParam(xml_file,cdl_param_type(elem.var_name),dims)
+        fates_params[elem.var_sym] = CDLParseParam(fates_cdl_file,cdl_param_type(elem.var_name),dims)
     print('Finished loading PFT parameters')
 
     num_pfts   = dims['fates_pft']
     num_organs = dims['fates_prt_organs']
 
-
+    # Cross check the number of PFTs in the unit test driver control file,
+    # And make sure that it matches the number of PFTs in the FATES parameter file
+    if(num_pfts !=  len(driver_params['parteh_model'].param_vals)):
+        print('The number of PFTS in the fates parameter file does not match')
+        print(' the number of pfts in the unit test control file')
+        print(' FATES N-PFT: {}, file: {}'.format(num_pfts,fates_cdl_file))
+        print(' Driver N-PFTs: {}, file: {}'.format(len(driver_params['parteh_model'].param_vals),xml_file))
+        code.interact(local=dict(globals(), **locals()))
+        exit(2)
 
     # Initialize the PARTEH instance
     iret=f90_fates_partehwrap_obj.__fatespartehwrapmod_MOD_spmappyset()
@@ -182,15 +185,13 @@ def main(argv):
 
     WrapEDPFTAllocArbitrary([val for key,val in dims.iteritems()])
 
-    code.interact(local=dict(globals(), **locals()))
-
     # Set the phenology type
     phen_type = []
     for ipft in range(num_pfts):
 
-        evergreen        = np.int(parms['evergreen'].data[ipft])
-        cold_deciduous   = np.int(parms['season_decid'].data[ipft])
-        stress_deciduous = np.int(parms['stress_decid'].data[ipft])
+        evergreen        = np.int(fates_params['evergreen'].data[ipft])
+        cold_deciduous   = np.int(fates_params['season_decid'].data[ipft])
+        stress_deciduous = np.int(fates_params['stress_decid'].data[ipft])
         if(evergreen==1):
             if(cold_deciduous==1):
                 print("Poorly defined phenology mode 0")
@@ -221,12 +222,12 @@ def main(argv):
 
 
     # -------------------------------------------------------------------------
-    # Loop through all parameters in the "parms" dictionary, send their data
-    # to the FORTRAN code
+    # Loop through all parameters in the "fates_params"
+    # dictionary, send their data to the FORTRAN code
     # ------------------------------------------------------------------------
 
     # Loop through parameters
-    for parm_key, parm_obj in parms.iteritems():
+    for parm_key, parm_obj in fates_params.iteritems():
 
         # Loop through their dimensions
         # 2D case
@@ -235,21 +236,20 @@ def main(argv):
                 for idx1 in range(parm_obj.dim_sizelist[1]):
                     iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_double(parm_obj.data[idx0,idx1])), \
                                                                                      byref(c_int(0)), \
-                                                                                     byref(c_int(idx0+1)), \
                                                                                      byref(c_int(idx1+1)), \
-                                                                                     c_char_p(parm_key), \
-                                                                                     c_long(len(parm_key )))
+                                                                                     byref(c_int(idx0+1)), \
+                                                                                     c_char_p(parm_obj.symbol), \
+                                                                                     c_long(len(parm_obj.symbol )))
 
         else:
-            idx1=0.0
+            idx1=0
             for idx0 in range(parm_obj.dim_sizelist[0]):
                 iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_double(parm_obj.data[idx0])), \
                                                                                  byref(c_int(0)), \
                                                                                  byref(c_int(idx0+1)), \
                                                                                  byref(c_int(idx1+1)), \
-                                                                                 c_char_p(parm_key), \
-                                                                                 c_long(len(parm_key )))
-
+                                                                                 c_char_p(parm_obj.symbol), \
+                                                                                 c_long(len(parm_obj.symbol )))
 
 
 
@@ -258,11 +258,14 @@ def main(argv):
 
     for ipft in range(num_pfts):
 
-        hgt_min = np.int(parms['hgt_min'].data[ipft])
+        hgt_min = np.int(fates_params['hgt_min'].data[ipft])
         init_canopy_trim = 1.0
-        iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortpyset(byref(c_int(pft_idx+1)), \
+        iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortmodeset(byref(c_int(ipft+1)), \
+                                                                             byref(c_int(int(driver_params['parteh_model'].param_vals[ipft]))))
+        iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortpyset(byref(c_int(ipft+1)), \
                                                                            byref(c_double(hgt_min)), \
                                                                            byref(c_double(init_canopy_trim)))
+
 
     # Initialize diagnostics
     diagnostics = []
@@ -275,7 +278,7 @@ def main(argv):
     # --------------------------------------------------------------------------------
     time_control.ResetTime()
 
-      # --------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------------
     # Time integration (outer) loop
     # --------------------------------------------------------------------------------
     while (time_control.sim_complete != True):
@@ -353,44 +356,44 @@ def main(argv):
             # Call phenology module, if no leaves... then npp should be zero...
             flush_c,drop_frac_c,leaf_status = SyntheticBoundaries.DeciduousPhenology(doy, \
                                                                                      target_leaf_c.value, \
-                                                                                     store_c.value, phen_type[pft_idx])
+                                                                                     store_c.value, phen_type[ipft])
 
-            if(parameters.boundary_method=="DailyCFromCArea"):
 
-                presc_npp_p1     = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_npp_p1']
+
+            if(boundary_method=="DailyCFromCArea"):
+
+                presc_npp_p1     = driver_params['fates_prescribed_npp_p1'].param_vals[ipft]
 
                 net_daily_c = SyntheticBoundaries.DailyCFromCArea(presc_npp_p1, \
                                                                   crown_area.value, \
-                                                                  phen_type[pft_idx], \
+                                                                  phen_type[ipft], \
                                                                   leaf_status)
                 net_daily_n = 0.0
                 net_daily_p = 0.0
                 r_maint_demand = 0.0
 
 
-            elif(parameters.boundary_method=="DailyCNPFromCArea"):
+            elif(boundary_method=="DailyCNPFromCArea"):
 
-                presc_npp_p1   = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_npp_p1']
-                presc_nflux_p1 = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_nflux_p1']
-                presc_pflux_p1 = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_pflux_p1']
+                presc_npp_p1   = driver_params['fates_prescribed_npp_p1'].param_vals[ipft]
+                presc_nflux_p1 = driver_params['fates_prescribed_nflux_p1'].param_vals[ipft]
+                presc_pflux_p1 = driver_params['fates_prescribed_pflux_p1'].param_vals[ipft]
 
                 net_daily_c, net_daily_n, net_daily_p = SyntheticBoundaries.DailyCNPFromCArea(presc_npp_p1, \
                                                                                               presc_nflux_p1, \
                                                                                               presc_pflux_p1, \
                                                                                               crown_area.value, \
-                                                                                              phen_type[pft_idx], \
+                                                                                              phen_type[ipft], \
                                                                                               leaf_status)
                 r_maint_demand = 0.0
 
 
-            elif(parameters.boundary_method=="DailyCNPFromStorageSinWaveNoMaint"):
+            elif(boundary_method=="DailyCNPFromStorageSinWaveNoMaint"):
 
-                presc_npp_amp  = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_npp_amp']
-                presc_npp_p1   = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_npp_p1']
-                presc_nflux_p1 = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_nflux_p1']
-                presc_pflux_p1 = parameters.boundary_pfts[pft_idx].param_dic['fates_prescribed_pflux_p1']
-
-
+                presc_npp_amp  = driver_params['fates_prescribed_npp_amp'].param_vals[ipft]
+                presc_npp_p1   = driver_params['fates_prescribed_npp_p1'].param_vals[ipft]
+                presc_nflux_p1 = driver_params['fates_prescribed_nflux_p1'].param_vals[ipft]
+                presc_pflux_p1 = driver_params['fates_prescribed_pflux_p1'].param_vals[ipft]
 
 
                 net_daily_c, net_daily_n, net_daily_p = SyntheticBoundaries.DailyCNPFromStorageSinWave(doy,\
@@ -400,13 +403,13 @@ def main(argv):
                                                                                  presc_pflux_p1, \
                                                                                  crown_area.value, \
                                                                                  presc_npp_amp, \
-                                                                                 phen_type[pft_idx], \
+                                                                                 phen_type[ipft], \
                                                                                  leaf_status )
                 r_maint_demand = 0.0
 
             else:
                 print("An unknown boundary method was specified\n")
-                print("type: {} ? ... quitting.".format(parameters.boundary_method))
+                print("type: {} ? ... quitting.".format(boundary_method))
                 exit()
 
 
@@ -416,7 +419,7 @@ def main(argv):
 
             # This function will pass in all boundary conditions, some will be dummy arguments
             init_canopy_trim = 1.0
-            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapdailyprt(byref(c_int(pft_idx+1)), \
+            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapdailyprt(byref(c_int(ipft+1)), \
                                                                                 byref(c_double(net_daily_c)), \
                                                                                 byref(c_double(init_canopy_trim)), \
                                                                                 byref(c_double(flush_c)), \
@@ -429,7 +432,7 @@ def main(argv):
 
 
             # This function will retrieve diagnostics
-            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapquerydiagnostics(byref(c_int(pft_idx+1)),  \
+            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapquerydiagnostics(byref(c_int(ipft+1)),  \
                                                                                         byref(dbh),     \
                                                                                         byref(leaf_c),  \
                                                                                         byref(fnrt_c),  \
@@ -471,51 +474,51 @@ def main(argv):
                                                                                         byref(growth_resp))
 
 
-            diagnostics[pft_idx].dates.append(time_control.datetime.astype(datetime))
-            diagnostics[pft_idx].dbh.append(dbh.value)
-            diagnostics[pft_idx].leaf_c.append(leaf_c.value)
-            diagnostics[pft_idx].fnrt_c.append(fnrt_c.value)
-            diagnostics[pft_idx].sapw_c.append(sapw_c.value)
-            diagnostics[pft_idx].store_c.append(store_c.value)
-            diagnostics[pft_idx].struct_c.append(struct_c.value)
-            diagnostics[pft_idx].repro_c.append(repro_c.value)
-            diagnostics[pft_idx].leaf_cturn.append(leaf_cturn.value)
-            diagnostics[pft_idx].fnrt_cturn.append(fnrt_cturn.value)
-            diagnostics[pft_idx].sapw_cturn.append(sapw_cturn.value)
-            diagnostics[pft_idx].store_cturn.append(store_cturn.value)
-            diagnostics[pft_idx].struct_cturn.append(struct_cturn.value)
-            diagnostics[pft_idx].dailyc.append(net_daily_c)
-            diagnostics[pft_idx].crown_area.append(crown_area.value)
+            diagnostics[ipft].dates.append(time_control.datetime.astype(datetime))
+            diagnostics[ipft].dbh.append(dbh.value)
+            diagnostics[ipft].leaf_c.append(leaf_c.value)
+            diagnostics[ipft].fnrt_c.append(fnrt_c.value)
+            diagnostics[ipft].sapw_c.append(sapw_c.value)
+            diagnostics[ipft].store_c.append(store_c.value)
+            diagnostics[ipft].struct_c.append(struct_c.value)
+            diagnostics[ipft].repro_c.append(repro_c.value)
+            diagnostics[ipft].leaf_cturn.append(leaf_cturn.value)
+            diagnostics[ipft].fnrt_cturn.append(fnrt_cturn.value)
+            diagnostics[ipft].sapw_cturn.append(sapw_cturn.value)
+            diagnostics[ipft].store_cturn.append(store_cturn.value)
+            diagnostics[ipft].struct_cturn.append(struct_cturn.value)
+            diagnostics[ipft].dailyc.append(net_daily_c)
+            diagnostics[ipft].crown_area.append(crown_area.value)
 
-            diagnostics[pft_idx].growth_resp.append(growth_resp.value)
+            diagnostics[ipft].growth_resp.append(growth_resp.value)
 
-            diagnostics[pft_idx].leaf_n.append(leaf_n.value)
-            diagnostics[pft_idx].fnrt_n.append(fnrt_n.value)
-            diagnostics[pft_idx].sapw_n.append(sapw_n.value)
-            diagnostics[pft_idx].store_n.append(store_n.value)
-            diagnostics[pft_idx].struct_n.append(struct_n.value)
-            diagnostics[pft_idx].repro_n.append(repro_n.value)
-            diagnostics[pft_idx].leaf_nturn.append(leaf_nturn.value)
-            diagnostics[pft_idx].fnrt_nturn.append(fnrt_nturn.value)
-            diagnostics[pft_idx].sapw_nturn.append(sapw_nturn.value)
-            diagnostics[pft_idx].store_nturn.append(store_nturn.value)
-            diagnostics[pft_idx].struct_nturn.append(struct_nturn.value)
+            diagnostics[ipft].leaf_n.append(leaf_n.value)
+            diagnostics[ipft].fnrt_n.append(fnrt_n.value)
+            diagnostics[ipft].sapw_n.append(sapw_n.value)
+            diagnostics[ipft].store_n.append(store_n.value)
+            diagnostics[ipft].struct_n.append(struct_n.value)
+            diagnostics[ipft].repro_n.append(repro_n.value)
+            diagnostics[ipft].leaf_nturn.append(leaf_nturn.value)
+            diagnostics[ipft].fnrt_nturn.append(fnrt_nturn.value)
+            diagnostics[ipft].sapw_nturn.append(sapw_nturn.value)
+            diagnostics[ipft].store_nturn.append(store_nturn.value)
+            diagnostics[ipft].struct_nturn.append(struct_nturn.value)
 
-            diagnostics[pft_idx].leaf_p.append(leaf_p.value)
-            diagnostics[pft_idx].fnrt_p.append(fnrt_p.value)
-            diagnostics[pft_idx].sapw_p.append(sapw_p.value)
-            diagnostics[pft_idx].store_p.append(store_p.value)
-            diagnostics[pft_idx].struct_p.append(struct_p.value)
-            diagnostics[pft_idx].repro_p.append(repro_p.value)
-            diagnostics[pft_idx].leaf_pturn.append(leaf_pturn.value)
-            diagnostics[pft_idx].fnrt_pturn.append(fnrt_pturn.value)
-            diagnostics[pft_idx].sapw_pturn.append(sapw_pturn.value)
-            diagnostics[pft_idx].store_pturn.append(store_pturn.value)
-            diagnostics[pft_idx].struct_pturn.append(struct_pturn.value)
+            diagnostics[ipft].leaf_p.append(leaf_p.value)
+            diagnostics[ipft].fnrt_p.append(fnrt_p.value)
+            diagnostics[ipft].sapw_p.append(sapw_p.value)
+            diagnostics[ipft].store_p.append(store_p.value)
+            diagnostics[ipft].struct_p.append(struct_p.value)
+            diagnostics[ipft].repro_p.append(repro_p.value)
+            diagnostics[ipft].leaf_pturn.append(leaf_pturn.value)
+            diagnostics[ipft].fnrt_pturn.append(fnrt_pturn.value)
+            diagnostics[ipft].sapw_pturn.append(sapw_pturn.value)
+            diagnostics[ipft].store_pturn.append(store_pturn.value)
+            diagnostics[ipft].struct_pturn.append(struct_pturn.value)
 
-            diagnostics[pft_idx].root_c_exudate.append(root_c_exudate.value)
-            diagnostics[pft_idx].root_n_exudate.append(root_n_exudate.value)
-            diagnostics[pft_idx].root_p_exudate.append(root_p_exudate.value)
+            diagnostics[ipft].root_c_exudate.append(root_c_exudate.value)
+            diagnostics[ipft].root_n_exudate.append(root_n_exudate.value)
+            diagnostics[ipft].root_p_exudate.append(root_p_exudate.value)
 
 
         # We don't have a fancy time integrator so we simply update with
@@ -546,7 +549,7 @@ def main(argv):
     fig1, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4 , sharex='col') #, sharey='row')
     fig1.set_size_inches(12, 6)
     for ipft in range(num_pfts):
-        ax1.plot_date(diagnostics[ipft].dates,diagnostics[ipft].struct_c,linestyles[ipft],label=parameters.parteh_pfts[ipft].name)
+        ax1.plot_date(diagnostics[ipft].dates,diagnostics[ipft].struct_c,linestyles[ipft],label='{}'.format(ipft))
     ax1.set_title('Structural\n Carbon')
     ax1.legend(loc='upper left')
     ax1.set_ylabel('[kg C]')
@@ -603,7 +606,7 @@ def main(argv):
     fig2, ( (ax1,ax2),(ax3,ax4) ) = plt.subplots(2,2)
     fig2.set_size_inches(7, 6)
     for ipft in range(num_pfts):
-        ax1.plot_date(diagnostics[ipft].dates,diagnostics[ipft].dbh,linestyles[ipft],label=parameters.parteh_pfts[ipft].name)
+        ax1.plot_date(diagnostics[ipft].dates,diagnostics[ipft].dbh,linestyles[ipft],label='{}'.format(ipft))
     ax1.set_xlabel('Date')
     ax1.set_title('DBH [cm]')
     ax1.legend(loc='upper left')
@@ -678,7 +681,7 @@ def main(argv):
 
     fig5= plt.figure()
     for ipft in range(num_pfts):
-        plt.plot_date(diagnostics[ipft].dates,diagnostics[ipft].dailyc,linestyles[ipft],label=parameters.parteh_pfts[ipft].name)
+        plt.plot_date(diagnostics[ipft].dates,diagnostics[ipft].dailyc,linestyles[ipft],label='{}'.format(ipft))
 
     plt.xlabel('Date')
     plt.ylabel('Daily Carbon Flux')

@@ -120,6 +120,7 @@ module FatesCohortWrapMod
   ! Make necessary procedures public
   public :: CohortInitAlloc
   public :: CohortPySet
+  public :: CohortModeSet
   public :: WrapDailyPRT
   public :: WrapQueryVars
   public :: WrapQueryDiagnostics
@@ -164,6 +165,21 @@ contains
   end subroutine CohortInitAlloc
   
   ! =====================================================================================  
+
+  subroutine CohortModeSet(ipft,parteh_mode)
+
+    integer(i4) :: ipft
+    integer(i4) :: parteh_mode
+
+
+    cohort_array(ipft)%parteh_mode = parteh_mode
+
+    print*,"SET MODE ",parteh_mode," FOR PFT: ",ipft
+
+    return
+  end subroutine CohortModeSet
+
+
   
   subroutine CohortPySet(ipft,hgt_min,canopy_trim)
     
@@ -237,8 +253,6 @@ contains
     call bstore_allom(ccohort%dbh, ipft, canopy_trim, store_c)
     
     repro_c = 0.0_r8
-
-    ccohort%parteh_mode = int(EDPftvarcon_inst%parteh_mode(ipft))
 
     ! -----------------------------------------------------
     ! THIS IS A COPY OF InitPRTObject
@@ -325,6 +339,10 @@ contains
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdc,bc_rval = ccohort%daily_carbon_gain)
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn,bc_rval = ccohort%daily_nitrogen_gain)
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp,bc_rval = ccohort%daily_phosphorus_gain)
+
+       print*,'N GAIN: ',ccohort%daily_nitrogen_gain
+       print*,'P GAIN: ',ccohort%daily_phosphorus_gain
+
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def, bc_rval = ccohort%accum_r_maint_deficit) 
 
        ! Register Input only BC's
@@ -372,6 +390,9 @@ contains
     ccohort%status_coh = leaf_status
 
     ! Zero the rate of change and the turnover arrays
+
+    print*,"NGAIN0: ",daily_nitrogen_gain
+    print*,"PGAIN0: ",daily_phosphorus_gain
 
     call ccohort%prt%ZeroRates()
 

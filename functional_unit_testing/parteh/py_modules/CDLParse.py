@@ -240,6 +240,10 @@ def CDLParseDims(file_name):
     contents = fp.readlines()
     fp.close()
 
+    if(len(contents)<1):
+        print("Missing or no-data file passed to CDLParseDims?")
+        exit(2)
+
     # Identify the line with the "dimensions:" tag
     # Also, identify the whatever line is next with a ':'
     # ---------------------------------------------------

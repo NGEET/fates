@@ -34,7 +34,7 @@ module FatesGlobals
    contains
 
    integer function fates_log()
-      fates_log = -1
+      fates_log = 11
    end function fates_log
 
    subroutine fates_endrun(msg)
@@ -72,7 +72,6 @@ module EDPftvarcon
 
    ! VARIABLE-DEFINITIONS-HERE (DO NOT REMOVE THIS LINE, OR MOVE IT)
 
-    real(r8),pointer :: parteh_mode(:)
 
    end type EDPftvarcon_inst_type
 
@@ -209,13 +208,6 @@ contains
 	iv2=0
 
 	! POINTER-SPECIFICATION-HERE (DO NOT REMOVE THIS LINE, OR MOVE IT)
-
-    allocate( EDPftvarcon_inst%parteh_mode   (fates_pft));
-	EDPftvarcon_inst%parteh_mode (:) = fates_unset_r8
-    iv1 = iv1 + 1
-    EDPftvarcon_ptr%var1d(iv1)%var_name = "fates_parteh_mode"
-    EDPftvarcon_ptr%var1d(iv1)%var_rp   => EDPftvarcon_inst%parteh_mode
-    EDPftvarcon_ptr%var1d(iv1)%vtype    = 1
 
 
     numparm1d = iv1
