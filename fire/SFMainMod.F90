@@ -725,6 +725,12 @@ contains
 
     currentSite%frac_burnt = 0.0_r8
 
+    !NF = number of lighting strikes per day per km2
+    NF = ED_val_nignitions * years_per_day
+
+    ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
+    ! then there are 15 * 1/365 strikes/km2 each day. 
+
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
        currentPatch%frac_burnt = 0.0_r8
@@ -753,15 +759,6 @@ contains
 
           ! --- calculate area burnt---
           if(lb > 0.0_r8) then
-             
-             ! INTERF-TODO:
-             ! THIS SHOULD HAVE THE COLUMN AND LU AREA WEIGHT ALSO, NO?
-             
-             ! NF = number of lighting strikes per day per km2
-             NF = ED_val_nignitions * years_per_day  
-
-             ! If there are 15  lightning strikes per year, per km2. (approx from NASA product) 
-             ! then there are 15 * 1/365 strikes/km2 each day. 
      
              ! Equation 1 in Thonicke et al. 2010
              ! To Do: Connect here with the Li & Levis GDP fire suppression algorithm. 
@@ -780,17 +777,6 @@ contains
              if(write_SF == itrue)then
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
              endif
-
-             if (currentPatch%frac_burnt > 1.0_r8 ) then !all of patch burnt. 
-                
-                currentPatch%frac_burnt = 1.0_r8 ! capping at 1  
-
-                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno
-                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
-                     currentPatch%FI,size_of_fire
-
-             endif           
-
 
           endif
        endif! fire

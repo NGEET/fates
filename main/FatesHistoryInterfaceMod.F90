@@ -3598,7 +3598,7 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_pa )
 
     call this%set_history_var(vname='FIRE_AREA', units='fraction',             &
-         long='spitfire fire area burn fraction:%', use_default='active',                    &
+         long='spitfire fire area burn fraction', use_default='active',                    &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_pa )
 
