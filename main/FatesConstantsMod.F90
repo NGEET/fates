@@ -127,6 +127,12 @@ module FatesConstantsMod
   ! Gravity constant on earth [m/s]
   real(fates_r8), parameter, public :: grav_earth = 9.8_fates_r8
 
+  ! Megapascals to pascals
+  real(fates_r8), parameter, public :: pa_per_mpa = 1.e6_fates_r8
+
+  ! Pascals to megapascals
+  real(fates_r8), parameter, public :: mpa_per_pa = 1.e-6_fates_r8
+
 
   ! For numerical inquiry
   real(fates_r8), parameter, public :: fates_huge = huge(g_per_kg)
