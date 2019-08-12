@@ -752,21 +752,16 @@ contains
 
        ! Partition the total absorbing root lengths and volumes into the active soil layers
        ! ------------------------------------------------------------------------------
-       if(nlevsoi_hyd == 1) then
-          ccohort_hydr%l_aroot_layer(nlevsoi_hyd) = ccohort_hydr%l_aroot_tot
-          ccohort_hydr%v_aroot_layer(nlevsoi_hyd) = ccohort_hydr%v_aroot_tot
-       else
-          do j=1,nlevsoi_hyd
-             if(j == 1) then
-                rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
-             else
-                rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
+       do j=1,nlevsoi_hyd
+           if(j == 1) then
+               rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
+           else
+               rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
                      zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
-             end if
-             ccohort_hydr%l_aroot_layer(j)   = rootfr*ccohort_hydr%l_aroot_tot
-             ccohort_hydr%v_aroot_layer(j)   = rootfr*ccohort_hydr%v_aroot_tot
-          end do
-       end if
+           end if
+           ccohort_hydr%l_aroot_layer(j)   = rootfr*ccohort_hydr%l_aroot_tot
+           ccohort_hydr%v_aroot_layer(j)   = rootfr*ccohort_hydr%v_aroot_tot
+       end do
 
 
        ! ------------------------------------------------------------------------------
@@ -803,19 +798,9 @@ contains
        do k=n_hypool_leaf,n_hypool_ag
           if(k == n_hypool_leaf) then
              ccohort_hydr%kmax_bound(k)    = kmax_node1_nodekplus1(k)  * chi_node1_nodekplus1(k)
-             ccohort_hydr%kmax_lower(k)    = kmax_node1_lowerk(k)      * chi_node1_lowerk(k)
           else
              ccohort_hydr%kmax_bound(k)    = ( 1._r8/(kmax_node1_nodekplus1(k)  *chi_node1_nodekplus1(k)  ) - &
                   1._r8/(kmax_node1_nodekplus1(k-1)*chi_node1_nodekplus1(k-1))     ) ** (-1._r8)
-             ccohort_hydr%kmax_lower(k)    = ( 1._r8/(kmax_node1_lowerk(k)      *chi_node1_lowerk(k)      ) - &
-                  1._r8/(kmax_node1_nodekplus1(k-1)*chi_node1_nodekplus1(k-1))     ) ** (-1._r8)
-          end if
-          if(k < n_hypool_ag) then
-             ccohort_hydr%kmax_upper(k+1)  = ( 1._r8/(kmax_node1_nodekplus1(k)  *chi_node1_nodekplus1(k)  ) - &
-                  1._r8/(kmax_node1_lowerk(k)      *chi_node1_lowerk(k)      )     ) ** (-1._r8)
-          else if(k == n_hypool_ag) then
-             ccohort_hydr%kmax_upper_troot = ( 1._r8/(kmax_node1_nodekplus1(k)  *chi_node1_nodekplus1(k)  ) - &
-                  1._r8/(kmax_node1_lowerk(k)      *chi_node1_lowerk(k)      )     ) ** (-1._r8)
           end if
 
 !!!!!!!!!! FOR TESTING ONLY
@@ -832,24 +817,23 @@ contains
        enddo
 
        ! finally, estimate the remaining tree conductance belowground as a residual
-       kmax_treeag_tot = sum(1._r8/ccohort_hydr%kmax_bound(n_hypool_leaf:n_hypool_ag))**(-1._r8)
-       kmax_tot        = EDPftvarcon_inst%hydr_rfrac_stem(ft) * kmax_treeag_tot
+
+       kmax_treeag_tot = sum(1._r8/ccohort_hydr%kmax_bound(n_hypool_leaf:n_hypool_ag))** (-1._r8)
+
+       kmax_tot        = EDPftvarcon_inst%hydr_rfrac_stem(ft)* kmax_treeag_tot
+
        ccohort_hydr%kmax_treebg_tot      = ( 1._r8/kmax_tot - 1._r8/kmax_treeag_tot ) ** (-1._r8)
 
-       if(nlevsoi_hyd == 1) then
-          ccohort_hydr%kmax_treebg_layer(:) = ccohort_hydr%kmax_treebg_tot * &
-               ccohort%patchptr%rootfr_ft(ft,:)
-       else
-          do j=1,nlevsoi_hyd
-             if(j == 1) then
-                rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
-             else
-                rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
+       do j=1,nlevsoi_hyd
+           if(j == 1) then
+               rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
+           else
+               rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
                      zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
-             end if
-             ccohort_hydr%kmax_treebg_layer(j) = rootfr*ccohort_hydr%kmax_treebg_tot
-          end do
-       end if
+           end if
+           ccohort_hydr%kmax_treebg_layer(j) = rootfr*ccohort_hydr%kmax_treebg_tot
+       end do
+
 
     end if !check for bleaf
 
@@ -961,8 +945,7 @@ contains
           kmax_innershell(j)  = kmax_root_surf_total
 
           ! If the nodal radius of the rhizosphere shell is > root radius
-          ! then we use a harmonic average of the max root surface and soil
-          ! conductance
+          ! then we add this resistance in series to the other terms
 
        else
 
@@ -1095,9 +1078,7 @@ contains
     ncohort_hydr%z_upper_troot      = ocohort_hydr%z_upper_troot
     ncohort_hydr%z_lower_ag         = ocohort_hydr%z_lower_ag
     ncohort_hydr%z_lower_troot      = ocohort_hydr%z_lower_troot
-    ncohort_hydr%kmax_upper         = ocohort_hydr%kmax_upper
     ncohort_hydr%kmax_lower         = ocohort_hydr%kmax_lower
-    ncohort_hydr%kmax_upper_troot   = ocohort_hydr%kmax_upper_troot
     ncohort_hydr%kmax_bound         = ocohort_hydr%kmax_bound
     ncohort_hydr%kmax_treebg_tot    = ocohort_hydr%kmax_treebg_tot
     ncohort_hydr%v_ag_init          = ocohort_hydr%v_ag_init
@@ -2687,6 +2668,7 @@ contains
                      kmax_lower_1l(pick_1l), hdiff_bound_1l, k_bound_1l, dhdiffdpsi0_1l, &
                      dhdiffdpsi1_1l, dkbounddpsi0_1l, dkbounddpsi1_1l, &
                      kmax_bound_aroot_soil1, kmax_bound_aroot_soil2)
+
                 !! upper bound limited to size()-1 b/c of zero-flux outer boundary condition
                 kbg_layer(j)        = 1._r8/sum(1._r8/k_bound_1l(1:(size(k_bound_1l)-1)))   
                 kbg_tot             = kbg_tot + kbg_layer(j)
@@ -3672,6 +3654,13 @@ contains
     dkbounddpsi1(k) = 0._r8
 
   end subroutine boundary_hdiff_and_k
+
+  ! 
+  
+ 
+
+
+
 
   !-------------------------------------------------------------------------------!
   subroutine flc_gs_from_psi(cc_p, lwp )

@@ -187,33 +187,36 @@ module FatesHydraulicsMemMod
 
   type, public :: ed_cohort_hydr_type
      
-                                                  ! BC...PLANT HYDRAULICS - "constants" that change with size. 
-                                                  ! Heights are referenced to soil surface (+ = above; - = below)
-     real(r8) ::  z_node_ag(n_hypool_ag)          ! nodal height of aboveground water storage compartments            [m]
-     real(r8) ::  z_node_troot(n_hypool_troot)    ! nodal height of belowground water storage compartments            [m]
-     real(r8) ::  z_upper_ag(n_hypool_ag)         ! upper boundary height of aboveground water storage compartments   [m]
-     real(r8) ::  z_upper_troot(n_hypool_troot)   ! upper boundary height of belowground water storage compartments   [m]
-     real(r8) ::  z_lower_ag(n_hypool_ag)         ! lower boundary height of aboveground water storage compartments   [m]
-     real(r8) ::  z_lower_troot(n_hypool_troot)   ! lower boundary height of belowground water storage compartments   [m]
-     real(r8) ::  kmax_upper(n_hypool_ag)         ! maximum hydraulic conductance from node to upper boundary         [kg s-1 MPa-1]
-     real(r8) ::  kmax_lower(n_hypool_ag)         ! maximum hydraulic conductance from node to lower boundary         [kg s-1 MPa-1]
-     real(r8) ::  kmax_upper_troot                ! maximum hydraulic conductance from troot node to upper boundary   [kg s-1 MPa-1]
-     real(r8) ::  kmax_bound(n_hypool_ag)         ! maximum hydraulic conductance at lower boundary (canopy to troot) [kg s-1 MPa-1]
-     real(r8) ::  kmax_treebg_tot                 ! total belowground tree kmax (troot to surface of absorbing roots) [kg s-1 MPa-1]
+     ! BC...PLANT HYDRAULICS - "constants" that change with size. 
+     ! Heights are referenced to soil surface (+ = above; - = below)
+     real(r8) ::  z_node_ag(n_hypool_ag+n_hypool_troot)   ! nodal height of non-layered water storage compartments            [m]
+
+
+     ! Maximum conductances
+     ! ----------------------------------------------------------------------------------
+
+     real(r8) ::  kmax_ag(n_hypool_ag)            ! maximum hydraulic conductance of non-layered compartments [kg s-1 MPa-1]
+     real(r8),allocatable :: kmax_treebg_layer(:) ! total belowground tree kmax partitioned by soil layer     [kg s-1 MPa-1]
+     real(r8),allocatable :: kmax_rsurf_in(:)     ! Maximum hydraulic conductance of the root surface when
+                                                  ! potential gradient is "in" to root
+                                                  ! (kg s-1 MPa-1)
+     real(r8),allocatable :: kmax_rsurf_out(:)    ! Maximum hydraulic conductance of the root surface when
+                                                  ! potential gradient is "out" of root
+                                                  ! (kg s-1 MPa-1)
+     
+     ! Compartment Volumes and lengths
+
      real(r8) ::  v_ag_init(n_hypool_ag)          ! previous day's volume of aboveground water storage compartments   [m3]
      real(r8) ::  v_ag(n_hypool_ag)               ! volume of aboveground water storage compartments                  [m3]
      real(r8) ::  v_troot_init(n_hypool_troot)    ! previous day's volume of belowground water storage compartments   [m3]
      real(r8) ::  v_troot(n_hypool_troot)         ! volume of belowground water storage compartments                  [m3]
      real(r8) ::  v_aroot_tot                     ! total volume of absorbing roots                                   [m3]
      real(r8) ::  l_aroot_tot                     ! total length of absorbing roots                                   [m]
-     ! quantities indexed by soil layer
-     real(r8),allocatable :: z_node_aroot(:)       ! nodal height of absorbing root water storage compartments [m]   
-     real(r8),allocatable :: kmax_treebg_layer(:)  ! total belowground tree kmax partitioned by soil layer     [kg s-1 MPa-1]
      real(r8),allocatable :: v_aroot_layer_init(:) ! previous day's volume of absorbing roots by soil layer    [m3]
      real(r8),allocatable :: v_aroot_layer(:)      ! volume of absorbing roots by soil layer                   [m3]
      real(r8),allocatable :: l_aroot_layer(:)      ! length of absorbing roots by soil layer                   [m]
      
-     real(r8),allocatable :: kmax_innershell(:)    ! Maximum  hydraulic conductivity of the inner rhizosphere shell (kg s-1 MPa-1)
+ 
 
                                                   ! BC PLANT HYDRAULICS - state variables
      real(r8) ::  th_ag(n_hypool_ag)              ! water in aboveground compartments                                 [kgh2o/indiv]
@@ -252,10 +255,9 @@ module FatesHydraulicsMemMod
                                                   !  support production of new leaves.
      real(r8) ::  errh2o_growturn_troot(n_hypool_troot) ! same as errh2o_growturn_ag but for troot pool
      real(r8) ::  errh2o_pheno_troot(n_hypool_troot)    ! same as errh2o_pheno_ag but for troot pool
+
      ! quantities indexed by soil layer
      real(r8),allocatable ::  th_aroot(:)         ! water in absorbing roots                                          [kgh2o/indiv]
-     !real(r8),allocatable ::  th_aroot_prev(:)    ! water in absorbing roots, prev timestep (debug)                   [kgh2o/indiv]
-     !real(r8),allocatable ::  th_aroot_prev_uncorr(:) ! water in absorbing roots, prev timestep, initial guess (debug)  [kgh2o/indiv]
      real(r8),allocatable ::  psi_aroot(:)        ! water potential in absorbing roots                                [MPa]
      real(r8),allocatable ::  flc_aroot(:)        ! fractional loss of conductivity in absorbing roots                [-]
      real(r8),allocatable ::  flc_min_aroot(:)    ! min attained fractional loss of conductivity in absorbing roots 
