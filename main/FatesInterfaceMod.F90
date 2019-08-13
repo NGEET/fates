@@ -36,6 +36,8 @@ module FatesInterfaceMod
    use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
    !   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
 
+   use FatesHydraulicsMemMod, only: n_hypool_ag
+   use FatesHydraulicsMemMod, only: n_hypool_troot,nshell
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -130,6 +132,7 @@ module FatesInterfaceMod
                                                ! the logging module
 
    integer, protected :: hlm_use_planthydro    ! This flag signals whether or not to use
+   integer, protected :: hlm_use_alt_planthydro    ! This flag signals whether or not to use
                                                ! plant hydraulics (bchristo/xu methods)
                                                ! 1 = TRUE, 0 = FALSE
                                                ! THIS IS CURRENTLY NOT SUPPORTED 
@@ -557,6 +560,16 @@ module FatesInterfaceMod
                                                        ! [mm H2O/s] [+ into root]
       
       
+      real(r8), allocatable :: h2osoi_liq_prev(:)
+      real(r8), allocatable :: h2osoi_liqvol_shell(:,:)
+      real(r8), allocatable :: th_ag(:,:)
+      real(r8), allocatable :: psi_ag(:,:)
+      real(r8), allocatable :: th_troot(:,:)
+      real(r8), allocatable :: th_aroot(:,:)
+      real(r8), allocatable :: flc_min_ag(:,:)
+      real(r8), allocatable :: flc_min_troot(:,:)
+      real(r8), allocatable :: flc_min_aroot(:,:)
+      real(r8), allocatable :: sapflow(:)
 
    end type bc_out_type
 
@@ -713,6 +726,19 @@ contains
          allocate(bc_in%hksat_sisl(nlevsoil_in))
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
+      ! Alternative Plant-Hydro BC's
+      if (hlm_use_alt_planthydro.eq.itrue) then
+      
+         allocate(bc_in%qflx_transp_pa(maxPatchesPerSite))
+         allocate(bc_in%swrad_net_pa(maxPatchesPerSite))
+         allocate(bc_in%lwrad_net_pa(maxPatchesPerSite))
+         allocate(bc_in%watsat_sisl(nlevsoil_in))
+         allocate(bc_in%watres_sisl(nlevsoil_in))
+         allocate(bc_in%sucsat_sisl(nlevsoil_in))
+         allocate(bc_in%bsw_sisl(nlevsoil_in))
+         allocate(bc_in%hksat_sisl(nlevsoil_in))
+         allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
+      end if
 
       return
    end subroutine allocate_bcin
@@ -777,6 +803,20 @@ contains
          allocate(bc_out%qflx_soil2root_sisl(nlevsoil_in))
       end if
 
+      if (hlm_use_alt_planthydro) then
+         allocate(bc_out%qflx_soil2root_sisl(nlevsoil_in))
+         allocate(bc_out%h2osoi_liq_prev(nlevsoil_in))
+         allocate(bc_out%h2osoi_liqvol_shell(nlevsoil_in,nshell))
+         allocate(bc_out%th_ag(maxpft,n_hypool_ag))
+         allocate(bc_out%psi_ag(maxpft,n_hypool_ag))
+         allocate(bc_out%th_troot(maxpft,n_hypool_troot))
+         allocate(bc_out%th_aroot(maxpft,hlm_numlevgrnd))
+         allocate(bc_out%flc_min_ag(maxpft,n_hypool_troot))
+         allocate(bc_out%flc_min_troot(maxpft,n_hypool_troot))
+         allocate(bc_out%flc_min_aroot(maxpft,hlm_numlevgrnd))
+         allocate(bc_out%sapflow(maxpft))
+      end if
+
       return
    end subroutine allocate_bcout
 
@@ -838,6 +878,17 @@ contains
          this%bc_in(s)%hksat_sisl(:) = 0.0_r8
       end if
 
+      if (hlm_use_alt_planthydro.eq.itrue) then
+  
+         this%bc_in(s)%qflx_transp_pa(:) = 0.0_r8
+         this%bc_in(s)%swrad_net_pa(:) = 0.0_r8
+         this%bc_in(s)%lwrad_net_pa(:) = 0.0_r8
+         this%bc_in(s)%watsat_sisl(:) = 0.0_r8
+         this%bc_in(s)%watres_sisl(:) = 0.0_r8
+         this%bc_in(s)%sucsat_sisl(:) = 0.0_r8
+         this%bc_in(s)%bsw_sisl(:) = 0.0_r8
+         this%bc_in(s)%hksat_sisl(:) = 0.0_r8
+      end if
 
       ! Output boundaries
       this%bc_out(s)%active_suction_sl(:) = .false.
@@ -875,7 +926,7 @@ contains
       this%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
       this%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
 
-      if (hlm_use_planthydro.eq.itrue) then
+      if (hlm_use_planthydro.eq.itrue .or. hlm_use_alt_planthydro) then
          this%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
       end if
       this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
@@ -1284,6 +1335,7 @@ contains
          hlm_parteh_mode   = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
+         hlm_use_alt_planthydro = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1333,6 +1385,21 @@ contains
                write(fates_log(), *) ''
                write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
          end if
+         if (  .not.((hlm_use_alt_planthydro.eq.1).or.(hlm_use_alt_planthydro.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist planthydro flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         elseif (hlm_use_alt_planthydro.eq.1 ) then
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+               write(fates_log(), *) ''
+               write(fates_log(), *) ' use_fates_planthydro is an      EXPERIMENTAL FEATURE        '
+               write(fates_log(), *) ' please see header of fates/biogeophys/FatesHydraulicsMod.F90'
+               write(fates_log(), *) ' for more information.'
+               write(fates_log(), *) ''
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+         end if
+
 
          if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
             if (fates_global_verbose()) then
@@ -1544,6 +1611,11 @@ contains
                hlm_use_planthydro = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
+               end if
+            case('use_alt_planthydro')
+               hlm_use_alt_planthydro = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_alt_planthydro= ',ival,' to FATES'
                end if
 
             case('use_logging')

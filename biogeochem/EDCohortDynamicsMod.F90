@@ -9,6 +9,7 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : hlm_freq_day
   use FatesInterfaceMod     , only : bc_in_type
   use FatesInterfaceMod     , only : hlm_use_planthydro
+  use FatesInterfaceMod     , only : hlm_use_alt_planthydro
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
@@ -41,6 +42,7 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : UpdateTreeHydrNodes
   use FatesPlantHydraulicsMod, only : UpdateTreeHydrLenVolCond
+  use FatesPlantHydraulicsMod, only : UpdatePhsOrganConnectionProp
   use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
   use FatesPlantHydraulicsMod, only : ConstrainRecruitNumber
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
@@ -300,19 +302,24 @@ contains
     ! growth, disturbance and mortality.
     new_cohort%isnew = .true.
 
-    if( hlm_use_planthydro.eq.itrue ) then
+    if( hlm_use_planthydro.eq.itrue .or. hlm_use_alt_planthydro.eq.itrue) then
 
        nlevsoi_hyd = currentSite%si_hydr%nlevsoi_hyd
 
        ! This allocates array spaces
        call InitHydrCohort(currentSite,new_cohort)
-
+       
        ! This calculates node heights
        call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
                                 new_cohort%hite,nlevsoi_hyd,bc_in)
 
        ! This calculates volumes, lengths and max conductances
        call UpdateTreeHydrLenVolCond(new_cohort,nlevsoi_hyd,bc_in)
+       ! setup arrays for alternative phs solver
+       ! Update compartment size and conductance
+       if(hlm_use_alt_planthydro.eq.itrue) then
+           call UpdatePhsOrganConnectionProp(new_cohort%co_hydr)
+       end if
        
        ! Since this is a newly initialized plant, we set the previous compartment-size
        ! equal to the ones we just calculated.
@@ -698,7 +705,7 @@ contains
           ! preserve a record of the to-be-terminated cohort for mortality accounting
           levcan = currentCohort%canopy_layer
 
-          if( hlm_use_planthydro == itrue ) &
+          if( hlm_use_planthydro == itrue .or. hlm_use_alt_planthydro.eq.itrue) &
              call AccumulateMortalityWaterStorage(currentSite,currentCohort,currentCohort%n)
 
           if(levcan==ican_upper) then
@@ -780,7 +787,8 @@ contains
           endif
           
           ! At this point, nothing should be pointing to current Cohort
-          if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
+          if (hlm_use_planthydro.eq.itrue .or. &
+            hlm_use_alt_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
 
           ! Deallocate the cohort's PRT structure
           call currentCohort%prt%DeallocatePRTVartypes()
@@ -948,7 +956,8 @@ contains
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
 				      
 
-                                if(hlm_use_planthydro.eq.itrue) then			  					  				  
+                                if(hlm_use_planthydro.eq.itrue .or. &
+                                   hlm_use_alt_planthydro.eq.itrue ) then			  					  				  
 				    call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
 				 endif
 
@@ -1085,7 +1094,8 @@ contains
                                 ! At this point, nothing should be pointing to current Cohort
 				! update hydraulics quantities that are functions of hite & biomasses
 				! deallocate the hydro structure of nextc
-                                if (hlm_use_planthydro.eq.itrue) then				    
+                                if (hlm_use_planthydro.eq.itrue .or. &
+                                    hlm_use_alt_planthydro.eq.itrue) then				    
 				    call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
 				          currentCohort%pft,currentCohort%c_area)
                                     leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
@@ -1452,7 +1462,7 @@ contains
 
     ! Plant Hydraulics
     
-    if( hlm_use_planthydro.eq.itrue ) then
+    if( hlm_use_planthydro.eq.itrue .or. hlm_use_alt_planthydro.eq.itrue) then
       call CopyCohortHydraulics(n,o)
     endif
 

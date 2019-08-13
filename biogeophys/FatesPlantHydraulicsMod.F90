@@ -1,5 +1,6 @@
 module FatesPlantHydraulicsMod
-
+!
+#include <petsc/finclude/petsc.h>
    ! ==============================================================================================
    ! This module contains the relevant code for plant hydraulics. Currently, one hydraulics module
    ! is available.  Other methods of estimating plant hydraulics may become available in future
@@ -50,6 +51,7 @@ module FatesPlantHydraulicsMod
    use FatesInterfaceMod  , only : bc_out_type
 
    use FatesInterfaceMod  , only : hlm_use_planthydro
+   use FatesInterfaceMod  , only : hlm_use_alt_planthydro
 
    use FatesAllometryMod, only    : bsap_allom
    use FatesAllometryMod, only    : CrownDepth
@@ -75,6 +77,13 @@ module FatesPlantHydraulicsMod
    use FatesHydraulicsMemMod, only: nlevsoi_hyd_max
    use FatesHydraulicsMemMod, only: cohort_recruit_water_layer
    use FatesHydraulicsMemMod, only: recruit_water_avail_layer
+   ! for alternative solver
+   use FatesHydraulicsMemMod, only: num_nodes
+   use FatesHydraulicsMemMod, only: num_connections
+   use FatesHydraulicsMemMod, only:   ed_cohort_hydr_type
+   !
+   use FatesHydraulicsMemMod, only: cohort_recruit_water_layer
+   
 
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
@@ -87,6 +96,9 @@ module FatesPlantHydraulicsMod
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
    use shr_infnan_mod   , only : isnan => shr_infnan_isnan
+   use petscMod, only: fksp, frhs_vec, fsol_vec, fmat
+   use petscMod, only: petsc_solver_init
+   use spmdMod                , only : mpicom
 
 
    implicit none
@@ -125,6 +137,7 @@ module FatesPlantHydraulicsMod
    
    ! We use this parameter as the value for which we set un-initialized values
    real(r8), parameter :: un_initialized = -9.9e32_r8
+   PetscErrorCode :: ierr
 
 
    !
@@ -133,6 +146,7 @@ module FatesPlantHydraulicsMod
    public :: RecruitWaterStorage
    public :: hydraulics_drive
    public :: InitHydrSites
+   public :: InitHydrSolver
    public :: HydrSiteColdStart
    public :: BTranForHLMDiagnosticsFromCohortHydr
    public :: InitHydrCohort
@@ -151,6 +165,8 @@ module FatesPlantHydraulicsMod
    public :: UpdateTreeHydrNodes
    public :: UpdateTreeHydrLenVolCond
    public :: ConstrainRecruitNumber
+   public :: UpdatePhsOrganConnectionProp
+   public :: UpdatePhsSoilConnectionProp
 
    !------------------------------------------------------------------------------
    ! 01/18/16: Created by Brad Christoffersen
@@ -219,6 +235,7 @@ contains
     type(ed_patch_type),pointer       :: cpatch      ! current patch
     type(ed_cohort_type),pointer      :: ccohort     ! current cohort
     type(ed_cohort_hydr_type),pointer :: ccohort_hydr
+    type(ed_site_hydr_type),pointer :: csite_hydr
     integer                           :: s           ! site loop counter
 
     do s = 1,nsites
@@ -237,7 +254,11 @@ contains
                    
              ! This calculates volumes, lengths and max conductances
              call UpdateTreeHydrLenVolCond(ccohort,sites(s)%si_hydr%nlevsoi_hyd,bc_in(s))
-             
+             ! Update compartment size and conductance
+             if(hlm_use_alt_planthydro.eq.itrue) then
+                call UpdatePhsOrganConnectionProp(ccohort_hydr)
+             end if
+              
              ! Since this is a newly initialized plant, we set the previous compartment-size
              ! equal to the ones we just calculated.
              call SavePreviousCompartmentVolumes(ccohort_hydr) 
@@ -275,6 +296,12 @@ contains
        ! Now we set the prevous to the current so that the water states
        ! are not perturbed
        call SavePreviousRhizVolumes(sites(s), bc_in(s))
+       
+       ! Update compartment size and conductance
+       if(hlm_use_alt_planthydro.eq.itrue) then
+           csite_hydr =>sites(s)%si_hydr
+           call UpdatePhsSoilConnectionProp(sites(s), bc_in(s))
+       end if
 
     end do
     
@@ -379,7 +406,7 @@ contains
     
   end subroutine initTreeHydStates
 
-  
+   
   ! =====================================================================================
 
     
@@ -524,6 +551,7 @@ contains
     integer                            :: nlevsoi_hyd             ! Number of total soil layers
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     integer                            :: ft
+    type(ed_site_hydr_type),pointer :: csite_hydr
 
     nlevsoi_hyd                =  currentSite%si_hydr%nlevsoi_hyd
     ccohort_hydr               => ccohort%co_hydr
@@ -544,6 +572,10 @@ contains
     
     call UpdateTreeHydrLenVolCond(ccohort,nlevsoi_hyd,bc_in)
     
+    ! Update compartment size and conductance
+    if(hlm_use_alt_planthydro.eq.itrue) then
+        call UpdatePhsOrganConnectionProp(ccohort_hydr)
+     end if
     
   end subroutine updateSizeDepTreeHydProps
 
@@ -1151,15 +1183,100 @@ contains
     type(ed_cohort_type), target :: currentCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
-    if ( hlm_use_planthydro.eq.ifalse ) return
+    if ( hlm_use_planthydro.eq.ifalse .and. hlm_use_alt_planthydro.eq.ifalse) return
     allocate(ccohort_hydr)
     currentCohort%co_hydr => ccohort_hydr
     call ccohort_hydr%AllocateHydrCohortArrays(currentSite%si_hydr%nlevsoi_hyd)
 
     ccohort_hydr%is_newly_recruited = .false. 
     
-  end subroutine InitHydrCohort
+    if ( hlm_use_alt_planthydro.eq.ifalse) return
+    ccohort_hydr%nlevsoi_hyd = currentSite%si_hydr%nlevsoi_hyd
+    call ccohort_hydr%InitPhs() !initialized conn_dn etc.
+    call ccohort_hydr%SetPhsOrganConnection() !set connection b/w plant organs
+    call ccohort_hydr%SetPhsSoilConnection() !set connection between plant and soil shells
 
+
+    end subroutine InitHydrCohort
+
+  ! =====================================================================================
+  subroutine initHydrSolver(sites,bc_in)
+       type(ed_site_type),intent(inout),target :: sites(:)
+       type(bc_in_type),intent(in)             :: bc_in(:)
+     
+       ! Local
+       type(ed_site_hydr_type), pointer :: site_hydr
+       integer :: nsites
+       integer :: nlevsoil         ! Number of soil layers
+       integer :: nlevsoil_hyd     ! Number of hydraulically relevant soil layers
+       integer :: num_cnxs
+       integer :: num_nds
+       integer :: num_connections
+       integer :: node_tr_end
+       integer :: nt_ab
+       integer :: j, k, s
+       integer, dimension(:),allocatable :: conn_dn
+       integer, dimension(:),allocatable :: conn_up
+!
+       if(hlm_use_alt_planthydro.eq.ifalse) return
+       ! number of connections between organs, root/shell
+!
+       nsites = ubound(sites,1)
+
+       do s = 1,nsites
+          site_hydr => sites(s)%si_hydr
+        
+          nlevsoil     = bc_in(s)%nlevsoil
+          nlevsoil_hyd = site_hydr%nlevsoi_hyd
+          num_connections = n_hypool_leaf + n_hypool_stem + n_hypool_troot - 1  &
+                           + (n_hypool_aroot + nshell) * nlevsoil_hyd
+          allocate(conn_dn(num_connections))
+          allocate(conn_up(num_connections))
+
+          conn_dn = 0
+          conn_up = 0
+!
+          num_cnxs = 0
+          do k = 1, n_hypool_leaf
+             num_cnxs = num_cnxs + 1
+             conn_dn(num_cnxs) = k           !leaf is the dn, origin, bottom
+             conn_up(num_cnxs) = k + 1
+          enddo
+          do k = n_hypool_leaf+1, n_hypool_ag
+             num_cnxs = num_cnxs + 1
+             conn_dn(num_cnxs) = k
+             conn_up(num_cnxs) = k+1
+          enddo
+         
+          num_nds = n_hypool_ag+n_hypool_troot
+          node_tr_end = num_nds
+          nt_ab = n_hypool_ag+n_hypool_troot+n_hypool_aroot
+          num_cnxs = n_hypool_ag
+          do j = 1,nlevsoil_hyd
+
+            do k = 1, n_hypool_aroot + nshell
+              num_nds = num_nds + 1
+              num_cnxs = num_cnxs + 1
+              if( k == 1 ) then !troot-aroot
+                !junction node
+                conn_dn(num_cnxs) = node_tr_end !absorbing root
+                conn_up(num_cnxs) = num_nds
+
+              else
+                conn_dn(num_cnxs) = num_nds - 1
+                conn_up(num_cnxs) = num_nds
+              endif
+            enddo
+!
+          enddo ! end soil layer
+          call petsc_solver_init(fksp,fmat,frhs_vec,fsol_vec, &
+                        conn_dn, conn_up)
+      
+          deallocate(conn_dn)
+          deallocate(conn_up)
+       end do
+!
+  end subroutine initHydrSolver
   ! =====================================================================================
   subroutine DeallocateHydrCohort(currentCohort)
 
@@ -1167,7 +1284,7 @@ contains
     type(ed_cohort_type), target :: currentCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
-    if ( hlm_use_planthydro.eq.ifalse ) return
+    if ( hlm_use_planthydro.eq.ifalse .and. hlm_use_alt_planthydro.eq.ifalse) return
     
     ccohort_hydr => currentCohort%co_hydr
     call ccohort_hydr%DeAllocateHydrCohortArrays()
@@ -1191,7 +1308,8 @@ contains
        type(ed_site_hydr_type),pointer :: csite_hydr
        
 
-       if ( hlm_use_planthydro.eq.ifalse ) return
+       if ( hlm_use_planthydro.eq.ifalse .and. &
+            hlm_use_alt_planthydro.eq.ifalse) return
        
        ! Initialize any derived hydraulics parameters
        call InitHydraulicsDerived(numpft)
@@ -1214,7 +1332,174 @@ contains
 
     end subroutine InitHydrSites
 
-    ! ===================================================================================
+
+  ! =====================================================================================
+   subroutine UpdatePhsOrganConnectionProp(ccohort_hydr)
+!
+
+     ! ARGUMENTS:
+     ! -----------------------------------------------------------------------------------
+     integer :: k  ! local indexing
+     integer :: num_cnxs
+     integer :: num_nds
+     integer :: nt_ab
+     integer :: s, c, pi, p_t
+     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+     real(r8) :: kmax_bound(   n_hypool_tot)      ! lower boundary maximum hydraulic conductance of compartments    [kg s-1 MPa-1]
+     real(r8) :: kmax_upper(   n_hypool_tot)      ! maximum hydraulic conductance from node to upper boundary       [kg s-1 MPa-1]
+     real(r8) :: kmax_lower(   n_hypool_tot)      ! maximum hydraulic conductance from node to lower boundary       [kg s-1 MPa-1] 
+    !----------------------------------------------------------------------
+             
+     associate( &
+          z_node => ccohort_hydr%z_node, &
+          v_node => ccohort_hydr%v_node, &
+          cond_up => ccohort_hydr%cond_up, &
+          cond_dn => ccohort_hydr%cond_dn, &
+          conductance => ccohort_hydr%conductance, &
+          pm_type => ccohort_hydr%pm_type &
+          )
+!
+
+          num_nds = 0
+          num_cnxs = 0
+          do k = 1, n_hypool_leaf
+
+             pm_type(k) = k
+             num_nds = num_nds + 1
+             z_node(num_nds)           = ccohort_hydr%z_node_ag(k)        ! leaf and stem
+             v_node(num_nds)           =  ccohort_hydr%v_ag(k)             ! leaf and stem
+             num_cnxs = num_cnxs + 1
+             conductance(num_nds) = ccohort_hydr%kmax_bound(k) !leaf and stem
+             cond_dn(num_cnxs) = ccohort_hydr%kmax_lower(k)
+             cond_up(num_cnxs) = ccohort_hydr%kmax_upper(k+1)
+          enddo
+          do k = n_hypool_leaf+1, n_hypool_ag
+             pm_type(k) = k
+             num_nds = num_nds + 1
+             z_node(num_nds)           = ccohort_hydr%z_node_ag(k)        ! leaf and stem
+             v_node(num_nds)           =  ccohort_hydr%v_ag(k)             ! leaf and stem
+             num_cnxs = num_cnxs + 1
+             conductance(num_cnxs) = ccohort_hydr%kmax_bound(k) !leaf and stem
+             cond_dn(num_cnxs) = ccohort_hydr%kmax_lower(k)
+             cond_up(num_cnxs) = ccohort_hydr%kmax_upper_troot
+          enddo
+          do k=n_hypool_ag+1, n_hypool_ag+n_hypool_troot
+             num_nds = num_nds + 1
+             z_node(num_nds) = ccohort_hydr%z_node_troot(1)        ! transporting root
+             v_node(num_nds) = ccohort_hydr%v_troot(1)             ! transporting root
+          enddo
+     end associate
+!
+   end subroutine UpdatePhsOrganConnectionProp
+
+
+  ! =====================================================================================
+   subroutine UpdatePhsSoilConnectionProp(currentSite, bc_in)
+!
+     use pftvarcon         , only : roota_par, rootb_par
+
+!
+
+     ! ARGUMENTS:
+     type(ed_site_type)     , intent(inout), target :: currentSite
+     type(bc_in_type),intent(in)             :: bc_in
+     ! -----------------------------------------------------------------------------------
+     type(ed_site_hydr_type), pointer :: csite_hydr
+     integer :: j,k  ! local indexing
+     integer :: FT
+     integer :: num_cnxs
+     integer :: num_cnx
+     integer :: num_nds
+     integer :: nt_ab
+     integer :: node_tr_end
+!
+     type(ed_patch_type)  , pointer :: cPatch
+     type(ed_cohort_type) , pointer :: cCohort
+     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+     real(r8) :: kmax_bound_shell_1l(nshell)   ! like kmax_bound_shell_1D(:) but for specific single soil layer  [kg s-1 MPa-1]
+     real(r8) :: kmax_bound_aroot_soil2
+     real(r8) :: kmax_bound_aroot_soil1
+! lower - towards the soil (k relate to _dn), upper - towards the atmosphere (k+1 to  _up)
+
+     !
+    !----------------------------------------------------------------------
+    cPatch => currentSite%youngest_patch
+    csite_hydr => currentSite%si_hydr
+    do while(associated(cPatch))
+       cCohort => cPatch%tallest
+       do while(associated(cCohort))
+          ccohort_hydr => cCohort%co_hydr
+          associate( & 
+            z_node => ccohort_hydr%z_node, & 
+            v_node => ccohort_hydr%v_node, & 
+            cond_up => ccohort_hydr%cond_up, & 
+            cond_dn => ccohort_hydr%cond_dn, & 
+            conductance => ccohort_hydr%conductance, &
+            pm_type => ccohort_hydr%pm_type & 
+            )
+            num_nds = n_hypool_ag+n_hypool_troot 
+            node_tr_end = num_nds
+            nt_ab = n_hypool_ag+n_hypool_troot+n_hypool_aroot
+            num_cnxs = n_hypool_ag
+            do j = 1,csite_hydr%nlevsoi_hyd
+     
+              kmax_bound_shell_1l(:) = &
+                               csite_hydr%kmax_bound_shell(j,:) * ccohort_hydr%l_aroot_layer(j) / csite_hydr%l_aroot_layer(j)
+
+              do k = 1, n_hypool_aroot + nshell 
+                num_nds = num_nds + 1
+
+                if(k <=n_hypool_aroot) then
+                  pm_type(num_nds) = n_hypool_ag+n_hypool_troot+k
+                  z_node(num_nds)          = -bc_in%z_sisl(j)  !absorbing root
+                  v_node(num_nds)  = ccohort_hydr%v_aroot_layer(j) 
+                else
+                  z_node(num_nds) = -bc_in%z_sisl(j)
+                  v_node(num_nds) =  &
+                       csite_hydr%v_shell(j,k-1) * &
+                               ccohort_hydr%l_aroot_layer(j)/bc_in%dz_sisl(j)
+         
+                endif
+                num_cnxs = num_cnxs + 1
+                if( k == 1 ) then !troot-aroot
+                  !junction node
+                  conductance(num_cnxs) = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)
+                  cond_dn(num_cnxs) = 4._r8 * ccohort_hydr%kmax_treebg_layer(j)
+                  cond_up(num_cnxs) = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)
+        
+                else
+                  if(k == 2) then !aroot-soil
+                    kmax_bound_aroot_soil1      = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)
+                         ! (root surface)-to-(soil shell#1) conductance
+                    kmax_bound_aroot_soil2      = kmax_bound_shell_1l(1)
+                         ! combined (soil shell#1)-to-(absorbing root)
+                         ! conductance
+
+                    conductance((num_cnxs)) = 1._r8/(1._r8/kmax_bound_aroot_soil1 + 1._r8/kmax_bound_aroot_soil2) 
+                    cond_dn(num_cnxs) = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)
+                    cond_up(num_cnxs) = csite_hydr%kmax_upper_shell(j,1) * &
+                                                            ccohort_hydr%l_aroot_layer(j)/ csite_hydr%l_aroot_layer(j)
+                  else
+                    conductance(num_cnxs) = kmax_bound_shell_1l(k-1) !shell
+                    cond_dn(num_cnxs) = csite_hydr%kmax_lower_shell(j,k-2) * &
+                                  ccohort_hydr%l_aroot_layer(j) /csite_hydr%l_aroot_layer(j)
+                    cond_up(num_cnxs) = csite_hydr%kmax_upper_shell(j,k-1) * &
+                                                            ccohort_hydr%l_aroot_layer(j)/ csite_hydr%l_aroot_layer(j)
+                  endif
+                endif
+              enddo
+!
+            enddo ! end soil layer
+
+          end associate
+          cCohort => cCohort%shorter
+       enddo !cohort
+       cPatch => cPatch%older
+    enddo !patch
+   end subroutine UpdatePhsSoilConnectionProp
+
+       
+  ! =====================================================================================
   subroutine HydrSiteColdStart(sites, bc_in )! , bc_out)
        
 
@@ -1224,13 +1509,18 @@ contains
      
      ! Local
      type(ed_site_hydr_type), pointer :: site_hydr
+     type(ed_patch_type),pointer       :: cpatch      ! current patch
+     type(ed_cohort_type),pointer      :: ccohort     ! current cohort
+     type(ed_cohort_hydr_type),pointer :: ccohort_hydr
      real(r8) :: smp  ! matric potential temp
      real(r8) :: h2osoi_liqvol ! liquid water content (m3/m3)
      integer :: s
      integer :: j
+     integer :: k
      integer :: nsites
      integer :: nlevsoil         ! Number of soil layers
      integer :: nlevsoil_hyd     ! Number of hydraulically relevant soil layers
+     integer :: num_nds
        
      nsites = ubound(sites,1)
 
@@ -1256,7 +1546,31 @@ contains
               site_hydr%h2osoi_liq_prev(j)              = bc_in(s)%h2o_liq_sisl(j)
            end do
         end if
+        
+        if(hlm_use_alt_planthydro) then
 
+           cpatch => sites(s)%oldest_patch
+           do while(associated(cpatch))
+             
+              ccohort => cpatch%shortest
+              do while(associated(ccohort))  
+             
+                 ccohort_hydr => ccohort%co_hydr
+
+                 num_nds = n_hypool_ag+n_hypool_troot
+                 do j = 1, nlevsoil_hyd
+                    h2osoi_liqvol = min(bc_in(s)%eff_porosity_sl(j), &
+                     bc_in(s)%h2o_liq_sisl(j)/(bc_in(s)%dz_sisl(j)*denh2o))
+                    do k = (n_hypool_ag+n_hypool_troot+1), n_hypool_tot
+                       num_nds = num_nds + 1
+                       if(k > n_hypool_ag + n_hypool_troot + 1) &
+                          ccohort_hydr%th_node(num_nds) = h2osoi_liqvol
+                    end do
+                 end do
+              end do !cohort
+           end do !patch
+        endif
+    
         do j = 1, nlevsoil_hyd
            ! Calculate the matric potential on the innner shell (this is used to initialize
            ! xylem and root pressures in new cohorts)
@@ -1341,7 +1655,7 @@ contains
         bc_out(s)%plant_stored_h2o_si = 0.0_r8
      end do
 
-     if( hlm_use_planthydro.eq.ifalse ) return
+     if( hlm_use_planthydro.eq.ifalse .and. hlm_use_alt_planthydro.eq.ifalse) return
 
      do s = 1,nsites
 
@@ -1750,6 +2064,9 @@ contains
     ! these are independent on the water state
     
     call UpdateSizeDepRhizVolLenCon(currentSite, bc_in)
+    if(hlm_use_alt_planthydro.eq.itrue) then
+        call UpdatePhsSoilConnectionProp(currentSite, bc_in)
+    end if
 
 
     return
@@ -2638,6 +2955,7 @@ contains
                       !             root length density and soil matric potential
                       !             root hydraulic redistribution emerges within this sequence when a 
                       !             layers have transporting-to-absorbing root water potential gradients of opposite sign
+                    if(hlm_use_planthydro) then
                       kbg_layer(:) = 0._r8
                       kbg_tot      = 0._r8
                       do j=1,site_hydr%nlevsoi_hyd
@@ -2879,25 +3197,36 @@ contains
                                ccohort%n / site_hydr%l_aroot_layer(ordered(jj)) !* &
                                                      !patch_wgt
 		      enddo !soil layer
+                     
+                    else
+                         ! the individual-layer Richards' equation solution
+                      call Hydraulics_alt_1DSolve(dtime, s, ccohort, ft, qflx_tran_veg_indiv, site_hydr, ccohort_hydr,bc_in(s),dth_layershell_col,sapflow)
+                      ccohort_hydr%sapflow        = sapflow
+
+                    end if !native planthydro
 		   end if !nlevsoi_hyd > 1
 		   
                    ! UPDATE WATER CONTENT & POTENTIAL IN LEAVES, STEM, AND TROOT (COHORT-LEVEL)
                    do k=1,n_hypool_ag
-                      if(site_hydr%nlevsoi_hyd == 1) then
-                         ccohort_hydr%th_ag(k)          = th_node(k)
-                      else
-                         ccohort_hydr%th_ag(k)          = th_node_1l(k)
-                      endif
+                      if(hlm_use_planthydro) then
+                         if(site_hydr%nlevsoi_hyd == 1) then
+                            ccohort_hydr%th_ag(k)          = th_node(k)
+                         else
+                            ccohort_hydr%th_ag(k)          = th_node_1l(k)
+                         endif
+                      end if
                       call psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k), &
                             ccohort_hydr%psi_ag(k), site_hydr, bc_in(s) )
                       call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), &
                             ccohort_hydr%flc_ag(k), site_hydr, bc_in(s) ) 
                    enddo
                    do k=(n_hypool_ag+1),(n_hypool_ag+n_hypool_troot)
-                      if(site_hydr%nlevsoi_hyd == 1) then
-                         ccohort_hydr%th_troot(k-n_hypool_ag) = th_node(k)
-                      else
-                         ccohort_hydr%th_troot(k-n_hypool_ag) = th_node_1l(k)
+                      if(hlm_use_planthydro) then
+                         if(site_hydr%nlevsoi_hyd == 1) then
+                            ccohort_hydr%th_troot(k-n_hypool_ag) = th_node(k)
+                         else
+                            ccohort_hydr%th_troot(k-n_hypool_ag) = th_node_1l(k)
+                         endif
                       endif
                       call psi_from_th(ft, porous_media(k), ccohort_hydr%th_troot(k-n_hypool_ag), &
                             ccohort_hydr%psi_troot(k-n_hypool_ag), site_hydr, bc_in(s))
@@ -3037,6 +3366,15 @@ contains
                 ccohort_hydr => ccohort%co_hydr
                 !totalrootuptake = totalrootuptake + ccohort_hydr%rootuptake* ccohort%n/AREA
 		totalqtop_dt= totalqtop_dt+  ccohort_hydr%qtop_dt* ccohort%n/AREA
+                if(hlm_use_alt_planthydro) then
+                   bc_out(s)%psi_ag(ft,:) = ccohort_hydr%psi_ag(:)*1e6/1000.0/9.81*1000 !MPa to mm
+                   bc_out(s)%th_ag(ft,:) = ccohort_hydr%th_ag(:)
+                   bc_out(s)%th_troot(ft,:) = ccohort_hydr%th_troot(:)
+                   bc_out(s)%th_aroot(ft,:) = ccohort_hydr%th_aroot(:)
+                   bc_out(s)%flc_min_ag(ft,:) = ccohort_hydr%flc_min_ag(:)
+                   bc_out(s)%flc_min_troot(ft,:) = ccohort_hydr%flc_min_troot(:)
+                   bc_out(s)%flc_min_aroot(ft,:) = ccohort_hydr%flc_min_aroot(:)
+                end if
                 ccohort => ccohort%shorter
              enddo !cohort
 	     cpatch => cpatch%younger
@@ -3053,6 +3391,10 @@ contains
                                            site_hydr%h2oveg_growturn_err - &
                                            site_hydr%h2oveg_pheno_err-&
 					   site_hydr%h2oveg_hydro_err
+           if( hlm_use_alt_planthydro) then
+              bc_out(s)%h2osoi_liq_prev(:) = site_hydr%h2osoi_liq_prev(:)  
+              bc_out(s)%h2osoi_liqvol_shell(:,:) =site_hydr%h2osoi_liqvol_shell(:,:)
+           end if
 
            
         enddo !site
@@ -3128,7 +3470,7 @@ contains
      type(ed_site_hydr_type), pointer :: csite_hydr
      integer :: s
 
-     if( hlm_use_planthydro.eq.ifalse ) return
+     if( hlm_use_planthydro.eq.ifalse .and. hlm_use_alt_planthydro.eq.ifalse) return
 
      do s = 1,nsites
 
@@ -3619,6 +3961,502 @@ contains
     dkbounddpsi1(k) = 0._r8
   
   end subroutine boundary_hdiff_and_k
+   !------------------------------------------------------------------------------
+  !-------------------------------------------------------------------------------!
+  subroutine boundary_hdiff_and_k_alt(ccohort_hydr,psi_node,flc_node,dflcdpsi_node,hdiff_bound,k_bound,dhdpsi,dkdpsi)
+    !
+    ! !ARGUMENTS
+    type(ed_cohort_hydr_type) :: ccohort_hydr
+    real(r8) :: psi_node(num_nodes)
+    real(r8) :: flc_node(num_nodes)
+    real(r8) :: dflcdpsi_node(num_nodes)
+    real(r8)          , intent(out) :: hdiff_bound(num_connections)         !total water potential difference across lower boundary          [MPa]
+    real(r8)          , intent(out) :: dhdpsi(num_connections,2)         !
+    real(r8)          , intent(out) :: k_bound(num_connections)         ! 
+    real(r8)          , intent(out) :: dkdpsi(num_connections,2)         ! 
+    real(r8) :: k_up,k_dn
+    integer :: icnx,id_dn,id_up
+    integer :: k_arootsoil
+    real(r8) :: k_bound_aroot_soil1        ! radial conductance ofabsorbing roots                   [kg s-1 MPa-1]
+    real(r8) :: k_bound_aroot_soil2        ! conductance to root surface from innermost rhiz shell   [kg s-1 MPa-1]
+!
+    associate( &
+       z_node => ccohort_hydr%z_node, &
+       conn_up => ccohort_hydr%conn_up, &
+       conn_dn => ccohort_hydr%conn_dn, &
+       cond_up => ccohort_hydr%cond_up, &
+       cond_dn => ccohort_hydr%cond_dn, &
+       conductance => ccohort_hydr%conductance &
+       )
+     k_arootsoil = n_hypool_tot-nshell
+     do icnx = 1, num_connections
+       id_dn = conn_dn(icnx)
+       id_up = conn_up(icnx)
+       hdiff_bound(icnx) = 1.e-6_r8*denh2o*grav*(z_node(id_dn) - z_node(id_up)) + (psi_node(id_dn) - psi_node(id_up))
+       dhdpsi(icnx,1) = 1.d0 ! for id_dn
+       dhdpsi(icnx,2) = -1.d0 ! for id_up
+       do_kbound_upstream = .true.
+       if(do_kbound_upstream) then
+          if(icnx == (k_arootsoil)) then  ! absorbing root-1st rhizosphere shell boundary. Comprised of two distinct conductance terms each with distinct water potentials
+             k_dn =  cond_dn(icnx) * flc_node(id_dn)
+             k_up =  cond_up(icnx) * flc_node(id_up)
+             k_bound(icnx)          =  1._r8/(1._r8/k_dn + 1._r8/k_up)
+             dkdpsi(icnx,1)     =  ((k_bound(icnx)/k_dn)**2._r8) * cond_dn(icnx)*dflcdpsi_node(id_dn)
+             dkdpsi(icnx,2)     =  ((k_bound(icnx)/k_up)**2._r8) * cond_up(icnx)*dflcdpsi_node(id_up)
+          else
+             ! examine direction of water flow; use the upstream node's k for
+             ! the boundary k. (as suggested by Ethan Coon, LANL)
+             if(hdiff_bound(icnx) < 0._r8) then
+                k_bound(icnx)       = conductance(icnx) * flc_node(id_up)  !water moving towards atmosphere
+                dkdpsi(icnx,1)  = 0._r8
+                dkdpsi(icnx,2)  = conductance(icnx) * dflcdpsi_node(id_up)
+             else
+                k_bound(icnx)       = conductance(icnx) * flc_node(id_dn)    !water moving towards soil
+                dkdpsi(icnx,1)  = conductance(icnx) * dflcdpsi_node(id_dn)
+                dkdpsi(icnx,2)  = 0._r8
+             end if
+          end if
+       else
+          k_dn                =  cond_dn(icnx)   * flc_node(id_dn)
+          k_up                =  cond_up(icnx) * flc_node(id_up)
+          k_bound(icnx)             =  1._r8/(1._r8/k_dn + 1._r8/k_up)
+          dkdpsi(icnx,1)        =  ((k_bound(icnx)/k_dn)**2._r8) * cond_dn(icnx) * dflcdpsi_node(id_dn)
+          dkdpsi(icnx,2)        =  ((k_bound(icnx)/k_up)**2._r8) * cond_up(icnx) * dflcdpsi_node(id_up)
+       end if
+! update location
+       if(icnx == k_arootsoil) &
+       k_arootsoil = k_arootsoil + nshell + 1
+     enddo
+    end associate
+
+    return
+!
+  end subroutine boundary_hdiff_and_k_alt
+
+
+   !------------------------------------------------------------------------------
+  subroutine Hydraulics_alt_1DSolve(dtime, s, cc_p,ft, qtop, site_hydr,ccohort_hydr,bc_in,dth_layershell_col,sapflow)
+!
+      use petscMod
+      use petscvec
+      use petscmat
+      use petscsys
+      use clm_time_manager     , only : get_nstep
+      use EDTypesMod     , only : AREA
+
+     ! ARGUMENTS:
+#include <petsc/finclude/petsc.h>
+     ! -----------------------------------------------------------------------------------
+    type(ed_site_hydr_type), intent(inout),target :: site_hydr        ! ED site_hydr structure
+     type(ed_cohort_hydr_type), target :: ccohort_hydr
+     type(ed_cohort_type) , intent(inout), target  :: cc_p                          ! current cohort pointer
+     type(bc_in_type),intent(in)             :: bc_in
+     integer :: k,ft, nt_ab,nr,nc,ic(2),ir(2),icol
+     integer :: j, icnx, pmx,inewt
+     integer :: id_dn, id_up
+     real(r8) :: psisat,B,thsat,psi_pt,tmp
+     real(r8) :: values(4)
+     real(r8) :: residual(num_nodes)
+     real(r8) :: dth_node(num_nodes)
+     real(r8) :: th_node_init(num_nodes)
+     real(r8) :: psi_node_init(num_nodes)
+     real(r8) :: th_node(num_nodes)
+     real(r8) :: psi_node(num_nodes)
+     real(r8) :: k_bound(num_connections)
+     real(r8) :: hdiff_bound(num_connections)
+     real(r8) :: hdiffx, k_boundx, dkdpsix
+     real(r8) :: dhdpsi(num_connections,2)
+     real(r8) :: dkdpsi(num_connections,2)
+     real(r8) :: dt_time
+     real(r8) :: dnr, thx, thx_pt
+     real(r8) :: qflx
+     real(r8) :: q_flux(num_connections)
+     real(r8) :: qtop, dqflx_dn, dqflx_up !qtop - flux from canopy, kgh2o indiv-1 s-1
+     real(r8) :: dflcgsdpsi  ! fractional loss of conductivity  [-]
+    real(r8) :: dflcgsdth                     ! derivative of stomatal vuln curve wrt to leaf water content     [m-3 m3]
+    real(r8) :: dqtopdflcgs                   ! derivative of cohort-level transpiration wrt btran              [kgh2o indiv-1 s-1]
+    real(r8) :: dqtopdth_leaf                 ! derivative of transpiration rate wrt to leaf water content      [kgh2o indiv-1 s-1 m-3 m-3]
+    
+     real(r8) :: qscale
+     integer :: s
+     integer :: num_nds
+     real(r8) :: blu(num_nodes)
+     real(r8) :: blux(num_nodes)
+     real(r8) :: th_node_1l(   n_hypool_tot)      ! volumetric water in water storage compartments (single-layer soln) [m3 m-3]
+     real(r8) :: flc_min_node( n_hypool_tot-nshell) ! minimum attained fractional loss of conductivity (for xylem refilling dynamics)[-]
+     real(r8) :: dpsidth_node( n_hypool_tot)      ! derivative of water potential wrt to theta                      [MPa]
+     real(r8) :: flc_node(     num_nodes)      ! fractional loss of conductivity at water storage nodes          [-]
+     real(r8) :: dflcdpsi_node(num_nodes)      ! derivative of fractional loss of conductivity wrt psi           [MPa-1]
+     real(r8) :: psi_node_1l(  n_hypool_tot)      ! water potential in water storage compartments (single-layer soln) [MPa]
+     real(r8) :: flc_node_1l(  n_hypool_tot)      ! fractional loss of conductivity (single-layer soln)             [-]
+     real(r8) :: dflcdpsi_node_1l(n_hypool_tot)   ! derivative of flc_node_1l wrt psi                               [MPa-1]
+
+!     real(r8) :: th_node_init( npool_tot)      ! initial volumetric water in water storage compartments          [m3 m-3]
+     real(r8) :: hdiff_bound_1l( nshell+1)     !
+     real(r8) :: dth_layershell_col(nlevsoi_hyd_max,nshell) ! accumulated water content change over all cohorts in a column   [m3 m-3]
+!     real(r8) :: kmax_bound(   npool_tot)      ! lower boundary maximum hydraulic conductance of compartments    [kg s-1 MPa-1]
+!     real(r8) :: kmax_upper(   npool_tot)      ! maximum hydraulic conductance from node to upper boundary       [kg s-1 MPa-1]
+!     real(r8) :: kmax_lower(   npool_tot)      ! maximum hydraulic conductance from node to lower boundary       [kg s-1 MPa-1]
+
+     integer :: icnv
+     real(r8) :: thsatx
+     real(r8) :: slx
+     real(r8) :: plx
+     real(r8) :: dplx
+     real(r8) :: rsd, rsdx, rlfx, rsdp
+     real(r8) :: acp
+     real(r8) :: dtime, dtx, dtcf, tm, dto, dtimex, var, varx, tmx,dtime_o
+     real(r8) :: dwat_veg_coh
+     integer :: nsd
+     integer :: niter
+     integer :: ntsr
+     integer :: n_hypool_at
+     integer :: ksh
+     integer :: outer_nodes(10)
+     integer :: bc_cnx(10)
+     real(r8) :: smp, h2osoi_liqvol
+     real(r8) :: e0(num_nodes)
+     real(r8) :: psiw(num_nodes)
+     real(r8) :: e1(num_nodes)
+     real(r8) :: e2(num_nodes)
+     real(r8) :: sapflow
+     integer :: itshk
+     type(ed_cohort_type),pointer      :: ccohort     ! current cohort
+     PetscErrorCode :: ierr
+!
+     ccohort => cc_p 
+     associate( &
+       z_lower_ag => ccohort_hydr%z_lower_ag, & 
+       z_upper_ag => ccohort_hydr%z_upper_ag, & 
+       z_node_ag => ccohort_hydr%z_node_ag, & 
+       z_node => ccohort_hydr%z_node, & 
+       v_node => ccohort_hydr%v_node, &
+       conn_up => ccohort_hydr%conn_up, &
+       conn_dn => ccohort_hydr%conn_dn, &
+       cond_up => ccohort_hydr%cond_up, &
+       cond_dn => ccohort_hydr%cond_dn, &
+       conductance => ccohort_hydr%conductance, &
+       th_node_init => ccohort_hydr%th_node_init, &
+       th_node => ccohort_hydr%th_node, &
+       psi_node_init => ccohort_hydr%psi_node_init, &
+       psi_node => ccohort_hydr%psi_node, &
+       pm_type => ccohort_hydr%pm_type &
+       )
+! assign variables
+       th_node(               1 : n_hypool_ag          ) =ccohort_hydr%th_ag(:)
+       th_node(     (n_hypool_ag+1):(n_hypool_ag+n_hypool_troot)) =ccohort_hydr%th_troot(:)
+       flc_min_node(          1 : n_hypool_ag          ) =ccohort_hydr%flc_min_ag(:)
+       flc_min_node((n_hypool_ag+1):(n_hypool_ag+n_hypool_troot)) =ccohort_hydr%flc_min_troot(:)
+
+       
+       do k = 1, n_hypool_ag+n_hypool_troot
+             call psi_from_th(ft, porous_media(k), th_node(k), psi_node(k),site_hydr, bc_in)
+             call dpsidth_from_th(ft, porous_media(k), th_node(k),dpsidth_node(k), site_hydr, bc_in)
+             call flc_from_psi(ft, porous_media(k), psi_node(k), flc_node(k),site_hydr, bc_in)
+             call dflcdpsi_from_psi(ft, porous_media(k), psi_node(k),dflcdpsi_node(k), site_hydr, bc_in)
+
+             if(do_dyn_xylemrefill .and. porous_media(k) <= 4) then
+                if(flc_node(k) > flc_min_node(k)) then
+                   dflcdpsi_node(k) = 0._r8
+                   flc_node(k)      = flc_min_node(k)
+                end if
+             end if
+       enddo
+!          call dflcgsdpsi_from_psi(ccohort_hydr%psi_ag(1),ft, dflcgsdpsi)
+!          dflcgsdth   = dflcgsdpsi * dpsidth_node(1)
+!          dqtopdflcgs = 0.1411985_r8    !BOC... estimated by trial-and-error:this term multiplied by the maximum value of dflcgsdth gives 150.
+                                        !NEEDED: an estimate for dqtopdflcgs
+                                        !that accounts for variable potential
+                                        !evapotranspiration (efpot).
+                
+
+       
+!       psi_node(1:npool_bg) = psi_node_1l(1:npool_bg) 
+!       th_node(1:npool_bg) = th_node_1l(1:npool_bg)
+       num_nds = n_hypool_ag + n_hypool_troot
+        
+       do j = 1,site_hydr%nlevsoi_hyd
+         th_node_1l((n_hypool_ag+n_hypool_troot+1)) = ccohort_hydr%th_aroot(j)
+         th_node_1l((n_hypool_ag+n_hypool_troot+2):(n_hypool_tot)) = site_hydr%h2osoi_liqvol_shell(j,:)
+
+         do k = (n_hypool_ag+n_hypool_troot+1), n_hypool_tot
+           num_nds = num_nds + 1
+           call psi_from_th(ft, pm_type(num_nds), th_node_1l(k),psi_node_1l(k),site_hydr, bc_in)
+           call flc_from_psi(ft, pm_type(num_nds),psi_node_1l(k), flc_node_1l(k), site_hydr, bc_in)
+           call dflcdpsi_from_psi(ft, pm_type(num_nds),psi_node_1l(k), dflcdpsi_node_1l(k), site_hydr, bc_in)
+
+           if(k == n_hypool_ag + n_hypool_troot + 1) then
+             if(do_dyn_xylemrefill .and. porous_media(k) <= 4) then
+                if(flc_node_1l(k) > ccohort_hydr%flc_min_aroot(j)) then
+                   dflcdpsi_node_1l(num_nds) = 0._r8
+                   flc_node_1l(num_nds)      = ccohort_hydr%flc_min_aroot(j)
+                end if
+             end if
+             flc_node(num_nds) = flc_node_1l(k)
+             dflcdpsi_node(num_nds) = dflcdpsi_node_1l(k)            
+           else
+             flc_node(num_nds) = flc_node_1l(k)
+             dflcdpsi_node(num_nds) = dflcdpsi_node_1l(k)           
+             if(k==n_hypool_tot) outer_nodes(j) = num_nds 
+           endif 
+           psi_node(num_nds) = psi_node_1l(k)
+           th_node(num_nds) = th_node_1l(k)
+         enddo
+
+         h2osoi_liqvol = min(bc_in%eff_porosity_sl(j), &
+                    bc_in%h2o_liq_sisl(j)/(bc_in%dz_sisl(j)*denh2o))
+          call swcCampbell_psi_from_th(h2osoi_liqvol, &
+                   bc_in%watsat_sisl(j), (-1.0_r8)*bc_in%sucsat_sisl(j)*denh2o*grav*1.e-9_r8, bc_in%bsw_sisl(j), smp)
+       enddo
+       th_node_init(:) = th_node(:)
+       psi_node_init(:) = psi_node(:)
+!
+       nt_ab = n_hypool_ag+n_hypool_troot+n_hypool_aroot
+!
+       rlfx = 1._r8
+       rsdp = 0._r8
+       inewt = 0
+       tmx = dtime
+       dtime_o = dtime
+       tm = 0
+       ntsr = 0
+       dth_layershell_col(:,:) = 0._r8
+       do while(tm < tmx)
+          rlfx = 1._r8
+          rsdp = 0._r8
+          inewt = 0
+          100   continue
+          tm = tm + dtime
+          niter = 0
+          itshk = 0
+          e0(:) = 0
+          e1(:) = 0
+          e2(:) = 0
+          200   continue
+          niter = niter + 1
+!zero matrix and residual
+          if(inewt == 0) &
+              call MatZeroEntries(fmat,ierr)
+          residual(:) = 0._r8
+          blu(:) = 0._r8
+!
+          do k = 1, num_nodes
+             call flc_from_psi(ft, pm_type(k),psi_node(k), flc_node(k), site_hydr, bc_in)
+             call dflcdpsi_from_psi(ft, pm_type(k),psi_node(k), dflcdpsi_node(k), site_hydr, bc_in)
+          enddo
+
+          call boundary_hdiff_and_k_alt(ccohort_hydr,psi_node(:),flc_node,dflcdpsi_node,hdiff_bound,k_bound,dhdpsi,dkdpsi)
+
+          do k=1,num_nodes
+!
+             residual(k) = residual(k) + (th_node(k) - th_node_init(k))/dtime*denh2o*v_node(k)
+! matrix 
+             ic(:) = 0
+             ir(:) = 0
+             values(:) = 0._r8
+             nc = 1
+             nr = 1
+             icol = k-1
+             ic(1) = icol
+             ir(1) = icol
+!            dnr = -1.e-6_r8
+             dnr = -0.05*abs(psi_node(k)) + 1e-12
+!            dnr = -max(1.e-6,0.05*abs(psi_node(k)))
+             if(pm_type(k) <= nt_ab) then
+                call th_from_psi(ft, pm_type(k), psi_node(k), thx,site_hydr,bc_in)
+! incremented psi
+               psi_pt = psi_node(k) + dnr
+               call th_from_psi(ft, pm_type(k), psi_pt, thx_pt,site_hydr,bc_in)
+               values(1) = denh2o*v_node(k)/dtime*(thx_pt-thx)/dnr
+            else
+               j = pm_type(k)-nt_ab
+               B = bc_in%bsw_sisl(j)
+               psisat = bc_in%sucsat_sisl(j)*denh2o*grav*1.e-9_r8 !! mm * 1e-3 m/mm * 1e3 kg/m3 * 9.8 m/s2 * 1e-6 MPa/Pa = MPa
+               thsat = bc_in%watsat_sisl(j)
+               psi_pt = psi_node(k)
+               if( psi_pt >= -psisat ) then
+                  tmp = 0._r8
+               else
+                  tmp = 1._r8/B*(-psi_pt/psisat)**(-1._r8-1._r8/B)/psisat
+               endif
+               values(1) = denh2o*v_node(k)/dtime*bc_in%watsat_sisl(j)*tmp
+            endif
+            if(inewt == 0) &
+              call MatSetValues( fmat,nr,ir(1),nc,ic(1),values(1),ADD_VALUES,ierr )
+          enddo
+
+! calculate boundary fluxes     
+          nr = 2
+          nc = 2
+          do icnx=1,num_connections
+             id_dn = conn_dn(icnx)
+             id_up = conn_up(icnx)
+             ir(:) = 0
+             ic(:) = 0
+             values(:) = 0._r8
+             qflx = -1._r8 * k_bound(icnx) * hdiff_bound(icnx)
+             if(icnx==2) sapflow =qflx
+             q_flux(icnx) = qflx
+             residual(id_dn) = residual(id_dn) - qflx
+             residual(id_up) = residual(id_up) + qflx
+             dqflx_dn = -1._r8 * (hdiff_bound(icnx) * dkdpsi(icnx,1) + k_bound(icnx)*dhdpsi(icnx,1))
+             dqflx_up = -1._r8 * (hdiff_bound(icnx) * dkdpsi(icnx,2) + k_bound(icnx)*dhdpsi(icnx,2))
+             ir(1) = id_dn-1
+             ir(2) = id_up-1
+             ic(1) = id_dn-1
+             ic(2) = id_up-1 
+             values(1) = -dqflx_dn
+             values(2) = -dqflx_up
+             values(3) = dqflx_dn 
+             values(4) = dqflx_up
+             if(inewt == 0) &
+                call MatSetValues( fmat,nr,ir,nc,ic,values,ADD_VALUES,ierr )     
+          enddo
+!
+
+          residual(1) = residual(1) + qtop
+!          call dflcgsdpsi_from_psi(psi_node(1),ft, dflcgsdpsi)
+!          dflcgsdth   = dflcgsdpsi
+!          dqtopdflcgs = 0.1411985_r8    !BOC... estimated by trial-and-error:this term multiplied by the maximum value of dflcgsdth gives 150.
+                                        !NEEDED: an estimate for dqtopdflcgs
+                                        !that accounts for variable potential
+                                        !evapotranspiration (efpot).
+
+          ! SET THE DQTOPDTH_LEAF TERM
+!          if(do_dqtopdth_leaf) then
+!             dqtopdth_leaf = dqtopdflcgs * dflcgsdth
+!             if(mono_decr_Rn .and. ccohort_hydr%psi_ag(1) >= -0.88_r8) then
+!                dqtopdth_leaf = 0._r8
+!             else if(ccohort_hydr%psi_ag(1) < -0.88_r8) then
+!                dqtopdth_leaf = 150._r8
+!             else
+!                dqtopdth_leaf = 0._r8
+!             end if
+!          else
+!             dqtopdth_leaf = 0._r8
+!          end if
+!          nr = 1
+!          nc = 1 
+!          ir(1) = 0
+!          ic(1) = 0
+!          call MatSetValues( fmat,nr,ir,nc,ic,dqtopdth_leaf,ADD_VALUES,ierr )     
+ 
+          residual(:) = -residual(:)
+          call petsc_put_rhs(residual, frhs_vec)
+!
+          icnv = 3
+          call petsc_solve(fksp,fmat,frhs_vec,fsol_vec)
+          call petsc_get_solution(blu,fsol_vec)
+! update pressure
+! limit pressure change
+          do k = 1, num_nodes
+             if(pm_type(k)  >= 4) then
+                psi_node(k) = psi_node(k) + blu(k) * 0.2
+             else
+                psi_node(k) = psi_node(k) + blu(k) * rlfx
+             endif
+                   
+          enddo
+! check residual
+          rsd = 0._r8
+          nsd = 0
+          do k = 1, num_nodes
+             acp = th_node(k)*denh2o/dtime*v_node(k)
+             acp = th_node(k)*denh2o/dtime*v_node(k)
+             acp = 1._r8
+             rsdx = abs(residual(k))
+             if( rsdx > rsd ) THEN
+                rsd = rsdx
+                nsd = k
+             endif
+          enddo
+!  matrix no update if inewt = 1
+!          if( niter > 100 .and. rsd < 1.e-1) inewt = 1
+          rsdp = rsd
+! check convergence
+          if( rsd > 1.e-7_r8 ) then
+               icnv = 2
+          endif
+          if(niter > 20) rlfx = 0.5_r8
+
+          if( icnv == 1 ) then
+             write(*,'(10x,a)') '---  Convergence Failure  ---'
+             write(*,'(4x,a,1pe11.4,2(a,i6),1pe11.4)') 'Equation Maximum Residual = ', &
+             rsd,' Node = ',nsd, 'pft = ',ft, bc_in%qflx_transp_pa(ft)
+             if( ntsr < 10 ) then
+                   tm = tm - dtime
+                   ntsr = ntsr + 1
+                   dtx = dtime
+                   dtcf = 0.2_r8
+                   dtimex = dtime * dtcf
+                   dtime = min(dtimex,tmx-tm)
+                   dto = dtime
+                   var = dtime
+                   varx = dtx
+                   write(*,'(4x,a,1pe11.4,1x,2a,1pe11.4,1x,a)')       &
+                   'Time Step Reduced From ',varx,'s',' to ', &
+                     var,'s'
+                   do k = 1,num_nodes
+                     psi_node(k) = psi_node_init(k)
+                     th_node(k) = th_node_init(k)
+                   enddo
+                   rlfx = 1_r8
+!
+!---  Number of time step reductions failure: stop simulation  ---
+!
+             else
+                   write(*,'(10x,a)') '---  Time Step Reduction Limit Exceeded---'
+                   icnv = 4
+                 endif
+             endif
+             do k=1,num_nodes
+                 call th_from_psi(ft,pm_type(k),psi_node(k),th_node(k),site_hydr,bc_in)
+             enddo
+             if(icnv == 1) then
+                 goto 100
+             elseif(icnv == 2) then
+                 goto 200
+             elseif(icnv == 3) then
+                 dth_node(:) = th_node(:) - th_node_init(:)
+                 goto 201
+             else
+                 stop
+             endif
+!     enddo
+          201  continue
+
+          ccohort_hydr%th_ag(1:2) = th_node(1:2)
+          ccohort_hydr%th_troot(1) = th_node(3)
+          dwat_veg_coh = sum(dth_node(1:2)*v_node(1:2)) + dth_node(3)*v_node(3)
+          num_nds = n_hypool_ag+n_hypool_troot
+          n_hypool_at = n_hypool_ag + n_hypool_troot + 1
+          do j = 1,site_hydr%nlevsoi_hyd
+            do k = (n_hypool_ag+n_hypool_troot+1), n_hypool_tot
+              num_nds = num_nds + 1
+              if(k==n_hypool_at) then
+                ccohort_hydr%th_aroot(j) = th_node(num_nds)
+                dwat_veg_coh = dwat_veg_coh + dth_node(num_nds) * v_node(num_nds)
+              else
+                ksh = k-n_hypool_at
+                dth_layershell_col(j,ksh) = dth_layershell_col(j,ksh) + &
+                              (th_node(num_nds) - th_node_init(num_nds)) * &
+                               ccohort_hydr%l_aroot_layer(j) * &
+                               ccohort%n /site_hydr%l_aroot_layer(j) * dtime 
+              endif
+            enddo
+          enddo
+          dwat_veg_coh                          = dwat_veg_coh * denh2o
+          site_hydr%dwat_veg                 = site_hydr%dwat_veg+ dwat_veg_coh*ccohort%n/AREA!*patch_wgt
+          site_hydr%h2oveg                   = site_hydr%h2oveg +dwat_veg_coh*ccohort%n/AREA!*patch_wgt
+          th_node_init(:) = th_node(:)
+          psi_node_init(:) = psi_node(:)
+       enddo
+       dth_layershell_col(:,:) = dth_layershell_col(:,:) / dtime_o
+     end associate
+
+     return   
+ end subroutine hydraulics_alt_1DSolve
+
   
   !-------------------------------------------------------------------------------!
   subroutine flc_gs_from_psi(cc_p, lwp )
@@ -3748,8 +4586,13 @@ contains
          )
     
     if(pm <= 4) then
-       dflcdpsi_node = -1._r8 * (1._r8 + (psi_node/p50(ft,pm))**avuln(ft,pm))**(-2._r8) * &
+      if(psi_node >= 0._r8) then
+        dflcdpsi_node = 0._r8
+      else
+
+        dflcdpsi_node = -1._r8 * (1._r8 + (psi_node/p50(ft,pm))**avuln(ft,pm))**(-2._r8) * &
                                 avuln(ft,pm)/p50(ft,pm)*(psi_node/p50(ft,pm))**(avuln(ft,pm)-1._r8)
+      end if
     else
        select case (iswc)
        case (van_genuchten)    
@@ -3797,6 +4640,7 @@ contains
     real(r8) :: ytol                 ! error tolerance for y-variable          [MPa]
     real(r8) :: satfrac              ! soil saturation fraction                [0-1]
     real(r8) :: psi_check
+    real(r8) :: psi_nodex
                                               
     !----------------------------------------------------------------------
   
@@ -3811,7 +4655,16 @@ contains
        upper  = thetas(ft,pm)
        xtol   = 1.e-16_r8
        ytol   = 1.e-8_r8
-       call bisect_pv(ft, pm, lower, upper, xtol, ytol, psi_node, th_node)
+       psi_nodex = psi_node
+       if(psi_nodex > 0._r8) then
+          th_node = thetas(ft,pm) - xtol
+       else
+
+          call bisect_pv(ft, pm, lower, upper, xtol, ytol, psi_node, th_node)
+       end if
+       th_node = min(th_node,thetas(ft,pm))
+       if(th_node < resid(ft,pm)) th_node = resid(ft,pm) + xtol
+
        call psi_from_th(ft, pm, th_node, psi_check )
 
        if(psi_check > -1.e-8_r8) then
@@ -3892,8 +4745,11 @@ contains
     endif
     call psi_from_th(ft, pm, lower, y_lo)
     call psi_from_th(ft, pm, upper, y_hi)
-    f_lo  = y_lo - psi_node
-    f_hi  = y_hi - psi_node
+!    f_lo  = y_lo - psi_node
+!    f_hi  = y_hi - psi_node
+    f_lo = -1.e8_r8
+    f_hi = abs(f_lo)
+
     chg   = upper - lower
     nitr = 0
     do while(abs(chg) .gt. xtol .and. nitr < 100)
@@ -4655,7 +5511,6 @@ contains
   !
   ! !LOCAL VARIABLES:
   !------------------------------------------------------------------------------
-
   satfrac = th/watsat
 
   end subroutine swcCampbell_satfrac_from_th
@@ -5012,8 +5867,11 @@ contains
   real(r8), intent(in)  :: B        !shape parameter                                [-]
   real(r8), intent(out) :: flc      !k/ksat ('fractional loss of conductivity')     [-]
   !------------------------------------------------------------------------------
-  
-  flc        =  (psi/psisat)**(-2._r8-3._r8/B)
+   if(psi >= psisat) then
+    flc = 1._r8
+  else
+    flc        =  (psi/psisat)**(-2._r8-3._r8/B)
+  end if
 
   end subroutine unsatkCampbell_flc_from_psi
 
@@ -5080,8 +5938,11 @@ contains
   real(r8), intent(in)  :: B        !shape parameter                                [-]
   real(r8), intent(out) :: dflcdpsi !derivative of k/ksat (flc) wrt psi             [MPa-1]
   !------------------------------------------------------------------------------
-
-  dflcdpsi   = psisat*(-2._r8-3._r8/B)*(psi/psisat)**(-3._r8-3._r8/B)
+  if(psi >= psisat) then
+    dflcdpsi = 0._r8
+  else
+    dflcdpsi   = psisat*(-2._r8-3._r8/B)*(psi/psisat)**(-3._r8-3._r8/B)
+  end if
 
   end subroutine unsatkCampbell_dflcdpsi_from_psi
 

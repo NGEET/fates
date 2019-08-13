@@ -35,6 +35,10 @@ module FatesHydraulicsMemMod
 
    ! vector indexing the type of porous medium over an arbitrary number of plant pools
    integer, parameter,dimension(n_hypool_tot)       :: porous_media = (/1,2,3,4,5,5,5,5,5/) 
+   ! number of unknowns
+   integer                                       :: num_nodes
+   ! number of connections between organs, root/shell
+   integer                                       :: num_connections
 
    ! number of previous timestep's leaf water potential to be retained
    integer, parameter                            :: numLWPmem             = 4
@@ -171,6 +175,9 @@ module FatesHydraulicsMemMod
      !     real(r8), allocatable :: l_VG(:)     
      
   contains
+    ! ===================================================================================
+
+
      
      procedure :: InitHydrSite
      
@@ -185,6 +192,24 @@ module FatesHydraulicsMemMod
 
 
   type ed_cohort_hydr_type
+     integer              :: nlevsoi_hyd            ! The number of soil hydraulic layers
+                                               !variables for alternate HYDRO solver
+     real(r8), allocatable :: z_node(:)
+     real(r8), allocatable :: z_upper(:)
+     real(r8), allocatable :: z_lower(:)
+     real(r8), allocatable :: v_node(:)
+     integer, allocatable :: conn_up(:)
+     integer, allocatable :: conn_dn(:)
+     real(r8), allocatable :: cond_up(:)
+     real(r8), allocatable :: cond_dn(:)
+     real(r8), allocatable :: conductance(:)
+     real(r8), allocatable :: th_node(:)
+     real(r8), allocatable :: psi_node(:)
+     real(r8), allocatable :: src_node(:)
+     real(r8), allocatable :: th_node_init(:)
+     real(r8), allocatable :: psi_node_init(:)
+     integer, allocatable :: pm_type(:)
+
      
                                                   ! BC...PLANT HYDRAULICS - "constants" that change with size. 
                                                   ! Heights are referenced to soil surface (+ = above; - = below)
@@ -283,6 +308,10 @@ module FatesHydraulicsMemMod
      
      procedure :: AllocateHydrCohortArrays
      procedure :: DeallocateHydrCohortArrays
+
+     procedure :: InitPhs
+     procedure :: setPhsOrganConnection
+     procedure :: SetPhsSoilConnection
      
   end type ed_cohort_hydr_type
    
@@ -335,6 +364,144 @@ module FatesHydraulicsMemMod
 
     ! ===================================================================================
 
+    subroutine InitPhs(this)
+
+       ! Arguments
+       class(ed_cohort_hydr_type),intent(inout) :: this
+       !
+       associate( nlevsoil_hyd => this%nlevsoi_hyd ) 
+          num_nodes = n_hypool_leaf + n_hypool_stem + n_hypool_troot  &
+                           + (n_hypool_aroot + nshell) * nlevsoil_hyd ! total number of unknowns
+   ! number of connections between organs, root/shell
+          num_connections = n_hypool_leaf + n_hypool_stem + n_hypool_troot - 1  &
+                           + (n_hypool_aroot + nshell) * nlevsoil_hyd
+       end associate
+       allocate(this%z_node(num_nodes)) ; this%z_node = 0.d0 ! z coord of node
+       allocate(this%z_lower(num_nodes)) ; this%z_lower = 0.d0 ! z coord of lower face
+       allocate(this%z_upper(num_nodes)) ; this%z_upper = 0.d0 ! z coord of upper face
+       allocate(this%v_node(num_nodes)) ; this%v_node = 0.d0 ! node volume 
+       allocate(this%conn_up(num_connections)) ; this%conn_up = 0 ! id of the upstream conncetion
+       allocate(this%conn_dn(num_connections)) ; this%conn_dn = 0 ! id of the downstream connection
+       allocate(this%cond_up(num_connections)) ; this%cond_up = 0.d0 ! conductance of upstream connection
+       allocate(this%cond_dn(num_connections)) ; this%cond_dn = 0.d0 ! conductance of downstream connection
+       allocate(this%conductance(num_connections)) ; this%conductance = 0.d0 !node conductance
+! State variables
+       allocate(this%th_node(num_nodes)) ; this%th_node = 0.d0
+       allocate(this%th_node_init(num_nodes)) ; this%th_node_init = 0.d0
+       allocate(this%psi_node(num_nodes)) ; this%psi_node = 0.d0
+       allocate(this%src_node(num_nodes)) ; this%src_node = 0.d0
+       allocate(this%psi_node_init(num_nodes)) ; this%psi_node_init = 0.d0
+       allocate(this%pm_type(num_nodes)) ; this%pm_type(num_nodes) = 0
+!
+       return
+    end subroutine InitPhs
+
+  ! =====================================================================================
+
+   subroutine SetPhsOrganConnection(this)
+!
+
+     ! ARGUMENTS:
+     ! -----------------------------------------------------------------------------------
+     integer :: k  ! local indexing
+     integer :: num_cnxs
+     integer :: num_nds
+     integer :: nt_ab
+     integer :: s, c, pi, p_t
+     class(ed_cohort_hydr_type),intent(inout) :: this
+
+    !----------------------------------------------------------------------
+             
+     associate( &
+          conn_up => this%conn_up, &
+          conn_dn => this%conn_dn, &
+          pm_type => this%pm_type & 
+          )
+!
+
+          pm_type(:) = 0
+          num_nds = 0
+          num_cnxs = 0
+          do k = 1, n_hypool_leaf
+
+             pm_type(k) = k
+             num_nds = num_nds + 1
+             num_cnxs = num_cnxs + 1
+             conn_dn(num_cnxs) = k           !leaf is the dn, origin, bottom
+             conn_up(num_cnxs) = k + 1
+          enddo
+          do k = n_hypool_leaf+1, n_hypool_ag
+             pm_type(k) = k
+             num_nds = num_nds + 1
+             num_cnxs = num_cnxs + 1
+             conn_dn(num_cnxs) = k
+             conn_up(num_cnxs) = k+1
+          enddo
+          do k=n_hypool_ag+1, n_hypool_ag+n_hypool_troot
+             pm_type(k) = k
+             num_nds = num_nds + 1
+          enddo
+     end associate
+!
+   end subroutine SetPhsOrganConnection
+
+  ! =====================================================================================
+   subroutine SetPhsSoilConnection(this)
+!
+
+     ! ARGUMENTS:
+     ! -----------------------------------------------------------------------------------
+     integer :: j,k  ! local indexing
+     integer :: num_cnxs
+     integer :: num_cnx
+     integer :: num_nds
+     integer :: nt_ab
+     integer :: node_tr_end
+     class(ed_cohort_hydr_type),intent(inout) :: this
+
+     ! lower - towards the soil (k relate to _dn), upper - towards the atmosphere
+     ! (k+1 to  _up)
+
+     !
+    !----------------------------------------------------------------------
+     associate( &
+       conn_up => this%conn_up, &
+       conn_dn => this%conn_dn, &
+       pm_type => this%pm_type, & 
+       nlevsoil_hyd => this%nlevsoi_hyd &
+       )
+       num_nds = n_hypool_ag+n_hypool_troot
+       node_tr_end = num_nds
+       nt_ab = n_hypool_ag+n_hypool_troot+n_hypool_aroot
+       num_cnxs = n_hypool_ag
+       do j = 1,nlevsoil_hyd
+
+         do k = 1, n_hypool_aroot + nshell
+           num_nds = num_nds + 1
+           if(k <=n_hypool_aroot) then
+             pm_type(num_nds) = n_hypool_ag+n_hypool_troot+k
+           else
+             pm_type(num_nds) = nt_ab+j
+           endif
+           num_cnxs = num_cnxs + 1
+           if( k == 1 ) then !troot-aroot
+             !junction node
+             conn_dn(num_cnxs) = node_tr_end !absorbing root
+             conn_up(num_cnxs) = num_nds
+
+           else
+             conn_dn(num_cnxs) = num_nds - 1
+             conn_up(num_cnxs) = num_nds
+           endif
+         enddo
+!
+       enddo ! end soil layer
+
+     end associate
+   end subroutine SetPhsSoilConnection
+    
+    ! ===================================================================================
+
     subroutine InitHydrSite(this)
        
        ! Arguments
@@ -379,8 +546,7 @@ module FatesHydraulicsMemMod
 
        return
     end subroutine InitHydrSite
-    
-    ! ===================================================================================
+
     
     subroutine InitHydraulicsDerived(numpft)
     
