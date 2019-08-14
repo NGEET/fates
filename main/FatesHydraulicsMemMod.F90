@@ -23,8 +23,8 @@ module FatesHydraulicsMemMod
 
    integer, parameter, public                  :: n_hypool_leaf  = 1
    integer, parameter, public                  :: n_hypool_stem  = 1
-   integer, parameter, public                  :: n_hypool_troot = 1
-   integer, parameter, public                  :: n_hypool_aroot = 1
+   integer, parameter, public                  :: n_hypool_troot = 1 ! CANNOT BE CHANGED
+   integer, parameter, public                  :: n_hypool_aroot = 1 ! THIS IS "PER-SOIL-LAYER"
    integer, parameter, public                  :: nshell         = 5
 
    ! number of aboveground plant water storage nodes
@@ -177,33 +177,47 @@ module FatesHydraulicsMemMod
      
   end type ed_site_hydr_type
 
-  ! This whole structure is actually not used, because netRad_mem() is actually not used
-  ! Keeping the code in place in case a patch-level hydraulics variable is desired (RGK 03-2018)
-
-  !type ed_patch_hydr_type
-  !   real(r8) ::  netRad_mem(numLWPmem)          ! patch-level net radiation for the previous numLWPmem timesteps [W m-2]
-  !end type ed_patch_hydr_type
 
 
   type, public :: ed_cohort_hydr_type
-     
-     ! BC...PLANT HYDRAULICS - "constants" that change with size. 
+
+
+     ! Node heights of compartments [m]
      ! Heights are referenced to soil surface (+ = above; - = below)
-     real(r8) ::  z_node_ag(n_hypool_ag+n_hypool_troot)   ! nodal height of non-layered water storage compartments            [m]
-
-
-     ! Maximum conductances
+     ! Note* The node centers of the absorbing root compartments, are the same
+     ! as the soil layer mid-points that they occupy, so no need to save those.
      ! ----------------------------------------------------------------------------------
 
-     real(r8) ::  kmax_ag(n_hypool_ag)            ! maximum hydraulic conductance of non-layered compartments [kg s-1 MPa-1]
-     real(r8),allocatable :: kmax_treebg_layer(:) ! total belowground tree kmax partitioned by soil layer     [kg s-1 MPa-1]
-     real(r8),allocatable :: kmax_rsurf_in(:)     ! Maximum hydraulic conductance of the root surface when
-                                                  ! potential gradient is "in" to root
-                                                  ! (kg s-1 MPa-1)
-     real(r8),allocatable :: kmax_rsurf_out(:)    ! Maximum hydraulic conductance of the root surface when
-                                                  ! potential gradient is "out" of root
-                                                  ! (kg s-1 MPa-1)
-     
+     real(r8) :: z_node_ag(n_hypool_ag)  ! nodal height of stem and leaf compartments (positive)
+     real(r8) :: z_upper_ag(n_hypool_ag) ! height of upper stem and leaf compartment boundaries (positive)
+     real(r8) :: z_lower_ag(n_hypool_ag) ! height of lower stem and leaf compartment boundaries (positive)
+     real(r8) :: z_node_troot            ! nodal height of transporting root (negative)
+ 
+
+     ! Maximum hydraulic conductances  [kg H2O s-1 MPa-1]
+     ! ----------------------------------------------------------------------------------
+
+     real(r8) :: kmax_petiole_to_leaf                  ! Max conductance, petiole to leaf
+                                                       ! Nominally set to very high value 
+     real(r8) :: kmax_stem_upper(n_hypool_stem)        ! Max conductance, upper stem compartments
+     real(r8) :: kmax_stem_lower(n_hypool_stem)        ! Max conductance, lower stem compartments
+     real(r8) :: kmax_troot_upper                      ! Max conductance, uper portion of the
+                                                       ! transporting root
+     real(r8),allocatable :: kmax_troot_lower(:)       ! Max conductance in portion of transporting
+                                                       ! root compartment that joins each absorbing
+                                                       ! root compartment
+     real(r8),allocatable :: kmax_aroot_upper(:)       ! Max conductance in the absorbing root
+                                                       ! compartment through xylem tissues going
+                                                       ! into the transporting root
+
+                                                       ! Max conductance in the absorbing
+                                                       ! root compartment, radially through the
+                                                       ! exodermis, cortex, casparian strip, and 
+                                                       ! endodermis, separated for two cases, when:
+     real(r8),allocatable :: kmax_aroot_radial_in(:)   ! the potential gradient is positive "into" root
+     real(r8),allocatable :: kmax_aroot_radial_out(:)  ! the potential gradient is positive "out of" root
+
+
      ! Compartment Volumes and lengths
 
      real(r8) ::  v_ag_init(n_hypool_ag)          ! previous day's volume of aboveground water storage compartments   [m3]

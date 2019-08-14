@@ -152,7 +152,7 @@ module FatesPlantHydraulicsMod
   public :: SavePreviousCompartmentVolumes
   public :: SavePreviousRhizVolumes
   public :: UpdateTreeHydrNodes
-  public :: UpdateTreeHydrLenVolCond
+  public :: UpdateTreeHydrLenVol
   public :: KmaxInnerShell
   public :: ConstrainRecruitNumber
 
@@ -239,8 +239,11 @@ contains
              call UpdateTreeHydrNodes(ccohort_hydr,ccohort%pft,ccohort%hite, &
                   sites(s)%si_hydr%nlevsoi_hyd,bc_in(s))
 
-             ! This calculates volumes, lengths and max conductances
-             call UpdateTreeHydrLenVolCond(ccohort,sites(s)%si_hydr%nlevsoi_hyd,bc_in(s))
+             ! This calculates volumes and lengths
+             call UpdateTreeHydrLenVol(ccohort,sites(s)%si_hydr%nlevsoi_hyd,bc_in(s))
+
+             ! This updates the Kmax's of the plant's compartments
+             call UpdatePlantKmax(ccohort_hydr,ccohort,sites(s)%si_hydr,bc_in(s))
 
              ! Since this is a newly initialized plant, we set the previous compartment-size
              ! equal to the ones we just calculated.
@@ -456,37 +459,16 @@ contains
        ccohort_hydr%z_lower_ag(k)   = ccohort_hydr%z_upper_ag(k) - dz_stem
     enddo
 
-    ! Transporting Root Nodes
-    ! in special case where n_hypool_troot = 1, the node depth of the single troot pool
-    ! is the depth at which 50% total root distribution is attained
-    dcumul_rf                  = 1._r8/real(n_hypool_troot,r8)
+    ! Transporting Root Node depth [m] (negative from surface)
 
-    do k=1,n_hypool_troot
-       cumul_rf                = dcumul_rf*real(k,r8)
-       call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
-            0.001_r8, 0.001_r8, cumul_rf, z_cumul_rf)
-       z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
-       ccohort_hydr%z_lower_troot(k)   = -z_cumul_rf
-       call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
-            0.001_r8, 0.001_r8, cumul_rf-0.5_r8*dcumul_rf, z_cumul_rf)
-       z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
-       ccohort_hydr%z_node_troot(k)    = -z_cumul_rf
-       call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
-            0.001_r8, 0.001_r8, cumul_rf-1.0_r8*dcumul_rf+1.E-10_r8, z_cumul_rf)
-       z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
-       ccohort_hydr%z_upper_troot(k)   = -z_cumul_rf
-    enddo
+    call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
+         0.001_r8, 0.001_r8, 0.5_r8, z_cumul_rf)
+    z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
+    ccohort_hydr%z_node_troot = -z_cumul_rf
 
 
-    ! Absorbing root depth
-    ccohort_hydr%z_node_aroot(1:nlevsoi_hyd) = -bc_in%z_sisl(1:nlevsoi_hyd)
 
 
-    ! Shouldn't this be updating the upper and lower values as well?
-    ! (RGK 12-2018)
-    if(nlevsoi_hyd == 1) then
-       ccohort_hydr%z_node_troot(:)    = ccohort_hydr%z_node_aroot(nlevsoi_hyd)
-    end if
 
     return
   end subroutine UpdateTreeHydrNodes
@@ -548,7 +530,11 @@ contains
     ! initialized vegetation, that SavePreviousCompartment
     ! volumes, and UpdateTreeHydrNodes is called prior to this.
 
-    call UpdateTreeHydrLenVolCond(ccohort,nlevsoi_hyd,bc_in)
+    call UpdateTreeHydrLenVol(ccohort,nlevsoi_hyd,bc_in)
+    
+    ! This updates the Kmax's of the plant's compartments
+    call UpdatePlantKmax(ccohort_hydr,ccohort,currentsite%si_hydr,bc_in)
+
 
   end subroutine updateSizeDepTreeHydProps
 
@@ -590,14 +576,13 @@ contains
 
   ! =====================================================================================
 
-  subroutine UpdateTreeHydrLenVolCond(ccohort,nlevsoi_hyd,bc_in)
+  subroutine UpdateTreeHydrLenVol(ccohort,nlevsoi_hyd,bc_in)
 
     ! -----------------------------------------------------------------------------------
-    ! This subroutine calculates three attributes of a plant:
+    ! This subroutine calculates two attributes of a plant:
     ! 1) the volumes of storage compartments in the plants
     ! 2) the lenghts of the organs 
-    ! 3) the conductances
-    ! These and are not dependent on the hydraulic state of the
+    ! These are not dependent on the hydraulic state of the
     ! plant, it is more about the structural characteristics and how much biomass
     ! is present in the different tissues.
     !
@@ -641,23 +626,8 @@ contains
     real(r8) :: v_troot                      ! transporting root volume                                              [m3/indiv]
     real(r8) :: rootfr                       ! mass fraction of roots in each layer                                  [kg/kg]
     real(r8) :: crown_depth                  ! Depth of the plant's crown [m]
-    real(r8) :: kmax_node1_nodekplus1(n_hypool_ag) ! cumulative kmax, petiole to node k+1, 
-    ! conduit taper effects excluded   [kg s-1 MPa-1]
-    real(r8) :: kmax_node1_lowerk(n_hypool_ag)     ! cumulative kmax, petiole to upper boundary of node k, 
-    ! conduit taper effects excluded   [kg s-1 MPa-1]
-    real(r8) :: chi_node1_nodekplus1(n_hypool_ag)  ! ratio of cumulative kmax with taper effects 
-    ! included to that without  [-]
-    real(r8) :: chi_node1_lowerk(n_hypool_ag)      ! ratio of cumulative kmax with taper effects 
-    ! included to that without  [-]
-    real(r8) :: dz_node1_nodekplus1                ! cumulative distance between canopy 
-    ! node and node k + 1                [m]
-    real(r8) :: dz_node1_lowerk                    ! cumulative distance between canopy 
-    ! node and upper boundary of node k  [m]
-    real(r8) :: kmax_treeag_tot                    ! total stem (petiole to transporting root node) 
-    ! hydraulic conductance        [kg s-1 MPa-1]
-    real(r8) :: kmax_tot                           ! total tree (leaf to root tip) 
-    ! hydraulic conductance        [kg s-1 MPa-1]
-    real(r8),parameter :: taper_exponent = 1._r8/3._r8 ! Savage et al. (2010) xylem taper exponent [-]
+
+    
 
     ccohort_hydr => ccohort%co_hydr
     ft           = ccohort%pft
@@ -763,81 +733,9 @@ contains
            ccohort_hydr%v_aroot_layer(j)   = rootfr*ccohort_hydr%v_aroot_tot
        end do
 
-
-       ! ------------------------------------------------------------------------------
-       ! Part II. Set maximum (size-dependent) hydraulic conductances
-       ! ------------------------------------------------------------------------------
-
-       ! first estimate cumulative (petiole to node k) conductances 
-       ! without taper as well as the chi taper function
-
-       do k=n_hypool_leaf,n_hypool_ag
-          dz_node1_lowerk          = ccohort_hydr%z_node_ag(n_hypool_leaf) &
-               - ccohort_hydr%z_lower_ag(k)
-          if(k < n_hypool_ag) then
-             dz_node1_nodekplus1   = ccohort_hydr%z_node_ag(n_hypool_leaf) &
-                  - ccohort_hydr%z_node_ag(k+1)
-          else
-             dz_node1_nodekplus1   = ccohort_hydr%z_node_ag(n_hypool_leaf) &
-                  - ccohort_hydr%z_node_troot(1)
-          end if
-          kmax_node1_nodekplus1(k) = EDPftvarcon_inst%hydr_kmax_node(ft,2) * a_sapwood / dz_node1_nodekplus1
-          kmax_node1_lowerk(k)     = EDPftvarcon_inst%hydr_kmax_node(ft,2) * a_sapwood / dz_node1_lowerk
-          chi_node1_nodekplus1(k)  = xylemtaper(taper_exponent, dz_node1_nodekplus1)
-          chi_node1_lowerk(k)      = xylemtaper(taper_exponent, dz_node1_lowerk)
-          if(.not.do_kbound_upstream) then
-             if(crown_depth == 0._r8) then 
-                write(fates_log(),*) 'do_kbound_upstream requires a nonzero canopy depth '
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             end if
-          end if
-       enddo
-
-
-       ! then calculate the conductances at node boundaries as the difference of cumulative conductances
-       do k=n_hypool_leaf,n_hypool_ag
-          if(k == n_hypool_leaf) then
-             ccohort_hydr%kmax_bound(k)    = kmax_node1_nodekplus1(k)  * chi_node1_nodekplus1(k)
-          else
-             ccohort_hydr%kmax_bound(k)    = ( 1._r8/(kmax_node1_nodekplus1(k)  *chi_node1_nodekplus1(k)  ) - &
-                  1._r8/(kmax_node1_nodekplus1(k-1)*chi_node1_nodekplus1(k-1))     ) ** (-1._r8)
-          end if
-
-!!!!!!!!!! FOR TESTING ONLY
-          !ccohort_hydr%kmax_bound(:) = 0.02_r8   ! Diurnal lwp variation in coldstart: -0.1 MPa
-          ! Diurnal lwp variation in large-tree (50cmDBH) coldstart: less than -0.01 MPa
-          !ccohort_hydr%kmax_bound(:) = 0.0016_r8 ! Diurnal lwp variation in coldstart: -0.8 - 1.0 MPa
-          ! Diurnal lwp variation in large-tree (50cmDBH) coldstart: -1.5 - 2.0 MPa [seemingly unstable]
-          !ccohort_hydr%kmax_bound(:) = 0.0008_r8 ! Diurnal lwp variation in coldstart: -1.5 - 2.0 MPa
-          ! Diurnal lwp variation in large-tree (50cmDBH) coldstart: -2.0 - 3.0 MPa [seemingly unstable]
-          !ccohort_hydr%kmax_bound(:) = 0.0005_r8 ! Diurnal lwp variation in coldstart: -2.0 - 3.0 MPa and one -5 MPa outlier
-          ! Diurnal lwp variation in large-tree (50cmDBH) coldstart: -3.0 - 4.0 MPa and one -10 MPa outlier [Unstable]
-!!!!!!!!!!
-
-       enddo
-
-       ! finally, estimate the remaining tree conductance belowground as a residual
-
-       kmax_treeag_tot = sum(1._r8/ccohort_hydr%kmax_bound(n_hypool_leaf:n_hypool_ag))** (-1._r8)
-
-       kmax_tot        = EDPftvarcon_inst%hydr_rfrac_stem(ft)* kmax_treeag_tot
-
-       ccohort_hydr%kmax_treebg_tot      = ( 1._r8/kmax_tot - 1._r8/kmax_treeag_tot ) ** (-1._r8)
-
-       do j=1,nlevsoi_hyd
-           if(j == 1) then
-               rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
-           else
-               rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
-                     zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
-           end if
-           ccohort_hydr%kmax_treebg_layer(j) = rootfr*ccohort_hydr%kmax_treebg_tot
-       end do
-
-
     end if !check for bleaf
 
-  end subroutine UpdateTreeHydrLenVolCond
+  end subroutine UpdateTreeHydrLenVol
 
 
   !=====================================================================================
@@ -2615,6 +2513,7 @@ contains
                 ! radial absorbing root conductance: factor of 2 means one-half of the 
                 ! total belowground resistance in layer j
                 kmax_bound_aroot_soil1      = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)    
+
                 ! (root surface)-to-(soil shell#1) conductance
                 kmax_bound_aroot_soil2      = kmax_bound_shell_1l(1) 
 
@@ -2625,6 +2524,7 @@ contains
 
                 kmax_upper_1l(n_hypool_ag+2) = kmax_lower_1l(n_hypool_ag+1)
                 kmax_lower_1l(n_hypool_ag+2) = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)
+
                 ! REMEMBER: kmax_bound_shell_1l defined at the uppper (closer to atmosphere) 
                 ! boundary for each node, while kmax_bound_1l defined at the lower 
                 ! (closer to bulk soil) boundary for each node
