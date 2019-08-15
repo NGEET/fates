@@ -92,6 +92,7 @@ contains
       use EDCohortDynamicsMod, only : fuse_cohorts
       use EDCohortDynamicsMod, only : sort_cohorts
       use EDcohortDynamicsMod, only : count_cohorts
+      use EDPatchDynamicsMod, only  : patch_pft_size_profile
 
       ! Arguments
       integer,            intent(in)               :: nsites
@@ -104,6 +105,8 @@ contains
       type(ed_cohort_type), pointer                :: currentcohort
       type(ed_patch_type), pointer                 :: newpatch
       type(ed_patch_type), pointer                 :: olderpatch
+      type(ed_patch_type), pointer                 :: head_of_unsorted_patch_list
+      type(ed_patch_type), pointer                 :: next_in_unsorted_patch_list
       integer                                      :: sitelist_file_unit   ! fortran file unit for site list
       integer                                      :: pss_file_unit        ! fortran file unit for the pss file
       integer                                      :: css_file_unit        ! fortran file unit for the css file
@@ -371,6 +374,82 @@ contains
 
          deallocate(patch_pointer_vec,patch_name_vec)
 
+         ! now that we've read in the patch and cohort info, check to see if there is any real age info
+         if ( (sites(s)%youngest_patch%age .eq. sites(s)%oldest_patch%age) .and. &
+              associated(sites(s)%youngest_patch%older) ) then
+
+            ! so there are at least two patches and the oldest and youngest are the same age.
+            ! this means that sorting by age wasn't very useful.  try sorting by total biomass instead
+
+            ! first calculate the biomass in each patch.  simplest way is to use the patch fusion criteria
+            currentpatch => sites(s)%youngest_patch
+            do while(associated(currentpatch))
+               call patch_pft_size_profile(currentPatch)
+               currentPatch => currentpatch%older
+            enddo
+
+            ! now we need to sort them.
+            ! first generate a new head of the linked list.
+            head_of_unsorted_patch_list => sites(s)%youngest_patch%older
+
+            ! reset the site-level patch linked list, keeping only the youngest patch.
+            sites(s)%youngest_patch%older => null()
+            sites(s)%youngest_patch%younger => null()
+            sites(s)%oldest_patch   => sites(s)%youngest_patch
+
+            ! loop through each patch in the unsorted LL, peel it off,
+            ! and insert it into the new, sorted LL
+            do while(associated(head_of_unsorted_patch_list))
+
+               ! first keep track of the next patch in the old (unsorted) linked list
+               next_in_unsorted_patch_list => head_of_unsorted_patch_list%older
+               
+               ! check the two end-cases
+
+               ! Youngest Patch
+               if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) <= &
+                    sum(sites(s)%youngest_patch%pft_agb_profile(:,:)))then
+                  head_of_unsorted_patch_list%older                  => sites(s)%youngest_patch
+                  head_of_unsorted_patch_list%younger                => null()
+                  sites(s)%youngest_patch%younger => head_of_unsorted_patch_list
+                  sites(s)%youngest_patch         => head_of_unsorted_patch_list
+
+                  ! Oldest Patch
+               else if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) > &
+                    sum(sites(s)%oldest_patch%pft_agb_profile(:,:)))then
+                  head_of_unsorted_patch_list%older              => null()
+                  head_of_unsorted_patch_list%younger            => sites(s)%oldest_patch
+                  sites(s)%oldest_patch%older => head_of_unsorted_patch_list
+                  sites(s)%oldest_patch       => head_of_unsorted_patch_list
+
+                  ! Somewhere in the middle
+               else
+                  currentpatch => sites(s)%youngest_patch
+                  do while(associated(currentpatch))
+                     olderpatch => currentpatch%older
+                     if(associated(currentpatch%older)) then
+                        if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) >= &
+                             sum(currentpatch%pft_agb_profile(:,:)) .and. &
+                             sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) < &
+                             sum(olderpatch%pft_agb_profile(:,:))) then
+                           ! Set the new patches pointers
+                           head_of_unsorted_patch_list%older   => currentpatch%older
+                           head_of_unsorted_patch_list%younger => currentpatch
+                           ! Fix the patch's older pointer
+                           currentpatch%older => head_of_unsorted_patch_list
+                           ! Fix the older patch's younger pointer
+                           olderpatch%younger => head_of_unsorted_patch_list
+                        end if
+                     end if
+                     currentPatch => olderpatch
+                  enddo
+               end if
+
+               ! now work through to the next element in the unsorted linked list
+               head_of_unsorted_patch_list => next_in_unsorted_patch_list
+            end do
+         endif
+         
          ! Report Basal Area (as a check on if things were read in)
          ! ------------------------------------------------------------------------------
          basal_area_pref = 0.0_r8
