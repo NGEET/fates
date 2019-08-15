@@ -2,14 +2,14 @@ module EDParamsMod
    !
    ! module that deals with reading the ED parameter file
    !
-  
+
+   use FatesConstantsMod, only : r8 => fates_r8
    use FatesParametersInterface, only : param_string_length
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
-   use shr_kind_mod        , only: r8 => shr_kind_r8
 
    implicit none
    private

@@ -348,6 +348,7 @@ contains
     real(r8) :: cwd_ag_local(ncwd)           ! initial value of above ground coarse woody debris. KgC/m2
     real(r8) :: cwd_bg_local(ncwd)           ! initial value of below ground coarse woody debris. KgC/m2
     integer  :: levcan                       ! canopy level
+    real(r8) :: leaf_burn_frac
     real(r8) :: leaf_c                       ! leaf carbon [kg]
     real(r8) :: fnrt_c                       ! fineroot carbon [kg]
     real(r8) :: sapw_c                       ! sapwood carbon [kg]
@@ -682,6 +683,33 @@ contains
                    nc%lmort_direct     = currentCohort%lmort_direct
                    nc%lmort_collateral = currentCohort%lmort_collateral
                    nc%lmort_infra      = currentCohort%lmort_infra
+
+                   ! --------------------------------------------------------------------
+                   ! Burn parts of trees that did *not* die in the fire.
+                   !         currently we only remove leaves. branch and associated 
+                   !         sapwood consumption coming soon.
+                   ! PART 4) Burn parts of grass that are consumed by the fire. 
+                   ! grasses are not killed directly by fire. They die by losing all of 
+                   ! their leaves and starving. 
+                   ! --------------------------------------------------------------------
+
+                   leaf_c   = nc%prt%GetState(leaf_organ, all_carbon_elements)
+                   
+                   if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+                       leaf_burn_frac = currentCohort%fraction_crown_burned
+                   else
+                       leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
+                   endif
+
+                   call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+
+                   !KgC/gridcell/day                                                                                                                                                             
+                   currentSite%flux_out = currentSite%flux_out + leaf_burn_frac* leaf_c * nc%n
+                   
+                   currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + leaf_burn_frac * leaf_c * nc%n
+                   
+                   currentCohort%fraction_crown_burned = 0.0_r8
+                   nc%fraction_crown_burned            = 0.0_r8
                    
                    
                 ! Logging is the dominant disturbance  
@@ -1063,9 +1091,8 @@ contains
     real(r8) :: bcroot               ! amount of below ground coarse root per cohort  kgC. (goes into CWD_BG)
     real(r8) :: bstem                ! amount of above ground stem biomass per cohort  kgC.(goes into CWG_AG)
     real(r8) :: dead_tree_density    ! no trees killed by fire per m2
+    real(r8) :: dead_tree_num        ! total number of trees killed by fire
     reaL(r8) :: burned_litter        ! amount of each litter pool burned by fire.  kgC/m2/day
-    real(r8) :: burned_leaves        ! amount of tissue consumed by fire for leaves. KgC/individual/day
-    real(r8) :: leaf_burn_frac       ! fraction of leaves burned 
     real(r8) :: leaf_c               ! leaf carbon [kg]
     real(r8) :: fnrt_c               ! fineroot carbon [kg]
     real(r8) :: sapw_c               ! sapwood carbon [kg]
@@ -1087,7 +1114,7 @@ contains
        !PART 1)  Burn the fractions of existing litter in the new patch that were consumed by the fire. 
        !************************************/ 
        do c = 1,ncwd
-          burned_litter = new_patch%cwd_ag(c) * patch_site_areadis/new_patch%area * &
+          burned_litter = currentPatch%cwd_ag(c) * patch_site_areadis/new_patch%area * &
                 currentPatch%burnt_frac_litter(c) !kG/m2/day
           new_patch%cwd_ag(c) = new_patch%cwd_ag(c) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
@@ -1096,7 +1123,7 @@ contains
        enddo
 
        do p = 1,numpft
-          burned_litter = new_patch%leaf_litter(p) * patch_site_areadis/new_patch%area * &
+          burned_litter = currentPatch%leaf_litter(p) * patch_site_areadis/new_patch%area * &
                 currentPatch%burnt_frac_litter(dl_sf)
           new_patch%leaf_litter(p) = new_patch%leaf_litter(p) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
@@ -1129,22 +1156,27 @@ contains
              bstem  = (sapw_c + struct_c) * EDPftvarcon_inst%allom_agb_frac(p)
              ! coarse root biomass per tree
              bcroot = (sapw_c + struct_c) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p) )
-             ! density of dead trees per m2. 
-             dead_tree_density  = (currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area) / AREA  
+             
+             ! Total number of dead trees
+             dead_tree_num = currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area
+
+             ! density of dead trees per m2 (spread over the new and pre-existing patch) 
+             dead_tree_density  = dead_tree_num / (new_patch%area + currentPatch%area-patch_site_areadis )
              
              if( hlm_use_planthydro == itrue ) then
-                call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_tree_density*AREA)
+                call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_tree_num)
              end if
 
              ! Unburned parts of dead tree pool. 
              ! Unburned leaves and roots    
              
-             new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + dead_tree_density * leaf_c * (1.0_r8-currentCohort%fraction_crown_burned)
-
-             new_patch%root_litter(p) = new_patch%root_litter(p) + dead_tree_density * (fnrt_c+store_c)
+             new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + &
+                   dead_tree_density * leaf_c * (1.0_r8-currentCohort%fraction_crown_burned)
 
              currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + dead_tree_density * &
                    leaf_c * (1.0_r8-currentCohort%fraction_crown_burned)
+
+             new_patch%root_litter(p) = new_patch%root_litter(p) + dead_tree_density * (fnrt_c+store_c)
 
              currentPatch%root_litter(p) = currentPatch%root_litter(p) + dead_tree_density * &
                   (fnrt_c + store_c)
@@ -1160,7 +1192,7 @@ contains
       
              ! below ground coarse woody debris from burned trees
              do c = 1,ncwd
-                new_patch%cwd_bg(c) = new_patch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot
+                new_patch%cwd_bg(c)    = new_patch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot
                 currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot
 
                 ! track as diagnostic fluxes
@@ -1225,51 +1257,6 @@ contains
           currentCohort => currentCohort%taller
 
        enddo  ! currentCohort
-
-       !************************************/     
-       ! PART 3) Burn parts of trees that did *not* die in the fire.
-       !         currently we only remove leaves. branch and assocaited sapwood consumption coming soon.
-       ! PART 4) Burn parts of grass that are consumed by the fire. 
-       ! grasses are not killed directly by fire. They die by losing all of their leaves and starving. 
-       !************************************/ 
-       currentCohort => new_patch%shortest
-       do while(associated(currentCohort))
-
-          sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-
-          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
-
-          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-             burned_leaves = leaf_c * currentCohort%fraction_crown_burned
-          else
-             burned_leaves = leaf_c * currentPatch%burnt_frac_litter(lg_sf)
-          endif
-
-          if (burned_leaves > 0.0_r8) then
-
-             ! Remove burned leaves from the pool
-             if(leaf_c>nearzero) then
-                leaf_burn_frac = burned_leaves/leaf_c
-             else
-                leaf_burn_frac = 0.0_r8
-             end if
-             call PRTBurnLosses(currentCohort%prt, leaf_organ, leaf_burn_frac)
-             
-             !KgC/gridcell/day
-             currentSite%flux_out = currentSite%flux_out + burned_leaves * currentCohort%n * &
-                  patch_site_areadis/currentPatch%area * AREA 
-
-             currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm+ burned_leaves * currentCohort%n * &
-                  patch_site_areadis/currentPatch%area * AREA 
-
-          endif
-          currentCohort%fraction_crown_burned = 0.0_r8        
-
-          currentCohort => currentCohort%taller
-
-       enddo
-
     endif !currentPatch%fire. 
 
   end subroutine fire_litter_fluxes
