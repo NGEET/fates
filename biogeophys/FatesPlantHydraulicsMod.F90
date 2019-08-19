@@ -1641,12 +1641,12 @@ contains
     type(ed_cohort_type) , pointer :: cCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     real(r8)                       :: hksat_s                      ! hksat converted to units of 10^6sec 
-    ! which is equiv to       [kg m-1 s-1 MPa-1]
+                                                                   ! which is equiv to       [kg m-1 s-1 MPa-1]
     integer                        :: j,k                          ! gridcell, soil layer, rhizosphere shell indices
     real(r8)                       :: large_kmax_bound = 1.e4_r8   ! for replacing kmax_bound_shell wherever the 
-    ! innermost shell radius is less than the assumed 
-    ! absorbing root radius rs1
-    ! 1.e-5_r8 from Rudinger et al 1994             	
+                                                                   ! innermost shell radius is less than the assumed 
+                                                                   ! absorbing root radius rs1
+                                                                   ! 1.e-5_r8 from Rudinger et al 1994             	
     integer                        :: nlevsoi_hyd	  
 
     !-----------------------------------------------------------------------
@@ -1690,6 +1690,23 @@ contains
 
        ! proceed only if the total absorbing root length (site-level) has changed in this layer
        if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
+
+          k_inner = 1
+          
+          ! Set the max conductance on the inner shell first.  If the node radius
+          ! on the shell is smaller than the root radius, just set the max conductance
+          ! to something extremely high.
+
+          if( csite_hydr%r_node_shell(j,k_inner) <= csite_hydr%rs1(j) ) then
+             csite_hydr%kmax_upper_shell(j,k_inner) = large_kmax_bound
+          else
+             csite_hydr%kmax_upper_shell(j,k_inner) = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
+                  log(csite_hydr%r_node_shell(j,k_inner)/csite_hydr%rs1(j))*hksat_s
+          end if
+
+          csite_hydr%kmax_lower_shell(j,k_inner) = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
+               log(csite_hydr%r_out_shell(j,k_inner)/csite_hydr%r_node_shell(j,k_inner) )*hksat_s
+
 
           do k = 2,nshell
              csite_hydr%kmax_upper_shell(j,k)        = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &

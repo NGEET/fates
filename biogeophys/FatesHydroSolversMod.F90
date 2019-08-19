@@ -44,12 +44,12 @@ contains
       integer :: k_ag ! Compartment index for above-ground indexed array
       integer  :: pft          ! Plant Functional Type index
       real(r8) :: c_sap_dummy  ! Dummy variable (unused) with sapwood carbon [kg]
-      real(r8) :: z_lower      ! Elevation of the center of lower compartment [m]
-      real(r8) :: z_upper      ! Elevation of the center of upper compartment [m]
-      real(r8) :: dz_pet_upper ! Distance of upper compartment center to petiol [m]
-      real(r8) :: dz_pet_lower ! Distance of loewr compartment center to petiol [m]
-      real(r8) :: dz_lower     ! Path length of the lower compartment [m]
-      real(r8) :: dz_upper     ! Path length of the upper compartment [m]
+      real(r8) :: z_lower      ! distance between lower edge and mean petiole height [m]
+      real(r8) :: z_upper      ! distance between upper edge and mean petiole height [m]
+      real(r8) :: z_node       ! distance between compartment center and mph [m]
+      real(r8) :: kmax_lower   ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
+      real(r8) :: kmax_node    ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
+      real(r8) :: kmax_upper   ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
       real(r8) :: a_sapwood    ! Mean cross section area of sapwood   [m2]
       real(r8) :: rmin_ag      ! Minimum total resistance of all above ground pathways
                                ! [kg-1 s MPa]
@@ -82,8 +82,6 @@ contains
       ! center of storage, to the petiole.
 
       ccohort_hydr%kmax_petiole_to_leaf = 1.e12_r8
-      
-      
 
 
       ! Stem Maximum Hydraulic Conductance
@@ -94,43 +92,60 @@ contains
          ! in one vector
          k_ag = k+n_hypool_leaf
          
-         ! Elevation of the upper and lower compartment mid-points [m]
+         ! Depth from the petiole to the lower, node and upper compartment edges
 
-         z_lower = 0.5_r8*(ccohort_hydr%z_node_ag(k_ag) + ccohort_hydr%z_lower_ag(k_ag))
-         z_upper = 0.5_r8*(ccohort_hydr%z_node_ag(k_ag) + ccohort_hydr%z_upper_ag(k_ag))
-
-         ! Distance from the center of the two compartments, to the petiole [m]
-
-         dz_pet_upper = ccohort_hydr%z_node_ag(n_hypool_leaf) - z_upper
-         dz_pet_lower = ccohort_hydr%z_node_ag(n_hypool_leaf) - z_lower
+         z_lower = ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_lower_ag(k_ag)
+         z_node  = ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_node_ag(k_ag)
+         z_upper = ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_upper_ag(k_ag)
 
 
-         ! Path-length of the compartments [m]
+         ! Then we calculate the maximum conductance from each the lower, node and upper 
+         ! edges of the compartment to the petiole. The xylem taper factor requires
+         ! that the kmax it is scaling is from the point of interest to the mean height
+         ! of the petioles.  Then we can back out the conductance over just the path
+         ! of the upper and lower compartments, but subtracting them as resistors in
+         ! series.
 
-         dz_upper = ccohort_hydr%z_upper_ag(k_ag) - ccohort_hydr%z_node_ag(k_ag)
-         dz_lower = ccohort_hydr%z_node_ag(k_ag) - ccohort_hydr%z_lower_ag(k_ag)
+         ! max conductance from upper edge to mean petiole height
+         kmax_upper = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
+                      xylemtaper(taper_exponent, z_upper) * &
+                      a_sapwood / z_upper
 
-         
+         ! max conductance from node to mean petiole height
+         kmax_node  = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
+                      xylemtaper(taper_exponent, z_node) * &
+                      a_sapwood / z_node
 
-         ccohort_hydr%kmax_stem_upper(k_ag) = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-                                              xylemtaper(taper_exponent, dz_pet_upper) * &
-                                              a_sapwood / dz_upper
+         ! max conductance from lower edge to mean petiole height
+         kmax_lower = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
+                      xylemtaper(taper_exponent, z_lower) * &
+                      a_sapwood / z_lower
 
-         ccohort_hydr%kmax_stem_lower(k_ag) = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-                                              xylemtaper(taper_exponent, dz_pet_lower) * &
-                                              a_sapwood / dz_lower
+         ! Max conductance over the path of the upper side of the compartment
+         ccohort_hydr%kmax_stem_upper(k_ag) = (1._r8/kmax_node - 1._r8/kmax_upper)**-1._r8
+
+         ! Max conductance over the path on the loewr side of the compartment
+         ccohort_hydr%kmax_stem_lower(k_ag) = (1._r8/kmax_lower - 1._r8/kmax_node)**-1._r8
+
+
        enddo
 
        ! Maximum conductance of the upper compartment in the transporting root
        ! that connects to the lowest stem (btw: z_lower_ag(n_hypool_ag) == 0)
 
-       z_upper      = 0.5*(ccohort_hydr%z_lower_ag(n_hypool_ag)+ccohort_hydr%z_node_troot)
-       dz_pet_upper = ccohort_hydr%z_node_ag(n_hypool_leaf) - z_upper
-       dz_upper     = z_upper - ccohort_hydr%z_node_troot
+       z_upper = ccohort_hydr%z_lower_ag(n_hypool_leaf)
+       z_node  = ccohort_hydr%z_lower_ag(n_hypool_leaf)-ccohort_hydr%z_node_troot
+
        
-       ccohort_hydr%kmax_troot_upper = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-                                       xylemtaper(taper_exponent, dz_pet_upper) * &
-                                       a_sapwood / dz_upper
+       kmax_node = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
+                   xylemtaper(taper_exponent, z_node) * &
+                   a_sapwood / z_node
+
+       kmax_upper = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
+                    xylemtaper(taper_exponent, z_upper) * &
+                    a_sapwood / z_upper
+       
+       ccohort_hydr%kmax_troot_upper = (1._r8/kmax_node - 1._r8/kmax_upper)**-1._r8
 
 
        ! The maximum conductance between the center node of the transporting root
@@ -209,7 +224,7 @@ contains
 
 
 
-    subroutine UpdateHDiffCond1D(cohort_hydr,site_hydr,inodes,psi_node,flc_node,dflcdpsi_node, &
+    subroutine UpdateHDiffCond1D(cohort_hydr,site_hydr,jpaths,ilayer,psi_node,flc_node,dflcdpsi_node, &
           hdiff_bound,k_bound,dhdiffdpsi0,dhdiffdpsi1,dkbounddpsi0,dkbounddpsi1)
 
         ! ------------------------------------------------------------------------------------------
@@ -268,10 +283,8 @@ contains
                
                znode_up   = cohort_hydr%z_node_ag(inode_up)
                znode_lo   = cohort_hydr%z_node_ag(inode_lo)
-               !psinode_up = psi_node(inode_up)
-               !psinode_lo = psi_node(inode_lo)
-               kmax_up    = cohort_hydr%kmax_stem_lower(inode_up-1)
-               kmax_lo    = cohort_hydr%kmax_stem_upper(inode_lo-1)
+               kmax_up    = cohort_hydr%kmax_stem_lower(inode_up-n_hypool_leaf)
+               kmax_lo    = cohort_hydr%kmax_stem_upper(inode_lo-n_hypool_leaf)
                
             elseif(inode_up == n_hpool_ag) then
               
@@ -326,7 +339,7 @@ contains
                kmax_lo = site_hydr%kmax_inner_shell(ilayer,ishell_lo)
                
             end if
-
+            
             
             ! This is the potential difference between the nodes (matric and geopotential)
             hdiff_bound(jpath) = mpa_per_pa*denh2o*grav_earth*(znode_up-znode_lo) + (psinode(inode_up)-psinode(inode_lo))
@@ -338,13 +351,14 @@ contains
 
                ! Examine direction of water flow; use the upstream node's k for the boundary k.
                ! (as suggested by Ethan Coon, LANL)
-
-                if(hdiff_bound(jpath) < 0._r8) then
-                    ! More potential in the lower node, use its fraction of conductivity loss
-                    k_bound(jpath)       = flc_node(inode_lo) / &
-                          (1._r8/k_bound_aroot_soil1 + 1._r8/k_bound_aroot_soil2) * flc_node(k+1)  ! water moving towards atmosphere
-                    dkdpsi0(jpath)  = 0._r8
-                    dkdpsi1(jpath)  = kmax_bound(jpath) * dflcdpsi_node(inode_lo)
+               
+               if(hdiff_bound(jpath) < 0._r8) then
+                  ! More potential in the lower node, use its fraction of conductivity loss
+                  k_bound(jpath)       = flc_node(inode_lo) / &
+                                         (1._r8/kmax_lo + 1._r8/kmax_up)
+                       (1._r8/k_bound_aroot_soil1 + 1._r8/k_bound_aroot_soil2) * flc_node(k+1)  ! water moving towards atmosphere
+                  dkdpsi0(jpath)  = 0._r8
+                  dkdpsi1(jpath)  = kmax_bound(jpath) * dflcdpsi_node(inode_lo)
 
                 else
 
