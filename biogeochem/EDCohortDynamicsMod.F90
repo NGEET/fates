@@ -832,12 +832,12 @@ contains
 
        do c=1,ncwd
 
-! above ground CWD
+          ! above ground CWD
           litt%ag_cwd(c) = litt%ag_cwd(c) + plant_dens * &
                (struct_m+sapw_m)  * SF_val_CWD_frac(c) * &
                EDPftvarcon_inst%allom_agb_frac(pft)
 
-! below ground CWD
+          ! below ground CWD
           do sl=1,csite%nlevsoil
              litt%bg_cwd(c,sl) = litt%bg_cwd(c,sl) + plant_dens * &
                   (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
@@ -845,12 +845,12 @@ contains
                   csite%rootfrac_scr(sl)
           enddo
 
-! above ground
+          ! above ground
           flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                 (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
                 EDPftvarcon_inst%allom_agb_frac(pft) * nplant
 
-! below ground
+          ! below ground
           flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
                 (struct_m + sapw_m) * SF_val_CWD_frac(c) * &
                 (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(pft)) * nplant
@@ -858,11 +858,12 @@ contains
        enddo
        
        do dcmpy=1,ndcmpy
-           dcmpy_frac = GetDecompyFrac(pft,dcmpy)
-           
+           dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+                      
            litt%leaf_fines(dcmpy) = litt%leaf_fines(dcmpy) + &
                  plant_dens * (leaf_m+repro_m) * dcmpy_frac
        
+           dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
            do sl=1,csite%nlevsoil
                litt%root_fines(dcmpy,sl) = litt%root_fines(dcmpy,sl) + &
                      plant_dens * (fnrt_m+store_m) * csite%rootfrac_scr(sl) * dcmpy_frac

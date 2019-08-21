@@ -920,7 +920,7 @@ contains
 
           ! Retrieve existing leaf and storage carbon
 
-          call currentCohort%prt%CheckMassConservation(ipft,0)
+          if(debug) call currentCohort%prt%CheckMassConservation(ipft,0)
 
           store_c = currentCohort%prt%GetState(store_organ, all_carbon_elements)
           leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
@@ -1031,7 +1031,7 @@ contains
              endif !status
           endif !drought dec.
 
-          call currentCohort%prt%CheckMassConservation(ipft,1)
+          if(debug) call currentCohort%prt%CheckMassConservation(ipft,1)
 
           currentCohort => currentCohort%shorter
        enddo !currentCohort
@@ -1595,11 +1595,13 @@ contains
     real(r8) :: sapw_m    ! sapwood [kg]
     real(r8) :: struct_m    ! structural [kg]
     real(r8) :: store_m    ! storage [kg]
+    real(r8) :: repro_m    ! reproductive [kg]
     real(r8) :: leaf_m_turnover ! leaf turnover [kg]
     real(r8) :: fnrt_m_turnover
     real(r8) :: sapw_m_turnover
     real(r8) :: struct_m_turnover
     real(r8) :: store_m_turnover
+    real(r8) :: repro_m_turnover
     real(r8) :: dcmpy_frac        ! Fraction of mass sent to decomposability pool
     real(r8) :: plant_dens        ! Number of plants per m2
     real(r8) :: bg_cwd_tot        ! Total below-ground coarse woody debris
@@ -1641,12 +1643,14 @@ contains
       fnrt_m_turnover   = currentCohort%prt%GetTurnover(fnrt_organ,element_id)
       sapw_m_turnover   = currentCohort%prt%GetTurnover(sapw_organ,element_id)
       struct_m_turnover = currentCohort%prt%GetTurnover(struct_organ,element_id)
+      repro_m_turnover  = currentCohort%prt%GetTurnover(repro_organ,element_id)
 
       leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
       store_m         = currentCohort%prt%GetState(store_organ,element_id)
       fnrt_m          = currentCohort%prt%GetState(fnrt_organ,element_id)
       sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
       struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
+      repro_m         = currentCohort%prt%GetState(repro_organ,element_id)
 
       plant_dens =  currentCohort%n/currentPatch%area
 
@@ -1666,11 +1670,11 @@ contains
             plant_dens
 
       do dcmpy=1,ndcmpy
-          dcmpy_frac = GetDecompyFrac(pft,dcmpy)
-
+          dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
           litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
-                leaf_m_turnover * plant_dens * dcmpy_frac
+                (leaf_m_turnover+repro_m_turnover) * plant_dens * dcmpy_frac
 
+          dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
           do ilyr = 1, numlevsoil
               litt%root_fines_in(dcmpy,ilyr) = litt%root_fines_in(dcmpy,ilyr) + &
                     currentSite%rootfrac_scr(ilyr) * root_fines_tot * dcmpy_frac
@@ -1753,11 +1757,12 @@ contains
            store_m*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) )
 
       do dcmpy=1,ndcmpy
-          dcmpy_frac = GetDecompyFrac(pft,dcmpy)
-          
+
+          dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
           litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
-                leaf_m * dead_n * dcmpy_frac
-          
+                (leaf_m+repro_m) * dead_n * dcmpy_frac
+
+          dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
           do ilyr = 1, numlevsoil
               litt%root_fines_in(dcmpy,ilyr) = litt%root_fines_in(dcmpy,ilyr) + &
                     root_fines_tot * currentSite%rootfrac_scr(ilyr) * dcmpy_frac
@@ -1968,7 +1973,7 @@ contains
     !BTRAN APPROACH - is quite simple, but max's out decomp at all unstressed 
     !soil moisture values, which is not realistic.  
     !litter decomp is proportional to water limitation on average... 
-    w_scalar = sum(currentPatch%btran_ft(1:numpft))/numpft
+    w_scalar = sum(currentPatch%btran_ft(1:numpft))/real(numpft,r8)
 
     currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,t_scalar * w_scalar))
     

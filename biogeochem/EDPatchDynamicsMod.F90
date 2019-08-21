@@ -1085,7 +1085,7 @@ contains
            call PatchMassStock(largestPatch,el,live_stock,seed_stock,litter_stock)
            
            ! Then we scale the total mass by the added area
-           mass_gain = (live_stock+seed_stock+litter_stock) * &
+           mass_gain = (seed_stock+litter_stock) * &
                  (area_site-areatot)/largestPatch%area
 
            currentSite%mass_balance(el)%patch_resize_err = &
@@ -1500,7 +1500,7 @@ contains
              burned_mass  = num_dead_trees * (leaf_m+repro_m) * currentCohort%fraction_crown_burned
              
              do dcmpy=1,ndcmpy
-                 dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+                 dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
                  new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
                                               donatable_mass*donate_m2*dcmpy_frac
                  curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
@@ -1514,7 +1514,7 @@ contains
 
              ! Contribution of dead trees to root litter (no root burn flux to atm)
              do dcmpy=1,ndcmpy
-                 dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+                 dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
                  do sl = 1,currentSite%nlevsoil
                      donatable_mass = num_dead_trees * (fnrt_m+store_m) * currentSite%rootfrac_scr(sl)
                      new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + &
@@ -1724,7 +1724,7 @@ contains
           
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
           do dcmpy=1,ndcmpy
-              dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+              dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
               new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
                     num_dead*(leaf_m+repro_m)*donate_m2*dcmpy_frac
               
@@ -1762,7 +1762,7 @@ contains
 
           ! Transfer fine roots of dying trees to below ground litter pools
           do dcmpy=1,ndcmpy
-              dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+              dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
               do sl=1,currentSite%nlevsoil
                   new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + &
                         num_dead * currentSite%rootfrac_scr(sl) * &

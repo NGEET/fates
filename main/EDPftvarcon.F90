@@ -2403,27 +2403,48 @@ contains
 
   ! =====================================================================================
 
-
-  function GetDecompyFrac(pft,dcmpy) result(decompy_frac)
+  function GetDecompyFrac(pft,organ_id,dcmpy) result(decompy_frac)
+  
 
       ! This simple routine matches the correct decomposibility pool's
       ! material fraction with the pft parameter data.
 
       integer, intent(in) :: pft
+      integer, intent(in) :: organ_id
       integer, intent(in) :: dcmpy
       real(r8) :: decompy_frac        
       
-      select case(dcmpy)
-      case(ilabile)
-          decompy_frac=EDPftvarcon_inst%lf_flab(pft)
-      case(icellulose)
-          decompy_frac=EDPftvarcon_inst%lf_fcel(pft)
-      case(ilignin)
-          decompy_frac=EDPftvarcon_inst%lf_flig(pft)
-      case default
-          write(fates_log(),*) 'Unknown decompositiblity pool index: ',dcmpy
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-      end select
+      ! Decomposability for leaves
+      if(organ_id == leaf_organ)then
+         select case(dcmpy)
+         case(ilabile)
+            decompy_frac=EDPftvarcon_inst%lf_flab(pft)
+         case(icellulose)
+            decompy_frac=EDPftvarcon_inst%lf_fcel(pft)
+         case(ilignin)
+            decompy_frac=EDPftvarcon_inst%lf_flig(pft)
+         case default
+            write(fates_log(),*) 'Unknown decompositiblity pool index: ',dcmpy
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end select
+      ! Decomposability for fine-roots
+      elseif(organ_id == fnrt_organ) then
+         select case(dcmpy)
+         case(ilabile)
+            decompy_frac=EDPftvarcon_inst%fr_flab(pft)
+         case(icellulose)
+            decompy_frac=EDPftvarcon_inst%fr_fcel(pft)
+         case(ilignin)
+            decompy_frac=EDPftvarcon_inst%fr_flig(pft)
+         case default
+            write(fates_log(),*) 'Unknown decompositiblity pool index: ',dcmpy
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end select
+      else
+         write(fates_log(),*) 'Unknown parteh organ index: ',organ_id
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
       return
   end function GetDecompyFrac
 
