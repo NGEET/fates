@@ -343,10 +343,10 @@ contains
     real(r8),intent(in) :: init_seed
     real(r8),intent(in) :: init_seed_germ
     
-    this%ag_cwd(:)              = init_leaf_fines
-    this%bg_cwd(:,:)            = init_root_fines
-    this%leaf_fines(:)          = init_ag_cwd
-    this%root_fines(:,:)        = init_bg_cwd
+    this%ag_cwd(:)              = init_ag_cwd
+    this%bg_cwd(:,:)            = init_bg_cwd
+    this%leaf_fines(:)          = init_leaf_fines
+    this%root_fines(:,:)        = init_root_fines
     this%seed(:)                = init_seed
     this%seed_germ(:)           = init_seed_germ
 
