@@ -117,14 +117,14 @@ contains
     type(ed_site_type)     , intent(inout), target :: currentSite
     type(bc_in_type)       , intent(in)            :: bc_in
 
-    real(r8) :: temp_in_C ! daily averaged temperature in celcius
-    real(r8) :: rainfall  ! daily precip in mm/day
-    real(r8) :: rh        ! daily rh 
+    real(r8) :: temp_in_C  ! daily averaged temperature in celcius
+    real(r8) :: rainfall   ! daily precip in mm/day
+    real(r8) :: rh         ! daily rh 
     
-    real yipsolon;   !intermediate varable for dewpoint calculation
-    real dewpoint;   !dewpoint in K 
-    real d_NI;       !daily change in Nesterov Index. C^2 
-    integer :: iofp  ! index of oldest the fates patch
+    real(r8) :: yipsolon   !intermediate varable for dewpoint calculation
+    real(r8) :: dewpoint   !dewpoint in K 
+    real(r8) :: d_NI       !daily change in Nesterov Index. C^2 
+    integer  :: iofp       ! index of oldest the fates patch
   
     ! NOTE that the boundary conditions of temperature, precipitation and relative humidity
     ! are available at the patch level. We are currently using a simplification where the whole site
@@ -713,17 +713,18 @@ contains
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type), pointer :: currentPatch
 
-    real lb               !length to breadth ratio of fire ellipse (unitless)
-    real df               !distance fire has travelled forward in m
-    real db               !distance fire has travelled backward in m
-    real NF               !number of lightning strikes per day per km2
-    real AB               !daily area burnt in m2 per km2
+    real(r8) lb               !length to breadth ratio of fire ellipse (unitless)
+    real(r8) df               !distance fire has travelled forward in m
+    real(r8) db               !distance fire has travelled backward in m
+    real(r8) NF               !number of lightning strikes per day per km2
+    real(r8) AB               !daily area burnt in m2 per km2
     real(r8) gridarea
     real(r8) size_of_fire !in m2
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m 
     integer g, p
 
-    currentSite%frac_burnt = 0.0_r8
+    !  ---initialize site parameters to zero--- 
+    currentSite%frac_burnt = 0.0_r8   
 
     !NF = number of lighting strikes per day per km2
     NF = ED_val_nignitions * years_per_day
@@ -733,8 +734,8 @@ contains
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
+       !  ---initialize patch parameters to zero---
        currentPatch%frac_burnt = 0.0_r8
-       lb = 0.0_r8; db = 0.0_r8; df = 0.0_r8
 
        if (currentPatch%fire == 1) then
        ! The feedback between vegetation structure and ellipse size if turned off for now, 
