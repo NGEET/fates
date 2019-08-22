@@ -101,7 +101,7 @@ module EDPatchDynamicsMod
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
 
   ! When creating new patches from other patches, we need to send some of the
   ! litter from the old patch to the new patch.  Likewise, when plants die
