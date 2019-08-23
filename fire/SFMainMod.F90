@@ -723,7 +723,6 @@ contains
     real(r8) db               !distance fire has travelled backward in m
     real(r8) NF               !number of lightning strikes per day per km2
     real(r8) AB               !daily area burnt in m2 per km2
-    real(r8) gridarea
     real(r8) size_of_fire !in m2
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m 
     integer g, p
@@ -777,7 +776,8 @@ contains
              !AB = daily area burnt = size fires in m2 * num ignitions per day per km2 * prob ignition starts fire
              !AB = m2 per km2 per day
              AB = size_of_fire * NF * currentSite%FDI
-             
+
+              !frac_burnt in units of m2 here. 
              currentPatch%frac_burnt = min(0.99_r8, AB / km2_to_m2)
              
              if(write_SF == itrue)then
@@ -786,6 +786,7 @@ contains
 
           endif
        endif! fire
+       ! convert frac_burnt to % prior to accumulating at site level
        currentSite%frac_burnt = currentSite%frac_burnt + currentPatch%frac_burnt * currentPatch%area/area     
 
        currentPatch => currentPatch%younger
