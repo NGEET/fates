@@ -1573,35 +1573,6 @@ contains
              enddo   
                   
 
-                donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
-                      (1.0_r8-currentCohort%fraction_crown_burned)
-                burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * & 
-                      currentCohort%fraction_crown_burned
-
-                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
-                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
-                
-                ! track as diagnostic fluxes
-                flux_diags%cwd_ag_input(c) = &
-                     flux_diags%cwd_ag_input(c) + donatable_mass
-                
-                site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
-             enddo
-             
-             ! Above ground coarse woody debris from large branches 
-             ! and stems: these do not burn in crown scorch fires. 
-             do c = 3,4
-                donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
-                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
-                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
-
-                ! track as diagnostic fluxes
-                flux_diags%cwd_ag_input(c) = &
-                     flux_diags%cwd_ag_input(c) + donatable_mass
-            enddo
-             
-
             currentCohort => currentCohort%taller
         enddo
     end do
