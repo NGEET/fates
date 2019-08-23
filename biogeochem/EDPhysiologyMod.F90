@@ -1075,7 +1075,6 @@ contains
     integer  :: pft
     real(r8) :: store_m_to_repro       ! mass sent from storage to reproduction upon death [kg/plant]
     real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
-    real(r8) :: mean_site_seed_rain    ! The mean site level seed rain for all PFTs
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
     real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]
@@ -1096,8 +1095,6 @@ contains
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
           
-          litt => currentPatch%litter(el)
-
           currentCohort => currentPatch%tallest
           do while (associated(currentCohort))
              
@@ -1138,8 +1135,7 @@ contains
        ! add up all the seed from each pft at the site level, and then
        ! equally distribute to the PFT pools
        if ( homogenize_seed_pfts ) then
-          mean_site_seed_rain = sum(site_seed_rain(:))/real(numpft,r8)
-          site_seed_rain(1:numpft) = mean_site_seed_rain
+          site_seed_rain(1:numpft) = sum(site_seed_rain(:))/real(numpft,r8)
        end if
        
        

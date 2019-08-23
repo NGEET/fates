@@ -1260,7 +1260,7 @@ contains
            do icwd = 1, ncwd
                i = i+1
                fates_hdim_elmap_levelcwd(i)  = iel
-               fates_hdim_cwdmap_levelcwd(i) = ipft
+               fates_hdim_cwdmap_levelcwd(i) = icwd
            end do
        end do
        
