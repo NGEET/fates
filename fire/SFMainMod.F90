@@ -194,7 +194,7 @@ contains
      
        ! zero fire arrays. 
        currentPatch%fuel_eff_moist = 0.0_r8 
-       currentPatch%fuel_bulkd     = 0.0_r8  !this is kgBiomass/m2 for use in rate of spread equations
+       currentPatch%fuel_bulkd     = 0.0_r8  !this is kgBiomass/m3 for use in rate of spread equations
        currentPatch%fuel_sav       = 0.0_r8 
        currentPatch%fuel_frac(:)   = 0.0_r8 
        currentPatch%fuel_mef       = 0.0_r8
@@ -470,7 +470,8 @@ contains
 
        ! ---heat of pre-ignition---
        !  Equation A4 in Thonicke et al. 2010
-       !  conversion of Rohtermal (1972) equation 12 in BTU/lb to current kJ/kg
+       !  Rothermal EQ12= 250 Btu/lb + 1116 Btu/lb * fuel_eff_moist
+       !  conversion of Rothermal (1972) EQ12 in BTU/lb to current kJ/kg 
        !  q_ig in kJ/kg 
        q_ig = 581.0_r8 +2594.0_r8 * currentPatch%fuel_eff_moist
 
@@ -665,7 +666,10 @@ contains
     do while(associated(currentPatch))
        ROS   = currentPatch%ROS_front / 60.0_r8 !m/min to m/sec 
        W     = currentPatch%TFC_ROS / 0.45_r8 !kgC/m2 to kgbiomass/m2
+       
+       !units of fire intensity = (kJ/kg)*(kgBiomass/m2)*(m/min)
        currentPatch%FI = SF_val_fuel_energy * W * ROS !kj/m/s, or kW/m
+       
        if(write_sf == itrue)then
           if( hlm_masterproc == itrue ) write(fates_log(),*) 'fire_intensity',currentPatch%fi,W,currentPatch%ROS_front
        endif
@@ -675,7 +679,8 @@ contains
           
           ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
           ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
-          currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)  
+          currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
+          
           ! Equation 14 in Thonicke et al. 2010
           ! fire duration in minutes
 
