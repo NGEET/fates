@@ -13,7 +13,7 @@ module EDPftvarcon
   use FatesConstantsMod, only : years_per_day
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
-
+  use FatesLitterMod, only : ilabile,icellulose,ilignin
   use PRTGenericMod,  only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,  only : prt_carbon_allom_hyp
   use PRTGenericMod,  only : num_organ_types
@@ -194,8 +194,8 @@ module EDPftvarcon
 
      real(r8), allocatable :: prt_nitr_stoich_p1(:,:)   ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
      real(r8), allocatable :: prt_nitr_stoich_p2(:,:)   ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
-     real(r8), allocatable :: prt_phos_stoich_p1(:,:)   ! Parameter 1 for phosphorous stoichiometry (pft x organ) 
-     real(r8), allocatable :: prt_phos_stoich_p2(:,:)   ! Parameter 2 for phosphorous stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_phos_stoich_p1(:,:)   ! Parameter 1 for phosphorus stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_phos_stoich_p2(:,:)   ! Parameter 2 for phosphorus stoichiometry (pft x organ) 
      real(r8), allocatable :: prt_alloc_priority(:,:)   ! Allocation priority for each organ (pft x organ) [integer 0-6]
 
      ! Turnover related things
@@ -212,7 +212,7 @@ module EDPftvarcon
 
      real(r8), allocatable :: turnover_carb_retrans(:,:)  ! carbon re-translocation fraction (pft x organ)
      real(r8), allocatable :: turnover_nitr_retrans(:,:)  ! nitrogen re-translocation fraction (pft x organ)
-     real(r8), allocatable :: turnover_phos_retrans(:,:)  ! phosphorous re-translocation fraction (pft x organ)
+     real(r8), allocatable :: turnover_phos_retrans(:,:)  ! phosphorus re-translocation fraction (pft x organ)
 
      ! Parameters dimensioned by PFT and leaf age
      real(r8), allocatable :: leaf_long(:,:)              ! Leaf turnover time (longevity) (pft x age-class)
@@ -270,6 +270,7 @@ module EDPftvarcon
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: FatesReportPFTParams
   public :: FatesCheckParams
+  public :: GetDecompyFrac
   !-----------------------------------------------------------------------
 
 contains
@@ -1906,6 +1907,7 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
+
      
      do ipft = 1,npft
         
@@ -2399,7 +2401,52 @@ contains
      return
   end subroutine FatesCheckParams
 
+  ! =====================================================================================
 
+  function GetDecompyFrac(pft,organ_id,dcmpy) result(decompy_frac)
+  
+
+      ! This simple routine matches the correct decomposibility pool's
+      ! material fraction with the pft parameter data.
+
+      integer, intent(in) :: pft
+      integer, intent(in) :: organ_id
+      integer, intent(in) :: dcmpy
+      real(r8) :: decompy_frac        
+      
+      ! Decomposability for leaves
+      if(organ_id == leaf_organ)then
+         select case(dcmpy)
+         case(ilabile)
+            decompy_frac=EDPftvarcon_inst%lf_flab(pft)
+         case(icellulose)
+            decompy_frac=EDPftvarcon_inst%lf_fcel(pft)
+         case(ilignin)
+            decompy_frac=EDPftvarcon_inst%lf_flig(pft)
+         case default
+            write(fates_log(),*) 'Unknown decompositiblity pool index: ',dcmpy
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end select
+      ! Decomposability for fine-roots
+      elseif(organ_id == fnrt_organ) then
+         select case(dcmpy)
+         case(ilabile)
+            decompy_frac=EDPftvarcon_inst%fr_flab(pft)
+         case(icellulose)
+            decompy_frac=EDPftvarcon_inst%fr_fcel(pft)
+         case(ilignin)
+            decompy_frac=EDPftvarcon_inst%fr_flig(pft)
+         case default
+            write(fates_log(),*) 'Unknown decompositiblity pool index: ',dcmpy
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end select
+      else
+         write(fates_log(),*) 'Unknown parteh organ index: ',organ_id
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      return
+  end function GetDecompyFrac
 
 
 end module EDPftvarcon

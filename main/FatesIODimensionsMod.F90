@@ -8,23 +8,28 @@ module FatesIODimensionsMod
     ! The following dimension names must be replicated in
     ! CLM/ALMs histFileMod.F90 and 
 
-    character(*), parameter, public :: cohort = 'cohort'           ! matches clm_varcon
-    character(*), parameter, public :: patch = 'patch'             ! matches clm_varcon
-    character(*), parameter, public :: column = 'column'           ! matches clm_varcon
-    character(*), parameter, public :: levgrnd = 'levgrnd'         ! matches clm_varcon
-    character(*), parameter, public :: levscag = 'fates_levscag'      ! matches histFileMod
-    character(*), parameter, public :: levscagpft = 'fates_levscagpf' ! matches histFileMod
-    character(*), parameter, public :: levagepft = 'fates_levagepft'  ! matches histFileMod
-    character(*), parameter, public :: levscpf = 'fates_levscpf'      ! matches histFileMod
-    character(*), parameter, public :: levscls = 'fates_levscls'      ! matches histFileMod
-    character(*), parameter, public :: levpft = 'fates_levpft'        ! matches histFileMod
-    character(*), parameter, public :: levage = 'fates_levage'        ! matches histFileMod
-    character(*), parameter, public :: levheight = 'fates_levheight'  ! matches histFileMod
-    character(*), parameter, public :: levfuel = 'fates_levfuel'      ! matches histFileMod
-    character(*), parameter, public :: levcwdsc = 'fates_levcwdsc'    ! matches histFileMod
-    character(*), parameter, public :: levcan = 'fates_levcan'        ! matches histFileMod
-    character(*), parameter, public :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
-    character(*), parameter, public :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
+    character(*), parameter, public  :: cohort = 'cohort'           ! matches clm_varcon
+    character(*), parameter, public  :: patch = 'patch'             ! matches clm_varcon
+    character(*), parameter, public  :: column = 'column'           ! matches clm_varcon
+    character(*), parameter, public  :: levgrnd = 'levgrnd'         ! matches clm_varcon
+    character(*), parameter, public  :: levscag = 'fates_levscag'      ! matches histFileMod
+    character(*), parameter, public  :: levscagpft = 'fates_levscagpf' ! matches histFileMod
+    character(*), parameter, public  :: levagepft = 'fates_levagepft'  ! matches histFileMod
+    character(*), parameter, public  :: levscpf = 'fates_levscpf'      ! matches histFileMod
+    character(*), parameter, public  :: levscls = 'fates_levscls'      ! matches histFileMod
+    character(*), parameter, public  :: levpft = 'fates_levpft'        ! matches histFileMod
+    character(*), parameter, public  :: levage = 'fates_levage'        ! matches histFileMod
+    character(*), parameter, public  :: levheight = 'fates_levheight'  ! matches histFileMod
+    character(*), parameter, public  :: levfuel = 'fates_levfuel'      ! matches histFileMod
+    character(*), parameter, public  :: levcwdsc = 'fates_levcwdsc'    ! matches histFileMod
+    character(*), parameter, public  :: levcan = 'fates_levcan'        ! matches histFileMod
+    character(*), parameter, public  :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
+    character(*), parameter, public  :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
+    
+    character(*), parameter, public  :: levelem =  'fates_levelem'
+    character(*), parameter, public  :: levelpft = 'fates_levelpft'
+    character(*), parameter, public  :: levelcwd = 'fates_levelcwd'
+    character(*), parameter, public  :: levelage = 'fates_levelage'
 
     ! patch = This is a structure that records where FATES patch boundaries
     ! on each thread point to in the host IO array, this structure
@@ -77,6 +82,12 @@ module FatesIODimensionsMod
     ! number of patch age x pft
 
 
+    ! levelem  = This records the boundaries for the number of elements
+    ! levelpft = This records the boundaries for elements x pft
+    ! levelcwd = This records the boundaries for element x cwd
+    ! levelage = This records the boundaries for element x age
+
+
     type, public :: fates_bounds_type
        integer :: patch_begin
        integer :: patch_end
@@ -112,6 +123,14 @@ module FatesIODimensionsMod
        integer :: cnlf_end
        integer :: cnlfpft_begin
        integer :: cnlfpft_end
+       integer :: elem_begin
+       integer :: elem_end
+       integer :: elpft_begin
+       integer :: elpft_end
+       integer :: elcwd_begin
+       integer :: elcwd_end
+       integer :: elage_begin
+       integer :: elage_end
     end type fates_bounds_type
     
 

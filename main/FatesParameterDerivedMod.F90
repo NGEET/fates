@@ -60,7 +60,6 @@ contains
     ! local variables
     integer  :: ft                 ! pft index
     integer  :: iage               ! leaf age class index
-    real(r8) :: lnc                ! leaf N concentration (gN leaf/m^2)
     
     associate( vcmax25top => EDPftvarcon_inst%vcmax25top ) 
     
