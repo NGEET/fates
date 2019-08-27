@@ -40,6 +40,7 @@ module EDLoggingMortalityMod
    use FatesInterfaceMod , only : hlm_days_per_year
    use FatesInterfaceMod , only : hlm_use_logging 
    use FatesInterfaceMod , only : hlm_use_planthydro
+   use FatesInterfaceMod , only : hlm_use_alt_planthydro
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
@@ -314,7 +315,7 @@ contains
          np_mult     = patch_site_areadis/newPatch%area
          
          
-         if( hlm_use_planthydro == itrue ) then
+         if( hlm_use_planthydro == itrue .or. hlm_use_alt_planthydro == itrue) then
             call AccumulateMortalityWaterStorage(currentSite,currentCohort,(direct_dead+indirect_dead))
          end if
          

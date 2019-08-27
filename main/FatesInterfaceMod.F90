@@ -810,10 +810,10 @@ contains
          allocate(bc_out%th_ag(maxpft,n_hypool_ag))
          allocate(bc_out%psi_ag(maxpft,n_hypool_ag))
          allocate(bc_out%th_troot(maxpft,n_hypool_troot))
-         allocate(bc_out%th_aroot(maxpft,hlm_numlevgrnd))
-         allocate(bc_out%flc_min_ag(maxpft,n_hypool_troot))
+         allocate(bc_out%th_aroot(maxpft,nlevsoil_in))
+         allocate(bc_out%flc_min_ag(maxpft,n_hypool_ag))
          allocate(bc_out%flc_min_troot(maxpft,n_hypool_troot))
-         allocate(bc_out%flc_min_aroot(maxpft,hlm_numlevgrnd))
+         allocate(bc_out%flc_min_aroot(maxpft,nlevsoil_in))
          allocate(bc_out%sapflow(maxpft))
       end if
 

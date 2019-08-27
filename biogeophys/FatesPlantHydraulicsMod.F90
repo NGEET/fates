@@ -2594,6 +2594,7 @@ contains
      real(r8) :: dz_tot                        ! total soil depth (to bottom of bottom layer)                    [m]
      real(r8) :: l_aroot_tot_col               ! total length of absorbing roots across all soil layers          [m]
      real(r8) :: dth_layershell_col(nlevsoi_hyd_max,nshell) ! accumulated water content change over all cohorts in a column   [m3 m-3]
+     real(r8) :: dth_layershell(nlevsoi_hyd_max,nshell)     ! water content change over a cohort in a column   [m3 m-3]
      real(r8) :: ths_shell_1D(nshell)          ! saturated water content of rhizosphere compartment              [m3 m-3]
      real(r8) :: thr_shell_1D(nshell)          ! residual water content of rhizosphere compartment               [m3 m-3]
      real(r8) :: kmax_bound_shell_1l(nshell)   ! like kmax_bound_shell_1D(:) but for specific single soil layer  [kg s-1 MPa-1]
@@ -3199,40 +3200,41 @@ contains
 		      enddo !soil layer
                      
                     else
-                         ! the individual-layer Richards' equation solution
-                      call Hydraulics_alt_1DSolve(dtime, s, ccohort, ft, qflx_tran_veg_indiv, site_hydr, ccohort_hydr,bc_in(s),dth_layershell_col,sapflow)
+                         ! the alternative Richards' equation solution
+                      call Hydraulics_alt_1DSolve(dtime, s, ccohort, ft, qflx_tran_veg_indiv, site_hydr, ccohort_hydr,bc_in(s),dth_layershell,sapflow)
+                      ccohort_hydr%qtop_dt                   = ccohort_hydr%qtop_dt  + qflx_tran_veg_indiv * dtime
+                      
+                      dth_layershell_col(:,:) = dth_layershell_col(:,:) + dth_layershell(:,:)
                       ccohort_hydr%sapflow        = sapflow
 
                     end if !native planthydro
 		   end if !nlevsoi_hyd > 1
 		   
                    ! UPDATE WATER CONTENT & POTENTIAL IN LEAVES, STEM, AND TROOT (COHORT-LEVEL)
-                   do k=1,n_hypool_ag
-                      if(hlm_use_planthydro) then
+                   if(hlm_use_planthydro) then
+                      do k=1,n_hypool_ag
                          if(site_hydr%nlevsoi_hyd == 1) then
                             ccohort_hydr%th_ag(k)          = th_node(k)
                          else
                             ccohort_hydr%th_ag(k)          = th_node_1l(k)
                          endif
-                      end if
-                      call psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k), &
+                         call psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k), &
                             ccohort_hydr%psi_ag(k), site_hydr, bc_in(s) )
-                      call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), &
+                         call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), &
                             ccohort_hydr%flc_ag(k), site_hydr, bc_in(s) ) 
-                   enddo
-                   do k=(n_hypool_ag+1),(n_hypool_ag+n_hypool_troot)
-                      if(hlm_use_planthydro) then
+                      enddo
+                      do k=(n_hypool_ag+1),(n_hypool_ag+n_hypool_troot)
                          if(site_hydr%nlevsoi_hyd == 1) then
                             ccohort_hydr%th_troot(k-n_hypool_ag) = th_node(k)
                          else
                             ccohort_hydr%th_troot(k-n_hypool_ag) = th_node_1l(k)
                          endif
-                      endif
-                      call psi_from_th(ft, porous_media(k), ccohort_hydr%th_troot(k-n_hypool_ag), &
+                         call psi_from_th(ft, porous_media(k), ccohort_hydr%th_troot(k-n_hypool_ag), &
                             ccohort_hydr%psi_troot(k-n_hypool_ag), site_hydr, bc_in(s))
-                      call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_troot(k-n_hypool_ag), &
+                         call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_troot(k-n_hypool_ag), &
                             ccohort_hydr%flc_troot(k-n_hypool_ag), site_hydr, bc_in(s))
-                   enddo
+                      enddo
+                   endif
                    
 		   ! SET COHORT-LEVEL BTRAN FOR USE IN NEXT TIMESTEP
                    ! first update the leaf water potential memory
@@ -3366,15 +3368,15 @@ contains
                 ccohort_hydr => ccohort%co_hydr
                 !totalrootuptake = totalrootuptake + ccohort_hydr%rootuptake* ccohort%n/AREA
 		totalqtop_dt= totalqtop_dt+  ccohort_hydr%qtop_dt* ccohort%n/AREA
-                if(hlm_use_alt_planthydro) then
-                   bc_out(s)%psi_ag(ft,:) = ccohort_hydr%psi_ag(:)*1e6/1000.0/9.81*1000 !MPa to mm
-                   bc_out(s)%th_ag(ft,:) = ccohort_hydr%th_ag(:)
-                   bc_out(s)%th_troot(ft,:) = ccohort_hydr%th_troot(:)
-                   bc_out(s)%th_aroot(ft,:) = ccohort_hydr%th_aroot(:)
-                   bc_out(s)%flc_min_ag(ft,:) = ccohort_hydr%flc_min_ag(:)
-                   bc_out(s)%flc_min_troot(ft,:) = ccohort_hydr%flc_min_troot(:)
-                   bc_out(s)%flc_min_aroot(ft,:) = ccohort_hydr%flc_min_aroot(:)
-                end if
+!                if(hlm_use_alt_planthydro) then
+!                   bc_out(s)%psi_ag(ft,:) = ccohort_hydr%psi_ag(:)*1e6/1000.0/9.81*1000 !MPa to mm
+!                   bc_out(s)%th_ag(ft,:) = ccohort_hydr%th_ag(:)
+!                   bc_out(s)%th_troot(ft,:) = ccohort_hydr%th_troot(:)
+!                   bc_out(s)%th_aroot(ft,:) = ccohort_hydr%th_aroot(:)
+!                   bc_out(s)%flc_min_ag(ft,:) = ccohort_hydr%flc_min_ag(:)
+!                   bc_out(s)%flc_min_troot(ft,:) = ccohort_hydr%flc_min_troot(:)
+!                   bc_out(s)%flc_min_aroot(ft,:) = ccohort_hydr%flc_min_aroot(:)
+!                end if
                 ccohort => ccohort%shorter
              enddo !cohort
 	     cpatch => cpatch%younger
@@ -3391,10 +3393,10 @@ contains
                                            site_hydr%h2oveg_growturn_err - &
                                            site_hydr%h2oveg_pheno_err-&
 					   site_hydr%h2oveg_hydro_err
-           if( hlm_use_alt_planthydro) then
-              bc_out(s)%h2osoi_liq_prev(:) = site_hydr%h2osoi_liq_prev(:)  
-              bc_out(s)%h2osoi_liqvol_shell(:,:) =site_hydr%h2osoi_liqvol_shell(:,:)
-           end if
+!           if( hlm_use_alt_planthydro) then
+!              bc_out(s)%h2osoi_liq_prev(:) = site_hydr%h2osoi_liq_prev(:)  
+!              bc_out(s)%h2osoi_liqvol_shell(:,:) =site_hydr%h2osoi_liqvol_shell(:,:)
+!           end if
 
            
         enddo !site
@@ -4035,7 +4037,7 @@ contains
 
 
    !------------------------------------------------------------------------------
-  subroutine Hydraulics_alt_1DSolve(dtime, s, cc_p,ft, qtop, site_hydr,ccohort_hydr,bc_in,dth_layershell_col,sapflow)
+  subroutine Hydraulics_alt_1DSolve(dtime, s, cc_p,ft, qtop, site_hydr,ccohort_hydr,bc_in,dth_layershell,sapflow)
 !
       use petscMod
       use petscvec
@@ -4093,7 +4095,7 @@ contains
 
 !     real(r8) :: th_node_init( npool_tot)      ! initial volumetric water in water storage compartments          [m3 m-3]
      real(r8) :: hdiff_bound_1l( nshell+1)     !
-     real(r8) :: dth_layershell_col(nlevsoi_hyd_max,nshell) ! accumulated water content change over all cohorts in a column   [m3 m-3]
+     real(r8) :: dth_layershell(nlevsoi_hyd_max,nshell) ! accumulated water content change over a cohort in a column   [m3 m-3]
 !     real(r8) :: kmax_bound(   npool_tot)      ! lower boundary maximum hydraulic conductance of compartments    [kg s-1 MPa-1]
 !     real(r8) :: kmax_upper(   npool_tot)      ! maximum hydraulic conductance from node to upper boundary       [kg s-1 MPa-1]
 !     real(r8) :: kmax_lower(   npool_tot)      ! maximum hydraulic conductance from node to lower boundary       [kg s-1 MPa-1]
@@ -4123,7 +4125,11 @@ contains
      integer :: itshk
      type(ed_cohort_type),pointer      :: ccohort     ! current cohort
      PetscErrorCode :: ierr
+     integer :: nstep !number of time steps
 !
+     !for debug only
+     nstep = get_nstep()
+
      ccohort => cc_p 
      associate( &
        z_lower_ag => ccohort_hydr%z_lower_ag, & 
@@ -4203,10 +4209,10 @@ contains
            th_node(num_nds) = th_node_1l(k)
          enddo
 
-         h2osoi_liqvol = min(bc_in%eff_porosity_sl(j), &
-                    bc_in%h2o_liq_sisl(j)/(bc_in%dz_sisl(j)*denh2o))
-          call swcCampbell_psi_from_th(h2osoi_liqvol, &
-                   bc_in%watsat_sisl(j), (-1.0_r8)*bc_in%sucsat_sisl(j)*denh2o*grav*1.e-9_r8, bc_in%bsw_sisl(j), smp)
+!         h2osoi_liqvol = min(bc_in%eff_porosity_sl(j), &
+!                    bc_in%h2o_liq_sisl(j)/(bc_in%dz_sisl(j)*denh2o))
+!          call swcCampbell_psi_from_th(h2osoi_liqvol, &
+!                   bc_in%watsat_sisl(j), (-1.0_r8)*bc_in%sucsat_sisl(j)*denh2o*grav*1.e-9_r8, bc_in%bsw_sisl(j), smp)
        enddo
        th_node_init(:) = th_node(:)
        psi_node_init(:) = psi_node(:)
@@ -4220,7 +4226,7 @@ contains
        dtime_o = dtime
        tm = 0
        ntsr = 0
-       dth_layershell_col(:,:) = 0._r8
+       dth_layershell(:,:) = 0._r8
        do while(tm < tmx)
           rlfx = 1._r8
           rsdp = 0._r8
@@ -4374,7 +4380,10 @@ contains
 !          if( niter > 100 .and. rsd < 1.e-1) inewt = 1
           rsdp = rsd
 ! check convergence
-          if( rsd > 1.e-7_r8 ) then
+          if(nstep >= 37) then
+            print *
+          end if
+          if( rsd > 1.e-8_r8 ) then
                icnv = 2
           endif
           if(niter > 20) rlfx = 0.5_r8
@@ -4425,9 +4434,13 @@ contains
 !     enddo
           201  continue
 
-          ccohort_hydr%th_ag(1:2) = th_node(1:2)
-          ccohort_hydr%th_troot(1) = th_node(3)
-          dwat_veg_coh = sum(dth_node(1:2)*v_node(1:2)) + dth_node(3)*v_node(3)
+          ccohort_hydr%th_ag(1:n_hypool_ag) = th_node(1:n_hypool_ag)
+          ccohort_hydr%psi_ag(1:n_hypool_ag) = psi_node(1:n_hypool_ag)
+          ccohort_hydr%flc_ag(1:n_hypool_ag) = flc_node(1:n_hypool_ag)
+          ccohort_hydr%th_troot(1:n_hypool_troot) = th_node(n_hypool_ag+1:n_hypool_ag+n_hypool_troot)
+          ccohort_hydr%psi_troot(1:n_hypool_troot) = psi_node(n_hypool_ag+1:n_hypool_ag+n_hypool_troot)
+          ccohort_hydr%flc_troot(1:n_hypool_troot) = flc_node(n_hypool_ag+1:n_hypool_ag+n_hypool_troot)
+          dwat_veg_coh = sum(dth_node(1:n_hypool_ag+n_hypool_troot)*v_node(1:n_hypool_ag+n_hypool_troot))
           num_nds = n_hypool_ag+n_hypool_troot
           n_hypool_at = n_hypool_ag + n_hypool_troot + 1
           do j = 1,site_hydr%nlevsoi_hyd
@@ -4435,10 +4448,12 @@ contains
               num_nds = num_nds + 1
               if(k==n_hypool_at) then
                 ccohort_hydr%th_aroot(j) = th_node(num_nds)
+                ccohort_hydr%psi_aroot(j) = psi_node(num_nds)
+                ccohort_hydr%flc_aroot(j) = flc_node(num_nds)
                 dwat_veg_coh = dwat_veg_coh + dth_node(num_nds) * v_node(num_nds)
               else
                 ksh = k-n_hypool_at
-                dth_layershell_col(j,ksh) = dth_layershell_col(j,ksh) + &
+                dth_layershell(j,ksh) = dth_layershell(j,ksh) + &
                               (th_node(num_nds) - th_node_init(num_nds)) * &
                                ccohort_hydr%l_aroot_layer(j) * &
                                ccohort%n /site_hydr%l_aroot_layer(j) * dtime 
@@ -4451,7 +4466,7 @@ contains
           th_node_init(:) = th_node(:)
           psi_node_init(:) = psi_node(:)
        enddo
-       dth_layershell_col(:,:) = dth_layershell_col(:,:) / dtime_o
+       dth_layershell(:,:) = dth_layershell(:,:) / dtime_o
      end associate
 
      return   
@@ -4669,7 +4684,7 @@ contains
 
        if(psi_check > -1.e-8_r8) then
           write(fates_log(),*)'bisect_pv returned positive value for water potential at pm = ', char(pm)
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+!          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
        
      
@@ -5698,8 +5713,11 @@ contains
   !
   ! !LOCAL VARIABLES:
   !------------------------------------------------------------------------------
-
-  satfrac = (psi/psisat)**(-1.0_r8/B)
+  if(psi >= psisat) then
+    satfrac = 1._r8-1e-8
+  else
+    satfrac = (psi/psisat)**(-1.0_r8/B)
+  endif
 
   end subroutine swcCampbell_satfrac_from_psi
 

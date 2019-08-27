@@ -14,6 +14,7 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : numpft
   use FatesInterfaceMod, only    : nleafage
   use FatesInterfaceMod, only    : hlm_use_planthydro
+  use FatesInterfaceMod, only    : hlm_use_alt_planthydro
   use FatesInterfaceMod, only    : hlm_parteh_mode
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
@@ -1213,7 +1214,7 @@ contains
                 (dead_n_ilogging+dead_n_dlogging) * & 
                 hlm_freq_day * currentPatch%area
 
-          if( hlm_use_planthydro == itrue ) then
+          if( hlm_use_planthydro == itrue .or. hlm_use_alt_planthydro == itrue) then
              !call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_n)
              call AccumulateMortalityWaterStorage(currentSite,currentCohort,&
                                                   -1.0_r8 * currentCohort%dndt * hlm_freq_day)

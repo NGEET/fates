@@ -15,6 +15,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceMod, only : bc_in_type 
   use FatesInterfaceMod, only : bc_out_type
   use FatesInterfaceMod, only : hlm_use_planthydro
+  use FatesInterfaceMod, only : hlm_use_alt_planthydro
   use FatesInterfaceMod, only : fates_maxElementsPerSite
   use EDCohortDynamicsMod, only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,  only : nshell
@@ -869,7 +870,7 @@ contains
     
     ! Only register hydraulics restart variables if it is turned on!
     
-    if(hlm_use_planthydro==itrue) then
+    if(hlm_use_planthydro==itrue .or. hlm_use_alt_planthydro==itrue) then
 
        if ( fates_maxElementsPerSite < (nshell * nlevsoi_hyd_max) ) then
           write(fates_log(), *) ' Ftes plant hydraulics needs space to store site-level hydraulics info.'
@@ -1605,7 +1606,7 @@ contains
                 end do
 
                 
-                if(hlm_use_planthydro==itrue)then
+                if(hlm_use_planthydro==itrue .or. hlm_use_alt_planthydro==itrue)then
                    
                    ! Load the water contents
                    call this%SetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
@@ -1829,7 +1830,7 @@ contains
           ! Set site-level hydraulics arrays
           ! -----------------------------------------------------------------------------
 
-          if(hlm_use_planthydro==itrue)then
+          if(hlm_use_planthydro==itrue .or. hlm_use_alt_planthydro==itrue)then
 
              ! No associate statements because there is no gaurantee these
              ! are allocated
@@ -2015,7 +2016,7 @@ contains
                 call InitPRTCohort(new_cohort)
                 
                 ! Allocate hydraulics arrays
-                if( hlm_use_planthydro.eq.itrue ) then
+                if( hlm_use_planthydro.eq.itrue .or. hlm_use_alt_planthydro==itrue) then
                    call InitHydrCohort(sites(s),new_cohort)
                 end if
 
@@ -2336,7 +2337,7 @@ contains
 
                 ! Initialize Plant Hydraulics
 
-                if(hlm_use_planthydro==itrue)then
+                if(hlm_use_planthydro==itrue .or. hlm_use_alt_planthydro==itrue)then
                    
                    ! Load the water contents
                    call this%GetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
@@ -2462,7 +2463,7 @@ contains
           ! first known.
           ! -----------------------------------------------------------------------------
 
-          if(hlm_use_planthydro==itrue)then
+          if(hlm_use_planthydro==itrue .or. hlm_use_alt_planthydro==itrue)then
 
              sites(s)%si_hydr%h2oveg_recruit      = this%rvars(ir_hydro_recruit_si)%r81d(io_idx_si)
              sites(s)%si_hydr%h2oveg_dead         = this%rvars(ir_hydro_dead_si)%r81d(io_idx_si)

@@ -19,6 +19,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ifire
   use EDTypesMod           , only : ican_upper
   use FatesInterfaceMod    , only : hlm_use_planthydro
+  use FatesInterfaceMod    , only : hlm_use_alt_planthydro
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_days_per_year
@@ -408,7 +409,8 @@ contains
           do while(associated(currentCohort))       
 
              allocate(nc)
-             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
+             if(hlm_use_planthydro.eq.itrue .or. &
+                 hlm_use_alt_planthydro) call InitHydrCohort(CurrentSite,nc)
              call InitPRTCohort(nc)
              call zero_cohort(nc)
 
@@ -702,7 +704,8 @@ contains
              else
 
                 ! Get rid of the new temporary cohort
-                if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nc)
+                if(hlm_use_planthydro.eq.itrue .or. &
+                 hlm_use_alt_planthydro) call DeallocateHydrCohort(nc)
                 call nc%prt%DeallocatePRTVartypes()
                 deallocate(nc%prt)
                 deallocate(nc)
@@ -980,7 +983,8 @@ contains
              ! density of dead trees per m2. 
              dead_tree_density  = (currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area) / AREA  
              
-             if( hlm_use_planthydro == itrue ) then
+             if( hlm_use_planthydro == itrue  .or. &
+                 hlm_use_alt_planthydro) then
                 call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_tree_density*AREA)
              end if
 
@@ -1195,7 +1199,8 @@ contains
                    canopy_dead * store_c * EDPftvarcon_inst%allom_frbstor_repro(p)/AREA
 
 
-             if( hlm_use_planthydro == itrue ) then
+             if( hlm_use_planthydro == itrue  .or. &
+                 hlm_use_alt_planthydro) then
                 call AccumulateMortalityWaterStorage(currentSite,currentCohort, canopy_dead)
              end if
 
@@ -1210,7 +1215,8 @@ contains
                 canopy_mortality_root_litter(p)= canopy_mortality_root_litter(p)+ &
                       understorey_dead*(fnrt_c + store_c)
                 
-                if( hlm_use_planthydro == itrue ) then
+                if( hlm_use_planthydro == itrue  .or. &
+                 hlm_use_alt_planthydro) then
                    call AccumulateMortalityWaterStorage(currentSite,currentCohort, understorey_dead)
                 end if
 
@@ -1958,7 +1964,8 @@ contains
     do while(associated(ccohort))
        
        ncohort => ccohort%taller
-       if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(ccohort)
+       if(hlm_use_planthydro.eq.itrue .or. &
+                 hlm_use_alt_planthydro) call DeallocateHydrCohort(ccohort)
        call ccohort%prt%DeallocatePRTVartypes()
        deallocate(ccohort%prt)
        deallocate(ccohort)

@@ -26,6 +26,7 @@ module FATESPlantRespPhotosynthMod
    use FatesConstantsMod, only : itrue
    use FatesConstantsMod, only : nearzero
    use FatesInterfaceMod, only : hlm_use_planthydro
+   use FatesInterfaceMod, only : hlm_use_alt_planthydro
    use FatesInterfaceMod, only : hlm_parteh_mode
    use FatesInterfaceMod, only : numpft
    use FatesInterfaceMod, only : nleafage
@@ -390,10 +391,12 @@ contains
                            
                            if ( .not.rate_mask_z(iv,ft,cl) .or. &
                                  (hlm_use_planthydro.eq.itrue) .or. &
+                                 (hlm_use_alt_planthydro.eq.itrue) .or. &
                                  (nleafage > 1) .or. &
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
                               
-                              if (hlm_use_planthydro.eq.itrue ) then
+                              if (hlm_use_planthydro.eq.itrue .or. &
+                                  hlm_use_alt_planthydro.eq.itrue ) then
 
                                  bbb       = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
                                  btran_eff = currentCohort%co_hydr%btran(1) 
