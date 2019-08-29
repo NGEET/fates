@@ -118,7 +118,7 @@ module FatesPlantHydraulicsMod
   ! hydraulic properties and states be 
   ! updated every day when trees grow or 
   ! when recruitment happens?
-  logical,parameter :: debug = .false.                   !flag to report warning in hydro
+  logical,parameter :: debug = .true.                   !flag to report warning in hydro
 
 
   character(len=*), parameter, private :: sourcefile = &
@@ -2427,6 +2427,7 @@ contains
              ccohort_hydr => ccohort%co_hydr
              ft       = ccohort%pft
              ncoh_col = ncoh_col + 1
+
              ccohort_hydr%qtop_dt         = 0._r8
              ccohort_hydr%dqtopdth_dthdt  = 0._r8
              ccohort_hydr%sapflow         = 0._r8
@@ -2443,9 +2444,6 @@ contains
                 qflx_tran_veg_indiv     = 0._r8
              end if
 
-             ! Calculate the maximum conductivity of the root-rhizosphere interface
-             ! which is dependent on the flow gradient.
-             call KmaxInnerShell(sites(s),ccohort, bc_in(s)%hksat_sisl(:), ccohort_hydr%kmax_innershell(:))
 
              ! VERTICAL LAYER CONTRIBUTION TO TOTAL ROOT WATER UPTAKE OR LOSS
              !    _____ 
@@ -2473,14 +2471,6 @@ contains
              !                      |_____|      |      |  k-1   |    k     |    k+1    |
              !---------------------------------------------------------------------------
 
-             ! Set node heights of the leaf, stem and transporting roots
-             z_node_1l(1:n_hypool_ag)                            = ccohort_hydr%z_node_ag(:)     ! leaf and stem
-             z_node_1l(n_hypool_ag+1:n_hypool_ag+n_hypool_troot) = ccohort_hydr%z_node_troot(:)
-             
-             v_node_1l(1:n_hypool_ag)                            = ccohort_hydr%v_ag(:) 
-             v_node_1l(n_hypool_ag+1:n_hypool_ag+n_hypool_troot) = ccohort_hydr%v_troot(:)
-
-
              ! Approach: do nlevsoi_hyd sequential solutions to Richards' equation,
              !           each of which encompass all plant nodes and soil nodes for a given soil layer j,
              !           with the timestep fraction for each layer-specific solution proportional to each 
@@ -2495,99 +2485,52 @@ contains
              !             root hydraulic redistribution emerges within this sequence when a 
              !             layers have transporting-to-absorbing root water potential gradients of opposite sign
 
-             kbg_layer(:) = 0._r8
-             kbg_tot      = 0._r8
-             
+
+             kbg_tot = 0._r8
+
              do j=1,site_hydr%nlevsoi_hyd
+
+                ! Path is between the absorbing root
+                ! and the first rhizosphere shell nodes
+                ! Special case. Maximum conductance depends on the 
+                ! potential gradient (same elevation, no geopotential
+                ! required.
+                if(cohort_hydr%psi_aroot(ilayer) < site_hydr%psisoi_liq_innershell(j)) then
+                   kmax_up = cohort_hydr%kmax_aroot_radial_in(j)
+                else
+                   kmax_up = cohort_hydr%kmax_aroot_radial_out(j)
+                end if
                 
-                ! Set node heights of the absorbing root compartment and rhizosphere shells
-                z_node_1l(n_hypool_ag+n_hypool_troot+1:n_hypool_tot) = bc_in(s)%z_sisl(j)
-                ! Set the node volume of the absorbing root
-                v_node_1l(n_hypool_ag+n_hypool_troot+1) = ccohort_hydr%v_aroot_layer(j)
-                ! Set the node volume of the rhizosphere shells
-                v_node_1l(n_hypool_tot-nshell+1:n_hypool_tot) = site_hydr%v_shell(j,:) * &
-                        ccohort_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)
-
-                site_hydr%kmax_bound_shell(j,1)=ccohort_hydr%kmax_innershell(j)
-                site_hydr%kmax_upper_shell(j,1)=ccohort_hydr%kmax_innershell(j)
-                site_hydr%kmax_lower_shell(j,1)=ccohort_hydr%kmax_innershell(j)
-
-                kmax_bound_1l(:) = 0._r8 
-                kmax_bound_shell_1l(:) = site_hydr%kmax_bound_shell(j,:) * &
-                     ccohort_hydr%l_aroot_layer(j) / site_hydr%l_aroot_layer(j)
-
-
-                ! transporting-to-absorbing root max conductance: 
-                ! --------------------------------------------------
-                ! factor of 2 means one-half of the total 
-                ! belowground resistance in layer j      
-                kmax_bound_1l((n_hypool_ag+1)) = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)                     
-                ! transporting-to-absorbing root conductance: factor of 2*2 means one-half of the total 
-                ! belowground resistance in layer j, split in half between transporting and absorbing root
-                kmax_lower_1l(n_hypool_ag+1) = 4._r8 * ccohort_hydr%kmax_treebg_layer(j)
-
-
-                ! radial absorbing root conductance: factor of 2 means one-half of the 
-                ! total belowground resistance in layer j
-                kmax_bound_aroot_soil1      = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)    
-
-                ! (root surface)-to-(soil shell#1) conductance
-                kmax_bound_aroot_soil2      = kmax_bound_shell_1l(1) 
-
-                ! combined (soil shell#1)-to-(absorbing root) conductance
-                ! -------------------------------------------------------
-                kmax_bound_1l(n_hypool_ag+2) = 1._r8/(1._r8/kmax_bound_aroot_soil1 + &
-                     1._r8/kmax_bound_aroot_soil2)  
-
-                kmax_upper_1l(n_hypool_ag+2) = kmax_lower_1l(n_hypool_ag+1)
-                kmax_lower_1l(n_hypool_ag+2) = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)
-
-                ! REMEMBER: kmax_bound_shell_1l defined at the uppper (closer to atmosphere) 
-                ! boundary for each node, while kmax_bound_1l defined at the lower 
-                ! (closer to bulk soil) boundary for each node
-                kmax_bound_1l(n_hypool_tot-nshell+1:n_hypool_tot-1) = kmax_bound_shell_1l(2:nshell)
-                kmax_upper_1l(n_hypool_tot-nshell+1:n_hypool_tot)   = &
-                     site_hydr%kmax_upper_shell(j,1:nshell) * &
-                        ccohort_hydr%l_aroot_layer(j) / site_hydr%l_aroot_layer(j)
+                ! Get matric potential [Mpa] of the absorbing root
+                call psi_from_th(currentCohort%pft, porous_media(n_hypool_ag+2), &
+                     ccohort_hyd%th_aroot(j), psi_aroot, site_hydr, bc_in)
                 
-                kmax_lower_1l(n_hypool_tot-nshell+1:n_hypool_tot) = site_hydr%kmax_lower_shell(j,1:nshell) * &
-                     ccohort_hydr%l_aroot_layer(j) / site_hydr%l_aroot_layer(j)
+                ! Get Fraction of Total Conductivity [-] of the absorbing root
+                call flc_from_psi(currentCohort%pft, porous_media(n_hypool_ag+2), &
+                     psi_aroot, ftc_aroot, site_hydr, bc_in)
 
-                th_node_1l(n_hypool_ag+n_hypool_troot+1) = ccohort_hydr%th_aroot(j)
-                
-                th_node_1l(n_hypool_ag+n_hypool_troot+2:n_hypool_tot) = &
-                     site_hydr%h2osoi_liqvol_shell(j,1:nshell)
-                
-                psi_node_1l(     :) = fates_huge
-                flc_node_1l(     :) = fates_huge
-                dflcdpsi_node_1l(:) = fates_huge
-                do k = (n_hypool_ag+n_hypool_troot+1), n_hypool_tot
-                   call psi_from_th(ft, porous_media(k), th_node_1l(k), &
-                        psi_node_1l(k),site_hydr, bc_in(s))
-                   call flc_from_psi(ft, porous_media(k), psi_node_1l(k), &
-                        flc_node_1l(k), site_hydr, bc_in(s))
-                   call dflcdpsi_from_psi(ft, porous_media(k), psi_node_1l(k), &
-                        dflcdpsi_node_1l(k), site_hydr, bc_in(s))
-                enddo
-                hdiff_bound_1l(  :) = fates_huge
-                k_bound_1l(      :) = fates_huge
-                dhdiffdpsi0_1l(  :) = fates_huge
-                dhdiffdpsi1_1l(  :) = fates_huge
-                dkbounddpsi0_1l( :) = fates_huge
-                dkbounddpsi1_1l( :) = fates_huge
-                
-                ! Get k_bound_1l
-                ! THIS SHOULD ONLY BE CALLING A SUBSET OF THE FOLLOWING ROUTINE?
+                ! Calculate total effective conductance over path  [kg s-1 MPa-1]
+                ! from absorbing root node to 1st rhizosphere shell
+                r_shells = 1._r8/(kmax_aroot*ftc_aroot)
 
-                call boundary_hdiff_and_k(1, z_node_1l(pick_1l), psi_node_1l(pick_1l), & 
-                     flc_node_1l(pick_1l), dflcdpsi_node_1l(pick_1l), &
-                     kmax_bound_1l(pick_1l), kmax_upper_1l(pick_1l),  &
-                     kmax_lower_1l(pick_1l), hdiff_bound_1l, k_bound_1l, dhdiffdpsi0_1l, &
-                     dhdiffdpsi1_1l, dkbounddpsi0_1l, dkbounddpsi1_1l, &
-                     kmax_bound_aroot_soil1, kmax_bound_aroot_soil2)
+                ! Path is between rhizosphere shells
+                
+                do i = 1,nshell
+                   
+                   kmax_up = site_hydr%kmax_outer_shell(j,i)
+                   kmax_lo = site_hydr%kmax_inner_shell(j,i)
+                   
+                   call psi_from_th(currentCohort%pft, porous_media(n_hypool_ag+3), &
+                        site_hydr%h2osoi_liqvol_shell(j,i), psi_shell, site_hydr, bc_in)
+                   call flc_from_psi(currentCohort%pft, porous_media(n_hypool_ag+3), &
+                        psi_shell, ftc_shell, site_hydr, bc_in)
+                   
+                   r_shells = r_shells + 1._r8/(kmax_lo*ftc_shell)
+                   if(i<nshell) r_shells = r_shells + 1._r8/(kmax_up*ftc_shell )
+                end do
 
                 !! upper bound limited to size()-1 b/c of zero-flux outer boundary condition
-                kbg_layer(j)        = 1._r8/sum(1._r8/k_bound_1l(1:(size(k_bound_1l)-1)))   
+                kbg_layer(j)        = 1._r8/r_shells
                 kbg_tot             = kbg_tot + kbg_layer(j)
 
              enddo !soil layer
@@ -2604,118 +2547,56 @@ contains
                 enddo
              enddo
              
-             ths_node_1l   (1:n_hypool_ag+n_hypool_troot+1) = ths_node(1:n_hypool_ag+n_hypool_troot+1)
-             thr_node_1l   (1:n_hypool_ag+n_hypool_troot+1) = thr_node(1:n_hypool_ag+n_hypool_troot+1)
-             
-             kmax_bound_1l (1:n_hypool_ag)            = kmax_bound(1:n_hypool_ag)
-             kmax_upper_1l (1:n_hypool_ag+1)          = kmax_upper(1:n_hypool_ag+1)
-             kmax_lower_1l (1:n_hypool_ag)            = kmax_lower(1:n_hypool_ag)
-             th_node_1l    (1:n_hypool_ag+n_hypool_troot)   = th_node(1:n_hypool_ag+n_hypool_troot)
+
              ccohort_hydr%errh2o                   = 0._r8
-                ! do j=1,nlevsoi_hyd  ! replace j with ordered(jj) in order 
-                ! to go through soil layers in order of decreasing total root-soil conductance
-                do jj=1,site_hydr%nlevsoi_hyd
 
-                   !initialize state variables in absorbing roots and rhizosphere shells in each soil layer
-                   !z_node_1l(   (         n_hypool_ag+1):(n_hypool_troot         )) = -bc_in(s)%z_sisl(ordered(jj))
-                   !! BOC...ad-hoc assume no grav_earth difference bewtween aroot and troot for each layer
+             ! do j=1,nlevsoi_hyd  ! replace j with ordered(jj) in order 
+             ! to go through soil layers in order of decreasing total root-soil conductance
+             do jj=1,site_hydr%nlevsoi_hyd
 
-                   z_node_1l  (n_hypool_ag+n_hypool_troot+1:n_hypool_tot) = -bc_in(s)%z_sisl(ordered(jj))
-                   v_node_1l  (n_hypool_ag+n_hypool_troot+1)           = ccohort_hydr%v_aroot_layer(ordered(jj))
-                   v_node_1l  (n_hypool_tot-nshell+1:n_hypool_tot)  = site_hydr%v_shell(ordered(jj),:) * &
-                        ccohort_hydr%l_aroot_layer(ordered(jj))/&
-                        bc_in(s)%dz_sisl(ordered(jj))
-                   ths_node_1l(n_hypool_tot-nshell+1:n_hypool_tot)  = bc_in(s)%watsat_sisl(ordered(jj))
+                j = ordered(jj)
 
-                   !! BOC... should the below code exist on HLM side?  watres_col is a new 
-                   !! SWC parameter introduced for the van Genuchten, but does not exist for Campbell SWC.
+                ! This routine will update the theta values for 1 cohort's flow-path
+                ! from leaf to the current soil layer
+                call ImTaylorSolverTermsCond1D(cohort_hydr,site_hydr,j,dt_step,qflx_tran_veg_indiv, & 
+                     dth_node,sapflow,rootuptake,wb_error)
+                
+                
+                ! Update water contents in the relevant plant compartments [m3/m3]
+                
+                ! Leaf and above-ground stems
+                ccohort_hydr%th_ag(1:n_hypool_ag) = ccohort_hydr%th_ag(1:n_hypool_ag) + dth_node(1:n_hypool_ag)
+                ! Transporting root
+                ccohort_hydr%th_troot(1) = ccohort_hydr%th_troot(1) + dth_node(n_hypool_ag+1)
+                ! Absorbing root
+                ccohort_hyd%th_aroot(j)  = ccohort_hyd%th_aroot(j) + dth_node(n_hypool_ag+2)
+                
 
-                   select case (iswc)
-                   case (van_genuchten) 
-                      write(fates_log(),*) &
-                           'Van Genuchten plant hydraulics is inoperable until further notice'
-                      call endrun(msg=errMsg(sourcefile, __LINE__)) 
-                      ! thr_node_1l(   (n_hypool_tot-nshell+1):(n_hypool_tot     )) = bc_in(s)%watres_sisl(ordered(jj))
-                   case (campbell)
-                      call swcCampbell_satfrac_from_psi(bc_in(s)%smpmin_si*denh2o*grav_earth*1.e-9_r8, &
-                           (-1._r8)*bc_in(s)%sucsat_sisl(ordered(jj))*denh2o*grav_earth*1.e-9_r8, &
-                           bc_in(s)%bsw_sisl(ordered(jj)),     &
-                           tmp1)
-                      call swcCampbell_th_from_satfrac(tmp1, &
-                           bc_in(s)%watsat_sisl(ordered(jj)),   &
-                           watres_local)
-                      thr_node_1l(   (n_hypool_tot-nshell+1):(n_hypool_tot     )) = watres_local
-                   case default
-                   end select
+                ! Calculate diagnostics
 
-                   kmax_bound_shell_1l(:) = site_hydr%kmax_bound_shell(ordered(jj),:) * &
-                        ccohort_hydr%l_aroot_layer(ordered(jj)) / site_hydr%l_aroot_layer(ordered(jj))
+                dwat_veg_coh                          = &
+                     (sum(dth_node(1:n_hypool_ag)*ccohort_hydr%v_ag(1:n_hypool_ag)) + &
+                      dth_node(n_hypool_ag+1)*ccohort_hydr%v_troot(1) + & 
+                      dth_node(n_hypool_ag+2)*csite_hydr%v_aroot_layer(j))*denh2o
+                
+                
+                
 
-                   kmax_bound_1l(n_hypool_ag+1) = 2.0_r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))   
+                site_hydr%dwat_veg   = site_hydr%dwat_veg + dwat_veg_coh*ccohort%n/AREA
+                site_hydr%h2oveg     = site_hydr%h2oveg + dwat_veg_coh*ccohort%n/AREA
+                ccohort_hydr%errh2o  = ccohort_hydr%errh2o + wb_error
 
-                   ! transporting-to-absorbing root conductance: factor of 2 means 
-                   ! one-half of the total belowground resistance in layer j
-                   kmax_lower_1l(n_hypool_ag+1) = 4.0_r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))
+                !! kg/m2 ground/individual
+                
+                site_hydr%errh2o_hyd = site_hydr%errh2o_hyd + wb_error*ccohort%c_area /AREA
+                
 
-                   ! transporting-to-absorbing root conductance: factor of 2*2 means one-half of the total 
-                   ! belowground resistance in layer j, split in half between transporting and absorbing root
-                   kmax_bound_aroot_soil1    = 2.0_r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))   
+                ccohort_hydr%sapflow                   = ccohort_hydr%sapflow + sapflow                              ! 
+                ccohort_hydr%rootuptake                = ccohort_hydr%rootuptake + rootuptake                        ! 
 
-                   ! radial absorbing root conductance: factor of 2 means one-half of 
-                   ! the total belowground resistance in layer j
-                   kmax_bound_aroot_soil2 = kmax_bound_shell_1l(1)
 
-                   ! (root surface)-to-(soil shell#1) conductance
-                   kmax_bound_1l(n_hypool_ag+2) = 1.0_r8 / &
-                        (1._r8/kmax_bound_aroot_soil1 + 1._r8/kmax_bound_aroot_soil2)
-
-                   ! combined (soil shell#1)-to-(absorbing root) conductance
-                   kmax_upper_1l(n_hypool_ag+2) = kmax_lower_1l(n_hypool_ag+1)
-                   kmax_lower_1l(n_hypool_ag+2) = 2.0_r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))
-                   kmax_bound_1l(n_hypool_tot-nshell+1:n_hypool_tot-1) = kmax_bound_shell_1l(2:nshell)
-
-                   ! REMEMBER: kmax_bound_shell_1l defined at the uppper 
-                   ! (closer to atmosphere) boundary for each node, while kmax_bound_1l 
-                   ! defined at the lower (closer to bulk soil) boundary for each node
-                   kmax_upper_1l((n_hypool_tot-nshell+1 ):(n_hypool_tot        )) = &
-                        site_hydr%kmax_upper_shell(ordered(jj),1:nshell) * &
-                        ccohort_hydr%l_aroot_layer(ordered(jj)) / site_hydr%l_aroot_layer(ordered(jj))
-                   kmax_lower_1l((n_hypool_tot-nshell+1 ):(n_hypool_tot        )) = &
-                        site_hydr%kmax_lower_shell(ordered(jj),1:nshell) * &
-                        ccohort_hydr%l_aroot_layer(ordered(jj)) / site_hydr%l_aroot_layer(ordered(jj))
-
-                   flc_min_node(n_hypool_ag+n_hypool_troot+1)         = ccohort_hydr%flc_min_aroot(ordered(jj))
-                   th_node_1l(n_hypool_ag+n_hypool_troot+1)           = ccohort_hydr%th_aroot(ordered(jj))
-                   th_node_1l(n_hypool_ag+n_hypool_troot+2:n_hypool_tot) = site_hydr%h2osoi_liqvol_shell(ordered(jj),:)
-
-                   ! the individual-layer Richards' equation solution
-                   call Hydraulics_1DSolve(ccohort, ft, &
-                        z_node_1l, v_node_1l, ths_node_1l, thr_node_1l, &
-                        kmax_bound_1l, kmax_upper_1l, kmax_lower_1l, &
-                        kmax_bound_aroot_soil1, kmax_bound_aroot_soil2, &
-                        th_node_1l, flc_min_node, qflx_tran_veg_indiv, &
-                        dtime*kbg_layer(ordered(jj))/kbg_tot, &
-                        dth_node_1l, the_node_1l, we_area_outer, qtop_dt, &
-                        dqtopdth_dthdt, sapflow, rootuptake, small_theta_num, &
-                        site_hydr, bc_in(s))
-
-                   dwat_veg_coh                          = &
-                        sum(dth_node_1l(1:n_hypool_ag+n_hypool_troot+n_hypool_aroot)* &
-                        v_node_1l(1:n_hypool_ag+n_hypool_troot+n_hypool_aroot)*denh2o)
-
-                   site_hydr%dwat_veg                 = site_hydr%dwat_veg + dwat_veg_coh*ccohort%n/AREA
-                   site_hydr%h2oveg                   = site_hydr%h2oveg + dwat_veg_coh*ccohort%n/AREA
-                   ccohort_hydr%errh2o                    = ccohort_hydr%errh2o + we_area_outer                                               
-                   !! kg/m2 ground/individual
-
-                   site_hydr%errh2o_hyd               = site_hydr%errh2o_hyd + &
-                        we_area_outer*ccohort%c_area /AREA
-
-                   ccohort_hydr%qtop_dt                   = ccohort_hydr%qtop_dt  + qtop_dt                             ! 
-                   ccohort_hydr%dqtopdth_dthdt            = ccohort_hydr%dqtopdth_dthdt + dqtopdth_dthdt                ! 
-                   ccohort_hydr%sapflow                   = ccohort_hydr%sapflow + sapflow                              ! 
-                   ccohort_hydr%rootuptake                = ccohort_hydr%rootuptake + rootuptake                        ! 
-
+                ! CHANGE THIS TO A VICTORIOUS VECTOR
+                
                    SELECT CASE (ordered(jj))  !! select soil layer
                    CASE (1)
                       ccohort_hydr%rootuptake01        = rootuptake
@@ -3058,16 +2939,6 @@ contains
 
 
   ! -------------------------------------------------------------------------------------!
-
-  
-  ! New Site-level allocated arrays
-
-  K()              ! size N-1
-  Kmax()           ! size N-1
-  FLC()            ! size N
-
-
-
 
 
   subroutine Hydraulics_1DSolve(ccohort, ft, z_node, v_node, ths_node, thr_node, kmax_bound, &
@@ -3459,6 +3330,13 @@ contains
     !
     ! !DESCRIPTION: An abbreviated version of biogeophys/TridiagonalMod.F90
     !
+    ! This solves the form:
+    !
+    ! a(i)*u(i-1) + b(i)*u(i) + c(i)*u(i+1) = r(i)
+    !
+    ! It assumed that coefficient a(1) and c(N) DNE as there is
+    ! no u(0) or u(N-1).
+    !
     ! !USES:
     !
     ! !ARGUMENTS
@@ -3470,8 +3348,11 @@ contains
     !
     ! !LOCAL VARIABLES:
     real(r8) :: bet                           ! temporary
-    real(r8) :: gam(n_hypool_tot)                ! temporary
+    real(r8) :: gam(n_hypool_tot)             ! temporary
     integer  :: k                             ! index
+    real(r8) :: err                           ! solution error, in units of [m3/m3]
+    real(r8) :: rel_err                       ! relative error, normalized by delta theta
+    real(r8), parameter :: allowable_rel_err = 0.01_r8
     !----------------------------------------------------------------------
 
     bet = b(1)
@@ -3488,6 +3369,35 @@ contains
     do k=n_hypool_tot-1,1,-1
        u(k)   = u(k) - gam(k+1) * u(k+1)
     enddo
+
+
+    ! If debug mode, calculate error on the forward solution
+    if(debug)then
+       do k=1,n_hypool_tot
+
+          if(k==1)then
+             err = abs(r(k) - b(k)*u(k)+c(k)*u(k+1))
+          elseif(k<n_hypool_tot) then
+             err = abs(r(k) - a(k)*u(k-1)+b(k)*u(k))
+          else
+             err = abs(r(k) - a(k)*u(k-1)+b(k)*u(k)+c(k)*u(k+1))
+          end if
+             
+          rel_err = abs(u(k)/err)
+
+          if(rel_err > allowable_rel_err)then
+             write(fates_log(),*) 'Tri-diagonal solve produced solution with'
+             write(fates_log(),*) 'non-negligable error.'
+             write(fates_log(),*) 'Compartment: ',k
+             write(fates_log(),*) 'Error in forward solution: ',err
+             write(fates_log(),*) 'Estimated delta theta: ',u(k)
+             write(fates_log(),*) 'Rel Error: ',rel_err
+          end if
+
+       end do
+    end if
+
+
 
   end subroutine Hydraulics_Tridiagonal
 

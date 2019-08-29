@@ -280,8 +280,6 @@ module FatesHydraulicsMemMod
      real(r8),allocatable ::  errh2o_pheno_aroot(:)     ! same as errh2o_pheno_ag but for aroot pools
 
                                                   ! BC PLANT HYDRAULICS - fluxes
-     real(r8) ::  qtop_dt                         ! transpiration boundary condition (+ to atm)                       [kg/indiv/timestep]
-     real(r8) ::  dqtopdth_dthdt                  ! transpiration tendency term (+ to atm)                            [kg/indiv/timestep]
                                                   ! NOTE: total transpiration is given by qtop_dt + dqtopdth_dthdt
      real(r8) ::  sapflow                         ! flow at base of tree (+ upward)                                   [kg/indiv/timestep]
      real(r8) ::  rootuptake                      ! net flow into roots (+ into roots)                                [kg/indiv/timestep]
