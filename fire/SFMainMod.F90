@@ -164,7 +164,6 @@ contains
     type(ed_patch_type),  pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
-    real(r8) timeav_swc
     real(r8) alpha_FMC(nfsc)     ! Relative fuel moisture adjusted per drying ratio
     real(r8) fuel_moisture(nfsc) ! Scaled moisture content of small litter fuels. 
     real(r8) MEF(nfsc)           ! Moisture extinction factor of fuels     integer n 
