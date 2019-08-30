@@ -402,17 +402,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_errh2o_scpf
   integer :: ih_tran_scpf
   integer :: ih_rootuptake_scpf
+  integer :: ih_rootuptake_sl
   integer :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
-  integer :: ih_rootuptake01_scpf
-  integer :: ih_rootuptake02_scpf
-  integer :: ih_rootuptake03_scpf
-  integer :: ih_rootuptake04_scpf
-  integer :: ih_rootuptake05_scpf
-  integer :: ih_rootuptake06_scpf
-  integer :: ih_rootuptake07_scpf
-  integer :: ih_rootuptake08_scpf
-  integer :: ih_rootuptake09_scpf
-  integer :: ih_rootuptake10_scpf
   integer :: ih_sapflow_scpf
   integer :: ih_iterh1_scpf          
   integer :: ih_iterh2_scpf           
@@ -2964,32 +2955,13 @@ end subroutine flush_hvars
     real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
     real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
 
-    logical :: layer1_present
-    logical :: layer2_present
-    logical :: layer3_present
-    logical :: layer4_present
-    logical :: layer5_present
-    logical :: layer6_present
-    logical :: layer7_present
-    logical :: layer8_present
-    logical :: layer9_present
-    logical :: layer10_present
     
     if(hlm_use_planthydro.eq.ifalse) return
 
     associate( hio_errh2o_scpf  => this%hvars(ih_errh2o_scpf)%r82d, &
           hio_tran_scpf         => this%hvars(ih_tran_scpf)%r82d, &
           hio_rootuptake_scpf   => this%hvars(ih_rootuptake_scpf)%r82d, &
-          hio_rootuptake01_scpf => this%hvars(ih_rootuptake01_scpf)%r82d, &
-          hio_rootuptake02_scpf => this%hvars(ih_rootuptake02_scpf)%r82d, &
-          hio_rootuptake03_scpf => this%hvars(ih_rootuptake03_scpf)%r82d, &
-          hio_rootuptake04_scpf => this%hvars(ih_rootuptake04_scpf)%r82d, &
-          hio_rootuptake05_scpf => this%hvars(ih_rootuptake05_scpf)%r82d, &
-          hio_rootuptake06_scpf => this%hvars(ih_rootuptake06_scpf)%r82d, &
-          hio_rootuptake07_scpf => this%hvars(ih_rootuptake07_scpf)%r82d, &
-          hio_rootuptake08_scpf => this%hvars(ih_rootuptake08_scpf)%r82d, &
-          hio_rootuptake09_scpf => this%hvars(ih_rootuptake09_scpf)%r82d, &
-          hio_rootuptake10_scpf => this%hvars(ih_rootuptake10_scpf)%r82d, &
+          hio_rootuptake_sl     => this%hvars(ih_rootuptake_sl)%r82d, &
           hio_h2osoi_shsl       => this%hvars(ih_h2osoi_si_scagpft)%r82d, &
           hio_sapflow_scpf      => this%hvars(ih_sapflow_scpf)%r82d, &
           hio_iterh1_scpf       => this%hvars(ih_iterh1_scpf)%r82d, &          
@@ -3026,68 +2998,6 @@ end subroutine flush_hvars
                                    ! factors for cohort mean propoerties
                                    ! This is actually used as a check
                                    ! on hio_nplant_si_scpf
-
-
-         ! Determine which hydraulic soil layers are present
-         if( sites(s)%si_hydr%nlevsoi_hyd >=1 ) then
-            layer1_present = .true.
-         else
-            layer1_present = .false.
-         end if
-         ! Determine which hydraulic soil layers are present
-         if( sites(s)%si_hydr%nlevsoi_hyd >=2 ) then
-            layer2_present = .true.
-         else
-            layer2_present = .false.
-         end if
-         ! Determine which hydraulic soil layers are present
-         if( sites(s)%si_hydr%nlevsoi_hyd >=3 ) then
-            layer3_present = .true.
-         else
-            layer3_present = .false.
-         end if
-         ! Determine which hydraulic soil layers are present
-         if( sites(s)%si_hydr%nlevsoi_hyd >=4 ) then
-            layer4_present = .true.
-         else
-            layer4_present = .false.
-         end if
-         ! Determine which hydraulic soil layers are present
-         if( sites(s)%si_hydr%nlevsoi_hyd >=5 ) then
-            layer5_present = .true.
-         else
-            layer5_present = .false.
-         end if
-         ! Determine which hydraulic soil layers are present
-         if( sites(s)%si_hydr%nlevsoi_hyd >=6 ) then
-            layer6_present = .true.
-         else
-            layer6_present = .false.
-         end if
-         ! Determine which hydraulic soil layers are present
-         if( sites(s)%si_hydr%nlevsoi_hyd >=7 ) then
-            layer7_present = .true.
-         else
-            layer7_present = .false.
-         end if
-         ! Determine which hydraulic soil layers are present
-         if( sites(s)%si_hydr%nlevsoi_hyd >=8 ) then
-            layer8_present = .true.
-         else
-            layer8_present = .false.
-         end if
-         ! Determine which hydraulic soil layers are present
-         if( sites(s)%si_hydr%nlevsoi_hyd >=9 ) then
-            layer9_present = .true.
-         else
-            layer9_present = .false.
-         end if
-         ! Determine which hydraulic soil layers are present
-         if( sites(s)%si_hydr%nlevsoi_hyd >=10 ) then
-            layer10_present = .true.
-         else
-            layer10_present = .false.
-         end if
 
 
          cpatch => sites(s)%oldest_patch
@@ -3143,52 +3053,12 @@ end subroutine flush_hvars
                         (ccohort_hydr%qtop_dt + ccohort_hydr%dqtopdth_dthdt) * number_fraction_rate ! [kg/indiv/s]
                   
                   hio_rootuptake_scpf(io_si,iscpf) = hio_rootuptake_scpf(io_si,iscpf) + &
-                        ccohort_hydr%rootuptake * number_fraction_rate       ! [kg/indiv/s]
+                        sum(ccohort_hydr%rootuptake) * number_fraction_rate       ! [kg/indiv/s]
                   
-
-                  ! Not sure how to simplify this
-                  ! All of these if's inside a cohort loop is not good....
-                  
-                  if (layer1_present)then
-                     hio_rootuptake01_scpf(io_si,iscpf) = hio_rootuptake01_scpf(io_si,iscpf) + &
-                           ccohort_hydr%rootuptake01 * number_fraction_rate   ! [kg/indiv/s]
-                  end if
-                  if (layer2_present) then
-                     hio_rootuptake02_scpf(io_si,iscpf) = hio_rootuptake02_scpf(io_si,iscpf) + &
-                           ccohort_hydr%rootuptake02 * number_fraction_rate     ! [kg/indiv/s]
-                  end if
-                  if (layer3_present) then
-                     hio_rootuptake03_scpf(io_si,iscpf) = hio_rootuptake03_scpf(io_si,iscpf) + &
-                           ccohort_hydr%rootuptake03 * number_fraction_rate     ! [kg/indiv/s]
-                  end if
-                  if (layer4_present) then
-                     hio_rootuptake04_scpf(io_si,iscpf) = hio_rootuptake04_scpf(io_si,iscpf) + &
-                           ccohort_hydr%rootuptake04 * number_fraction_rate     ! [kg/indiv/s]
-                  end if
-                  if (layer5_present) then
-                     hio_rootuptake05_scpf(io_si,iscpf) = hio_rootuptake05_scpf(io_si,iscpf) + &
-                           ccohort_hydr%rootuptake05 * number_fraction_rate     ! [kg/indiv/s]
-                  end if
-                  if (layer6_present) then
-                     hio_rootuptake06_scpf(io_si,iscpf) = hio_rootuptake06_scpf(io_si,iscpf) + &
-                           ccohort_hydr%rootuptake06 * number_fraction_rate     ! [kg/indiv/s]
-                  end if
-                  if (layer7_present) then
-                     hio_rootuptake07_scpf(io_si,iscpf) = hio_rootuptake07_scpf(io_si,iscpf) + &
-                             ccohort_hydr%rootuptake07 * number_fraction_rate    ! [kg/indiv/s]
-                  end if
-                  if (layer8_present) then
-                     hio_rootuptake08_scpf(io_si,iscpf) = hio_rootuptake08_scpf(io_si,iscpf) + &
-                           ccohort_hydr%rootuptake08 * number_fraction_rate     ! [kg/indiv/s]
-                  end if
-                  if (layer9_present) then
-                     hio_rootuptake09_scpf(io_si,iscpf) = hio_rootuptake09_scpf(io_si,iscpf) + &
-                           ccohort_hydr%rootuptake09 * number_fraction_rate     ! [kg/indiv/s] 
-                  end if
-                  if (layer10_present) then
-                     hio_rootuptake10_scpf(io_si,iscpf) = hio_rootuptake10_scpf(io_si,iscpf) + &
-                           ccohort_hydr%rootuptake10 * number_fraction_rate     ! [kg/indiv/s]
-                  end if
+                  do j=1,sites(s)%si_hydr%nlevsoi_hyd
+                      hio_rootuptake_sl(io_si,j) = hio_rootuptake_sl(io_si,j) + &
+                            ccohort_hydr%rootuptake(j) * number_fraction_rate       ! [kg/indiv/s]
+                  end do
                   
                   hio_sapflow_scpf(io_si,iscpf)         = hio_sapflow_scpf(io_si,iscpf)  + &
                         ccohort_hydr%sapflow * number_fraction_rate             ! [kg/indiv/s]
@@ -3203,7 +3073,7 @@ end subroutine flush_hvars
                         ccohort_hydr%th_aroot(1)   * number_fraction      ! [m3 m-3]
                   
                   hio_tth_scpf(io_si,iscpf)             = hio_tth_scpf(io_si,iscpf) + &
-                        ccohort_hydr%th_troot(1)  * number_fraction         ! [m3 m-3]
+                        ccohort_hydr%th_troot  * number_fraction         ! [m3 m-3]
                   
                   hio_sth_scpf(io_si,iscpf)             = hio_sth_scpf(io_si,iscpf) + &
                         ccohort_hydr%th_ag(2)  * number_fraction        ! [m3 m-3]
@@ -3215,7 +3085,7 @@ end subroutine flush_hvars
                         ccohort_hydr%psi_aroot(1)   * number_fraction     ! [MPa]
                   
                   hio_twp_scpf(io_si,iscpf)             = hio_twp_scpf(io_si,iscpf) + &
-                        ccohort_hydr%psi_troot(1)  * number_fraction       ! [MPa]
+                        ccohort_hydr%psi_troot  * number_fraction       ! [MPa]
                   
                   hio_swp_scpf(io_si,iscpf)             = hio_swp_scpf(io_si,iscpf) + &
                         ccohort_hydr%psi_ag(2)  * number_fraction       ! [MPa]
@@ -3223,11 +3093,11 @@ end subroutine flush_hvars
                   hio_lwp_scpf(io_si,iscpf)             = hio_lwp_scpf(io_si,iscpf) + &
                         ccohort_hydr%psi_ag(1)  * number_fraction       ! [MPa]
 			
-		  hio_aflc_scpf(io_si,iscpf)             = hio_aflc_scpf(io_si,iscpf) + &
+                  hio_aflc_scpf(io_si,iscpf)             = hio_aflc_scpf(io_si,iscpf) + &
                         ccohort_hydr%flc_aroot(1)   * number_fraction     
                   
                   hio_tflc_scpf(io_si,iscpf)             = hio_tflc_scpf(io_si,iscpf) + &
-                        ccohort_hydr%flc_troot(1)  * number_fraction     
+                        ccohort_hydr%flc_troot  * number_fraction     
                   
                   hio_sflc_scpf(io_si,iscpf)             = hio_sflc_scpf(io_si,iscpf) + &
                         ccohort_hydr%flc_ag(2)  * number_fraction       
@@ -3236,7 +3106,7 @@ end subroutine flush_hvars
                         ccohort_hydr%flc_ag(1)  * number_fraction   
                   
                   hio_btran_scpf(io_si,iscpf)           = hio_btran_scpf(io_si,iscpf) + &
-                        ccohort_hydr%btran(1)  * number_fraction        ! [-]
+                        ccohort_hydr%btran  * number_fraction        ! [-]
                   
                endif
 
@@ -4811,56 +4681,11 @@ end subroutine flush_hvars
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake_scpf )
 
-       call this%set_history_var(vname='FATES_ROOTUPTAKE01_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate, layer 1', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake01_scpf )
+       call this%set_history_var(vname='FATES_ROOTUPTAKE_SL', units='kg/indiv/s', &
+             long='mean individual root uptake rate per layer', use_default='inactive', &
+             avgflag='A', vtype=site_ground_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake_sl )
        
-       call this%set_history_var(vname='FATES_ROOTUPTAKE02_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate, layer 2', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake02_scpf )
-       
-       call this%set_history_var(vname='FATES_ROOTUPTAKE03_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate, layer 3', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake03_scpf )
-       
-       call this%set_history_var(vname='FATES_ROOTUPTAKE04_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate, layer 4', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake04_scpf )
-       
-       call this%set_history_var(vname='FATES_ROOTUPTAKE05_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate, layer 5', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake05_scpf )
-       
-       call this%set_history_var(vname='FATES_ROOTUPTAKE06_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate, layer 6', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake06_scpf )
-          
-       call this%set_history_var(vname='FATES_ROOTUPTAKE07_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate, layer 7', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake07_scpf )
-       
-       call this%set_history_var(vname='FATES_ROOTUPTAKE08_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate, layer 8', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake08_scpf )
-       
-       call this%set_history_var(vname='FATES_ROOTUPTAKE09_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate, layer 9', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake09_scpf )
-       
-       call this%set_history_var(vname='FATES_ROOTUPTAKE10_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate, layer 10', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake10_scpf )
-
        call this%set_history_var(vname='FATES_H2OSOI_COL_SHSL', units='m3/m3', &
              long='volumetric soil moisture by layer and shell', use_default='inactive', &
              avgflag='A', vtype=site_scagpft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &

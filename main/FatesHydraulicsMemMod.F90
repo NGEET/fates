@@ -85,9 +85,9 @@ module FatesHydraulicsMemMod
                                                     ! may or may not cross that with a simple or
                                                     ! non-simple layering
 
-     real(r8),allocatable :: v_shell(:,:)           ! Volume of rhizosphere compartment (m3) 
+     real(r8),allocatable :: v_shell(:,:)           ! Volume of rhizosphere compartment (m3) over the
+                                                    ! entire site (ha), absolute quantity
      real(r8),allocatable :: v_shell_init(:,:)      ! Previous volume of rhizosphere compartment (m3) 
-     real(r8),allocatable :: v_shell_1D(:)          ! Volume of rhizosphere compartment (m3)
      real(r8),allocatable :: r_node_shell(:,:)      ! Nodal radius of rhizosphere compartment (m)
      real(r8),allocatable :: r_node_shell_init(:,:) ! Previous Nodal radius of rhizosphere compartment (m)
      real(r8),allocatable :: l_aroot_layer(:)       ! Total length (across cohorts) of absorbing
@@ -97,27 +97,13 @@ module FatesHydraulicsMemMod
      real(r8),allocatable :: kmax_upper_shell(:,:)  ! Maximum soil hydraulic conductance node k 
                                                     ! to upper (closer to atmosphere) rhiz 
                                                     ! shell boundaries (kg s-1 MPa-1)
-     real(r8),allocatable :: kmax_bound_shell(:,:)  ! Maximum soil hydraulic conductance at upper
-                                                    ! (closer to atmosphere) rhiz shell 
-                                                    ! boundaries (kg s-1 MPa-1)
      real(r8),allocatable :: kmax_lower_shell(:,:)  ! Maximum soil hydraulic conductance node k
                                                     ! to lower (further from atmosphere) 
                                                     ! rhiz shell boundaries (kg s-1 MPa-1)
      real(r8),allocatable :: r_out_shell(:,:)       ! Outer radius of rhizosphere compartment (m)
-     real(r8),allocatable :: r_out_shell_1D(:)      ! Outer radius of rhizosphere compartment (m) (USED?)
-     real(r8),allocatable :: r_node_shell_1D(:)     ! Nodal radius of rhizosphere compartment (m)
+
 
      real(r8),allocatable :: rs1(:)                 ! Mean fine root radius (m) (currently a constant)
-
-     real(r8),allocatable :: kmax_upper_shell_1D(:) ! Maximum soil hydraulic conductance node 
-                                                    ! k to upper (closer to atmosphere) rhiz 
-                                                    ! shell boundaries (kg s-1 MPa-1)
-     real(r8),allocatable :: kmax_bound_shell_1D(:) ! Maximum soil hydraulic conductance at upper 
-                                                    ! (closer to atmosphere) rhiz shell
-                                                    ! boundaries (kg s-1 MPa-1)
-     real(r8),allocatable :: kmax_lower_shell_1D(:) ! Maximum soil hydraulic conductance node 
-                                                    ! k to lower (further from atmosphere) rhiz 
-                                                    ! shell boundaries (kg s-1 MPa-1)
 
      integer,allocatable :: supsub_flag(:)          ! index of the outermost rhizosphere shell 
                                                     ! encountering super- or sub-saturation
@@ -134,9 +120,6 @@ module FatesHydraulicsMemMod
      real(r8),allocatable :: recruit_w_uptake(:)    ! recruitment water uptake (kg H2o/m2/s)
 
     
-     real(r8) :: l_aroot_1D                         ! Total (across cohorts) absorbing root 
-                                                    ! length across all layers
-
      real(r8) :: errh2o_hyd                         ! plant hydraulics error summed across 
                                                     ! cohorts to column level (mm)
      real(r8) :: dwat_veg                           ! change in stored water in vegetation
@@ -222,35 +205,32 @@ module FatesHydraulicsMemMod
 
      real(r8) ::  v_ag_init(n_hypool_ag)          ! previous day's volume of aboveground water storage compartments   [m3]
      real(r8) ::  v_ag(n_hypool_ag)               ! volume of aboveground water storage compartments                  [m3]
-     real(r8) ::  v_troot_init(n_hypool_troot)    ! previous day's volume of belowground water storage compartments   [m3]
-     real(r8) ::  v_troot(n_hypool_troot)         ! volume of belowground water storage compartments                  [m3]
-     real(r8) ::  v_aroot_tot                     ! total volume of absorbing roots                                   [m3]
-     real(r8) ::  l_aroot_tot                     ! total length of absorbing roots                                   [m]
+     real(r8) ::  v_troot_init                    ! previous day's volume of belowground water storage compartments   [m3]
+     real(r8) ::  v_troot                         ! volume of belowground water storage compartments                  [m3]
      real(r8),allocatable :: v_aroot_layer_init(:) ! previous day's volume of absorbing roots by soil layer    [m3]
      real(r8),allocatable :: v_aroot_layer(:)      ! volume of absorbing roots by soil layer                   [m3]
      real(r8),allocatable :: l_aroot_layer(:)      ! length of absorbing roots by soil layer                   [m]
      
- 
 
-                                                  ! BC PLANT HYDRAULICS - state variables
+     
+     ! State variable, relative water content by volume (i.e. "theta")
      real(r8) ::  th_ag(n_hypool_ag)              ! water in aboveground compartments                                 [kgh2o/indiv]
-     real(r8) ::  th_troot(n_hypool_troot)        ! water in belowground compartments                                 [kgh2o/indiv]
-     real(r8) ::  psi_ag(n_hypool_ag)             ! water potential in aboveground compartments                       [MPa]
-     real(r8) ::  psi_troot(n_hypool_troot)       ! water potential in belowground compartments                       [MPa]
-     real(r8) ::  flc_ag(n_hypool_ag)             ! fractional loss of conductivity in aboveground compartments       [-]
-     real(r8) ::  flc_troot(n_hypool_troot)       ! fractional loss of conductivity in belowground compartments       [-]
-     real(r8) ::  flc_min_ag(n_hypool_ag)         ! min attained fractional loss of conductivity in 
-                                                  ! aboveground compartments (for tracking xylem refilling dynamics) [-]
-     real(r8) ::  flc_min_troot(n_hypool_troot)   ! min attained fractional loss of conductivity in 
-                                                  ! belowground compartments (for tracking xylem refilling dynamics) [-]
-     !refilling status--these are constants are should be moved the fates parameter file(Chonggang XU)
-     real(r8) ::  refill_thresh                   ! water potential threshold for xylem refilling to occur            [MPa]
-     real(r8) ::  refill_days                     ! number of days required for 50% of xylem refilling to occur       [days]
-     real(r8) ::  btran(nlevcan_hyd)              ! leaf water potential limitation on gs                             [0-1]
+     real(r8) ::  th_troot                        ! water in belowground compartments                                 [kgh2o/indiv]
+     real(r8),allocatable :: th_aroot(:)          ! water in absorbing roots                                          [kgh2o/indiv]
+    
 
-     real(r8) ::  lwp_mem(numLWPmem)              ! leaf water potential over the previous numLWPmem timesteps        [MPa]
-     real(r8) ::  lwp_stable                      ! leaf water potential just before it became unstable               [MPa]
-     logical  ::  lwp_is_unstable                 ! flag for instability of leaf water potential over previous timesteps
+     ! State diagnostic, water potential
+     real(r8) ::  psi_ag(n_hypool_ag)             ! water potential in aboveground compartments                       [MPa]
+     real(r8) ::  psi_troot                       ! water potential in belowground compartments                       [MPa]
+     real(r8),allocatable :: psi_aroot(:)         ! water potential in absorbing roots                                [MPa]
+
+
+     real(r8) ::  btran                           ! leaf water potential limitation on gs                             [0-1]
+
+     
+     ! Variables used for error tracking and flagging
+     ! ----------------------------------------------------------------------------------
+     
      real(r8) ::  supsub_flag                     ! k index of last node to encounter supersaturation or 
                                                   ! sub-residual water content  (+ supersaturation; - subsaturation)
      real(r8) ::  iterh1                          ! number of iterations required to achieve tolerable water balance error
@@ -267,35 +247,42 @@ module FatesHydraulicsMemMod
                                                   !  Draw from or add to this pool when
                                                   !  insufficient plant water available to 
                                                   !  support production of new leaves.
-     real(r8) ::  errh2o_growturn_troot(n_hypool_troot) ! same as errh2o_growturn_ag but for troot pool
-     real(r8) ::  errh2o_pheno_troot(n_hypool_troot)    ! same as errh2o_pheno_ag but for troot pool
+     real(r8) ::  errh2o_growturn_troot           ! same as errh2o_growturn_ag but for troot pool
+     real(r8) ::  errh2o_pheno_troot              ! same as errh2o_pheno_ag but for troot pool
+     real(r8) ::  errh2o_growturn_aroot           ! same as errh2o_growturn_ag but for aroot pools
+     real(r8) ::  errh2o_pheno_aroot              ! same as errh2o_pheno_ag but for aroot pools
 
-     ! quantities indexed by soil layer
-     real(r8),allocatable ::  th_aroot(:)         ! water in absorbing roots                                          [kgh2o/indiv]
-     real(r8),allocatable ::  psi_aroot(:)        ! water potential in absorbing roots                                [MPa]
-     real(r8),allocatable ::  flc_aroot(:)        ! fractional loss of conductivity in absorbing roots                [-]
-     real(r8),allocatable ::  flc_min_aroot(:)    ! min attained fractional loss of conductivity in absorbing roots 
-                                                  ! (for tracking xylem refilling dynamics)          [-]
-     real(r8),allocatable ::  errh2o_growturn_aroot(:)  ! same as errh2o_growturn_ag but for aroot pools
-     real(r8),allocatable ::  errh2o_pheno_aroot(:)     ! same as errh2o_pheno_ag but for aroot pools
 
-                                                  ! BC PLANT HYDRAULICS - fluxes
-                                                  ! NOTE: total transpiration is given by qtop_dt + dqtopdth_dthdt
-     real(r8) ::  sapflow                         ! flow at base of tree (+ upward)                                   [kg/indiv/timestep]
-     real(r8) ::  rootuptake                      ! net flow into roots (+ into roots)                                [kg/indiv/timestep]
-     real(r8) ::  rootuptake01                    ! net flow into roots (+ into roots), soil layer 1                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake02                    ! net flow into roots (+ into roots), soil layer 2                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake03                    ! net flow into roots (+ into roots), soil layer 3                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake04                    ! net flow into roots (+ into roots), soil layer 4                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake05                    ! net flow into roots (+ into roots), soil layer 5                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake06                    ! net flow into roots (+ into roots), soil layer 6                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake07                    ! net flow into roots (+ into roots), soil layer 7                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake08                    ! net flow into roots (+ into roots), soil layer 8                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake09                    ! net flow into roots (+ into roots), soil layer 9                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake10                    ! net flow into roots (+ into roots), soil layer 10                 [kg/indiv/timestep]
-                                                  ! BC PLANT HYDRAULICS - flags
-     logical ::   is_newly_recruited               !whether the new cohort is newly recruited
      
+     ! Useful diagnostics
+     ! ----------------------------------------------------------------------------------
+
+     real(r8) ::  sapflow                         ! flow at base of tree (+ upward)                                   [kg/indiv/timestep]
+     real(r8),allocatable ::  rootuptake(:)       ! net flow into roots (+ into roots)                                [kg/indiv/timestep]
+                                                  ! BC PLANT HYDRAULICS - flags
+
+    
+     ! Other
+     ! ----------------------------------------------------------------------------------
+     
+     logical ::   is_newly_recruited              ! whether the new cohort is newly recruited
+
+
+
+     ! ----------------------------------------------------------------------------------
+     ! NOT USED, BUT HOLDING FOR FUTURE RE-IMPLEMENTATION
+     !real(r8) ::  flc_min_ag(n_hypool_ag)         ! min attained fractional loss of conductivity in 
+     !                                             ! aboveground compartments (for tracking xylem refilling dynamics) [-]
+     !real(r8) ::  flc_min_troot(n_hypool_troot)   ! min attained fractional loss of conductivity in 
+     !                                             ! belowground compartments (for tracking xylem refilling dynamics) [-]
+     !real(r8),allocatable ::  flc_min_aroot(:)    ! min attained fractional loss of conductivity in absorbing roots 
+     !                                             ! (for tracking xylem refilling dynamics)          [-]
+     !real(r8) ::  lwp_mem(numLWPmem)              ! leaf water potential over the previous numLWPmem timesteps        [MPa] 
+     !real(r8) ::  lwp_stable                      ! leaf water potential just before it became unstable               [MPa]
+     !logical  ::  lwp_is_unstable                 ! flag for instability of leaf water potential over previous timesteps
+     !real(r8) ::  refill_thresh                   ! water potential threshold for xylem refilling to occur            [MPa]
+     !real(r8) ::  refill_days                     ! number of days required for 50% of xylem refilling to occur       [days]
+     ! -----------------------------------------------------------------------------------
   contains
      
      procedure :: AllocateHydrCohortArrays
@@ -314,21 +301,17 @@ module FatesHydraulicsMemMod
        class(ed_cohort_hydr_type),intent(inout) :: this
        integer, intent(in)                      :: nlevsoil_hydr
 
-       allocate(this%z_node_aroot(1:nlevsoil_hydr))
-       allocate(this%kmax_treebg_layer(1:nlevsoil_hydr))
+       allocate(this%kmax_troot_lower(1:nlevsoil_hydr))
+       allocate(this%kmax_aroot_upper(1:nlevsoil_hydr))
+       allocate(this%kmax_aroot_radial_in(1:nlevsoil_hydr))
+       allocate(this%kmax_aroot_radial_out(1:nlevsoil_hydr))
        allocate(this%v_aroot_layer_init(1:nlevsoil_hydr))
        allocate(this%v_aroot_layer(1:nlevsoil_hydr))
        allocate(this%l_aroot_layer(1:nlevsoil_hydr))
        allocate(this%th_aroot(1:nlevsoil_hydr))
-       !allocate(this%th_aroot_prev(1:nlevsoil_hydr))
-       !allocate(this%th_aroot_prev_uncorr(1:nlevsoil_hydr))
        allocate(this%psi_aroot(1:nlevsoil_hydr))
-       allocate(this%flc_aroot(1:nlevsoil_hydr))
-       allocate(this%flc_min_aroot(1:nlevsoil_hydr))
-       allocate(this%errh2o_growturn_aroot(1:nlevsoil_hydr))
-       allocate(this%errh2o_pheno_aroot(1:nlevsoil_hydr))
-       allocate(this%kmax_innershell(1:nlevsoil_hydr))
-       
+       allocate(this%rootuptake(1:nlevsoil_hydr))
+
        return
     end subroutine AllocateHydrCohortArrays
 
@@ -337,20 +320,17 @@ module FatesHydraulicsMemMod
     subroutine DeallocateHydrCohortArrays(this)
 
        class(ed_cohort_hydr_type),intent(inout) :: this
-       deallocate(this%z_node_aroot)
-       deallocate(this%kmax_treebg_layer)
+       
+       deallocate(this%kmax_troot_lower)
+       deallocate(this%kmax_aroot_upper)
+       deallocate(this%kmax_aroot_radial_in)
+       deallocate(this%kmax_aroot_radial_out)
        deallocate(this%v_aroot_layer_init)
        deallocate(this%v_aroot_layer)
        deallocate(this%l_aroot_layer)
        deallocate(this%th_aroot)
-       !deallocate(this%th_aroot_prev)
-       !deallocate(this%th_aroot_prev_uncorr)
        deallocate(this%psi_aroot)
-       deallocate(this%flc_aroot)
-       deallocate(this%flc_min_aroot)
-       deallocate(this%errh2o_growturn_aroot)
-       deallocate(this%errh2o_pheno_aroot)
-       deallocate(this%kmax_innershell)
+       deallocate(this%rootuptake)
 
        return
     end subroutine DeallocateHydrCohortArrays
@@ -366,20 +346,13 @@ module FatesHydraulicsMemMod
          
          allocate(this%v_shell(1:nlevsoil_hyd,1:nshell))         ; this%v_shell = nan
          allocate(this%v_shell_init(1:nlevsoil_hyd,1:nshell))    ; this%v_shell_init = nan
-         allocate(this%v_shell_1D(1:nshell))                    ; this%v_shell_1D = nan
          allocate(this%r_node_shell(1:nlevsoil_hyd,1:nshell))    ; this%r_node_shell = nan
          allocate(this%r_node_shell_init(1:nlevsoil_hyd,1:nshell)); this%r_node_shell_init = nan
          allocate(this%r_out_shell(1:nlevsoil_hyd,1:nshell))     ; this%r_out_shell = nan
          allocate(this%l_aroot_layer(1:nlevsoil_hyd))            ; this%l_aroot_layer = nan
          allocate(this%l_aroot_layer_init(1:nlevsoil_hyd))       ; this%l_aroot_layer_init = nan
          allocate(this%kmax_upper_shell(1:nlevsoil_hyd,1:nshell)); this%kmax_upper_shell = nan
-         allocate(this%kmax_bound_shell(1:nlevsoil_hyd,1:nshell)); this%kmax_bound_shell = nan
          allocate(this%kmax_lower_shell(1:nlevsoil_hyd,1:nshell)); this%kmax_lower_shell = nan
-         allocate(this%r_out_shell_1D(1:nshell))                ; this%r_out_shell_1D = nan
-         allocate(this%r_node_shell_1D(1:nshell))               ; this%r_node_shell_1D = nan
-         allocate(this%kmax_upper_shell_1D(1:nshell))           ; this%kmax_upper_shell_1D = nan
-         allocate(this%kmax_bound_shell_1D(1:nshell))           ; this%kmax_bound_shell_1D = nan
-         allocate(this%kmax_lower_shell_1D(1:nshell))           ; this%kmax_lower_shell_1D = nan
          allocate(this%supsub_flag(1:nlevsoil_hyd))                ; this%supsub_flag = -999
          allocate(this%h2osoi_liqvol_shell(1:nlevsoil_hyd,1:nshell)) ; this%h2osoi_liqvol_shell = nan
          allocate(this%h2osoi_liq_prev(1:nlevsoil_hyd))          ; this%h2osoi_liq_prev = nan
@@ -387,15 +360,14 @@ module FatesHydraulicsMemMod
          allocate(this%rs1(1:nlevsoil_hyd)); this%rs1(:) = fine_root_radius_const
          allocate(this%recruit_w_uptake(1:nlevsoil_hyd)); this%recruit_w_uptake = nan
 
-         this%l_aroot_1D = nan
          this%errh2o_hyd     = nan
          this%dwat_veg       = nan
          this%h2oveg         = 0.0_r8
          this%h2oveg_recruit = 0.0_r8
          this%h2oveg_dead    = 0.0_r8
-	 this%h2oveg_growturn_err = 0.0_r8
+         this%h2oveg_growturn_err = 0.0_r8
          this%h2oveg_pheno_err    = 0.0_r8
-	 this%h2oveg_hydro_err    = 0.0_r8
+         this%h2oveg_hydro_err    = 0.0_r8
          
        end associate
 

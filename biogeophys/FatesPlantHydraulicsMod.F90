@@ -249,20 +249,6 @@ contains
              ! equal to the ones we just calculated.
              call SavePreviousCompartmentVolumes(ccohort_hydr) 
 
-             ! Set some generic initial values
-             ccohort_hydr%refill_days      =  3.0_r8
-             ccohort_hydr%lwp_mem(:)       = 0.0_r8
-             ccohort_hydr%lwp_stable       = 0.0_r8
-             ccohort_hydr%lwp_is_unstable  = .false.
-             ccohort_hydr%flc_ag(:)        =  1.0_r8
-             ccohort_hydr%flc_troot(:)     =  1.0_r8
-             ccohort_hydr%flc_aroot(:)     =  1.0_r8
-             ccohort_hydr%flc_min_ag(:)    =  1.0_r8
-             ccohort_hydr%flc_min_troot(:)    =  1.0_r8
-             ccohort_hydr%flc_min_aroot(:) =  1.0_r8
-             ccohort_hydr%refill_thresh    = -0.01_r8
-             ccohort_hydr%refill_days      =  3.0_r8
-
              ccohort => ccohort%taller
           enddo
 
@@ -343,17 +329,17 @@ contains
     !be in (or at least close to) hydrostatic equilibrium as well, so that
     !it doesn't matter which absorbing root layer the transporting root water
     !potential is referenced to.
-    do k=1, n_hypool_troot
-       dz = ccohort_hydr%z_node_troot(k) - ccohort_hydr%z_node_aroot(1)
-       ccohort_hydr%psi_troot(k) = ccohort_hydr%psi_aroot(1) - 1.e-6_r8*denh2o*grav_earth*dz 
-       if (ccohort_hydr%psi_troot(k)>0.0_r8) ccohort_hydr%psi_troot(k) = -0.01_r8
-       call th_from_psi(ft, 3, ccohort_hydr%psi_troot(k), ccohort_hydr%th_troot(k), csite%si_hydr, bc_in)
-    end do
+
+    dz = ccohort_hydr%z_node_troot - ccohort_hydr%z_node_aroot(1)
+    ccohort_hydr%psi_troot = ccohort_hydr%psi_aroot(1) - 1.e-6_r8*denh2o*grav_earth*dz 
+    if (ccohort_hydr%psi_troot>0.0_r8) ccohort_hydr%psi_troot = -0.01_r8
+    call th_from_psi(ft, 3, ccohort_hydr%psi_troot, ccohort_hydr%th_troot, csite%si_hydr, bc_in)
+    
 
     !working our way up a tree, assigning water potentials that are in
     !hydrostatic equilibrium with the water potential immediately below
-    dz = ccohort_hydr%z_node_ag(n_hypool_ag) - ccohort_hydr%z_node_troot(1)
-    ccohort_hydr%psi_ag(n_hypool_ag) = ccohort_hydr%psi_troot(1) - 1.e-6_r8*denh2o*grav_earth*dz
+    dz = ccohort_hydr%z_node_ag(n_hypool_ag) - ccohort_hydr%z_node_troot
+    ccohort_hydr%psi_ag(n_hypool_ag) = ccohort_hydr%psi_troot - 1.e-6_r8*denh2o*grav_earth*dz
     if (ccohort_hydr%psi_ag(n_hypool_ag)>0.0_r8) ccohort_hydr%psi_ag(n_hypool_ag) = -0.01_r8
     call th_from_psi(ft, 2, ccohort_hydr%psi_ag(n_hypool_ag), ccohort_hydr%th_ag(n_hypool_ag), csite%si_hydr, bc_in)
     do k=n_hypool_ag-1, 1, -1
@@ -363,25 +349,12 @@ contains
        call th_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), ccohort_hydr%th_ag(k), csite%si_hydr, bc_in)
     end do
 
-    ccohort_hydr%lwp_mem(:)       = ccohort_hydr%psi_ag(1)   ! initializes the leaf water potential memory
-    ccohort_hydr%lwp_stable       = ccohort_hydr%psi_ag(1)
-    ccohort_hydr%lwp_is_unstable  = .false.                  ! inital value for leaf water potential stability flag
-    ccohort_hydr%flc_ag(:)        =  1.0_r8
-    ccohort_hydr%flc_troot(:)        =  1.0_r8
-    ccohort_hydr%flc_aroot(:)     =  1.0_r8
-    ccohort_hydr%flc_min_ag(:)    =  1.0_r8
-    ccohort_hydr%flc_min_troot(:)    =  1.0_r8
-    ccohort_hydr%flc_min_aroot(:) =  1.0_r8
-    ccohort_hydr%refill_thresh    = -0.01_r8
-    ccohort_hydr%refill_days      =  3.0_r8
     ccohort_hydr%errh2o_growturn_ag(:)    = 0.0_r8
-    ccohort_hydr%errh2o_growturn_troot(:) = 0.0_r8
-    ccohort_hydr%errh2o_growturn_aroot(:) = 0.0_r8
+    ccohort_hydr%errh2o_growturn_troot    = 0.0_r8
+    ccohort_hydr%errh2o_growturn_aroot    = 0.0_r8
     ccohort_hydr%errh2o_pheno_ag(:)       = 0.0_r8
-    ccohort_hydr%errh2o_pheno_troot(:)    = 0.0_r8
-    ccohort_hydr%errh2o_pheno_aroot(:)    = 0.0_r8
-    !ccohort_hydr%th_aroot_prev(:)     =  0.0_r8
-    !ccohort_hydr%th_aroot_prev_ucnorr(:)=  0.0_r8
+    ccohort_hydr%errh2o_pheno_troot       = 0.0_r8
+    ccohort_hydr%errh2o_pheno_aroot       = 0.0_r8
 
     !initialize cohort-level btran
     call flc_gs_from_psi(cCohort, ccohort_hydr%psi_ag(1))
@@ -404,9 +377,9 @@ contains
     ! Outputs: cohort_hydr%z_node_ag(:)      
     !                     %z_lower_ag(:)
     !                     %z_upper_ag(:)
-    !                     %z_node_troot(:)
-    !                     %z_lower_troot(:)
-    !                     %z_upper_troot(:)
+    !                     %z_node_troot
+    !                     %z_lower_troot
+    !                     %z_upper_troot
     !                     %z_node_aroot(:)
     ! --------------------------------------------------------------------------------
 
@@ -485,7 +458,7 @@ contains
     ! change size and effect water contents
 
     ccohort_hydr%v_ag_init(:)          =  ccohort_hydr%v_ag(:)
-    ccohort_hydr%v_troot_init(:)       =  ccohort_hydr%v_troot(:)
+    ccohort_hydr%v_troot_init          =  ccohort_hydr%v_troot
     ccohort_hydr%v_aroot_layer_init(:) =  ccohort_hydr%v_aroot_layer(:)
 
     return
@@ -616,6 +589,8 @@ contains
     real(r8) :: z_stem                       ! the height of the plants stem below crown [m]
     real(r8) :: sla                          ! specific leaf area                                                    [cm2/g]
     real(r8) :: v_canopy                     ! total leaf (canopy) volume                                            [m3/indiv]
+    real(r8) :: v_aroot_tot                  ! total compartment volume of all absorbing roots for cohort            [m3]
+    real(r8) :: l_aroot_tot                  ! total length of absorbing roots for cohrot                            [m]
     real(r8) :: denleaf                      ! leaf dry mass per unit fresh leaf volume                              [kg/m3]     
     real(r8) :: a_sapwood                    ! sapwood area                                                          [m2]
     real(r8) :: a_sapwood_target             ! sapwood cross-section area at reference height, at target biomass     [m2]
@@ -707,17 +682,17 @@ contains
        v_troot                    = b_troot_biom / (EDPftvarcon_inst%wood_density(ft)*1.e3_r8)
 
        !! BOC not sure if/how we should multiply this by the sapwood fraction
-       ccohort_hydr%v_troot(:)    = v_troot / n_hypool_troot    
+       ccohort_hydr%v_troot     = v_troot / n_hypool_troot    
 
 
        ! Estimate absorbing root total length (all layers)
        ! ------------------------------------------------------------------------------
-       ccohort_hydr%l_aroot_tot        = fnrt_c*C2B*EDPftvarcon_inst%hydr_srl(ft)
+       l_aroot_tot        = fnrt_c*C2B*EDPftvarcon_inst%hydr_srl(ft)
 
        ! Estimate absorbing root volume (all layers)
        ! ------------------------------------------------------------------------------
-       ccohort_hydr%v_aroot_tot        = pi_const * (EDPftvarcon_inst%hydr_rs2(ft)**2._r8) * &
-            ccohort_hydr%l_aroot_tot
+       v_aroot_tot        = pi_const * (EDPftvarcon_inst%hydr_rs2(ft)**2._r8) * &
+                            l_aroot_tot
 
 
        ! Partition the total absorbing root lengths and volumes into the active soil layers
@@ -729,8 +704,8 @@ contains
                rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
                      zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
            end if
-           ccohort_hydr%l_aroot_layer(j)   = rootfr*ccohort_hydr%l_aroot_tot
-           ccohort_hydr%v_aroot_layer(j)   = rootfr*ccohort_hydr%v_aroot_tot
+           ccohort_hydr%l_aroot_layer(j)   = rootfr*l_aroot_tot
+           ccohort_hydr%v_aroot_layer(j)   = rootfr*v_aroot_tot
        end do
 
     end if !check for bleaf
@@ -879,7 +854,7 @@ contains
     integer  :: j,k,FT                       ! indices
     integer  :: err_code = 0
     real(r8) :: th_ag_uncorr(      n_hypool_ag) ! uncorrected aboveground water content[m3 m-3]
-    real(r8) :: th_troot_uncorr(n_hypool_troot) ! uncorrected transporting root water content[m3 m-3]
+    real(r8) :: th_troot_uncorr                 ! uncorrected transporting root water content[m3 m-3]
     real(r8) :: th_aroot_uncorr(currentSite%si_hydr%nlevsoi_hyd)    ! uncorrected absorbing root water content[m3 m-3] 
     real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
     integer :: nstep !number of time steps
@@ -898,28 +873,33 @@ contains
             ccohort_hydr%v_ag_init(k) /ccohort_hydr%v_ag(k)
        ccohort_hydr%th_ag(k) = constrain_water_contents(th_ag_uncorr(k), small_theta_num, ft, k)
     enddo
-    do k=1,n_hypool_troot
-       th_troot_uncorr(k) = ccohort_hydr%th_troot(k)  	 * &
-            ccohort_hydr%v_troot_init(k) /ccohort_hydr%v_troot(k)
-       ccohort_hydr%th_troot(k) = constrain_water_contents(th_troot_uncorr(k), small_theta_num, ft, 3)
-    enddo
+
+    th_troot_uncorr = ccohort_hydr%th_troot * ccohort_hydr%v_troot_init /ccohort_hydr%v_troot
+    ccohort_hydr%th_troot = constrain_water_contents(th_troot_uncorr, small_theta_num, ft, 3)
+
+
+    ccohort_hydr%errh2o_growturn_aroot = 0._r8
     do j=1,currentSite%si_hydr%nlevsoi_hyd
-       th_aroot_uncorr(j) = ccohort_hydr%th_aroot(j) * &
-            ccohort_hydr%v_aroot_layer_init(j)/ccohort_hydr%v_aroot_layer(j)
-       ccohort_hydr%th_aroot(j) = constrain_water_contents(th_aroot_uncorr(j), small_theta_num, ft, 4)
-       ccohort_hydr%errh2o_growturn_aroot(j) = ccohort_hydr%th_aroot(j) - th_aroot_uncorr(j)
+        th_aroot_uncorr(j) = ccohort_hydr%th_aroot(j) * &
+              ccohort_hydr%v_aroot_layer_init(j)/ccohort_hydr%v_aroot_layer(j)
+        ccohort_hydr%th_aroot(j) = constrain_water_contents(th_aroot_uncorr(j), small_theta_num, ft, 4)
+        ccohort_hydr%errh2o_growturn_aroot = ccohort_hydr%errh2o_growturn_aroot + & 
+              denh2o*cCohort%n/AREA*(ccohort_hydr%th_aroot(j)-th_aroot_uncorr(j))*ccohort_hydr%v_aroot_layer(j)
     enddo
 
     ! Storing mass balance error
     ! + means water created; - means water destroyed
-    ccohort_hydr%errh2o_growturn_ag(:)    = ccohort_hydr%th_ag(:)    - th_ag_uncorr(:)
-    ccohort_hydr%errh2o_growturn_troot(:) = ccohort_hydr%th_troot(:) - th_troot_uncorr(:)
+    ccohort_hydr%errh2o_growturn_ag(:) = denh2o*cCohort%n/AREA*ccohort_hydr%v_ag(:) * & 
+                                         (ccohort_hydr%th_ag(:)-th_ag_uncorr(:))
+    ccohort_hydr%errh2o_growturn_troot = denh2o*cCohort%n/AREA*ccohort_hydr%v_troot * &
+                                         (ccohort_hydr%th_troot-th_troot_uncorr)
+
     csite_hydr =>currentSite%si_hydr
     csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
-         (sum(ccohort_hydr%errh2o_growturn_ag(:)*ccohort_hydr%v_ag(:))      + &
-         sum(ccohort_hydr%errh2o_growturn_troot(:)*ccohort_hydr%v_troot(:))   + &
-         sum(ccohort_hydr%errh2o_growturn_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
-         denh2o*cCohort%n/AREA
+          sum(ccohort_hydr%errh2o_growturn_ag(:)) + & 
+          ccohort_hydr%errh2o_growturn_troot      + &
+          ccohort_hydr%errh2o_growturn_aroot
+
 
     ! UPDATES OF WATER POTENTIALS ARE DONE PRIOR TO RICHARDS' SOLUTION WITHIN FATESPLANTHYDRAULICSMOD.F90
 
@@ -983,8 +963,6 @@ contains
     ncohort_hydr%v_ag               = ocohort_hydr%v_ag
     ncohort_hydr%v_troot_init       = ocohort_hydr%v_troot_init
     ncohort_hydr%v_troot            = ocohort_hydr%v_troot
-    ncohort_hydr%v_aroot_tot        = ocohort_hydr%v_aroot_tot
-    ncohort_hydr%l_aroot_tot        = ocohort_hydr%l_aroot_tot
     ! quantities indexed by soil layer
     ncohort_hydr%z_node_aroot       = ocohort_hydr%z_node_aroot
     ncohort_hydr%kmax_treebg_layer  = ocohort_hydr%kmax_treebg_layer
@@ -998,32 +976,13 @@ contains
     ncohort_hydr%th_troot           = ocohort_hydr%th_troot
     ncohort_hydr%psi_ag             = ocohort_hydr%psi_ag
     ncohort_hydr%psi_troot          = ocohort_hydr%psi_troot
-    ncohort_hydr%flc_ag             = ocohort_hydr%flc_ag
-    ncohort_hydr%flc_troot          = ocohort_hydr%flc_troot
-    ncohort_hydr%flc_min_ag         = ocohort_hydr%flc_min_ag
 
-    ncohort_hydr%flc_min_troot      = ocohort_hydr%flc_min_troot
-
-    !refilling status--these are constants are should be moved the fates parameter file(Chonggang XU)
-    ncohort_hydr%refill_thresh      = ocohort_hydr%refill_thresh
-    ncohort_hydr%refill_days        = ocohort_hydr%refill_days
     ncohort_hydr%btran              = ocohort_hydr%btran
-
-    ncohort_hydr%lwp_mem            = ocohort_hydr%lwp_mem
-    ncohort_hydr%lwp_stable         = ocohort_hydr%lwp_stable
-    ncohort_hydr%lwp_is_unstable    = ocohort_hydr%lwp_is_unstable
     ncohort_hydr%supsub_flag        = ocohort_hydr%supsub_flag
-
     ncohort_hydr%iterh1             = ocohort_hydr%iterh1
     ncohort_hydr%iterh2             = ocohort_hydr%iterh2
     ncohort_hydr%errh2o             = ocohort_hydr%errh2o
     ncohort_hydr%errh2o_growturn_ag = ocohort_hydr%errh2o_growturn_ag
-
-
-
-
-
-
     ncohort_hydr%errh2o_pheno_ag    = ocohort_hydr%errh2o_pheno_ag
 
 
@@ -1032,11 +991,7 @@ contains
     ncohort_hydr%errh2o_pheno_troot    = ocohort_hydr%errh2o_pheno_troot
     ! quantities indexed by soil layer
     ncohort_hydr%th_aroot              = ocohort_hydr%th_aroot
-    !ncohort_hydr%th_aroot_prev        = ocohort_hydr%th_aroot_prev
-    !ncohort_hydr%th_aroot_prev_uncorr = ocohort_hydr%th_aroot_prev_uncorr
     ncohort_hydr%psi_aroot             = ocohort_hydr%psi_aroot
-    ncohort_hydr%flc_aroot             = ocohort_hydr%flc_aroot
-    ncohort_hydr%flc_min_aroot         = ocohort_hydr%flc_min_aroot
 
     ncohort_hydr%errh2o_growturn_aroot = ocohort_hydr%errh2o_growturn_aroot
     ncohort_hydr%errh2o_pheno_aroot    = ocohort_hydr%errh2o_pheno_aroot
@@ -1047,16 +1002,6 @@ contains
 
     ncohort_hydr%sapflow            = ocohort_hydr%sapflow
     ncohort_hydr%rootuptake         = ocohort_hydr%rootuptake
-    ncohort_hydr%rootuptake01       = ocohort_hydr%rootuptake01
-    ncohort_hydr%rootuptake02       = ocohort_hydr%rootuptake02
-    ncohort_hydr%rootuptake03       = ocohort_hydr%rootuptake03
-    ncohort_hydr%rootuptake04       = ocohort_hydr%rootuptake04
-    ncohort_hydr%rootuptake05       = ocohort_hydr%rootuptake05
-    ncohort_hydr%rootuptake06       = ocohort_hydr%rootuptake06
-    ncohort_hydr%rootuptake07       = ocohort_hydr%rootuptake07
-    ncohort_hydr%rootuptake08       = ocohort_hydr%rootuptake08
-    ncohort_hydr%rootuptake09       = ocohort_hydr%rootuptake09
-    ncohort_hydr%rootuptake10       = ocohort_hydr%rootuptake10
 
     ncohort_hydr%is_newly_recruited  = ocohort_hydr%is_newly_recruited
 
@@ -1086,8 +1031,8 @@ contains
 
     ccohort_hydr%th_ag(:)    = (currentCohort%n*ccohort_hydr%th_ag(:)    + &
          nextCohort%n*ncohort_hydr%th_ag(:))/newn
-    ccohort_hydr%th_troot(:)    = (currentCohort%n*ccohort_hydr%th_troot(:)    + &
-         nextCohort%n*ncohort_hydr%th_troot(:))/newn
+    ccohort_hydr%th_troot    = (currentCohort%n*ccohort_hydr%th_troot    + &
+         nextCohort%n*ncohort_hydr%th_troot)/newn
     ccohort_hydr%th_aroot(:) = (currentCohort%n*ccohort_hydr%th_aroot(:) + &
          nextCohort%n*ncohort_hydr%th_aroot(:))/newn
     ccohort_hydr%supsub_flag = 0._r8
@@ -1100,61 +1045,20 @@ contains
        call flc_from_psi(currentCohort%pft, porous_media(k), ccohort_hydr%psi_ag(k), &
             ccohort_hydr%flc_ag(k), site_hydr, bc_in) 
     end do
-    do k=n_hypool_ag+1,n_hypool_ag+n_hypool_troot
-       call psi_from_th(currentCohort%pft, 3, ccohort_hydr%th_troot(k-n_hypool_ag), &
-            ccohort_hydr%psi_troot(k-n_hypool_ag), site_hydr, bc_in)
-       call flc_from_psi(currentCohort%pft, 3, ccohort_hydr%psi_troot(k-n_hypool_ag), &
-            ccohort_hydr%flc_troot(k-n_hypool_ag), site_hydr, bc_in)
-    end do
+    
+    call psi_from_th(currentCohort%pft, 3, ccohort_hydr%th_troot, &
+          ccohort_hydr%psi_troot, site_hydr, bc_in)
+    
     do j=1,site_hydr%nlevsoi_hyd
        call psi_from_th(currentCohort%pft, 4, ccohort_hydr%th_aroot(j), &
             ccohort_hydr%psi_aroot(j), site_hydr, bc_in)
-       call flc_from_psi(currentCohort%pft, 4, ccohort_hydr%psi_aroot(j), &
-            ccohort_hydr%flc_aroot(j), site_hydr, bc_in)
     end do
     call flc_gs_from_psi(currentCohort, ccohort_hydr%psi_ag(1))
-    ccohort_hydr%qtop_dt        = (currentCohort%n*ccohort_hydr%qtop_dt        + &
-         nextCohort%n*ncohort_hydr%qtop_dt)/newn
-    ccohort_hydr%dqtopdth_dthdt = (currentCohort%n*ccohort_hydr%dqtopdth_dthdt + &
-         nextCohort%n*ncohort_hydr%dqtopdth_dthdt)/newn
+
     ccohort_hydr%sapflow        = (currentCohort%n*ccohort_hydr%sapflow        + &
          nextCohort%n*ncohort_hydr%sapflow)/newn
     ccohort_hydr%rootuptake     = (currentCohort%n*ccohort_hydr%rootuptake     + &
          nextCohort%n*ncohort_hydr%rootuptake)/newn
-    ccohort_hydr%rootuptake01   = (currentCohort%n*ccohort_hydr%rootuptake01   + &
-         nextCohort%n*ncohort_hydr%rootuptake01)/newn
-    ccohort_hydr%rootuptake02   = (currentCohort%n*ccohort_hydr%rootuptake02   + &
-         nextCohort%n*ncohort_hydr%rootuptake02)/newn
-    ccohort_hydr%rootuptake03   = (currentCohort%n*ccohort_hydr%rootuptake03   + &
-         nextCohort%n*ncohort_hydr%rootuptake03)/newn
-    ccohort_hydr%rootuptake04   = (currentCohort%n*ccohort_hydr%rootuptake04   + &
-         nextCohort%n*ncohort_hydr%rootuptake04)/newn
-    ccohort_hydr%rootuptake05   = (currentCohort%n*ccohort_hydr%rootuptake05   + &
-         nextCohort%n*ncohort_hydr%rootuptake05)/newn
-    ccohort_hydr%rootuptake06   = (currentCohort%n*ccohort_hydr%rootuptake06   + &
-         nextCohort%n*ncohort_hydr%rootuptake06)/newn
-    ccohort_hydr%rootuptake07   = (currentCohort%n*ccohort_hydr%rootuptake07   + &
-         nextCohort%n*ncohort_hydr%rootuptake07)/newn
-    ccohort_hydr%rootuptake08   = (currentCohort%n*ccohort_hydr%rootuptake08   + &
-         nextCohort%n*ncohort_hydr%rootuptake08)/newn
-    ccohort_hydr%rootuptake09   = (currentCohort%n*ccohort_hydr%rootuptake09   + &
-         nextCohort%n*ncohort_hydr%rootuptake09)/newn
-    ccohort_hydr%rootuptake10   = (currentCohort%n*ccohort_hydr%rootuptake10   + &
-         nextCohort%n*ncohort_hydr%rootuptake10)/newn
-
-    ccohort_hydr%lwp_mem(:)       = ccohort_hydr%psi_ag(1)
-    ccohort_hydr%lwp_stable       = ccohort_hydr%psi_ag(1)
-    ccohort_hydr%lwp_is_unstable  = .false.
-    ccohort_hydr%flc_min_ag(:)    = (currentCohort%n*ccohort_hydr%flc_min_ag(:)    + &
-         nextCohort%n*ncohort_hydr%flc_min_ag(:))/newn
-    ccohort_hydr%flc_min_troot(:) = (currentCohort%n*ccohort_hydr%flc_min_troot(:) + &
-         nextCohort%n*ncohort_hydr%flc_min_troot(:))/newn
-    ccohort_hydr%flc_min_aroot(:) = (currentCohort%n*ccohort_hydr%flc_min_aroot(:) + &
-         nextCohort%n*ncohort_hydr%flc_min_aroot(:))/newn
-
-    ! need to be migrated to parmeter file (BOC 07/24/2018)
-    ccohort_hydr%refill_thresh            = -0.01_r8
-    ccohort_hydr%refill_days              =  3.0_r8
 
     ccohort_hydr%errh2o                   = (currentCohort%n*ccohort_hydr%errh2o                   + &
          nextCohort%n*ncohort_hydr%errh2o)/newn
@@ -1166,13 +1070,10 @@ contains
          nextCohort%n*ncohort_hydr%errh2o_growturn_troot(:))/newn
     ccohort_hydr%errh2o_pheno_troot(:)    = (currentCohort%n*ccohort_hydr%errh2o_pheno_troot(:)    + &
          nextCohort%n*ncohort_hydr%errh2o_pheno_troot(:))/newn
-    ccohort_hydr%errh2o_growturn_aroot(:) = (currentCohort%n*ccohort_hydr%errh2o_growturn_aroot(:) + &
-         nextCohort%n*ncohort_hydr%errh2o_growturn_aroot(:))/newn
-    ccohort_hydr%errh2o_pheno_aroot(:)    = (currentCohort%n*ccohort_hydr%errh2o_pheno_aroot(:)    + &
-         nextCohort%n*ncohort_hydr%errh2o_pheno_aroot(:))/newn
-
-    !ccohort_hydr%th_aroot_prev(:)
-    !ccohort_hydr%th_aroot_prev_uncorr(:)
+    ccohort_hydr%errh2o_growturn_aroot    = (currentCohort%n*ccohort_hydr%errh2o_growturn_aroot + &
+         nextCohort%n*ncohort_hydr%errh2o_growturn_aroot)/newn
+    ccohort_hydr%errh2o_pheno_aroot       = (currentCohort%n*ccohort_hydr%errh2o_pheno_aroot    + &
+         nextCohort%n*ncohort_hydr%errh2o_pheno_aroot)/newn
 
     ccohort_hydr%is_newly_recruited        = .false.
 
@@ -1317,21 +1218,14 @@ contains
     !
     ! init_patch() -> updateSizeDepRhizHydProps -> shellgeom()
     !         this%v_shell
-    !         this%v_shell_1D
     !         this%r_node_shell
     !         this%r_out_shell
-    !         this%r_out_shell_1D
-    !         this%r_node_shell_1D
     !
     ! init_patch() -> updateSizeDepRhizHydProps()
     !         this%l_aroot_layer_init
     !         this%l_aroot_1D
     !         this%kmax_upper_shell
-    !         this%kmax_bound_shell
     !         this%kmax_lower_shell
-    !         this%kmax_upper_shell_1D
-    !         this%kmax_bound_shell_1D
-    !         this%kmax_lower_shell_1D
     !
     ! hydraulics_bc()
     !         this%supsub_flag
@@ -1667,8 +1561,6 @@ contains
        cPatch => cPatch%older
     enddo !patch
 
-    csite_hydr%l_aroot_1D = sum( csite_hydr%l_aroot_layer(:))
-
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
     do j = 1,nlevsoi_hyd
        ! proceed only if l_aroot_coh has changed
@@ -1678,8 +1570,7 @@ contains
                csite_hydr%r_out_shell(j,:), csite_hydr%r_node_shell(j,:),csite_hydr%v_shell(j,:))
        end if !has l_aroot_layer changed?
     enddo
-    call shellGeom( csite_hydr%l_aroot_1D, csite_hydr%rs1(1), AREA, sum(bc_in%dz_sisl(1:nlevsoi_hyd)), &
-         csite_hydr%r_out_shell_1D(:), csite_hydr%r_node_shell_1D(:), csite_hydr%v_shell_1D(:))
+
 
     !update the conductitivity for first soil shell is done at subroutine KmaxInnerShell
     !which is dependant on whether it is water uptake or loss for every 30 minutes
@@ -1712,19 +1603,8 @@ contains
              csite_hydr%kmax_upper_shell(j,k)        = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                   log(csite_hydr%r_node_shell(j,k)/csite_hydr%r_out_shell(j,k-1))*hksat_s
 
-             csite_hydr%kmax_bound_shell(j,k)        = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
-                  log(csite_hydr%r_node_shell(j,k)/csite_hydr%r_node_shell(j,k-1))*hksat_s
-
              csite_hydr%kmax_lower_shell(j,k)        = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                   log(csite_hydr%r_out_shell(j,k)/csite_hydr%r_node_shell(j,k  ))*hksat_s
-             if(j == 1) then
-                csite_hydr%kmax_upper_shell_1D(k)    = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
-                     log(csite_hydr%r_node_shell_1D(k)/csite_hydr%r_out_shell_1D(k-1))*hksat_s
-                csite_hydr%kmax_bound_shell_1D(k)    = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
-                     log(csite_hydr%r_node_shell_1D(k)/csite_hydr%r_node_shell_1D(k-1))*hksat_s
-                csite_hydr%kmax_lower_shell_1D(k)    = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
-                     log(csite_hydr%r_out_shell_1D( k)/csite_hydr%r_node_shell_1D(k  ))*hksat_s
-             end if
           enddo ! loop over rhizosphere shells
        end if !has l_aroot_layer changed?
     enddo ! loop over soil layers
@@ -2019,7 +1899,7 @@ contains
           ccohort=>cpatch%tallest
           do while(associated(ccohort))
              bc_out(s)%btran_pa(ifp) =  bc_out(s)%btran_pa(ifp) + &
-                  ccohort%co_hydr%btran(1) * &
+                  ccohort%co_hydr%btran * &
                   (cCohort%prt%GetState(fnrt_organ, all_carbon_elements) + &
                   cCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
                   cCohort%prt%GetState(leaf_organ, all_carbon_elements)) * &
@@ -2247,61 +2127,24 @@ contains
     real(r8) :: we_area_outer                 ! 1D plant-soil continuum water error                             [kgh2o m-2 individual-1]
 
     ! cohort-specific arrays to hold 1D hydraulics geometric & state variables for entire continuum (leaf,stem,root,soil)
-    real(r8) :: z_node_1l(    n_hypool_tot)      ! nodal height of water storage compartments (single-layer soln)  [m]
-    real(r8) :: v_node_1l(    n_hypool_tot)      ! volume of water storage compartments (single-layer soln)        [m3]
-    real(r8) :: psi_node(     n_hypool_tot)      ! water potential in water storage compartments                   [MPa]
-    real(r8) :: psi_node_1l(  n_hypool_tot)      ! water potential in water storage compartments (single-layer soln) [MPa]
-    real(r8) :: flc_node_1l(  n_hypool_tot)      ! fractional loss of conductivity (single-layer soln)             [-]
-    real(r8) :: flc_min_node( n_hypool_tot-nshell)! minimum attained fractional loss of conductivity (for xylem refilling dynamics) [-]
-    real(r8) :: dflcdpsi_node_1l(n_hypool_tot)   ! derivative of flc_node_1l wrt psi                               [MPa-1]
-    real(r8) :: ths_node(     n_hypool_tot)      ! saturated volumetric water in water storage compartments        [m3 m-3]
-    real(r8) :: ths_node_1l(  n_hypool_tot)      ! saturated volumetric water in water storage compartments (single-layer soln) [m3 m-3]
-    real(r8) :: thr_node(     n_hypool_tot)      ! residual volumetric water in water storage compartments         [m3 m-3]
-    real(r8) :: thr_node_1l(  n_hypool_tot)      ! residual volumetric water in water storage compartments (single-layer soln) [m3 m-3]
-    real(r8) :: the_node(     n_hypool_tot)      ! error resulting from supersaturation or below-residual th_node  [m3 m-3]
-    real(r8) :: the_node_1l(  n_hypool_tot)      ! like the_node(:) but for specific single soil layer             [m3 m-3]
-    real(r8) :: th_node(      n_hypool_tot)      ! volumetric water in water storage compartments                  [m3 m-3]
-    real(r8) :: th_node_1l(   n_hypool_tot)      ! volumetric water in water storage compartments (single-layer soln) [m3 m-3]
-    real(r8) :: dth_node(     n_hypool_tot)      ! change in volumetric water in water storage compartments        [m3 m-3]
-    real(r8) :: dth_node_1l(  n_hypool_tot)      ! like dth_node_1l(:) but for specific single soil layer          [m3 m-3]
-    real(r8) :: kmax_bound(   n_hypool_tot)      ! lower boundary maximum hydraulic conductance of compartments    [kg s-1 MPa-1]
-    real(r8) :: kmax_bound_1l(n_hypool_tot)      ! lower boundary maximum hydraulic conductance of compartments (single-layer soln) [kg s-1 MPa-1]
-    real(r8) :: kmax_upper(   n_hypool_tot)      ! maximum hydraulic conductance from node to upper boundary       [kg s-1 MPa-1]
-    real(r8) :: kmax_upper_1l(n_hypool_tot)      ! maximum hydraulic conductance from node to upper boundary (single-layer soln)    [kg s-1 MPa-1]
-    real(r8) :: kmax_lower(   n_hypool_tot)      ! maximum hydraulic conductance from node to lower boundary       [kg s-1 MPa-1]
-    real(r8) :: kmax_lower_1l(n_hypool_tot)      ! maximum hydraulic conductance from node to lower boundary (single-layer soln)    [kg s-1 MPa-1]
-    real(r8) :: hdiff_bound_1l( nshell+1)     !
-    real(r8) :: k_bound_1l(     nshell+1)     !
-    real(r8) :: dhdiffdpsi0_1l( nshell+1)     !
-    real(r8) :: dhdiffdpsi1_1l( nshell+1)     !
-    real(r8) :: dkbounddpsi0_1l(nshell+1)     !
-    real(r8) :: dkbounddpsi1_1l(nshell+1)     !
-    real(r8) :: l_aroot_tot_coh               ! total length of absorbing roots across all soil layers (cohort) [m]
-    real(r8) :: dwat_veg_coh                  ! total indiv change in stored vegetation water over a timestep   [kg]
+
+    real(r8) :: ths_node(n_hypool_tot)      ! saturated volumetric water in water storage compartments        [m3 m-3]
+    real(r8) :: thr_node(n_hypool_tot)      ! residual volumetric water in water storage compartments         [m3 m-3]
+    real(r8) :: the_node(n_hypool_tot)      ! error resulting from supersaturation or below-residual th_node  [m3 m-3]
+    real(r8) :: th_node(n_hypool_tot)       ! volumetric water in water storage compartments                  [m3 m-3]
+    real(r8) :: dth_node(n_hypool_tot)      ! change in volumetric water in water storage compartments        [m3 m-3]
+    real(r8) :: dwat_veg_coh                ! total indiv change in stored vegetation water over a timestep   [kg]
+
 
     ! column-specific arrays to hold rhizosphere geometric & state variables
     real(r8) :: h2osoi_liqvol
-    real(r8) :: dz_tot                        ! total soil depth (to bottom of bottom layer)                    [m]
-    real(r8) :: l_aroot_tot_col               ! total length of absorbing roots across all soil layers          [m]
+
     real(r8) :: dth_layershell_col(nlevsoi_hyd_max,nshell) ! accumulated water content change over all cohorts in a column   [m3 m-3]
-    real(r8) :: ths_shell_1D(nshell)          ! saturated water content of rhizosphere compartment              [m3 m-3]
-    real(r8) :: thr_shell_1D(nshell)          ! residual water content of rhizosphere compartment               [m3 m-3]
-    real(r8) :: kmax_bound_shell_1l(nshell)   ! like kmax_bound_shell_1D(:) but for specific single soil layer  [kg s-1 MPa-1]
-    real(r8) :: psi_node_shell_1D(nshell)     ! soil matric potential of rhizosphere compartment                [MPa]
-    real(r8) :: ths_aroot_1D                  ! saturated water content of 1D representation of fine roots      [m3 m-3]
-    real(r8) :: thr_aroot_1D                  ! residual water content of 1D representation of fine roots       [m3 m-3]
-    real(r8) :: vtot_aroot_1D                 ! sum of fine root volume across soil layers                      [m3]
-    real(r8) :: psi_node_aroot_1D             ! water potential of absorbing root                               [MPa]
 
     ! hydraulics conductances
-    real(r8) :: kmax_bound_bylayershell(nlevsoi_hyd_max,nshell) ! maximum conductance at shell boundaries in each layer [kg s-1 MPa-1]
-    real(r8) :: kmax_bound_aroot_soil1        ! maximum radial conductance of absorbing roots                   [kg s-1 MPa-1]
-    real(r8) :: kmax_bound_aroot_soil2        ! maximum conductance to root surface from innermost rhiz shell   [kg s-1 MPa-1]
-    real(r8) :: ksoil_bylayer(nlevsoi_hyd_max)        ! total rhizosphere conductance (over all shells) by soil layer   [MPa]
-    real(r8) :: ksoil_tot                     ! total rhizosphere conductance (over all shells and soil layers  [MPa]
     real(r8) :: kbg_layer(nlevsoi_hyd_max)     ! total absorbing root & rhizosphere conductance (over all shells) by soil layer   [MPa]
     real(r8) :: kbg_tot                       ! total absorbing root & rhizosphere conductance (over all shells and soil layers  [MPa]
-    real(r8) :: kmax_stem                     ! maximum whole-stem (above troot to leaf) conductance            [kg s-1 MPa-1]
+
 
     ! hydraulics other
     integer  :: ordered(nlevsoi_hyd_max) = (/(j,j=1,nlevsoi_hyd_max,1)/) ! array of soil layer indices which have been ordered
@@ -2332,9 +2175,8 @@ contains
     integer  :: tmp
     real(r8) :: tmp1
     real(r8) :: watres_local
+    real(r8) :: dt_step
     integer  :: pick_1l(nshell+1) = (/(k,k=n_hypool_ag+n_hypool_troot+1,n_hypool_tot,1)/)
-    real(r8) :: lwpdiff1, lwpdiff2, Rndiff1, Rndiff2, btran_prev
-    real(r8) :: refill_rate                   ! rate of xylem refilling  [fraction per unit time; s-1]
     real(r8) :: roota, rootb                  ! parameters for root distribution                                      [m-1]
     real(r8) :: rootfr                        ! root fraction at different soil layers
     real(r8) :: prev_h2oveg                   ! previous time step plant water storage (kg/m2)
@@ -2343,6 +2185,11 @@ contains
     type(ed_site_hydr_type), pointer :: site_hydr
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     integer  :: err_code = 0
+
+    logical, parameter :: weight_serial_dt = .false.  ! For serial solver (1D), should
+                                                      ! the fractional time each layer
+                                                      ! gets, be weighted by conductance?
+
 
     ! ----------------------------------------------------------------------------------
     ! Important note: We are interested in calculating the total fluxes in and out of the
@@ -2428,8 +2275,6 @@ contains
              ft       = ccohort%pft
              ncoh_col = ncoh_col + 1
 
-             ccohort_hydr%qtop_dt         = 0._r8
-             ccohort_hydr%dqtopdth_dthdt  = 0._r8
              ccohort_hydr%sapflow         = 0._r8
              ccohort_hydr%rootuptake      = 0._r8
 
@@ -2552,9 +2397,18 @@ contains
 
              ! do j=1,nlevsoi_hyd  ! replace j with ordered(jj) in order 
              ! to go through soil layers in order of decreasing total root-soil conductance
+
+
              do jj=1,site_hydr%nlevsoi_hyd
 
                 j = ordered(jj)
+
+                if(weight_serial_dt)then
+                    dt_step = dtime*kbg_layer(j)/kbg_tot
+                else
+                    dt_step = dtime/real(site_hydr%nlevsoi_hyd,r8)
+                end if
+                
 
                 ! This routine will update the theta values for 1 cohort's flow-path
                 ! from leaf to the current soil layer
@@ -2578,9 +2432,7 @@ contains
                      (sum(dth_node(1:n_hypool_ag)*ccohort_hydr%v_ag(1:n_hypool_ag)) + &
                       dth_node(n_hypool_ag+1)*ccohort_hydr%v_troot(1) + & 
                       dth_node(n_hypool_ag+2)*csite_hydr%v_aroot_layer(j))*denh2o
-                
-                
-                
+
 
                 site_hydr%dwat_veg   = site_hydr%dwat_veg + dwat_veg_coh*ccohort%n/AREA
                 site_hydr%h2oveg     = site_hydr%h2oveg + dwat_veg_coh*ccohort%n/AREA
@@ -2591,221 +2443,119 @@ contains
                 site_hydr%errh2o_hyd = site_hydr%errh2o_hyd + wb_error*ccohort%c_area /AREA
                 
 
-                ccohort_hydr%sapflow                   = ccohort_hydr%sapflow + sapflow                              ! 
-                ccohort_hydr%rootuptake                = ccohort_hydr%rootuptake + rootuptake                        ! 
+                ccohort_hydr%sapflow       = ccohort_hydr%sapflow + sapflow
+                ccohort_hydr%rootuptake(j) = ccohort_hydr%rootuptake(j) + rootuptake
 
-
-                ! CHANGE THIS TO A VICTORIOUS VECTOR
+                ! ACCUMULATE CHANGE IN SOIL WATER CONTENT OF EACH COHORT TO COLUMN-LEVEL
+                dth_layershell_col(j,:) = dth_layershell_col(j,:) + &
+                      dth_node((n_hypool_tot-nshell+1):n_hypool_tot) * &
+                      ccohort_hydr%l_aroot_layer(j) * &
+                      ccohort%n / site_hydr%l_aroot_layer(j)
                 
-                   SELECT CASE (ordered(jj))  !! select soil layer
-                   CASE (1)
-                      ccohort_hydr%rootuptake01        = rootuptake
-                   CASE (2)
-                      ccohort_hydr%rootuptake02        = rootuptake
-                   CASE (3)
-                      ccohort_hydr%rootuptake03        = rootuptake
-                   CASE (4)
-                      ccohort_hydr%rootuptake04        = rootuptake
-                   CASE (5)
-                      ccohort_hydr%rootuptake05        = rootuptake
-                   CASE (6)
-                      ccohort_hydr%rootuptake06        = rootuptake
-                   CASE (7)
-                      ccohort_hydr%rootuptake07        = rootuptake
-                   CASE (8)
-                      ccohort_hydr%rootuptake08        = rootuptake
-                   CASE (9)
-                      ccohort_hydr%rootuptake09        = rootuptake
-                   CASE (10)
-                      ccohort_hydr%rootuptake10        = rootuptake
-                   CASE DEFAULT
-                   end SELECT
+            enddo !soil layer
 
-                   ! UPDATE WATER CONTENT & POTENTIAL IN AROOT (COHORT-LEVEL)
-                   ccohort_hydr%th_aroot(ordered(jj))     = th_node_1l(n_hypool_ag+n_hypool_troot+1)
-                   call psi_from_th(ft, porous_media(n_hypool_ag+n_hypool_troot+1), &
-                        ccohort_hydr%th_aroot(ordered(jj)), ccohort_hydr%psi_aroot(ordered(jj)), &
-                        site_hydr, bc_in(s))
-                   call flc_from_psi(ft, porous_media(n_hypool_ag+n_hypool_troot+1), &
-                        ccohort_hydr%psi_aroot(ordered(jj)), ccohort_hydr%flc_aroot(ordered(jj)), &
-                        site_hydr, bc_in(s))
-
-                   ! ACCUMULATE CHANGE IN SOIL WATER CONTENT OF EACH COHORT TO COLUMN-LEVEL
-                   dth_layershell_col(ordered(jj),:) = dth_layershell_col(ordered(jj),:) + &
-                        dth_node_1l((n_hypool_tot-nshell+1):n_hypool_tot) * &
-                        ccohort_hydr%l_aroot_layer(ordered(jj)) * &
-                        ccohort%n / site_hydr%l_aroot_layer(ordered(jj))
-
-                enddo !soil layer
-             end if !nlevsoi_hyd > 1
-
-             ! UPDATE WATER CONTENT & POTENTIAL IN LEAVES, STEM, AND TROOT (COHORT-LEVEL)
-             do k=1,n_hypool_ag
-                if(site_hydr%nlevsoi_hyd == 1) then
-                   ccohort_hydr%th_ag(k)          = th_node(k)
-                else
-                   ccohort_hydr%th_ag(k)          = th_node_1l(k)
-                endif
+            ! ---------------------------------------------------------
+            ! Update water potential of plant compartments
+            ! ---------------------------------------------------------
+ 
+            ! Above ground
+            do k=1,n_hypool_ag
                 call psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k), &
-                     ccohort_hydr%psi_ag(k), site_hydr, bc_in(s) )
-                call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), &
-                     ccohort_hydr%flc_ag(k), site_hydr, bc_in(s) ) 
-             enddo
-             do k=(n_hypool_ag+1),(n_hypool_ag+n_hypool_troot)
-                if(site_hydr%nlevsoi_hyd == 1) then
-                   ccohort_hydr%th_troot(k-n_hypool_ag) = th_node(k)
-                else
-                   ccohort_hydr%th_troot(k-n_hypool_ag) = th_node_1l(k)
-                endif
-                call psi_from_th(ft, porous_media(k), ccohort_hydr%th_troot(k-n_hypool_ag), &
-                     ccohort_hydr%psi_troot(k-n_hypool_ag), site_hydr, bc_in(s))
-                call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_troot(k-n_hypool_ag), &
-                     ccohort_hydr%flc_troot(k-n_hypool_ag), site_hydr, bc_in(s))
-             enddo
+                      ccohort_hydr%psi_ag(k), site_hydr, bc_in(s) )
+            enddo
+            ! Update water potential of transporting root compartment
+            k = n_hpool_ag+1
+            call psi_from_th(ft, porous_media(k), ccohort_hydr%th_troot, &
+                  ccohort_hydr%psi_troot, site_hydr, bc_in(s))
+            ! Update water potential of absorbing root root compartment
+            do j=1,site_hydr%nlevsoi_hyd
+                call psi_from_th(ft, porous_media(n_hypool_ag+2), & 
+                      ccohort_hydr%th_aroot(j), ccohort_hydr%psi_aroot(j), &
+                      site_hydr, bc_in(s))
+            end do
 
-             ! SET COHORT-LEVEL BTRAN FOR USE IN NEXT TIMESTEP
-             ! first update the leaf water potential memory
-             do t=2, numLWPmem
-                ccohort_hydr%lwp_mem(t-1)      = ccohort_hydr%lwp_mem(t)
-             end do
-             ccohort_hydr%lwp_mem(numLWPmem)   = ccohort_hydr%psi_ag(1)
-             call flc_gs_from_psi(cCohort, ccohort_hydr%psi_ag(1))
+            ccohort => ccohort%shorter
+        enddo !cohort 
+        
+        cpatch => cpatch%younger
+    enddo !patch
 
-             refill_rate = -log(0.5)/(ccohort_hydr%refill_days*24._r8*3600._r8)   ! s-1
-             do k=1,n_hypool_ag
-                ccohort_hydr%flc_min_ag(k) = min(ccohort_hydr%flc_min_ag(k), ccohort_hydr%flc_ag(k))
-                if(ccohort_hydr%psi_ag(k) >= ccohort_hydr%refill_thresh .and. &
-                     ccohort_hydr%flc_ag(k) > ccohort_hydr%flc_min_ag(k)) then   ! then refilling
-                   ccohort_hydr%flc_min_ag(k) = ccohort_hydr%flc_ag(k) - &
-                        (ccohort_hydr%flc_ag(k) - ccohort_hydr%flc_min_ag(k))*exp(-refill_rate*dtime)
-                end if
-             end do
-             do k=1,n_hypool_troot
-                ccohort_hydr%flc_min_troot(k) = min(ccohort_hydr%flc_min_troot(k), ccohort_hydr%flc_troot(k))
-                if(ccohort_hydr%psi_troot(k) >= ccohort_hydr%refill_thresh .and. &
-                     ccohort_hydr%flc_troot(k) > ccohort_hydr%flc_min_troot(k)) then   ! then refilling
-                   ccohort_hydr%flc_min_troot(k) = ccohort_hydr%flc_troot(k) - &
-                        (ccohort_hydr%flc_troot(k) - ccohort_hydr%flc_min_troot(k))*exp(-refill_rate*dtime)
-                end if
-             end do
-             do j=1,site_hydr%nlevsoi_hyd
-                ccohort_hydr%flc_min_aroot(j) = min(ccohort_hydr%flc_min_aroot(j), ccohort_hydr%flc_aroot(j))
-                if(ccohort_hydr%psi_aroot(j) >= ccohort_hydr%refill_thresh .and. &
-                     ccohort_hydr%flc_aroot(j) > ccohort_hydr%flc_min_aroot(j)) then   ! then refilling
-                   ccohort_hydr%flc_min_aroot(j) = ccohort_hydr%flc_aroot(j) - &
-                        (ccohort_hydr%flc_aroot(j) - ccohort_hydr%flc_min_aroot(j))*exp(-refill_rate*dtime)
-                end if
-             end do
-
-             ccohort => ccohort%shorter
-          enddo !cohort 
-
-          cpatch => cpatch%younger
-       enddo !patch
-
-       ! UPDATE THE COLUMN-LEVEL SOIL WATER CONTENT (LAYER x SHELL)
-       site_hydr%supsub_flag(:) = 999
-       do j=1,site_hydr%nlevsoi_hyd
-          !! BOC... should the below code exist on HLM side?  watres_col is a new SWC parameter 
-          ! introduced for the van Genuchten, but does not exist for Campbell SWC.
-          select case (iswc)
-          case (van_genuchten) 
-             write(fates_log(),*) 'Van Genuchten plant hydraulics is inoperable until further notice'
-             call endrun(msg=errMsg(sourcefile, __LINE__)) 
-             ! watres_local = bc_in(s)%watres_sisl(j)
-          case (campbell)
-             call swcCampbell_satfrac_from_psi(bc_in(s)%smpmin_si*denh2o*grav_earth*1.e-9_r8, &
+    ! UPDATE THE COLUMN-LEVEL SOIL WATER CONTENT (LAYER x SHELL)
+    site_hydr%supsub_flag(:) = 999
+    do j=1,site_hydr%nlevsoi_hyd
+        !! BOC... should the below code exist on HLM side?  watres_col is a new SWC parameter 
+        ! introduced for the van Genuchten, but does not exist for Campbell SWC.
+        select case (iswc)
+        case (van_genuchten) 
+            write(fates_log(),*) 'Van Genuchten plant hydraulics is inoperable until further notice'
+            call endrun(msg=errMsg(sourcefile, __LINE__)) 
+            ! watres_local = bc_in(s)%watres_sisl(j)
+        case (campbell)
+            call swcCampbell_satfrac_from_psi(bc_in(s)%smpmin_si*denh2o*grav_earth*1.e-9_r8, &
                   (-1._r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*1.e-9_r8, &
                   bc_in(s)%bsw_sisl(j),     &
                   tmp1)
-             call swcCampbell_th_from_satfrac(tmp1, &
+            call swcCampbell_th_from_satfrac(tmp1, &
                   bc_in(s)%watsat_sisl(j),   &
                   watres_local)
-          case default
-          end select
-          do k=1,nshell
-             if ((site_hydr%h2osoi_liqvol_shell(j,k)+dth_layershell_col(j,k)) > &
+        case default
+        end select
+        do k=1,nshell
+            if ((site_hydr%h2osoi_liqvol_shell(j,k)+dth_layershell_col(j,k)) > &
                   (bc_in(s)%watsat_sisl(j)-small_theta_num)) then
                 site_hydr%supsub_flag(j)           =  k
                 site_hydr%h2osoi_liqvol_shell(j,k) =  bc_in(s)%watsat_sisl(j)-small_theta_num
-             else if ((site_hydr%h2osoi_liqvol_shell(j,k)+dth_layershell_col(j,k)) < &
+            else if ((site_hydr%h2osoi_liqvol_shell(j,k)+dth_layershell_col(j,k)) < &
                   (watres_local+small_theta_num)) then
                 site_hydr%supsub_flag(j)           = -k
                 site_hydr%h2osoi_liqvol_shell(j,k) =  watres_local+small_theta_num
-             else
+            else
                 site_hydr%h2osoi_liqvol_shell(j,k) =  site_hydr%h2osoi_liqvol_shell(j,k) + &
-                     dth_layershell_col(j,k)
-             end if
-          enddo
+                      dth_layershell_col(j,k)
+            end if
+        enddo
+        
+        ! Update the matric potential in the inner-most shell 
+        ! (used for setting tissue potentials of new recruits)
+        call swcCampbell_psi_from_th(site_hydr%h2osoi_liqvol_shell(j,1), &
+              bc_in(s)%watsat_sisl(j), (-1.0_r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*1.e-9_r8, &
+              bc_in(s)%bsw_sisl(j), smp)
+        site_hydr%psisoi_liq_innershell(j) = smp
+        
+        !qflx_rootsoi(c,j)              = -(sum(dth_layershell_col(j,:))*bc_in(s)%dz_sisl(j)*denh2o/dtime)
+        bc_out(s)%qflx_soil2root_sisl(j)               = &
+              -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:)) * &
+              site_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)+ &
+              site_hydr%recruit_w_uptake(j)
+        
+        ! h2osoi_liqvol =  min(bc_in(s)%eff_porosity_sl(j), &
+        !     bc_in(s)%h2o_liq_sisl(j)/(bc_in(s)%dz_sisl(j)*denh2o))
+        
+        ! Save the amount of liquid soil water known to the model after root uptake
+        ! This calculation also assumes that 1mm of water is 1kg
+        site_hydr%h2osoi_liq_prev(j) = bc_in(s)%h2o_liq_sisl(j) - &
+                dtime*bc_out(s)%qflx_soil2root_sisl(j)
 
-          ! Update the matric potential in the inner-most shell 
-          ! (used for setting tissue potentials of new recruits)
-          call swcCampbell_psi_from_th(site_hydr%h2osoi_liqvol_shell(j,1), &
-               bc_in(s)%watsat_sisl(j), (-1.0_r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*1.e-9_r8, &
-               bc_in(s)%bsw_sisl(j), smp)
-          site_hydr%psisoi_liq_innershell(j) = smp
+    enddo !site_hydr%nlevsoi_hyd
+    
+    !-----------------------------------------------------------------------
+    ! mass balance check and pass the total stored vegetation water to HLM
+    ! in order for it to fill its balance checks
 
-
-          if(site_hydr%nlevsoi_hyd == 1) then
-
-             bc_out(s)%qflx_soil2root_sisl(1:bc_in(s)%nlevsoil-1) = 0._r8
-
-             bc_out(s)%qflx_soil2root_sisl(bc_in(s)%nlevsoil)     = &
-                  -(sum(dth_layershell_col(j,:)*site_hydr%v_shell_1D(:)) * &
-                  site_hydr%l_aroot_1D/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)+ &
-                  site_hydr%recruit_w_uptake(site_hydr%nlevsoi_hyd)
-
-             ! Save the amount of liquid soil water known to the model after root uptake
-             site_hydr%h2osoi_liq_prev(site_hydr%nlevsoi_hyd) = bc_in(s)%h2o_liq_sisl(bc_in(s)%nlevsoil) - &
-                  dtime*bc_out(s)%qflx_soil2root_sisl(bc_in(s)%nlevsoil)
-
-          else
-             !qflx_rootsoi(c,j)              = -(sum(dth_layershell_col(j,:))*bc_in(s)%dz_sisl(j)*denh2o/dtime)
-             bc_out(s)%qflx_soil2root_sisl(j)               = &
-                  -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:)) * &
-                  site_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)+ &
-                  site_hydr%recruit_w_uptake(j)
-
-             ! h2osoi_liqvol =  min(bc_in(s)%eff_porosity_sl(j), &
-             !     bc_in(s)%h2o_liq_sisl(j)/(bc_in(s)%dz_sisl(j)*denh2o))
-
-             ! Save the amount of liquid soil water known to the model after root uptake
-             ! This calculation also assumes that 1mm of water is 1kg
-             site_hydr%h2osoi_liq_prev(j) = bc_in(s)%h2o_liq_sisl(j) - &
-                  dtime*bc_out(s)%qflx_soil2root_sisl(j)
-
-          end if
-
-       enddo !site_hydr%nlevsoi_hyd
-       !-----------------------------------------------------------------------
-       ! mass balance check and pass the total stored vegetation water to HLM
-       ! in order for it to fill its balance checks
-	   totalrootuptake = 0.0_r8
-	   totalqtop_dt = 0.0_r8
-	   cpatch => sites(s)%oldest_patch
-       do while (associated(cpatch))
-          ccohort=>cpatch%tallest
-          do while(associated(ccohort))
-             ccohort_hydr => ccohort%co_hydr
-             !totalrootuptake = totalrootuptake + ccohort_hydr%rootuptake* ccohort%n/AREA
-             totalqtop_dt= totalqtop_dt+  ccohort_hydr%qtop_dt* ccohort%n/AREA
-             ccohort => ccohort%shorter
-          enddo !cohort
-          cpatch => cpatch%younger
-	   enddo !patch
     !remove the recruitment water uptake as it has been added to prev_h2oveg 
-	   totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:)- &
-            site_hydr%recruit_w_uptake(:))*dtime
 
-       total_e = site_hydr%h2oveg-(prev_h2oveg + totalrootuptake - totalqtop_dt)
-
-	   site_hydr%h2oveg_hydro_err = site_hydr%h2oveg_hydro_err + total_e
-
-       bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead - &
-            site_hydr%h2oveg_growturn_err - &
-            site_hydr%h2oveg_pheno_err-&
-            site_hydr%h2oveg_hydro_err
-
+    totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:)- &
+          site_hydr%recruit_w_uptake(:))*dtime
+    
+    total_e = site_hydr%h2oveg-(prev_h2oveg + totalrootuptake )
+    
+    site_hydr%h2oveg_hydro_err = site_hydr%h2oveg_hydro_err + total_e
+    
+    bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead - &
+          site_hydr%h2oveg_growturn_err - &
+          site_hydr%h2oveg_pheno_err-&
+          site_hydr%h2oveg_hydro_err
+    
 
     enddo !site
 
@@ -2840,8 +2590,8 @@ contains
     ccohort_hydr => ccohort%co_hydr
     csite_hydr   => csite%si_hydr
     delta_w =   (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))      + &
-         sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:))             + &
-         sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
+          ccohort_hydr%th_troot*ccohort_hydr%v_troot                  + &
+          sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
          denh2o*delta_n/AREA
 
     csite_hydr%h2oveg_dead = csite_hydr%h2oveg_dead + delta_w
@@ -2894,7 +2644,7 @@ contains
              if(ccohort_hydr%is_newly_recruited) then
                 csite_hydr%h2oveg_recruit = csite_hydr%h2oveg_recruit + &
                      (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:)) + &
-                     sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:)) + &
+                     ccohort_hydr%th_troot*ccohort_hydr%v_troot       + &
                      sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
                      denh2o*currentCohort%n
              end if
@@ -3286,8 +3036,8 @@ contains
        stem_water = sum(ccohort_hydr%th_ag(n_hypool_leaf+1:n_hypool_ag) * &
             ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag))*denh2o
 
-       root_water = (sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:)) + &
-            sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:))) * denh2o
+       root_water = ( ccohort_hydr%th_troot*ccohort_hydr%v_troot + &
+             sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:))) * denh2o
 
        write(fates_log(),*) 'leaf water: ',leaf_water,' kg/plant'
        write(fates_log(),*) 'stem_water: ',stem_water,' kg/plant'
@@ -3507,7 +3257,7 @@ contains
 
     cCohort => cc_p
     FT       = cCohort%pft
-    ccohort%co_hydr%btran(:) = &
+    ccohort%co_hydr%btran = &
          (1._r8 + (lwp/EDPftvarcon_inst%hydr_p50_gs(ft))**EDPftvarcon_inst%hydr_avuln_gs(ft))**(-1._r8)
 
   end subroutine flc_gs_from_psi
@@ -5133,6 +4883,47 @@ chi_tapnotap = ktap / knotap
 return
 
 end function xylemtaper
+
+
+
+!! subroutine UpdateLWPMemFLCMin(ccohort_hydr)
+
+! This code may be re-introduced at a later date (rgk 08-2019)
+
+! SET COHORT-LEVEL BTRAN FOR USE IN NEXT TIMESTEP
+! first update the leaf water potential memory
+!!    do t=2, numLWPmem
+!!ccohort_hydr%lwp_mem(t-1)      = ccohort_hydr%lwp_mem(t)
+!!end do
+!!ccohort_hydr%lwp_mem(numLWPmem)   = ccohort_hydr%psi_ag(1)
+!!call flc_gs_from_psi(cCohort, ccohort_hydr%psi_ag(1))
+
+!!refill_rate = -log(0.5)/(ccohort_hydr%refill_days*24._r8*3600._r8)   ! s-1
+!!do k=1,n_hypool_ag
+!!ccohort_hydr%flc_min_ag(k) = min(ccohort_hydr%flc_min_ag(k), ccohort_hydr%flc_ag(k))
+!!if(ccohort_hydr%psi_ag(k) >= ccohort_hydr%refill_thresh .and. &
+!!      ccohort_hydr%flc_ag(k) > ccohort_hydr%flc_min_ag(k)) then   ! then refilling
+!!    ccohort_hydr%flc_min_ag(k) = ccohort_hydr%flc_ag(k) - &
+!!          (ccohort_hydr%flc_ag(k) - ccohort_hydr%flc_min_ag(k))*exp(-refill_rate*dtime)
+!!end if
+!!end do
+!!do k=1,n_hypool_troot
+!!ccohort_hydr%flc_min_troot(k) = min(ccohort_hydr%flc_min_troot(k), ccohort_hydr%flc_troot(k))
+!!if(ccohort_hydr%psi_troot(k) >= ccohort_hydr%refill_thresh .and. &
+!!      ccohort_hydr%flc_troot(k) > ccohort_hydr%flc_min_troot(k)) then   ! then refilling
+!!    ccohort_hydr%flc_min_troot(k) = ccohort_hydr%flc_troot(k) - &
+!!          (ccohort_hydr%flc_troot(k) - ccohort_hydr%flc_min_troot(k))*exp(-refill_rate*dtime)
+!!end if
+!!end do
+!!do j=1,site_hydr%nlevsoi_hyd
+!!ccohort_hydr%flc_min_aroot(j) = min(ccohort_hydr%flc_min_aroot(j), ccohort_hydr%flc_aroot(j))
+!!if(ccohort_hydr%psi_aroot(j) >= ccohort_hydr%refill_thresh .and. &
+!!      ccohort_hydr%flc_aroot(j) > ccohort_hydr%flc_min_aroot(j)) then   ! then refilling
+!!    ccohort_hydr%flc_min_aroot(j) = ccohort_hydr%flc_aroot(j) - &
+!!          (ccohort_hydr%flc_aroot(j) - ccohort_hydr%flc_min_aroot(j))*exp(-refill_rate*dtime)
+!!end if
+!!end do
+!!end subroutine UpdateLWPMemFLCMin
 
 
 end module FatesPlantHydraulicsMod

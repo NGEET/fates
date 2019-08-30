@@ -81,7 +81,7 @@ contains
       ! is regulated completely by the stem conductance from the stem's
       ! center of storage, to the petiole.
 
-      ccohort_hydr%kmax_petiole_to_leaf = 1.e12_r8
+      ccohort_hydr%kmax_petiole_to_leaf = 1.e8_r8
 
 
       ! Stem Maximum Hydraulic Conductance
@@ -237,17 +237,13 @@ contains
         type(ed_site_hydr_type), intent(in),target   :: site_hydr
         integer           , intent(in)  :: ilayer              ! soil layer index of interest
         real(r8)          , intent(in)  :: psi_node(:)         ! matric potential of nodes [Mpa]
-        real(r8)          , intent(in)  :: flc_node(:)         ! fractional loss of conductivity at water storage nodes          [-]
+        real(r8)          , intent(in)  :: flc_node(:)         ! fractional loss of conductivity at water storage nodes [-]
         real(r8)          , intent(in)  :: dt_step             ! time [seconds] over-which to calculate solution
         real(r8)          , intent(in)  :: q_top               ! transpiration flux rate at upper boundary [kg -s]
         real(r8),intent(out) :: d_th_node(n_hypool_tot)        ! change in theta over the timestep
         real(r8),intent(out) :: sapflow                        ! time integrated mass flux between transp-root and stem [kg]
         real(r8),intent(out) :: rootuptake                     ! time integrated mass flux between rhizosphere and aroot [kg]
         real(r8),intent(out) :: wb_err                         ! transpiration should match change in storage [kg]
-
-
-       
-        
         
         ! Locals
         
@@ -256,10 +252,16 @@ contains
         integer :: ishell  ! rhizosphere shell index of the node
         integer :: i_dn    ! downstream node of current flow-path
         integer :: i_up    ! upstream node of current flow-path
+        integer :: iter    ! iteration count for sub-steps
+        logical :: solution_found ! logical set to true if a solution was found within error tolerance
         real(r8) :: kmax_up  ! maximum conductance of the upstream half of path [kg s-1 Mpa-1]
         real(r8) :: kmax_dn  ! maximum conductance of the downstream half of path [kg s-1 MPa-1]
         real(r8) :: wb_step_err
-        real(r8) :: th_node_init(n_hypool_tot)           ! "theta" i.e. water content of node [m3 m-3]
+        real(r8) :: wb_err                          ! sum of water balance error over substeps
+        real(r8) :: leaf_water  ! kg of water in the leaf
+        real(r8) :: stem_water  ! kg of water in the stem
+        real(r8) :: root_water  ! kg of water in the transp and absorbing roots
+        real(r8) :: th_node_init(n_hypool_tot)      ! "theta" i.e. water content of node [m3 m-3]
         real(r8) :: th_node(n_hypool_tot)
         real(r8) :: z_node(n_hypool_tot)            ! elevation of node [m]
         real(r8) :: v_node(n_hypool_tot)            ! volume of the node [m3]
@@ -276,6 +278,9 @@ contains
         real(r8) :: tris_c(n_hypool_tot)       ! right of diaongal terms for tri-diagonal matrix solving delta theta
         real(r8) :: tris_r(n_hypool_tot) 
 
+        integer, parameter  :: max_iter = 5
+        real(r8), parameter :: max_wb_step_err = 1.e-6_r8 
+        real(r8), parameter :: max_wb_err      = 1.e-4_r8  ! threshold for water balance error (stop model)   [mm h2o]
 
         ! -------------------------------------------------------------------------------
         ! Part 1.  Calculate node quantities:
@@ -299,8 +304,8 @@ contains
               th_node_init(inode) = ccohort_hydr%th_ag(inode)
            elseif (inode==n_hypool_ag+1) then
               z_node(inode)  = ccohort_hydr%z_node_troot
-              v_node(inode)  = ccohort_hydr%v_troot(1)
-              th_node_init(inode) = ccohort_hydr%th_troot(1)
+              v_node(inode)  = ccohort_hydr%v_troot
+              th_node_init(inode) = ccohort_hydr%th_troot
            elseif (inode==n_hyppol_ag+2) then
               z_node(inode)  = bc_in(s)%z_sisl(ilayer)
               v_node(inode)  = ccohort_hydr%v_aroot_layer(:)
@@ -332,7 +337,7 @@ contains
            rootuptake     = 0._r8
            wb_err         = 0._r8
 
-           ! Gracefully quit if this is not going so well
+           ! Gracefully quit if too many iterations have been used
            if(iter>max_iter)then
               write(fates_log(),*) 'Could not find a stable solution for hydro 1D solve'
               write(fates_log(),*) ''
@@ -340,10 +345,8 @@ contains
                    ccohort_hydr%v_ag(1:n_hypool_leaf))*denh2o
               stem_water = sum(ccohort_hydr%th_ag(n_hypool_leaf+1:n_hypool_ag) * &
                    ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag))*denh2o
-              
-              root_water = (sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:)) + &
-                   sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:))) * denh2o
-              
+              root_water = (ccohort_hydr%th_troot*ccohort_hydr%v_troot) + &
+                    sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:))) * denh2o
               write(fates_log(),*) 'leaf water: ',leaf_water,' kg/plant'
               write(fates_log(),*) 'stem_water: ',stem_water,' kg/plant'
               write(fates_log(),*) 'root_water: ',root_water,' kg/plant'
@@ -463,8 +466,8 @@ contains
                    B_term(jpath))
               
               
-              ! Path is between the absorbing root and the first
-              ! rhizosphere
+              ! Path is between the transporting root 
+              ! and the absorbing root for this layer
               
               jpath   = n_hypool_ag+1
               i_dn    = jpath
@@ -574,7 +577,7 @@ contains
 
               wb_step_err = (q_top*dt_substep) - (w_tot_beg-w_tot_end)
 
-              if(abs(wb_step_err)>err_thresh)then
+              if(abs(wb_step_err)>max_wb_step_err)then
                  solution_found = .false.
                  exit
               else
@@ -623,7 +626,64 @@ contains
            iterh1=iterh1+1
            
         end do
+
+        ! Save the number of times we refined our sub-step counts (iterh1)
+        ccohort_hydr%iterh1 = real(iterh1)
+        ! Save the number of sub-steps we ultimately used
+        ccohort_hydr%iterh2 = real(nsteps)
+
+        ! -----------------------------------------------------------
+        ! To a final check on water balance error sumed over sub-steps
+        ! ------------------------------------------------------------
+        if ( abs(wb_err) > max_wb_err ) then
+
+            write(fates_log(),*)'EDPlantHydraulics water balance error exceeds threshold of = ', max_wb_err
+            write(fates_log(),*)'transpiration demand: ', dtime*qtop,' kg/step/plant'
+
+            leaf_water = ccohort_hydr%th_ag(1)*ccohort_hydr%v_ag(1)*denh2o
+            stem_water = sum(ccohort_hydr%th_ag(2:n_hypool_ag) * &
+                  ccohort_hydr%v_ag(2:n_hypool_ag))*denh2o
+            root_water = ( ccohort_hydr%th_troot*ccohort_hydr%v_troot + &
+                  sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:))) * denh2o
+            
+            write(fates_log(),*) 'leaf water: ',leaf_water,' kg/plant'
+            write(fates_log(),*) 'stem_water: ',stem_water,' kg/plant'
+            write(fates_log(),*) 'root_water: ',root_water,' kg/plant'
+            write(fates_log(),*) 'LWP: ',ccohort_hydr%psi_ag(1)
+            write(fates_log(),*) 'dbh: ',ccohort%dbh
+            write(fates_log(),*) 'pft: ',ccohort%pft
+            write(fates_log(),*) 'tree lai: ',ccohort%treelai,' m2/m2 crown'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
         
+        ! Adjust final water balance by adding back in the error term
+        ! ------------------------------------------------------------
+        
+        w_tot_end_outer   = sum(th_node(:)*v_node(:))*denh2o                            ! kg
+        dw_tot_outer      = w_tot_end_outer - w_tot_beg_outer                           ! kg/timestep
+        we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
+        we_area_outer     = we_tot_outer/(cCohort%c_area / cCohort%n)                   ! kg/m2 ground/individual
+        if(abs(we_tot_outer*cCohort%n)/AREA>1.0e-7_r8) then
+            if(debug) then
+                write(fates_log(),*)'WARNING: plant hydraulics water balance error exceeds 1.0e-7 and is ajusted for error'
+            endif
+            !dump the error water to the bin with largest water storage
+            max_l  = maxloc(th_node(:)*v_node(:),dim=1)
+            th_node(max_l) = th_node(max_l)-  &
+                  we_tot_outer/(v_node(max_l)*denh2o)
+            th_node(max_l) = min (th_node(max_l),&
+                  ths_node(max_l)-small_theta_num) 
+            th_node(max_l) = max(th_node(max_l),&
+                  thr_node(max_l)+small_theta_num)	  
+            w_tot_end_outer   = sum(th_node(:)*v_node(:))*denh2o                            ! kg
+            dw_tot_outer      = w_tot_end_outer - w_tot_beg_outer                           ! kg/timestep
+            we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
+            we_area_outer     = we_tot_outer/(cCohort%c_area / cCohort%n)                   ! kg/m2 ground/individual   
+        end if
+        
+
+
         ! If we have made it to this point, supposedly we have completed the whole time-step
         ! for this cohort x layer combination.  It is now safe to save the delta theta
         ! value and pass it back to the calling routine.  The value passed back is the
