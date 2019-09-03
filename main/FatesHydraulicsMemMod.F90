@@ -34,7 +34,23 @@ module FatesHydraulicsMemMod
    integer, parameter, public                  :: n_hypool_tot = n_hypool_ag + n_hypool_troot + n_hypool_aroot + nshell
 
    ! vector indexing the type of porous medium over an arbitrary number of plant pools
-   integer, parameter, public, dimension(n_hypool_tot) :: porous_media = (/1,2,3,4,5,5,5,5,5/) 
+
+   integer, parameter, public :: leaf_p_media  = 1
+   integer, parameter, public :: stem_p_media  = 2
+   integer, parameter, public :: troot_p_media = 3
+   integer, parameter, public :: aroot_p_media = 4
+   integer, parameter, public :: rhiz_p_media  = 5
+
+   ! This vector holds the identifiers for which porous media type is in the comaprtment
+   integer, parameter, public, dimension(n_hypool_tot) :: porous_media = (/leaf_p_media,  & 
+                                                                           stem_p_media,  & 
+                                                                           troot_p_media, & 
+                                                                           aroot_p_media, & 
+                                                                           rhiz_p_media,  & 
+                                                                           rhiz_p_media,  & 
+                                                                           rhiz_p_media,  & 
+                                                                           rhiz_p_media,  & 
+                                                                           rhiz_p_media /) 
 
    ! number of previous timestep's leaf water potential to be retained
    integer, parameter, public                          :: numLWPmem             = 4
@@ -174,8 +190,8 @@ module FatesHydraulicsMemMod
      real(r8) :: z_node_ag(n_hypool_ag)  ! nodal height of stem and leaf compartments (positive)
      real(r8) :: z_upper_ag(n_hypool_ag) ! height of upper stem and leaf compartment boundaries (positive)
      real(r8) :: z_lower_ag(n_hypool_ag) ! height of lower stem and leaf compartment boundaries (positive)
-     real(r8) :: z_node_troot            ! nodal height of transporting root (negative)
- 
+     real(r8) :: z_node_troot            ! height of transporting root node
+
 
      ! Maximum hydraulic conductances  [kg H2O s-1 MPa-1]
      ! ----------------------------------------------------------------------------------
@@ -214,15 +230,20 @@ module FatesHydraulicsMemMod
 
      
      ! State variable, relative water content by volume (i.e. "theta")
-     real(r8) ::  th_ag(n_hypool_ag)              ! water in aboveground compartments                                 [kgh2o/indiv]
-     real(r8) ::  th_troot                        ! water in belowground compartments                                 [kgh2o/indiv]
+     real(r8) :: th_ag(n_hypool_ag)              ! water in aboveground compartments                                 [kgh2o/indiv]
+     real(r8) :: th_troot                        ! water in belowground compartments                                 [kgh2o/indiv]
      real(r8),allocatable :: th_aroot(:)          ! water in absorbing roots                                          [kgh2o/indiv]
     
 
-     ! State diagnostic, water potential
-     real(r8) ::  psi_ag(n_hypool_ag)             ! water potential in aboveground compartments                       [MPa]
-     real(r8) ::  psi_troot                       ! water potential in belowground compartments                       [MPa]
+     ! Diagnostic, water potential
+     real(r8) :: psi_ag(n_hypool_ag)             ! water potential in aboveground compartments                       [MPa]
+     real(r8) :: psi_troot                       ! water potential in belowground compartments                       [MPa]
      real(r8),allocatable :: psi_aroot(:)         ! water potential in absorbing roots                                [MPa]
+
+     ! Diagnostic, fraction of total conductivity
+     real(r8) :: ftc_ag(n_hypool_ag)              ! ... in above-ground compartments [-]
+     real(r8) :: ftc_troot                        ! ... in the transporting root [-]
+     real(r8),allocatable :: ftc_aroot(:)         ! ... in the absorbing root [-]
 
 
      real(r8) ::  btran                           ! leaf water potential limitation on gs                             [0-1]
@@ -310,6 +331,7 @@ module FatesHydraulicsMemMod
        allocate(this%l_aroot_layer(1:nlevsoil_hydr))
        allocate(this%th_aroot(1:nlevsoil_hydr))
        allocate(this%psi_aroot(1:nlevsoil_hydr))
+       allocate(this%ftc_aroot(1:nlevsoil_hydr))
        allocate(this%rootuptake(1:nlevsoil_hydr))
 
        return
@@ -330,6 +352,7 @@ module FatesHydraulicsMemMod
        deallocate(this%l_aroot_layer)
        deallocate(this%th_aroot)
        deallocate(this%psi_aroot)
+       deallocate(this%ftc_aroot)
        deallocate(this%rootuptake)
 
        return

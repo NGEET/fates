@@ -70,6 +70,11 @@ module FatesPlantHydraulicsMod
   use FatesHydraulicsMemMod, only: nshell
   use FatesHydraulicsMemMod, only: n_hypool_ag
   use FatesHydraulicsMemMod, only: porous_media
+  use FatesHydraulicsMemMod, only: leaf_p_media
+  use FatesHydraulicsMemMod, only: stem_p_media
+  use FatesHydraulicsMemMod, only: troot_p_media
+  use FatesHydraulicsMemMod, only: aroot_p_media
+  use FatesHydraulicsMemMod, only: rhiz_p_media
   use FatesHydraulicsMemMod, only: cap_slp
   use FatesHydraulicsMemMod, only: cap_int
   use FatesHydraulicsMemMod, only: cap_corr
@@ -151,6 +156,7 @@ module FatesPlantHydraulicsMod
   public :: updateSizeDepTreeHydProps
   public :: updateWaterDepTreeHydProps
   public :: updateSizeDepTreeHydStates
+  public :: UpdateTreePsiFTCFromTheta
   public :: initTreeHydStates
   public :: updateSizeDepRhizHydProps
   public :: updateSizeDepRhizHydStates
@@ -305,14 +311,14 @@ contains
     type(ed_cohort_type), pointer :: cCohort
     type(ed_site_type), pointer   :: csite
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
-    integer  :: j,k,FT                     ! indices
+    integer  :: j,k,ft                     ! indices
     real(r8) :: dz
     real(r8) :: smp
 
     cCohort                    => cc_p
     ccohort_hydr               => cCohort%co_hydr
     csite                      => site_p 
-    FT                         =  cCohort%pft
+    ft                         =  cCohort%pft
 
     !convert soil water contents to water potential in each soil layer and
     !assign it to the absorbing root (assume absorbing root water potential
@@ -326,7 +332,11 @@ contains
        !ccohort_hydr%psi_aroot(j) = csite%si_hydr%psisoi_liq_innershell(j)
        ccohort_hydr%psi_aroot(j) = -0.2_r8 !do not assume the equalibrium between soil and root
 
-       call th_from_psi(ft, 4, ccohort_hydr%psi_aroot(j), ccohort_hydr%th_aroot(j), csite%si_hydr, bc_in )
+       call th_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
+            ccohort_hydr%th_aroot(j), csite%si_hydr, bc_in )
+       call flc_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
+            ccohort_hydr%ftc_ag(j), csite%si_hydr, bc_in) 
+
     end do
 
     !initialize plant water potentials at hydrostatic equilibrium (dh/dz = 0)
@@ -335,23 +345,31 @@ contains
     !it doesn't matter which absorbing root layer the transporting root water
     !potential is referenced to.
 
-    dz = ccohort_hydr%z_node_troot - ccohort_hydr%z_node_aroot(1)
+    dz = ccohort_hydr%z_node_troot - bc_in(s)%z_sisl(1)
+
     ccohort_hydr%psi_troot = ccohort_hydr%psi_aroot(1) - 1.e-6_r8*denh2o*grav_earth*dz 
     if (ccohort_hydr%psi_troot>0.0_r8) ccohort_hydr%psi_troot = -0.01_r8
-    call th_from_psi(ft, 3, ccohort_hydr%psi_troot, ccohort_hydr%th_troot, csite%si_hydr, bc_in)
-
+    call th_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, &
+         ccohort_hydr%th_troot, csite%si_hydr, bc_in)
+    call flc_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, ccohort_hydr%ftc_troot)
 
     !working our way up a tree, assigning water potentials that are in
     !hydrostatic equilibrium with the water potential immediately below
     dz = ccohort_hydr%z_node_ag(n_hypool_ag) - ccohort_hydr%z_node_troot
     ccohort_hydr%psi_ag(n_hypool_ag) = ccohort_hydr%psi_troot - 1.e-6_r8*denh2o*grav_earth*dz
     if (ccohort_hydr%psi_ag(n_hypool_ag)>0.0_r8) ccohort_hydr%psi_ag(n_hypool_ag) = -0.01_r8
-    call th_from_psi(ft, 2, ccohort_hydr%psi_ag(n_hypool_ag), ccohort_hydr%th_ag(n_hypool_ag), csite%si_hydr, bc_in)
+    call th_from_psi(ft, stem_p_media, ccohort_hydr%psi_ag(n_hypool_ag), &
+         ccohort_hydr%th_ag(n_hypool_ag), csite%si_hydr, bc_in)
+    call flc_from_psi(ft, stem_p_media, ccohort_hydr%psi_ag(n_hypool_ag), & 
+         ccohort_hydr%ftc_ag(n_hypool_ag))
+
     do k=n_hypool_ag-1, 1, -1
        dz = ccohort_hydr%z_node_ag(k) - ccohort_hydr%z_node_ag(k+1)
        ccohort_hydr%psi_ag(k) = ccohort_hydr%psi_ag(k+1) - 1.e-6_r8*denh2o*grav_earth*dz
        if(ccohort_hydr%psi_ag(k)>0.0_r8) ccohort_hydr%psi_ag(k)= -0.01_r8
-       call th_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), ccohort_hydr%th_ag(k), csite%si_hydr, bc_in)
+       call th_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), &
+            ccohort_hydr%th_ag(k), csite%si_hydr, bc_in)
+       call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k),ccohort_hydr%ftc_ag(k))
     end do
 
     ccohort_hydr%errh2o_growturn_ag(:)    = 0.0_r8
@@ -365,6 +383,48 @@ contains
     call flc_gs_from_psi(cCohort, ccohort_hydr%psi_ag(1))
 
   end subroutine initTreeHydStates
+  
+  ! =====================================================================================
+
+  subroutine UpdateTreePsiFTCFromTheta(ccohort,csite_hydr)
+    
+    ! This subroutine updates the potential and the fractional
+    ! of total conductivity based on the relative water
+    ! content
+    ! Arguments
+    type(ed_cohort_type),intent(inout), target :: ccohort
+    type(ed_site_hydr_type),intent(in), target :: csite_hydr
+
+    ! Locals
+    integer :: ft  ! Plant functional type
+    integer :: k   ! loop index for compartments
+    integer :: j   ! Loop index for soil layers
+    type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+    
+    
+    ccohort_hydr => ccohort%co_hydr
+    ft = ccohort%pft
+    
+    ! Update Psi and FTC in above-ground compartments
+    ! -----------------------------------------------------------------------------------
+    do k = 1,n_hypool_ag
+       call psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k), ccohort_hydr%psi_ag(k))
+       call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), ccohort_hydr%ftc_ag(k))
+    end do
+
+    ! Update the Psi and FTC for the transporting root compartment
+    k = n_hypool_ag+1
+    call psi_from_th(ft, troot_p_media, ccohort_hydr%th_troot, ccohort_hydr%psi_troot)
+    call flc_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, ccohort_hydr%ftc_troot)
+    
+    ! Update the Psi and FTC for the absorbing roots
+    do j = 1, csite_hydr%nlevsoi_hyd
+       call psi_from_th(ft, aroot_p_media, ccohort_hydr%th_aroot(j), ccohort_hydr%psi_aroot(j))
+       call flc_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j), ccohort_hydr%ftc_aroot(j))
+    end do
+
+    return
+  end subroutine UpdateTreePsiFTCFromTheta
 
 
   ! =====================================================================================
@@ -383,8 +443,6 @@ contains
     !                     %z_lower_ag(:)
     !                     %z_upper_ag(:)
     !                     %z_node_troot
-    !                     %z_lower_troot
-    !                     %z_upper_troot
     !                     %z_node_aroot(:)
     ! --------------------------------------------------------------------------------
 
@@ -815,6 +873,7 @@ contains
   end function constrain_water_contents
 
   ! =====================================================================================
+
   subroutine CopyCohortHydraulics(newCohort, oldCohort)
 
     ! Arguments
@@ -833,11 +892,9 @@ contains
     ! BC...PLANT HYDRAULICS - "constants" that change with size. 
     ! Heights are referenced to soil surface (+ = above; - = below)
     ncohort_hydr%z_node_ag          = ocohort_hydr%z_node_ag
-    ncohort_hydr%z_node_troot       = ocohort_hydr%z_node_troot
     ncohort_hydr%z_upper_ag         = ocohort_hydr%z_upper_ag
-    ncohort_hydr%z_upper_troot      = ocohort_hydr%z_upper_troot
+    ncohort_hydr%z_node_troot       = ocohort_hydr%z_node_troot
     ncohort_hydr%z_lower_ag         = ocohort_hydr%z_lower_ag
-    ncohort_hydr%z_lower_troot      = ocohort_hydr%z_lower_troot
     ncohort_hydr%kmax_lower         = ocohort_hydr%kmax_lower
     ncohort_hydr%kmax_bound         = ocohort_hydr%kmax_bound
     ncohort_hydr%kmax_treebg_tot    = ocohort_hydr%kmax_treebg_tot
@@ -846,7 +903,6 @@ contains
     ncohort_hydr%v_troot_init       = ocohort_hydr%v_troot_init
     ncohort_hydr%v_troot            = ocohort_hydr%v_troot
     ! quantities indexed by soil layer
-    ncohort_hydr%z_node_aroot       = ocohort_hydr%z_node_aroot
     ncohort_hydr%kmax_treebg_layer  = ocohort_hydr%kmax_treebg_layer
     ncohort_hydr%kmax_innershell    = ocohort_hydr%kmax_innershell     
     ncohort_hydr%v_aroot_layer_init = ocohort_hydr%v_aroot_layer_init
@@ -856,8 +912,13 @@ contains
     ! BC PLANT HYDRAULICS - state variables
     ncohort_hydr%th_ag              = ocohort_hydr%th_ag
     ncohort_hydr%th_troot           = ocohort_hydr%th_troot
+    ncohort_hydr%th_aroot           = ocohort_hydr%th_aroot
     ncohort_hydr%psi_ag             = ocohort_hydr%psi_ag
     ncohort_hydr%psi_troot          = ocohort_hydr%psi_troot
+    ncohort_hydr%psi_aroot          = ocohort_hydr%psi_aroot
+    ncohort_hydr%ftc_ag             = ocohort_hydr%ftc_ag
+    ncohort_hydr%ftc_troot          = ocohort_hydr%ftc_troot
+    ncohort_hydr%ftc_aroot          = ocohort_hydr%ftc_aroot
 
     ncohort_hydr%btran              = ocohort_hydr%btran
     ncohort_hydr%supsub_flag        = ocohort_hydr%supsub_flag
@@ -866,21 +927,12 @@ contains
     ncohort_hydr%errh2o             = ocohort_hydr%errh2o
     ncohort_hydr%errh2o_growturn_ag = ocohort_hydr%errh2o_growturn_ag
     ncohort_hydr%errh2o_pheno_ag    = ocohort_hydr%errh2o_pheno_ag
-
-
-
     ncohort_hydr%errh2o_growturn_troot = ocohort_hydr%errh2o_growturn_troot
     ncohort_hydr%errh2o_pheno_troot    = ocohort_hydr%errh2o_pheno_troot
-    ! quantities indexed by soil layer
-    ncohort_hydr%th_aroot              = ocohort_hydr%th_aroot
-    ncohort_hydr%psi_aroot             = ocohort_hydr%psi_aroot
-
     ncohort_hydr%errh2o_growturn_aroot = ocohort_hydr%errh2o_growturn_aroot
     ncohort_hydr%errh2o_pheno_aroot    = ocohort_hydr%errh2o_pheno_aroot
 
     ! BC PLANT HYDRAULICS - flux terms
-    ncohort_hydr%qtop_dt            = ocohort_hydr%qtop_dt
-    ncohort_hydr%dqtopdth_dthdt     = ocohort_hydr%dqtopdth_dthdt
 
     ncohort_hydr%sapflow            = ocohort_hydr%sapflow
     ncohort_hydr%rootuptake         = ocohort_hydr%rootuptake
@@ -925,15 +977,19 @@ contains
        call psi_from_th(currentCohort%pft, porous_media(k), ccohort_hydr%th_ag(k), &
             ccohort_hydr%psi_ag(k), site_hydr, bc_in)
        call flc_from_psi(currentCohort%pft, porous_media(k), ccohort_hydr%psi_ag(k), &
-            ccohort_hydr%flc_ag(k), site_hydr, bc_in) 
+            ccohort_hydr%ftc_ag(k), site_hydr, bc_in) 
     end do
 
-    call psi_from_th(currentCohort%pft, 3, ccohort_hydr%th_troot, &
+    call psi_from_th(currentCohort%pft, troot_p_media, ccohort_hydr%th_troot, &
          ccohort_hydr%psi_troot, site_hydr, bc_in)
+    call flc_from_psi(currentCohort%pft, troot_p_media, ccohort_hydr%psi_troot, &
+            ccohort_hydr%ftc_troot, site_hydr, bc_in) 
 
     do j=1,site_hydr%nlevsoi_hyd
-       call psi_from_th(currentCohort%pft, 4, ccohort_hydr%th_aroot(j), &
+       call psi_from_th(currentCohort%pft, aroot_p_media, ccohort_hydr%th_aroot(j), &
             ccohort_hydr%psi_aroot(j), site_hydr, bc_in)
+       call flc_from_psi(currentCohort%pft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
+            ccohort_hydr%ftc_aroot(j), site_hydr, bc_in) 
     end do
     call flc_gs_from_psi(currentCohort, ccohort_hydr%psi_ag(1))
 
@@ -2195,7 +2251,6 @@ contains
 
 
              kbg_tot = 0._r8
-
              do j=1,site_hydr%nlevsoi_hyd
 
                 ! Path is between the absorbing root
@@ -2204,9 +2259,9 @@ contains
                 ! potential gradient (same elevation, no geopotential
                 ! required.
                 if(cohort_hydr%psi_aroot(ilayer) < site_hydr%psisoi_liq_innershell(j)) then
-                   kmax_up = cohort_hydr%kmax_aroot_radial_in(j)
+                   kmax_aroot = cohort_hydr%kmax_aroot_radial_in(j)
                 else
-                   kmax_up = cohort_hydr%kmax_aroot_radial_out(j)
+                   kmax_aroot = cohort_hydr%kmax_aroot_radial_out(j)
                 end if
 
                 ! Get matric potential [Mpa] of the absorbing root
@@ -2222,11 +2277,11 @@ contains
                 r_shells = 1._r8/(kmax_aroot*ftc_aroot)
 
                 ! Path is between rhizosphere shells
-
+                froot_frac_plant = ccohort_hydr%l_aroot_layer(j)/site_hydr%l_aroot_layer(j)
                 do i = 1,nshell
 
-                   kmax_up = site_hydr%kmax_outer_shell(j,i)
-                   kmax_lo = site_hydr%kmax_inner_shell(j,i)
+                   kmax_up = site_hydr%kmax_outer_shell(j,i)*froot_frac_plant
+                   kmax_lo = site_hydr%kmax_inner_shell(j,i)*froot_frac_plant
 
                    call psi_from_th(currentCohort%pft, porous_media(n_hypool_ag+3), &
                         site_hydr%h2osoi_liqvol_shell(j,i), psi_shell, site_hydr, bc_in)
@@ -2288,7 +2343,6 @@ contains
                 ! Absorbing root
                 ccohort_hyd%th_aroot(j)  = ccohort_hyd%th_aroot(j) + dth_node(n_hypool_ag+2)
 
-
                 ! Calculate diagnostics
 
                 dwat_veg_coh                          = &
@@ -2311,30 +2365,42 @@ contains
 
                 ! ACCUMULATE CHANGE IN SOIL WATER CONTENT OF EACH COHORT TO COLUMN-LEVEL
                 dth_layershell_col(j,:) = dth_layershell_col(j,:) + &
-                     dth_node((n_hypool_tot-nshell+1):n_hypool_tot) * &
+                     dth_node((n_hypool_tot-nshell+1):n_hypool_tot) *
                      ccohort_hydr%l_aroot_layer(j) * &
                      ccohort%n / site_hydr%l_aroot_layer(j)
 
              enddo !soil layer
 
              ! ---------------------------------------------------------
-             ! Update water potential of plant compartments
+             ! Update water potential and frac total conductivity
+             ! of plant compartments
              ! ---------------------------------------------------------
 
              ! Above ground
              do k=1,n_hypool_ag
                 call psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k), &
                      ccohort_hydr%psi_ag(k), site_hydr, bc_in(s) )
+                
+                call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), &
+                     ccohort_hydr%ftc_ag(k), site_hydr, bc_in(s)) 
+
              enddo
              ! Update water potential of transporting root compartment
              k = n_hpool_ag+1
              call psi_from_th(ft, porous_media(k), ccohort_hydr%th_troot, &
                   ccohort_hydr%psi_troot, site_hydr, bc_in(s))
+             call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_troot, &
+                     ccohort_hydr%ftc_troot, site_hydr, bc_in(s)) 
+
              ! Update water potential of absorbing root root compartment
              do j=1,site_hydr%nlevsoi_hyd
                 call psi_from_th(ft, porous_media(n_hypool_ag+2), & 
                      ccohort_hydr%th_aroot(j), ccohort_hydr%psi_aroot(j), &
                      site_hydr, bc_in(s))
+                call flc_from_psi(ft, porous_media(n_hypool_ag+2), & 
+                     ccohort_hydr%psi_aroot(j), ccohort_hydr%ftc_aroot(j), &
+                     site_hydr, bc_in(s)) 
+
              end do
 
              ccohort => ccohort%shorter
@@ -2683,6 +2749,7 @@ contains
     real(r8) :: leaf_water  ! kg of water in the leaf
     real(r8) :: stem_water  ! kg of water in the stem
     real(r8) :: root_water  ! kg of water in the transp and absorbing roots
+    real(r8) :: 
     real(r8) :: th_node_init(n_hypool_tot)      ! "theta" i.e. water content of node [m3 m-3]
     real(r8) :: th_node(n_hypool_tot)
     real(r8) :: z_node(n_hypool_tot)            ! elevation of node [m]
@@ -2928,7 +2995,7 @@ contains
           ! Special case. Maximum conductance depends on the 
           ! potential gradient (same elevation, no geopotential
           ! required.
-          if(cohort_hydr%psi_aroot(ilayer) < site_hydr%psisoi_liq_innershell(j)) then
+          if(h_node(i_dn) < h_node(i_up) ) then
              kmax_up = cohort_hydr%kmax_aroot_radial_in(ilayer)
           else
              kmax_up = cohort_hydr%kmax_aroot_radial_out(ilayer)
@@ -3093,26 +3160,18 @@ contains
     ! Adjust final water balance by adding back in the error term
     ! ------------------------------------------------------------
 
-    w_tot_end_outer   = sum(th_node(:)*v_node(:))*denh2o                            ! kg
-    dw_tot_outer      = w_tot_end_outer - w_tot_beg_outer                           ! kg/timestep
-    we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
-    we_area_outer     = we_tot_outer/(cCohort%c_area / cCohort%n)                   ! kg/m2 ground/individual
-    if(abs(we_tot_outer*cCohort%n)/AREA>1.0e-7_r8) then
+    if( abs(wb_err*cCohort%n)*AREA_INV>1.0e-7_r8) then
        if(debug) then
           write(fates_log(),*)'WARNING: plant hydraulics water balance error exceeds 1.0e-7 and is ajusted for error'
        endif
        !dump the error water to the bin with largest water storage
        max_l  = maxloc(th_node(:)*v_node(:),dim=1)
        th_node(max_l) = th_node(max_l)-  &
-            we_tot_outer/(v_node(max_l)*denh2o)
+            wb_err/(v_node(max_l)*denh2o)
        th_node(max_l) = min (th_node(max_l),&
             ths_node(max_l)-small_theta_num) 
        th_node(max_l) = max(th_node(max_l),&
             thr_node(max_l)+small_theta_num)	  
-       w_tot_end_outer   = sum(th_node(:)*v_node(:))*denh2o                            ! kg
-       dw_tot_outer      = w_tot_end_outer - w_tot_beg_outer                           ! kg/timestep
-       we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
-       we_area_outer     = we_tot_outer/(cCohort%c_area / cCohort%n)                   ! kg/m2 ground/individual   
     end if
 
 
@@ -3718,7 +3777,7 @@ contains
     integer  :: k                             ! index
     real(r8) :: err                           ! solution error, in units of [m3/m3]
     real(r8) :: rel_err                       ! relative error, normalized by delta theta
-    real(r8), parameter :: allowable_rel_err = 0.01_r8
+    real(r8), parameter :: allowable_rel_err = 0.001_r8
     !----------------------------------------------------------------------
 
     bet = b(1)

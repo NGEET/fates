@@ -27,6 +27,7 @@ module FatesRestartInterfaceMod
   use EDCohortDynamicsMod,      only : zero_cohort
   use EDCohortDynamicsMod,      only : InitPRTCohort
   use FatesPlantHydraulicsMod,  only : InitHydrCohort
+  use FatesPlantHydraulicsMod,  only : UpdateTreePsiFTCFromTheta
   use FatesInterfaceMod, only : nlevsclass
   use PRTGenericMod, only : prt_global
 
@@ -2383,6 +2384,9 @@ contains
                    call this%GetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevsoi_hyd, &
                                                  ir_hydro_th_aroot_covec,io_idx_co)
 
+                   
+                   call UpdateTreePsiFTCFromTheta(ccohort%co_hydr,sites(s)%si_hydr)
+
                    call this%GetCohortRealVector(ccohort%co_hydr%errh2o_growturn_aroot, &
                                                  sites(s)%si_hydr%nlevsoi_hyd, &
                                                  ir_hydro_err_growturn_aroot_covec,io_idx_co)
@@ -2550,7 +2554,6 @@ contains
              io_idx_si_sc = io_idx_si_sc + 1
           end do
          
-
           sites(s)%term_carbonflux_canopy   = rio_termcflux_cano_si(io_idx_si)
           sites(s)%term_carbonflux_ustory   = rio_termcflux_usto_si(io_idx_si)
           sites(s)%demotion_carbonflux      = rio_democflux_si(io_idx_si)
