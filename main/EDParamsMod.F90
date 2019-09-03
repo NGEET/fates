@@ -323,10 +323,6 @@ contains
     call fates_params%RegisterParameter(name=fates_name_q10_froz, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-
-!    call fates_params%RegisterParameter(name=logging_export_frac, dimension_shape=dimension_shape_1d, &
-!         dimension_names=dim_names)
-
     ! non-scalar parameters
     call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_sizeclass)

@@ -57,6 +57,9 @@ module FatesPlantHydraulicsMod
 
   use FatesAllometryMod, only    : bsap_allom
   use FatesAllometryMod, only    : CrownDepth
+  use FatesAllometryMod , only   : set_root_fraction
+  use FatesAllometryMod , only   : i_hydro_rootprof_context
+
 
   use FatesHydraulicsMemMod, only: ed_site_hydr_type
   use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
@@ -903,8 +906,6 @@ contains
     ncohort_hydr%v_troot_init       = ocohort_hydr%v_troot_init
     ncohort_hydr%v_troot            = ocohort_hydr%v_troot
     ! quantities indexed by soil layer
-    ncohort_hydr%kmax_treebg_layer  = ocohort_hydr%kmax_treebg_layer
-    ncohort_hydr%kmax_innershell    = ocohort_hydr%kmax_innershell     
     ncohort_hydr%v_aroot_layer_init = ocohort_hydr%v_aroot_layer_init
     ncohort_hydr%v_aroot_layer      = ocohort_hydr%v_aroot_layer
     ncohort_hydr%l_aroot_layer      = ocohort_hydr%l_aroot_layer
@@ -2493,7 +2494,7 @@ contains
 
 
 
-  subroutine UpdatePlantKMax(ccohort_hydr,ccohort,csite_hydr,bc_in)
+  subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr,bc_in)
 
     ! ---------------------------------------------------------------------------------
     !
@@ -2708,7 +2709,7 @@ contains
 
 
     return
-  end subroutine UpdatePlantKMax
+  end subroutine UpdatePlantKmax
 
   ! ===================================================================================
 
@@ -3338,34 +3339,6 @@ contains
 
 
   !--------------------------------------------------------------------------------------!
-
-  subroutine GetK(K_max,FLC,K,h_diff,inode_up,inode_low)
-
-    ! This subroutine determines the conductance of water between two nodes.
-    ! The nodes may be between leaves, between leaf and stem, between stems, 
-    ! between 
-
-
-
-
-
-
-
-    return
-  end subroutine GetK
-
-
-  subroutine GetKMax()
-
-
-
-
-    return
-  end subroutine GetKMax
-
-
-  ! -------------------------------------------------------------------------------------!
-
 
   subroutine Hydraulics_1DSolve(ccohort, ft, z_node, v_node, ths_node, thr_node, kmax_bound, &
        kmax_upper, kmax_lower, kmax_bound_aroot_soil1, kmax_bound_aroot_soil2, &
