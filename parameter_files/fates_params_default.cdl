@@ -122,7 +122,7 @@ variables:
 		fates_displar:long_name = "Ratio of displacement height to canopy top height" ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "NA" ;
-		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
+		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, EQ 16 Thonicke et al 2010" ;
 	double fates_fire_bark_scaler(fates_pft) ;
 		fates_fire_bark_scaler:units = "fraction" ;
 		fates_fire_bark_scaler:long_name = "the thickness of a cohorts bark as a fraction of its dbh" ;
@@ -131,7 +131,10 @@ variables:
 		fates_fire_crown_depth_frac:long_name = "the depth of a cohorts crown as a fraction of its height" ;
 	double fates_fire_crown_kill(fates_pft) ;
 		fates_fire_crown_kill:units = "NA" ;
-		fates_fire_crown_kill:long_name = "fire parameter, see equation 22 in Thonicke et al 2010" ;
+		fates_fire_crown_kill:long_name = "resistance to fire (1 = none), EQ 22 in Thonicke et al 2010" ;
+	double fates_fire_crown_fire(fates_pft) ;
+		fates_fire_crown_fire:units = "logical flag" ;
+		fates_fire_crown_fire:long_name = "Binary flag for passive crown fire";
 	double fates_fr_fcel(fates_pft) ;
 		fates_fr_fcel:units = "fraction" ;
 		fates_fr_fcel:long_name = "Fine root litter cellulose fraction" ;
@@ -492,6 +495,9 @@ variables:
 	double fates_fire_fuel_energy ;
 		fates_fire_fuel_energy:units = "kJ/kg" ;
 		fates_fire_fuel_energy:long_name = "spitfire parameter, heat content of fuel" ;
+        double fates_fire_crown_ignition_energy ;
+		fates_fire_crown_ignition_energy:units = "kJ/kg" ;
+		fates_fire_crown_ignition_energy:long_name = "spitfire parameter, heat of crown foliage ignition" ;
 	double fates_fire_max_durat ;
 		fates_fire_max_durat:units = "minutes" ;
 		fates_fire_max_durat:long_name = "spitfire parameter, fire maximum duration, Equation 14 Thonicke et al 2010" ;
@@ -717,6 +723,8 @@ data:
 
  fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 
     0.775, 0.775, 0.775, 0.775, 0.775 ;
+
+fates_fire_passive_crown_fire =  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_fr_fcel = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ;
 
@@ -1115,6 +1123,8 @@ data:
  fates_fire_fdi_b = 243.12 ;
 
  fates_fire_fuel_energy = 18000 ;
+
+ fates_fire_crown_ignition_energy = 3060 ;
 
  fates_fire_max_durat = 240 ;
 
