@@ -923,7 +923,7 @@ contains
           do while(associated(currentCohort))  
              currentCohort%fraction_crown_burned = 0.0_r8
              currentCohort%crown_FI              = 0.0_r8  !critical fire intensity for passive crown fire
-             currentCohort%crown_fire            = 0       ! binary flag for passvie crown fire igntion
+             currentCohort%crown_fire            = 0       !flag for passvie crown fire ignition
              
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 
@@ -935,7 +935,7 @@ contains
                 if (EDPftvarcon_inst%crown_fire(currentCohort%pft) == 1) then
                    
                    ! Crown fuel ignition potential, EQ 8 Bessie and Johnson 1995
-                   currentCohort%crown_FI = (0.01 * height_cbb * SF_val_crown_ignition_energy)
+                   currentCohort%crown_FI = (0.01 * height_cbb * SF_val_crown_ignition_energy)**1.5
 
                    if (currentCohort%crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
