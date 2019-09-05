@@ -342,7 +342,7 @@ contains
        call th_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
             ccohort_hydr%th_aroot(j), csite%si_hydr, bc_in )
        call flc_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
-            ccohort_hydr%ftc_ag(j), csite%si_hydr, bc_in) 
+            ccohort_hydr%ftc_aroot(j), csite%si_hydr, bc_in) 
 
     end do
 
@@ -733,20 +733,22 @@ contains
        ! ------------------------------------------------------------------------------
        do j=1,nlevsoi_hyd
           if(j == 1) then
-             rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
+             rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j), bc_in%zi_sisl(nlevsoi_hyd))
           else
-             rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
-                  zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
+             rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j), bc_in%zi_sisl(nlevsoi_hyd)) - &
+                  zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1), bc_in%zi_sisl(nlevsoi_hyd))
           end if
           ccohort_hydr%l_aroot_layer(j)   = rootfr*l_aroot_tot
           ccohort_hydr%v_aroot_layer(j)   = rootfr*v_aroot_tot
        end do
 
        if(debug) then
-          if(abs(1._r8-zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(nlevsoi_hyd)))>rsnbl_math_prec) then
+          if(abs(1._r8-zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(nlevsoi_hyd), &
+                                        bc_in%zi_sisl(nlevsoi_hyd)))>rsnbl_math_prec) then
              write(fates_log(),*) 'The Zeng 2001 root layering scheme should'
              write(fates_log(),*) 'have an integrated root fraction at the lowest soil layer'
-             write(fates_log(),*) 'crootfr: ',zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(nlevsoi_hyd))
+             write(fates_log(),*) 'crootfr: ',zeng2001_crootfr(roota, rootb, &
+                   bc_in%zi_sisl(nlevsoi_hyd), bc_in%zi_sisl(nlevsoi_hyd))
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
        end if
@@ -1304,10 +1306,13 @@ contains
                 else
                    do j=1,csite_hydr%nlevsoi_hyd
                       if(j == 1) then
-                         rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j))
+                         rootfr = zeng2001_crootfr(roota, rootb, &
+                               bc_in(s)%zi_sisl(j), bc_in(s)%zi_sisl(csite_hydr%nlevsoi_hyd))
                       else
-                         rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j)) - &
-                              zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j-1))
+                         rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j), &
+                                                   bc_in(s)%zi_sisl(csite_hydr%nlevsoi_hyd)) - &
+                              zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j-1), &
+                                               bc_in(s)%zi_sisl(csite_hydr%nlevsoi_hyd))
                       end if
                       csite_hydr%recruit_w_uptake(j) = csite_hydr%recruit_w_uptake(j) + &
                            recruitw*rootfr
@@ -1371,10 +1376,13 @@ contains
 
     do j=1,csite_hydr%nlevsoi_hyd
        if(j == 1) then
-          rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
+          rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j), &
+                                    bc_in%zi_sisl(csite_hydr%nlevsoi_hyd))
        else
-          rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
-               zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
+          rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j), &
+                                    bc_in%zi_sisl(csite_hydr%nlevsoi_hyd)) - &
+               zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1), &
+                                bc_in%zi_sisl(csite_hydr%nlevsoi_hyd))
        end if
        cohort_recruit_water_layer(j) = recruitw*rootfr
     end do
@@ -1491,7 +1499,6 @@ contains
     do j = 1,nlevsoi_hyd
        ! proceed only if l_aroot_coh has changed
        if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
-
           call shellGeom( csite_hydr%l_aroot_layer(j), csite_hydr%rs1(j), AREA, bc_in%dz_sisl(j), &
                csite_hydr%r_out_shell(j,:), csite_hydr%r_node_shell(j,:),csite_hydr%v_shell(j,:))
        end if !has l_aroot_layer changed?
@@ -2605,6 +2612,8 @@ contains
     
 
     real(r8),parameter :: taper_exponent = 1._r8/3._r8 ! Savage et al. (2010) xylem taper exponent [-]
+    real(r8),parameter :: min_pet_stem_dz = 0.00001_r8  ! Force at least a small difference
+                                                       ! in the top of stem and petiole
 
 
     pft   = ccohort%pft
@@ -2638,7 +2647,8 @@ contains
 
        z_lower = ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_lower_ag(k_ag)
        z_node  = ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_node_ag(k_ag)
-       z_upper = ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_upper_ag(k_ag)
+       z_upper = max( min_pet_stem_dz,ccohort_hydr%z_node_ag(n_hypool_leaf) - & 
+             ccohort_hydr%z_upper_ag(k_ag))
 
 
        ! Then we calculate the maximum conductance from each the lower, node and upper 
@@ -2649,6 +2659,8 @@ contains
        ! series.
 
        ! max conductance from upper edge to mean petiole height
+       ! If there is no height difference between the upper compartment edge and
+       ! the petiole, at least give it some nominal amount to void FPE's
        kmax_upper = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
             xylemtaper(taper_exponent, z_upper) * &
             a_sapwood / z_upper
@@ -2664,24 +2676,22 @@ contains
             a_sapwood / z_lower
 
        ! Max conductance over the path of the upper side of the compartment
-       ccohort_hydr%kmax_stem_upper(k_ag) = (1._r8/kmax_node - 1._r8/kmax_upper)**(-1._r8)
+       ccohort_hydr%kmax_stem_upper(k) = (1._r8/kmax_node - 1._r8/kmax_upper)**(-1._r8)
 
        ! Max conductance over the path on the loewr side of the compartment
-       ccohort_hydr%kmax_stem_lower(k_ag) = (1._r8/kmax_lower - 1._r8/kmax_node)**(-1._r8)
-
+       ccohort_hydr%kmax_stem_lower(k) = (1._r8/kmax_lower - 1._r8/kmax_node)**(-1._r8)
+       
        if(debug) then
-          ! The following clauses should never be true:
-          if( (z_lower < z_node) .or. & 
-               (z_node  < z_upper) .or. & 
-               (kmax_lower < kmax_node ) .or. &
-               (kmax_node  < kmax_upper )) then
-             write(fates_log(),*) 'Problem calculating stem Kmax'
-             write(fates_log(),*) z_lower, z_node, z_upper
-             write(fates_log(),*) kmax_lower, kmax_node, kmax_upper
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
+           ! The following clauses should never be true:
+           if( (z_lower < z_node) .or. & 
+                 (z_node  < z_upper) ) then
+               write(fates_log(),*) 'Problem calculating stem Kmax'
+               write(fates_log(),*) z_lower, z_node, z_upper
+               write(fates_log(),*) kmax_lower*z_lower, kmax_node*z_node, kmax_upper*z_upper
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
        end if
-
+       
     enddo
 
     ! Maximum conductance of the upper compartment in the transporting root
@@ -2727,10 +2737,13 @@ contains
     ! the kmax terms of each layer, should sum to kmax_bg
     do j=1,csite_hydr%nlevsoi_hyd
        if(j == 1) then
-          rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
+          rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j), &
+                                    bc_in%zi_sisl(csite_hydr%nlevsoi_hyd))
        else
-          rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
-               zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
+          rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j), &
+                                    bc_in%zi_sisl(csite_hydr%nlevsoi_hyd)) - &
+               zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1), &
+                                bc_in%zi_sisl(csite_hydr%nlevsoi_hyd))
        end if
 
        kmax_layer = rootfr*kmax_bg
@@ -2887,7 +2900,7 @@ contains
           v_node(inode)  = cohort_hydr%v_aroot_layer(ilayer)
           th_node_init(inode) = cohort_hydr%th_aroot(ilayer)
        else
-          ishell  = inode-(n_hypool_tot+2)
+          ishell  = inode-(n_hypool_ag+2)
           z_node(inode)  = bc_in%z_sisl(ilayer)
           ! The volume of the Rhizosphere for a single plant
           v_node(inode)  = site_hydr%v_shell(ilayer,ishell)*aroot_frac_plant
@@ -2968,7 +2981,7 @@ contains
                   ftc_node(inode), site_hydr, bc_in) 
 
              ! deriv ftc wrt theta
-             call dpsidth_from_th(cohort%pft, porous_media(inode), cohort_hydr%th_ag(inode), & 
+             call dpsidth_from_th(cohort%pft, porous_media(inode), th_node(inode), & 
                   dpsi_dtheta_node(inode), site_hydr, bc_in)
 
              call dflcdpsi_from_psi(cohort%pft, porous_media(inode), psi_node(inode), & 
@@ -3444,6 +3457,7 @@ contains
     real(r8) :: err                           ! solution error, in units of [m3/m3]
     real(r8) :: rel_err                       ! relative error, normalized by delta theta
     real(r8), parameter :: allowable_rel_err = 0.001_r8
+!    real(r8), parameter :: allowable_err = 1.e-6_r8
     !----------------------------------------------------------------------
 
     bet = b(1)
@@ -3467,22 +3481,23 @@ contains
        do k=1,n_hypool_tot
 
           if(k==1)then
-             err = abs(r(k) - b(k)*u(k)+c(k)*u(k+1))
+             err = abs(r(k) - (b(k)*u(k)+c(k)*u(k+1)))
           elseif(k<n_hypool_tot) then
-             err = abs(r(k) - a(k)*u(k-1)+b(k)*u(k))
+             err = abs(r(k) - (a(k)*u(k-1)+b(k)*u(k)+c(k)*u(k+1)))
           else
-             err = abs(r(k) - a(k)*u(k-1)+b(k)*u(k)+c(k)*u(k+1))
+             err = abs(r(k) - (a(k)*u(k-1)+b(k)*u(k)))
           end if
 
-          rel_err = abs(u(k)/err)
+          rel_err = abs(err/u(k))
 
-          if(rel_err > allowable_rel_err)then
+          if((rel_err > allowable_rel_err)) then !.and. (err > allowable_err) )then
              write(fates_log(),*) 'Tri-diagonal solve produced solution with'
              write(fates_log(),*) 'non-negligable error.'
              write(fates_log(),*) 'Compartment: ',k
              write(fates_log(),*) 'Error in forward solution: ',err
              write(fates_log(),*) 'Estimated delta theta: ',u(k)
              write(fates_log(),*) 'Rel Error: ',rel_err
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
        end do
@@ -5096,86 +5111,111 @@ end subroutine bisect_rootfr
 
 ! =====================================================================================
 
-function zeng2001_crootfr(a, b, z) result(crootfr)
+function zeng2001_crootfr(a, b, z, z_max) result(crootfr)
+    
+    ! !ARGUMENTS:
+    real(r8) , intent(in) :: a,b    ! pft parameters
+    real(r8) , intent(in) :: z      ! soil depth (m)
+    real(r8) , intent(in), optional :: z_max ! max soil depth (m)
+    !
+    real(r8) :: crootfr_max
 
-  ! !ARGUMENTS:
-real(r8) , intent(in) :: a,b    ! pft parameters
-real(r8) , intent(in) :: z      ! soil depth (m)
-!
-! !RESULT
-real(r8) :: crootfr                         ! cumulative root fraction
-!
-!------------------------------------------------------------------------
-crootfr      = 1._r8 - .5_r8*(exp(-a*z) + exp(-b*z))
+    ! !RESULT
+    real(r8) :: crootfr            ! cumulative root fraction
+    !
+    !------------------------------------------------------------------------
+    crootfr      = 1._r8 - .5_r8*(exp(-a*z) + exp(-b*z))
 
-return
 
+    ! If a maximum rooting depth is provided, then
+    ! we force everything to sum to unity. We do this by 
+    ! simply dividing through by the maximum possible
+    ! root fraction.
+
+    if(present(z_max))then
+        crootfr_max = 1._r8 - .5_r8*(exp(-a*z_max) + exp(-b*z_max))
+        crootfr = crootfr/crootfr_max
+    end if
+
+    if(debug)then
+        if(present(z_max))then
+            if((crootfr_max<nearzero) .or. (crootfr_max>1.0_r8) )then
+                write(fates_log(),*) 'problem scaling crootfr in zeng2001'
+                write(fates_log(),*) 'z_max: ',z_max
+                write(fates_log(),*) 'crootfr_max: ',crootfr_max
+            end if
+        end if
+    end if
+
+
+    return
+    
 end function zeng2001_crootfr
 
 ! =====================================================================================
 
 subroutine shellGeom(l_aroot, rs1, area_site, dz, r_out_shell, r_node_shell, v_shell)
-  !
-  ! !DESCRIPTION: Updates size of 'representative' rhizosphere -- node radii, volumes.
-  ! As fine root biomass (and thus absorbing root length) increases, this characteristic
-  ! rhizosphere shrinks even though the total volume of soil surrounding fine roots remains
-  ! the same.  
-  !
-  ! !USES:
+    !
+    ! !DESCRIPTION: Updates size of 'representative' rhizosphere -- node radii, volumes.
+    ! As fine root biomass (and thus absorbing root length) increases, this characteristic
+    ! rhizosphere shrinks even though the total volume of soil surrounding fine roots remains
+    ! the same.  
+    !
+    ! !USES:
 
-  !
-  ! !ARGUMENTS:
-real(r8)     , intent(in)             :: l_aroot              ! Total length of absorbing roots
-! for the whole site, this layer (m)
-real(r8)     , intent(in)             :: rs1                  ! Fine root radius (m)
-real(r8)     , intent(in)             :: area_site            ! Area of site (10,000 m2)
-real(r8)     , intent(in)             :: dz                   ! Width of current soil layer (m)
-real(r8)     , intent(out)            :: r_out_shell(:)       ! Outer radius of each shell (m)
-real(r8)     , intent(out)            :: r_node_shell(:)      ! Radius of the shell's midpoint
-real(r8)     , intent(out)            :: v_shell(:)           ! volume of the rhizosphere shells (m3/ha)
-! for this layer
-!
-! !LOCAL VARIABLES:
-integer                        :: k                                 ! rhizosphere shell indicies
-!-----------------------------------------------------------------------
+    !
+    ! !ARGUMENTS:
+    real(r8)     , intent(in)             :: l_aroot              ! Total length of absorbing roots
+    ! for the whole site, this layer (m)
+    real(r8)     , intent(in)             :: rs1                  ! Fine root radius (m)
+    real(r8)     , intent(in)             :: area_site            ! Area of site (10,000 m2)
+    real(r8)     , intent(in)             :: dz                   ! Width of current soil layer (m)
+    real(r8)     , intent(out)            :: r_out_shell(:)       ! Outer radius of each shell (m)
+    real(r8)     , intent(out)            :: r_node_shell(:)      ! Radius of the shell's midpoint
+    real(r8)     , intent(out)            :: v_shell(:)           ! volume of the rhizosphere shells (m3/ha)
+    ! for this layer
+    !
+    ! !LOCAL VARIABLES:
+    integer                        :: k                                 ! rhizosphere shell indicies
+    !-----------------------------------------------------------------------
 
-! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
-r_out_shell(nshell) = (pi_const*l_aroot/(area_site*dz))**(-0.5_r8)                  ! eqn(8) S98
-if(nshell > 1) then
-do k = 1,nshell-1
-r_out_shell(k)   = rs1*(r_out_shell(nshell)/rs1)**((real(k,r8))/real(nshell,r8))  ! eqn(7) S98
-enddo
-end if
+    ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
+    r_out_shell(nshell) = (pi_const*l_aroot/(area_site*dz))**(-0.5_r8)                  ! eqn(8) S98
+    if(nshell > 1) then
+        do k = 1,nshell-1
+            r_out_shell(k)   = rs1*(r_out_shell(nshell)/rs1)**((real(k,r8))/real(nshell,r8))  ! eqn(7) S98
+        enddo
+    end if
 
-! set nodal (midpoint) radii of these shells
-! BOC...not doing this as it requires PFT-specific fine root thickness, but this is at column level
-r_node_shell(k) = 0.5_r8*(rs1 + r_out_shell(k))
-!r_node_shell(1) = 0.5_r8*(r_out_shell(1))
+    ! set nodal (midpoint) radii of these shells
+    ! BOC...not doing this as it requires PFT-specific fine root thickness, but this is at column level
+    r_node_shell(1) = 0.5_r8*(rs1 + r_out_shell(1))
+    !r_node_shell(1) = 0.5_r8*(r_out_shell(1))
 
-do k = 2,nshell
-r_node_shell(k) = 0.5_r8*(r_out_shell(k-1) + r_out_shell(k))
-enddo
+    do k = 2,nshell
+        r_node_shell(k) = 0.5_r8*(r_out_shell(k-1) + r_out_shell(k))
+    enddo
 
-! update volumes
-if(voltype==bcvol)then
-do k = 1,nshell
-if(k == 1) then
-   ! BOC...not doing this as it requires PFT-specific fine root thickness but this is at column level
-v_shell(k)   = pi_const*dz*(r_out_shell(k)**2._r8 - rs1**2._r8)
+    ! update volumes
+    if(voltype==bcvol)then
+        do k = 1,nshell
+            if(k == 1) then
+                ! BOC...not doing this as it requires PFT-specific fine root thickness but this is at column level
+                v_shell(k)   = pi_const*dz*(r_out_shell(k)**2._r8 - rs1**2._r8)
 
-else
-v_shell(k)     = pi_const*dz*(r_out_shell(k)**2._r8 - r_out_shell(k-1)**2._r8)
-end if
-enddo
-elseif(voltype==rkvol)then
-do k = 1,nshell
-if(k == 1) then
-v_shell(k) = pi_const*l_aroot*(r_out_shell(k)**2._r8 - rs1**2._r8)
-else
-v_shell(k) = pi_const*l_aroot*(r_out_shell(k)**2._r8 - r_out_shell(k-1)**2._r8)
-end if
-enddo
-end if
+            else
+                v_shell(k)   = pi_const*dz*(r_out_shell(k)**2._r8 - r_out_shell(k-1)**2._r8)
+            end if
+        enddo
+    elseif(voltype==rkvol)then
+        do k = 1,nshell
+            if(k == 1) then
+                v_shell(k) = pi_const*l_aroot*(r_out_shell(k)**2._r8 - rs1**2._r8)
+            else
+                v_shell(k) = pi_const*l_aroot*(r_out_shell(k)**2._r8 - r_out_shell(k-1)**2._r8)
+            end if
+        enddo
+    end if
 
 end subroutine shellGeom
 
