@@ -176,12 +176,12 @@ module FatesRestartInterfaceMod
 
   ! Hydraulic indices
   integer :: ir_hydro_th_ag_covec
-  integer :: ir_hydro_th_troot_covec
+  integer :: ir_hydro_th_troot
   integer :: ir_hydro_th_aroot_covec 
   integer :: ir_hydro_liqvol_shell_si
-  integer :: ir_hydro_err_growturn_aroot_covec
+  integer :: ir_hydro_err_growturn_aroot
   integer :: ir_hydro_err_growturn_ag_covec
-  integer :: ir_hydro_err_growturn_troot_covec
+  integer :: ir_hydro_err_growturn_troot
   integer :: ir_hydro_recruit_si
   integer :: ir_hydro_dead_si
   integer :: ir_hydro_growturn_err_si
@@ -897,7 +897,7 @@ contains
        call this%RegisterCohortVector(symbol_base='fates_hydro_th_troot', vtype=cohort_r8, &
             long_name_base='water in transporting roots', &
             units='kg/plant', veclength=n_hypool_troot, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_th_troot_covec) 
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_th_troot) 
        
        call this%RegisterCohortVector(symbol_base='fates_hydro_th_aroot', vtype=cohort_r8, &
             long_name_base='water in absorbing roots',  &
@@ -907,7 +907,7 @@ contains
        call this%RegisterCohortVector(symbol_base='fates_hydro_err_aroot', vtype=cohort_r8, &
             long_name_base='error in plant-hydro balance in absorbing roots',  &
             units='kg/plant', veclength=nlevsoi_hyd_max, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_aroot_covec) 
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_aroot) 
 
        call this%RegisterCohortVector(symbol_base='fates_hydro_err_ag', vtype=cohort_r8, &
             long_name_base='error in plant-hydro balance above ground',  &
@@ -917,7 +917,7 @@ contains
        call this%RegisterCohortVector(symbol_base='fates_hydro_err_troot', vtype=cohort_r8, &
             long_name_base='error in plant-hydro balance above ground',  &
             units='kg/plant', veclength=n_hypool_troot, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_troot_covec) 
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_troot) 
 
        ! Site-level volumentric liquid water content (shell x layer)
        call this%set_restart_var(vname='fates_hydro_liqvol_shell', vtype=cohort_r8, &
@@ -1638,23 +1638,22 @@ contains
                    ! Load the water contents
                    call this%SetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
                                                  ir_hydro_th_ag_covec,io_idx_co)
-                   call this%SetCohortRealVector(ccohort%co_hydr%th_troot,n_hypool_troot, &
-                                                 ir_hydro_th_troot_covec,io_idx_co)
                    call this%SetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevsoi_hyd, &
                                                  ir_hydro_th_aroot_covec,io_idx_co)
 
-                   ! Load the error terms
-                   call this%setCohortRealVector(ccohort%co_hydr%errh2o_growturn_aroot, &
-                                                 sites(s)%si_hydr%nlevsoi_hyd, &
-                                                 ir_hydro_err_growturn_aroot_covec,io_idx_co)
-                   
-                   call this%setCohortRealVector(ccohort%co_hydr%errh2o_growturn_troot, &
-                                                 n_hypool_troot, &
-                                                 ir_hydro_err_growturn_troot_covec,io_idx_co)
+                   this%rvars(ir_hydro_th_troot)%r81d(io_idx_co) = ccohort%co_hydr%th_troot
 
+                   ! Load the error terms
                    call this%setCohortRealVector(ccohort%co_hydr%errh2o_growturn_ag, &
                                                  n_hypool_ag, &
                                                  ir_hydro_err_growturn_ag_covec,io_idx_co)
+                   
+                   this%rvars(ir_hydro_err_growturn_aroot)%r81d(io_idx_co) = &
+                        ccohort%co_hydr%errh2o_growturn_aroot
+                        
+                   this%rvars(ir_hydro_err_growturn_troot)%r81d(io_idx_co) = &
+                        ccohort%co_hydr%errh2o_growturn_troot
+                        
 
                 end if
 
@@ -2388,21 +2387,18 @@ contains
                    ! Load the water contents
                    call this%GetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
                                                  ir_hydro_th_ag_covec,io_idx_co)
-                   call this%GetCohortRealVector(ccohort%co_hydr%th_troot,n_hypool_troot, &
-                                                 ir_hydro_th_troot_covec,io_idx_co)
                    call this%GetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevsoi_hyd, &
                                                  ir_hydro_th_aroot_covec,io_idx_co)
+                   
+                   ccohort%co_hydr%th_troot = this%rvars(ir_hydro_th_troot)%r81d(io_idx_co)
+                   
+                   call UpdateTreePsiFTCFromTheta(ccohort,sites(s)%si_hydr)
 
                    
-                   call UpdateTreePsiFTCFromTheta(ccohort%co_hydr,sites(s)%si_hydr)
-
-                   call this%GetCohortRealVector(ccohort%co_hydr%errh2o_growturn_aroot, &
-                                                 sites(s)%si_hydr%nlevsoi_hyd, &
-                                                 ir_hydro_err_growturn_aroot_covec,io_idx_co)
-                   
-                   call this%GetCohortRealVector(ccohort%co_hydr%errh2o_growturn_troot, &
-                                                 n_hypool_troot, &
-                                                 ir_hydro_err_growturn_troot_covec,io_idx_co)
+                   ccohort%co_hydr%errh2o_growturn_aroot = &
+                        this%rvars(ir_hydro_err_growturn_aroot)%r81d(io_idx_co)
+                   ccohort%co_hydr%errh2o_growturn_troot = &
+                        this%rvars(ir_hydro_err_growturn_troot)%r81d(io_idx_co)
 
                    call this%GetCohortRealVector(ccohort%co_hydr%errh2o_growturn_ag, &
                                                  n_hypool_ag, &

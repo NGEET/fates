@@ -254,8 +254,11 @@ module FatesHydraulicsMemMod
      
      real(r8) ::  supsub_flag                     ! k index of last node to encounter supersaturation or 
                                                   ! sub-residual water content  (+ supersaturation; - subsaturation)
-     real(r8) ::  iterh1                          ! number of iterations required to achieve tolerable water balance error
-     real(r8) ::  iterh2                          ! number of inner iterations
+     real(r8) ::  iterh1                          ! max number of iterations required to achieve tolerable
+                                                  ! water balance error (if 1D, associated with iterlayer)
+     real(r8) ::  iterh2                          ! number of inner iterations (if 1D, associated with iterlayer)
+     real(r8) ::  iterlayer                       ! layer index associated with the highest iterations
+
      real(r8) ::  errh2o                          ! total water balance error per unit crown area                     [kgh2o/m2]
      real(r8) ::  errh2o_growturn_ag(n_hypool_ag) ! error water pool for increase (growth) or
                                                   !  contraction (turnover) of tissue volumes.
@@ -278,10 +281,9 @@ module FatesHydraulicsMemMod
      ! Useful diagnostics
      ! ----------------------------------------------------------------------------------
 
-     real(r8) ::  sapflow                         ! flow at base of tree (+ upward)                                   [kg/indiv/timestep]
-     real(r8),allocatable ::  rootuptake(:)       ! net flow into roots (+ into roots)                                [kg/indiv/timestep]
-                                                  ! BC PLANT HYDRAULICS - flags
-
+     real(r8) ::  sapflow                         ! flow at base of tree (+ upward)      [kg/indiv/timestep]
+     real(r8),allocatable ::  rootuptake(:)       ! net flow into roots (+ into roots)   [kg/indiv/timestep]
+     real(r8) ::  qtop                            ! mean transpiration flux rate         [kg/indiv/timestep]
     
      ! Other
      ! ----------------------------------------------------------------------------------

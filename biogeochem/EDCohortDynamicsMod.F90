@@ -46,7 +46,8 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : UpdateTreeHydrNodes
-  use FatesPlantHydraulicsMod, only : UpdateTreeHydrLenVolCond
+  use FatesPlantHydraulicsMod, only : UpdateTreeHydrLenVol
+  use FatesPlantHydraulicsMod, only : UpdatePlantKmax
   use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
   use FatesPlantHydraulicsMod, only : ConstrainRecruitNumber
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
@@ -289,9 +290,12 @@ contains
        call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
                                 new_cohort%hite,nlevsoi_hyd,bc_in)
 
-       ! This calculates volumes, lengths and max conductances
-       call UpdateTreeHydrLenVolCond(new_cohort,nlevsoi_hyd,bc_in)
+       ! This calculates volumes and lengths
+       call UpdateTreeHydrLenVol(new_cohort,nlevsoi_hyd,bc_in)
        
+       ! This updates the Kmax's of the plant's compartments
+       call UpdatePlantKmax(new_cohort%co_hydr,new_cohort,currentSite%si_hydr,bc_in)
+
        ! Since this is a newly initialized plant, we set the previous compartment-size
        ! equal to the ones we just calculated.
        call SavePreviousCompartmentVolumes(new_cohort%co_hydr)

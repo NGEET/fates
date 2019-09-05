@@ -3275,7 +3275,7 @@ end subroutine flush_hvars
           hio_twp_scpf          => this%hvars(ih_twp_scpf)%r82d, &  
           hio_swp_scpf          => this%hvars(ih_swp_scpf)%r82d, &                     
           hio_lwp_scpf          => this%hvars(ih_lwp_scpf)%r82d, &  
-	  hio_aflc_scpf          => this%hvars(ih_aflc_scpf)%r82d, &                     
+          hio_aflc_scpf          => this%hvars(ih_aflc_scpf)%r82d, &                     
           hio_tflc_scpf          => this%hvars(ih_tflc_scpf)%r82d, &  
           hio_sflc_scpf          => this%hvars(ih_sflc_scpf)%r82d, &                     
           hio_lflc_scpf          => this%hvars(ih_lflc_scpf)%r82d, &                   
@@ -3351,7 +3351,7 @@ end subroutine flush_hvars
                         ccohort_hydr%errh2o * number_fraction_rate ! [kg/indiv/s]
                   
                   hio_tran_scpf(io_si,iscpf) = hio_tran_scpf(io_si,iscpf) + &
-                        (ccohort_hydr%qtop_dt + ccohort_hydr%dqtopdth_dthdt) * number_fraction_rate ! [kg/indiv/s]
+                        (ccohort_hydr%qtop) * number_fraction_rate ! [kg/indiv/s]
                   
                   hio_rootuptake_scpf(io_si,iscpf) = hio_rootuptake_scpf(io_si,iscpf) + &
                         sum(ccohort_hydr%rootuptake) * number_fraction_rate       ! [kg/indiv/s]
@@ -3395,16 +3395,16 @@ end subroutine flush_hvars
                         ccohort_hydr%psi_ag(1)  * number_fraction       ! [MPa]
 			
                   hio_aflc_scpf(io_si,iscpf)             = hio_aflc_scpf(io_si,iscpf) + &
-                        ccohort_hydr%flc_aroot(1)   * number_fraction     
+                        ccohort_hydr%ftc_aroot(1)   * number_fraction     
                   
                   hio_tflc_scpf(io_si,iscpf)             = hio_tflc_scpf(io_si,iscpf) + &
-                        ccohort_hydr%flc_troot  * number_fraction     
+                        ccohort_hydr%ftc_troot  * number_fraction     
                   
                   hio_sflc_scpf(io_si,iscpf)             = hio_sflc_scpf(io_si,iscpf) + &
-                        ccohort_hydr%flc_ag(2)  * number_fraction       
+                       ccohort_hydr%ftc_ag(2)  * number_fraction       
                   
                   hio_lflc_scpf(io_si,iscpf)             = hio_lflc_scpf(io_si,iscpf) + &
-                        ccohort_hydr%flc_ag(1)  * number_fraction   
+                        ccohort_hydr%ftc_ag(1)  * number_fraction   
                   
                   hio_btran_scpf(io_si,iscpf)           = hio_btran_scpf(io_si,iscpf) + &
                         ccohort_hydr%btran  * number_fraction        ! [-]
