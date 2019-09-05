@@ -939,22 +939,18 @@ contains
 
                    if (currentCohort%crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
-                      ! Initiation of passive crown fire, EQ 9 Bessie and Johnson 1995                     
+                      ! Initiation of passive crown fire, EQ 9 Bessie and Johnson 1995
                       currentCohort%ignite_crown = currentPatch%FI/currentCohort%crown_FI
+                      
                       if (currentCohort%ignite_crown > 1.0_r8) then
                          currentCohort%crown_fire_flg = 1  ! passive crown fire ignited
                          currentCohort%fraction_crown_burned =  1.0_r8
-                      else ! evaluate crown damage based on scorch height
-                         currentCohort%fraction_crown_burned =  0.0_r8
-                      endif ! passive crown fire
-                   else
-                      currentCohort%crown_fire_flg = 0 ! no crown fire today
-                      currentCohort%fraction_crown_burned =  0.0_r8
+                      ! else ! evaluate crown damage based on scorch height
+                      endif ! ignite passive crown fire
+                   ! else no crown fire today
                    endif ! crown fire intensity
-                else   
-                   currentCohort%crown_fire_flg = 0 ! not crown fire plant
-                   currentCohort%fraction_crown_burned =  0.0_r8
-                endif
+                ! else ! not crown fire plant
+                endif ! evaluate passive crown fire
                 
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort  
