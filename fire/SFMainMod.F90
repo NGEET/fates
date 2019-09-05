@@ -923,7 +923,7 @@ contains
           do while(associated(currentCohort))  
              currentCohort%fraction_crown_burned = 0.0_r8
              currentCohort%crown_FI              = 0.0_r8  !critical fire intensity for passive crown fire
-             currentCohort%crown_fire            = 0       !flag for passvie crown fire ignition
+             currentCohort%crown_fire_flg        = 0       !flag for passvie crown fire ignition
              
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 
@@ -942,30 +942,30 @@ contains
                       ! Initiation of passive crown fire, EQ 9 Bessie and Johnson 1995                     
                       currentCohort%ignite_crown = currentPatch%FI/currentCohort%crown_FI
                       if (currentCohort%ignite_crown > 1.0_r8) then
-                         currentCohort%crown_fire = 1  ! passive crown fire ignited
+                         currentCohort%crown_fire_flg = 1  ! passive crown fire ignited
                          currentCohort%fraction_crown_burned =  1.0_r8
                       else ! evaluate crown damage based on scorch height
                          currentCohort%fraction_crown_burned =  0.0_r8
                       endif ! passive crown fire
                    else
-                      currentCohort%crown_fire = 0 ! no crown fire today
+                      currentCohort%crown_fire_flg = 0 ! no crown fire today
                       currentCohort%fraction_crown_burned =  0.0_r8
                    endif ! crown fire intensity
                 else   
-                   currentCohort%crown_fire = 0 ! not crown fire plant
+                   currentCohort%crown_fire_flg = 0 ! not crown fire plant
                    currentCohort%fraction_crown_burned =  0.0_r8
                 endif
                 
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort  
-                if (currentPatch%SH < (currentCohort%hite- height_cbb)) .and. currentCohort%crown_fire = 0 then 
+                if (currentPatch%SH < (currentCohort%hite- height_cbb)) .and. currentCohort%crown_fire_flg = 0 then 
                    currentCohort%fraction_crown_burned = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy but not over top.
                    if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH >=  &
-                      (currentCohort%hite - height_cbb))) .and. currentCohort%crown_fire = 0 then 
+                      (currentCohort%hite - height_cbb))) .and. currentCohort%crown_fire_flg = 0 then 
 
                       currentCohort%fraction_crown_burned =  (currentPatch%SH-currentCohort%hite*(1.0_r8- &
                              EDPftvarcon_inst%crown(currentCohort%pft)))/(height_cbb) 
