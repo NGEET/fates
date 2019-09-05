@@ -940,8 +940,8 @@ contains
                    if (currentCohort%crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
                       ! Initiation of passive crown fire, EQ 9 Bessie and Johnson 1995                     
-                      currentCohort%passive_crown_fire = currentPatch%FI/currentCohort%crown_FI
-                      if (currentCohort%passive_crown_fire > 1.0_r8) then
+                      currentCohort%ignite_crown = currentPatch%FI/currentCohort%crown_FI
+                      if (currentCohort%ignite_crown > 1.0_r8) then
                          currentCohort%crown_fire = 1  ! passive crown fire ignited
                          currentCohort%fraction_crown_burned =  1.0_r8
                       else ! evaluate crown damage based on scorch height
@@ -1069,7 +1069,7 @@ contains
              currentCohort%crownfire_mort = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then
                 ! Equation 22 in Thonicke et al. 2010. 
-                currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
+                currentCohort%crownfire_mort = EDPftvarcon_inst%crown_resist(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 
                 currentCohort%fire_mort = max(0._r8,min(1.0_r8,currentCohort%crownfire_mort+currentCohort%cambial_mort- &
                      (currentCohort%crownfire_mort*currentCohort%cambial_mort)))  !joint prob.   
