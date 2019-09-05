@@ -60,6 +60,8 @@
 
   integer :: write_SF = 0     ! for debugging
   logical :: debug = .false.  ! for debugging
+  
+  real(r8),parameter :: q_dry = 581.0_r8 !heat of pre-ignition of dry fuels (kJ/kg)
 
   ! ============================================================================
   ! ============================================================================
@@ -167,7 +169,7 @@ contains
 
     type(ed_patch_type),  pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
-    type(litter_type), pointer    :: litt_c
+    type(litter_type),    pointer :: litt_c
 
     real(r8) timeav_swc
     real(r8) alpha_FMC(nfsc)     ! Relative fuel moisture adjusted per drying ratio
@@ -483,7 +485,7 @@ contains
        !  Equation A4 in Thonicke et al. 2010
        !  conversion of Rohtermal (1972) equation 12 in BTU/lb to current kJ/kg
        !  q_ig in kJ/kg 
-       q_ig = 581.0_r8 +2594.0_r8 * currentPatch%fuel_eff_moist
+       q_ig = q_dry + 2594.0_r8 * currentPatch%fuel_eff_moist
 
        ! ---effective heating number---
        ! Equation A3 in Thonicke et al. 2010.  
