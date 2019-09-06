@@ -60,8 +60,6 @@
 
   integer :: write_SF = 0     ! for debugging
   logical :: debug = .false.  ! for debugging
-  
-  real(r8),parameter :: q_dry = 581.0_r8 !heat of pre-ignition of dry fuels (kJ/kg)
 
   ! ============================================================================
   ! ============================================================================
@@ -443,7 +441,8 @@ contains
     real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
     real(r8) a,b,c,e              ! function of fuel sav
 
-    logical,parameter :: debug_windspeed = .false. !for debugging
+    logical,parameter  :: debug_windspeed = .false.  !for debugging
+    real(r8),parameter :: q_dry           = 581.0_r8 !heat of pre-ignition of dry fuels (kJ/kg)
 
     currentPatch=>currentSite%oldest_patch;  
 
