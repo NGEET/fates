@@ -30,7 +30,6 @@
   use EDtypesMod            , only : TR_SF
   use FatesLitterMod        , only : litter_type
 
-  use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -913,6 +912,11 @@ contains
     type(ed_cohort_type), pointer :: currentCohort
 
     real(r8) height_cbb ! lower crown base height (m) or clear branch bole height (m)
+    real(r8) :: crown_depth  ! [m]
+    real(r8) :: leaf_c  ! leaf carbon [kg]
+    real(r8) :: crown_fuel_bulkd  ! leaf biomass per unit area divided by canopy depth [kg/m3] Van Wagner used this method according to Scott (2006) p. 12
+    real(r8), parameter :: low_heat_of_combustion = 12700.0_r8  ! [kJ/kg]
+    real(r8), parameter :: critical_mass_flow_rate = 0.05_r8  ! [kg/m2/s] value for conifer forests; if available for other vegetation, move to the params file?
 
     currentPatch => currentSite%oldest_patch
 
@@ -930,22 +934,38 @@ contains
                 
                 ! Calculate clear branch bole height at base of crown
                 ! inst%crown = crown_depth_frac (PFT)
-                height_cbb = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)
+                crown_depth = currentCohort%hite * EDPftvarcon_inst%crown(currentCohort%pft)
+                height_cbb = currentCohort%hite - crown_depth
                 
                 ! Evaluate for passive crown fire ignition
                 if (EDPftvarcon_inst%crown_fire(currentCohort%pft) == 1) then
                    
                    ! Crown fuel ignition potential, EQ 8 Bessie and Johnson 1995
                    currentCohort%passive_crown_FI = (0.01 * height_cbb * SF_val_crown_ignition_energy)**1.5
+                   ! Critical intensity for active crowning (kW/m)
+                   ! EQ 12 Bessie and Johnson 1995
+                   ! Dividing fuels by 0.45 to get biomass but note that the
+                   ! 0.45 cancels out and could be removed. Also dividing
+                   ! critical_mass_flow_rate by 3.34, an empirical constant
+                   ! in Bessie & Johnson 1995
+                   leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                   crown_fuel_bulkd = leaf_c / (0.45_r8 * crown_depth)
+                   currentCohort%active_crown_FI = critical_mass_flow_rate * low_heat_of_combustion * currentPatch%sum_fuel / (0.45_r8 * 3.34_r8 * crown_fuel_bulkd)
 
                    if (currentCohort%passive_crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
                       ! Initiation of passive crown fire, EQ 14 Bessie and Johnson 1995
                       currentCohort%ignite_crown = currentPatch%FI/currentCohort%passive_crown_FI
                       
-                      if (currentCohort%ignite_crown > 1.0_r8) then
+                      if (currentCohort%ignite_crown >= 1.0_r8) then
                          currentCohort%crown_fire_flg = 1  ! passive crown fire ignited
                          currentCohort%fraction_crown_burned =  1.0_r8
+                         ! Initiation of active crown fire, EQ 14b Bessie and Johnson 1995
+                         currentCohort%ignite_active_crown = currentPatch%FI/currentCohort%active_crown_FI
+                         if (currentCohort%ignite_active_crown >= 1.0_r8) then
+                            ! In code design phase; see
+                            ! https://github.com/NGEET/fates/issues/573
+                         endif ! ignite active crown fire
                       ! else ! evaluate crown damage based on scorch height
                       endif ! ignite passive crown fire
                    ! else no crown fire today
@@ -955,17 +975,16 @@ contains
                 
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort  
-                if (currentPatch%SH < (currentCohort%hite- height_cbb)) .and. currentCohort%crown_fire_flg = 0 then 
+                if (currentPatch%SH < height_cbb .and. currentCohort%crown_fire_flg = 0) then 
                    currentCohort%fraction_crown_burned = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy but not over top.
-                   if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH >=  &
-                      (currentCohort%hite - height_cbb))) .and. currentCohort%crown_fire_flg = 0 then 
+                   if (currentCohort%hite > 0.0_r8 .and. currentPatch%SH >=  &
+                      height_cbb .and. currentCohort%crown_fire_flg = 0) then 
 
-                      currentCohort%fraction_crown_burned =  (currentPatch%SH-currentCohort%hite*(1.0_r8- &
-                             EDPftvarcon_inst%crown(currentCohort%pft)))/(height_cbb) 
+                      currentCohort%fraction_crown_burned = (currentPatch%SH - height_cbb) / crown_depth
 
                    else 
                       ! Flames over top of canopy. 
