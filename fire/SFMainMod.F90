@@ -928,9 +928,10 @@ contains
              
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 
-                ! Calculate clear branch bole height at base of crown
+                ! height_cbb = clear branch bole height at base of crown (m)
                 ! inst%crown = crown_depth_frac (PFT)
-                height_cbb = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)
+                height_cbb  = currentCohort%hite * (1.0_r8 - EDPftvarcon_inst%crown(currentCohort%pft)
+                crown_depth = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
                 
                 ! Evaluate for passive crown fire ignition
                 if (EDPftvarcon_inst%crown_fire(currentCohort%pft) == 1) then
@@ -954,18 +955,18 @@ contains
                 endif ! evaluate passive crown fire
                 
                 ! Flames lower than bottom of canopy. 
-                ! c%hite is height of cohort  
-                if (currentPatch%SH < (currentCohort%hite- height_cbb)) .and. currentCohort%crown_fire_flg = 0 then 
+                ! cohort%hite is height of cohort  
+                if (currentPatch%SH <= height_cbb .and. currentCohort%crown_fire_flg = 0) then 
                    currentCohort%fraction_crown_burned = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy but not over top.
-                   if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH >=  &
-                      (currentCohort%hite - height_cbb))) .and. currentCohort%crown_fire_flg = 0 then 
+                   if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH > height_cbb) &
+                        .and. (currentPatch%SH <= currentCohort%hite)  &
+                        .and. currentCohort%crown_fire_flg = 0 then 
 
-                      currentCohort%fraction_crown_burned =  (currentPatch%SH-currentCohort%hite*(1.0_r8- &
-                             EDPftvarcon_inst%crown(currentCohort%pft)))/(height_cbb) 
+                      currentCohort%fraction_crown_burned =  (currentPatch%SH - height_cbb)/crown_depth 
 
                    else 
                       ! Flames over top of canopy. 
