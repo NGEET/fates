@@ -735,8 +735,11 @@ contains
 
 
        ! Estimate absorbing root total length (all layers)
+       ! SRL is in m/g
+       ! [m] = [kgC]*1000[g/kg]*[kg/kgC]*[m/g]
        ! ------------------------------------------------------------------------------
-       l_aroot_tot        = fnrt_c*C2B*EDPftvarcon_inst%hydr_srl(ft)
+       l_aroot_tot        = fnrt_c*g_per_kg*C2B*EDPftvarcon_inst%hydr_srl(ft)
+
 
        ! Estimate absorbing root volume (all layers)
        ! ------------------------------------------------------------------------------
@@ -2680,6 +2683,7 @@ contains
     real(r8) :: rmin_ag      ! Minimum total resistance of all above ground pathways
     ! [kg-1 s MPa]
     real(r8) :: kmax_bg      ! Total maximum conductance of all below-ground pathways 
+    real(r8) :: kmax_bg_alt
     ! from the absorbing roots center nodes to the 
     ! transporting root center node
     real(r8) :: rootfr       ! fraction of absorbing root in each soil layer
@@ -2783,7 +2787,6 @@ contains
     z_upper = ccohort_hydr%z_lower_ag(n_hypool_leaf)
     z_node  = ccohort_hydr%z_lower_ag(n_hypool_leaf)-ccohort_hydr%z_node_troot
 
-
     kmax_node = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
          xylemtaper(taper_exponent, z_node) * &
          a_sapwood / z_node
@@ -2793,6 +2796,8 @@ contains
          a_sapwood / z_upper
 
     ccohort_hydr%kmax_troot_upper = (1._r8/kmax_node - 1._r8/kmax_upper)**(-1._r8)
+
+    !print*,z_upper,z_node,kmax_upper,kmax_node,ccohort_hydr%kmax_troot_upper
 
 
     ! The maximum conductance between the center node of the transporting root
@@ -2814,7 +2819,16 @@ contains
     ! Calculate the residual resistance below ground, as a resistor
     ! in series with the existing above ground
     ! Invert to find below-ground kmax
-    kmax_bg = 1._r8/(rmin_ag * (1._r8/EDPftvarcon_inst%hydr_rfrac_stem(pft) - 1._r8))
+    ! (rmin_ag+rmin_bg)*fr = rmin_ag
+    ! rmin_ag + rmin_bg = rmin_ag/fr
+    ! rmin_bg = (1/fr-1) * rmin_ag
+    !
+    ! if kmax_bg = 1/rmin_bg :
+    !
+    ! kmax_bg = 1/((1/fr-1) * rmin_ag)
+    
+    kmax_bg = 1._r8/(rmin_ag*(1._r8/EDPftvarcon_inst%hydr_rfrac_stem(pft) - 1._r8))
+    
 
     ! The max conductance of each layer is in parallel, therefore
     ! the kmax terms of each layer, should sum to kmax_bg
@@ -2949,6 +2963,8 @@ contains
     real(r8) :: aroot_frac_plant                ! This is the fraction of absorbing root from one plant
     real(r8) :: dftc_dpsi                       ! Change in fraction of total conductance wrt change
                                                 ! in potential [- MPa-1]
+    real(r8) :: roota, rootb                    ! rooting depth parameters (used for diagnostics)
+    real(r8) :: rootfr                          ! rooting fraction of this layer (used for diagnostics)
     ! out of the total absorbing roots from the whole community of plants, 
 
     integer, parameter  :: imult    = 3                ! With each iteration, increase the number of substeps
@@ -2956,6 +2972,9 @@ contains
     integer, parameter  :: max_iter = 5                ! Maximum number of iterations with which we reduce timestep
     real(r8), parameter :: max_wb_step_err = 1.e-6_r8 
     real(r8), parameter :: max_wb_err      = 1.e-4_r8  ! threshold for water balance error (stop model)   [mm h2o]
+
+    logical, parameter :: do_scale_allkmax_rootfr = .true.
+
 
     ! -------------------------------------------------------------------------------
     ! Part 1.  Calculate node quantities:
@@ -3351,6 +3370,16 @@ contains
              write(fates_log(),*) 'positive psi found, dumping network'
              write(fates_log(),*) 'dbh: ',cohort%dbh
              write(fates_log(),*) 'pft: ',cohort%pft
+             write(fates_log(),*) 'soil layer:',ilayer
+             roota=EDPftvarcon_inst%roota_par(cohort%pft)
+             rootb=EDPftvarcon_inst%rootb_par(cohort%pft)
+             if(ilayer==1) then
+                 rootfr = zeng2001_crootfr(roota,rootb, bc_in%zi_sisl(ilayer), bc_in%zi_sisl(site_hydr%nlevsoi_hyd))
+             else
+                 rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(ilayer), bc_in%zi_sisl(site_hydr%nlevsoi_hyd)) - &
+                       zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(ilayer-1), bc_in%zi_sisl(site_hydr%nlevsoi_hyd))
+             end if
+             write(fates_log(),*) 'rootfrac: ', rootfr
              write(fates_log(),*) 'total root length: ',sum(cohort_hydr%l_aroot_layer)
              write(fates_log(),*) 'dt_substep: ',dt_substep
              write(fates_log(),*) 'i   theta_init   theta     mass'
