@@ -61,7 +61,7 @@ module FatesHydraulicsMemMod
    integer, parameter, public                          :: nlevcan_hyd = 2                       
                        
    ! Mean fine root radius expected in the bulk soil                
-   real(r8), parameter, public                         :: fine_root_radius_const = 0.001_r8               
+   real(r8), parameter, public                         :: fine_root_radius_const = 0.0001_r8               
    
    ! Constant parameters (for time being, C2B is constant, 
    ! slated for addition to parameter file (RGK 08-2017))
