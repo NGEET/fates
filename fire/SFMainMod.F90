@@ -943,7 +943,7 @@ contains
                       ! Initiation of passive crown fire, EQ 14 Bessie and Johnson 1995
                       currentCohort%ignite_crown = currentPatch%FI/currentCohort%passive_crown_FI
                       
-                      if (currentCohort%ignite_crown > 1.0_r8) then
+                      if (currentCohort%ignite_crown >= 1.0_r8) then
                          currentCohort%crown_fire_flg = 1  ! passive crown fire ignited
                          currentCohort%fraction_crown_burned =  1.0_r8
                       ! else ! evaluate crown damage based on scorch height
