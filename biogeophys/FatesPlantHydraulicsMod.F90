@@ -2711,6 +2711,9 @@ contains
     call bsap_allom(ccohort%dbh,pft,ccohort%canopy_trim,a_sapwood,c_sap_dummy)
 
 
+
+
+
     ! Leaf Maximum Hydraulic Conductance
     ! The starting hypothesis is that there is no resistance inside the
     ! leaf, between the petiole and the center of storage.  To override
