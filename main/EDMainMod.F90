@@ -254,10 +254,6 @@ contains
        if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
           call updateSizeDepRhizHydProps(currentSite, bc_in)
           call updateSizeDepRhizHydStates(currentSite, bc_in)
-          !       if(nshell > 1) then  (THIS BEING CHECKED INSIDE OF the update)
-          !          call updateSizeDepRhizHydStates(currentSite, c, soilstate_inst, &
-          !                waterstate_inst)
-          !       end if
        end if
     end if
 
