@@ -930,8 +930,9 @@ contains
                 
                 ! height_cbb = clear branch bole height at base of crown (m)
                 ! inst%crown = crown_depth_frac (PFT)
-                height_cbb  = currentCohort%hite * (1.0_r8 - EDPftvarcon_inst%crown(currentCohort%pft)
                 crown_depth = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
+                height_cbb  = currentCohort%hite - crown_depth
+
                 
                 ! Evaluate for passive crown fire ignition
                 if (EDPftvarcon_inst%crown_fire(currentCohort%pft) == 1) then
