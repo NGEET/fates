@@ -22,6 +22,7 @@
   use EDtypesMod            , only : AREA
   use EDtypesMod            , only : DL_SF
   use EDtypesMod            , only : FIRE_THRESHOLD
+  use EDtypesMod            , only : crown_fire_threshold
   use EDTypesMod            , only : TW_SF
   use EDtypesMod            , only : LB_SF
   use EDtypesMod            , only : LG_SF
@@ -913,9 +914,6 @@ contains
 
     real(r8) crown_depth ! depth of crown (m)
     real(r8) height_cbb  ! clear branch bole height or crown base height (m)
-
-    real(r8), parameter :: crown_fire_threshold = 200.0_r8 ! threshold for crown fire potential (kW/m)
-
 
     currentPatch => currentSite%oldest_patch
 
