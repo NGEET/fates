@@ -912,7 +912,9 @@ contains
     type(ed_cohort_type), pointer :: currentCohort
 
     real(r8) crown_depth ! depth of crown (m)
-    real(r8) height_cbb  ! clear branch bole height or crown base height (m) 
+    real(r8) height_cbb  ! clear branch bole height or crown base height (m)
+
+    real(r8), parameter :: crown_fire_threshold = 200.0_r8 ! threshold for crown fire potential (kW/m)
 
 
     currentPatch => currentSite%oldest_patch
@@ -926,6 +928,7 @@ contains
              currentCohort%fraction_crown_burned = 0.0_r8
              currentCohort%passive_crown_FI      = 0.0_r8  !critical fire intensity for passive crown fire
              currentCohort%crown_fire_flg        = 0       !flag for passvie crown fire ignition
+             currentCohort%ignite_crown          = 0.0_r8  !ratio of ignition of passive crown fire,EQ 14 Bessie & Johnson 1995
              
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 
@@ -939,7 +942,7 @@ contains
                 if (EDPftvarcon_inst%crown_fire(currentCohort%pft) == 1) then
                    
                    ! Crown fuel ignition potential, EQ 8 Bessie and Johnson 1995
-                   currentCohort%passive_crown_FI = (0.01 * height_cbb * SF_val_crown_ignition_energy)**1.5
+                   currentCohort%passive_crown_FI = (0.01_r8 * height_cbb * SF_val_crown_ignition_energy)**1.5_r8
 
                    if (currentCohort%passive_crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
@@ -958,13 +961,13 @@ contains
                 
                 ! Flames lower than bottom of canopy.
                 ! height_cbb is clear branch bole height or height of bottom of canopy 
-                if (currentPatch%SH <= height_cbb .and. currentCohort%crown_fire_flg = 0) then 
+                if (currentPatch%SH <= height_cbb .and. currentCohort%crown_fire_flg = 0) then &
                    currentCohort%fraction_crown_burned = 0.0_r8
 
                 ! Flames part way into canopy
                 ! Equation 17 in Thonicke et al. 2010
                 elseif ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH > height_cbb) &
-                     .and. currentCohort%crown_fire_flg = 0 then 
+                     .and. currentCohort%crown_fire_flg = 0 then  &
 
                       currentCohort%fraction_crown_burned = max(0.0_r8, &
                                                          min(1.0_r8, (currentPatch%SH - height_cbb)/crown_depth))
