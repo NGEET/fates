@@ -114,7 +114,7 @@ contains
    !*****************************************************************
    ! currentSite%acc_NI is the accumulated Nesterov fire danger index
 
-    use SFParamsMod, only  : SF_val_fdi_a, SF_val_fdi_b
+    use SFParamsMod,        only : SF_val_fdi_a, SF_val_fdi_b
     use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod , only : sec_per_day
 
@@ -574,8 +574,8 @@ contains
     !returns the  the hypothetic fuel consumed by the fire
 
     use SFParamsMod, only : SF_val_miner_total, SF_val_min_moisture, &
-         SF_val_mid_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope, &
-         SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
+                            SF_val_mid_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope, &
+                            SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
 
     type(ed_site_type) , intent(in), target :: currentSite
     type(ed_patch_type), pointer    :: currentPatch
@@ -664,8 +664,8 @@ contains
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
     use FatesInterfaceMod, only : hlm_use_spitfire
-    use SFParamsMod,  only : SF_val_fdi_alpha,SF_val_fuel_energy, &
-         SF_val_max_durat, SF_val_durat_slope
+    use SFParamsMod,       only : SF_val_fdi_alpha,SF_val_fuel_energy, &
+                                  SF_val_max_durat, SF_val_durat_slope
 
     type(ed_site_type), intent(inout), target :: currentSite
 
@@ -828,7 +828,7 @@ contains
 
     type(ed_site_type), intent(in), target :: currentSite
 
-    type(ed_patch_type), pointer :: currentPatch
+    type(ed_patch_type),  pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
     real(r8) ::  f_ag_bmass      ! fraction of tree cohort's above-ground biomass as a proportion of total patch ag tree biomass
@@ -902,7 +902,6 @@ contains
 
     !returns the updated currentCohort%fraction_crown_burned for each tree cohort within each patch.
     !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
-
     
     !SF_val_crown_ignition_energy (kJ/kg) for crown foliage with 100% moisture (dry mass)
     use SFParamsMod, only  : SF_val_crown_ignition_energy  !kJ/kg 
@@ -912,7 +911,9 @@ contains
     type(ed_patch_type) , pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
-    real(r8) height_cbb ! lower crown base height (m) or clear branch bole height (m)
+    real(r8) crown_depth ! depth of crown (m)
+    real(r8) height_cbb  ! clear branch bole height or crown base height (m) 
+
 
     currentPatch => currentSite%oldest_patch
 
@@ -955,26 +956,19 @@ contains
                 ! else ! not crown fire plant
                 endif ! evaluate passive crown fire
                 
-                ! Flames lower than bottom of canopy. 
-                ! cohort%hite is height of cohort  
+                ! Flames lower than bottom of canopy.
+                ! height_cbb is clear branch bole height or height of bottom of canopy 
                 if (currentPatch%SH <= height_cbb .and. currentCohort%crown_fire_flg = 0) then 
                    currentCohort%fraction_crown_burned = 0.0_r8
-                else
-                   ! Flames part of way up canopy. 
-                   ! Equation 17 in Thonicke et al. 2010. 
-                   ! flames over bottom of canopy but not over top.
-                   if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH > height_cbb) &
-                        .and. (currentPatch%SH <= currentCohort%hite)  &
-                        .and. currentCohort%crown_fire_flg = 0 then 
 
-                      currentCohort%fraction_crown_burned =  (currentPatch%SH - height_cbb)/crown_depth 
+                ! Flames part way into canopy
+                ! Equation 17 in Thonicke et al. 2010
+                elseif ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH > height_cbb) &
+                     .and. currentCohort%crown_fire_flg = 0 then 
 
-                   else 
-                      ! Flames over top of canopy. 
-                      currentCohort%fraction_crown_burned =  1.0_r8 
-                   endif
-
-                endif
+                      currentCohort%fraction_crown_burned = max(0.0_r8, &
+                                                         min(1.0_r8, (currentPatch%SH - height_cbb)/crown_depth))
+                endif  !SH frac crown burnt calculation
                 ! Check for strange values. 
                 currentCohort%fraction_crown_burned = min(1.0_r8, max(0.0_r8,currentCohort%fraction_crown_burned))              
              endif !trees only
@@ -1070,7 +1064,7 @@ contains
                 ! Equation 22 in Thonicke et al. 2010. 
                 currentCohort%crownfire_mort = EDPftvarcon_inst%crown_resist(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 
-                currentCohort%fire_mort = max(0._r8,min(1.0_r8,currentCohort%crownfire_mort+currentCohort%cambial_mort- &
+                currentCohort%fire_mort = max(0.0_r8,min(1.0_r8,currentCohort%crownfire_mort+currentCohort%cambial_mort- &
                      (currentCohort%crownfire_mort*currentCohort%cambial_mort)))  !joint prob.   
              else
                 currentCohort%fire_mort = 0.0_r8 !Set to zero. Grass mode of death is removal of leaves.
