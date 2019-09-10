@@ -957,18 +957,14 @@ contains
                 ! else ! not crown fire plant
                 endif ! evaluate passive crown fire
                 
-                ! Flames lower than bottom of canopy.
+                ! For surface fires, are flames in the canopy?
                 ! height_cbb is clear branch bole height or height of bottom of canopy 
-                if (currentPatch%SH <= height_cbb .and. currentCohort%crown_fire_flg == 0) then 
-                   currentCohort%fraction_crown_burned = 0.0_r8
-
-                ! Flames part way into canopy
                 ! Equation 17 in Thonicke et al. 2010
-                elseif (currentCohort%hite > 0.0_r8 .and. currentPatch%SH > height_cbb &
+                if (currentCohort%hite > 0.0_r8 .and. currentPatch%SH > height_cbb &
                      .and. currentCohort%crown_fire_flg == 0) then  
 
                       currentCohort%fraction_crown_burned = max(0.0_r8, &
-                                                         min(1.0_r8, ((currentPatch%SH - height_cbb)/crown_depth)))
+                                                                min(1.0_r8, ((currentPatch%SH - height_cbb)/crown_depth)))
                 endif  !SH frac crown burnt calculation
                 ! Check for strange values. 
                 currentCohort%fraction_crown_burned = min(1.0_r8, max(0.0_r8,currentCohort%fraction_crown_burned))              
