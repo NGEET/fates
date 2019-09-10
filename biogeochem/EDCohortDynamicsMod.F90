@@ -582,11 +582,7 @@ contains
 
     currentcohort%year_net_uptake(:) = 999._r8 ! this needs to be 999, or trimming of new cohorts will break. 
     currentcohort%ts_net_uptake(:)   = 0._r8
-    currentcohort%fraction_crown_burned = 0._r8
-    currentCohort%passive_crown_FI    = 0._r8
-    currentCohort%crown_fire_flg      = 0
-    currentCohort%ignite_crown        = 0.0_r8
-    currentCohort%size_class            = 1
+    currentCohort%size_class         = 1
     currentCohort%seed_prod          = 0._r8
     currentCohort%size_class_lasttimestep = 0
     currentcohort%npp_acc_hold       = 0._r8 
