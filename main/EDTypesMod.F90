@@ -344,9 +344,7 @@ module EDTypesMod
 
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
-     real(r8) ::  passive_crown_FI                       ! critical fire intensity for passive crown fire
      real(r8) ::  crown_fire_flg                         ! flag for passive crown fire ignition
-     real(r8) ::  ignite_crown                           ! ratio to determine passive crown fire ignition
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
                                                          ! (conditional on the tree being subjected to the fire)
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality 
