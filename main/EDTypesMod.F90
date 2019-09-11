@@ -1013,9 +1013,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
      write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
      write(fates_log(),*) 'co%fraction_crown_burned  = ', ccohort%fraction_crown_burned
-     write(fates_log(),*) 'co%passive_crown_FI       = ', ccohort%passive_crown_FI
      write(fates_log(),*) 'co%crown_fire_flg         = ', ccohort%crown_fire_flg
-     write(fates_log(),*) 'co%ignite_crown           = ', ccohort%ignite_crown
      write(fates_log(),*) 'co%fire_mort              = ', ccohort%fire_mort
      write(fates_log(),*) 'co%crownfire_mort         = ', ccohort%crownfire_mort
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
