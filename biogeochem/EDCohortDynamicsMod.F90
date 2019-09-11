@@ -535,9 +535,7 @@ contains
 
     ! FIRE
     currentCohort%fraction_crown_burned = nan ! proportion of crown affected by fire
-    currentCohort%passive_crown_FI      = nan ! critical fire intensity for passive crown fire
     currentCohort%crown_fire_flg        = nan ! flag for passive crown fire ignition
-    currentCohort%ignite_crown          = nan ! ratio to determine passive crown fire ignition, EQ14 Bessie&Johnson 1995
     currentCohort%cambial_mort          = nan ! probability that trees dies due to cambial char P&R (1986)
     currentCohort%crownfire_mort        = nan ! probability of tree post-fire mortality due to crown scorch
     currentCohort%fire_mort             = nan ! post-fire mortality from cambial and crown damage assuming two are independent

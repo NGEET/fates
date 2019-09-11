@@ -912,8 +912,10 @@ contains
     type(ed_patch_type) , pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
-    real(r8) crown_depth ! depth of crown (m)
-    real(r8) height_cbb  ! clear branch bole height or crown base height (m)
+    real(r8) crown_depth        ! depth of crown (m)
+    real(r8) height_cbb         ! clear branch bole height or crown base height (m)
+    real(r8) passive_crown_FI   ! critical fire intensity for passive crown fire ignition (kW/m)
+    real(r8) ignite_crown       ! ratio for ignition of passive crown fire,EQ 14 Bessie & Johnson 1995
 
     currentPatch => currentSite%oldest_patch
 
@@ -924,30 +926,31 @@ contains
 
           do while(associated(currentCohort))  
              currentCohort%fraction_crown_burned = 0.0_r8
-             currentCohort%passive_crown_FI      = 0.0_r8  !critical fire intensity for passive crown fire
-             currentCohort%crown_fire_flg        = 0       !flag for passvie crown fire ignition
-             currentCohort%ignite_crown          = 0.0_r8  !ratio of ignition of passive crown fire,EQ 14 Bessie & Johnson 1995
+
              
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 
                 ! height_cbb = clear branch bole height at base of crown (m)
                 ! inst%crown = crown_depth_frac (PFT)
-                crown_depth = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
-                height_cbb  = currentCohort%hite - crown_depth
+                crown_depth                   = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
+                height_cbb                    = currentCohort%hite - crown_depth
+                passive_crown_FI              = 0.0_r8  !critical fire intensity for passive crown fire
+                ignite_crown                  = 0.0_r8  !ratio for ignition of passive crown fire,EQ 14 Bessie & Johnson 1995
+                currentCohort%crown_fire_flg  = 0       !flag for passvie crown fire ignition
 
                 
                 ! Evaluate for passive crown fire ignition
                 if (EDPftvarcon_inst%crown_fire(currentCohort%pft) == 1) then
                    
                    ! Crown fuel ignition potential, EQ 8 Bessie and Johnson 1995
-                   currentCohort%passive_crown_FI = (0.01_r8 * height_cbb * SF_val_crown_ignition_energy)**1.5_r8
+                   passive_crown_FI = (0.01_r8 * height_cbb * SF_val_crown_ignition_energy)**1.5_r8
 
-                   if (currentCohort%passive_crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
+                   if (passive_crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
                       ! Initiation of passive crown fire, EQ 14 Bessie and Johnson 1995
-                      currentCohort%ignite_crown = currentPatch%FI/currentCohort%passive_crown_FI
+                      ignite_crown = currentPatch%FI/passive_crown_FI
                       
-                      if (currentCohort%ignite_crown >= 1.0_r8) then
+                      if (ignite_crown >= 1.0_r8) then
                          currentCohort%crown_fire_flg = 1  ! passive crown fire ignited
                          currentCohort%fraction_crown_burned =  1.0_r8
                       ! else ! evaluate crown damage based on scorch height
