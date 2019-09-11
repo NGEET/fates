@@ -344,6 +344,8 @@ module EDTypesMod
 
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
+     real(r8) ::  crown_fire_flg                         ! flag for passive crown fire ignition
+     real(r8) ::  active_crown_fire_flg                  ! flag for active crown fire ignition
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
                                                          ! (conditional on the tree being subjected to the fire)
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality 
@@ -1012,6 +1014,8 @@ module EDTypesMod
      write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
      write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
      write(fates_log(),*) 'co%fraction_crown_burned  = ', ccohort%fraction_crown_burned
+     write(fates_log(),*) 'co%crown_fire_flg         = ', ccohort%crown_fire_flg
+     write(fates_log(),*) 'co%active_crown_fire_flg  = ', ccohort%active_crown_fire_flg
      write(fates_log(),*) 'co%fire_mort              = ', ccohort%fire_mort
      write(fates_log(),*) 'co%crownfire_mort         = ', ccohort%crownfire_mort
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
