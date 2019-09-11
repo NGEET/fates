@@ -353,9 +353,9 @@ contains
        ccohort_hydr%psi_aroot(j) = -0.2_r8 !do not assume the equalibrium between soil and root
 
        call th_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
-            ccohort_hydr%th_aroot(j), csite%si_hydr, bc_in )
+            ccohort_hydr%th_aroot(j))
        call flc_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
-            ccohort_hydr%ftc_aroot(j), csite%si_hydr, bc_in) 
+            ccohort_hydr%ftc_aroot(j))
 
     end do
 
@@ -369,8 +369,7 @@ contains
 
     ccohort_hydr%psi_troot = ccohort_hydr%psi_aroot(1) - 1.e-6_r8*denh2o*grav_earth*dz 
     if (ccohort_hydr%psi_troot>0.0_r8) ccohort_hydr%psi_troot = -0.01_r8
-    call th_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, &
-         ccohort_hydr%th_troot, csite%si_hydr, bc_in)
+    call th_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, ccohort_hydr%th_troot)
     call flc_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, ccohort_hydr%ftc_troot)
 
     !working our way up a tree, assigning water potentials that are in
@@ -379,16 +378,16 @@ contains
     ccohort_hydr%psi_ag(n_hypool_ag) = ccohort_hydr%psi_troot - 1.e-6_r8*denh2o*grav_earth*dz
     if (ccohort_hydr%psi_ag(n_hypool_ag)>0.0_r8) ccohort_hydr%psi_ag(n_hypool_ag) = -0.01_r8
     call th_from_psi(ft, stem_p_media, ccohort_hydr%psi_ag(n_hypool_ag), &
-         ccohort_hydr%th_ag(n_hypool_ag), csite%si_hydr, bc_in)
+         ccohort_hydr%th_ag(n_hypool_ag))
     call flc_from_psi(ft, stem_p_media, ccohort_hydr%psi_ag(n_hypool_ag), & 
          ccohort_hydr%ftc_ag(n_hypool_ag))
 
     do k=n_hypool_ag-1, 1, -1
        dz = ccohort_hydr%z_node_ag(k) - ccohort_hydr%z_node_ag(k+1)
-       ccohort_hydr%psi_ag(k) = ccohort_hydr%psi_ag(k+1) - 1.e-6_r8*denh2o*grav_earth*dz
+       ccohort_hydr%psi_ag(k) = ccohort_hydr%psi_ag(k+1) - mpa_per_pa*denh2o*grav_earth*dz
        if(ccohort_hydr%psi_ag(k)>0.0_r8) ccohort_hydr%psi_ag(k)= -0.01_r8
        call th_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), &
-            ccohort_hydr%th_ag(k), csite%si_hydr, bc_in)
+            ccohort_hydr%th_ag(k))
        call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k),ccohort_hydr%ftc_ag(k))
     end do
 
@@ -1006,9 +1005,9 @@ contains
 
     do j=1,site_hydr%nlevsoi_hyd
        call psi_from_th(currentCohort%pft, aroot_p_media, ccohort_hydr%th_aroot(j), &
-            ccohort_hydr%psi_aroot(j), site_hydr, bc_in)
+            ccohort_hydr%psi_aroot(j))
        call flc_from_psi(currentCohort%pft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
-            ccohort_hydr%ftc_aroot(j), site_hydr, bc_in) 
+            ccohort_hydr%ftc_aroot(j))
     end do
     call flc_gs_from_psi(currentCohort, ccohort_hydr%psi_ag(1))
 
@@ -2252,6 +2251,9 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
+          
+          write(fates_log(),*) 'q patch: ',bc_in(s)%qflx_transp_pa(ifp)
+
           ccohort=>cpatch%tallest
           do while(associated(ccohort))
 
@@ -2329,8 +2331,12 @@ contains
                 ! required.
                  
                 call psi_from_th(ccohort%pft, rhiz_p_media, & 
-                      site_hydr%h2osoi_liqvol_shell(j,1), &
-                      psi_inner_shell, site_hydr, bc_in(s))
+                      site_hydr%h2osoi_liqvol_shell(j,1),   &
+                      psi_inner_shell,                      & 
+                      bc_in(s)%watsat_sisl(j),              & ! optional for soil
+                      bc_in(s)%sucsat_sisl(j),              & ! optional for soil
+                      bc_in(s)%bsw_sisl(j))                   ! optional for soil
+
                 
                 ! Note, since their is no elevation difference between
                 ! the absorbing root and its layer, no need to calc
@@ -2343,11 +2349,11 @@ contains
 
                 ! Get matric potential [Mpa] of the absorbing root
                 call psi_from_th(ccohort%pft, aroot_p_media, &
-                     ccohort_hydr%th_aroot(j), psi_aroot, site_hydr, bc_in(s))
+                     ccohort_hydr%th_aroot(j), psi_aroot)
 
                 ! Get Fraction of Total Conductivity [-] of the absorbing root
                 call flc_from_psi(ccohort%pft, aroot_p_media, &
-                     psi_aroot, ftc_aroot, site_hydr, bc_in(s))
+                     psi_aroot, ftc_aroot)
 
                 ! Calculate total effective conductance over path  [kg s-1 MPa-1]
                 ! from absorbing root node to 1st rhizosphere shell
@@ -2362,10 +2368,16 @@ contains
                    kmax_up = site_hydr%kmax_upper_shell(j,k)*aroot_frac_plant
                    kmax_lo = site_hydr%kmax_lower_shell(j,k)*aroot_frac_plant
 
-                   call psi_from_th(ccohort%pft, porous_media(n_hypool_ag+3), &
-                        site_hydr%h2osoi_liqvol_shell(j,k), psi_shell, site_hydr, bc_in(s))
-                   call flc_from_psi(ccohort%pft, porous_media(n_hypool_ag+3), &
-                        psi_shell, ftc_shell, site_hydr, bc_in(s))
+                   call psi_from_th(ccohort%pft, rhiz_p_media, &
+                        site_hydr%h2osoi_liqvol_shell(j,k), psi_shell,        &
+                        bc_in(s)%watsat_sisl(j),              & ! optional for soil
+                        bc_in(s)%sucsat_sisl(j),              & ! optional for soil
+                        bc_in(s)%bsw_sisl(j))
+
+                   call flc_from_psi(ccohort%pft, rhiz_p_media, &
+                        psi_shell, ftc_shell,                 &
+                        bc_in(s)%sucsat_sisl(j),              & ! optional for soil
+                        bc_in(s)%bsw_sisl(j))                   ! optional for soil
 
                    r_bg = r_bg + 1._r8/(kmax_up*ftc_shell)
                    if(k<nshell) r_bg = r_bg + 1._r8/(kmax_lo*ftc_shell )
@@ -2478,27 +2490,24 @@ contains
              ! Above ground
              do k=1,n_hypool_ag
                 call psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k), &
-                     ccohort_hydr%psi_ag(k), site_hydr, bc_in(s) )
+                     ccohort_hydr%psi_ag(k))
                 
                 call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), &
-                     ccohort_hydr%ftc_ag(k), site_hydr, bc_in(s)) 
+                     ccohort_hydr%ftc_ag(k))
 
              enddo
              ! Update water potential of transporting root compartment
              call psi_from_th(ft, troot_p_media, ccohort_hydr%th_troot, &
-                  ccohort_hydr%psi_troot, site_hydr, bc_in(s))
+                  ccohort_hydr%psi_troot)
              call flc_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, &
-                     ccohort_hydr%ftc_troot, site_hydr, bc_in(s)) 
+                     ccohort_hydr%ftc_troot)
 
              ! Update water potential of absorbing root compartment
              do j=1,site_hydr%nlevsoi_hyd
                 call psi_from_th(ft, aroot_p_media, & 
-                     ccohort_hydr%th_aroot(j), ccohort_hydr%psi_aroot(j), &
-                     site_hydr, bc_in(s))
+                     ccohort_hydr%th_aroot(j), ccohort_hydr%psi_aroot(j))
                 call flc_from_psi(ft, aroot_p_media, & 
-                     ccohort_hydr%psi_aroot(j), ccohort_hydr%ftc_aroot(j), &
-                     site_hydr, bc_in(s)) 
-
+                     ccohort_hydr%psi_aroot(j), ccohort_hydr%ftc_aroot(j))
              end do
 
              ccohort => ccohort%shorter
@@ -2959,6 +2968,7 @@ contains
     real(r8) :: b_term(n_hypool_tot-1)          ! "B" term in the tri-diagonal implicit solve [-]
     real(r8) :: k_diag(n_hypool_tot-1)          ! mean time-averaged K over the paths (diagnostic) [kg s-1 Mpa-1]
     real(r8) :: flux_diag(n_hypool_tot-1)       ! time-integrated mass flux over sub-steps [kg]
+    real(r8) :: h_diag, psi_diag                ! total and matric potential for error reporting [Mpa]
     real(r8) :: tris_a(n_hypool_tot)            ! left of diagonal terms for tri-diagonal matrix solving delta theta
     real(r8) :: tris_b(n_hypool_tot)            ! center diagonal terms for tri-diagonal matrix solving delta theta
     real(r8) :: tris_c(n_hypool_tot)            ! right of diaongal terms for tri-diagonal matrix solving delta theta
@@ -3091,7 +3101,10 @@ contains
 
              ! Get matric potential [Mpa]
              call psi_from_th(cohort%pft, porous_media(inode), th_node(inode), &
-                  psi_node(inode), site_hydr, bc_in)
+                  psi_node(inode), &
+                  bc_in%watsat_sisl(ilayer),              & ! optional for soil
+                  bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                  bc_in%bsw_sisl(ilayer))                   ! optional for soil
 
              if(psi_node(inode)>0._r8) then
                 write(fates_log(),*) 'positive psi?'
@@ -3105,14 +3118,21 @@ contains
 
              ! Get Fraction of Total Conductivity [-]
              call flc_from_psi(cohort%pft, porous_media(inode), psi_node(inode), &
-                  ftc_node(inode), site_hydr, bc_in) 
+                  ftc_node(inode), &
+                  bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                  bc_in%bsw_sisl(ilayer))                   ! optional for soil
 
              ! deriv ftc wrt theta
              call dpsidth_from_th(cohort%pft, porous_media(inode), th_node(inode), & 
-                  dpsi_dtheta_node(inode), site_hydr, bc_in)
+                  dpsi_dtheta_node(inode), &
+                  bc_in%watsat_sisl(ilayer),              & ! optional for soil
+                  bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                  bc_in%bsw_sisl(ilayer))                   ! optional for soil
 
              call dflcdpsi_from_psi(cohort%pft, porous_media(inode), psi_node(inode), & 
-                  dftc_dpsi, site_hydr, bc_in)
+                   dftc_dpsi,  &
+                   bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                   bc_in%bsw_sisl(ilayer))                   ! optional for soil
 
              dftc_dtheta_node(inode) = dftc_dpsi * dpsi_dtheta_node(inode) 
 
@@ -3367,13 +3387,21 @@ contains
        do inode = 1,n_hypool_tot
           ! Get matric potential [Mpa]
           call psi_from_th(cohort%pft, porous_media(inode), th_node(inode), &
-               psi_node(inode), site_hydr, bc_in)
+               psi_node(inode), &
+               bc_in%watsat_sisl(ilayer),              & ! optional for soil
+               bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+               bc_in%bsw_sisl(ilayer))                   ! optional for soil
           ! Positive psi values are def weird
           if(psi_node(inode) > 0._r8) then
              write(fates_log(),*) 'positive psi found, dumping network'
              write(fates_log(),*) 'dbh: ',cohort%dbh
              write(fates_log(),*) 'pft: ',cohort%pft
              write(fates_log(),*) 'soil layer:',ilayer
+             write(fates_log(),*) 'qtop [kg]:',q_top*dt_step
+             write(fates_log(),*) 'q patch: ',bc_in%qflx_transp_pa(:)
+             write(fates_log(),*) 'g_sb_laweight: ',cohort%g_sb_laweight
+             write(fates_log(),*) 'lai: ',cohort%treelai
+             write(fates_log(),*) 'rs2:',EDPftvarcon_inst%hydr_rs2(cohort%pft)
              roota=EDPftvarcon_inst%roota_par(cohort%pft)
              rootb=EDPftvarcon_inst%rootb_par(cohort%pft)
              if(ilayer==1) then
@@ -3387,9 +3415,23 @@ contains
              write(fates_log(),*) 'dt_substep: ',dt_substep
              write(fates_log(),*) 'i   theta_init   theta     mass'
              do itest = 1,n_hypool_tot
-                write(fates_log(),*) itest,th_node_init(itest),th_node(itest),psi_node(itest),th_node(itest)*v_node(itest)*denh2o
+                ! get initial total potential of node:
+                call psi_from_th(cohort%pft, porous_media(itest), th_node_init(itest), &
+                      psi_diag, &
+                      bc_in%watsat_sisl(ilayer),              & ! optional for soil
+                      bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                      bc_in%bsw_sisl(ilayer))                   ! optional for soil
+
+                h_diag = psi_diag + mpa_per_pa*denh2o*grav_earth*z_node(itest)
+                write(fates_log(),*) 'node',itest,th_node_init(itest),th_node(itest),psi_node(itest),v_node(itest),h_diag,psi_diag 
                 if(itest<n_hypool_tot)then
-                   write(fates_log(),*) '    ',k_diag(itest),flux_diag(itest)
+                    call psi_from_th(cohort%pft, porous_media(itest+1), th_node_init(itest+1), &
+                          psi_diag, &
+                          bc_in%watsat_sisl(ilayer),              & ! optional for soil
+                          bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                          bc_in%bsw_sisl(ilayer))                   ! optional for soil
+                    h_diag = (psi_diag + mpa_per_pa*denh2o*grav_earth*z_node(itest+1)) - h_diag
+                    write(fates_log(),*) '  path         ',k_diag(itest),flux_diag(itest),h_diag,k_diag(itest)*h_diag*dt_step
                 end if
              end do
              call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -3732,7 +3774,7 @@ contains
 end subroutine dflcgsdpsi_from_psi
 
 !-------------------------------------------------------------------------------!
-subroutine flc_from_psi(ft, pm, psi_node, flc_node, site_hydr, bc_in )
+subroutine flc_from_psi(ft, pm, psi_node, flc_node, suc_sat, bsw)
   ! 
   ! !DESCRIPTION: calls necessary routines (plant vs. soil) for converting
   ! plant tissue or soil water potentials to a fractional loss of conductivity
@@ -3742,8 +3784,8 @@ subroutine flc_from_psi(ft, pm, psi_node, flc_node, site_hydr, bc_in )
   integer          , intent(in)     :: pm          ! porous media index
   real(r8)         , intent(in)     :: psi_node    ! water potential                  [MPa]
   real(r8)         , intent(out)    :: flc_node    ! fractional loss of conductivity  [-]
-  type(ed_site_hydr_type),optional, intent(in),target :: site_hydr        ! ED site_hydr structure
-  type(bc_in_type),optional, intent(in)               :: bc_in       ! FATES boundary conditions
+  real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
+  real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b"
 
   !
   ! !LOCAL VARIABLES:
@@ -3770,8 +3812,8 @@ subroutine flc_from_psi(ft, pm, psi_node, flc_node, site_hydr, bc_in )
         !             flc_node)
      case (campbell)
         call unsatkCampbell_flc_from_psi(psi_node, &
-             (-1._r8)*bc_in%sucsat_sisl(1)*denh2o*grav_earth*1.e-9_r8, &      ! mm * 1e-3 m/mm * 1e3 kg/m3 * 9.8 m/s2 * 1e-6 MPa/Pa = MPa
-             bc_in%bsw_sisl(1),     &
+             -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
+             bsw,  &
              flc_node)
      case default
         write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
@@ -3784,7 +3826,7 @@ end associate
 end subroutine flc_from_psi
 
 !-------------------------------------------------------------------------------!
-subroutine dflcdpsi_from_psi(ft, pm, psi_node, dflcdpsi_node, site_hydr, bc_in )
+subroutine dflcdpsi_from_psi(ft, pm, psi_node, dflcdpsi_node, suc_sat, bsw)
   ! 
   ! !DESCRIPTION: calls necessary routines (plant vs. soil) for converting
   ! plant tissue or soil water potentials to a fractional loss of conductivity
@@ -3795,9 +3837,10 @@ subroutine dflcdpsi_from_psi(ft, pm, psi_node, dflcdpsi_node, site_hydr, bc_in )
 integer          , intent(in)     :: ft             ! PFT index
 integer          , intent(in)     :: pm             ! porous media index
 real(r8)         , intent(in)     :: psi_node       ! water potential                  [MPa]
-real(r8)         , intent(out)    :: dflcdpsi_node  ! fractional loss of conductivity  [-]
-type(ed_site_hydr_type),optional, intent(in),target :: site_hydr        ! ED site_hydr structure
-type(bc_in_type),optional, intent(in)             :: bc_in       ! FATES boundary conditions
+real(r8)         , intent(out)    :: dflcdpsi_node  ! fractional loss of conductivity  [-] 
+real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
+real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b"
+
 
 !
 ! !LOCAL VARIABLES:
@@ -3824,8 +3867,8 @@ else
       !   dflcdpsi_node)
    case (campbell)
       call unsatkCampbell_dflcdpsi_from_psi(psi_node, &
-           (-1._r8)*bc_in%sucsat_sisl(1)*denh2o*grav_earth*1.e-9_r8, &
-           bc_in%bsw_sisl(1),     &
+           -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
+           bsw,     &
            dflcdpsi_node)
    case default
       write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
@@ -3847,8 +3890,8 @@ integer          , intent(in)            :: ft          ! PFT index
 integer          , intent(in)            :: pm          ! porous media index
 real(r8)         , intent(in)            :: psi_node    ! water potential   [MPa]
 real(r8)         , intent(out)           :: th_node     ! water content     [m3 m-3]
-type(ed_site_hydr_type), intent(in),target :: site_hydr        ! ED site_hydr structure
-type(bc_in_type), intent(in)             :: bc_in       ! FATES boundary conditions
+type(ed_site_hydr_type), optional,intent(in),target :: site_hydr        ! ED site_hydr structure
+type(bc_in_type), optional, intent(in)             :: bc_in       ! FATES boundary conditions
 
 !
 ! !LOCAL VARIABLES:
@@ -3978,7 +4021,8 @@ th_node = x_new
 end subroutine bisect_pv
 
 !-------------------------------------------------------------------------------!
-subroutine psi_from_th(ft, pm, th_node, psi_node, site_hydr, bc_in)
+subroutine psi_from_th(ft, pm, th_node, psi_node, th_sat, suc_sat, bsw)
+    
   ! 
   ! !DESCRIPTION: evaluates the plant PV curve (returns water potential, psi)
   ! at a given water content (th)
@@ -3990,8 +4034,11 @@ integer          , intent(in)     :: ft          ! PFT index
 integer          , intent(in)     :: pm          ! porous media index
 real(r8)         , intent(in)     :: th_node     ! water content     [m3 m-3]
 real(r8)         , intent(out)    :: psi_node    ! water potential   [MPa]
-type(ed_site_hydr_type), optional, intent(in),target :: site_hydr        ! ED site_hydr structure
-type(bc_in_type), optional, intent(in)             :: bc_in       ! FATES boundary conditions
+real(r8), optional,intent(in)     :: th_sat      ! water content at saturation
+                                                 ! (porosity for soil) [m3 m-3]
+real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
+real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b" 
+
 !
 ! !LOCAL VARIABLES:
 real(r8) :: satfrac                  ! saturation fraction [0-1]
@@ -4018,10 +4065,9 @@ case (van_genuchten)
   !                  site_hydr%l_VG(1),     &
   !                  psi_node)
 case (campbell)
-  call swcCampbell_psi_from_th(th_node, &
-       bc_in%watsat_sisl(1),   &
-       (-1._r8)*bc_in%sucsat_sisl(1)*denh2o*grav_earth*1.e-9_r8, &
-       bc_in%bsw_sisl(1),     &
+  call swcCampbell_psi_from_th(th_node,th_sat,               &
+       -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
+       bsw,                                                  &
        psi_node)
 case default
   write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
@@ -4033,7 +4079,7 @@ end if
 end subroutine psi_from_th
 
 !-------------------------------------------------------------------------------!
-subroutine dpsidth_from_th(ft, pm, th_node, y, site_hydr, bc_in) 
+subroutine dpsidth_from_th(ft, pm, th_node, y, th_sat, suc_sat, bsw)
   ! 
   ! !DESCRIPTION: evaluates the plant PV curve (returns water potential, psi)
   ! at a given water content (th)
@@ -4045,8 +4091,11 @@ integer          , intent(in)     :: ft          ! PFT index
 integer          , intent(in)     :: pm          ! porous media index
 real(r8)         , intent(in)     :: th_node     ! water content                            [m3 m-3]
 real(r8)         , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
-type(ed_site_hydr_type), optional,intent(in) :: site_hydr
-type(bc_in_type), optional,intent(in) :: bc_in
+real(r8), optional,intent(in)     :: th_sat      ! water content at saturation
+                                                 ! (porosity for soil) [m3 m-3]
+real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
+real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b" 
+
 !
 ! !LOCAL VARIABLES:
 
@@ -4070,9 +4119,9 @@ case (van_genuchten)
   !        y)
 case (campbell)
   call swcCampbell_dpsidth_from_th(th_node, &
-       bc_in%watsat_sisl(1),   &
-       (-1._r8)*bc_in%sucsat_sisl(1)*denh2o*grav_earth*1.e-9_r8, &
-       bc_in%bsw_sisl(1),     &
+       th_sat, & 
+       -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
+       bsw, & 
        y)
 case default
   write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
