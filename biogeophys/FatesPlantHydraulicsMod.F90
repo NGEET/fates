@@ -2957,6 +2957,8 @@ contains
     real(r8), parameter :: max_wb_step_err = 1.e-6_r8 
     real(r8), parameter :: max_wb_err      = 1.e-4_r8  ! threshold for water balance error (stop model)   [mm h2o]
 
+    logical, parameter :: no_ftc_radialk = .true.
+
     ! -------------------------------------------------------------------------------
     ! Part 1.  Calculate node quantities:
     !          matric potential: psi_node
@@ -3093,6 +3095,17 @@ contains
                   dftc_dpsi, site_hydr, bc_in)
 
              dftc_dtheta_node(inode) = dftc_dpsi * dpsi_dtheta_node(inode) 
+
+             ! We have two ways to calculate radial absorbing root conductance
+             ! 1) Assume that water potential does not effect conductance
+             ! 2) The standard FTC function applies
+             
+             if(inode==n_hypool_ag+2)then
+                if(no_ftc_radialk) then
+                   ftc_node(inode)         = 1.0_r8
+                   dftc_dtheta_node(inode) = 1.0_r8
+                end if
+             end if
 
           end do
 
