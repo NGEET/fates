@@ -1104,7 +1104,7 @@ data:
 
  fates_cwd_flig = 0.24 ;
 
- fates_fire_drying_ratio = 13000 ;
+ fates_fire_drying_ratio = 66000 ;
 
  fates_fire_durat_slope = -11.06 ;
 
