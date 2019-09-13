@@ -519,11 +519,9 @@ module EDTypesMod
      real(r8) ::  fi                                               ! average fire intensity of flaming front:  kj/m/s or kw/m
      integer  ::  fire                                             ! Is there a fire? 1=yes 0=no
      real(r8) ::  fd                                               ! fire duration: mins
-     real(r8) ::  nf                                               ! number of fires initiated daily: n/gridcell/day
      real(r8) ::  sh                                               ! average scorch height: m 
 
      ! FIRE EFFECTS     
-     real(r8) ::  ab                                               ! area burnt:  m2/day
      real(r8) ::  frac_burnt                                       ! fraction burnt: frac gridcell/day  
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
