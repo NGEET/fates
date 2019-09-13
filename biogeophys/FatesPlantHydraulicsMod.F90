@@ -120,14 +120,7 @@ module FatesPlantHydraulicsMod
 
 
 
-  ! Currently testing two different ways to represent rhizosphere shell
-  ! volumes. The old way used a "representative" shell volume, the
-  ! new way is an absolute volume, in total cubic meters over the 
-  ! whole hectare.
 
-  integer, parameter :: bcvol  = 1
-  integer, parameter :: rkvol  = 2
-  integer, parameter :: voltype = rkvol
 
   ! 1=leaf, 2=stem, 3=troot, 4=aroot
   ! Several of these may be better transferred to the parameter file in due time (RGK)

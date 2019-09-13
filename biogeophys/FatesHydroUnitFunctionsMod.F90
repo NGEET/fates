@@ -5,17 +5,37 @@ module FatesHydroUnitFunctionsMod
   ! arguments, are smaller in scope, and are allowed to access the 
   ! parameter constants EDPftvarcon_inst and params
 
-  use FatesConstants, only : fates_unset_r8
-  use EDPftvarcon, only : pft_p => EDPftvarcon_inst
-  use EDParamsMod      , only : hydr_psi0
-  use EDParamsMod      , only : hydr_psicap
-  
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : fates_unset_r8
+  use FatesConstantsMod, only : pa_per_mpa
+  use FatesConstantsMod, only : mpa_per_pa
+  use FatesConstantsMod, only : mm_per_m
+  use FatesConstantsMod, only : m_per_mm
+  use FatesConstantsMod, only : denh2o => dens_fresh_liquid_water
+  use FatesConstantsMod, only : grav_earth
+  use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : pi_const
+  use EDPftvarcon,       only : pft_p => EDPftvarcon_inst
+  use EDParamsMod,       only : hydr_psi0
+  use EDParamsMod,       only : hydr_psicap
+  use FatesGlobals,      only : fates_log
+  use FatesGlobals,      only : endrun => fates_endrun
+  use shr_log_mod , only      : errMsg => shr_log_errMsg
+
   implicit none
   private
 
   logical, parameter :: debug=.true.
   character(len=*), parameter, private :: sourcefile = __FILE__
 
+  ! Currently testing two different ways to represent rhizosphere shell
+  ! volumes. The old way used a "representative" shell volume, the
+  ! new way is an absolute volume, in total cubic meters over the 
+  ! whole hectare.
+
+  integer, parameter :: bcvol  = 1
+  integer, parameter :: rkvol  = 2
+  integer, parameter :: voltype = rkvol
 
   integer, parameter :: van_genuchten = 1
   integer, parameter :: campbell      = 2
@@ -70,10 +90,10 @@ contains
     allocate(cap_int(n_plant_media))
     allocate(cap_corr(n_plant_media))
 
-    rwcft(:) = fates_unset_r8
-    rwcap(:) = fates_unset_r8
-    cap_slp(:) = fates_unset_r8
-    cap_int(:) = fates_unset_r8
+    rwcft(:)    = fates_unset_r8
+    rwccap(:)   = fates_unset_r8
+    cap_slp(:)  = fates_unset_r8
+    cap_int(:)  = fates_unset_r8
     cap_corr(:) = fates_unset_r8
 
     return
@@ -81,7 +101,7 @@ contains
 
   ! =====================================================================================
   
-  subroutine SetPlantMediaParam(pm,rwcft_in,rwcap_in)
+  subroutine SetPlantMediaParam(pm,rwcft_in,rwccap_in)
 
     ! To avoid complications that would arise from linking this
     ! module with the FatesHydraulicsMemMod.F90 during unit tests, we
@@ -90,10 +110,10 @@ contains
     
     integer,intent(in)  :: pm      ! porous media index
     real(r8),intent(in) :: rwcft_in  ! rwcft for this pm
-    real(r8),intent(in) :: rwcap_in  ! rwcap for this pm
+    real(r8),intent(in) :: rwccap_in  ! rwcap for this pm
 
-    rwcft(pm)  = rwft_in
-    rwccap(pm) = rwcap_in
+    rwcft(pm)  = rwcft_in
+    rwccap(pm) = rwccap_in
     
     if (pm.eq.1) then   ! Leaf tissue
        cap_slp(pm)    = 0.0_r8
@@ -132,16 +152,18 @@ contains
     !
     ! !LOCAL VARIABLES:
     real(r8) :: bet                           ! temporary
-    real(r8) :: gam(n_hypool_tot)             ! temporary
+    real(r8) :: gam(10)                       ! temporary
     integer  :: k                             ! index
+    integer  :: N                             ! Size of the matrix
     real(r8) :: err                           ! solution error, in units of [m3/m3]
     real(r8) :: rel_err                       ! relative error, normalized by delta theta
-    real(r8), parameter :: allowable_rel_err = 0.001_r8
+    real(r8), parameter :: allowable_rel_err = 0.0001_r8
+    
     !    real(r8), parameter :: allowable_err = 1.e-6_r8
     !----------------------------------------------------------------------
-
+    N=size(r,dim=1)
     bet = b(1)
-    do k=1,n_hypool_tot
+    do k=1,N
        if(k == 1) then
           u(k)   = r(k) / bet
        else
@@ -151,17 +173,17 @@ contains
        end if
     enddo
 
-    do k=n_hypool_tot-1,1,-1
+    do k=N-1,1,-1
        u(k)   = u(k) - gam(k+1) * u(k+1)
     enddo
 
     ! If debug mode, calculate error on the forward solution
     if(debug)then
-       do k=1,n_hypool_tot
+       do k=1,N
 
           if(k==1)then
              err = abs(r(k) - (b(k)*u(k)+c(k)*u(k+1)))
-          elseif(k<n_hypool_tot) then
+          elseif(k<N) then
              err = abs(r(k) - (a(k)*u(k-1)+b(k)*u(k)+c(k)*u(k+1)))
           else
              err = abs(r(k) - (a(k)*u(k-1)+b(k)*u(k)))
@@ -396,7 +418,7 @@ contains
          case (campbell) 
 
             call swcCampbell_satfrac_from_psi(psi_node, &
-                 (-1._r8)*suc_sat*denh2o*grav_earth*1.e-9_r8, &
+                 (-1._r8)*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
                  bsw,     &
                  satfrac)
             call swcCampbell_th_from_satfrac(satfrac, &
@@ -447,15 +469,17 @@ contains
        write(fates_log(),*)'Error: psi_note become positive, psi_node=',psi_node
        call endrun(msg=errMsg(sourcefile, __LINE__))  
     endif
-    call psi_from_th(ft, pm, lower, y_lo)
-    call psi_from_th(ft, pm, upper, y_hi)
+
+    y_lo = psi_from_th(ft, pm,lower)
+    y_hi = psi_from_th(ft,pm,upper)
+
     f_lo  = y_lo - psi_node
     f_hi  = y_hi - psi_node
     chg   = upper - lower
     nitr = 0
     do while(abs(chg) .gt. xtol .and. nitr < 100)
        x_new = 0.5_r8*(lower + upper)
-       call psi_from_th(ft, pm, x_new, y_new)
+       y_new = psi_from_th(ft,pm,x_new)
        f_new = y_new - psi_node
        if(abs(f_new) .le. ytol) then
           EXIT
@@ -505,6 +529,9 @@ contains
 
        call tq2(ft, pm, th_node*cap_corr(pm), psi_node)
 
+       print*,"F90: ",psi_node
+       
+
     else if(pm == 5) then  ! soil
 
        !! NOTE. FIX: The below sidesteps the problem of averaging potentially variable soil hydraulic properties with depth
@@ -552,7 +579,8 @@ contains
     ! (porosity for soil) [m3 m-3]
     real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
     real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b" 
-    real(r8)         , intent(out)    :: dpsidth     ! derivative of water potential wrt theta  [MPa m3 m-3]
+
+    real(r8)                          :: dpsidth     ! derivative of water potential wrt theta  [MPa m3 m-3]
 
     !
     ! !LOCAL VARIABLES:
@@ -1797,14 +1825,17 @@ contains
     ! for this layer
     !
     ! !LOCAL VARIABLES:
-    integer                        :: k                                 ! rhizosphere shell indicies
+    integer                        :: k            ! rhizosphere shell indicies
+    integer                        :: nshells      ! We don't use the global because of unit testing
     !-----------------------------------------------------------------------
 
+    nshells = size(r_out_shell,dim=1)
+
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
-    r_out_shell(nshell) = (pi_const*l_aroot/(area_site*dz))**(-0.5_r8)                  ! eqn(8) S98
-    if(nshell > 1) then
-       do k = 1,nshell-1
-          r_out_shell(k)   = rs1*(r_out_shell(nshell)/rs1)**((real(k,r8))/real(nshell,r8))  ! eqn(7) S98
+    r_out_shell(nshells) = (pi_const*l_aroot/(area_site*dz))**(-0.5_r8)                  ! eqn(8) S98
+    if(nshells > 1) then
+       do k = 1,nshells-1
+          r_out_shell(k)   = rs1*(r_out_shell(nshells)/rs1)**((real(k,r8))/real(nshells,r8))  ! eqn(7) S98
        enddo
     end if
 
@@ -1813,13 +1844,13 @@ contains
     r_node_shell(1) = 0.5_r8*(rs1 + r_out_shell(1))
     !r_node_shell(1) = 0.5_r8*(r_out_shell(1))
 
-    do k = 2,nshell
+    do k = 2,nshells
        r_node_shell(k) = 0.5_r8*(r_out_shell(k-1) + r_out_shell(k))
     enddo
 
     ! update volumes
     if(voltype==bcvol)then
-       do k = 1,nshell
+       do k = 1,nshells
           if(k == 1) then
              ! BOC...not doing this as it requires PFT-specific fine root thickness but this is at column level
              v_shell(k)   = pi_const*dz*(r_out_shell(k)**2._r8 - rs1**2._r8)
@@ -1829,7 +1860,7 @@ contains
           end if
        enddo
     elseif(voltype==rkvol)then
-       do k = 1,nshell
+       do k = 1,nshells
           if(k == 1) then
              v_shell(k) = pi_const*l_aroot*(r_out_shell(k)**2._r8 - rs1**2._r8)
           else
