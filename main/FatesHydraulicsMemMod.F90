@@ -3,8 +3,7 @@ module FatesHydraulicsMemMod
    use FatesConstantsMod, only : r8 => fates_r8
    use shr_infnan_mod   , only : nan => shr_infnan_nan, assignment(=)
    use FatesConstantsMod, only : itrue,ifalse
-   use EDParamsMod      , only : hydr_psi0
-   use EDParamsMod      , only : hydr_psicap
+
    
    implicit none
    private
@@ -68,23 +67,10 @@ module FatesHydraulicsMemMod
    ! Carbon 2 biomass ratio
    real(r8), parameter, public                         :: C2B        = 2.0_r8 
               
-   ! P-V curve: total RWC @ which elastic drainage begins     [-]        
-   real(r8), parameter, public, dimension(n_porous_media) :: rwcft   = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
-
-   ! P-V curve: total RWC @ which capillary reserves exhausted
-   real(r8), parameter, public, dimension(n_porous_media) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
+  
 
    ! Derived parameters
    ! ----------------------------------------------------------------------------------------------
-
-   ! P-V curve: slope of capillary region of curve
-   real(r8), public, dimension(n_porous_media)           :: cap_slp                                         
-
-   ! P-V curve: intercept of capillary region of curve
-   real(r8), public, dimension(n_porous_media)           :: cap_int   
-
-   ! P-V curve: correction for nonzero psi0x
-   real(r8), public, dimension(n_porous_media)           :: cap_corr                                        
    
    !temporatory variables
    real(r8), public :: cohort_recruit_water_layer(nlevsoi_hyd_max)   ! the recruit water requirement for a 
@@ -399,41 +385,5 @@ module FatesHydraulicsMemMod
        return
     end subroutine InitHydrSite
     
-    ! ===================================================================================
-    
-    subroutine InitHydraulicsDerived(numpft)
-    
-    !use EDPftvarcon,       only : EDPftvarcon_inst
-       ! Arguments
-       integer,intent(in)                      :: numpft
-    
-       integer :: k   ! Pool counting index
-       integer :: ft
-
-       do k = 1,n_porous_media
-          
-          if (k.eq.1) then   ! Leaf tissue
-             cap_slp(k)    = 0.0_r8
-             cap_int(k)    = 0.0_r8
-             cap_corr(k)   = 1.0_r8
-          else               ! Non leaf tissues
-             cap_slp(k)    = (hydr_psi0 - hydr_psicap )/(1.0_r8 - rwccap(k))  
-             cap_int(k)    = -cap_slp(k) + hydr_psi0    
-             cap_corr(k)   = -cap_int(k)/cap_slp(k)
-          end if
-       end do
-       
-       do ft=1,numpft
-          ! this needs a -999 check (BOC)
-          !EDPftvarcon_inst%hydr_pinot_node(ft,:) = EDPftvarcon_inst%hydr_pitlp_node(ft,:) * &
-          !                                         EDPftvarcon_inst%hydr_epsil_node(ft,:) / &
-          !                                        (EDPftvarcon_inst%hydr_epsil_node(ft,:) - &
-          !                                         EDPftvarcon_inst%hydr_pitlp_node(ft,:))
-       end do
-
-       return
-    end subroutine InitHydraulicsDerived
-
-
 
 end module FatesHydraulicsMemMod
