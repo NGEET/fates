@@ -971,7 +971,7 @@ contains
                          currentCohort%crown_fire_flg = 1  ! passive crown fire ignited
                          currentCohort%fraction_crown_burned =  1.0_r8
                          ! Initiation of active crown fire, EQ 14b Bessie and Johnson 1995
-                         ignite_active_crown = currentPatch%FI/currentCohort%active_crown_FI
+                         ignite_active_crown = currentPatch%FI/active_crown_FI
                          if (ignite_active_crown >= 1.0_r8) then
                             ! In code design phase; see
                             ! https://github.com/NGEET/fates/issues/573

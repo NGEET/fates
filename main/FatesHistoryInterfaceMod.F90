@@ -4540,12 +4540,12 @@ end subroutine flush_hvars
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m5_si_scpf )
 
     call this%set_history_var(vname='CROWNFIREMORT_SCPF', units = 'N/ha/yr',          &
-          long='crown fire mortality by pft/size',use_default='inactive', &
+          long='crown fire mortality by pft/size',use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_crownfiremort_si_scpf )
 
     call this%set_history_var(vname='CAMBIALFIREMORT_SCPF', units = 'N/ha/yr',          &
-          long='cambial fire mortality by pft/size',use_default='inactive', &
+          long='cambial fire mortality by pft/size',use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cambialfiremort_si_scpf )
 
