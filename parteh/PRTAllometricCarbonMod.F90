@@ -91,7 +91,8 @@ module PRTAllometricCarbonMod
 
   integer, public, parameter :: ac_bc_in_id_pft   = 1   ! Index for the PFT input BC
   integer, public, parameter :: ac_bc_in_id_ctrim = 2   ! Index for the canopy trim function
-  integer, parameter         :: num_bc_in         = 2   ! Number of input boundary condition
+  integer, public, parameter :: ac_bc_in_id_lstat = 3   ! Leaf status (on or off)
+  integer, parameter         :: num_bc_in         = 3   ! Number of input boundary condition
 
   ! THere are no purely output boundary conditions
   integer, parameter         :: num_bc_out        = 0   ! Number of purely output boundary condtions
@@ -353,6 +354,7 @@ contains
     integer  :: i_var                 ! index for iterating state variables
     integer  :: i_age                 ! index for iterating leaf ages
     integer  :: nleafage              ! number of leaf age classifications
+    integer  :: leaf_status           ! are leaves on (2) or off (1) 
     real(r8) :: leaf_age_flux         ! carbon mass flux between leaf age classification pools
 
 
@@ -398,6 +400,7 @@ contains
 
     canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
     ipft                            = this%bc_in(ac_bc_in_id_pft)%ival
+    leaf_status                     = this%bc_in(ac_bc_in_id_lstat)%ival
 
     intgr_params(:)                 = un_initialized
     intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
@@ -456,7 +459,11 @@ contains
     call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
     
     ! Target leaf biomass according to allometry and trimming
-    call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
+    if(leaf_status==2) then
+        call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
+    else
+        target_leaf_c = 0._r8
+    end if
     
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
@@ -689,8 +696,13 @@ contains
        c_pool(struct_c_id) = struct_c
        c_pool(repro_c_id)  = repro_c
        c_pool(dbh_id)      = dbh
-       
-       c_mask(leaf_c_id)   = grow_leaf
+
+       ! Only grow leaves if we are in a "leaf-on" status
+       if(leaf_status==2) then
+           c_mask(leaf_c_id) = grow_leaf
+       else
+           c_mask(leaf_c_id) = .false.
+       end if
        c_mask(fnrt_c_id)   = grow_fnrt
        c_mask(sapw_c_id)   = grow_sapw
        c_mask(store_c_id)  = grow_store
@@ -928,6 +940,7 @@ contains
 
         canopy_trim = intgr_params(ac_bc_in_id_ctrim)
         ipft        = int(intgr_params(ac_bc_in_id_pft))
+        
 
         call bleaf(dbh,ipft,canopy_trim,ct_leaf,ct_dleafdd)
         call bfineroot(dbh,ipft,canopy_trim,ct_fnrt,ct_dfnrtdd)
