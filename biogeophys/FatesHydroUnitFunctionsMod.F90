@@ -2,7 +2,7 @@ module FatesHydroUnitFunctionsMod
 
   ! This module contains hydraulics functions that are readily broken down into
   ! unit tests.  These are functions that mostly operate on primitive
-  ! arguments, are smaller in scope, and are allowed to access the 
+  ! arguments, are smaller in scope, and are allowed to access the
   ! parameter constants EDPftvarcon_inst and params
 
   use FatesConstantsMod, only : r8 => fates_r8
@@ -30,7 +30,7 @@ module FatesHydroUnitFunctionsMod
 
   ! Currently testing two different ways to represent rhizosphere shell
   ! volumes. The old way used a "representative" shell volume, the
-  ! new way is an absolute volume, in total cubic meters over the 
+  ! new way is an absolute volume, in total cubic meters over the
   ! whole hectare.
 
   integer, parameter :: bcvol  = 1
@@ -41,12 +41,14 @@ module FatesHydroUnitFunctionsMod
   integer, parameter :: campbell      = 2
   integer, parameter :: iswc = campbell
 
+  logical, parameter :: allow_unconstrained_theta = .true.
 
-  ! P-V curve: total RWC @ which elastic drainage begins     [-]        
+
+  ! P-V curve: total RWC @ which elastic drainage begins     [-]
   real(r8), allocatable :: rwcft(:)   !  = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
-  
+
   ! P-V curve: total RWC @ which capillary reserves exhausted
-  real(r8), allocatable :: rwccap(:)  !  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
+  real(r8), allocatable :: rwccap(:)  !  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/)
 
   ! P-V curve: slope of capillary region of curve
   real(r8), allocatable :: cap_slp(:)
@@ -72,6 +74,8 @@ module FatesHydroUnitFunctionsMod
   public :: xylemtaper
   public :: InitAllocatePlantMedia
   public :: SetPlantMediaParam
+  public :: solutepsi
+  public :: pressurepsi
 
 contains
 
@@ -79,8 +83,8 @@ contains
   ! =====================================================================================
 
   subroutine InitAllocatePlantMedia(n_plant_media)
-    
-    ! We only allocate for plant porous media, we do 
+
+    ! We only allocate for plant porous media, we do
     ! not use these arrays to inform on soil relationships
     integer,intent(in) :: n_plant_media
 
@@ -100,34 +104,34 @@ contains
   end subroutine InitAllocatePlantMedia
 
   ! =====================================================================================
-  
+
   subroutine SetPlantMediaParam(pm,rwcft_in,rwccap_in)
 
     ! To avoid complications that would arise from linking this
     ! module with the FatesHydraulicsMemMod.F90 during unit tests, we
     ! store some of these arrays that are indexed by "porous_media"
     ! as globals in this module.
-    
+
     integer,intent(in)  :: pm      ! porous media index
     real(r8),intent(in) :: rwcft_in  ! rwcft for this pm
     real(r8),intent(in) :: rwccap_in  ! rwcap for this pm
 
     rwcft(pm)  = rwcft_in
     rwccap(pm) = rwccap_in
-    
+
     if (pm.eq.1) then   ! Leaf tissue
        cap_slp(pm)    = 0.0_r8
        cap_int(pm)    = 0.0_r8
        cap_corr(pm)   = 1.0_r8
     else               ! Non leaf tissues
-       cap_slp(pm)    = (hydr_psi0 - hydr_psicap )/(1.0_r8 - rwccap(pm))  
-       cap_int(pm)    = -cap_slp(pm) + hydr_psi0    
+       cap_slp(pm)    = (hydr_psi0 - hydr_psicap )/(1.0_r8 - rwccap(pm))
+       cap_int(pm)    = -cap_slp(pm) + hydr_psi0
        cap_corr(pm)   = -cap_int(pm)/cap_slp(pm)
     end if
-    
+
     return
   end subroutine SetPlantMediaParam
-  
+
   ! =====================================================================================
 
   subroutine Hydraulics_Tridiagonal(a, b, c, r, u)
@@ -158,7 +162,7 @@ contains
     real(r8) :: err                           ! solution error, in units of [m3/m3]
     real(r8) :: rel_err                       ! relative error, normalized by delta theta
     real(r8), parameter :: allowable_rel_err = 0.0001_r8
-    
+
     !    real(r8), parameter :: allowable_err = 1.e-6_r8
     !----------------------------------------------------------------------
     N=size(r,dim=1)
@@ -210,7 +214,7 @@ contains
 
   function flc_gs_from_psi( lwp, ft ) result( btran )
 
-    ! 
+    !
     ! !DESCRIPTION: Calculates fractional loss of conductance
     !               across the stomata (gs).
 
@@ -221,13 +225,13 @@ contains
     real(r8)              :: btran
 
     btran = &
-         (1._r8 + & 
+         (1._r8 + &
          (lwp/pft_p%hydr_p50_gs(ft))**pft_p%hydr_avuln_gs(ft))**(-1._r8)
 
   end function flc_gs_from_psi
 
   !===============================================================================!
-  
+
   function dflcgsdpsi_from_psi(lwp, ft) result (dflcgsdpsi)
 
     ! Calculate the derivative of change in fractional loss of conductivity
@@ -244,17 +248,17 @@ contains
               p50_gs   => pft_p%hydr_p50_gs)      ! Stomatal PLC curve: water potential
                                                        ! at 50% loss of gs,max  [Pa]
 
-      
+
       dflcgsdpsi = -1._r8 * (1._r8 + (lwp/p50_gs(ft))**avuln_gs(ft))**(-2._r8) * &
            avuln_gs(ft)/p50_gs(ft)*(lwp/p50_gs(ft))**(avuln_gs(ft)-1._r8)
-      
+
     end associate
-    
+
   end function dflcgsdpsi_from_psi
 
   !===============================================================================!
-  
-  function flc_from_psi(ft, pm, psi_node, suc_sat, bsw) result(flc_node)
+
+  function flc_from_psi(ft, pm, th_in, psi_in, suc_sat, bsw) result(flc_node)
 
     ! !DESCRIPTION: calls necessary routines (plant vs. soil) for converting
     ! plant tissue or soil water potentials to a fractional loss of conductivity
@@ -262,19 +266,29 @@ contains
     ! !ARGUMENTS
     integer          , intent(in)     :: ft          ! PFT index
     integer          , intent(in)     :: pm          ! porous media index
-    real(r8)         , intent(in)     :: psi_node    ! water potential      [MPa]
+    real(r8)         , intent(in)     :: th_in       ! water content [m3/m3]
+    real(r8)         , intent(in)     :: psi_in      ! water potential      [MPa]
     real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
     real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b"
 
     real(r8) :: flc_node                             ! frac loss of conductivity [-]
 
-    associate(& 
+    associate(&
          avuln    => pft_p%hydr_avuln_node , & ! PLC curve: vulnerability curve shape parameter          [-]
          p50      => pft_p%hydr_p50_node     & ! PLC curve: water potential at 50% loss of conductivity  [Pa]
          )
-      
+
       if(pm <= 4) then
-         flc_node = 1._r8/(1._r8 + (psi_node/p50(ft,pm))**avuln(ft,pm))
+         if(allow_unconstrained_theta) then
+            if(th_in<pft_p%hydr_resid_node(ft,pm)) then
+               psi_resid = psi_from_th(ft,pm,th_in)
+               flc_node  = 1._r8/(1._r8 + (psi_resid/p50(ft,pm))**avuln(ft,pm))
+            else
+               flc_node = 1._r8/(1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))
+            end if
+         else
+            flc_node = 1._r8/(1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))
+         end if
       else
          select case (iswc)
          case (van_genuchten)
@@ -303,30 +317,41 @@ contains
 
   !===============================================================================!
 
-  function dflcdpsi_from_psi(ft, pm, psi_node,  suc_sat, bsw) result(dflcdpsi_node)
+  function dflcdpsi_from_psi(ft, pm, th_in, psi_in,  suc_sat, bsw) result(dflcdpsi_node)
 
-    ! 
+    !
     ! !DESCRIPTION: calls necessary routines (plant vs. soil) for converting
     ! plant tissue or soil water potentials to a fractional loss of conductivity
 
-    integer          , intent(in)     :: ft             ! PFT index
-    integer          , intent(in)     :: pm             ! porous media index
-    real(r8)         , intent(in)     :: psi_node       ! water potential   [MPa]
+    integer          , intent(in)     :: ft          ! PFT index
+    integer          , intent(in)     :: pm          ! porous media index
+    real(r8)         , intent(in)     :: th_in       ! water content [m3/m3]
+    real(r8)         , intent(in)     :: psi_in      ! water potential   [MPa]
     real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
     real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b"
-    real(r8) :: dflcdpsi_node  ! deriv fractional loss of conductivity  [-] 
+    real(r8) :: dflcdpsi_node  ! deriv fractional loss of conductivity  [-]
 
-    associate(& 
+    associate(&
          avuln    => pft_p%hydr_avuln_node, & ! vulnerability curve shape parameter          [-]
          p50      => pft_p%hydr_p50_node    & ! water potential at 50% loss of conductivity  [Pa]
          )
 
       if(pm <= 4) then
-         dflcdpsi_node = -1._r8 * (1._r8 + (psi_node/p50(ft,pm))**avuln(ft,pm))**(-2._r8) * &
-              avuln(ft,pm)/p50(ft,pm)*(psi_node/p50(ft,pm))**(avuln(ft,pm)-1._r8)
+         if(allow_unconstrained_theta) then
+            if(th_in<pft_p%hydr_resid_node(ft,pm)) then
+               dflcdpsi_node = 0._r8
+            else
+               dflcdpsi_node = -1._r8 * (1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))**(-2._r8) * &
+                    avuln(ft,pm)/p50(ft,pm)*(psi_in/p50(ft,pm))**(avuln(ft,pm)-1._r8)
+            end if
+         else
+            dflcdpsi_node = -1._r8 * (1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))**(-2._r8) * &
+                 avuln(ft,pm)/p50(ft,pm)*(psi_in/p50(ft,pm))**(avuln(ft,pm)-1._r8)
+         end if
+
       else
          select case (iswc)
-         case (van_genuchten)    
+         case (van_genuchten)
             write(fates_log(),*) 'Van Genuchten plant hydraulics is '
             write(fates_log(),*) 'inoperable until further notice'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -337,7 +362,7 @@ contains
             !      site_hydr%l_VG(1),     &
             !   dflcdpsi_node)
          case (campbell)
-            call unsatkCampbell_dflcdpsi_from_psi(psi_node, &
+            call unsatkCampbell_dflcdpsi_from_psi(psi_in, &
                  -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
                  bsw,     &
                  dflcdpsi_node)
@@ -353,19 +378,21 @@ contains
   end function dflcdpsi_from_psi
 
   !===============================================================================!
-  
+
   function th_from_psi(ft, pm, psi_node, th_sat, suc_sat, bsw) result(th_node)
-    
-    ! 
+
+    !
     ! Generic function that calls the correct specific functions for converting
     ! plant tissue or soil water potentials to volumetric water contents
+    ! (Note: We do not need the constrained/unconstrained clause here,
+    ! because this is only called with well-behaved psi values.)
 
     ! !ARGUMENTS
-    integer          , intent(in)            :: ft          ! PFT index
-    integer          , intent(in)            :: pm          ! porous media index
-    real(r8)         , intent(in)            :: psi_node    ! water potential   [MPa]
+    integer          , intent(in)     :: ft          ! PFT index
+    integer          , intent(in)     :: pm          ! porous media index
+    real(r8)         , intent(in)     :: psi_node    ! water potential   [MPa]
     real(r8), optional,intent(in)     :: th_sat      ! water content at saturation
-    ! (porosity for soil) [m3 m-3]
+                                                     ! (porosity for soil) [m3 m-3]
     real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
     real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b"
 
@@ -381,7 +408,7 @@ contains
     real(r8) :: psi_check
 
 
-    associate(& 
+    associate(&
          thetas   => pft_p%hydr_thetas_node  , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content
          resid    => pft_p%hydr_resid_node     & ! Input: [real(r8) (:,:) ] P-V curve: residual water fraction
          )
@@ -415,14 +442,14 @@ contains
             !                  bc_in%watsat_sisl(1),   &
             !                  bc_in%watres_sisl(1),   &
             !                  th_node)
-         case (campbell) 
+         case (campbell)
 
             call swcCampbell_satfrac_from_psi(psi_node, &
                  (-1._r8)*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
                  bsw,     &
                  satfrac)
             call swcCampbell_th_from_satfrac(satfrac, &
-                 th_sat, & 
+                 th_sat, &
                  th_node)
          case default
             write(fates_log(),*)  'invalid soil water characteristic function specified, iswc = '//char(iswc)
@@ -431,13 +458,13 @@ contains
       end if
 
     end associate
-    
+
   end function th_from_psi
-  
+
   !===============================================================================!
-  
+
   subroutine bisect_pv(ft, pm, lower, upper, xtol, ytol, psi_node, th_node)
-    ! 
+    !
     ! !DESCRIPTION: Bisection routine for getting the inverse of the plant PV curve.
     !  An analytical solution is not possible because quadratic smoothing functions
     !  are used to remove discontinuities in the PV curve.
@@ -463,11 +490,11 @@ contains
     real(r8) :: y_new                  ! corresponding y value at x.new
     real(r8) :: f_new                  ! y difference between new y guess at x.new and target y
     real(r8) :: chg                    ! difference between x upper and lower bounds (approach 0 in bisection)
-    integer  :: nitr                   ! number of iterations 
+    integer  :: nitr                   ! number of iterations
 
     if(psi_node > 0.0_r8) then
        write(fates_log(),*)'Error: psi_note become positive, psi_node=',psi_node
-       call endrun(msg=errMsg(sourcefile, __LINE__))  
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     y_lo = psi_from_th(ft, pm,lower)
@@ -500,9 +527,9 @@ contains
 
   !===============================================================================!
 
-  function psi_from_th(ft, pm, th_node, th_sat, suc_sat, bsw) result(psi_node)
+  function psi_from_th(ft, pm, th_in, th_sat, suc_sat, bsw) result(psi_node)
 
-    ! 
+    !
     ! !DESCRIPTION: evaluates the plant PV curve (returns water potential, psi)
     ! at a given water content (th)
     !
@@ -511,26 +538,40 @@ contains
     ! !ARGUMENTS
     integer          , intent(in)     :: ft          ! PFT index
     integer          , intent(in)     :: pm          ! porous media index
-    real(r8)         , intent(in)     :: th_node     ! water content     [m3 m-3]
+    real(r8)         , intent(in)     :: th_in       ! water content     [m3 m-3]
     real(r8), optional,intent(in)     :: th_sat      ! water content at saturation
     ! (porosity for soil) [m3 m-3]
     real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
-    real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b" 
+    real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b"
 
     !
     ! !LOCAL VARIABLES:
-    real(r8) :: satfrac                  ! saturation fraction [0-1]
+    real(r8) :: satfrac      ! saturation fraction [0-1]
+
 
     ! Result
     real(r8) :: psi_node    ! water potential   [MPa]
-
+    real(r8) :: dpsidth_resid  ! Change in psi wrt th @ residual WC [MPa/[m3/m3]]
+    real(r8) :: psi_resid      ! Psi at residual WC   [MPa]
 
     if(pm <= 4) then       ! plant
-
-       call tq2(ft, pm, th_node*cap_corr(pm), psi_node)
-
-       print*,"F90: ",psi_node
        
+       if(allow_unconstrained_theta) then
+          if(th_in>pft_p%hydr_thetas_node(ft,pm)) then
+             ! Hard cap water content at saturation
+             call tq2(ft, pm, pft_p%hydr_thetas_node(ft,pm)*cap_corr(pm), psi_node)
+          elseif(th_in<pft_p%hydr_resid_node(ft,pm)) then
+             ! Perform extrapolation from residual WC
+             call tq2(ft, pm, pft_p%hydr_resid_node(ft,pm)*cap_corr(pm), psi_resid)
+             call dtq2dth(ft, pm, pft_p%hydr_resid_node(ft,pm)*cap_corr(pm), dpsidth_resid)
+             psi_node = psi_resid + (th_in-pft_p%hydr_resid_node(ft,pm)) * dpsidth_resid
+          else
+             call tq2(ft, pm, th_in*cap_corr(pm), psi_node)
+          end if
+       else
+          call tq2(ft, pm, th_in*cap_corr(pm), psi_node)
+       end if
+      
 
     else if(pm == 5) then  ! soil
 
@@ -539,7 +580,7 @@ contains
        select case (iswc)
        case (van_genuchten)
           write(fates_log(),*) 'Van Genuchten plant hydraulics is inoperable until further notice'
-          call endrun(msg=errMsg(sourcefile, __LINE__)) 
+          call endrun(msg=errMsg(sourcefile, __LINE__))
           !          call swcVG_psi_from_th(th_node, &
           !                  bc_in%watsat_sisl(1),   &
           !                  bc_in%watres_sisl(1),   &
@@ -549,7 +590,7 @@ contains
           !                  site_hydr%l_VG(1),     &
           !                  psi_node)
        case (campbell)
-          call swcCampbell_psi_from_th(th_node,th_sat,               &
+          call swcCampbell_psi_from_th(th,th_sat,               &
                -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
                bsw,                                                  &
                psi_node)
@@ -563,9 +604,9 @@ contains
   end function psi_from_th
 
   !===============================================================================!
-  
-  function dpsidth_from_th(ft, pm, th_node, th_sat, suc_sat, bsw) result(dpsidth)
-    ! 
+
+  function dpsidth_from_th(ft, pm, th_in, th_sat, suc_sat, bsw) result(dpsidth)
+    !
     ! !DESCRIPTION: evaluates the plant PV curve (returns water potential, psi)
     ! at a given water content (th)
     !
@@ -574,11 +615,11 @@ contains
     ! !ARGUMENTS
     integer          , intent(in)     :: ft          ! PFT index
     integer          , intent(in)     :: pm          ! porous media index
-    real(r8)         , intent(in)     :: th_node     ! water content                            [m3 m-3]
+    real(r8)         , intent(in)     :: th_in       ! water content                            [m3 m-3]
     real(r8), optional,intent(in)     :: th_sat      ! water content at saturation
     ! (porosity for soil) [m3 m-3]
     real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
-    real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b" 
+    real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b"
 
     real(r8)                          :: dpsidth     ! derivative of water potential wrt theta  [MPa m3 m-3]
 
@@ -586,15 +627,30 @@ contains
     ! !LOCAL VARIABLES:
 
     real(r8) :: satfrac                  ! saturation fraction [0-1]
-
+    real(r8) :: th                       ! effective relative water content
 
     if(pm <= 4) then       ! plant
-       call dtq2dth(ft, pm, th_node*cap_corr(pm), dpsidth)
+
+       if(allow_unconstrained_theta) then
+          if(th_in>pft_p%hydr_thetas_node(ft,pm)) then
+             ! The derivative at the hard-cap is 0
+             dpsidth = 0._r8   
+          elseif(th_in<pft_p%hydr_resid_node(ft,pm)) then
+             ! We do a linear extrapolation of psi below 
+             ! the residual, with slope calculated at the residual WC
+             call dtq2dth(ft, pm, pft_p%hydr_resid_node(ft,pm)*cap_corr(pm), dpsidth)
+          else
+             call dtq2dth(ft, pm, th*cap_corr(pm), dpsidth)
+          end if
+       else
+          call dtq2dth(ft, pm, th*cap_corr(pm), dpsidth)
+       end if
+       
     else if(pm == 5) then  ! soil
        select case (iswc)
        case (van_genuchten)
           write(fates_log(),*) 'Van Genuchten plant hydraulics is inoperable until further notice'
-          call endrun(msg=errMsg(sourcefile, __LINE__)) 
+          call endrun(msg=errMsg(sourcefile, __LINE__))
           !call swcVG_dpsidth_from_th(th_node, &
           !        bc_in%watsat_sisl(1),   &
           !        bc_in%watres_sisl(1),   &
@@ -604,10 +660,10 @@ contains
           !        site_hydr%l_VG(1),     &
           !        y)
        case (campbell)
-          call swcCampbell_dpsidth_from_th(th_node, &
-               th_sat, & 
+          call swcCampbell_dpsidth_from_th(th, &
+               th_sat, &
                -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
-               bsw, & 
+               bsw, &
                dpsidth)
        case default
           write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
@@ -620,7 +676,7 @@ contains
   !===============================================================================!
 
   subroutine tq2(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: smoothing function for elastic-to-cavitation region of the
     !  plant PV curve where a discontinuity exists
     !
@@ -647,7 +703,7 @@ contains
   !===============================================================================!
 
   subroutine dtq2dth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: smoothing function for elastic-to-cavitation region of the
     !  plant PV curve where a discontinuity exists
     !
@@ -679,7 +735,7 @@ contains
   !===============================================================================!
 
   subroutine bq2(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: component smoothing function for elastic-to-cavitation region
     ! of the plant PV curve where a discontinuity exists
     !
@@ -705,7 +761,7 @@ contains
   !===============================================================================!
 
   subroutine dbq2dth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: component smoothing function for elastic-to-cavitation region
     ! of the plant PV curve where a discontinuity exists
     !
@@ -731,7 +787,7 @@ contains
   !===============================================================================!
 
   subroutine cq2(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: component smoothing function for elastic-to-cavitation region
     ! of the plant PV curve where a discontinuity exists
     !
@@ -757,7 +813,7 @@ contains
   !===============================================================================!
 
   subroutine dcq2dth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: returns derivative of cq2() wrt theta
     !
     ! !USES:
@@ -786,7 +842,7 @@ contains
   !===============================================================================!
 
   subroutine tq1(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: either calls the elastic region of the PV curve (leaves) or
     ! does a smoothing function for capillary-to-elastic region of the plant PV
     ! curve where a discontinuity exists
@@ -820,7 +876,7 @@ contains
   !===============================================================================!
 
   subroutine dtq1dth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: returns derivative of tq1() wrt theta
     !
     ! !USES:
@@ -857,7 +913,7 @@ contains
   !===============================================================================!
 
   subroutine bq1(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: component smoothing function for capillary-to-elastic region
     ! of the plant PV curve where a discontinuity exists
     !
@@ -883,7 +939,7 @@ contains
   !===============================================================================!
 
   subroutine dbq1dth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: returns derivative of bq1() wrt theta
     !
     ! !USES:
@@ -908,7 +964,7 @@ contains
   !===============================================================================!
 
   subroutine cq1(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: component smoothing function for capillary-to-elastic region
     ! of the plant PV curve where a discontinuity exists
     !
@@ -934,7 +990,7 @@ contains
   !===============================================================================!
 
   subroutine dcq1dth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: returns derivative of cq1() wrt theta
     !
     ! !USES:
@@ -963,7 +1019,7 @@ contains
   !===============================================================================!
 
   subroutine cavitationPV(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: computes water potential in the elastic region of the plant PV
     ! curve as the sum of both solute and elastic components.
     !
@@ -987,7 +1043,7 @@ contains
   !===============================================================================!
 
   subroutine dcavitationPVdth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: returns derivative of cavitationPV() wrt theta
     !
     ! !USES:
@@ -1010,7 +1066,7 @@ contains
   !===============================================================================!
 
   subroutine elasticPV(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: computes water potential in the elastic region of the plant PV
     ! curve as the sum of both solute and elastic components.
     !
@@ -1036,7 +1092,7 @@ contains
   !===============================================================================!
 
   subroutine delasticPVdth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: returns derivative of elasticPV() wrt theta
     !
     ! !USES:
@@ -1061,7 +1117,7 @@ contains
   !===============================================================================!
 
   subroutine solutepsi(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: computes solute water potential (negative) as a function of
     !  water content for the plant PV curve.
     !
@@ -1076,23 +1132,35 @@ contains
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
 
-    associate(& 
+    associate(&
          pinot   => pft_p%hydr_pinot_node,  & ! Input: [real(r8) (:,:) ] P-V curve: osmotic potential at full turgor              [MPa]
          thetas  => pft_p%hydr_thetas_node, & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
          resid   => pft_p%hydr_resid_node   & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
          )
-      
+
+
+!      print*,"-----------"
+!      print*,ft
+!      print*,pm
+!      print*,pinot(2,1)
+!      print*,thetas(2,1)
+!      print*,rwcft(2)
+!      print*,resid(2,1)
+
+
       y = pinot(ft,pm)*thetas(ft,pm)*(rwcft(pm) - resid(ft,pm)) / &
            (x - thetas(ft,pm)*resid(ft,pm))
+
+!      print*,"y=",y
       
     end associate
-    
+
   end subroutine solutepsi
-  
+
   !===============================================================================!
 
   subroutine dsolutepsidth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: returns derivative of solutepsi() wrt theta
     !
     ! !USES:
@@ -1106,7 +1174,7 @@ contains
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
 
-    associate(& 
+    associate(&
          pinot   => pft_p%hydr_pinot_node     , & ! Input: [real(r8) (:,:) ] P-V curve: osmotic potential at full turgor              [MPa]
          thetas  => pft_p%hydr_thetas_node    , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
          resid   => pft_p%hydr_resid_node       & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
@@ -1114,14 +1182,14 @@ contains
 
       y = -1._r8*thetas(ft,pm)*pinot(ft,pm)*(rwcft(pm) - resid(ft,pm)) / &
            ((x - thetas(ft,pm)*resid(ft,pm))**2._r8)
-      
+
     end associate
   end subroutine dsolutepsidth
 
   !===============================================================================!
 
   subroutine pressurepsi(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: computes pressure water potential (positive) as a function of
     !  water content for the plant PV curve.
     !
@@ -1136,23 +1204,23 @@ contains
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
 
-    associate(& 
+    associate(&
          pinot   => pft_p%hydr_pinot_node     , & ! P-V curve: osmotic potential at full turgor              [MPa]
          thetas  => pft_p%hydr_thetas_node    , & ! P-V curve: saturated volumetric water content for node   [m3 m-3]
          resid   => pft_p%hydr_resid_node     , & ! P-V curve: residual fraction                             [-]
          epsil   => pft_p%hydr_epsil_node       & ! P-V curve: bulk elastic modulus                          [MPa]
          )
-      
+
       y = epsil(ft,pm) * (x - thetas(ft,pm)*rwcft(pm)) / &
            (thetas(ft,pm)*(rwcft(pm)-resid(ft,pm))) - pinot(ft,pm)
-      
+
     end associate
   end subroutine pressurepsi
-  
+
   !===============================================================================!
 
   subroutine dpressurepsidth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: returns derivative of pressurepsi() wrt theta
     !
     ! !USES:
@@ -1166,22 +1234,22 @@ contains
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
 
-    associate(& 
+    associate(&
          thetas  => pft_p%hydr_thetas_node, & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
          resid   => pft_p%hydr_resid_node , & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
          epsil   => pft_p%hydr_epsil_node   & ! Input: [real(r8) (:,:) ] P-V curve: bulk elastic modulus                          [MPa]
          )
-      
+
       y = epsil(ft,pm)/(thetas(ft,pm)*(rwcft(pm) - resid(ft,pm)))
-      
+
     end associate
-    
+
   end subroutine dpressurepsidth
-  
+
   !===============================================================================!
 
   subroutine capillaryPV(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: computes water potential in the capillary region of the plant
     !  PV curve (sapwood only)
     !
@@ -1196,19 +1264,19 @@ contains
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
 
-    associate(& 
+    associate(&
          thetas    => pft_p%hydr_thetas_node     & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
          )
-      
+
       y = cap_int(pm) + cap_slp(pm)/thetas(ft,pm)*x
-      
+
     end associate
   end subroutine capillaryPV
 
   !===============================================================================!
 
   subroutine dcapillaryPVdth(ft, pm, x, y)
-    ! 
+    !
     ! !DESCRIPTION: returns derivative of capillaryPV() wrt theta
     !
     ! !USES:
@@ -1221,15 +1289,15 @@ contains
     !
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
-    
-    associate(& 
+
+    associate(&
          thetas    => pft_p%hydr_thetas_node    & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
          )
-      
+
       y = cap_slp(pm)/thetas(ft,pm)
-      
+
     end associate
-    
+
   end subroutine dcapillaryPVdth
 
   !===============================================================================!
@@ -1587,7 +1655,7 @@ contains
     !
     ! DESCRIPTION
     ! van Genuchten (1980) soil water characteristic (retention) curve
-    ! returns unsaturated hydraulic conductivity 
+    ! returns unsaturated hydraulic conductivity
     ! given water potential and SWC parameters
     !
     !USES
@@ -1619,12 +1687,12 @@ contains
   end subroutine unsatkVG_flc_from_psi
 
   !======================================================================-
-  
+
   subroutine unsatkCampbell_flc_from_psi(psi, psisat, B, flc)
     !
     ! DESCRIPTION
     ! Campbell (1974) soil water characteristic (retention) curve
-    ! returns unsaturated hydraulic conductivity 
+    ! returns unsaturated hydraulic conductivity
     ! given water potential and SWC parameters
     !
     !USES
@@ -1714,7 +1782,7 @@ contains
   ! =====================================================================================
 
   subroutine bisect_rootfr(a, b, lower_init, upper_init, xtol, ytol, crootfr, x_new)
-    ! 
+    !
     ! !DESCRIPTION: Bisection routine for getting the inverse of the cumulative root
     !  distribution. No analytical soln bc crootfr ~ exp(ax) + exp(bx).
     !
@@ -1777,7 +1845,7 @@ contains
 
 
     ! If a maximum rooting depth is provided, then
-    ! we force everything to sum to unity. We do this by 
+    ! we force everything to sum to unity. We do this by
     ! simply dividing through by the maximum possible
     ! root fraction.
 
@@ -1808,7 +1876,7 @@ contains
     ! !DESCRIPTION: Updates size of 'representative' rhizosphere -- node radii, volumes.
     ! As fine root biomass (and thus absorbing root length) increases, this characteristic
     ! rhizosphere shrinks even though the total volume of soil surrounding fine roots remains
-    ! the same.  
+    ! the same.
     !
     ! !USES:
 

@@ -51,7 +51,7 @@ class cdl_param_type:
         elif(self.ndims==2):
             n1 = self.dim_sizelist[0]
             n2 = self.dim_sizelist[1]
-            i2 = np.mod(indx+1,n2)
+            i2 = np.mod(indx,n2)
             i1 = int(indx/n2)
             self.data[i1,i2] = val
 
@@ -195,7 +195,7 @@ def CDLParseParam(file_name,param,dim_dic):
                     str=""
                     isnum=False
                     for s in str0:
-                        if (s.isdigit() or s=='.'):
+                        if (s.isdigit() or s=='.' or s=='-'):
                             str+=s
                             isnum=True
                         elif(s == '_'):
