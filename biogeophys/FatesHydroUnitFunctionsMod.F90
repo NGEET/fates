@@ -74,11 +74,8 @@ module FatesHydroUnitFunctionsMod
   public :: xylemtaper
   public :: InitAllocatePlantMedia
   public :: SetPlantMediaParam
-  public :: solutepsi
-  public :: pressurepsi
-
+  
 contains
-
 
   ! =====================================================================================
 
@@ -271,6 +268,7 @@ contains
     real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
     real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b"
 
+    real(r8) :: psi_resid                            ! matric potential @ residual WC [MPa]
     real(r8) :: flc_node                             ! frac loss of conductivity [-]
 
     associate(&
@@ -281,7 +279,7 @@ contains
       if(pm <= 4) then
          if(allow_unconstrained_theta) then
             if(th_in<pft_p%hydr_resid_node(ft,pm)) then
-               psi_resid = psi_from_th(ft,pm,th_in)
+               psi_resid = psi_from_th(ft,pm,pft_p%hydr_resid_node(ft,pm))
                flc_node  = 1._r8/(1._r8 + (psi_resid/p50(ft,pm))**avuln(ft,pm))
             else
                flc_node = 1._r8/(1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))
@@ -301,7 +299,7 @@ contains
             !             site_hydr%l_VG(1),     &
             !             flc_node)
          case (campbell)
-            call unsatkCampbell_flc_from_psi(psi_node, &
+            call unsatkCampbell_flc_from_psi(psi_in, &
                  -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
                  bsw,  &
                  flc_node)
@@ -560,10 +558,10 @@ contains
           if(th_in>pft_p%hydr_thetas_node(ft,pm)) then
              ! Hard cap water content at saturation
              call tq2(ft, pm, pft_p%hydr_thetas_node(ft,pm)*cap_corr(pm), psi_node)
-          elseif(th_in<pft_p%hydr_resid_node(ft,pm)) then
+          elseif(th_in<(pft_p%hydr_resid_node(ft,pm)+nearzero)) then
              ! Perform extrapolation from residual WC
-             call tq2(ft, pm, pft_p%hydr_resid_node(ft,pm)*cap_corr(pm), psi_resid)
-             call dtq2dth(ft, pm, pft_p%hydr_resid_node(ft,pm)*cap_corr(pm), dpsidth_resid)
+             call tq2(ft, pm, (pft_p%hydr_resid_node(ft,pm)+nearzero)*cap_corr(pm), psi_resid)
+             call dtq2dth(ft, pm, (pft_p%hydr_resid_node(ft,pm)+nearzero)*cap_corr(pm), dpsidth_resid)
              psi_node = psi_resid + (th_in-pft_p%hydr_resid_node(ft,pm)) * dpsidth_resid
           else
              call tq2(ft, pm, th_in*cap_corr(pm), psi_node)
@@ -590,7 +588,7 @@ contains
           !                  site_hydr%l_VG(1),     &
           !                  psi_node)
        case (campbell)
-          call swcCampbell_psi_from_th(th,th_sat,               &
+          call swcCampbell_psi_from_th(th_in,th_sat,               &
                -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
                bsw,                                                  &
                psi_node)
@@ -627,7 +625,6 @@ contains
     ! !LOCAL VARIABLES:
 
     real(r8) :: satfrac                  ! saturation fraction [0-1]
-    real(r8) :: th                       ! effective relative water content
 
     if(pm <= 4) then       ! plant
 
@@ -640,10 +637,10 @@ contains
              ! the residual, with slope calculated at the residual WC
              call dtq2dth(ft, pm, pft_p%hydr_resid_node(ft,pm)*cap_corr(pm), dpsidth)
           else
-             call dtq2dth(ft, pm, th*cap_corr(pm), dpsidth)
+             call dtq2dth(ft, pm, th_in*cap_corr(pm), dpsidth)
           end if
        else
-          call dtq2dth(ft, pm, th*cap_corr(pm), dpsidth)
+          call dtq2dth(ft, pm, th_in*cap_corr(pm), dpsidth)
        end if
        
     else if(pm == 5) then  ! soil
@@ -660,7 +657,7 @@ contains
           !        site_hydr%l_VG(1),     &
           !        y)
        case (campbell)
-          call swcCampbell_dpsidth_from_th(th, &
+          call swcCampbell_dpsidth_from_th(th_in, &
                th_sat, &
                -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
                bsw, &

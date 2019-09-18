@@ -103,13 +103,13 @@ module FatesPlantHydraulicsMod
   use FatesPlantUnitFunctionsMod, only : flc_gs_from_psi
   use FatesPlantUnitFunctionsMod, only : InitAllocatePlantMedia
   use FatesPlantUnitFunctionsMod, only : SetPlantMediaParam
-  use FatesPlantUnitFunctionsMod, only :
-  use FatesPlantUnitFunctionsMod, only :
-  use FatesPlantUnitFunctionsMod, only :
-  use FatesPlantUnitFunctionsMod, only :
-  use FatesPlantUnitFunctionsMod, only :
-  use FatesPlantUnitFunctionsMod, only :
-
+  use FatesPlantUnitFunctionsMod, only : psi_from_th
+  use FatesPlantUnitFunctionsMod, only : dpsidth_from_th
+  use FatesPlantUnitFunctionsMod, only : flc_from_psi
+  use FatesPlantUnitFunctionsMod, only : dflcdpsi_from_psi
+  use FatesPlantUnitFunctionsMod, only : swcCampbell_psi_from_th
+  use FatesPlantUnitFunctionsMod, only : swcCampbell_satfrac_from_psi
+  use FatesPlantUnitFunctionsMod, only : swcCampbell_th_from_satfrac
 
   ! CIME Globals
   use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -117,9 +117,6 @@ module FatesPlantHydraulicsMod
 
 
   implicit none
-
-
-
 
 
   ! 1=leaf, 2=stem, 3=troot, 4=aroot
@@ -351,12 +348,12 @@ contains
        !   smp)
        !ccohort_hydr%psi_aroot(j) = smp
        !ccohort_hydr%psi_aroot(j) = csite%si_hydr%psisoi_liq_innershell(j)
-       ccohort_hydr%psi_aroot(j) = -0.2_r8 !do not assume the equalibrium between soil and root
+       ccohort_hydr%psi_aroot(j) = -0.2_r8 !do not assume the equilibrium between soil and root
 
-       call th_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
-            ccohort_hydr%th_aroot(j))
-       call flc_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
-            ccohort_hydr%ftc_aroot(j))
+       ccohort_hydr%th_aroot(j) = th_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j))
+       ccohort_hydr%ftc_aroot(j) = flc_from_psi(ft, aroot_p_media, & 
+                                                    ccohort_hydr%th_aroot(j), & 
+                                                    ccohort_hydr%psi_aroot(j))
 
     end do
 
@@ -370,26 +367,29 @@ contains
 
     ccohort_hydr%psi_troot = ccohort_hydr%psi_aroot(1) - 1.e-6_r8*denh2o*grav_earth*dz 
     if (ccohort_hydr%psi_troot>0.0_r8) ccohort_hydr%psi_troot = -0.01_r8
-    call th_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, ccohort_hydr%th_troot)
-    call flc_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, ccohort_hydr%ftc_troot)
+    ccohort_hydr%th_troot = th_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot )
+    ccohort_hydr%ftc_troot = flc_from_psi(ft, troot_p_media, & 
+                                          ccohort_hydr%th_troot, &
+                                          ccohort_hydr%psi_troot)
 
     !working our way up a tree, assigning water potentials that are in
     !hydrostatic equilibrium with the water potential immediately below
     dz = ccohort_hydr%z_node_ag(n_hypool_ag) - ccohort_hydr%z_node_troot
     ccohort_hydr%psi_ag(n_hypool_ag) = ccohort_hydr%psi_troot - 1.e-6_r8*denh2o*grav_earth*dz
     if (ccohort_hydr%psi_ag(n_hypool_ag)>0.0_r8) ccohort_hydr%psi_ag(n_hypool_ag) = -0.01_r8
-    call th_from_psi(ft, stem_p_media, ccohort_hydr%psi_ag(n_hypool_ag), &
-         ccohort_hydr%th_ag(n_hypool_ag))
-    call flc_from_psi(ft, stem_p_media, ccohort_hydr%psi_ag(n_hypool_ag), & 
-         ccohort_hydr%ftc_ag(n_hypool_ag))
+    ccohort_hydr%th_ag(n_hypool_ag) = th_from_psi(ft, stem_p_media, ccohort_hydr%psi_ag(n_hypool_ag))
+    ccohort_hydr%ftc_ag(n_hypool_ag) = flc_from_psi(ft, stem_p_media, &
+                                                    ccohort_hydr%th_ag(n_hypool_ag), & 
+                                                    ccohort_hydr%psi_ag(n_hypool_ag))
 
     do k=n_hypool_ag-1, 1, -1
        dz = ccohort_hydr%z_node_ag(k) - ccohort_hydr%z_node_ag(k+1)
        ccohort_hydr%psi_ag(k) = ccohort_hydr%psi_ag(k+1) - mpa_per_pa*denh2o*grav_earth*dz
        if(ccohort_hydr%psi_ag(k)>0.0_r8) ccohort_hydr%psi_ag(k)= -0.01_r8
-       call th_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), &
-            ccohort_hydr%th_ag(k))
-       call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k),ccohort_hydr%ftc_ag(k))
+       ccohort_hydr%th_ag(k) = th_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k))
+       ccohort_hydr%ftc_ag(k) = flc_from_psi(ft, porous_media(k), &
+                                             ccohort_hydr%th_ag(k), &
+                                             ccohort_hydr%psi_ag(k))
     end do
 
     ccohort_hydr%errh2o_growturn_ag(:)    = 0.0_r8
@@ -430,18 +430,24 @@ contains
     ! Update Psi and FTC in above-ground compartments
     ! -----------------------------------------------------------------------------------
     do k = 1,n_hypool_ag
-       call psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k), ccohort_hydr%psi_ag(k))
-       call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), ccohort_hydr%ftc_ag(k))
+        ccohort_hydr%psi_ag(k) = psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k))
+        ccohort_hydr%ftc_ag(k) = flc_from_psi(ft, porous_media(k), & 
+                                              ccohort_hydr%th_ag(k), & 
+                                              ccohort_hydr%psi_ag(k))
     end do
 
     ! Update the Psi and FTC for the transporting root compartment
-    call psi_from_th(ft, troot_p_media, ccohort_hydr%th_troot, ccohort_hydr%psi_troot)
-    call flc_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, ccohort_hydr%ftc_troot)
-    
+    ccohort_hydr%psi_troot = psi_from_th(ft, troot_p_media, ccohort_hydr%th_troot )
+    ccohort_hydr%ftc_troot = flc_from_psi(ft, troot_p_media, & 
+                                              ccohort_hydr%th_troot, & 
+                                              ccohort_hydr%psi_troot )
+
     ! Update the Psi and FTC for the absorbing roots
     do j = 1, csite_hydr%nlevsoi_hyd
-       call psi_from_th(ft, aroot_p_media, ccohort_hydr%th_aroot(j), ccohort_hydr%psi_aroot(j))
-       call flc_from_psi(ft, aroot_p_media, ccohort_hydr%psi_aroot(j), ccohort_hydr%ftc_aroot(j))
+        ccohort_hydr%psi_aroot(j) = psi_from_th(ft, aroot_p_media, ccohort_hydr%th_aroot(j))
+        ccohort_hydr%ftc_aroot(j) = flc_from_psi(ft, aroot_p_media, & 
+                                    ccohort_hydr%th_aroot(j), & 
+                                    ccohort_hydr%psi_aroot(j))
     end do
 
     return
@@ -995,22 +1001,25 @@ contains
     end if
 
     do k=1,n_hypool_ag
-       ccohort_hydr%psi_ag(k) = & 
-            psi_from_th(currentCohort%pft, porous_media(k), ccohort_hydr%th_ag(k))
-       ccohort_hydr%ftc_ag(k) = & 
-            flc_from_psi(currentCohort%pft, porous_media(k), ccohort_hydr%psi_ag(k)) 
+       ccohort_hydr%psi_ag(k) = psi_from_th(currentCohort%pft, porous_media(k), &
+                                            ccohort_hydr%th_ag(k))
+       ccohort_hydr%ftc_ag(k) = flc_from_psi(currentCohort%pft, porous_media(k), & 
+                                             ccohort_hydr%th_ag(k), &
+                                             ccohort_hydr%psi_ag(k)) 
     end do
 
-    call psi_from_th(currentCohort%pft, troot_p_media, ccohort_hydr%th_troot, &
-         ccohort_hydr%psi_troot)
-    call flc_from_psi(currentCohort%pft, troot_p_media, ccohort_hydr%psi_troot, &
-            ccohort_hydr%ftc_troot) 
+    ccohort_hydr%psi_troot = psi_from_th(currentCohort%pft, troot_p_media, & 
+                                         ccohort_hydr%th_troot)
+    ccohort_hydr%ftc_troot = flc_from_psi(currentCohort%pft, troot_p_media, & 
+                                         ccohort_hydr%th_troot, & 
+                                         ccohort_hydr%psi_troot)
 
     do j=1,site_hydr%nlevsoi_hyd
-       call psi_from_th(currentCohort%pft, aroot_p_media, ccohort_hydr%th_aroot(j), &
-            ccohort_hydr%psi_aroot(j))
-       call flc_from_psi(currentCohort%pft, aroot_p_media, ccohort_hydr%psi_aroot(j), &
-            ccohort_hydr%ftc_aroot(j))
+        ccohort_hydr%psi_aroot(j) = psi_from_th(currentCohort%pft, aroot_p_media, & 
+                                                ccohort_hydr%th_aroot(j))
+        ccohort_hydr%ftc_aroot(j) = flc_from_psi(currentCohort%pft, aroot_p_media, & 
+                                                 ccohort_hydr%th_aroot(j), &
+                                                 ccohort_hydr%psi_aroot(j))
     end do
 
     ccohort_hydr%btran = flc_gs_from_psi(ccohort_hydr%psi_ag(1),currentcohort%pft)
@@ -2345,12 +2354,11 @@ contains
                 ! potential gradient (same elevation, no geopotential
                 ! required.
                  
-                call psi_from_th(ccohort%pft, rhiz_p_media, & 
-                      site_hydr%h2osoi_liqvol_shell(j,1),   &
-                      psi_inner_shell,                      & 
-                      bc_in(s)%watsat_sisl(j),              & ! optional for soil
-                      bc_in(s)%sucsat_sisl(j),              & ! optional for soil
-                      bc_in(s)%bsw_sisl(j))                   ! optional for soil
+                psi_inner_shell = psi_from_th(ccohort%pft, rhiz_p_media, & 
+                                              site_hydr%h2osoi_liqvol_shell(j,1),   &
+                                              bc_in(s)%watsat_sisl(j),              & ! optional for soil
+                                              bc_in(s)%sucsat_sisl(j),              & ! optional for soil
+                                              bc_in(s)%bsw_sisl(j))                   ! optional for soil
 
                 
                 ! Note, since their is no elevation difference between
@@ -2363,12 +2371,12 @@ contains
                 end if
 
                 ! Get matric potential [Mpa] of the absorbing root
-                call psi_from_th(ccohort%pft, aroot_p_media, &
-                     ccohort_hydr%th_aroot(j), psi_aroot)
+                psi_aroot = psi_from_th(ccohort%pft, aroot_p_media, &
+                                        ccohort_hydr%th_aroot(j))
 
                 ! Get Fraction of Total Conductivity [-] of the absorbing root
-                call flc_from_psi(ccohort%pft, aroot_p_media, &
-                     psi_aroot, ftc_aroot)
+                ftc_aroot = flc_from_psi(ccohort%pft, aroot_p_media, &
+                                         ccohort_hydr%th_aroot(j), psi_aroot)
 
                 ! Calculate total effective conductance over path  [kg s-1 MPa-1]
                 ! from absorbing root node to 1st rhizosphere shell
@@ -2383,16 +2391,17 @@ contains
                    kmax_up = site_hydr%kmax_upper_shell(j,k)*aroot_frac_plant
                    kmax_lo = site_hydr%kmax_lower_shell(j,k)*aroot_frac_plant
 
-                   call psi_from_th(ccohort%pft, rhiz_p_media, &
-                        site_hydr%h2osoi_liqvol_shell(j,k), psi_shell,        &
-                        bc_in(s)%watsat_sisl(j),              & ! optional for soil
-                        bc_in(s)%sucsat_sisl(j),              & ! optional for soil
-                        bc_in(s)%bsw_sisl(j))
+                   psi_shell = psi_from_th(ccohort%pft, rhiz_p_media, &
+                                           site_hydr%h2osoi_liqvol_shell(j,k), &
+                                           bc_in(s)%watsat_sisl(j),            & ! optional for soil
+                                           bc_in(s)%sucsat_sisl(j),            & ! optional for soil
+                                           bc_in(s)%bsw_sisl(j))
 
-                   call flc_from_psi(ccohort%pft, rhiz_p_media, &
-                        psi_shell, ftc_shell,                 &
-                        bc_in(s)%sucsat_sisl(j),              & ! optional for soil
-                        bc_in(s)%bsw_sisl(j))                   ! optional for soil
+                   ftc_shell = flc_from_psi(ccohort%pft, rhiz_p_media, &
+                         site_hydr%h2osoi_liqvol_shell(j,k),   & 
+                         psi_shell,                            &
+                         bc_in(s)%sucsat_sisl(j),              & ! optional for soil
+                         bc_in(s)%bsw_sisl(j))                   ! optional for soil
 
                    r_bg = r_bg + 1._r8/(kmax_up*ftc_shell)
                    if(k<nshell) r_bg = r_bg + 1._r8/(kmax_lo*ftc_shell )
@@ -2415,7 +2424,6 @@ contains
                    end if
                 enddo
              enddo
-
 
              ccohort_hydr%errh2o                   = 0._r8
              ccohort_hydr%iterh1                   = 0._r8
@@ -2504,25 +2512,25 @@ contains
 
              ! Above ground
              do k=1,n_hypool_ag
-                call psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k), &
-                     ccohort_hydr%psi_ag(k))
-                
-                call flc_from_psi(ft, porous_media(k), ccohort_hydr%psi_ag(k), &
-                     ccohort_hydr%ftc_ag(k))
-
+                 ccohort_hydr%psi_ag(k) = psi_from_th(ft, porous_media(k), ccohort_hydr%th_ag(k))
+                 ccohort_hydr%ftc_ag(k) = flc_from_psi(ft, porous_media(k), & 
+                                                       ccohort_hydr%th_ag(k), & 
+                                                       ccohort_hydr%psi_ag(k))
              enddo
+
              ! Update water potential of transporting root compartment
-             call psi_from_th(ft, troot_p_media, ccohort_hydr%th_troot, &
-                  ccohort_hydr%psi_troot)
-             call flc_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot, &
-                     ccohort_hydr%ftc_troot)
+             ccohort_hydr%psi_troot = psi_from_th(ft, troot_p_media, ccohort_hydr%th_troot)
+             ccohort_hydr%ftc_troot = flc_from_psi(ft, troot_p_media, & 
+                                                   ccohort_hydr%th_troot, & 
+                                                   ccohort_hydr%psi_troot)
 
              ! Update water potential of absorbing root compartment
              do j=1,site_hydr%nlevsoi_hyd
-                call psi_from_th(ft, aroot_p_media, & 
-                     ccohort_hydr%th_aroot(j), ccohort_hydr%psi_aroot(j))
-                call flc_from_psi(ft, aroot_p_media, & 
-                     ccohort_hydr%psi_aroot(j), ccohort_hydr%ftc_aroot(j))
+                 ccohort_hydr%psi_aroot(j) = psi_from_th(ft, aroot_p_media, & 
+                                                         ccohort_hydr%th_aroot(j))
+                 ccohort_hydr%ftc_aroot(j) = flc_from_psi(ft, aroot_p_media, & 
+                                                          ccohort_hydr%th_aroot(j),& 
+                                                          ccohort_hydr%psi_aroot(j))
              end do
 
              ccohort => ccohort%shorter
@@ -3116,11 +3124,11 @@ contains
           do inode = 1,n_hypool_tot
 
              ! Get matric potential [Mpa]
-             call psi_from_th(cohort%pft, porous_media(inode), th_node(inode), &
-                  psi_node(inode), &
-                  bc_in%watsat_sisl(ilayer),              & ! optional for soil
-                  bc_in%sucsat_sisl(ilayer),              & ! optional for soil
-                  bc_in%bsw_sisl(ilayer))                   ! optional for soil
+              psi_node(inode) = psi_from_th(cohort%pft, porous_media(inode), & 
+                                            th_node(inode), &
+                                            bc_in%watsat_sisl(ilayer),              & ! optional for soil
+                                            bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                                            bc_in%bsw_sisl(ilayer))                   ! optional for soil
 
              if(psi_node(inode)>0._r8) then
                 write(fates_log(),*) 'positive psi?'
@@ -3133,20 +3141,22 @@ contains
              h_node(inode) =  mpa_per_pa*denh2o*grav_earth*z_node(inode) + psi_node(inode)
 
              ! Get Fraction of Total Conductivity [-]
-             call flc_from_psi(cohort%pft, porous_media(inode), psi_node(inode), &
-                  ftc_node(inode), &
-                  bc_in%sucsat_sisl(ilayer),              & ! optional for soil
-                  bc_in%bsw_sisl(ilayer))                   ! optional for soil
+             ftc_node(inode) = flc_from_psi(cohort%pft, porous_media(inode), & 
+                                            th_node(inode), & 
+                                            psi_node(inode), &
+                                            bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                                            bc_in%bsw_sisl(ilayer))                   ! optional for soil
 
              ! deriv ftc wrt theta
-             call dpsidth_from_th(cohort%pft, porous_media(inode), th_node(inode), & 
-                  dpsi_dtheta_node(inode), &
-                  bc_in%watsat_sisl(ilayer),              & ! optional for soil
-                  bc_in%sucsat_sisl(ilayer),              & ! optional for soil
-                  bc_in%bsw_sisl(ilayer))                   ! optional for soil
+             dpsi_dtheta_node(inode) = dpsidth_from_th(cohort%pft, porous_media(inode), & 
+                   th_node(inode),                         & 
+                   bc_in%watsat_sisl(ilayer),              & ! optional for soil
+                   bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                   bc_in%bsw_sisl(ilayer))                   ! optional for soil
 
-             call dflcdpsi_from_psi(cohort%pft, porous_media(inode), psi_node(inode), & 
-                   dftc_dpsi,  &
+             dftc_dpsi = dflcdpsi_from_psi(cohort%pft, porous_media(inode), & 
+                   th_node(inode),  & 
+                   psi_node(inode), & 
                    bc_in%sucsat_sisl(ilayer),              & ! optional for soil
                    bc_in%bsw_sisl(ilayer))                   ! optional for soil
 
@@ -3413,11 +3423,12 @@ contains
     if(debug)then
        do inode = 1,n_hypool_tot
           ! Get matric potential [Mpa]
-          call psi_from_th(cohort%pft, porous_media(inode), th_node(inode), &
-               psi_node(inode), &
-               bc_in%watsat_sisl(ilayer),              & ! optional for soil
-               bc_in%sucsat_sisl(ilayer),              & ! optional for soil
-               bc_in%bsw_sisl(ilayer))                   ! optional for soil
+          psi_node(inode) =  psi_from_th(cohort%pft, porous_media(inode), & 
+                th_node(inode), &
+                bc_in%watsat_sisl(ilayer),              & ! optional for soil
+                bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                bc_in%bsw_sisl(ilayer))                   ! optional for soil
+
           ! Positive psi values are def weird
           if(psi_node(inode) > 0._r8) then
              write(fates_log(),*) 'positive psi found, dumping network'
@@ -3443,17 +3454,15 @@ contains
              write(fates_log(),*) 'i   theta_init   theta     mass'
              do itest = 1,n_hypool_tot
                 ! get initial total potential of node:
-                call psi_from_th(cohort%pft, porous_media(itest), th_node_init(itest), &
-                      psi_diag, &
-                      bc_in%watsat_sisl(ilayer),              & ! optional for soil
-                      bc_in%sucsat_sisl(ilayer),              & ! optional for soil
-                      bc_in%bsw_sisl(ilayer))                   ! optional for soil
+                 psi_diag = psi_from_th(cohort%pft, porous_media(itest), th_node_init(itest), &
+                       bc_in%watsat_sisl(ilayer),              & ! optional for soil
+                       bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                       bc_in%bsw_sisl(ilayer))                   ! optional for soil
 
                 h_diag = psi_diag + mpa_per_pa*denh2o*grav_earth*z_node(itest)
                 write(fates_log(),*) 'node',itest,th_node_init(itest),th_node(itest),psi_node(itest),v_node(itest),h_diag,psi_diag 
                 if(itest<n_hypool_tot)then
-                    call psi_from_th(cohort%pft, porous_media(itest+1), th_node_init(itest+1), &
-                          psi_diag, &
+                    psi_diag = psi_from_th(cohort%pft, porous_media(itest+1), th_node_init(itest+1), &
                           bc_in%watsat_sisl(ilayer),              & ! optional for soil
                           bc_in%sucsat_sisl(ilayer),              & ! optional for soil
                           bc_in%bsw_sisl(ilayer))                   ! optional for soil
