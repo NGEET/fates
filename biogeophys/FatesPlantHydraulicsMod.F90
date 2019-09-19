@@ -21,13 +21,6 @@ module FatesPlantHydraulicsMod
   !
   ! ==============================================================================================
 
-  ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!99
-  ! (TODO: THE ROW WIDTH ON THIS MODULE ARE TOO LARGE. NAG COMPILERS
-  !  WILL FREAK IF LINES ARE TOO LONG.  BEFORE SUBMITTING THIS TO 
-  !  MASTER WE NEED TO GO THROUGH AND GET THESE LINES BELOW
-  !  100 spaces (for readability), or 130 (for NAG)
-  ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!99
-
   use FatesGlobals, only      : endrun => fates_endrun
   use FatesGlobals, only      : fates_log
 
@@ -82,10 +75,6 @@ module FatesPlantHydraulicsMod
   use FatesHydraulicsMemMod, only: troot_p_media
   use FatesHydraulicsMemMod, only: aroot_p_media
   use FatesHydraulicsMemMod, only: rhiz_p_media
-  use FatesHydraulicsMemMod, only: cap_slp
-  use FatesHydraulicsMemMod, only: cap_int
-  use FatesHydraulicsMemMod, only: cap_corr
-  use FatesHydraulicsMemMod, only: rwcft
   use FatesHydraulicsMemMod, only: C2B
   use FatesHydraulicsMemMod, only: nlevsoi_hyd_max
   use FatesHydraulicsMemMod, only: cohort_recruit_water_layer
@@ -98,18 +87,26 @@ module FatesPlantHydraulicsMod
   use clm_time_manager  , only : get_step_size, get_nstep
 
   use EDPftvarcon, only : EDPftvarcon_inst
-
-  use FatesPlantUnitFunctionsMod, only : Hydraulics_Tridiagonal
-  use FatesPlantUnitFunctionsMod, only : flc_gs_from_psi
-  use FatesPlantUnitFunctionsMod, only : InitAllocatePlantMedia
-  use FatesPlantUnitFunctionsMod, only : SetPlantMediaParam
-  use FatesPlantUnitFunctionsMod, only : psi_from_th
-  use FatesPlantUnitFunctionsMod, only : dpsidth_from_th
-  use FatesPlantUnitFunctionsMod, only : flc_from_psi
-  use FatesPlantUnitFunctionsMod, only : dflcdpsi_from_psi
-  use FatesPlantUnitFunctionsMod, only : swcCampbell_psi_from_th
-  use FatesPlantUnitFunctionsMod, only : swcCampbell_satfrac_from_psi
-  use FatesPlantUnitFunctionsMod, only : swcCampbell_th_from_satfrac
+      
+  use FatesHydroUnitFunctionsMod, only : Hydraulics_Tridiagonal
+  use FatesHydroUnitFunctionsMod, only : flc_gs_from_psi
+  use FatesHydroUnitFunctionsMod, only : InitAllocatePlantMedia
+  use FatesHydroUnitFunctionsMod, only : SetPlantMediaParam
+  use FatesHydroUnitFunctionsMod, only : psi_from_th
+  use FatesHydroUnitFunctionsMod, only : th_from_psi
+  use FatesHydroUnitFunctionsMod, only : dpsidth_from_th
+  use FatesHydroUnitFunctionsMod, only : flc_from_psi
+  use FatesHydroUnitFunctionsMod, only : dflcdpsi_from_psi
+  use FatesHydroUnitFunctionsMod, only : swcCampbell_psi_from_th
+  use FatesHydroUnitFunctionsMod, only : swcCampbell_satfrac_from_psi
+  use FatesHydroUnitFunctionsMod, only : swcCampbell_th_from_satfrac
+  use FatesHydroUnitFunctionsMod, only : van_genuchten
+  use FatesHydroUnitFunctionsMod, only : campbell
+  use FatesHydroUnitFunctionsMod, only : iswc
+  use FatesHydroUnitFunctionsMod, only : zeng2001_crootfr
+  use FatesHydroUnitFunctionsMod, only : xylemtaper
+  use FatesHydroUnitFunctionsMod, only : bisect_rootfr
+  use FatesHydroUnitFunctionsMod, only : shellGeom
 
   ! CIME Globals
   use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -146,6 +143,14 @@ module FatesPlantHydraulicsMod
                                                           ! updated every day when trees grow or 
                                                           ! when recruitment happens?
 
+
+  logical :: do_parallel_stem = .true. ! If this mode is active, we treat the conduit through
+                                       ! the plant (in 1D solves) as closed from root layer
+                                       ! to the stomata. The effect of this, is that
+                                       ! the conductances through stem and leaf surfaces
+                                       ! are reduced by the fraction of active root
+                                       ! conductance, and for each soil-layer, integration
+                                       ! proceeds over the entire time-step.
 
 
   logical,parameter :: debug = .true.                   !flag to report warning in hydro
@@ -368,7 +373,7 @@ contains
     ccohort_hydr%psi_troot = ccohort_hydr%psi_aroot(1) - 1.e-6_r8*denh2o*grav_earth*dz 
     if (ccohort_hydr%psi_troot>0.0_r8) ccohort_hydr%psi_troot = -0.01_r8
     ccohort_hydr%th_troot = th_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot )
-    ccohort_hydr%ftc_troot = flc_from_psi(ft, troot_p_media, & 
+    ccohort_hydr%ftc_troot = flc_from_psi(ft, troot_p_media, &
                                           ccohort_hydr%th_troot, &
                                           ccohort_hydr%psi_troot)
 
@@ -1110,7 +1115,7 @@ contains
     ! P-V curve: total RWC @ which capillary reserves exhausted
     !  real(r8), allocatable :: rwccap(:)  !  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
 
-    call InitAllocatePlantMedia(n_porous_media-1)
+    call InitAllocatePlantMedia(n_porous_media)
     call SetPlantMediaParam(leaf_p_media,  rwcft_in=1._r8,    rwccap_in=1._r8)  
     call SetPlantMediaParam(stem_p_media,  rwcft_in=0.958_r8, rwccap_in=0.947_r8)  
     call SetPlantMediaParam(troot_p_media, rwcft_in=0.958_r8, rwccap_in=0.947_r8)  
@@ -2435,14 +2440,26 @@ contains
 
                 j = ordered(jj)
 
-                if(weight_serial_dt)then
-                   dt_step = dtime*kbg_layer(j)/kbg_tot
+                if(do_parallel_stem) then
+                   ! If we do "parallel" stem
+                   ! conduits, we integrate
+                   ! each layer over the whole time, but
+                   ! reduce the conductance cross section
+                   ! according to what fraction of root is active
+                   dt_step = dtime
                 else
-                   dt_step = dtime/real(site_hydr%nlevsoi_hyd,r8)
+                   if(weight_serial_dt)then
+                      dt_step = dtime*kbg_layer(j)/kbg_tot
+                   else
+                      dt_step = dtime/real(site_hydr%nlevsoi_hyd,r8)
+                   end if
                 end if
+                   
+
 
                 ! This routine will update the theta values for 1 cohort's flow-path
-                ! from leaf to the current soil layer
+                ! from leaf to the current soil layer.  This does NOT
+                ! update cohort%th_*  
                 call ImTaylorSolve1D(ccohort,ccohort_hydr,site_hydr,bc_in(s), &
                      j,dt_step,qflx_tran_veg_indiv, & 
                      dth_node,sapflow,rootuptake,wb_error,iter,nsteps)
@@ -2539,8 +2556,12 @@ contains
           cpatch => cpatch%younger
        enddo !patch
 
-       ! UPDATE THE COLUMN-LEVEL SOIL WATER CONTENT (LAYER x SHELL)
+
+       ! In this section we evaluate the water content in the rhizosphere
+       ! and apply constraints, so that the water contents are not above saturation
+       ! or below residual.
        site_hydr%supsub_flag(:) = 999
+
        do j=1,site_hydr%nlevsoi_hyd
           !! BOC... should the below code exist on HLM side?  watres_col is a new SWC parameter 
           ! introduced for the van Genuchten, but does not exist for Campbell SWC.
@@ -2967,6 +2988,9 @@ contains
     integer :: i_lo    ! node index on the lower (away from atm) side of current flow-path
     integer :: istep   ! sub-step count index
     logical :: solution_found ! logical set to true if a solution was found within error tolerance
+    real(r8) :: q_top_eff ! effective water flux through stomata [kg s-1 plant-1]
+    real(r8) :: rootfr_scaler ! Factor to scale down cross-section areas based on what
+                              ! fraction of root is in current layer [-]
     real(r8) :: kmax_lo  ! maximum conductance of lower (away from atm) half of path [kg s-1 Mpa-1]
     real(r8) :: kmax_up  ! maximum conductance of upper (close to atm)  half of path [kg s-1 MPa-1]
     real(r8) :: wb_step_err ! water balance error over substep [kg]
@@ -3005,9 +3029,9 @@ contains
 
     integer, parameter  :: imult    = 3                ! With each iteration, increase the number of substeps
                                                        ! by this much
-    integer, parameter  :: max_iter = 5                ! Maximum number of iterations with which we reduce timestep
-    real(r8), parameter :: max_wb_step_err = 1.e-6_r8 
-    real(r8), parameter :: max_wb_err      = 1.e-4_r8  ! threshold for water balance error (stop model)   [mm h2o]
+    integer, parameter  :: max_iter = 10               ! Maximum number of iterations with which we reduce timestep
+    real(r8), parameter :: max_wb_step_err = 1.e-7_r8 
+    real(r8), parameter :: max_wb_err      = 1.e-5_r8  ! threshold for water balance error (stop model)   [mm h2o]
 
 
     logical, parameter :: no_ftc_radialk = .false.
@@ -3030,6 +3054,31 @@ contains
 
     aroot_frac_plant = cohort_hydr%l_aroot_layer(ilayer)/site_hydr%l_aroot_layer(ilayer)
 
+    
+    
+
+    ! If in "spatially parallel" mode, scale down cross section
+    ! of flux through top by the root fraction of this layer
+
+    if(do_parallel_stem)then
+       ! Determine the root fraction that is in this layer
+       roota=EDPftvarcon_inst%roota_par(cohort%pft)
+       rootb=EDPftvarcon_inst%rootb_par(cohort%pft)
+       if(ilayer==1) then
+          rootfr_scaler = zeng2001_crootfr(roota,rootb, bc_in%zi_sisl(ilayer), bc_in%zi_sisl(site_hydr%nlevsoi_hyd))
+       else
+          rootfr_scaler = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(ilayer), bc_in%zi_sisl(site_hydr%nlevsoi_hyd)) - &
+               zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(ilayer-1), bc_in%zi_sisl(site_hydr%nlevsoi_hyd))
+       end if
+       if(rootfr_scaler < 0.0000001_r8) then
+          print*,"REALLY SMALL ROOTFR?",rootfr_scaler
+          stop
+       end if
+    else
+       rootfr_scaler = 1.0_r8
+    end if
+
+    q_top_eff = q_top * rootfr_scaler
 
     ! For all nodes leaf through rhizosphere
     ! Send node heights and compartment volumes to a node-based array
@@ -3058,7 +3107,6 @@ contains
 
     end do
 
-
     ! Outer iteration loop
     ! This cuts timestep in half and resolve the solution with smaller substeps
     ! This loop is cleared when the model has found a solution
@@ -3086,6 +3134,8 @@ contains
                cohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag))*denh2o
           root_water = ((cohort_hydr%th_troot*cohort_hydr%v_troot) + &
                sum(cohort_hydr%th_aroot(:)*cohort_hydr%v_aroot_layer(:))) * denh2o
+          write(fates_log(),*) 'flux: ', q_top_eff*dt_substep 
+          write(fates_log(),*) 'wb_step_err = ',(q_top_eff*dt_substep) - (w_tot_beg-w_tot_end)
           write(fates_log(),*) 'leaf water: ',leaf_water,' kg/plant'
           write(fates_log(),*) 'stem_water: ',stem_water,' kg/plant'
           write(fates_log(),*) 'root_water: ',root_water,' kg/plant'
@@ -3124,12 +3174,12 @@ contains
           do inode = 1,n_hypool_tot
 
              ! Get matric potential [Mpa]
-              psi_node(inode) = psi_from_th(cohort%pft, porous_media(inode), & 
-                                            th_node(inode), &
-                                            bc_in%watsat_sisl(ilayer),              & ! optional for soil
-                                            bc_in%sucsat_sisl(ilayer),              & ! optional for soil
-                                            bc_in%bsw_sisl(ilayer))                   ! optional for soil
-
+             psi_node(inode) = psi_from_th(cohort%pft, porous_media(inode), & 
+                                           th_node(inode), &
+                                           bc_in%watsat_sisl(ilayer),              & ! optional for soil
+                                           bc_in%sucsat_sisl(ilayer),              & ! optional for soil
+                                           bc_in%bsw_sisl(ilayer))                   ! optional for soil
+             
              if(psi_node(inode)>0._r8) then
                 write(fates_log(),*) 'positive psi?'
                 write(fates_log(),*) inode,ilayer,psi_node(inode),th_node(inode),th_node_init(inode)
@@ -3187,8 +3237,8 @@ contains
           jpath    = 1
           i_up     = 1
           i_lo     = 2
-          kmax_up  = cohort_hydr%kmax_petiole_to_leaf
-          kmax_lo  = cohort_hydr%kmax_stem_upper(1)
+          kmax_up  = rootfr_scaler*cohort_hydr%kmax_petiole_to_leaf
+          kmax_lo  = rootfr_scaler*cohort_hydr%kmax_stem_upper(1)
 
           call GetImTaylorKAB(kmax_lo,kmax_up,       &
                ftc_node(i_lo),ftc_node(i_up),        & 
@@ -3207,13 +3257,16 @@ contains
 
              i_up = jpath
              i_lo = jpath+1
-             ! This compartment is the "upper" node, but uses
+
+             
+             ! "Up" compartment is the "upper" node, but uses
              ! the "lower" side of its compartment for the calculation.
              ! Ultimately, it is more "upper" than its counterpart
-             kmax_up    = cohort_hydr%kmax_stem_lower(i_up-n_hypool_leaf)
              ! This compartment is the "lower" node, but uses
              ! the "higher" side of its compartment.
-             kmax_lo    = cohort_hydr%kmax_stem_upper(i_lo-n_hypool_leaf)
+
+             kmax_up    = rootfr_scaler*cohort_hydr%kmax_stem_lower(i_up-n_hypool_leaf)
+             kmax_lo    = rootfr_scaler*cohort_hydr%kmax_stem_upper(i_lo-n_hypool_leaf)
 
              call GetImTaylorKAB(kmax_lo,kmax_up,       &
                   ftc_node(i_lo),ftc_node(i_up),        & 
@@ -3232,8 +3285,8 @@ contains
           jpath = n_hypool_ag
           i_up  = jpath
           i_lo  = jpath+1
-          kmax_up  = cohort_hydr%kmax_stem_lower(n_hypool_stem)
-          kmax_lo  = cohort_hydr%kmax_troot_upper
+          kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_lower(n_hypool_stem)
+          kmax_lo  = rootfr_scaler*cohort_hydr%kmax_troot_upper
 
           call GetImTaylorKAB(kmax_lo,kmax_up,       &
                ftc_node(i_lo),ftc_node(i_up),        & 
@@ -3247,6 +3300,8 @@ contains
 
           ! Path is between the transporting root 
           ! and the absorbing root for this layer
+          ! NOTE: No need to scale by root fraction
+          ! even if in parallel mode, already parallel!
 
           jpath   = n_hypool_ag+1
           i_up    = jpath
@@ -3323,7 +3378,7 @@ contains
           tris_a(1) = 0._r8
           tris_b(1) = A_term(1) - denh2o*v_node(1)/dt_substep
           tris_c(1) = B_term(1)
-          tris_r(1) = q_top - k_eff(1)*(h_node(2)-h_node(1))
+          tris_r(1) = q_top_eff - k_eff(1)*(h_node(2)-h_node(1))
 
 
           do inode = 2,n_hypool_tot-1
@@ -3349,13 +3404,17 @@ contains
           call Hydraulics_Tridiagonal(tris_a, tris_b, tris_c, tris_r, dth_node)
 
 
-          ! Catch super-saturated and sub-residual water contents
+          ! If we have not broken from the substep loop,
+          ! that means this sub-step has been acceptable, and we may 
+          ! go ahead and update the water content for the integrator
+
+          th_node(:) = th_node(:) + dth_node(:)
 
           ! Mass error (flux - change)
           ! Total water mass in the plant at the beginning of this solve [kg h2o]
-          w_tot_end = sum((th_node(:)+dth_node(:))*v_node(:))*denh2o
-
-          wb_step_err = (q_top*dt_substep) - (w_tot_beg-w_tot_end)
+          w_tot_end = sum(th_node(:)*v_node(:))*denh2o
+          
+          wb_step_err = (q_top_eff*dt_substep) - (w_tot_beg-w_tot_end)
 
           if(abs(wb_step_err)>max_wb_step_err)then
              solution_found = .false.
@@ -3367,11 +3426,6 @@ contains
              solution_found = .true.
           end if
 
-          ! If we have not broken from the substep loop,
-          ! that means this sub-step has been acceptable, and we may 
-          ! go ahead and update the water content for the integrator
-
-          th_node(:) = th_node(:) + dth_node(:)
 
           ! Accumulate the water balance error for diagnostic purposes
           wb_err = wb_err + wb_step_err
@@ -3422,9 +3476,27 @@ contains
     ! Do some checks on weird values.
     if(debug)then
        do inode = 1,n_hypool_tot
+
           ! Get matric potential [Mpa]
+          !if(ilayer==20) write(fates_log(),*) ilayer,inode,cohort%pft,th_node(inode),bc_in%watsat_sisl(ilayer)
+
+          if(porous_media(inode)<5) then
+             if( (th_node(inode) > EDPftvarcon_inst%hydr_thetas_node(cohort%pft,porous_media(inode))) .or. &
+                 (th_node(inode) < EDPftvarcon_inst%hydr_resid_node(cohort%pft,porous_media(inode)))) then
+                print*,'ilayer:',ilayer,inode,th_node(inode),th_node_init(inode), & 
+                                 EDPftvarcon_inst%hydr_resid_node(cohort%pft,porous_media(inode), & 
+                                 EDPftvarcon_inst%hydr_thetas_node(cohort%pft,porous_media(inode)
+             end if
+          else
+             if( (th_node(inode) > bc_in%watsat_sisl(ilayer) ) .or. & 
+                  (th_node(inode) < 0.95*bc_in%eff_porosity_sl(ilayer))) then
+                  print*,'ilayer:',ilayer,inode,th_node(inode),th_node_init(inode),bc_in%watsat_sisl(ilayer)
+             end if
+          end if
+          
+
           psi_node(inode) =  psi_from_th(cohort%pft, porous_media(inode), & 
-                th_node(inode), &
+                th_node(inode),                         &
                 bc_in%watsat_sisl(ilayer),              & ! optional for soil
                 bc_in%sucsat_sisl(ilayer),              & ! optional for soil
                 bc_in%bsw_sisl(ilayer))                   ! optional for soil
@@ -3435,7 +3507,7 @@ contains
              write(fates_log(),*) 'dbh: ',cohort%dbh
              write(fates_log(),*) 'pft: ',cohort%pft
              write(fates_log(),*) 'soil layer:',ilayer
-             write(fates_log(),*) 'qtop [kg]:',q_top*dt_step
+             write(fates_log(),*) 'qtop [kg]:',q_top_eff*dt_step
              write(fates_log(),*) 'q patch: ',bc_in%qflx_transp_pa(:)
              write(fates_log(),*) 'g_sb_laweight: ',cohort%g_sb_laweight
              write(fates_log(),*) 'lai: ',cohort%treelai
@@ -3481,7 +3553,7 @@ contains
     if ( abs(wb_err) > max_wb_err ) then
 
        write(fates_log(),*)'EDPlantHydraulics water balance error exceeds threshold of = ', max_wb_err
-       write(fates_log(),*)'transpiration demand: ', dt_step*q_top,' kg/step/plant'
+       write(fates_log(),*)'transpiration demand: ', dt_step*q_top_eff,' kg/step/plant'
 
        leaf_water = cohort_hydr%th_ag(1)*cohort_hydr%v_ag(1)*denh2o
        stem_water = sum(cohort_hydr%th_ag(2:n_hypool_ag) * &

@@ -299,9 +299,6 @@ module FatesHydraulicsMemMod
      
   end type ed_cohort_hydr_type
    
-  ! Make public necessary subroutines and functions
-  public :: InitHydraulicsDerived
-
  contains
     
     subroutine AllocateHydrCohortArrays(this,nlevsoil_hydr)

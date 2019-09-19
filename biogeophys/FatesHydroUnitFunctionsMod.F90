@@ -37,11 +37,11 @@ module FatesHydroUnitFunctionsMod
   integer, parameter :: rkvol  = 2
   integer, parameter :: voltype = rkvol
 
-  integer, parameter :: van_genuchten = 1
-  integer, parameter :: campbell      = 2
-  integer, parameter :: iswc = campbell
+  integer, public, parameter :: van_genuchten = 1
+  integer, public, parameter :: campbell      = 2
+  integer, public, parameter :: iswc = campbell
 
-  logical, parameter :: allow_unconstrained_theta = .true.
+  logical, public, parameter :: allow_unconstrained_theta = .true.
 
 
   ! P-V curve: total RWC @ which elastic drainage begins     [-]
@@ -74,6 +74,10 @@ module FatesHydroUnitFunctionsMod
   public :: xylemtaper
   public :: InitAllocatePlantMedia
   public :: SetPlantMediaParam
+  public :: swcCampbell_satfrac_from_psi
+  public :: swcCampbell_th_from_satfrac
+  public :: swcCampbell_psi_from_th
+
   
 contains
 
@@ -538,7 +542,7 @@ contains
     integer          , intent(in)     :: pm          ! porous media index
     real(r8)         , intent(in)     :: th_in       ! water content     [m3 m-3]
     real(r8), optional,intent(in)     :: th_sat      ! water content at saturation
-    ! (porosity for soil) [m3 m-3]
+                                                     ! (porosity for soil) [m3 m-3]
     real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
     real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b"
 
@@ -551,6 +555,8 @@ contains
     real(r8) :: psi_node    ! water potential   [MPa]
     real(r8) :: dpsidth_resid  ! Change in psi wrt th @ residual WC [MPa/[m3/m3]]
     real(r8) :: psi_resid      ! Psi at residual WC   [MPa]
+
+!    write(fates_log(),*) 'in: ',pm,th_in
 
     if(pm <= 4) then       ! plant
        
@@ -573,8 +579,10 @@ contains
 
     else if(pm == 5) then  ! soil
 
-       !! NOTE. FIX: The below sidesteps the problem of averaging potentially variable soil hydraulic properties with depth
-       !!        and simply assigns the bulk soil (bucket) approximation of hydraulic properties as equal to the top soil layer.
+       !! NOTE. FIX: The below sidesteps the problem of averaging 
+       !!        potentially variable soil hydraulic properties with depth
+       !!        and simply assigns the bulk soil (bucket) approximation 
+       !!        of hydraulic properties as equal to the top soil layer.
        select case (iswc)
        case (van_genuchten)
           write(fates_log(),*) 'Van Genuchten plant hydraulics is inoperable until further notice'
@@ -588,7 +596,7 @@ contains
           !                  site_hydr%l_VG(1),     &
           !                  psi_node)
        case (campbell)
-          call swcCampbell_psi_from_th(th_in,th_sat,               &
+          call swcCampbell_psi_from_th(th_in,th_sat,                 &
                -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
                bsw,                                                  &
                psi_node)
@@ -596,7 +604,11 @@ contains
           write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
-
+       
+    else
+       write(fates_log(),*) 'Invalid porous media specified in call to psi_from_th'
+       write(fates_log(),*) 'pm = ',pm,' ?'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
   end function psi_from_th
