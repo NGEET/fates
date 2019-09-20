@@ -4130,6 +4130,9 @@ contains
      !for debug only
      nstep = get_nstep()
 
+          if(nstep >= 331) then
+            print *,'nstep =',nstep
+          end if
      ccohort => cc_p 
      associate( &
        z_lower_ag => ccohort_hydr%z_lower_ag, & 
@@ -4380,9 +4383,6 @@ contains
 !          if( niter > 100 .and. rsd < 1.e-1) inewt = 1
           rsdp = rsd
 ! check convergence
-          if(nstep >= 37) then
-            print *
-          end if
           if( rsd > 1.e-8_r8 ) then
                icnv = 2
           endif
@@ -4677,13 +4677,14 @@ contains
 
           call bisect_pv(ft, pm, lower, upper, xtol, ytol, psi_node, th_node)
        end if
-       th_node = min(th_node,thetas(ft,pm))
+       th_node = min(th_node,thetas(ft,pm))-1e-8_r8
        if(th_node < resid(ft,pm)) th_node = resid(ft,pm) + xtol
 
        call psi_from_th(ft, pm, th_node, psi_check )
 
        if(psi_check > -1.e-8_r8) then
-          write(fates_log(),*)'bisect_pv returned positive value for water potential at pm = ', char(pm)
+!          write(fates_log(),*)'bisect_pv returned positive value for water potential at pm = ', char(pm)
+          write(fates_log(),*)'bisect_pv returned positive value for water potential at pm = ', pm
 !          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
        
@@ -4760,8 +4761,8 @@ contains
     endif
     call psi_from_th(ft, pm, lower, y_lo)
     call psi_from_th(ft, pm, upper, y_hi)
-!    f_lo  = y_lo - psi_node
-!    f_hi  = y_hi - psi_node
+    f_lo  = y_lo - psi_node
+    f_hi  = y_hi - psi_node
     f_lo = -1.e8_r8
     f_hi = abs(f_lo)
 
