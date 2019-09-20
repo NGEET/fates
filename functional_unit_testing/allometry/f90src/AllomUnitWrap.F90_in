@@ -1,0 +1,218 @@
+
+! =======================================================================================
+!
+! This file is an alternative to key files in the fates 
+! filesystem. Noteably, we replace fates_r8 and fates_in
+! with types that work with "ctypes".  This is
+! a key step in working with python
+! 
+! We also wrap FatesGlobals to reduce the dependancy
+! cascade that it pulls in from shr_log_mod.
+!
+! =======================================================================================
+
+module shr_log_mod
+
+   use iso_c_binding, only : c_char
+   use iso_c_binding, only : c_int
+
+   contains
+
+   function shr_log_errMsg(source, line) result(ans)
+      character(kind=c_char,len=*), intent(in) :: source
+      integer(c_int), intent(in) :: line
+      character(kind=c_char,len=128) :: ans
+
+      ans = "source: " // trim(source) // " line: "
+   end function shr_log_errMsg
+   
+end module shr_log_mod
+
+
+module FatesGlobals
+
+   contains
+
+   integer function fates_log()
+      fates_log = -1
+   end function fates_log
+   
+   subroutine fates_endrun(msg) 
+
+      implicit none
+      character(len=*), intent(in) :: msg    ! string to be printed
+      
+      stop
+
+   end subroutine fates_endrun
+
+end module FatesGlobals
+
+
+module EDTypesMod
+
+   use iso_c_binding, only : r8 => c_double
+
+  integer, parameter  :: nclmax = 2
+  integer, parameter  :: nlevleaf = 30
+  real(r8), parameter :: dinc_ed = 1.0_r8
+
+end module EDTypesMod
+
+
+module EDPftvarcon
+   
+   use iso_c_binding, only : r8 => c_double
+   use iso_c_binding, only : i4 => c_int
+   use iso_c_binding, only : c_char
+
+   integer,parameter :: SHR_KIND_CS = 80                     ! short char
+
+   type, public :: EDPftvarcon_inst_type
+
+   ! VARIABLE-DEFINITIONS-HERE (DO NOT REMOVE THIS LINE, OR MOVE IT)
+
+   end type EDPftvarcon_inst_type
+ 
+  type ptr_var1
+     real(r8), dimension(:), pointer :: var_rp
+     integer(i4), dimension(:), pointer :: var_ip
+     character(len=shr_kind_cs) :: var_name
+     integer :: vtype
+  end type ptr_var1
+
+  type ptr_var2
+     real(r8), dimension(:,:), pointer :: var_rp
+     integer(i4), dimension(:,:), pointer :: var_ip
+     character(len=shr_kind_cs) :: var_name
+     integer :: vtype
+  end type ptr_var2
+
+  type EDPftvarcon_ptr_type
+     type(ptr_var1), allocatable :: var1d(:)
+	 type(ptr_var2), allocatable :: var2d(:)
+  end type EDPftvarcon_ptr_type
+  
+
+  type(EDPftvarcon_inst_type), public :: EDPftvarcon_inst ! ED ecophysiological constants structure
+  type(EDPftvarcon_ptr_type),  public :: EDPftvarcon_ptr  ! Pointer structure for obj-oriented id
+  
+  integer :: numparm1d ! Number of different PFT parameters
+  integer :: numparm2d
+  integer :: numpft
+
+  logical, parameter ::  debug = .true.
+
+contains
+  
+
+   subroutine EDPftvarconPySet(ipft,rval,ival,name)
+
+      implicit none
+      ! Arguments
+      integer(i4),intent(in) :: ipft
+      character(kind=c_char,len=*), intent(in) :: name
+      real(r8),intent(in) :: rval
+      integer(i4),intent(in) :: ival
+      ! Locals
+      logical :: npfound
+      integer :: ip
+      integer :: namelen
+      
+      namelen = len(trim(name))
+
+	  if(debug) print*,"F90: ARGS: ",trim(name)," IPFT: ",ipft," RVAL: ",rval," IVAL: ",ival
+
+      ip=0
+      npfound = .true.
+      do ip=1,numparm1d
+
+         if (trim(name) == trim(EDPftvarcon_ptr%var1d(ip)%var_name ) ) then
+            print*,"F90: Found ",trim(name)," in lookup table"
+            npfound = .false.
+            if(EDPftvarcon_ptr%var1d(ip)%vtype == 1) then ! real
+               EDPftvarcon_ptr%var1d(ip)%var_rp(ipft) = rval
+            elseif(EDPftvarcon_ptr%var1d(ip)%vtype == 2) then ! integer
+               EDPftvarcon_ptr%var1d(ip)%var_ip(ipft) = ival
+            else
+               print*,"F90: STRANGE TYPE"
+               stop
+            end if
+         end if
+      end do
+
+      if(npfound)then
+         print*,"F90: The parameter you loaded DNE: ",name(:)
+         stop
+      end if
+
+      do ip=1,numparm2d
+         if (trim(name) == trim(EDPftvarcon_ptr%var2d(ip)%var_name)) then
+            print*,"F90: Found ",trim(name)," in lookup table"
+			print*,"BUT... WE AVOID USING 2D VARIABLES FOR NOW..."
+			print*,"REMOVE THIS TEST"
+            stop
+         end if
+      end do
+
+
+	  ! Perform a check to see if the target array is being filled
+      if (trim(name) == 'fates_allom_d2h1') then
+         if (EDPftvarcon_inst%allom_d2h1(ipft) == rval) then
+            print*,"F90: POINTER CHECK PASSES:",rval," = ",EDPftvarcon_inst%allom_d2h1(ipft)
+         else
+            print*,"F90: POINTER CHECK FAILS:",rval," != ",EDPftvarcon_inst%allom_d2h1(ipft)
+            stop
+         end if
+      end if
+
+      if (trim(name) == 'fates_wood_density' ) then
+         if (EDPftvarcon_inst%wood_density(ipft) == rval) then
+            print*,"F90: POINTER CHECK PASSES:",rval," = ",EDPftvarcon_inst%wood_density(ipft)
+         else
+            print*,"F90: POINTER CHECK FAILS:",rval," != ",EDPftvarcon_inst%wood_density(ipft)
+            stop
+         end if
+      end if
+
+      return
+   end subroutine EDPftvarconPySet
+
+
+  subroutine EDPftvarconAlloc(numpft_in)
+    !
+
+    ! !ARGUMENTS:
+    integer(i4), intent(in) :: numpft_in
+    ! LOCALS:
+    integer                    :: iv1   ! The parameter incrementer
+	integer                    :: iv2  
+    !------------------------------------------------------------------------
+
+    numpft = numpft_in
+
+    allocate( EDPftvarcon_ptr%var1d(100)) ! Make this plenty large
+	allocate( EDPftvarcon_ptr%var2d(100))
+	iv1=0
+	iv2=0
+
+	! POINTER-SPECIFICATION-HERE (DO NOT REMOVE THIS LINE, OR MOVE IT)
+
+!    allocate( EDPftvarcon_inst%allom_dbh_maxheight   (1:numpft)); EDPftvarcon_inst%allom_dbh_maxheight (:) = nan
+!    iv = iv + 1
+!    EDPftvarcon_ptr%var1d(iv)%var_name = "fates_allom_dbh_maxheight"
+!    EDPftvarcon_ptr%var1d(iv)%var_rp   => EDPftvarcon_inst%allom_dbh_maxheight
+!    EDPftvarcon_ptr%var1d(iv)%vtype    = 1
+
+    
+    numparm1d = iv1
+	numparm2d = iv2
+
+
+    print*,"F90: ALLOCATED ",numparm1d," PARAMETERS, FOR ",numpft," PFTs"
+
+
+    return
+ end subroutine EDPftvarconAlloc
+
+end module EDPftvarcon

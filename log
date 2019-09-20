@@ -1,0 +1,30 @@
+Removing parameter_files/fates_params_hydro_default.cdl
+Removing parameter_files/fates_params_coastal_veg.cdl
+Removing parameter_files/fates_params_14pfts.cdl
+Auto-merging main/FatesRestartInterfaceMod.F90
+CONFLICT (content): Merge conflict in main/FatesRestartInterfaceMod.F90
+Auto-merging main/FatesInterfaceMod.F90
+CONFLICT (content): Merge conflict in main/FatesInterfaceMod.F90
+Auto-merging main/FatesHydraulicsMemMod.F90
+CONFLICT (content): Merge conflict in main/FatesHydraulicsMemMod.F90
+Auto-merging main/FatesHistoryInterfaceMod.F90
+Auto-merging main/EDMainMod.F90
+Auto-merging main/EDInitMod.F90
+Auto-merging biogeophys/FatesPlantRespPhotosynthMod.F90
+CONFLICT (content): Merge conflict in biogeophys/FatesPlantRespPhotosynthMod.F9                                                                                                                                                                                                                0
+Auto-merging biogeophys/FatesPlantHydraulicsMod.F90
+CONFLICT (content): Merge conflict in biogeophys/FatesPlantHydraulicsMod.F90
+Auto-merging biogeophys/EDBtranMod.F90
+Auto-merging biogeochem/EDPhysiologyMod.F90
+CONFLICT (content): Merge conflict in biogeochem/EDPhysiologyMod.F90
+Auto-merging biogeochem/EDPatchDynamicsMod.F90
+CONFLICT (content): Merge conflict in biogeochem/EDPatchDynamicsMod.F90
+Auto-merging biogeochem/EDMortalityFunctionsMod.F90
+Auto-merging biogeochem/EDLoggingMortalityMod.F90
+CONFLICT (content): Merge conflict in biogeochem/EDLoggingMortalityMod.F90
+Auto-merging biogeochem/EDCohortDynamicsMod.F90
+CONFLICT (content): Merge conflict in biogeochem/EDCohortDynamicsMod.F90
+Auto-merging biogeochem/EDCanopyStructureMod.F90
+CONFLICT (content): Merge conflict in biogeochem/EDCanopyStructureMod.F90
+Automatic merge failed; fix conflicts and then commit the result.
+

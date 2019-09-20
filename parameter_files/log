@@ -1,0 +1,74 @@
+27a28,30
+> 	float fates_alpha_FMC(fates_litterclass) ;
+> 		fates_alpha_FMC:units = "NA" ;
+> 		fates_alpha_FMC:long_name = "spitfire parameter related to fuel moisture content, Equation 6 Thonicke et al 2010" ;
+174c177
+< 		fates_allom_frbstor_repro:long_name = "fraction of bstore goes to reproduction after plant dies" ;		
+---
+> 		fates_allom_frbstor_repro:long_name = "fraction of bstore goes to reproduction after plant dies" ;
+288c291
+< 	float fates_leaf_long(fates_leafage_class, fates_pft) ;
+---
+>  	float fates_leaf_long(fates_leafage_class, fates_pft) ;
+350c353
+< 		fates_mort_hf_flc_threshold:long_name = "plant fractional loss of conductivity at which drought mortality begins for hydraulic model" ;			
+---
+> 		fates_mort_hf_flc_threshold:long_name = "plant fractional loss of conductivity at which drought mortality begins for hydraulic model" ;	
+408,410d410
+< 	float fates_senleaf_long_fdrought(fates_pft) ;
+< 		fates_senleaf_long_fdrought:units = "unitless[0-1]" ;
+< 		fates_senleaf_long_fdrought:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;
+564,566d563
+< 	float fates_drying_ratio ;
+< 		fates_drying_ratio:units = "NA" ;
+< 		fates_drying_ratio:long_name = "spitfire parameter, fire drying ratio for fuel moisture, alpha_FMC EQ 6 Thonicke et al 2010" ;
+578a576,578
+> 	float fates_fire_wind_max ;
+> 		fates_fire_wind_max:units = "m/min" ;
+> 		fates_fire_wind_max:long_name = "maximum wind speed expected by the fire model" ;
+597a598
+> 
+620a622,623
+>  fates_alpha_FMC = 0.0050769, 0.001, 0.0002754, 7.54e-05, 1.54e-05, 999 ;
+> 
+751c754
+<  fates_allom_la_per_sa_int = 1000.0, 1000.0 ;
+---
+>  fates_allom_la_per_sa_int = 0.8, 0.8 ;
+762c765
+<  
+---
+> 
+770,771c773,774
+<   0.0047, 0.0047,
+<   0.0047, 0.0047,
+---
+>   0.0000047, 0.0000047,
+>   0.0000047, 0.0000047,
+773c776
+<   0.0047, 0.0047;
+---
+>   0.0000047, 0.0000047;
+886d888
+< 
+899c901
+<  fates_leaf_vcmax25top = 50, 50,
+---
+>  fates_leaf_vcmax25top = 50, 50, 
+964,965d965
+<  fates_senleaf_long_fdrought = 1.0, 1.0 ;
+< 
+1014c1014
+<  fates_cohort_fusion_tol = 0.08 ;
+---
+>  fates_cohort_fusion_tol = 0.05 ;
+1070,1071d1069
+<  fates_drying_ratio = 13000 ;
+< 
+1079a1078,1079
+>  fates_fire_wind_max = 45.718 ;
+> 
+1089c1089
+<  
+---
+> 
