@@ -67,8 +67,14 @@ pm_leaf = 1
 pm_stem = 2
 pm_troot = 3
 pm_aroot = 4
+pm_rhiz = 5
 
-unconstrained = True
+# Constants for rhizosphere
+watsat = [0.567, 0.444]
+sucsat = [159.659, 256.094]
+bsw    = [6.408, 9.27]
+
+unconstrained = False
 
 
 # ========================================================================================
@@ -235,6 +241,7 @@ def main(argv):
         min_aroot_theta2 = pftparms['hydr_resid_node'].data[pm_aroot-1,pft2-1]
 
 
+
     # Initialize Theta
     leaf_theta  = np.linspace(min_leaf_theta,max_leaf_theta, num=npts)
     stem_theta  = np.linspace(min_stem_theta,max_stem_theta, num=npts)
@@ -242,14 +249,12 @@ def main(argv):
     aroot_theta = np.linspace(min_aroot_theta,max_aroot_theta, num=npts)
     leaf_theta2  = np.linspace(min_leaf_theta2,max_leaf_theta, num=npts)
 
-
     # Initialize PSI
     leaf_psi  = np.full(shape=np.shape(leaf_theta),dtype=np.float64,fill_value=np.nan)
     leaf_psi2 = np.full(shape=np.shape(leaf_theta2),dtype=np.float64,fill_value=np.nan)
-    stem_psi  = np.zeros(shape=np.shape(stem_theta),dtype=np.float64)
-    troot_psi = np.zeros(shape=np.shape(troot_theta),dtype=np.float64)
-    aroot_psi = np.zeros(shape=np.shape(aroot_theta),dtype=np.float64)
-
+    stem_psi  = np.full(shape=np.shape(stem_theta),dtype=np.float64,fill_value=np.nan)
+    troot_psi = np.full(shape=np.shape(troot_theta),dtype=np.float64,fill_value=np.nan)
+    aroot_psi = np.full(shape=np.shape(aroot_theta),dtype=np.float64,fill_value=np.nan)
 
     # Initialize dPSI/dtheta derivative and discrete check
     leaf_dpsidth  = np.full(shape=np.shape(leaf_theta),dtype=np.float64,fill_value=np.nan)
@@ -260,6 +265,7 @@ def main(argv):
     troot_dpsidthc = np.full(shape=np.shape(troot_theta),dtype=np.float64,fill_value=np.nan)
     aroot_dpsidth  = np.full(shape=np.shape(aroot_theta),dtype=np.float64,fill_value=np.nan)
     aroot_dpsidthc = np.full(shape=np.shape(aroot_theta),dtype=np.float64,fill_value=np.nan)
+
 
     # Initialize the FLC and its derivative
     leaf_flc      = np.full(shape=np.shape(leaf_theta),dtype=np.float64,fill_value=np.nan)
@@ -277,6 +283,8 @@ def main(argv):
     aroot_flc      = np.full(shape=np.shape(aroot_theta),dtype=np.float64,fill_value=np.nan)
     aroot_dflcdpsi  = np.full(shape=np.shape(aroot_theta),dtype=np.float64,fill_value=np.nan)
     aroot_dflcdpsic = np.full(shape=np.shape(aroot_theta),dtype=np.float64,fill_value=np.nan)
+
+
 
     mpl.rcParams.update({'font.size': 15})
 
@@ -443,6 +451,61 @@ def main(argv):
     ax4.grid(True)
     plt.tight_layout()
 
+
+    # Rhizosphere
+    # -----------------------------------------------------------------------------------
+
+    min_rhiz_theta   = 0.01
+    max_rhiz_theta   = 0.99 #watsat[0]
+    rhiz_theta  = np.linspace(min_rhiz_theta,max_rhiz_theta, num=npts)
+    rhiz_psi = np.full(shape=np.shape(rhiz_theta),dtype=np.float64,fill_value=np.nan)
+    rhiz_psi2 = np.full(shape=np.shape(rhiz_theta),dtype=np.float64,fill_value=np.nan)
+    rhiz_dpsidth  = np.full(shape=np.shape(rhiz_theta),dtype=np.float64,fill_value=np.nan)
+    rhiz_dpsidthc = np.full(shape=np.shape(rhiz_theta),dtype=np.float64,fill_value=np.nan)
+    rhiz_flc = np.full(shape=np.shape(rhiz_theta),dtype=np.float64,fill_value=np.nan)
+    rhiz_dflcdpsi = np.full(shape=np.shape(rhiz_theta),dtype=np.float64,fill_value=np.nan)
+    rhiz_dflcdpsic = np.full(shape=np.shape(rhiz_theta),dtype=np.float64,fill_value=np.nan)
+
+    for i,th in enumerate(rhiz_theta):
+        rhiz_psi[i] = psi_from_th(ci(pft1), ci(pm_rhiz), c8(th), c8(watsat[0]), c8(sucsat[0]), c8(bsw[0]))
+        rhiz_psi2[i] = psi_from_th(ci(pft1), ci(pm_rhiz), c8(th), c8(watsat[1]), c8(sucsat[1]), c8(bsw[1]))
+
+    fig5, (ax1,ax2) = plt.subplots(2)
+    ax1.plot(rhiz_theta,rhiz_psi,label='Sat={}, PSIsat={}, B={}'.format(watsat[0],-sucsat[0]*9.8*1.e-9*1000.0 ,bsw[0]))
+    ax1.plot(rhiz_theta,rhiz_psi2,label='Sat={}, PSIsat={}, B={}'.format(watsat[1],-sucsat[1]*9.8*1.e-9*1000.0 ,bsw[1]))
+    ax1.grid(True)
+    ax1.set_ylabel('Psi [MPa]')
+    ax1.set_xlim((0,1))
+    ax1.set_xlabel('Theta [m3/m3]')
+    ax1.set_title('Rhizosphere')
+    ax1.legend(loc='lower right')
+    plt.tight_layout()
+
+    ax2.plot(leaf_theta,leaf_psi,label='Leaf')
+    ax2.plot(stem_theta,stem_psi,label='Stem')
+    ax2.plot(troot_theta,troot_psi,label='Troot')
+    ax2.plot(aroot_theta,aroot_psi,label='Aroot')
+    ax2.grid(True)
+    ax2.set_ylabel('Psi [MPa]')
+    ax2.set_xlim((0,1))
+    ax2.set_xlabel('Theta [m3/m3]')
+    ax2.set_title('PFT: {}'.format(pft1))
+    ax2.legend(loc='lower right')
+    plt.tight_layout()
+
+
+    # back-calculate the derivative
+    for i in range(1,len(rhiz_psi)-1):
+        rhiz_dpsidth[i]  = dpsidth_from_th(ci(pft1), ci(pm_rhiz), c8(rhiz_theta[i]),c8(watsat[0]), c8(sucsat[0]), c8(bsw[0]))
+        rhiz_dpsidthc[i] = (rhiz_psi[i+1]-rhiz_psi[i-1])/(rhiz_theta[i+1]-rhiz_theta[i-1])
+
+    fig6, ax1 = plt.subplots(1)
+    ax1.plot(rhiz_psi,rhiz_dpsidth,label='function')
+    ax1.plot(rhiz_psi,rhiz_dpsidthc,label='discrete')
+    ax1.legend(loc='upper left')
+    ax1.set_ylabel('dPsi/dth')
+    ax1.set_title('Rhizosphere')
+    ax1.grid(True)
 
     plt.show()
 

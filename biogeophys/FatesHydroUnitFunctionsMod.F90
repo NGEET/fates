@@ -43,6 +43,9 @@ module FatesHydroUnitFunctionsMod
 
   logical, public, parameter :: allow_unconstrained_theta = .true.
 
+  real(r8), parameter :: min_rhiz_psi = -20._r8 ! Minimum allowable rhizosphere 
+                                                ! matric potential [MPa]
+
 
   ! P-V curve: total RWC @ which elastic drainage begins     [-]
   real(r8), allocatable :: rwcft(:)   !  = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
@@ -549,12 +552,13 @@ contains
     !
     ! !LOCAL VARIABLES:
     real(r8) :: satfrac      ! saturation fraction [0-1]
-
+    real(r8) :: suc_sat_mpa  ! Suction at saturation in [MPa]
 
     ! Result
     real(r8) :: psi_node    ! water potential   [MPa]
     real(r8) :: dpsidth_resid  ! Change in psi wrt th @ residual WC [MPa/[m3/m3]]
     real(r8) :: psi_resid      ! Psi at residual WC   [MPa]
+    real(r8) :: th_min       ! water content at lowest allowable potential(soil)
 
 !    write(fates_log(),*) 'in: ',pm,th_in
 
@@ -596,10 +600,22 @@ contains
           !                  site_hydr%l_VG(1),     &
           !                  psi_node)
        case (campbell)
-          call swcCampbell_psi_from_th(th_in,th_sat,                 &
-               -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
-               bsw,                                                  &
-               psi_node)
+           suc_sat_mpa = -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa
+           th_min = th_sat*(min_rhiz_psi/suc_sat_mpa)**(-1._r8/bsw)
+           
+           ! Constrain psi so that it can't go lower than -20MPa
+           psi_node = suc_sat_mpa * (max(th_in,th_min)/th_sat)**(-bsw)
+
+!           th_in/th_sat = (psi_node/suc_sat_mpa)**(-1/bsw)
+!           psi_node/suc_sat_mpa = (th_in/th_sat)**(-bsw)
+!           psi_node = suc_sat_mpa*(th_in/th_sat)**(-bsw)
+
+
+!          call swcCampbell_psi_from_th(th_in,                        & 
+!                th_sat,                                              &
+!                -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
+!                bsw,                                                  &
+!                psi_node)
        case default
           write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
           call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1595,10 +1611,28 @@ contains
     !
     ! !LOCAL VARIABLES:
     real(r8)              :: satfrac  !saturation fraction            [0-1]
+    real(r8)              :: th_min   ! minimum allowable theta 
     !------------------------------------------------------------------------------
 
-    call swcCampbell_satfrac_from_th(th, watsat, satfrac)
-    call swcCampbell_dpsidth_from_satfrac(satfrac, watsat, psisat, B, dpsidth)
+!    call swcCampbell_satfrac_from_th(th, watsat, satfrac)
+!    call swcCampbell_dpsidth_from_satfrac(satfrac, watsat, psisat, B, dpsidth)
+
+
+     
+     th_min = watsat*(min_rhiz_psi/psisat)**(-1._r8/B)
+           
+     ! Constrain psi so that it can't go lower than -20MPa
+     if(th<=th_min) then
+         dpsidth = 0._r8
+     else
+         dpsidth = -B * psisat * (1._r8/watsat) * (th/watsat)**(-B-1.0_r8)
+     end if
+
+!           th_in/th_sat = (psi_node/suc_sat_mpa)**(-1/bsw)
+!           psi_node/suc_sat_mpa = (th_in/th_sat)**(-bsw)
+!           psi_node = suc_sat_mpa*(th_in/th_sat)**(-bsw)
+
+
 
   end subroutine swcCampbell_dpsidth_from_th
 

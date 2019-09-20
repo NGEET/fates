@@ -370,7 +370,7 @@ contains
 
     dz = ccohort_hydr%z_node_troot - bc_in%z_sisl(1)
 
-    ccohort_hydr%psi_troot = ccohort_hydr%psi_aroot(1) - 1.e-6_r8*denh2o*grav_earth*dz 
+    ccohort_hydr%psi_troot = ccohort_hydr%psi_aroot(1) - mpa_per_pa*denh2o*grav_earth*dz 
     if (ccohort_hydr%psi_troot>0.0_r8) ccohort_hydr%psi_troot = -0.01_r8
     ccohort_hydr%th_troot = th_from_psi(ft, troot_p_media, ccohort_hydr%psi_troot )
     ccohort_hydr%ftc_troot = flc_from_psi(ft, troot_p_media, &
@@ -380,7 +380,7 @@ contains
     !working our way up a tree, assigning water potentials that are in
     !hydrostatic equilibrium with the water potential immediately below
     dz = ccohort_hydr%z_node_ag(n_hypool_ag) - ccohort_hydr%z_node_troot
-    ccohort_hydr%psi_ag(n_hypool_ag) = ccohort_hydr%psi_troot - 1.e-6_r8*denh2o*grav_earth*dz
+    ccohort_hydr%psi_ag(n_hypool_ag) = ccohort_hydr%psi_troot -  mpa_per_pa*denh2o*grav_earth*dz
     if (ccohort_hydr%psi_ag(n_hypool_ag)>0.0_r8) ccohort_hydr%psi_ag(n_hypool_ag) = -0.01_r8
     ccohort_hydr%th_ag(n_hypool_ag) = th_from_psi(ft, stem_p_media, ccohort_hydr%psi_ag(n_hypool_ag))
     ccohort_hydr%ftc_ag(n_hypool_ag) = flc_from_psi(ft, stem_p_media, &
@@ -1187,7 +1187,7 @@ contains
           ! Calculate the matric potential on the innner shell (this is used to initialize
           ! xylem and root pressures in new cohorts)
           call swcCampbell_psi_from_th(site_hydr%h2osoi_liqvol_shell(j,1), &
-               bc_in(s)%watsat_sisl(j), (-1.0_r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*1.e-9_r8, &
+               bc_in(s)%watsat_sisl(j), (-1.0_r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*mpa_per_pa*m_per_mm, &
                bc_in(s)%bsw_sisl(j), smp)
 
           site_hydr%psisoi_liq_innershell(j) = smp
@@ -2217,7 +2217,11 @@ contains
        site_hydr%errh2o_hyd     = 0._r8
        prev_h2oveg    = site_hydr%h2oveg
 
-
+       print*,"---------------------------"
+       print*,bc_in(s)%watsat_sisl(:)
+       print*,bc_in(s)%sucsat_sisl(:)
+       print*,bc_in(s)%bsw_sisl(:)
+       
        ! Initialize water mass balancing terms [kg h2o / m2]
        ! --------------------------------------------------------------------------------
        transp_flux          = 0._r8
@@ -3053,8 +3057,6 @@ contains
     ! site_hydr%l_aroot_layer(ilayer) is units [m/site]
 
     aroot_frac_plant = cohort_hydr%l_aroot_layer(ilayer)/site_hydr%l_aroot_layer(ilayer)
-
-    
     
 
     ! If in "spatially parallel" mode, scale down cross section
@@ -3472,6 +3474,7 @@ contains
 
     end do
 
+    
 
     ! Do some checks on weird values.
     if(debug)then
@@ -3483,17 +3486,16 @@ contains
           if(porous_media(inode)<5) then
              if( (th_node(inode) > EDPftvarcon_inst%hydr_thetas_node(cohort%pft,porous_media(inode))) .or. &
                  (th_node(inode) < EDPftvarcon_inst%hydr_resid_node(cohort%pft,porous_media(inode)))) then
-                print*,'ilayer:',ilayer,inode,th_node(inode),th_node_init(inode), & 
-                                 EDPftvarcon_inst%hydr_resid_node(cohort%pft,porous_media(inode), & 
-                                 EDPftvarcon_inst%hydr_thetas_node(cohort%pft,porous_media(inode)
+                 !!print*,'ilayer:',ilayer,inode,th_node(inode),th_node_init(inode), & 
+                 !!                EDPftvarcon_inst%hydr_resid_node(cohort%pft,porous_media(inode)), & 
+                 !!                EDPftvarcon_inst%hydr_thetas_node(cohort%pft,porous_media(inode))
              end if
           else
              if( (th_node(inode) > bc_in%watsat_sisl(ilayer) ) .or. & 
                   (th_node(inode) < 0.95*bc_in%eff_porosity_sl(ilayer))) then
-                  print*,'ilayer:',ilayer,inode,th_node(inode),th_node_init(inode),bc_in%watsat_sisl(ilayer)
+                  !!print*,'ilayer:',ilayer,inode,th_node(inode),th_node_init(inode),bc_in%watsat_sisl(ilayer),bc_in%sucsat_sisl(ilayer),bc_in%bsw_sisl(ilayer)
              end if
           end if
-          
 
           psi_node(inode) =  psi_from_th(cohort%pft, porous_media(inode), & 
                 th_node(inode),                         &
