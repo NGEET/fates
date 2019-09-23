@@ -46,6 +46,15 @@ module FatesHydroUnitFunctionsMod
   real(r8), parameter :: min_rhiz_psi = -20._r8 ! Minimum allowable rhizosphere 
                                                 ! matric potential [MPa]
 
+  real(r8), parameter :: max_dpsidth = 1000._r8 ! Some of these functions have
+                                                ! very stiff derivatives, so we cap
+                                                ! the psi to theta pedotransfer
+                                                ! functions so they can not
+                                                ! exceed this value on the residual
+                                                ! side of the theta. Ultimately
+                                                ! this is used to calculate a 
+                                                ! lower theta bound
+  
 
   ! P-V curve: total RWC @ which elastic drainage begins     [-]
   real(r8), allocatable :: rwcft(:)   !  = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
@@ -552,15 +561,14 @@ contains
     !
     ! !LOCAL VARIABLES:
     real(r8) :: satfrac      ! saturation fraction [0-1]
-    real(r8) :: suc_sat_mpa  ! Suction at saturation in [MPa]
-
-    ! Result
-    real(r8) :: psi_node    ! water potential   [MPa]
+    
+    real(r8) :: psi_node       ! water potential   [MPa]
     real(r8) :: dpsidth_resid  ! Change in psi wrt th @ residual WC [MPa/[m3/m3]]
     real(r8) :: psi_resid      ! Psi at residual WC   [MPa]
-    real(r8) :: th_min       ! water content at lowest allowable potential(soil)
-
-!    write(fates_log(),*) 'in: ',pm,th_in
+    real(r8) :: th_cap         ! water content at lowest allowable before we
+                               ! cap the derivative
+    real(r8) :: dthdpsi_cap    ! derivative at th_cap (for extrapolation)
+    real(r8) :: suc_sat_mpa    ! Suction at saturation in [MPa]
 
     if(pm <= 4) then       ! plant
        
@@ -600,22 +608,21 @@ contains
           !                  site_hydr%l_VG(1),     &
           !                  psi_node)
        case (campbell)
+
            suc_sat_mpa = -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa
-           th_min = th_sat*(min_rhiz_psi/suc_sat_mpa)**(-1._r8/bsw)
-           
-           ! Constrain psi so that it can't go lower than -20MPa
-           psi_node = suc_sat_mpa * (max(th_in,th_min)/th_sat)**(-bsw)
 
-!           th_in/th_sat = (psi_node/suc_sat_mpa)**(-1/bsw)
-!           psi_node/suc_sat_mpa = (th_in/th_sat)**(-bsw)
-!           psi_node = suc_sat_mpa*(th_in/th_sat)**(-bsw)
+           th_cap = swcCampbell_th_from_dpsidth(th_sat,              & 
+               -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
+               bsw)
 
+           if(th_in>th_sat) then
+              psi_node = suc_sat_mpa
+           elseif(th_in<th_cap) then
+              psi_node = suc_sat_mpa*(th_cap/th_sat)**(-bsw) + max_dpsidth*(th_in-th_cap)
+           else
+              psi_node = suc_sat_mpa * (th_in/th_sat)**(-bsw)
+           end if
 
-!          call swcCampbell_psi_from_th(th_in,                        & 
-!                th_sat,                                              &
-!                -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
-!                bsw,                                                  &
-!                psi_node)
        case default
           write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
           call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -646,6 +653,7 @@ contains
     ! (porosity for soil) [m3 m-3]
     real(r8), optional,intent(in)     :: suc_sat     ! minimum soil suction [mm]
     real(r8), optional,intent(in)     :: bsw         ! col Clapp and Hornberger "b"
+    real(r8)                          :: th_cap
 
     real(r8)                          :: dpsidth     ! derivative of water potential wrt theta  [MPa m3 m-3]
 
@@ -685,11 +693,23 @@ contains
           !        site_hydr%l_VG(1),     &
           !        y)
        case (campbell)
-          call swcCampbell_dpsidth_from_th(th_in, &
-               th_sat, &
+
+          th_cap = swcCampbell_th_from_dpsidth(th_sat,               &
                -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
-               bsw, &
-               dpsidth)
+               bsw)
+
+          if(th_in>th_sat) then
+             dpsidth = 0._r8
+          elseif(th_in<=th_cap) then
+             dpsidth = max_dpsidth
+          else
+             call swcCampbell_dpsidth_from_th(th_in, &
+                  th_sat, &
+                  -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
+                  bsw, &
+                  dpsidth)
+          end if
+
        case default
           write(fates_log(),*) 'ERROR: invalid soil water characteristic function specified, iswc = '//char(iswc)
           call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -697,6 +717,34 @@ contains
     end if
 
   end function dpsidth_from_th
+
+  ! =====================================================================================
+
+  function swcCampbell_th_from_dpsidth(th_sat,psi_sat,bsw) result(th)
+
+    ! -----------------------------------------------------------------------------------
+    ! This function is used to determine the water content where we start capping the
+    ! derivative.  The whole purpose here is to enable pedotransfer functions that
+    ! are slightly more well behaved. If this value is smaller than the residual
+    ! water content of the media, then we will be extrapolating from the residual.
+    ! -----------------------------------------------------------------------------------
+
+    real(r8), intent(in) :: th_sat
+    real(r8), intent(in) :: psi_sat     ! minimum soil suction [mm]
+    real(r8), intent(in) :: bsw         ! col Clapp and Hornberger "b"
+    real(r8) :: th                      ! theta matching this dpsidth
+    
+    ! Invert:
+    ! dpsidth = -B * psisat * (1._r8/watsat) * (th/watsat)**(-B-1.0)
+    !
+    !
+    ! watsat*(max_dpsidth*watsat/(-B*psisat))**(1/(-B-1.0)) = th
+    
+    th = th_sat*(th_sat*max_dpsidth/(-bsw*psi_sat))**(1._r8/(-bsw-1._r8))
+
+    return
+  end function swcCampbell_th_from_dpsidth
+
 
   !===============================================================================!
 
@@ -1592,7 +1640,8 @@ contains
 
   end subroutine swcVG_dpsidth_from_th
 
-  !======================================================================-
+  !======================================================================================
+
   subroutine swcCampbell_dpsidth_from_th(th, watsat, psisat, B, dpsidth)
     !
     ! DESCRIPTION
@@ -1616,17 +1665,15 @@ contains
 
 !    call swcCampbell_satfrac_from_th(th, watsat, satfrac)
 !    call swcCampbell_dpsidth_from_satfrac(satfrac, watsat, psisat, B, dpsidth)
-
-
      
-     th_min = watsat*(min_rhiz_psi/psisat)**(-1._r8/B)
+!     th_min = watsat*(min_rhiz_psi/psisat)**(-1._r8/B)
            
      ! Constrain psi so that it can't go lower than -20MPa
-     if(th<=th_min) then
-         dpsidth = 0._r8
-     else
+!     if(th<th_min) then
+!         dpsidth = 0._r8
+!     else
          dpsidth = -B * psisat * (1._r8/watsat) * (th/watsat)**(-B-1.0_r8)
-     end if
+!     end if
 
 !           th_in/th_sat = (psi_node/suc_sat_mpa)**(-1/bsw)
 !           psi_node/suc_sat_mpa = (th_in/th_sat)**(-bsw)
@@ -1747,7 +1794,16 @@ contains
     real(r8), intent(out) :: flc      !k/ksat ('fractional loss of conductivity')     [-]
     !------------------------------------------------------------------------------
 
-    flc        =  (psi/psisat)**(-2._r8-3._r8/B)
+
+    
+
+    flc        =  max(1._r8,psi/psisat)**(-2._r8-3._r8/B)
+
+    if(flc>1.0_r8)then
+       print*,psi,psisat,B,flc
+       stop
+    end if
+
 
   end subroutine unsatkCampbell_flc_from_psi
 
@@ -1815,7 +1871,22 @@ contains
     real(r8), intent(out) :: dflcdpsi !derivative of k/ksat (flc) wrt psi             [MPa-1]
     !------------------------------------------------------------------------------
 
-    dflcdpsi   = psisat*(-2._r8-3._r8/B)*(psi/psisat)**(-3._r8-3._r8/B)
+
+    !flc        =  max(1._r8,psi/psisat)**(-2._r8-3._r8/B)
+
+    ! FLC is well behaved at very very low values of psi (asymptotic)
+    ! Although, it is not well behaved at very high values, which
+    ! has a cap, and thus derivative of zero
+    if(psi>psisat) then
+       dflcdpsi = 0._r8
+    else
+       !dflcdpsi = psisat*(-2._r8-3._r8/B)*(psi/psisat)**(-3._r8-3._r8/B)
+       dflcdpsi = (1._r8/psisat)*(-2._r8-3._r8/B)*(psi/psisat)**(-3._r8-3._r8/B)
+    end if
+
+    ! flc        =  max(1._r8,psi/psisat)**(-2._r8-3._r8/B)
+    
+    ! (psi/psisat)**(-2._r8-3._r8/B-1._r8)*(1./psisat)*(-2._r8-2._r8/B)
 
   end subroutine unsatkCampbell_dflcdpsi_from_psi
 
