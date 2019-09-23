@@ -2177,6 +2177,7 @@ contains
     real(r8) :: transp_flux
     real(r8) :: delta_plant_storage
     real(r8) :: delta_soil_storage
+    real(r8) :: mean_theta                   ! mean water content per soil layer (testing) [m3/m3]
 
     type(ed_site_hydr_type), pointer :: site_hydr
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
@@ -2217,11 +2218,6 @@ contains
        site_hydr%errh2o_hyd     = 0._r8
        prev_h2oveg    = site_hydr%h2oveg
 
-       print*,"---------------------------"
-       print*,bc_in(s)%watsat_sisl(:)
-       print*,bc_in(s)%sucsat_sisl(:)
-       print*,bc_in(s)%bsw_sisl(:)
-       
        ! Initialize water mass balancing terms [kg h2o / m2]
        ! --------------------------------------------------------------------------------
        transp_flux          = 0._r8
@@ -2283,10 +2279,7 @@ contains
              write(fates_log(),*) 'gscan_patch: ',gscan_patch
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
-
           
-          write(fates_log(),*) 'q patch: ',bc_in(s)%qflx_transp_pa(ifp)
-
           ccohort=>cpatch%tallest
           do while(associated(ccohort))
 
@@ -2564,8 +2557,8 @@ contains
        ! In this section we evaluate the water content in the rhizosphere
        ! and apply constraints, so that the water contents are not above saturation
        ! or below residual.
-       site_hydr%supsub_flag(:) = 999
 
+       site_hydr%supsub_flag(:) = 999
        do j=1,site_hydr%nlevsoi_hyd
           !! BOC... should the below code exist on HLM side?  watres_col is a new SWC parameter 
           ! introduced for the van Genuchten, but does not exist for Campbell SWC.
@@ -2585,20 +2578,40 @@ contains
           case default
           end select
           do k=1,nshell
-             if ((site_hydr%h2osoi_liqvol_shell(j,k)+dth_layershell_col(j,k)) > &
-                  (bc_in(s)%watsat_sisl(j)-small_theta_num)) then
-                site_hydr%supsub_flag(j)           =  k
-                site_hydr%h2osoi_liqvol_shell(j,k) =  bc_in(s)%watsat_sisl(j)-small_theta_num
-             else if ((site_hydr%h2osoi_liqvol_shell(j,k)+dth_layershell_col(j,k)) < &
-                  (watres_local+small_theta_num)) then
-                site_hydr%supsub_flag(j)           = -k
-                site_hydr%h2osoi_liqvol_shell(j,k) =  watres_local+small_theta_num
-             else
+!!             if ((site_hydr%h2osoi_liqvol_shell(j,k)+dth_layershell_col(j,k)) > &
+!!                  (bc_in(s)%watsat_sisl(j)-small_theta_num)) then
+!!                site_hydr%supsub_flag(j)           =  k
+!!                site_hydr%h2osoi_liqvol_shell(j,k) =  bc_in(s)%watsat_sisl(j)-small_theta_num
+!!             else if ((site_hydr%h2osoi_liqvol_shell(j,k)+dth_layershell_col(j,k)) < &
+!!                  (watres_local+small_theta_num)) then
+!!                site_hydr%supsub_flag(j)           = -k
+!!                site_hydr%h2osoi_liqvol_shell(j,k) =  watres_local+small_theta_num
+!!             else
                 site_hydr%h2osoi_liqvol_shell(j,k) =  site_hydr%h2osoi_liqvol_shell(j,k) + &
                      dth_layershell_col(j,k)
-             end if
+!!             end if
           enddo
 
+          if(debug)then
+              mean_theta = sum(site_hydr%h2osoi_liqvol_shell(j,:)*site_hydr%v_shell(j,:))/sum(site_hydr%v_shell(j,:))
+              if( (mean_theta < watres_local) ) then
+                  write(fates_log(),*) 'Mean soil layer water content, post fates-hydro integration, below residual.'
+                  write(fates_log(),*) 'layer: ',j
+                  write(fates_log(),*) 'theta res: ',watres_local,' [m3/m3]'
+                  write(fates_log(),*) 'mean theta: ',mean_theta
+                  write(fates_log(),*) 'theta: ',site_hydr%h2osoi_liqvol_shell(j,:)
+                  call endrun(msg=errMsg(sourcefile, __LINE__)) 
+              end if
+              if (mean_theta > bc_in(s)%watsat_sisl(j) ) then
+                  write(fates_log(),*) 'Mean soil layer water content, post fates-hydro integration, above saturation.'
+                  write(fates_log(),*) 'layer: ',j
+                  write(fates_log(),*) 'theta sat: ', bc_in(s)%watsat_sisl(j),' [m3/m3]'
+                  write(fates_log(),*) 'mean theta: ',mean_theta
+                  write(fates_log(),*) 'theta: ',site_hydr%h2osoi_liqvol_shell(j,:)
+                  call endrun(msg=errMsg(sourcefile, __LINE__)) 
+              end if
+          end if
+          
           ! Update the matric potential in the inner-most shell 
           ! (used for setting tissue potentials of new recruits)
           call swcCampbell_psi_from_th(site_hydr%h2osoi_liqvol_shell(j,1), &
@@ -2621,7 +2634,7 @@ contains
                dtime*bc_out(s)%qflx_soil2root_sisl(j)
 
        enddo !site_hydr%nlevsoi_hyd
-
+       
 
        root_flux = -sum(dth_layershell_col(1:site_hydr%nlevsoi_hyd,:)*site_hydr%v_shell(:,:))*denh2o*AREA_INV
        
@@ -2935,6 +2948,8 @@ contains
 
        ccohort_hydr%kmax_aroot_radial_out(j) = hydr_kmax_rsurf2 * surfarea_aroot_layer
 
+       
+
     end do
 
     !write(fates_log(),*) 'ksu:',ccohort_hydr%kmax_stem_upper(:)
@@ -2957,6 +2972,15 @@ contains
     ! Calculate the hydraulic conductances across a list of paths.  The list is a 1D vector, and
     ! the list need not be across the whole path from stomata to the last rhizosphere shell, but
     ! it can only be 1d, which is part of a path through the plant and into 1 soil layer.
+    !
+    ! Note on conventions:
+    ! "Up" upper, refers to the compartment that is closer to the atmosphere
+    ! "lo" lower, refers to the compartment that is further from the atmosphere
+    ! Weird distinction: since flow from one node to another, will include half of
+    ! a compartment on a upper node, and half a compartment of a lower node.  The upp
+    ! compartment will be contributing its lower compartment, and the lower node
+    ! will be presenting it upper compartment. Yes, confusing, but non-the-less 
+    ! accurate.
     ! -------------------------------------------------------------------------------
 
     ! Arguments (IN)
@@ -3022,6 +3046,7 @@ contains
     real(r8) :: aroot_frac_plant                ! This is the fraction of absorbing root from one plant
     real(r8) :: dftc_dpsi                       ! Change in fraction of total conductance wrt change
                                                 ! in potential [- MPa-1]
+    real(r8) :: q_flow                          ! flow diagnostic [kg]
     real(r8) :: roota, rootb                    ! rooting depth parameters (used for diagnostics)
     real(r8) :: rootfr                          ! rooting fraction of this layer (used for diagnostics)
     ! out of the total absorbing roots from the whole community of plants, 
@@ -3046,7 +3071,7 @@ contains
     ! -------------------------------------------------------------------------------
 
 
-    ! This is the fraction of total absorbing root length that a prototype
+    ! This is the fraction of total absorbing root length that a single
     ! plant for this cohort takes up. Note:
     ! cohort_hydr%l_aroot_layer(ilayer) is units [m/plant]
     ! site_hydr%l_aroot_layer(ilayer) is units [m/site]
@@ -3216,7 +3241,7 @@ contains
              if(inode==n_hypool_ag+2)then
                 if(no_ftc_radialk) then
                    ftc_node(inode)         = 1.0_r8
-                   dftc_dtheta_node(inode) = 1.0_r8
+                   dftc_dtheta_node(inode) = 0.0_r8
                 end if
              end if
 
@@ -3422,6 +3447,19 @@ contains
              ! the loop.
              solution_found = .true.
           end if
+
+          ! Also check that flux was in the same direction as the total potential
+          do j = 1,n_hypool_tot-1
+              if((h_node(j+1)-h_node(j))>0._r8) then
+                  q_flow = dt_substep * (k_eff(j)*(h_node(j+1)-h_node(j)) + &
+                        A_term(j)*dth_node(j)        + &
+                        B_term(j)*dth_node(j+1)
+                  if(q_flow<0) then
+                      print*,"Flow doesnt match head?"
+                      stop
+                  end if
+              end if
+          end do
 
 
           ! Accumulate the water balance error for diagnostic purposes

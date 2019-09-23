@@ -46,7 +46,7 @@ module FatesHydroUnitFunctionsMod
   real(r8), parameter :: min_rhiz_psi = -20._r8 ! Minimum allowable rhizosphere 
                                                 ! matric potential [MPa]
 
-  real(r8), parameter :: max_dpsidth = 1000._r8 ! Some of these functions have
+  real(r8), parameter :: max_dpsidth = 2000._r8 ! Some of these functions have
                                                 ! very stiff derivatives, so we cap
                                                 ! the psi to theta pedotransfer
                                                 ! functions so they can not
@@ -54,6 +54,7 @@ module FatesHydroUnitFunctionsMod
                                                 ! side of the theta. Ultimately
                                                 ! this is used to calculate a 
                                                 ! lower theta bound
+                                                ! [MPa/ m3/m3]
   
 
   ! P-V curve: total RWC @ which elastic drainage begins     [-]
