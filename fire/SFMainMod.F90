@@ -929,7 +929,7 @@ contains
                    
                    ! Crown fuel ignition potential, EQ 8 Bessie and Johnson 1995
                    ! Note: future crown_ignition_energy to be calculated based on foliar moisture content from FATES-Hydro
-                   passive_crown_FI = (0.01_r8 * height_cbb *EDPftvarcon_inst%crown_ignite_energy(currentCohort%pft)**1.5_r8
+                   passive_crown_FI = (0.01_r8 * height_cbb *EDPftvarcon_inst%crown_ignite_energy(currentCohort%pft))**1.5_r8
 
                    if (passive_crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
