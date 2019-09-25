@@ -1,35 +1,40 @@
 module FatesRestartInterfaceMod
 
 
-  use FatesConstantsMod , only : r8 => fates_r8
-  use FatesConstantsMod , only : fates_avg_flag_length
-  use FatesConstantsMod , only : fates_short_string_length
-  use FatesConstantsMod , only : fates_long_string_length
-  use FatesConstantsMod , only : itrue
-  use FatesConstantsMod , only : ifalse
-  use FatesConstantsMod , only : primaryforest
-  use FatesGlobals      , only : fates_log
-  use FatesGlobals      , only : endrun => fates_endrun
-  use FatesIODimensionsMod, only : fates_io_dimension_type
-  use FatesIOVariableKindMod, only : fates_io_variable_kind_type
+  use FatesConstantsMod,       only : r8 => fates_r8
+  use FatesConstantsMod,       only : fates_avg_flag_length
+  use FatesConstantsMod,       only : fates_short_string_length
+  use FatesConstantsMod,       only : fates_long_string_length
+  use FatesConstantsMod,       only : itrue
+  use FatesConstantsMod,       only : ifalse
+  use FatesConstantsMod,       only : fates_unset_r8
+  use FatesConstantsMod,       only : primaryforest
+  use FatesGlobals,            only : fates_log
+  use FatesGlobals,            only : endrun => fates_endrun
+  use FatesIODimensionsMod,    only : fates_io_dimension_type
+  use FatesIOVariableKindMod,  only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
-  use FatesInterfaceMod, only : bc_in_type 
-  use FatesInterfaceMod, only : bc_out_type
-  use FatesInterfaceMod, only : hlm_use_planthydro
-  use FatesInterfaceMod, only : fates_maxElementsPerSite
-  use EDCohortDynamicsMod, only : UpdateCohortBioPhysRates
-  use FatesHydraulicsMemMod,  only : nshell
-  use FatesHydraulicsMemMod,  only : n_hypool_ag
-  use FatesHydraulicsMemMod,  only : n_hypool_troot
-  use FatesHydraulicsMemMod,  only : nlevsoi_hyd_max
-  use PRTGenericMod,          only : prt_global
-  use EDCohortDynamicsMod,      only : nan_cohort
-  use EDCohortDynamicsMod,      only : zero_cohort
-  use EDCohortDynamicsMod,      only : InitPRTCohort
-  use FatesPlantHydraulicsMod,  only : InitHydrCohort
-  use FatesInterfaceMod, only : nlevsclass
-  use PRTGenericMod, only : prt_global
-
+  use FatesInterfaceMod,       only : bc_in_type 
+  use FatesInterfaceMod,       only : bc_out_type
+  use FatesInterfaceMod,       only : hlm_use_planthydro
+  use FatesInterfaceMod,       only : fates_maxElementsPerSite
+  use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
+  use FatesHydraulicsMemMod,   only : nshell
+  use FatesHydraulicsMemMod,   only : n_hypool_ag
+  use FatesHydraulicsMemMod,   only : n_hypool_troot
+  use FatesHydraulicsMemMod,   only : nlevsoi_hyd_max
+  use PRTGenericMod,           only : prt_global
+  use EDCohortDynamicsMod,     only : nan_cohort
+  use EDCohortDynamicsMod,     only : zero_cohort
+  use EDCohortDynamicsMod,     only : InitPRTObject
+  use EDCohortDynamicsMod,     only : InitPRTBoundaryConditions
+  use FatesPlantHydraulicsMod, only : InitHydrCohort
+  use FatesInterfaceMod,       only : nlevsclass
+  use FatesLitterMod,          only : litter_type
+  use FatesLitterMod,          only : ncwd
+  use FatesLitterMod,          only : ndcmpy
+  use PRTGenericMod,           only : prt_global
+  use EDTypesMod,              only : num_elements
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -66,8 +71,8 @@ module FatesRestartInterfaceMod
   
   
   ! Indices to the restart variable object
+
   integer :: ir_npatch_si 
-  integer :: ir_oldstock_si
   integer :: ir_cd_status_si
   integer :: ir_dd_status_si
   integer :: ir_nchill_days_si
@@ -78,21 +83,8 @@ module FatesRestartInterfaceMod
   integer :: ir_dleafoffdate_si
   integer :: ir_acc_ni_si
   integer :: ir_gdd_si
-  integer :: ir_nep_timeintegrated_si
-  integer :: ir_npp_timeintegrated_si
-  integer :: ir_hr_timeintegrated_si
-  integer :: ir_cbal_error_fates_si
-  integer :: ir_cbal_error_bgc_si
-  integer :: ir_cbal_error_total_si
-  integer :: ir_totecosysc_old_si
-  integer :: ir_totfatesc_old_si
-  integer :: ir_totbgcc_old_si
-  integer :: ir_fates_to_bgc_this_ts_si
-  integer :: ir_fates_to_bgc_last_ts_si
-  integer :: ir_seedrainflux_si
   integer :: ir_trunk_product_si
   integer :: ir_ncohort_pa
-
   integer :: ir_canopy_layer_co
   integer :: ir_canopy_layer_yesterday_co
   integer :: ir_canopy_trim_co
@@ -108,13 +100,12 @@ module FatesRestartInterfaceMod
   integer :: ir_gpp_acc_hold_co
   integer :: ir_npp_acc_hold_co
   integer :: ir_resp_acc_hold_co
-
   integer :: ir_bmort_co
   integer :: ir_hmort_co
   integer :: ir_cmort_co
   integer :: ir_frmort_co
 
-   !Logging
+  !Logging
   integer :: ir_lmort_direct_co
   integer :: ir_lmort_collateral_co
   integer :: ir_lmort_infra_co
@@ -122,29 +113,30 @@ module FatesRestartInterfaceMod
   ! Radiation
   integer :: ir_solar_zenith_flag_pa
   integer :: ir_solar_zenith_angle_pa
+  integer :: ir_gnd_alb_dif_pasb
+  integer :: ir_gnd_alb_dir_pasb
+
 
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
   integer :: ir_status_co
   integer :: ir_isnew_co
-  integer :: ir_cwd_ag_pacw
-  integer :: ir_cwd_bg_pacw
 
-  integer :: ir_gnd_alb_dif_pasb
-  integer :: ir_gnd_alb_dir_pasb
-
-  integer :: ir_leaf_litter_paft
-  integer :: ir_root_litter_paft
-  integer :: ir_leaf_litter_in_paft
-  integer :: ir_root_litter_in_paft
-  
+  ! Litter
+  integer :: ir_agcwd_litt
+  integer :: ir_bgcwd_litt
+  integer :: ir_leaf_litt
+  integer :: ir_fnrt_litt
+  integer :: ir_seed_litt
+  integer :: ir_seedgerm_litt
+  integer :: ir_seed_prod_co
   integer :: ir_livegrass_pa
   integer :: ir_age_pa
   integer :: ir_area_pa
   integer :: ir_agesinceanthrodist_pa
   integer :: ir_patchdistturbcat_pa
-  
+
 
   ! Site level
 
@@ -170,8 +162,14 @@ module FatesRestartInterfaceMod
   integer :: ir_imortcflux_si
   integer :: ir_fmortcflux_cano_si
   integer :: ir_fmortcflux_usto_si
-
+  integer :: ir_cwdagin_flxdg
+  integer :: ir_cwdbgin_flxdg
+  integer :: ir_leaflittin_flxdg
+  integer :: ir_rootlittin_flxdg
+  integer :: ir_oldstock_mbal
+  integer :: ir_errfates_mbal
   integer :: ir_prt_base     ! Base index for all PRT variables
+
 
   ! Hydraulic indices
   integer :: ir_hydro_th_ag_covec
@@ -555,11 +553,6 @@ contains
          long_name='Total number of FATES patches per column', units='none', flushval = flushinvalid, &
           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npatch_si )
 
-    call this%set_restart_var(vname='fates_old_stock',  vtype=site_r8, &
-         long_name='biomass stock in each site (previous step)', units='kgC/site', &
-         flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_oldstock_si )
-
     call this%set_restart_var(vname='fates_cold_dec_status', vtype=site_int, &
          long_name='status flag for cold deciduous plants', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cd_status_si )
@@ -600,64 +593,6 @@ contains
          long_name='growing degree days at each site', units='degC days', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gdd_si )
 
-    call this%set_restart_var(vname='fates_nep_timeintegrated_site', vtype=site_r8, &
-         long_name='NEP integrated over model time-steps', units='gc/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nep_timeintegrated_si )
-
-    call this%set_restart_var(vname='fates_npp_timeintegrated_site', vtype=site_r8, &
-         long_name='NPP integrated over model time-steps', units='gc/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_timeintegrated_si )
-
-    call this%set_restart_var(vname='fates_hr_timeintegrated_site', vtype=site_r8, &
-         long_name='heterotrophic respiration integrated over model time-steps', &
-         units='gc/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hr_timeintegrated_si )
-
-    call this%set_restart_var(vname='fates_cbal_err_fatesite', vtype=site_r8, &
-         long_name='the carbon accounting error for FATES processes', &
-         units='gC/m2/s', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cbal_error_fates_si )
-
-    call this%set_restart_var(vname='fates_cbal_err_bgcsite', vtype=site_r8, &
-         long_name='the carbon accounting error for (fates relevant) BGC processes', &
-         units='gC/m2/s', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cbal_error_bgc_si )
-
-    call this%set_restart_var(vname='fates_cbal_err_totsite', vtype=site_r8, &
-         long_name='the carbon accounting error for fates and bgc processes', &
-         units='gC/m2/s', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cbal_error_total_si )
-
-    call this%set_restart_var(vname='fates_totecosysc_old_site', vtype=site_r8, &
-         long_name='total ecosystem carbon above and below ground (previous time-step)', &
-         units='gC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_totecosysc_old_si )
-
-    call this%set_restart_var(vname='fates_totfatesc_old_site', vtype=site_r8, &
-         long_name='total carbon tracked in FATES, (previous time-step)', &
-         units='gc/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_totfatesc_old_si )
-
-    call this%set_restart_var(vname='fates_totbgcc_old_site', vtype=site_r8, &
-         long_name='total carbon tracked in the BGC module', &
-         units='gc/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_totbgcc_old_si )
-
-    call this%set_restart_var(vname='fates_to_bgc_this_edts_col', vtype=site_r8, &
-         long_name='total flux of carbon from FATES to BGC models on current timestep', &
-         units='gC/m2/s', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fates_to_bgc_this_ts_si )
-
-    call this%set_restart_var(vname='fates_to_bgc_last_edts_col', vtype=site_r8, &
-         long_name='total flux of carbon from FATES to BGC models on previous timestep', &
-         units='gC/m2/s', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fates_to_bgc_last_ts_si )
-
-    call this%set_restart_var(vname='fates_seed_rain_flux_site', vtype=site_r8, &
-         long_name='flux of seeds from exterior', &
-         units='kgC/m2/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedrainflux_si )
-
     call this%set_restart_var(vname='fates_trunk_product_site', vtype=site_r8, &
          long_name='Accumulate trunk product flux at site', &
          units='kgC/m2', flushval = flushzero, &
@@ -688,6 +623,11 @@ contains
 
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
+
+    call this%set_restart_var(vname='fates_seed_prod', vtype=cohort_r8, &
+         long_name='fates cohort - seed production', units='kgC/plant', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_prod_co )
+
 
     call this%set_restart_var(vname='fates_canopy_layer', vtype=cohort_int, &
          long_name='ed cohort - canopy_layer', units='unitless', flushval = flushinvalid, &
@@ -819,16 +759,6 @@ contains
     ! Mixed dimension variables using the cohort vector
     ! -----------------------------------------------------------------------------------
 
-    call this%set_restart_var(vname='fates_cwd_ag', vtype=cohort_r8, &
-         long_name='coarse woody debris above ground (non-respiring), by patch x cw class', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwd_ag_pacw )
-
-    call this%set_restart_var(vname='fates_cwd_bg', vtype=cohort_r8, &
-         long_name='coarse woody debris below ground (non-respiring), by patch x cw class', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwd_bg_pacw )
-
     call this%set_restart_var(vname='fates_gnd_alb_dif', vtype=cohort_r8, &
          long_name='ground albedo of diffuse radiation vis and ir', &
          units='fraction', flushval = flushzero, &
@@ -838,31 +768,6 @@ contains
          long_name='ground albedo of direct radiation vis and ir', &
          units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gnd_alb_dir_pasb )
-
-    call this%set_restart_var(vname='fates_leaf_litter', vtype=cohort_r8, &
-         long_name='leaf litter, by patch x pft (non-respiring)', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litter_paft )
-
-    call this%set_restart_var(vname='fates_root_litter', vtype=cohort_r8, &
-         long_name='root litter, by patch x pft (non-respiring)', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_litter_paft )
-
-    call this%set_restart_var(vname='fates_leaf_litter_in', vtype=cohort_r8, &
-         long_name='leaf litter flux from turnover and mort, by patch x pft', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litter_in_paft )
-
-    call this%set_restart_var(vname='fates_root_litter_in', vtype=cohort_r8, &
-         long_name='root litter flux from turnover and mort, by patch x pft', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_litter_in_paft )
-
-    call this%set_restart_var(vname='fates_seed_bank', vtype=cohort_r8, &
-         long_name='seed pool for each functional type, by site x pft', &
-         units='kgC/m2/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_bank_sift )
 
     call this%set_restart_var(vname='fates_spread', vtype=site_r8, &
          long_name='dynamic ratio of dbh to canopy area, by patch x canopy-layer', &
@@ -892,7 +797,79 @@ contains
          long_name='are of the ED patch', units='m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
 
+
+    ! Site Level Diagnostics over multiple nutrients
+
+
+    ! Patch Level Litter Pools are potentially multi-element
+
+    call this%RegisterCohortVector(symbol_base='fates_ag_cwd', vtype=cohort_r8, &
+            long_name_base='above ground CWD',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_agcwd_litt) 
+
+    call this%RegisterCohortVector(symbol_base='fates_bg_cwd', vtype=cohort_r8, &
+            long_name_base='below ground CWD',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bgcwd_litt) 
+
+    call this%RegisterCohortVector(symbol_base='fates_leaf_fines', vtype=cohort_r8, &
+            long_name_base='above ground leaf litter',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litt) 
+
+    call this%RegisterCohortVector(symbol_base='fates_fnrt_fines', vtype=cohort_r8, &
+            long_name_base='fine root litter',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fnrt_litt) 
     
+    call this%RegisterCohortVector(symbol_base='fates_seed', vtype=cohort_r8, &
+            long_name_base='seed bank (non-germinated)',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_seedgerm', vtype=cohort_r8, &
+           long_name_base='seed bank (germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_litt)
+
+
+    ! Site level flux diagnostics for each element
+
+    call this%RegisterCohortVector(symbol_base='fates_cwdagin', vtype=cohort_r8, &
+            long_name_base='Input flux of AG CWD', &
+            units='kg/ha', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwdagin_flxdg)
+
+    call this%RegisterCohortVector(symbol_base='fates_cwdbgin', vtype=cohort_r8, &
+            long_name_base='Input flux of BG CWD', &
+            units='kg/ha', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwdbgin_flxdg)
+
+    call this%RegisterCohortVector(symbol_base='fates_leaflittin', vtype=cohort_r8, &
+            long_name_base='Input flux of leaf litter', &
+            units='kg/ha', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaflittin_flxdg)
+
+    call this%RegisterCohortVector(symbol_base='fates_rootlittin', vtype=cohort_r8, &
+           long_name_base='Input flux of root litter', &
+           units='kg/ha', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_rootlittin_flxdg)
+
+    ! Site level Mass Balance State Accounting
+
+    call this%RegisterCohortVector(symbol_base='fates_oldstock', vtype=site_r8, &
+         long_name_base='Previous total mass of all fates state variables', &
+         units='kg/ha', veclength=num_elements, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_oldstock_mbal)
+    
+    call this%RegisterCohortVector(symbol_base='fates_errfates', vtype=site_r8, &
+         long_name_base='Previous total mass of error fates state variables', &
+         units='kg/ha', veclength=num_elements, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
+    
+    
+
     ! Only register hydraulics restart variables if it is turned on!
     
     if(hlm_use_planthydro==itrue) then
@@ -1098,7 +1075,7 @@ contains
  end subroutine define_restart_vars
   
  ! =====================================================================================
-  
+ 
   subroutine DefinePRTRestartVars(this,initialize_variables,ivar)
 
     ! ----------------------------------------------------------------------------------
@@ -1401,7 +1378,6 @@ contains
    use EDTypesMod, only : ed_site_type
    use EDTypesMod, only : ed_cohort_type
    use EDTypesMod, only : ed_patch_type
-   use EDTypesMod, only : ncwd
    use EDTypesMod, only : maxSWb
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
@@ -1413,7 +1389,8 @@ contains
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
 
     ! Locals
-    integer  :: s        ! The local site index
+    integer  :: s                         ! The local site index
+    type(litter_type), pointer :: litt    ! pointer to patch's litter object
 
     ! ----------------------------------------------------------------------------------
     ! The following group of integers indicate the positional index (idx)
@@ -1428,11 +1405,16 @@ contains
     integer  :: io_idx_co      ! cohort index
     integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
     integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
+    integer  :: io_idx_pa_cwsl ! each cwd x soil layer
+    integer  :: io_idx_pa_dcsl ! each decomposability x soil layer
+    integer  :: io_idx_pa_dc   ! each decomposability index
     integer  :: io_idx_pa_ib   ! each SW band (vis/ir) per patch (pa_ib)
     integer  :: io_idx_si_wmem ! each water memory class within each site
     integer  :: io_idx_si_lyr_shell ! site - layer x shell index
     integer  :: io_idx_si_scpf ! each size-class x pft index within site
     integer  :: io_idx_si_sc   ! each size-class index within site
+    integer  :: io_idx_si_cwd  ! each site-cwd index
+    integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
 
     ! Some counters (for checking mostly)
@@ -1441,11 +1423,15 @@ contains
     integer  :: cohortsperpatch  ! number of cohorts per patch 
 
     integer  :: ft               ! functional type index
+    integer  :: el               ! element loop index
+    integer  :: ilyr             ! soil layer index
+    integer  :: nlevsoil         ! total soil layers in patch of interest
     integer  :: k,j,i            ! indices to the radiation matrix
     integer  :: ir_prt_var       ! loop counter for var x position
     integer  :: i_var            ! loop counter for PRT variables
     integer  :: i_pos            ! loop counter for discrete PRT positions
     integer  :: i_scls           ! loop counter for size-class
+    integer  :: i_cwd            ! loop counter for cwd
     integer  :: i_pft            ! loop counter for pft
 
     type(fates_restart_variable_type) :: rvar
@@ -1454,7 +1440,6 @@ contains
 
 
     associate( rio_npatch_si           => this%rvars(ir_npatch_si)%int1d, &
-           rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
            rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
            rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
            rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
@@ -1465,18 +1450,6 @@ contains
            rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%int1d, &
            rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
-           rio_nep_timeintegrated_si   => this%rvars(ir_nep_timeintegrated_si)%r81d, &
-           rio_npp_timeintegrated_si   => this%rvars(ir_npp_timeintegrated_si)%r81d, &
-           rio_hr_timeintegrated_si    => this%rvars(ir_hr_timeintegrated_si)%r81d, &
-           rio_cbal_err_fates_si       => this%rvars(ir_cbal_error_fates_si)%r81d, &
-           rio_cbal_err_bgc_si         => this%rvars(ir_cbal_error_bgc_si)%r81d, &
-           rio_cbal_err_tot_si         => this%rvars(ir_cbal_error_total_si)%r81d, &
-           rio_totecosysc_old_si       => this%rvars(ir_totecosysc_old_si)%r81d, &
-           rio_totfatesc_old_si        => this%rvars(ir_totfatesc_old_si)%r81d, &
-           rio_totbgcc_old_si          => this%rvars(ir_totbgcc_old_si)%r81d, &
-           rio_fates_to_bgc_this_ts_si => this%rvars(ir_fates_to_bgc_this_ts_si)%r81d, &
-           rio_fates_to_bgc_last_ts_si => this%rvars(ir_fates_to_bgc_last_ts_si)%r81d, &
-           rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -1484,6 +1457,7 @@ contains
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
+           rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
            rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
@@ -1508,15 +1482,8 @@ contains
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
            rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
-           rio_cwd_ag_pacw             => this%rvars(ir_cwd_ag_pacw)%r81d, &
-           rio_cwd_bg_pacw             => this%rvars(ir_cwd_bg_pacw)%r81d, &
            rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
            rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
-           rio_leaf_litter_paft        => this%rvars(ir_leaf_litter_paft)%r81d, &
-           rio_root_litter_paft        => this%rvars(ir_root_litter_paft)%r81d, &
-           rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
-           rio_root_litter_in_paft     => this%rvars(ir_root_litter_in_paft)%r81d, &
-           rio_seed_bank_sift          => this%rvars(ir_seed_bank_sift)%r81d, &
            rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
@@ -1564,8 +1531,6 @@ contains
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
 
           io_idx_co      = io_idx_co_1st
-          io_idx_pa_pft  = io_idx_co_1st
-          io_idx_pa_cwd  = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
@@ -1577,11 +1542,33 @@ contains
           io_idx_si_sc   = io_idx_co_1st
 
           
-          ! write seed_bank info(site-level, but PFT-resolved)
+          ! recruitment rate
           do i_pft = 1,numpft
-             rio_seed_bank_sift(io_idx_co_1st+i_pft-1) = sites(s)%seed_bank(i_pft)
              rio_recrate_sift(io_idx_co_1st+i_pft-1)   = sites(s)%recruitment_rate(i_pft)
           end do
+
+          do el = 1, num_elements
+
+             io_idx_si_cwd = io_idx_co_1st
+             io_idx_si_pft = io_idx_co_1st
+
+             do i_cwd=1,ncwd
+                this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_ag_input(i_cwd)
+                this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_bg_input(i_cwd)
+                io_idx_si_cwd = io_idx_si_cwd + 1
+             end do
+             
+             do i_pft=1,numpft
+                this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
+                this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%root_litter_input(i_pft)
+                io_idx_si_pft = io_idx_si_pft + 1
+             end do
+
+             this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
+             this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
+
+          end do
+
 
           ! canopy spread term
           rio_spread_si(io_idx_si)   = sites(s)%spread
@@ -1671,6 +1658,7 @@ contains
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
+                rio_seed_prod_co(io_idx_co)    = ccohort%seed_prod
                 rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_height_co(io_idx_co)       = ccohort%hite
@@ -1740,24 +1728,50 @@ contains
                 write(fates_log(),*) 'offsetNumCohorts III ' &
                       ,io_idx_co,cohortsperpatch
              endif
-             !
-             ! deal with patch level fields of arrays here
-             !
-             ! these are arrays of length numpft, each patch contains one
-             ! vector so we increment 
-             do i = 1,numpft
-                rio_leaf_litter_paft(io_idx_pa_pft)    = cpatch%leaf_litter(i)
-                rio_root_litter_paft(io_idx_pa_pft)    = cpatch%root_litter(i)
-                rio_leaf_litter_in_paft(io_idx_pa_pft) = cpatch%leaf_litter_in(i)
-                rio_root_litter_in_paft(io_idx_pa_pft) = cpatch%root_litter_in(i)
-                io_idx_pa_pft = io_idx_pa_pft + 1
+
+             ! --------------------------------------------------------------------------
+             ! Send litter to the restart arrays
+             ! Each element has its own variable, so we have to make sure 
+             ! we keep re-setting this 
+             ! --------------------------------------------------------------------------
+
+             do el = 0, num_elements-1
+                 
+                 io_idx_pa_pft  = io_idx_co_1st
+                 io_idx_pa_cwd  = io_idx_co_1st
+                 io_idx_pa_cwsl = io_idx_co_1st
+                 io_idx_pa_dcsl = io_idx_co_1st
+                 io_idx_pa_dc   = io_idx_co_1st
+                 
+                 litt => cpatch%litter(el+1)
+
+                 do i = 1,numpft
+                    this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft) = litt%seed(i)
+                    this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ(i)
+                    io_idx_pa_pft = io_idx_pa_pft + 1
+                 end do
+
+
+                 do i = 1,ndcmpy
+                     this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc) = litt%leaf_fines(i)
+                     io_idx_pa_dc = io_idx_pa_dc + 1
+                     do ilyr=1,sites(s)%nlevsoil
+                         this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_dcsl) = litt%root_fines(i,ilyr)
+                         io_idx_pa_dcsl = io_idx_pa_dcsl + 1
+                     end do
+                 end do
+                 
+                 do i = 1,ncwd
+                     this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd(i)
+                     io_idx_pa_cwd = io_idx_pa_cwd + 1
+                     do ilyr=1,sites(s)%nlevsoil
+                         this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwsl) = litt%bg_cwd(i,ilyr)
+                         io_idx_pa_cwsl = io_idx_pa_cwsl + 1
+                     end do
+                 end do
+
              end do
-             
-             do i = 1,ncwd ! ncwd currently 4
-                rio_cwd_ag_pacw(io_idx_pa_cwd) = cpatch%cwd_ag(i)
-                rio_cwd_bg_pacw(io_idx_pa_cwd) = cpatch%cwd_bg(i)
-                io_idx_pa_cwd = io_idx_pa_cwd + 1
-             end do
+
              
              do i = 1,maxSWb
                 rio_gnd_alb_dif_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dif(i)
@@ -1818,32 +1832,18 @@ contains
           rio_fmortcflux_cano_si(io_idx_si) = sites(s)%fmort_carbonflux_canopy
           rio_fmortcflux_usto_si(io_idx_si) = sites(s)%fmort_carbonflux_ustory
 
-          rio_old_stock_si(io_idx_si)    = sites(s)%old_stock
           rio_cd_status_si(io_idx_si)    = sites(s)%cstatus
           rio_dd_status_si(io_idx_si)    = sites(s)%dstatus
           rio_nchill_days_si(io_idx_si)  = sites(s)%nchilldays
           rio_ncold_days_si(io_idx_si)   = sites(s)%ncolddays
           rio_leafondate_si(io_idx_si)   = sites(s)%cleafondate
           rio_leafoffdate_si(io_idx_si)  = sites(s)%cleafoffdate
+
           rio_dleafondate_si(io_idx_si)  = sites(s)%dleafondate
           rio_dleafoffdate_si(io_idx_si) = sites(s)%dleafoffdate
           rio_acc_ni_si(io_idx_si)       = sites(s)%acc_NI
           rio_gdd_si(io_idx_si)          = sites(s)%grow_deg_days 
           
-          ! Carbon Balance and Checks
-          rio_nep_timeintegrated_si(io_idx_si) = sites(s)%nep_timeintegrated 
-          rio_npp_timeintegrated_si(io_idx_si) = sites(s)%npp_timeintegrated
-          rio_hr_timeintegrated_si(io_idx_si)  = sites(s)%hr_timeintegrated 
-          rio_totecosysc_old_si(io_idx_si)     = sites(s)%totecosysc_old
-          rio_totfatesc_old_si(io_idx_si)      = sites(s)%totfatesc_old
-          rio_totbgcc_old_si(io_idx_si)        = sites(s)%totbgcc_old
-          rio_cbal_err_fates_si(io_idx_si)     = sites(s)%cbal_err_fates
-          rio_cbal_err_bgc_si(io_idx_si)       = sites(s)%cbal_err_bgc
-          rio_cbal_err_tot_si(io_idx_si)       = sites(s)%cbal_err_tot
-          rio_fates_to_bgc_this_ts_si(io_idx_si) = sites(s)%fates_to_bgc_this_ts
-          rio_fates_to_bgc_last_ts_si(io_idx_si) = sites(s)%fates_to_bgc_last_ts
-          rio_seedrainflux_si(io_idx_si)         = sites(s)%tot_seed_rain_flux
-
           ! Accumulated trunk product
           rio_trunk_product_si(io_idx_si) = sites(s)%resources_management%trunk_product_site
           ! set numpatches for this column
@@ -1910,15 +1910,12 @@ contains
      use EDTypesMod,           only : ed_site_type
      use EDTypesMod,           only : ed_cohort_type
      use EDTypesMod,           only : ed_patch_type
-     use EDTypesMod,           only : ncwd
      use EDTypesMod,           only : maxSWb
-     use EDTypesMod,           only : nan_leaf_aclass
      use FatesInterfaceMod,    only : fates_maxElementsPerPatch
      
      use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
      use EDPatchDynamicsMod,   only : zero_patch
-     use EDCohortDynamicsMod,  only : create_cohort
      use EDInitMod,            only : zero_site
      use EDInitMod,            only : init_site_vars
      use EDPatchDynamicsMod,   only : create_patch
@@ -1938,11 +1935,6 @@ contains
      type(ed_patch_type) , pointer     :: newp
      type(ed_cohort_type), pointer     :: new_cohort
      type(ed_cohort_type), pointer     :: prev_cohort
-     real(r8)                          :: cwd_ag_local(ncwd)
-     real(r8)                          :: cwd_bg_local(ncwd)
-     real(r8)                          :: leaf_litter_local(maxpft)
-     real(r8)                          :: root_litter_local(maxpft)
-     real(r8)                          :: patch_age
      integer                           :: cohortstatus
      integer                           :: s             ! site index
      integer                           :: idx_pa        ! local patch index
@@ -1951,16 +1943,8 @@ contains
      real(r8)                          :: site_spread   ! site sprea dummy var (0-1)
      integer                           :: fto
      integer                           :: ft
+     integer                           :: el            ! element loop counter
      integer, parameter                :: recruitstatus = 0
-
-
-     ! Dummy arguments used for calling create patch, these will be overwritten before
-     ! run-time.  Just used now for allocation.
-     cwd_ag_local(:)      = 0.0_r8
-     cwd_bg_local(:)      = 0.0_r8
-     leaf_litter_local(:) = 0.0_r8
-     root_litter_local(:) = 0.0_r8
-     patch_age            = 0.0_r8
 
      ! ----------------------------------------------------------------------------------
      ! We really only need the counts for the number of patches per site
@@ -1975,8 +1959,8 @@ contains
           
           io_idx_si  = this%restart_map(nc)%site_index(s)
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
-          
-          call init_site_vars( sites(s) )
+
+          call init_site_vars( sites(s), bc_in(s) )
           call zero_site( sites(s) )
 
           if ( rio_npatch_si(io_idx_si)<0 .or. rio_npatch_si(io_idx_si) > 10000 ) then
@@ -2000,15 +1984,25 @@ contains
              allocate(newp)    
              
              ! make new patch
-             call create_patch(sites(s), newp, patch_age, area, &
-                  cwd_ag_local, cwd_bg_local,  &
-                  leaf_litter_local, root_litter_local,bc_in(s)%nlevsoil, primaryforest) 
+             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest )
+
+             ! Initialize the litter pools to zero, these
+             ! pools will be populated by looping over the existing patches
+             ! and transfering in mass
+             do el=1,num_elements
+                call newp%litter(el)%InitConditions(init_leaf_fines=fates_unset_r8, &
+                     init_root_fines=fates_unset_r8, &
+                     init_ag_cwd=fates_unset_r8, &
+                     init_bg_cwd=fates_unset_r8, &
+                     init_seed=fates_unset_r8, &
+                     init_seed_germ=fates_unset_r8)
+             end do
              
              ! give this patch a unique patch number
              newp%patchno = idx_pa
 
 
-	     ! Iterate over the number of cohorts
+             ! Iterate over the number of cohorts
              ! the file says are associated with this patch
              ! we are just allocating space here, so we do 
              ! a simple list filling routine
@@ -2038,9 +2032,13 @@ contains
 
                 ! Every cohort added takes over as shortest
                 newp%shortest => new_cohort
+
+                ! Initialize the PARTEH object and point to the
+                ! correct boundary condition fields
+                new_cohort%prt => null()
+                call InitPRTObject(new_cohort%prt)
+                call InitPRTBoundaryConditions(new_cohort)
                 
-                ! Initialize the PRT environment (allocate/choose hypothesis only)
-                call InitPRTCohort(new_cohort)
                 
                 ! Allocate hydraulics arrays
                 if( hlm_use_planthydro.eq.itrue ) then
@@ -2104,7 +2102,6 @@ contains
      use EDTypesMod, only : ed_site_type
      use EDTypesMod, only : ed_cohort_type
      use EDTypesMod, only : ed_patch_type
-     use EDTypesMod, only : ncwd
      use EDTypesMod, only : maxSWb
      use FatesInterfaceMod, only : numpft
      use FatesInterfaceMod, only : fates_maxElementsPerPatch
@@ -2124,7 +2121,7 @@ contains
      ! LL pointers
      type(ed_patch_type),pointer  :: cpatch      ! current patch
      type(ed_cohort_type),pointer :: ccohort     ! current cohort
-
+     type(litter_type), pointer   :: litt        ! litter object on the current patch
      ! loop indices
      integer :: s, i, j, k
 
@@ -2141,25 +2138,33 @@ contains
      integer  :: io_idx_co      ! cohort index
      integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
      integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
+     integer  :: io_idx_pa_cwsl ! each cwd x soil layer
+     integer  :: io_idx_pa_dcsl ! each decomposability x soil layer
+     integer  :: io_idx_pa_dc   ! each decomposability index 
      integer  :: io_idx_pa_ib   ! each SW radiation band per patch (pa_ib)
      integer  :: io_idx_si_wmem ! each water memory class within each site
      integer  :: io_idx_si_vtmem ! counter for vegetation temp memory
      integer  :: io_idx_si_lyr_shell ! site - layer x shell index
      integer  :: io_idx_si_scpf ! each size-class x pft index within site
      integer  :: io_idx_si_sc   ! each size-class index within site
+     integer  :: io_idx_si_cwd
+     integer  :: io_idx_si_pft
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
      integer  :: patchespersite   ! number of patches per site
      integer  :: cohortsperpatch  ! number of cohorts per patch 
+     integer  :: el               ! loop counter for elements
+     integer  :: nlevsoil         ! number of soil layers
+     integer  :: ilyr             ! soil layer loop counter
      integer  :: ir_prt_var       ! loop counter for var x position
+     integer  :: i_cwd            ! loop counter for cwd
      integer  :: i_var            ! loop counter for PRT variables
      integer  :: i_pos            ! loop counter for discrete PRT positions
      integer  :: i_pft            ! loop counter for pft
      integer  :: i_scls           ! loop counter for size-class
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
-          rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
           rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
           rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
@@ -2170,18 +2175,6 @@ contains
           rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%int1d, &
           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
-          rio_nep_timeintegrated_si   => this%rvars(ir_nep_timeintegrated_si)%r81d, &
-          rio_npp_timeintegrated_si   => this%rvars(ir_npp_timeintegrated_si)%r81d, &
-          rio_hr_timeintegrated_si    => this%rvars(ir_hr_timeintegrated_si)%r81d, &
-          rio_cbal_err_fates_si       => this%rvars(ir_cbal_error_fates_si)%r81d, &
-          rio_cbal_err_bgc_si         => this%rvars(ir_cbal_error_bgc_si)%r81d, &
-          rio_cbal_err_tot_si         => this%rvars(ir_cbal_error_total_si)%r81d, &
-          rio_totecosysc_old_si       => this%rvars(ir_totecosysc_old_si)%r81d, &
-          rio_totfatesc_old_si        => this%rvars(ir_totfatesc_old_si)%r81d, &
-          rio_totbgcc_old_si          => this%rvars(ir_totbgcc_old_si)%r81d, &
-          rio_fates_to_bgc_this_ts_si => this%rvars(ir_fates_to_bgc_this_ts_si)%r81d, &
-          rio_fates_to_bgc_last_ts_si => this%rvars(ir_fates_to_bgc_last_ts_si)%r81d, &
-          rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -2189,6 +2182,7 @@ contains
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
+          rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
           rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
@@ -2213,15 +2207,8 @@ contains
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
           rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
-          rio_cwd_ag_pacw             => this%rvars(ir_cwd_ag_pacw)%r81d, &
-          rio_cwd_bg_pacw             => this%rvars(ir_cwd_bg_pacw)%r81d, &
           rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
           rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
-          rio_leaf_litter_paft        => this%rvars(ir_leaf_litter_paft)%r81d, &
-          rio_root_litter_paft        => this%rvars(ir_root_litter_paft)%r81d, &
-          rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
-          rio_root_litter_in_paft     => this%rvars(ir_root_litter_in_paft)%r81d, &
-          rio_seed_bank_sift          => this%rvars(ir_seed_bank_sift)%r81d, &
           rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
@@ -2258,8 +2245,6 @@ contains
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
           
           io_idx_co      = io_idx_co_1st
-          io_idx_pa_pft  = io_idx_co_1st
-          io_idx_pa_cwd  = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
@@ -2272,16 +2257,37 @@ contains
 
           ! read seed_bank info(site-level, but PFT-resolved)
           do i_pft = 1,numpft 
-             sites(s)%seed_bank(i_pft) = rio_seed_bank_sift(io_idx_co_1st+i_pft-1)
              sites(s)%recruitment_rate(i_pft) = rio_recrate_sift(io_idx_co_1st+i_pft-1)
           enddo
+
+
+          ! Mass balance and diagnostics across elements at the site level
+          do el = 1, num_elements
+
+             io_idx_si_cwd = io_idx_co_1st
+             io_idx_si_pft = io_idx_co_1st
+
+             do i_cwd=1,ncwd
+                sites(s)%flux_diags(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
+                sites(s)%flux_diags(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd)
+                io_idx_si_cwd = io_idx_si_cwd + 1
+             end do
+             
+             do i_pft=1,numpft
+                sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                sites(s)%flux_diags(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                io_idx_si_pft = io_idx_si_pft + 1
+            end do
+            
+            sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
+            sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
+
+          end do
 
           sites(s)%spread = rio_spread_si(io_idx_si) 
           
           ! Perform a check on the number of patches per site
           patchespersite = 0
-
-          
           
           cpatch => sites(s)%oldest_patch
           do while(associated(cpatch))
@@ -2339,6 +2345,7 @@ contains
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
+                ccohort%seed_prod    = rio_seed_prod_co(io_idx_co)
                 ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
                 ccohort%g_sb_laweight= rio_g_sb_laweight_co(io_idx_co)
@@ -2408,13 +2415,6 @@ contains
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
 
-          
-             ! FIX(SPM,032414) move to init if you can...or make a new init function
-             cpatch%leaf_litter(:)    = 0.0_r8
-             cpatch%root_litter(:)    = 0.0_r8
-             cpatch%leaf_litter_in(:) = 0.0_r8
-             cpatch%root_litter_in(:) = 0.0_r8
-             
              !
              ! deal with patch level fields here
              !
@@ -2435,27 +2435,52 @@ contains
                 write(fates_log(),*) 'CVTL III ' &
                      ,io_idx_co,cohortsperpatch
              endif
-
-             !
-             ! deal with patch level fields of arrays here
-             !
-             ! these are arrays of length numpft, each patch contains one
-             ! vector so we increment 
-
-             do i = 1,numpft
-                cpatch%leaf_litter(i)    = rio_leaf_litter_paft(io_idx_pa_pft)    
-                cpatch%root_litter(i)    = rio_root_litter_paft(io_idx_pa_pft)    
-                cpatch%leaf_litter_in(i) = rio_leaf_litter_in_paft(io_idx_pa_pft) 
-                cpatch%root_litter_in(i) = rio_root_litter_in_paft(io_idx_pa_pft) 
-                io_idx_pa_pft = io_idx_pa_pft + 1
-             enddo
-          
-             do i = 1,ncwd ! ncwd currently 4
-                cpatch%cwd_ag(i) = rio_cwd_ag_pacw(io_idx_pa_cwd)
-                cpatch%cwd_bg(i) = rio_cwd_bg_pacw(io_idx_pa_cwd)
-                io_idx_pa_cwd = io_idx_pa_cwd + 1
-             enddo
              
+             ! --------------------------------------------------------------------------
+             ! Pull litter from the restart arrays
+             ! Each element has its own variable, so we have to make sure 
+             ! we keep re-setting this 
+             ! --------------------------------------------------------------------------
+
+             do el = 0, num_elements-1
+                 
+                 io_idx_pa_pft  = io_idx_co_1st
+                 io_idx_pa_cwd  = io_idx_co_1st
+                 io_idx_pa_cwsl = io_idx_co_1st
+                 io_idx_pa_dcsl = io_idx_co_1st
+                 io_idx_pa_dc   = io_idx_co_1st
+
+                 litt => cpatch%litter(el+1)
+                 nlevsoil = size(litt%bg_cwd,dim=2)
+
+                 do i = 1,numpft
+                     litt%seed(i)       = this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft)
+                     litt%seed_germ(i)  = this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft)
+                     io_idx_pa_pft      = io_idx_pa_pft + 1
+                  end do
+
+                  do i = 1,ndcmpy
+                     litt%leaf_fines(i) = this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc)
+                     io_idx_pa_dc       = io_idx_pa_dc + 1
+                     do ilyr=1,nlevsoil
+                         litt%root_fines(i,ilyr) = this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_dcsl)
+                         io_idx_pa_dcsl = io_idx_pa_dcsl + 1
+                     end do
+                 end do
+                 
+                 do i = 1,ncwd
+
+                     litt%ag_cwd(i) = this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd)
+                     io_idx_pa_cwd = io_idx_pa_cwd + 1
+                     
+                     do ilyr=1,nlevsoil
+                         litt%bg_cwd(i,ilyr) = this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwsl)
+                         io_idx_pa_cwsl = io_idx_pa_cwsl + 1
+                     end do
+                 end do
+
+             end do
+
              do i = 1,maxSWb
                 cpatch%gnd_alb_dif(i) = rio_gnd_alb_dif_pasb(io_idx_pa_ib)
                 cpatch%gnd_alb_dir(i) = rio_gnd_alb_dir_pasb(io_idx_pa_ib)
@@ -2559,7 +2584,6 @@ contains
           sites(s)%fmort_carbonflux_canopy  = rio_fmortcflux_cano_si(io_idx_si)
           sites(s)%fmort_carbonflux_ustory  = rio_fmortcflux_usto_si(io_idx_si)
 
-          sites(s)%old_stock      = rio_old_stock_si(io_idx_si)
           
           ! Site level phenology status flags
 
@@ -2574,19 +2598,6 @@ contains
           sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
           sites(s)%grow_deg_days  = rio_gdd_si(io_idx_si)
 
-          ! Carbon Balance and Checks
-          sites(s)%nep_timeintegrated   = rio_nep_timeintegrated_si(io_idx_si)
-          sites(s)%npp_timeintegrated   = rio_npp_timeintegrated_si(io_idx_si)
-          sites(s)%hr_timeintegrated    = rio_hr_timeintegrated_si(io_idx_si)
-          sites(s)%totecosysc_old       = rio_totecosysc_old_si(io_idx_si)
-          sites(s)%totfatesc_old        = rio_totfatesc_old_si(io_idx_si)
-          sites(s)%totbgcc_old          = rio_totbgcc_old_si(io_idx_si)
-          sites(s)%cbal_err_fates       = rio_cbal_err_fates_si(io_idx_si)
-          sites(s)%cbal_err_bgc         = rio_cbal_err_bgc_si(io_idx_si)
-          sites(s)%cbal_err_tot         = rio_cbal_err_tot_si(io_idx_si)
-          sites(s)%fates_to_bgc_this_ts = rio_fates_to_bgc_this_ts_si(io_idx_si)
-          sites(s)%fates_to_bgc_last_ts = rio_fates_to_bgc_last_ts_si(io_idx_si)
-          sites(s)%tot_seed_rain_flux   = rio_seedrainflux_si(io_idx_si)
           sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
 
        end do

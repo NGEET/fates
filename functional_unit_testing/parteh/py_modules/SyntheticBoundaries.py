@@ -86,7 +86,7 @@ def DailyCNPFromCArea(presc_npp_p1,presc_nflux_p1, \
     # presc_npp_canopy, npp generated per crown area in canopy         [kgC/m2/yr]
     # presc_npp_understory, npp generated per crown area in understory [kgC/m2/yr]
     # presc_nflux_p1, Nitrogen flux per crown area                     [kgN/m2/yr]
-    # presc_pflux_p1, Phosphorous flux per crown area                  [kgP/m2/yr]
+    # presc_pflux_p1, Phosphorus flux per crown area                  [kgP/m2/yr]
     # -----------------------------------------------------------------------------------
 
     if( (phen_type == 1) or (leaf_status ==2)):

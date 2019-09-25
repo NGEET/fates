@@ -100,8 +100,9 @@ module PRTGenericMod
   integer, parameter, public :: carbon13_element    = 2
   integer, parameter, public :: carbon14_element    = 3
   integer, parameter, public :: nitrogen_element    = 4
-  integer, parameter, public :: phosphorous_element = 5
+  integer, parameter, public :: phosphorus_element  = 5
   integer, parameter, public :: potassium_element   = 6
+
 
   !  The following elements are just placeholders. In the future
   !  if someone wants to develope an allocation hypothesis
@@ -303,7 +304,7 @@ module PRTGenericMod
   ! world.
   !   
   !              
-  !                   | carbon | nitrogen | phosphorous | .... |
+  !                   | carbon | nitrogen | phosphorus  | .... |
   !                   ------------------------------------------
   !    leaf           |        |          |             |      |
   !    fine-root      |        |          |             |      |

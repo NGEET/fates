@@ -19,20 +19,29 @@ module FatesInterfaceMod
    use EDTypesMod          , only : nlevleaf
    use EDTypesMod          , only : maxpft
    use EDTypesMod          , only : do_fates_salinity
-   use EDTypesMod          , only : ncwd
    use EDTypesMod          , only : numWaterMem
+   use EDTypesMod          , only : numlevsoil_max
+   use EDTypesMod          , only : num_elements
+   use EDTypesMod          , only : element_list
+   use EDTypesMod          , only : element_pos
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesConstantsMod   , only : itrue,ifalse
    use FatesGlobals        , only : fates_global_verbose
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
+   use FatesLitterMod      , only : ncwd
+   use FatesLitterMod      , only : ndcmpy
    use EDPftvarcon         , only : FatesReportPFTParams
    use EDPftvarcon         , only : FatesCheckParams
    use EDPftvarcon         , only : EDPftvarcon_inst
+   use SFParamsMod         , only : SpitFireCheckParams
    use EDParamsMod         , only : FatesReportParams
    use EDParamsMod         , only : bgc_soil_salinity
    use PRTGenericMod         , only : prt_carbon_allom_hyp
    use PRTGenericMod         , only : prt_cnp_flex_allom_hyp
+   use PRTGenericMod         , only : carbon12_element
+   use PRTGenericMod         , only : nitrogen_element
+   use PRTGenericMod         , only : phosphorus_element
    use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
    !   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
 
@@ -201,6 +210,7 @@ module FatesInterfaceMod
    integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel class dimension
    integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
    integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
+   integer , public, allocatable :: fates_hdim_levelem(:)              ! element dimension
    integer , public, allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
    integer , public, allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
    integer , public, allocatable :: fates_hdim_canmap_levcnlfpf(:) ! can-layer map into the can-layer x pft x leaf-layer dim
@@ -213,6 +223,14 @@ module FatesInterfaceMod
    integer , public, allocatable :: fates_hdim_pftmap_levscagpft(:)    ! map of pft into size-class x patch age x pft dimension
    integer , public, allocatable :: fates_hdim_agmap_levagepft(:)      ! map of patch-age into patch age x pft dimension
    integer , public, allocatable :: fates_hdim_pftmap_levagepft(:)     ! map of pft into patch age x pft dimension
+   
+   integer , public, allocatable :: fates_hdim_elmap_levelpft(:)       ! map of elements in the element x pft dimension
+   integer , public, allocatable :: fates_hdim_elmap_levelcwd(:)       ! map of elements in the element x cwd dimension
+   integer , public, allocatable :: fates_hdim_elmap_levelage(:)       ! map of elements in the element x age dimension
+   integer , public, allocatable :: fates_hdim_pftmap_levelpft(:)       ! map of pfts in the element x pft dimension
+   integer , public, allocatable :: fates_hdim_cwdmap_levelcwd(:)       ! map of cwds in the element x cwd dimension
+   integer , public, allocatable :: fates_hdim_agemap_levelage(:)       ! map of ages in the element x age dimension
+
 
    ! ------------------------------------------------------------------------------------
    !                              DYNAMIC BOUNDARY CONDITIONS
@@ -281,11 +299,17 @@ module FatesInterfaceMod
       real(r8),allocatable :: dz_sisl(:)         ! layer thickness (m)
       real(r8),allocatable :: z_sisl(:)          ! layer depth (m)
 
-      
-
-
       ! Decomposition Layer Structure
-      real(r8), allocatable :: dz_decomp_sisl(:)
+      real(r8), allocatable :: dz_decomp_sisl(:) ! This should match dz_sisl(), unless
+                                                 ! only one layer is chosen, in that
+                                                 ! case, it has its own depth, which
+                                                 ! has traditionally been 1 meter
+
+      integer,allocatable  :: decomp_id(:)       ! The decomposition layer index that each
+                                                 ! soil layer maps to. This will either
+                                                 ! be equivalent (ie integer ascending)
+                                                 ! Or, all will be 1.
+      
 
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
@@ -503,19 +527,18 @@ module FatesInterfaceMod
       real(r8), allocatable :: ftii_parb(:,:)
 
 
-      ! litterfall fluxes of C from FATES patches to BGC columns
-
-      ! total labile    litter coming from ED. gC/m3/s
-      real(r8), allocatable :: FATES_c_to_litr_lab_c_col(:)      
-
-      !total cellulose litter coming from ED. gC/m3/s
-      real(r8), allocatable :: FATES_c_to_litr_cel_c_col(:)      
+      ! Mass fluxes to BGC from fragmentation of litter into decomposing pools
       
-      !total lignin    litter coming from ED. gC/m3/s
-      real(r8), allocatable :: FATES_c_to_litr_lig_c_col(:)      
-
+      real(r8), allocatable :: litt_flux_cel_c_si(:) ! cellulose carbon litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lig_c_si(:) ! lignan carbon litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lab_c_si(:) ! labile carbon litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_cel_n_si(:) ! cellulose nitrogen litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lig_n_si(:) ! lignan nitrogen litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lab_n_si(:) ! labile nitrogen litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_cel_p_si(:) ! cellulose phosphorus litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignan phosphorus litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
       
-
       ! Canopy Structure
 
       real(r8), allocatable :: elai_pa(:)  ! exposed leaf area index
@@ -654,12 +677,57 @@ contains
 
 
       bc_in%nlevsoil   = nlevsoil_in
+
+      if(nlevsoil_in > numlevsoil_max) then
+         write(fates_log(), *) 'The number of soil layers imposed by the host model'
+         write(fates_log(), *) 'is larger than what we have allocated in our static'
+         write(fates_log(), *) 'arrays. Please increase the size of numlevsoil_max'
+         write(fates_log(), *) 'found in EDTypesMod.F90'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      if( (nlevsoil_in*ndcmpy) > fates_maxElementsPerPatch .or. &
+          (nlevsoil_in*ncwd) > fates_maxElementsPerPatch) then
+          write(fates_log(), *) 'The restart files require that space is allocated'
+          write(fates_log(), *) 'to accomodate the multi-dimensional patch arrays'
+          write(fates_log(), *) 'that are nlevsoil*numpft and nlevsoil*ncwd'
+          write(fates_log(), *) 'fates_maxElementsPerPatch = ',fates_maxElementsPerPatch
+          write(fates_log(), *) 'nlevsoil = ',nlevsoil_in
+          write(fates_log(), *) 'dcmpy = ',ndcmpy
+          write(fates_log(), *) 'ncwd  = ',ncwd
+          write(fates_log(), *) 'numpft*nlevsoil = ',nlevsoil_in*numpft
+          write(fates_log(), *) 'ncwd*nlevsoil = ',ncwd * nlevsoil_in
+          write(fates_log(), *) 'To increase max_elements, change numlevsoil_max'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
       bc_in%nlevdecomp = nlevdecomp_in
+
+
+      if (hlm_use_vertsoilc == itrue) then
+         if(bc_in%nlevdecomp .ne. bc_in%nlevsoil) then
+            write(fates_log(), *) 'The host has signaled a vertically resolved'
+            write(fates_log(), *) 'soil decomposition model. Therefore, the '
+            write(fates_log(), *) 'total number of soil layers should equal the'
+            write(fates_log(), *) 'total number of decomposition layers.'
+            write(fates_log(), *) 'nlevdecomp: ',bc_in%nlevdecomp
+            write(fates_log(), *) 'nlevsoil: ',bc_in%nlevsoil
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+      else
+         if(bc_in%nlevdecomp .ne. 1)then
+            write(fates_log(), *) 'The host has signaled a non-vertically resolved'
+            write(fates_log(), *) 'soil decomposition model. Therefore, the '
+            write(fates_log(), *) 'total number of decomposition layers should be 1.'
+            write(fates_log(), *) 'nlevdecomp: ',bc_in%nlevdecomp
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+      end if
 
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
       allocate(bc_in%z_sisl(nlevsoil_in))
-
+      allocate(bc_in%decomp_id(nlevsoil_in))
       allocate(bc_in%dz_decomp_sisl(nlevdecomp_in))
 
       ! Vegetation Dynamics
@@ -682,7 +750,7 @@ contains
       
       !BGC
       if(do_fates_salinity) then
-         allocate(bc_in%salinity_sl(nlevsoil_in))	 
+         allocate(bc_in%salinity_sl(nlevsoil_in))
       endif
 
       ! Photosynthesis
@@ -755,10 +823,29 @@ contains
       allocate(bc_out%ftid_parb(maxPatchesPerSite,hlm_numSWb))
       allocate(bc_out%ftii_parb(maxPatchesPerSite,hlm_numSWb))
 
-      ! biogeochemistry
-      allocate(bc_out%FATES_c_to_litr_lab_c_col(nlevdecomp_in))
-      allocate(bc_out%FATES_c_to_litr_cel_c_col(nlevdecomp_in))
-      allocate(bc_out%FATES_c_to_litr_lig_c_col(nlevdecomp_in))
+      ! Fates -> BGC fragmentation mass fluxes
+      select case(hlm_parteh_mode) 
+      case(prt_carbon_allom_hyp)
+         allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
+      case(prt_cnp_flex_allom_hyp) 
+         allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_cel_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_cel_p_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_p_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_p_si(nlevdecomp_in))
+      case default
+         write(fates_log(), *) 'An unknown parteh hypothesis was passed'
+         write(fates_log(), *) 'to the site level output boundary conditions'
+         write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+
 
       ! Canopy Structure
       allocate(bc_out%elai_pa(maxPatchesPerSite))
@@ -792,14 +879,6 @@ contains
       integer, intent(in) :: s
 
       ! Input boundaries
-      ! Warning: these "z" type variables
-      ! are written only once at the beginning
-      ! so THIS ROUTINE SHOULD NOT BE CALLED AFTER
-      ! INITIALIZATION
-      this%bc_in(s)%zi_sisl(:)     = 0.0_r8
-      this%bc_in(s)%dz_sisl(:)     = 0.0_r8
-      this%bc_in(s)%z_sisl(:)      = 0.0_r8
-      this%bc_in(s)%dz_decomp_sisl = 0.0_r8
       
       this%bc_in(s)%t_veg24_si     = 0.0_r8
       this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
@@ -850,9 +929,30 @@ contains
       this%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
 
-      this%bc_out(s)%FATES_c_to_litr_lab_c_col(:) = 0.0_r8
-      this%bc_out(s)%FATES_c_to_litr_cel_c_col(:) = 0.0_r8
-      this%bc_out(s)%FATES_c_to_litr_lig_c_col(:) = 0.0_r8
+      ! Fates -> BGC fragmentation mass fluxes
+      select case(hlm_parteh_mode) 
+      case(prt_carbon_allom_hyp)
+         this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+      case(prt_cnp_flex_allom_hyp) 
+         this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
+         this%bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
+      case default
+         write(fates_log(), *) 'An unknown parteh hypothesis was passed'
+         write(fates_log(), *) 'while zeroing output boundary conditions'
+         write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+
+
 
       this%bc_out(s)%rssun_pa(:)     = 0.0_r8
       this%bc_out(s)%rssha_pa(:)     = 0.0_r8
@@ -983,7 +1083,7 @@ contains
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          
-         fates_maxElementsPerPatch = max(maxCohortsPerPatch, numpft, ncwd )
+         fates_maxElementsPerPatch = max(maxCohortsPerPatch, ndcmpy*numlevsoil_max ,ncwd*numlevsoil_max)
 
          if (maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
             write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
@@ -1058,7 +1158,6 @@ contains
     subroutine fates_history_maps
        
        use EDTypesMod, only : NFSC
-       use EDTypesMod, only : NCWD
        use EDTypesMod, only : nclmax
        use EDTypesMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
@@ -1082,6 +1181,7 @@ contains
        integer :: ileaf
        integer :: iage
        integer :: iheight
+       integer :: iel
 
        allocate( fates_hdim_levsclass(1:nlevsclass   ))
        allocate( fates_hdim_pfmap_levscpf(1:nlevsclass*numpft))
@@ -1093,6 +1193,7 @@ contains
        allocate( fates_hdim_levheight(1:nlevheight   ))
 
        allocate( fates_hdim_levcan(nclmax))
+       allocate( fates_hdim_levelem(num_elements))
        allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
        allocate( fates_hdim_lfmap_levcnlf(nlevleaf*nclmax))
        allocate( fates_hdim_canmap_levcnlfpf(nlevleaf*nclmax*numpft))
@@ -1105,6 +1206,14 @@ contains
        allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
        allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
        allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
+
+       allocate( fates_hdim_elmap_levelpft(num_elements*numpft))
+       allocate( fates_hdim_elmap_levelcwd(num_elements*ncwd))
+       allocate( fates_hdim_elmap_levelage(num_elements*nlevage))
+       allocate( fates_hdim_pftmap_levelpft(num_elements*numpft))
+       allocate( fates_hdim_cwdmap_levelcwd(num_elements*ncwd))
+       allocate( fates_hdim_agemap_levelage(num_elements*nlevage))
+
 
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
@@ -1129,6 +1238,39 @@ contains
        ! make canopy array
        do ican = 1,nclmax
           fates_hdim_levcan(ican) = ican
+       end do
+
+       ! Make an element array, each index is the PARTEH global identifier index
+
+       do iel = 1, num_elements
+           fates_hdim_levelem(iel) = element_list(iel)
+       end do
+       
+       i = 0
+       do iel = 1, num_elements
+           do ipft=1,numpft
+               i = i+1
+               fates_hdim_elmap_levelpft(i)  = iel
+               fates_hdim_pftmap_levelpft(i) = ipft
+           end do
+       end do
+       
+       i = 0
+       do iel = 1, num_elements
+           do icwd = 1, ncwd
+               i = i+1
+               fates_hdim_elmap_levelcwd(i)  = iel
+               fates_hdim_cwdmap_levelcwd(i) = icwd
+           end do
+       end do
+       
+       i = 0
+       do iel = 1, num_elements
+           do iage=1,nlevage
+               i = i+1
+               fates_hdim_elmap_levelage(i) = iel
+               fates_hdim_agemap_levelage(i) = iage
+           end do
        end do
 
        ! Fill the IO arrays that match pft and size class to their combined array
@@ -1639,7 +1781,8 @@ contains
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
       call FatesCheckParams(masterproc,hlm_parteh_mode)
-      
+      call SpitFireCheckParams(masterproc)
+
       return
    end subroutine FatesReportParameters
 
@@ -1649,14 +1792,34 @@ contains
    
      ! Initialize the Plant Allocation and Reactive Transport
      ! global functions and mapping tables
+     ! Also associate the elements defined in PARTEH with a list in FATES
+     ! "element_list" is useful because it allows the fates side of the code
+     ! to loop through elements, and call the correct PARTEH interfaces
+     ! automatically.
      
      select case(hlm_parteh_mode)
      case(prt_carbon_allom_hyp)
+
+        num_elements = 1
+        allocate(element_list(num_elements))
+        element_list(1) = carbon12_element
+        element_pos(:) = 0
+        element_pos(carbon12_element) = 1
 
         call InitPRTGlobalAllometricCarbon()
 
      case(prt_cnp_flex_allom_hyp)
         
+        num_elements = 3
+        allocate(element_list(num_elements))
+        element_list(1) = carbon12_element
+        element_list(2) = nitrogen_element
+        element_list(3) = phosphorus_element
+        element_pos(:)  = 0
+        element_pos(carbon12_element)   = 1
+        element_pos(nitrogen_element)   = 2
+        element_pos(phosphorus_element) = 3
+
         !call InitPRTGlobalAllometricCNP()
         write(fates_log(),*) 'You specified the allometric CNP mode'
         write(fates_log(),*) 'with relaxed target stoichiometry.'

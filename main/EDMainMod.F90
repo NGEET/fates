@@ -29,33 +29,43 @@ module EDMainMod
   use EDPatchDynamicsMod       , only : fuse_patches
   use EDPatchDynamicsMod       , only : spawn_patches
   use EDPatchDynamicsMod       , only : terminate_patches
-  use EDPhysiologyMod          , only : non_canopy_derivs
   use EDPhysiologyMod          , only : phenology
   use EDPhysiologyMod          , only : recruitment
   use EDPhysiologyMod          , only : trim_canopy
+  use EDPhysiologyMod          , only : SeedIn
   use EDPhysiologyMod          , only : ZeroAllocationRates
+  use EDPhysiologyMod          , only : ZeroLitterFluxes
+  use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
+  use EDPhysiologyMod          , only : PreDisturbanceIntegrateLitter
   use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use SFMainMod                , only : fire_model 
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
-  use EDtypesMod               , only : ncwd
+  use FatesLitterMod           , only : litter_type
+  use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
   use EDTypesMod               , only : AREA
+  use EDTypesMod               , only : site_massbal_type
+  use EDTypesMod               , only : num_elements
+  use EDTypesMod               , only : element_list
+  use EDTypesMod               , only : element_pos
   use EDTypesMod               , only : phen_dstat_moiston
   use EDTypesMod               , only : phen_dstat_timeon
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : primaryforest, secondaryforest
+  use FatesConstantsMod        , only : nearzero
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
   use FatesPlantHydraulicsMod  , only : initTreeHydStates
   use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
+  use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use FatesGlobals             , only : endrun => fates_endrun
-  use ChecksBalancesMod        , only : SiteCarbonStock
+  use ChecksBalancesMod        , only : SiteMassStock
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
 
   use PRTGenericMod,          only : carbon12_element
@@ -87,10 +97,12 @@ module EDMainMod
   ! !PRIVATE MEMBER FUNCTIONS:
   
   private :: ed_integrate_state_variables
-  private :: ed_total_balance_check
+  private :: TotalBalanceCheck
   private :: bypass_dynamics
   
   logical :: debug  = .false.
+
+  integer, parameter :: final_check_id = -1
   
   character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -113,13 +125,21 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
+    integer :: el              ! Loop counter for elements
+
     !-----------------------------------------------------------------------
 
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
-    currentSite%flux_in = 0.0_r8
-
+    
+    ! Consider moving this towards the end, because some of these 
+    ! are being integrated over the short time-step
+    
+    do el = 1,num_elements
+       call currentSite%mass_balance(el)%ZeroMassBalFlux()
+       call currentSite%flux_diags(el)%ZeroFluxDiags()
+    end do
 
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
@@ -135,8 +155,11 @@ contains
     ! Zero turnover rates and growth diagnostics
     call ZeroAllocationRates(currentSite)
 
-   
-    call ed_total_balance_check(currentSite, 0)
+    ! Zero fluxes in and out of litter pools
+    call ZeroLitterFluxes(currentSite)
+
+    ! Zero mass balance 
+    call TotalBalanceCheck(currentSite, 0)
 
     ! We do not allow phenology while in ST3 mode either, it is hypothetically
     ! possible to allow this, but we have not plugged in the litter fluxes
@@ -169,7 +192,7 @@ contains
     end if
 
     !******************************************************************************
-    ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organisation 
+    ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organization 
     !******************************************************************************
 
     if(hlm_use_ed_st3.eq.ifalse) then 
@@ -184,7 +207,7 @@ contains
     end if
     
        
-    call ed_total_balance_check(currentSite,1)
+    call TotalBalanceCheck(currentSite,1)
 
     if( hlm_use_ed_st3.eq.ifalse ) then 
        currentPatch => currentSite%oldest_patch
@@ -194,20 +217,20 @@ contains
           call sort_cohorts(currentPatch)            
 
           ! kills cohorts that are too few
-          call terminate_cohorts(currentSite, currentPatch, 1)
+          call terminate_cohorts(currentSite, currentPatch, 1, 10 )
 
           ! fuses similar cohorts
           call fuse_cohorts(currentSite,currentPatch, bc_in )
           
           ! kills cohorts for various other reasons
-          call terminate_cohorts(currentSite, currentPatch, 2)
+          call terminate_cohorts(currentSite, currentPatch, 2, 10 )
           
           
           currentPatch => currentPatch%younger
        enddo
     end if
        
-    call ed_total_balance_check(currentSite,2)
+    call TotalBalanceCheck(currentSite,2)
 
     !*********************************************************************************
     ! Patch dynamics sub-routines: fusion, new patch creation (spwaning), termination.
@@ -218,7 +241,7 @@ contains
        call spawn_patches(currentSite, bc_in)
     end if
    
-    call ed_total_balance_check(currentSite,3)
+    call TotalBalanceCheck(currentSite,3)
 
     ! fuse on the spawned patches.
     if ( hlm_use_ed_st3.eq.ifalse ) then
@@ -238,14 +261,14 @@ contains
        end if
     end if
 
-    call ed_total_balance_check(currentSite,4)
+    call TotalBalanceCheck(currentSite,4)
 
     ! kill patches that are too small
     if ( hlm_use_ed_st3.eq.ifalse ) then
        call terminate_patches(currentSite)   
     end if
    
-    call ed_total_balance_check(currentSite,5)
+    call TotalBalanceCheck(currentSite,5)
 
   end subroutine ed_ecosystem_dynamics
 
@@ -263,12 +286,13 @@ contains
 
     !
     ! !LOCAL VARIABLES:
+    type(site_massbal_type), pointer :: site_cmass
     type(ed_patch_type)  , pointer :: currentPatch
     type(ed_cohort_type) , pointer :: currentCohort
 
     integer  :: c                     ! Counter for litter size class 
     integer  :: ft                    ! Counter for PFT
-    real(r8) :: small_no              ! to circumvent numerical errors that cause negative values of things that can't be negative
+    integer  :: el                    ! Counter for element type (c,n,p,etc)
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
     real(r8) :: hite_old              ! height of plant before daily PRT [m]
@@ -278,16 +302,13 @@ contains
 
     !-----------------------------------------------------------------------
 
-    small_no = 0.0000000000_r8  ! Obviously, this is arbitrary.  RF - changed to zero
+    ! Set a pointer to this sites carbon12 mass balance
+    site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
 
-    currentSite%dseed_dt(:)       = 0._r8
-    currentSite%seed_rain_flux(:) = 0._r8  
-
-    
-    
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))
+
 
        currentPatch%age = currentPatch%age + hlm_freq_day
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
@@ -318,9 +339,6 @@ contains
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport
           ! -----------------------------------------------------------------------------
-
-          
-
           ! -----------------------------------------------------------------------------
           !  Identify the net carbon gain for this dynamics interval
           !    Set the available carbon pool, identify allocation portions, and 
@@ -337,31 +355,37 @@ contains
              if (currentCohort%canopy_layer .eq. 1) then
                 currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ft) &
                      * currentCohort%c_area / currentCohort%n
-                ! add these for balance checking purposes
+
                 currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year 
+
+                ! for mass balancing
+                currentCohort%gpp_acc  = currentCohort%npp_acc
+                currentCohort%resp_acc = 0._r8
+
              else
                 currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ft) &
                      * currentCohort%c_area / currentCohort%n
-                ! add these for balance checking purposes
+                
                 currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year
+             
+                ! for mass balancing
+                currentCohort%gpp_acc  = currentCohort%npp_acc
+                currentCohort%resp_acc = 0._r8
              endif
           else
              currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
              currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
              currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
           endif
-          
-          currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
           ! Conduct Maintenance Turnover (parteh)
-          call currentCohort%prt%CheckMassConservation(ft,3)
+          if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
           if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
              is_drought = .false.
           else
              is_drought = .true.
           end if
           call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
-          call currentCohort%prt%CheckMassConservation(ft,4)
 
           ! If the current diameter of a plant is somehow less than what is consistent
           ! with what is allometrically consistent with the stuctural biomass, then
@@ -372,8 +396,16 @@ contains
           hite_old = currentCohort%hite
           dbh_old  = currentCohort%dbh
 
-          ! Conduct Growth (parteh)
+
+          ! Growth and Allocation (PARTEH)
           call currentCohort%prt%DailyPRT()
+    
+          ! And simultaneously add the input fluxes to mass balance accounting
+          site_cmass%gpp_acc   = site_cmass%gpp_acc + &
+                currentCohort%gpp_acc * currentCohort%n
+          site_cmass%aresp_acc = site_cmass%aresp_acc + &
+                currentCohort%resp_acc * currentCohort%n
+
           call currentCohort%prt%CheckMassConservation(ft,5)
 
           ! Update the leaf biophysical rates based on proportion of leaf
@@ -381,11 +413,6 @@ contains
           ! and turnover, these proportions won't change again. This
           ! routine is also called following fusion
           call UpdateCohortBioPhysRates(currentCohort)
-
-          ! Transfer all reproductive tissues into seed production
-          call PRTReproRelease(currentCohort%prt,repro_organ,carbon12_element, &
-                               1.0_r8, currentCohort%seed_prod)
-          currentCohort%seed_prod =  currentCohort%seed_prod / hlm_freq_day
 
           ! This cohort has grown, it is no longer "new"
           currentCohort%isnew = .false.
@@ -410,81 +437,64 @@ contains
              call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)
              call updateSizeDepTreeHydStates(currentSite,currentCohort)
           end if
-  
+          
           currentCohort => currentCohort%taller
+      end do
 
-       enddo
-      
-       call non_canopy_derivs( currentSite, currentPatch, bc_in)
+       currentPatch => currentPatch%older
+   end do
+    
+    
+    ! When plants die, the water goes with them.  This effects
+    ! the water balance. 
 
-       !update state variables simultaneously according to derivatives for this time period. 
+    if( hlm_use_planthydro == itrue ) then
+       currentPatch => currentSite%youngest_patch
+       do while(associated(currentPatch))
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort))
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort,&
+                  -1.0_r8 * currentCohort%dndt * hlm_freq_day)
+             currentCohort => currentCohort%taller
+          end do
+          currentPatch => currentPatch%older
+      end do
+    end if
+    
 
-       ! first update the litter variables that are tracked at the patch level
-       do c = 1,ncwd
-          currentPatch%cwd_ag(c) =  currentPatch%cwd_ag(c) + currentPatch%dcwd_ag_dt(c)* hlm_freq_day
-          currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* hlm_freq_day
-       enddo
+    ! With growth and mortality rates now calculated we can determine the seed rain
+    ! fluxes. However, because this is potentially a cross-patch mixing model
+    ! we will calculate this as a group
 
-       do ft = 1,numpft
-          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + &
-               currentPatch%dleaf_litter_dt(ft)* hlm_freq_day
-          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + &
-               currentPatch%droot_litter_dt(ft)* hlm_freq_day
-       enddo
+    call SeedIn(currentSite,bc_in)
+    
+    ! Calculate all other litter fluxes
+    ! -----------------------------------------------------------------------------------
 
-       do c = 1,ncwd
-          if(currentPatch%cwd_ag(c)<small_no)then
-            write(fates_log(),*) 'negative CWD_AG', currentPatch%cwd_ag(c),CurrentSite%lat,currentSite%lon
-            currentPatch%cwd_ag(c) = small_no
-          endif
-          if(currentPatch%cwd_bg(c)<small_no)then
-            write(fates_log(),*) 'negative CWD_BG', currentPatch%cwd_bg(c),CurrentSite%lat,CurrentSite%lon
-            currentPatch%cwd_bg(c) = small_no
-          endif
-       enddo
-
-       do ft = 1,numpft
-          if(currentPatch%leaf_litter(ft)<small_no)then
-            write(fates_log(),*) 'negative leaf litter numerical error', &
-                  currentPatch%leaf_litter(ft),CurrentSite%lat,CurrentSite%lon,&
-            currentPatch%dleaf_litter_dt(ft),currentPatch%leaf_litter_in(ft), &
-            currentPatch%leaf_litter_out(ft),currentpatch%age
-            currentPatch%leaf_litter(ft) = small_no
-          endif
-          if(currentPatch%root_litter(ft)<small_no)then
-               write(fates_log(),*) 'negative root litter numerical error', currentPatch%root_litter(ft), &
-               currentPatch%droot_litter_dt(ft)* hlm_freq_day, &
-               CurrentSite%lat,CurrentSite%lon
-            currentPatch%root_litter(ft) = small_no
-          endif
-       enddo
-
+    currentPatch => currentSite%youngest_patch
+    do while(associated(currentPatch))
      
-       ! update cohort number. This needs to happen after the CWD_input and seed_input calculations as they 
+       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
+       
+
+       call PreDisturbanceIntegrateLitter(currentPatch )
+     
+
+       ! Update cohort number. 
+       ! This needs to happen after the CWD_input and seed_input calculations as they 
        ! assume the pre-mortality currentCohort%n. 
+
+
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
-         currentCohort%n = max(small_no,currentCohort%n + currentCohort%dndt * hlm_freq_day )  
+         currentCohort%n = max(0._r8,currentCohort%n + currentCohort%dndt * hlm_freq_day )  
          currentCohort => currentCohort%taller
        enddo
 
        currentPatch => currentPatch%older
+   enddo
 
-    enddo
-
-    ! at the site level, update the seed bank mass
-    do ft = 1,numpft
-       currentSite%seed_bank(ft) = currentSite%seed_bank(ft) + currentSite%dseed_dt(ft)*hlm_freq_day
-    enddo
-
-    ! Check for negative values. Write out warning to show carbon balance. 
-    do ft = 1,numpft
-       if(currentSite%seed_bank(ft)<small_no)then
-          write(fates_log(),*) 'negative seedbank', currentSite%seed_bank(ft)
-          currentSite%seed_bank(ft) = small_no
-       endif
-    enddo
-
+   return
   end subroutine ed_integrate_state_variables
 
   !-------------------------------------------------------------------------------!
@@ -506,44 +516,29 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch   
-    integer :: cohort_number ! To print out the number of cohorts.  
-    integer :: g             ! Counter for sites
     !-----------------------------------------------------------------------
 
     call canopy_spread(currentSite)
 
-    call ed_total_balance_check(currentSite,6)
+    call TotalBalanceCheck(currentSite,6)
 
     call canopy_structure(currentSite, bc_in)
 
-    call ed_total_balance_check(currentSite,7)
+    call TotalBalanceCheck(currentSite,final_check_id)
 
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
+        
+        ! Is termination really needed here? 
+        ! Canopy_structure just called it several times! (rgk)
+        call terminate_cohorts(currentSite, currentPatch, 1, 11) 
+        call terminate_cohorts(currentSite, currentPatch, 2, 11)
 
-       ! Is termination really needed here? canopy_structure just called it several times! (rgk)
-       call terminate_cohorts(currentSite, currentPatch, 1) 
-       call terminate_cohorts(currentSite, currentPatch, 2) 
+        ! This cohort count is used in the photosynthesis loop
+        call count_cohorts(currentPatch)
 
-       ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
-       cohort_number = count_cohorts(currentPatch)  
-       if ( debug ) then
-          write(fates_log(),*) 'tempCount ',cohort_number
-       endif
 
-       ! Note (RF)
-       ! This breaks the balance check, but if we leave it out, then 
-       ! the first new patch that isn't fused has no cohorts at the end of the spawn process
-       ! and so there are radiation errors instead. 
-       ! Fixing this would likely require a re-work of how seed germination works which would be tricky. 
-       if(currentPatch%countcohorts < 1)then
-          !write(fates_log(),*) 'ED: calling recruitment for no cohorts',currentSite%clmgcell,currentPatch%patchno
-          !call recruitment(1, currentSite, currentPatch)
-          ! write(fates_log(),*) 'patch empty',currentPatch%area,currentPatch%age
-       endif
-
-       currentPatch => currentPatch%younger    
-
+        currentPatch => currentPatch%younger    
     enddo
 
     ! FIX(RF,032414). This needs to be monthly, not annual
@@ -557,34 +552,39 @@ contains
   end subroutine ed_update_site
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_total_balance_check (currentSite, call_index )
+  
+  subroutine TotalBalanceCheck (currentSite, call_index )
+
     !
     ! !DESCRIPTION:
-    ! This routine looks at the carbon in and out of the ED model and compares it to 
-    ! the change in total carbon stocks. 
+    ! This routine looks at the mass flux in and out of the FATES and compares it to 
+    ! the change in total stocks (states).
     ! Fluxes in are NPP. Fluxes out are decay of CWD and litter into SOM pools.  
-    ! ed_allsites_inst%flux_out and ed_allsites_inst%flux_in are set where they occur 
-    ! in the code. 
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout) :: currentSite
     integer            , intent(in)    :: call_index
     !
     ! !LOCAL VARIABLES:
-    real(r8) :: biomass_stock   ! total biomass   in KgC/site
-    real(r8) :: litter_stock    ! total litter    in KgC/site
-    real(r8) :: seed_stock      ! total seed mass in KgC/site
-    real(r8) :: total_stock     ! total ED carbon in KgC/site
+    type(site_massbal_type),pointer :: site_mass
+    real(r8) :: biomass_stock   ! total biomass   in Kg/site
+    real(r8) :: litter_stock    ! total litter    in Kg/site
+    real(r8) :: seed_stock      ! total seed mass in Kg/site
+    real(r8) :: total_stock     ! total ED carbon in Kg/site
     real(r8) :: change_in_stock ! Change since last time we set ed_allsites_inst%old_stock in this routine.  KgC/site
     real(r8) :: error           ! How much carbon did we gain or lose (should be zero!) 
     real(r8) :: error_frac      ! Error as a fraction of total biomass
     real(r8) :: net_flux        ! Difference between recorded fluxes in and out. KgC/site
-    real(r8) :: leaf_c
-    real(r8) :: fnrt_c
-    real(r8) :: sapw_c
-    real(r8) :: store_c
-    real(r8) :: struct_c
-    real(r8) :: repro_c
+    real(r8) :: flux_in         ! mass flux into fates control volume
+    real(r8) :: flux_out        ! mass flux out of fates control volume
+    real(r8) :: leaf_m          ! Mass in leaf tissues kg
+    real(r8) :: fnrt_m          ! "" fine root
+    real(r8) :: sapw_m          ! "" sapwood
+    real(r8) :: store_m         ! "" storage
+    real(r8) :: struct_m        ! "" structure
+    real(r8) :: repro_m         ! "" reproduction
+
+    integer  :: el              ! loop counter for element types
 
     ! nb. There is no time associated with these variables 
     ! because this routine can be called between any two 
@@ -594,101 +594,128 @@ contains
 
     type(ed_patch_type)  , pointer :: currentPatch
     type(ed_cohort_type) , pointer :: currentCohort
+    type(litter_type), pointer     :: litt
+    logical, parameter :: print_cohorts = .false.   ! Set to true if you want
+                                                    ! to print cohort data
+                                                    ! upon fail (lots of text)
     !-----------------------------------------------------------------------
 
     change_in_stock = 0.0_r8
 
-
-    call SiteCarbonStock(currentSite,total_stock,biomass_stock,litter_stock,seed_stock)
-
-
-    change_in_stock = total_stock - currentSite%old_stock  
-
-    net_flux        = currentSite%flux_in - currentSite%flux_out
-    error           = abs(net_flux - change_in_stock)   
-
-    if(change_in_stock>0.0)then
-       error_frac      = error/abs(total_stock)
-    else
-       error_frac      = 0.0_r8
-    end if
-
-    ! -----------------------------------------------------------------------------------
-    ! Terms:
-    ! %flux_in:  accumulates npp over all cohorts,  
-    !               currentSite%flux_in = currentSite%flux_in + &
-    !               currentCohort%npp_acc * currentCohort%n
-    ! %flux_out: coarse woody debris going into fragmentation pools:
-    !               currentSite%flux_out + sum(currentPatch%leaf_litter_out) * &
-    !               currentPatch%area *hlm_freq_day!kgC/site/day
-    !            burn fractions:  
-    !               currentSite%flux_out = currentSite%flux_out + &
-    !               burned_litter * new_patch%area !kG/site/day
-    ! -----------------------------------------------------------------------------------
     
-    if ( error_frac > 10e-6_r8 ) then
-       write(fates_log(),*) 'carbon balance error detected'
-       write(fates_log(),*) 'error fraction relative to biomass stock:',error_frac
-       write(fates_log(),*) 'call index: ',call_index
-       write(fates_log(),*) 'flux in (npp):  ',currentSite%flux_in
-       write(fates_log(),*) 'flux out (fragmentation/harvest): ',currentSite%flux_out
-       write(fates_log(),*) 'net: ',net_flux
-       write(fates_log(),*) 'dstock: ',change_in_stock
-       write(fates_log(),*) 'error=net_flux-dstock:', error
-       write(fates_log(),*) 'biomass', biomass_stock
-       write(fates_log(),*) 'litter',litter_stock
-       write(fates_log(),*) 'seeds',seed_stock
-       write(fates_log(),*) 'previous total',currentSite%old_stock  
+    ! Loop through the number of elements in the system
 
-       write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
+    do el = 1, num_elements
        
-       ! If this is the first day of simulation, carbon balance reports but does not end the run
-       if( int(hlm_current_year*10000 + hlm_current_month*100 + hlm_current_day).ne.hlm_reference_date ) then
+       call SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
 
-          change_in_stock = 0.0_r8
-          biomass_stock   = 0.0_r8
-          litter_stock    = 0.0_r8
-          
-          seed_stock   =  sum(currentSite%seed_bank)*AREA
-          currentPatch => currentSite%oldest_patch
-          do while(associated(currentPatch))
-             write(fates_log(),*) '---------------------------------------'
-             write(fates_log(),*) currentPatch%area , sum(currentPatch%cwd_ag), sum(currentPatch%cwd_bg)
-             write(fates_log(),*) sum(currentPatch%leaf_litter),sum(currentPatch%root_litter)
-             write(fates_log(),*)'---'
-             currentCohort => currentPatch%tallest
-             do while(associated(currentCohort))
-                write(fates_log(),*) 'pft: ',currentCohort%pft
-                write(fates_log(),*) 'dbh: ',currentCohort%dbh
-                leaf_c   = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
-                struct_c = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
-                store_c  = currentCohort%prt%GetState(store_organ,all_carbon_elements)
-                fnrt_c   = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
-                repro_c  = currentCohort%prt%GetState(repro_organ,all_carbon_elements)
-                sapw_c   = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+       site_mass => currentSite%mass_balance(el)
+       
+       change_in_stock = total_stock - site_mass%old_stock
 
-                write(fates_log(),*) 'lc: ',leaf_c,' dc: ',struct_c,' stc: ',store_c
-                write(fates_log(),*) 'fc: ',fnrt_c,' rc: ',repro_c,' sac: ',sapw_c
-                write(fates_log(),*) 'N plant: ',currentCohort%n
-                currentCohort => currentCohort%shorter
-             enddo !end cohort loop                                                                                                   
-             currentPatch => currentPatch%younger
-          enddo !end patch loop                                                                                                      
-          write(fates_log(),*) 'aborting on date:',hlm_current_year,hlm_current_month,hlm_current_day
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+       flux_in  = site_mass%seed_in + & 
+                  site_mass%net_root_uptake + &
+                  site_mass%gpp_acc + &
+                  site_mass%flux_generic_in + &
+                  site_mass%patch_resize_err
+
+       flux_out = site_mass%wood_product + &
+                  site_mass%burn_flux_to_atm + & 
+                  site_mass%seed_out + & 
+                  site_mass%flux_generic_out + &
+                  site_mass%frag_out + & 
+                  site_mass%aresp_acc 
+
+       net_flux        = flux_in - flux_out
+       error           = abs(net_flux - change_in_stock)   
+
+       if(change_in_stock>0.0)then
+          error_frac      = error/abs(total_stock)
+       else
+          error_frac      = 0.0_r8
        end if
 
-    endif
+       if ( error_frac > 10e-6_r8 ) then
+          write(fates_log(),*) 'mass balance error detected'
+          write(fates_log(),*) 'element type (see PRTGenericMod.F90): ',element_list(el)
+          write(fates_log(),*) 'error fraction relative to biomass stock: ',error_frac
+          write(fates_log(),*) 'call index: ',call_index
+          write(fates_log(),*) 'Element index (PARTEH global):',element_list(el)
+          write(fates_log(),*) 'net: ',net_flux
+          write(fates_log(),*) 'dstock: ',change_in_stock
+          write(fates_log(),*) 'seed_in: ',site_mass%seed_in
+          write(fates_log(),*) 'net_root_uptake: ',site_mass%net_root_uptake
+          write(fates_log(),*) 'gpp_acc: ',site_mass%gpp_acc
+          write(fates_log(),*) 'flux_generic_in: ',site_mass%flux_generic_in
+          write(fates_log(),*) 'wood_product: ',site_mass%wood_product
+          write(fates_log(),*) 'error from patch resizing: ',site_mass%patch_resize_err
+          write(fates_log(),*) 'burn_flux_to_atm: ',site_mass%burn_flux_to_atm
+          write(fates_log(),*) 'seed_out: ',site_mass%seed_out
+          write(fates_log(),*) 'flux_generic_out: ',site_mass%flux_generic_out
+          write(fates_log(),*) 'frag_out: ',site_mass%frag_out 
+          write(fates_log(),*) 'aresp_acc: ',site_mass%aresp_acc
+          write(fates_log(),*) 'error=net_flux-dstock:', error
+          write(fates_log(),*) 'biomass', biomass_stock
+          write(fates_log(),*) 'litter',litter_stock
+          write(fates_log(),*) 'seeds',seed_stock
+          write(fates_log(),*) 'previous total',site_mass%old_stock  
+          write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
+          
+          ! If this is the first day of simulation, carbon balance reports but does not end the run
+!          if(( hlm_current_year*10000 + hlm_current_month*100 + hlm_current_day).ne.hlm_reference_date) then
+          
+             currentPatch => currentSite%oldest_patch
+             do while(associated(currentPatch))
+                litt => currentPatch%litter(el)
+                write(fates_log(),*) '---------------------------------------'
+                write(fates_log(),*) 'patch area: ',currentPatch%area
+                write(fates_log(),*) 'AG CWD: ', sum(litt%ag_cwd)
+                write(fates_log(),*) 'BG CWD (by layer): ', sum(litt%bg_cwd,dim=1)
+                write(fates_log(),*) 'leaf litter:',sum(litt%leaf_fines)
+                write(fates_log(),*) 'root litter (by layer): ',sum(litt%root_fines,dim=1)
+                write(fates_log(),*) 'dist mode: ',currentPatch%disturbance_mode
+                write(fates_log(),*) 'anthro_disturbance_label: ',currentPatch%anthro_disturbance_label
+                if(print_cohorts)then
+                    write(fates_log(),*) '---- Biomass by cohort and organ -----'
+                    currentCohort => currentPatch%tallest
+                    do while(associated(currentCohort))
+                        write(fates_log(),*) 'pft: ',currentCohort%pft
+                        write(fates_log(),*) 'dbh: ',currentCohort%dbh
+                        leaf_m   = currentCohort%prt%GetState(leaf_organ,element_list(el))
+                        struct_m = currentCohort%prt%GetState(struct_organ,element_list(el))
+                        store_m  = currentCohort%prt%GetState(store_organ,element_list(el))
+                        fnrt_m   = currentCohort%prt%GetState(fnrt_organ,element_list(el))
+                        repro_m  = currentCohort%prt%GetState(repro_organ,element_list(el))
+                        sapw_m   = currentCohort%prt%GetState(sapw_organ,element_list(el))
+                        write(fates_log(),*) 'leaf: ',leaf_m,' structure: ',struct_m,' store: ',store_m
+                        write(fates_log(),*) 'fineroot: ',fnrt_m,' repro: ',repro_m,' sapwood: ',sapw_m
+                        write(fates_log(),*) 'num plant: ',currentCohort%n
+                        currentCohort => currentCohort%shorter
+                    enddo !end cohort loop
+                end if
+                currentPatch => currentPatch%younger
+             enddo !end patch loop
+             write(fates_log(),*) 'aborting on date:',hlm_current_year,hlm_current_month,hlm_current_day
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+         !end if
+          
+      endif
 
-    currentSite%flux_in   = 0.0_r8
-    currentSite%flux_out  = 0.0_r8  
-    currentSite%old_stock = total_stock
+      ! This is the last check of the sequence, where we update our total
+      ! error check and the final fates stock
+      if(call_index == final_check_id) then
+          site_mass%old_stock = total_stock
+          site_mass%err_fates = net_flux - change_in_stock
+          call site_mass%ZeroMassBalFlux()
+      end if
 
- end subroutine ed_total_balance_check
+   end do
+    
+  end subroutine TotalBalanceCheck
  
- ! =====================================================================================
+  ! =====================================================================================
  
- subroutine bypass_dynamics(currentSite)
+  subroutine bypass_dynamics(currentSite)
 
     ! ----------------------------------------------------------------------------------
     ! If dynamics are bypassed, various fluxes, rates and flags need to be set
