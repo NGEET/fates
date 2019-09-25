@@ -890,8 +890,7 @@ contains
     !returns the updated currentCohort%fraction_crown_burned for each tree cohort within each patch.
     !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
     
-    !SF_val_crown_ignition_energy (kJ/kg) for crown foliage with 100% moisture (dry mass)
-    use SFParamsMod, only  : SF_val_crown_ignition_energy  !kJ/kg 
+
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -929,7 +928,8 @@ contains
                 if (EDPftvarcon_inst%crown_fire(currentCohort%pft) == 1) then
                    
                    ! Crown fuel ignition potential, EQ 8 Bessie and Johnson 1995
-                   passive_crown_FI = (0.01_r8 * height_cbb * SF_val_crown_ignition_energy)**1.5_r8
+                   ! Note: future crown_ignition_energy to be calculated based on foliar moisture content from FATES-Hydro
+                   passive_crown_FI = (0.01_r8 * height_cbb *EDPftvarcon_inst%crown_ignite_energy(currentCohort%pft)**1.5_r8
 
                    if (passive_crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       

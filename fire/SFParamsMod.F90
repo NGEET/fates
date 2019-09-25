@@ -23,7 +23,6 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_fdi_alpha
    real(r8),protected, public :: SF_val_miner_total
    real(r8),protected, public :: SF_val_fuel_energy
-   real(r8),protected, public :: SF_val_crown_ignition_energy
    real(r8),protected, public :: SF_val_part_dens
    real(r8),protected, public :: SF_val_miner_damp
    real(r8),protected, public :: SF_val_max_durat
@@ -45,7 +44,6 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_fdi_alpha = "fates_fire_fdi_alpha"
    character(len=param_string_length),parameter :: SF_name_miner_total = "fates_fire_miner_total"
    character(len=param_string_length),parameter :: SF_name_fuel_energy = "fates_fire_fuel_energy"
-   character(len=param_string_length),parameter :: SF_name_crown_ignition_energy = "fates_fire_crown_ignition_energy" 
    character(len=param_string_length),parameter :: SF_name_part_dens = "fates_fire_part_dens"
    character(len=param_string_length),parameter :: SF_name_miner_damp = "fates_fire_miner_damp"
    character(len=param_string_length),parameter :: SF_name_max_durat = "fates_fire_max_durat"
@@ -139,7 +137,6 @@ contains
     SF_val_fdi_alpha = nan
     SF_val_miner_total = nan
     SF_val_fuel_energy = nan
-    SF_val_crown_ignition_energy = nan
     SF_val_part_dens = nan
     SF_val_miner_damp = nan
     SF_val_max_durat = nan
@@ -218,9 +215,6 @@ contains
     call fates_params%RegisterParameter(name=SF_name_fuel_energy, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=SF_name_crown_ignition_energy, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=SF_name_part_dens, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -261,9 +255,6 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_fuel_energy, &
          data=SF_val_fuel_energy)
-
-    call fates_params%RetreiveParameter(name=SF_name_crown_ignition_energy, &
-         data=SF_val_crown_ignition_energy)
 
     call fates_params%RetreiveParameter(name=SF_name_part_dens, &
          data=SF_val_part_dens)
