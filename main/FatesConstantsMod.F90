@@ -70,6 +70,9 @@ module FatesConstantsMod
   ! Conversion factor: grams per kilograms
   real(fates_r8), parameter, public :: g_per_kg = 1000.0_fates_r8
   
+  ! Conversion factor: kilograms per gram
+  real(fates_r8), parameter, public :: kg_per_g = 0.001_fates_r8
+
   ! Conversion factor: miligrams per grams
   real(fates_r8), parameter, public :: mg_per_g = 1000.0_fates_r8
 
@@ -99,6 +102,14 @@ module FatesConstantsMod
 
   ! Conversion factor: cm2 per m2
   real(fates_r8), parameter, public :: cm2_per_m2 = 10000.0_fates_r8
+
+  ! Conversion factor: m3 per mm3
+  real(fates_r8), parameter, public :: m3_per_mm3 = 1.0E-9_fates_r8
+
+  ! Conversion factor: cubic meters per cubic cm
+  real(fates_r8), parameter, public :: m3_per_cm3 = 1.0E-6_fates_r8
+
+  real(fates_r8), parameter, public :: cm3_per_m3 = 1.0E6_fates_r8
 
   ! Conversion factor :: ha per m2
   real(fates_r8), parameter, public :: ha_per_m2 = 1.0e-4_fates_r8

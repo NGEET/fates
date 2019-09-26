@@ -60,7 +60,7 @@ module FatesHydraulicsMemMod
    integer, parameter, public                          :: nlevcan_hyd = 2                       
                        
    ! Mean fine root radius expected in the bulk soil                
-   real(r8), parameter, public                         :: fine_root_radius_const = 0.001_r8
+   real(r8), parameter, public                         :: fine_root_radius_const = 0.0001_r8
    
    ! Constant parameters (for time being, C2B is constant, 
    ! slated for addition to parameter file (RGK 08-2017))
@@ -194,6 +194,11 @@ module FatesHydraulicsMemMod
      real(r8),allocatable :: kmax_aroot_upper(:)       ! Max conductance in the absorbing root
                                                        ! compartment through xylem tissues going
                                                        ! into the transporting root
+     real(r8),allocatable :: kmax_aroot_lower(:)       ! Since this pools may actually be a
+                                                       ! hybrid that contains transporting
+                                                       ! root volume, then we need to factor
+                                                       ! in xylem resistance from the absorbing
+                                                       ! root edge to the node center
 
                                                        ! Max conductance in the absorbing
                                                        ! root compartment, radially through the
@@ -309,6 +314,7 @@ module FatesHydraulicsMemMod
 
        allocate(this%kmax_troot_lower(1:nlevsoil_hydr))
        allocate(this%kmax_aroot_upper(1:nlevsoil_hydr))
+       allocate(this%kmax_aroot_lower(1:nlevsoil_hydr))
        allocate(this%kmax_aroot_radial_in(1:nlevsoil_hydr))
        allocate(this%kmax_aroot_radial_out(1:nlevsoil_hydr))
        allocate(this%v_aroot_layer_init(1:nlevsoil_hydr))
@@ -330,6 +336,7 @@ module FatesHydraulicsMemMod
        
        deallocate(this%kmax_troot_lower)
        deallocate(this%kmax_aroot_upper)
+       deallocate(this%kmax_aroot_lower)
        deallocate(this%kmax_aroot_radial_in)
        deallocate(this%kmax_aroot_radial_out)
        deallocate(this%v_aroot_layer_init)

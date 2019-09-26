@@ -157,7 +157,7 @@ variables:
 		fates_hydr_fcap_node:units = "unitless" ;
 		fates_hydr_fcap_node:long_name = "fraction of (1-resid_node) that is capillary in source" ;
 	double fates_hydr_kmax_node(fates_hydr_organs, fates_pft) ;
-		fates_hydr_kmax_node:units = "kgMPa/m/s" ;
+		fates_hydr_kmax_node:units = "kg/MPa/m/s" ;
 		fates_hydr_kmax_node:long_name = "maximum xylem conductivity per unit conducting xylem area" ;
 	double fates_hydr_p50_gs(fates_pft) ;
 		fates_hydr_p50_gs:units = "MPa" ;
