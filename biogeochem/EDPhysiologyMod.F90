@@ -661,10 +661,32 @@ contains
     endif
     !
     ! accumulate the GDD using daily mean temperatures
-    if (bc_in%t_veg24_si .gt. tfrz) then
+    ! Don't accumulate GDD during the growing season (that wouldn't make sense)
+    if (bc_in%t_veg24_si .gt. tfrz .and. currentSite%cstatus == phen_cstat_iscold) then
        currentSite%grow_deg_days = currentSite%grow_deg_days + bc_in%t_veg24_si - tfrz
     endif
     
+    !this logic is to prevent GDD accumulating after the leaves have fallen and before the 
+    ! beginnning of the accumulation period, to prevend erroneous autumn leaf flushing. 
+    if(model_day_int>365)then !only do this after the first year to prevent odd behaviour
+
+    if(currentSite%lat .gt. 0.0_r8)then !Northern Hemisphere                                           
+      ! In the north, don't accumulate when we are past the leaf fall date.
+      ! Accumulation starts on day 1 of year in NH.  
+      ! The 180 is to prevent going into an 'always off' state after initialization
+      if( model_day_int .gt. currentSite%cleafoffdate.and.hlm_day_of_year.gt.180)then !
+       currentSite%grow_deg_days = 0._r8
+      endif
+     else !Southern Hemisphere 
+      ! In the South, don't accumulate after the leaf off date, and before the start of
+      ! the accumulation phase (day 181).  
+      if(model_day_int .gt. currentSite%cleafoffdate.and.hlm_day_of_year.lt.gddstart) then! 
+        currentSite%grow_deg_days = 0._r8
+      endif
+    endif
+    endif !year1 
+
+
     ! Calculate the number of days since the leaves last came on 
     ! and off. If this is the beginning of the simulation, that day might
     ! not had occured yet, so set it to last year to get things rolling
@@ -698,6 +720,7 @@ contains
        currentSite%cstatus = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
        currentSite%cleafondate = model_day_int  
         dayssincecleafon = 0 !rezero this so that the leaves don't immediately fall off again! 
+        currentSite%grow_deg_days = 0._r8 ! zero GDD for the rest of the year until counting season begins. 
        if ( debug ) write(fates_log(),*) 'leaves on'
     endif !GDD
 
