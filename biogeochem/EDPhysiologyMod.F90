@@ -697,6 +697,7 @@ contains
          (currentSite%nchilldays >= 1)) then
        currentSite%cstatus = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
        currentSite%cleafondate = model_day_int  
+        dayssincecleafon = 0 !rezero this so that the leaves don't immediately fall off again! 
        if ( debug ) write(fates_log(),*) 'leaves on'
     endif !GDD
 
