@@ -26,6 +26,9 @@ from ctypes import *
 from operator import add
 
 
+
+
+
 CDLParse = imp.load_source('CDLParse','../shared/py_src/CDLParse.py')
 F90ParamParse = imp.load_source('F90ParamParse','../shared/py_src/F90ParamParse.py')
 PyF90Utils = imp.load_source('PyF90Utils','../shared/py_src/PyF90Utils.py')
@@ -344,7 +347,7 @@ def main(argv):
     ax1.grid(True)
     ax1.set_ylabel('Psi')
     ax1.set_xlim((0,1))
-    ax1.set_ylim((-20,0))
+    ax1.set_ylim((-20,10))
     ax1.set_xlabel('Theta')
     ax1.set_title('PFT: {}'.format(pft1))
     ax1.legend(loc='lower right')
@@ -431,16 +434,6 @@ def main(argv):
 
     for i,psi in enumerate(leaf_psi):
         leaf_flc[i]      = flc_from_psi(ci(pft1), ci(pm_leaf), c8(leaf_theta[i]), c8(psi))
-        leaf_thsat = pftparms['hydr_thetas_node'].data[pm_leaf-1,pft1-1]
-
-        cap_func = (1.0-(leaf_thsat-leaf_theta[i])/leaf_thsat)**2.0
-
-        leaf_flcc[i] = leaf_flc[i]*cap_func
-
-        # This function must tend towards positive
-        cap_func = del_theta / ( leaf_thsat-leaf_theta)
-
-
 
     for i,psi in enumerate(stem_psi):
         stem_flc[i]     = flc_from_psi(ci(pft1), ci(pm_stem), c8(stem_theta[i]), c8(psi))

@@ -55,7 +55,17 @@ module FatesHydroUnitFunctionsMod
                                                 ! this is used to calculate a 
                                                 ! lower theta bound
                                                 ! [MPa/ m3/m3]
+
+  ! Parameter to enable some positive pressure in soils, just to avoid super-saturation
+  ! which will cause problems for a host model. These parameters are roughly
+  ! tuned to get 0.5 MPa positive pressure at exactly saturation, starting
+  ! a parabolic curve from the offset.
   
+  real(r8), parameter :: ss_wcoff = 0.05  ! WC offset from saturation, from which
+                                            ! we start to adding some positive pressure
+                                            ! to avoid super-saturation
+  real(r8), parameter :: ss_a = 15.0_r8   ! slope parameter for positive pressure function        
+  real(r8), parameter :: ss_b = 2.0_r8    ! slope parameter for positive pressure function
 
   ! P-V curve: total RWC @ which elastic drainage begins     [-]
   real(r8), allocatable :: rwcft(:)   !  = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
@@ -207,16 +217,18 @@ contains
              err = abs(r(k) - (a(k)*u(k-1)+b(k)*u(k)))
           end if
 
-          rel_err = abs(err/u(k))
-
-          if((rel_err > allowable_rel_err)) then !.and. (err > allowable_err) )then
-             write(fates_log(),*) 'Tri-diagonal solve produced solution with'
-             write(fates_log(),*) 'non-negligable error.'
-             write(fates_log(),*) 'Compartment: ',k
-             write(fates_log(),*) 'Error in forward solution: ',err
-             write(fates_log(),*) 'Estimated delta theta: ',u(k)
-             write(fates_log(),*) 'Rel Error: ',rel_err
-             call endrun(msg=errMsg(sourcefile, __LINE__))
+          if(abs(u(k))>nearzero)then
+              rel_err = abs(err/u(k))
+              
+              if((rel_err > allowable_rel_err)) then !.and. (err > allowable_err) )then
+                  write(fates_log(),*) 'Tri-diagonal solve produced solution with'
+                  write(fates_log(),*) 'non-negligable error.'
+                  write(fates_log(),*) 'Compartment: ',k
+                  write(fates_log(),*) 'Error in forward solution: ',err
+                  write(fates_log(),*) 'Estimated delta theta: ',u(k)
+                  write(fates_log(),*) 'Rel Error: ',rel_err
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
           end if
 
        end do
@@ -295,12 +307,15 @@ contains
 
       if(pm <= 4) then
          if(allow_unconstrained_theta) then
-            if(th_in<pft_p%hydr_resid_node(ft,pm)) then
-               psi_resid = psi_from_th(ft,pm,pft_p%hydr_resid_node(ft,pm))
-               flc_node  = 1._r8/(1._r8 + (psi_resid/p50(ft,pm))**avuln(ft,pm))
-            else
-               flc_node = 1._r8/(1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))
-            end if
+             if(th_in>pft_p%hydr_thetas_node(ft,pm)) then
+                 psi_resid = psi_from_th(ft,pm,pft_p%hydr_thetas_node(ft,pm))
+                 flc_node = 1._r8/(1._r8 + (psi_resid/p50(ft,pm))**avuln(ft,pm)) ! should be 1
+             elseif(th_in<pft_p%hydr_resid_node(ft,pm)) then
+                 psi_resid = psi_from_th(ft,pm,pft_p%hydr_resid_node(ft,pm))
+                 flc_node  = 1._r8/(1._r8 + (psi_resid/p50(ft,pm))**avuln(ft,pm))
+             else
+                 flc_node = 1._r8/(1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))
+             end if
          else
             flc_node = 1._r8/(1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))
          end if
@@ -353,13 +368,15 @@ contains
 
       if(pm <= 4) then
          if(allow_unconstrained_theta) then
-            if(th_in<pft_p%hydr_resid_node(ft,pm)) then
-               dflcdpsi_node = 0._r8
-            else
-               dflcdpsi_node = -1._r8 * (1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))**(-2._r8) * &
-                    avuln(ft,pm)/p50(ft,pm)*(psi_in/p50(ft,pm))**(avuln(ft,pm)-1._r8)
-            end if
+         if(th_in>pft_p%hydr_thetas_node(ft,pm)) then
+             dflcdpsi_node = 0._r8
+         elseif(th_in<pft_p%hydr_resid_node(ft,pm)) then
+             dflcdpsi_node = 0._r8
          else
+             dflcdpsi_node = -1._r8 * (1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))**(-2._r8) * &
+                   avuln(ft,pm)/p50(ft,pm)*(psi_in/p50(ft,pm))**(avuln(ft,pm)-1._r8)
+         end if
+       else
             dflcdpsi_node = -1._r8 * (1._r8 + (psi_in/p50(ft,pm))**avuln(ft,pm))**(-2._r8) * &
                  avuln(ft,pm)/p50(ft,pm)*(psi_in/p50(ft,pm))**(avuln(ft,pm)-1._r8)
          end if
@@ -571,13 +588,17 @@ contains
     real(r8) :: dthdpsi_cap    ! derivative at th_cap (for extrapolation)
     real(r8) :: suc_sat_mpa    ! Suction at saturation in [MPa]
 
+ 
+
+
     if(pm <= 4) then       ! plant
        
        if(allow_unconstrained_theta) then
-          if(th_in>pft_p%hydr_thetas_node(ft,pm)) then
-             ! Hard cap water content at saturation
-             call tq2(ft, pm, pft_p%hydr_thetas_node(ft,pm)*cap_corr(pm), psi_node)
-          elseif(th_in<(pft_p%hydr_resid_node(ft,pm)+nearzero)) then
+!          if(th_in>pft_p%hydr_thetas_node(ft,pm)) then
+!             ! Hard cap water content at saturation
+!             call tq2(ft, pm, pft_p%hydr_thetas_node(ft,pm)*cap_corr(pm), psi_node)
+!          else
+           if(th_in<(pft_p%hydr_resid_node(ft,pm)+nearzero)) then
              ! Perform extrapolation from residual WC
              call tq2(ft, pm, (pft_p%hydr_resid_node(ft,pm)+nearzero)*cap_corr(pm), psi_resid)
              call dtq2dth(ft, pm, (pft_p%hydr_resid_node(ft,pm)+nearzero)*cap_corr(pm), dpsidth_resid)
@@ -616,8 +637,9 @@ contains
                -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
                bsw)
 
-           if(th_in>th_sat) then
-              psi_node = suc_sat_mpa
+           ! If we are nearing saturation, we allow some positive pressure to avoid super-saturation
+           if(th_in>(th_sat-ss_wcoff)) then
+              psi_node = suc_sat_mpa + (ss_a*(th_in-(th_sat-ss_wcoff)))**ss_b
            elseif(th_in<th_cap) then
               psi_node = suc_sat_mpa*(th_cap/th_sat)**(-bsw) + max_dpsidth*(th_in-th_cap)
            else
@@ -666,10 +688,11 @@ contains
     if(pm <= 4) then       ! plant
 
        if(allow_unconstrained_theta) then
-          if(th_in>pft_p%hydr_thetas_node(ft,pm)) then
-             ! The derivative at the hard-cap is 0
-             dpsidth = 0._r8   
-          elseif(th_in<pft_p%hydr_resid_node(ft,pm)) then
+!          if(th_in>pft_p%hydr_thetas_node(ft,pm)) then
+!             ! The derivative at the hard-cap is 0
+!             dpsidth = 0._r8   
+!          else
+          if(th_in<pft_p%hydr_resid_node(ft,pm)) then
              ! We do a linear extrapolation of psi below 
              ! the residual, with slope calculated at the residual WC
              call dtq2dth(ft, pm, pft_p%hydr_resid_node(ft,pm)*cap_corr(pm), dpsidth)
@@ -698,9 +721,14 @@ contains
           th_cap = swcCampbell_th_from_dpsidth(th_sat,               &
                -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
                bsw)
-
-          if(th_in>th_sat) then
-             dpsidth = 0._r8
+          ! If we are nearing saturation, we allow some positive pressure to avoid super-saturation
+          if(th_in>(th_sat-ss_wcoff)) then
+              call swcCampbell_dpsidth_from_th(th_in, &
+                    th_sat, &
+                    -1._r8*suc_sat*denh2o*grav_earth*m_per_mm*mpa_per_pa, &
+                    bsw, &
+                    dpsidth)
+              dpsidth = dpsidth + ss_b*(ss_a*(th_in-(th_sat-ss_wcoff)))**(ss_b-1._r8)*ss_a
           elseif(th_in<=th_cap) then
              dpsidth = max_dpsidth
           else
