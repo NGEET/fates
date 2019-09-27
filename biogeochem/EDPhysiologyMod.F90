@@ -907,7 +907,7 @@ contains
     real(r8) :: store_c_transfer_frac  ! Fraction of storage carbon used to flush leaves
     integer  :: ipft
     real(r8), parameter :: leaf_drop_fraction = 1.0_r8
-
+    real(r8), parameter :: carbon store buffer = 0.10_r8
     !------------------------------------------------------------------------
 
     currentPatch => CurrentSite%oldest_patch   
@@ -936,8 +936,11 @@ contains
                                                                 ! stop flow of carbon out of bstore. 
                    
                    if(store_c>nearzero) then
-                      store_c_transfer_frac = &
-                            min(EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory, store_c)/store_c
+                   ! flush either the amount required from the laimemory, or -most- of the storage pool
+                   ! RF: added a criterium to stop the entire store pool emptying and triggering termination mortality
+                   ! n.b. this might not be necessary if we adopted a more gradual approach to leaf flushing... 
+                       store_c_transfer_frac =  min((EDPftvarcon_inst%phenflush_fraction(ipft)* &
+                            currentCohort%laimemory)/store_c,(1.0_r8-carbon_store_buffer))
                    else
                       store_c_transfer_frac = 0.0_r8
                    end if
