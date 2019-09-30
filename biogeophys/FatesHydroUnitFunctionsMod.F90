@@ -37,9 +37,19 @@ module FatesHydroUnitFunctionsMod
   integer, parameter :: rkvol  = 2
   integer, parameter :: voltype = rkvol
 
-  integer, public, parameter :: van_genuchten = 1
-  integer, public, parameter :: campbell      = 2
-  integer, public, parameter :: iswc = campbell
+  ! We have an array of options for different PV curves.
+  ! Note that we can also use a hybrid of PV curves
+  ! for soil, and those targetted for plants, which
+  ! factor in elastic ranges, capilary ranges and cavitation
+  ! ranges in plants (eccp). *Note, we have found that
+  ! mixing different PV methods, while scientifically interesting
+  ! *may* lead to strange and unstable behavior.
+
+  integer, public, parameter :: van_genuchten      = 1
+  integer, public, parameter :: campbell           = 2
+  integer, public, parameter :: van_genuchten_eccp = 3
+  integer, public, parameter :: campbell_eccp      = 4
+  integer, public, parameter :: iswc               = van_genuchten
 
   logical, public, parameter :: allow_unconstrained_theta = .true.
 
@@ -102,7 +112,28 @@ module FatesHydroUnitFunctionsMod
   public :: swcCampbell_psi_from_th
 
   
+  ! This is the base type for all pedotransfer functions (PTFs)
+  ! Currently, we are mostly using water release curves, we may 
+  ! add conductivity calculations. 
+  ! Note, that the standard convention for allocating parameters
+  ! is to assign soil layers as negative indices, and
+  ! special porous media (i.e. aroot, troot, stem and leaves)
+
+
+
+
+
+  
 contains
+
+  
+  
+
+
+
+
+
+
 
   ! =====================================================================================
 
@@ -439,13 +470,36 @@ contains
     real(r8) :: satfrac              ! soil saturation fraction                [0-1]
     real(r8) :: psi_check
 
+    !integer, public, parameter :: van_genuchten      = 1
+    !integer, public, parameter :: campbell           = 2
+    !integer, public, parameter :: van_genuchten_eccp = 3
+    !integer, public, parameter :: campbell_eccp      = 4
+    
 
     associate(&
          thetas   => pft_p%hydr_thetas_node  , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content
          resid    => pft_p%hydr_resid_node     & ! Input: [real(r8) (:,:) ] P-V curve: residual water fraction
          )
 
+      ! This is a plant compartment
       if(pm <= 4) then
+
+         select case(iswc)
+
+         case(van_genuchten)
+
+
+         case(campbell)
+
+
+         case(van_genuchten_eccp,campbell_eccp)
+
+
+            case default
+            write(fates_log(),*)  'invalid soil water characteristic function specified, iswc = '//char(iswc)
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end select
+
 
          lower  = thetas(ft,pm)*(resid(ft,pm) + 0.0001_r8)/cap_corr(pm)
          upper  = thetas(ft,pm)
@@ -559,7 +613,7 @@ contains
 
   !===============================================================================!
 
-  function psi_from_th(ft, pm, th_in, th_sat, suc_sat, bsw) result(psi_node)
+  function psi_from_th(ft, pm, th_in, th_sat, th_res, suc_sat, bsw) result(psi_node)
 
     !
     ! !DESCRIPTION: evaluates the plant PV curve (returns water potential, psi)
@@ -588,28 +642,34 @@ contains
     real(r8) :: dthdpsi_cap    ! derivative at th_cap (for extrapolation)
     real(r8) :: suc_sat_mpa    ! Suction at saturation in [MPa]
 
- 
 
+    th_in>pft_p%hydr_thetas_node(ft,pm)) then
+!             ! The derivative at the hard-cap is 0
+!             dpsidth = 0._r8   
+!          else
+          if(th_in<pft_p%hydr_resid_node(ft,pm)) then
+             ! We do a linear extrapolation of psi below 
+             ! the residual, with slope calculated at the residual WC
+             call dtq2dth(ft, pm, pft_p%hydr_resid_node(ft,pm)
 
     if(pm <= 4) then       ! plant
-       
-       if(allow_unconstrained_theta) then
-!          if(th_in>pft_p%hydr_thetas_node(ft,pm)) then
-!             ! Hard cap water content at saturation
-!             call tq2(ft, pm, pft_p%hydr_thetas_node(ft,pm)*cap_corr(pm), psi_node)
-!          else
-           if(th_in<(pft_p%hydr_resid_node(ft,pm)+nearzero)) then
-             ! Perform extrapolation from residual WC
-             call tq2(ft, pm, (pft_p%hydr_resid_node(ft,pm)+nearzero)*cap_corr(pm), psi_resid)
-             call dtq2dth(ft, pm, (pft_p%hydr_resid_node(ft,pm)+nearzero)*cap_corr(pm), dpsidth_resid)
-             psi_node = psi_resid + (th_in-pft_p%hydr_resid_node(ft,pm)) * dpsidth_resid
-          else
-             call tq2(ft, pm, th_in*cap_corr(pm), psi_node)
-          end if
-       else
-          call tq2(ft, pm, th_in*cap_corr(pm), psi_node)
-       end if
-      
+
+       select case(iswc)
+       case(van_genuchten)
+
+          psi_node = PsiFromThVG(th_in,pft_p%hydr_thetas_node(ft,pm),pft_p%hydr_resid_node(ft,pm),
+          
+       case(campbell)
+          
+          
+       case(van_genuchten_eccp,campbell_eccp)
+
+          psi_node = PsiFromThECCP(ft,pm,th_in)
+          
+       case default
+          write(fates_log(),*)  'invalid soil water characteristic function specified, iswc = '//char(iswc)
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end select
 
     else if(pm == 5) then  ! soil
 
@@ -774,7 +834,29 @@ contains
     return
   end function swcCampbell_th_from_dpsidth
 
+   ! ====================================================================================
 
+   function PsiFromThECCP(ft,pm,th_in) result (psi_node)
+
+     integer  :: ft
+     integer  :: pm
+     real(r8) :: th_in
+     
+     real(r8) :: psi_node
+     
+     if(th_in<(pft_p%hydr_resid_node(ft,pm)+nearzero)) then
+        ! Perform extrapolation from residual WC
+        call tq2(ft, pm, (pft_p%hydr_resid_node(ft,pm)+nearzero)*cap_corr(pm), psi_resid)
+        call dtq2dth(ft, pm, (pft_p%hydr_resid_node(ft,pm)+nearzero)*cap_corr(pm), dpsidth_resid)
+        psi_node = psi_resid + (th_in-pft_p%hydr_resid_node(ft,pm)) * dpsidth_resid
+     else
+        call tq2(ft, pm, th_in*cap_corr(pm), psi_node)
+     end if
+     
+     
+     return
+   end subroutine PsiFromThECCP
+   
   !===============================================================================!
 
   subroutine tq2(ft, pm, x, y)
@@ -1503,7 +1585,7 @@ contains
 
   !===============================================================================!
 
-  subroutine swcVG_psi_from_satfrac(satfrac, alpha, n, m, l, psi)
+  subroutine swcVG_psi_from_th(th,alpha,n,th_sat,th_res,psi)
     !
     ! DESCRIPTION
     ! van Genuchten (1980) soil water characteristic (retention) curve
@@ -1512,19 +1594,28 @@ contains
     !USES
     !
     ! !ARGUMENTS:
-    real(r8), intent(in)            :: satfrac  !saturation fraction            [0-1]
-    real(r8), intent(in)            :: alpha    !inverse of air-entry pressure  [MPa-1]
-    real(r8), intent(in)            :: n        !pore-size distribution index   [-]
-    real(r8), intent(in)            :: m        != 1 - 1/n_VG                   [-]
-    real(r8), intent(in)            :: l        !pore tortuosity parameter      [-]
-    real(r8), intent(out)           :: psi      !soil matric potential          [MPa]
-    !
-    ! !LOCAL VARIABLES:
-    !------------------------------------------------------------------------------
+    real(r8), intent(in)  :: th       ! vol wat content [m3/m3]
+    real(r8), intent(in)  :: alpha    ! inverse of air-entry pressure  [MPa-1]
+    real(r8), intent(in)  :: n        ! pore-size distribution index   [-]
+    real(r8), intent(in)  :: th_sat   ! vwc at saturation     [m3/m3]
+    real(r8), intent(in)  :: th_res   ! vwc at residual       [m3/m3]
+    real(r8), intent(out) :: psi      !soil matric potential          [MPa]
 
-    psi = -1._r8/alpha*(satfrac**(-1._r8/m)-1._r8)**(1._r8/n)
+    ! local variables
+    real(r8)              :: satfrac  !saturation fraction            [0-1]
 
-  end subroutine swcVG_psi_from_satfrac
+    !------------------------------------------------------------------------------------
+    ! saturation fraction is the origial equation in vg 1980, we just
+    ! need to invert it:
+    ! satfrac = (1._r8 + (alpha*psi)**n)**(1._r8/n-1)
+    ! -----------------------------------------------------------------------------------
+
+    satfrac = (th-th_res)/(th_sat-th_res)
+
+    psi = (1._r8/alpha)*(satfrac**(1._r8/(1._r8/n-1._r8)) - 1._r8 )**(1._r8/n) 
+
+
+  end subroutine swcVG_psi_from_th
 
   !===============================================================================!
 
@@ -1549,28 +1640,6 @@ contains
 
   end subroutine swcCampbell_psi_from_satfrac
 
-  !===============================================================================!
-
-  subroutine swcVG_th_from_satfrac(satfrac, watsat, watres, th)
-    !
-    ! DESCRIPTION
-    ! van Genuchten (1980) soil water characteristic (retention) curve
-    ! returns water content given saturation fraction, porosity and residual water content
-    !
-    !USES
-    !
-    ! !ARGUMENTS:
-    real(r8), intent(in)            :: satfrac  !saturation fraction                 [0-1]
-    real(r8), intent(in)            :: watsat   !volumetric soil water at saturation (porosity) [m3 m-3]
-    real(r8), intent(in)            :: watres   !volumetric residual soil water      [m3 m-3]
-    real(r8), intent(out)           :: th       !soil volumetric water content       [m3 m-3]
-    !
-    ! !LOCAL VARIABLES:
-    !------------------------------------------------------------------------------
-
-    th = watres + satfrac*(watsat - watres)
-
-  end subroutine swcVG_th_from_satfrac
 
   !===============================================================================!
 
@@ -1595,7 +1664,7 @@ contains
   end subroutine swcCampbell_th_from_satfrac
 
   !======================================================================-
-  subroutine swcVG_satfrac_from_psi(psi, alpha, n, m, l, satfrac)
+  subroutine swcVG_th_from_psi(psi, alpha, n, th_sat, th_res, satfrac)
     !
     ! DESCRIPTION
     ! van Genuchten (1980) soil water characteristic (retention) curve
@@ -1604,19 +1673,36 @@ contains
     !USES
     !
     ! !ARGUMENTS:
-    real(r8), intent(in)            :: psi      !soil matric potential          [MPa]
-    real(r8), intent(in)            :: alpha    !inverse of air-entry pressure  [MPa-1]
-    real(r8), intent(in)            :: n        !pore-size distribution index   [-]
-    real(r8), intent(in)            :: m        != 1 - 1/n_VG                   [-]
-    real(r8), intent(in)            :: l        !pore tortuosity parameter      [-]
-    real(r8), intent(out)           :: satfrac  !soil saturation fraction       [0-1]
+    real(r8), intent(in)            :: psi      ! soil matric potential          [MPa]
+    real(r8), intent(in)            :: alpha    ! inverse of air-entry pressure  [MPa-1]
+    real(r8), intent(in)            :: n        ! pore-size distribution index   [-]
+    real(r8), intent(in)            :: m        ! = 1 - 1/n_VG                   [-]
+    real(r8), intent(in)            :: l        ! pore tortuosity parameter      [-]
+    real(r8), intent(in)            :: th_sat   ! saturation vwc                 [m3/m3]
+    real(r8), intent(in)            :: th_res   ! residual vwc                   [m3/m3]
+    real(r8), intent(out)           :: th       ! vol water content              [m3/m3]
+
+    real(r8)                        :: satfrac  !soil saturation fraction       [0-1]
     !
     ! !LOCAL VARIABLES:
     !------------------------------------------------------------------------------
 
-    satfrac = (1._r8/(1._r8 + (alpha*abs(psi))**n))**m
+    !satfrac = (1._r8/(1._r8 + (alpha*abs(psi))**n))**m
+    
+    ! Saturation fraction
+    satfrac = (1._r8 + (alpha*psi)**n)**(-1+(1._r8/n))
 
-  end subroutine swcVG_satfrac_from_psi
+    ! convert to volumetric water content
+    th = satfrac*(th_sat-th_res) + th_res
+    
+
+  end subroutine swcVG_th_from_psi
+
+
+  
+  
+
+
 
   !======================================================================-
   subroutine swcCampbell_satfrac_from_psi(psi, psisat, B, satfrac)
