@@ -929,10 +929,12 @@ contains
                    
                    ! Note: crown_ignition_energy to be calculated based on foliar moisture content from FATES-Hydro
                    ! EQ 3 Van Wagner 1977
-                   ! crown ignite_energy (kJ/kg), m = foliar moisture content based on dry fuel (%)
+                   ! h = crown_ignite_energy (kJ/kg), m = foliar moisture content based on dry fuel (%)
                    ! crown_ignite_energy = 460 + 26 * m
 
                    ! Crown fuel ignition potential, EQ 8 Bessie and Johnson 1995
+                   ! Van Wagner EQ4 FI = (Czh)**3/2 where z=crown base height,h=heat crown ignite energy, FI=fire intensity
+                   ! 0.01 = C from Van Wagner 1977 EQ4 for crown of base height 6m, 100% FMC, and FI 2500kW/m
                    passive_crown_FI = (0.01_r8 * height_cbb *EDPftvarcon_inst%crown_ignite_energy(currentCohort%pft))**1.5_r8
 
                    if (passive_crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
