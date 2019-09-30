@@ -129,9 +129,9 @@ variables:
 	double fates_fire_crown_depth_frac(fates_pft) ;
 		fates_fire_crown_depth_frac:units = "fraction" ;
 		fates_fire_crown_depth_frac:long_name = "the depth of a cohorts crown as a fraction of its height" ;
-	double fates_fire_crown_resist(fates_pft) ;
-		fates_fire_crown_resist:units = "NA" ;
-		fates_fire_crown_resist:long_name = "resistance to fire (1 = none), EQ 22 in Thonicke et al 2010" ;
+	double fates_fire_crown_kill(fates_pft) ;
+		fates_fire_crown_kill:units = "NA" ;
+		fates_fire_crown_kill:long_name = "crown resistance to fire (1 = none), EQ 22 in Thonicke et al 2010" ;
 	double fates_fire_crown_fire(fates_pft) ;
 		fates_fire_crown_fire:units = "logical flag" ;
 		fates_fire_crown_fire:long_name = "Binary flag for passive crown fire";
@@ -721,10 +721,10 @@ data:
  fates_fire_crown_depth_frac = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95, 
     0.95, 1, 1, 1 ;
 
- fates_fire_crown_resist = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 
+ fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 
     0.775, 0.775, 0.775, 0.775, 0.775 ;
 
- fates_fire_crown_fire =  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+ fates_fire_passive_crown_fire =  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_fire_crown_ignite_energy = 3060, 3060, 3060, 3060, 3060, 3060, 3060, 3060, 3060, 3060, 3060, 3060 ;
 

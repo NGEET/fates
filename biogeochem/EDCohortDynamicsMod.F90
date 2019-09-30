@@ -534,11 +534,11 @@ contains
     currentCohort%ddbhdt             = nan ! time derivative of dbh 
 
     ! FIRE
-    currentCohort%fraction_crown_burned = nan ! proportion of crown affected by fire
-    currentCohort%crown_fire_flg        = nan ! flag for passive crown fire ignition
-    currentCohort%cambial_mort          = nan ! probability that trees dies due to cambial char P&R (1986)
-    currentCohort%crownfire_mort        = nan ! probability of tree post-fire mortality due to crown scorch
-    currentCohort%fire_mort             = nan ! post-fire mortality from cambial and crown damage assuming two are independent
+    currentCohort%fraction_crown_burned  = nan ! proportion of crown affected by fire
+    currentCohort%passive_crown_fire_flg = nan ! flag for passive crown fire ignition
+    currentCohort%cambial_mort           = nan ! probability that trees dies due to cambial char P&R (1986)
+    currentCohort%crownfire_mort         = nan ! probability of tree post-fire mortality due to crown scorch
+    currentCohort%fire_mort              = nan ! post-fire mortality from cambial and crown damage assuming two are independent
 
   end subroutine nan_cohort
 
