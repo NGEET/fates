@@ -133,8 +133,8 @@ variables:
 		fates_fire_crown_kill:units = "NA" ;
 		fates_fire_crown_kill:long_name = "crown resistance to fire (1 = none), EQ 22 in Thonicke et al 2010" ;
 	double fates_fire_crown_fire(fates_pft) ;
-		fates_fire_crown_fire:units = "logical flag" ;
-		fates_fire_crown_fire:long_name = "Binary flag for passive crown fire";
+		fates_fire_crown_fire:units = "binary flag" ;
+		fates_fire_crown_fire:long_name = "binary flag for plants susceptible to passive crown fire (1=yes)";
         double fates_fire_crown_ignite_energy(fates_pft) ;
 		fates_fire_crown_ignite_energy:units = "kJ/kg" ;
 		fates_fire_crown_ignite_energy:long_name = "spitfire parameter, heat of crown foliage ignition" ;		
