@@ -408,7 +408,7 @@ contains
      ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
      if (hlm_use_planthydro.eq.itrue) then 
         do s = 1, nsites
-	   sitep => sites(s)
+           sitep => sites(s)
            call updateSizeDepRhizHydProps(sitep, bc_in(s))
         end do
      end if

@@ -3,6 +3,7 @@ module FatesHydraulicsMemMod
    use FatesConstantsMod, only : r8 => fates_r8
    use shr_infnan_mod   , only : nan => shr_infnan_nan, assignment(=)
    use FatesConstantsMod, only : itrue,ifalse
+   use FatesHydroWTFMod,  only : wtf_type
 
    
    implicit none
@@ -38,7 +39,9 @@ module FatesHydraulicsMemMod
    integer, parameter, public :: stem_p_media  = 2
    integer, parameter, public :: troot_p_media = 3
    integer, parameter, public :: aroot_p_media = 4
-   integer, parameter, public :: rhiz_p_media  = 5
+   integer, parameter, public :: n_p_media     = 4   ! This is just the number of plant
+                                                     ! organ porous media types, does
+                                                     ! not include soil
 
    ! This vector holds the identifiers for which porous media type is in the comaprtment
    integer, parameter, public, dimension(n_hypool_tot) :: porous_media = (/leaf_p_media,  & 
@@ -145,6 +148,14 @@ module FatesHydraulicsMemMod
                                                     !  Draw from or add to this pool when
                                                     !  insufficient plant water available to 
                                                     !  support transpiration
+
+     
+     class(wrf_type), pointer :: wrf_soil(:)       ! Water retention function for soil layers
+!     class(wrf_type), pointer :: wrf_plant(:)      ! Water retention function for plant organs
+     class(wkf_type), pointer :: wkf_soil(:)       ! Water conductivity (K) function for soil
+!     class(wkf_type), pointer :: wkf_plant(:)      ! Water conductivity (K) function for plants
+
+
      
      !     Hold Until Van Genuchten is implemented
      ! col inverse of air-entry pressure     [MPa-1]  (for van Genuchten SWC only)
@@ -383,6 +394,12 @@ module FatesHydraulicsMemMod
          this%h2oveg_growturn_err = 0.0_r8
          this%h2oveg_pheno_err    = 0.0_r8
          this%h2oveg_hydro_err    = 0.0_r8
+
+         ! We have separate water transfer functions and parameters
+         ! for each soil layer, and each plant compartment type
+         allocate(this%wrf_soil(1:nlevsoil_hyd))
+         allocate(this%wkf_soil(1:nlevsoil_hyd))
+
          
        end associate
 

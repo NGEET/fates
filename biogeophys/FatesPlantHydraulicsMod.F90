@@ -53,8 +53,8 @@ module FatesPlantHydraulicsMod
 
   use FatesInterfaceMod  , only : bc_in_type
   use FatesInterfaceMod  , only : bc_out_type
-
   use FatesInterfaceMod  , only : hlm_use_planthydro
+  use FatesInterfaceMod  , only : hlm_ipedof
 
   use FatesAllometryMod, only    : bsap_allom
   use FatesAllometryMod, only    : CrownDepth
@@ -157,6 +157,11 @@ module FatesPlantHydraulicsMod
                                        ! proceeds over the entire time-step.
 
 
+  integer, public, parameter :: van_genuchten      = 1
+  integer, public, parameter :: campbell           = 2
+  integer, public, parameter :: cx_eccp            = 3
+
+
   logical,parameter :: debug = .true.                   !flag to report warning in hydro
 
 
@@ -166,6 +171,17 @@ module FatesPlantHydraulicsMod
 
   ! We use this parameter as the value for which we set un-initialized values
   real(r8), parameter :: un_initialized = -9.9e32_r8
+
+  ! Define the global object that holds the water retention functions
+  ! for plants of each different porous media type, and plant functional type
+
+  type(wrf_type),pointer :: wrf_plant(:,:)
+  
+  ! Define the global object that holds the water conductance functions
+  ! for plants of each different porous media type, and plant functional type
+
+  type(wkf_type), pointer :: wkf_plant(:,:)
+
 
   !
   ! !PUBLIC MEMBER FUNCTIONS:
@@ -1121,6 +1137,7 @@ contains
     integer :: nsites
     integer :: s
     type(ed_site_hydr_type),pointer :: csite_hydr
+    class(wtf_type_vg), pointer :: wtf_vg
 
 
     if ( hlm_use_planthydro.eq.ifalse ) return
@@ -1132,12 +1149,11 @@ contains
     ! P-V curve: total RWC @ which capillary reserves exhausted
     !  real(r8), allocatable :: rwccap(:)  !  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
 
-    call InitAllocatePlantMedia(n_porous_media)
-    call SetPlantMediaParam(leaf_p_media,  rwcft_in=1._r8,    rwccap_in=1._r8)  
-    call SetPlantMediaParam(stem_p_media,  rwcft_in=0.958_r8, rwccap_in=0.947_r8)  
-    call SetPlantMediaParam(troot_p_media, rwcft_in=0.958_r8, rwccap_in=0.947_r8)  
-    call SetPlantMediaParam(aroot_p_media, rwcft_in=0.958_r8, rwccap_in=0.947_r8)  
-
+!    call InitAllocatePlantMedia(n_porous_media)
+!    call SetPlantMediaParam(leaf_p_media,  rwcft_in=1._r8,    rwccap_in=1._r8)  
+!    call SetPlantMediaParam(stem_p_media,  rwcft_in=0.958_r8, rwccap_in=0.947_r8)  
+!    call SetPlantMediaParam(troot_p_media, rwcft_in=0.958_r8, rwccap_in=0.947_r8)  
+!    call SetPlantMediaParam(aroot_p_media, rwcft_in=0.958_r8, rwccap_in=0.947_r8)  
 
     nsites = ubound(sites,1)
     do s=1,nsites
@@ -1153,6 +1169,66 @@ contains
        end if
        sites(s)%si_hydr%nlevsoi_hyd = bc_in(s)%nlevsoil
        call sites(s)%si_hydr%InitHydrSite()
+
+       ! Initialize water transfer functions
+       
+
+       ! We will use codes for the different ways to initialize the
+       ! models. The number refers to the specific hypothesis/form
+       ! The positions are as follows:
+       ! 1st: soil water retention function (eg theta vs psi)
+       ! 2nd: aroot ...
+       ! 3rd: troot ...
+       ! 4th: stem ...
+       ! 5th: leaf ...
+
+       ! integer, public, parameter :: van_genuchten      = 1
+       ! integer, public, parameter :: campbell           = 2
+       ! integer, public, parameter :: cx_eccp            = 3
+
+       ! This code assumes VG for all soil and organs,
+       ! but the Chistoffersen-Xu functions for FLC in plant organs
+       wtf_code = 1111113333
+       
+       ! Set soil properties
+       if (wtf_code(1)==van_genuchten) then
+          do j=1,bc_in(s)%nlevsoil
+             allocate(wtf_vg)
+             sites(s)%si_hydr%wtf_soil(j) => wtf_vg
+             call wtf_vg%set_param_vg(bc_in%
+
+
+          end do
+       end if
+
+       ! Absorbing roots
+       if(wtf_code(2)==van_genuchten)then
+          allocate(wtf_vg)
+          sites(s)%si_hydr%wtf_plant(aroot_p_media) => wtf_vg
+       end if
+
+       ! Transporting roots
+       if(wtf_code(3)==van_genuchten)then
+          allocate(wtf_vg)
+          sites(s)%si_hydr%wtf_plant(troot_p_media) => wtf_vg
+       end if
+
+       ! Stem
+       if(wtf_code(4)==van_genuchten)then
+          allocate(wtf_vg)
+          sites(s)%si_hydr%wtf_plant(stem_p_media) => wtf_vg
+       end if
+
+       ! Leaf
+       if(wtf_code(5)==van_genuchten)then
+          allocate(wtf_vg)
+          sites(s)%si_hydr%wtf_plant(leaf_p_media) => wtf_vg
+       end if
+
+
+
+
+
     end do
 
   end subroutine InitHydrSites

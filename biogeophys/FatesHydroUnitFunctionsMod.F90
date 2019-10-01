@@ -45,11 +45,7 @@ module FatesHydroUnitFunctionsMod
   ! mixing different PV methods, while scientifically interesting
   ! *may* lead to strange and unstable behavior.
 
-  integer, public, parameter :: van_genuchten      = 1
-  integer, public, parameter :: campbell           = 2
-  integer, public, parameter :: van_genuchten_eccp = 3
-  integer, public, parameter :: campbell_eccp      = 4
-  integer, public, parameter :: iswc               = van_genuchten
+
 
   logical, public, parameter :: allow_unconstrained_theta = .true.
 
