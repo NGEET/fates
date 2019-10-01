@@ -1172,7 +1172,7 @@ data:
 
  fates_phen_drought_threshold = 0.15 ;
 
- fates_phen_mindayson = 30 ;
+ fates_phen_mindayson = 90 ;
 
  fates_phen_ncolddayslim = 5 ;
 
