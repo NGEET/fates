@@ -151,22 +151,8 @@ module FatesHydraulicsMemMod
 
      
      class(wrf_type), pointer :: wrf_soil(:)       ! Water retention function for soil layers
-!     class(wrf_type), pointer :: wrf_plant(:)      ! Water retention function for plant organs
      class(wkf_type), pointer :: wkf_soil(:)       ! Water conductivity (K) function for soil
-!     class(wkf_type), pointer :: wkf_plant(:)      ! Water conductivity (K) function for plants
 
-
-     
-     !     Hold Until Van Genuchten is implemented
-     ! col inverse of air-entry pressure     [MPa-1]  (for van Genuchten SWC only)
-     !     real(r8), allocatable :: alpha_VG(:)  
-     ! col pore-size distribution index      [-]      (for van Genuchten SWC only)
-     !     real(r8), allocatable :: n_VG(:) 
-     ! = 1 - 1/n_VG                          [-]      (for van Genuchten SWC only)   
-     !     real(r8), allocatable :: m_VG(:) 
-     ! col pore tortuosity parameter         [-]      (for van Genuchten SWC only)    
-     !     real(r8), allocatable :: l_VG(:)     
-     
   contains
      
      procedure :: InitHydrSite

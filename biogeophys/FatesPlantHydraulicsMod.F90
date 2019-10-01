@@ -159,7 +159,7 @@ module FatesPlantHydraulicsMod
 
   integer, public, parameter :: van_genuchten      = 1
   integer, public, parameter :: campbell           = 2
-  integer, public, parameter :: cx_eccp            = 3
+  integer, public, parameter :: tfs                = 3
 
 
   logical,parameter :: debug = .true.                   !flag to report warning in hydro
@@ -175,12 +175,12 @@ module FatesPlantHydraulicsMod
   ! Define the global object that holds the water retention functions
   ! for plants of each different porous media type, and plant functional type
 
-  type(wrf_type),pointer :: wrf_plant(:,:)
+  class(wrf_type),pointer :: wrf_plant(:,:)
   
   ! Define the global object that holds the water conductance functions
   ! for plants of each different porous media type, and plant functional type
 
-  type(wkf_type), pointer :: wkf_plant(:,:)
+  class(wkf_type), pointer :: wkf_plant(:,:)
 
 
   !
@@ -216,6 +216,41 @@ module FatesPlantHydraulicsMod
   !------------------------------------------------------------------------------
 
 contains 
+
+  subroutine InitHYDROGlobals()
+
+    class(wrf_type_vg) :: wrf_vg
+    class(wkf_type_vg) :: wkf_vg
+    class(wrf_type_cch) :: wrf_cch
+    class(wkf_type_cch) :: wkf_cch
+    class(wrf_type_tfs) :: wrf_tfs
+    class(wkf_type_tfs) :: wkf_tfs
+
+
+    if(.not.use_ed_planthydraulics) return
+    
+    !integer, public, parameter :: van_genuchten      = 1
+    !integer, public, parameter :: campbell           = 2
+    !integer, public, parameter :: tfs                = 3
+
+    allocate(wrf_plant(n_p_media,numpft))
+    allocate(wkf_plant(n_p_media,numpft))
+  
+    if(plant_wrf_type==van_genuchten)then
+
+       do ft = 1,numpft
+          do pm = 1, n_p_media
+             allocate(wrf_vg)
+             wrf_plant(pm,ft) => wrf_vg
+             wrf_vg%set_wrf_param(
+
+       end do
+    end do
+    
+    return
+  end subroutine InitHYDROGlobals
+  
+
 
   !------------------------------------------------------------------------------
   subroutine hydraulics_drive( nsites, sites, bc_in,bc_out,dtime )

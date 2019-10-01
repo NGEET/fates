@@ -619,6 +619,7 @@ module FatesInterfaceMod
    public :: set_fates_global_elements
    public :: FatesReportParameters
    public :: InitPARTEHGlobals
+   public :: InitHydroGlobals
    public :: allocate_bcin
    public :: allocate_bcout
 
@@ -1836,8 +1837,9 @@ contains
        
     end select
 
-
-
    end subroutine InitPARTEHGlobals
+
+
+
 
 end module FatesInterfaceMod

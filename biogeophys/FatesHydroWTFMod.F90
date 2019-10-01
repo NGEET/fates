@@ -105,9 +105,9 @@ module FatesHydroWTFMod
 
   ! Water Conductivity Function
   type, public, extends(wkf_type) :: wkf_type_tfs
-     real(r8) :: p50(maxpft)      ! matric potential at 50% conductivity loss   [Mpa]
-     real(r8) :: avuln(maxpft)    ! vulnerability curve parameter
-     real(r8) :: th_sat   ! volumetric water content at saturation
+     real(r8) :: p50          ! matric potential at 50% conductivity loss   [Mpa]
+     real(r8) :: avuln        ! vulnerability curve parameter
+     real(r8) :: th_sat       ! volumetric water content at saturation
      real(r8), parameter :: min_ftc = 0.005_r8
    contains
      procedure :: ftc_from_psi      => ftc_from_psi_tfs
