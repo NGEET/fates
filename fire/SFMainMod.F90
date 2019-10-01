@@ -901,7 +901,6 @@ contains
     real(r8) ::  height_cbb           ! clear branch bole height or crown base height (m)
     real(r8) ::  passive_crown_FI     ! critical fire intensity for passive crown fire ignition (kW/m)
     real(r8) ::  ignite_crown         ! ratio for ignition of passive crown fire,EQ 14 Bessie & Johnson 1995
-    logical  ::  passive_crown_flg    ! flag to check for passive crown fire ignition  
 
     currentPatch => currentSite%oldest_patch
 
@@ -918,11 +917,11 @@ contains
                 
                 ! height_cbb = clear branch bole height at base of crown (m)
                 ! inst%crown = crown_depth_frac (PFT)
-                crown_depth                     = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
-                height_cbb                      = currentCohort%hite - crown_depth
-                passive_crown_FI                = 0.0_r8  
-                ignite_crown                    = 0.0_r8  
-                currentCohort%passive_crown_fire_flg = .false. 
+                crown_depth                          = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
+                height_cbb                           = currentCohort%hite - crown_depth
+                passive_crown_FI                     = 0.0_r8  
+                ignite_crown                         = 0.0_r8  
+                currentCohort%passive_crown_fire_flg = 0
 
                 
                 ! Evaluate for passive crown fire ignition
@@ -944,7 +943,7 @@ contains
                       ignite_crown = currentPatch%FI/passive_crown_FI
                       
                       if (ignite_crown >= 1.0_r8) then
-                         currentCohort%passive_crown_fire_flg = .true. ! passive crown fire ignited
+                         currentCohort%passive_crown_fire_flg = 1 ! passive crown fire ignited
                          currentCohort%fraction_crown_burned =  1.0_r8
                       ! else ! evaluate crown damage based on scorch height
                       endif ! ignite passive crown fire
@@ -957,7 +956,7 @@ contains
                 ! height_cbb is clear branch bole height or height of bottom of canopy 
                 ! Equation 17 in Thonicke et al. 2010
                 if (currentCohort%hite > 0.0_r8 .and. currentPatch%SH > height_cbb &
-                     .and. currentCohort%passive_crown_fire_flg = .true.) then  
+                     .and. currentCohort%passive_crown_fire_flg == 0) then  
 
                       currentCohort%fraction_crown_burned = min(1.0_r8, ((currentPatch%SH - height_cbb)/crown_depth))
                 endif  !SH frac crown burnt calculation
