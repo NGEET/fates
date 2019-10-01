@@ -161,6 +161,12 @@ module FatesPlantHydraulicsMod
   integer, public, parameter :: campbell           = 2
   integer, public, parameter :: tfs                = 3
 
+  integer, parameter :: plant_wrf_type = van_genuchten
+  integer, parameter :: plant_wkf_type = tfs
+  integer, parameter :: soil_wrf_type  = campbell
+  integer, parameter :: soil_wkf_type  = campbell
+
+
 
   logical,parameter :: debug = .true.                   !flag to report warning in hydro
 
@@ -181,6 +187,12 @@ module FatesPlantHydraulicsMod
   ! for plants of each different porous media type, and plant functional type
 
   class(wkf_type), pointer :: wkf_plant(:,:)
+
+  real(r8), parameter :: alpha_vg  = 0.001_r8
+  real(r8), parameter :: th_sat_vg = 0.65_r8
+  real(r8), parameter :: th_res_vg = 0.35_r8
+  real(r8), parameter :: psd_vg    = 2.7_r8
+  real(r8), parameter :: tort_vg   = 0.5_r8
 
 
   !
@@ -219,33 +231,89 @@ contains
 
   subroutine InitHYDROGlobals()
 
-    class(wrf_type_vg) :: wrf_vg
-    class(wkf_type_vg) :: wkf_vg
-    class(wrf_type_cch) :: wrf_cch
-    class(wkf_type_cch) :: wkf_cch
-    class(wrf_type_tfs) :: wrf_tfs
-    class(wkf_type_tfs) :: wkf_tfs
+    ! This routine allocates the Water Transfer Functions (WTFs)
+    ! which include both water retention functions (WRFs)
+    ! as well as the water conductance (K) functions (WKFs)
+    ! But, this is only for plants! These functions have specific
+    ! parameters, potentially, for each plant functional type and
+    ! each organ (pft x organ), but this can be used globally (across
+    ! all sites on the node (machine) to save memory.  These functions
+    ! are also applied to soils, but since soil properties vary with
+    ! soil layer and location, those functions are bound to the site
+    ! structure, and are therefore not "global".
+
+    ! Define
+    class(wrf_type_vg), pointer :: wrf_vg
+    class(wkf_type_vg), pointer :: wkf_vg
+    class(wrf_type_cch), pointer :: wrf_cch
+    class(wkf_type_cch), pointer :: wkf_cch
+    class(wrf_type_tfs), pointer :: wrf_tfs
+    class(wkf_type_tfs), pointer :: wkf_tfs
 
 
     if(.not.use_ed_planthydraulics) return
     
-    !integer, public, parameter :: van_genuchten      = 1
-    !integer, public, parameter :: campbell           = 2
-    !integer, public, parameter :: tfs                = 3
-
     allocate(wrf_plant(n_p_media,numpft))
     allocate(wkf_plant(n_p_media,numpft))
   
-    if(plant_wrf_type==van_genuchten)then
+    ! -----------------------------------------------------------------------------------
+    ! Initialize the Water Retention Functions
+    ! -----------------------------------------------------------------------------------
 
-       do ft = 1,numpft
-          do pm = 1, n_p_media
-             allocate(wrf_vg)
-             wrf_plant(pm,ft) => wrf_vg
-             wrf_vg%set_wrf_param(
+    select case(plant_wrf_type)
+    case(van_genuchten)
+        do ft = 1,numpft
+            do pm = 1, n_p_media
+                allocate(wrf_vg)
+                wrf_plant(pm,ft) => wrf_vg
+                wrf_vg%set_wrf_param_vg(alpha_in = alpha_vg,   & 
+                                        psd_in = psd_vg,       & 
+                                        th_sat_in = th_sat_vg, & 
+                                        th_res_in = th_res_vg)
+            end do
+        end do
+    case(campbell)
+        write(fates_log(),*) 'campbell/clapp-hornberger retention curves not used in plants'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+    case(tfs)
+        write(fates_log(),*) 'TFS water retention curves not yet added to plants'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
 
-       end do
-    end do
+    ! -----------------------------------------------------------------------------------
+    ! Initialize the Water Conductance (K) Functions
+    ! -----------------------------------------------------------------------------------
+
+    select case(plant_wkf_type)
+    case(van_genuchten)
+        do ft = 1,numpft
+            do pm = 1, n_p_media
+                allocate(wkf_vg)
+                wkf_plant(pm,ft) => wkf_vg
+                wkf_vg%set_wkf_param_vg(alpha_in = alpha_vg,   & 
+                                        psd_in = psd_vg,       & 
+                                        th_sat_in = th_sat_vg, & 
+                                        th_res_in = th_res_vg, &
+                                        tort_in   = tort_vg)
+            end do
+        end do
+    case(campbell)
+        write(fates_log(),*) 'campbell/clapp-hornberger conductance not used in plants'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+    case(tfs)
+        do ft = 1,numpft
+            do pm = 1, n_p_media
+                allocate(wkf_tfs)
+                wkf_plant(pm,ft) => wkf_tfs
+                wkf_tfs%set_wkf_param_tfs(th_sat_in = EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
+                                          p50_in = EDPftvarcon_inst%hydr_p50_node(ft,pm), &
+                                          avuln_in = EDPftvarcon_inst%hydr_avuln_node(ft,pm))
+            end do
+        end do
+    end select
+    
+
+
     
     return
   end subroutine InitHYDROGlobals
@@ -1172,8 +1240,12 @@ contains
     integer :: nsites
     integer :: s
     type(ed_site_hydr_type),pointer :: csite_hydr
-    class(wtf_type_vg), pointer :: wtf_vg
-
+    class(wrf_type_vg), pointer :: wrf_vg
+    class(wkf_type_vg), pointer :: wkf_vg
+    class(wrf_type_cch), pointer :: wrf_cch
+    class(wkf_type_cch), pointer :: wkf_cch
+    class(wrf_type_tfs), pointer :: wrf_tfs
+    class(wkf_type_tfs), pointer :: wkf_tfs
 
     if ( hlm_use_planthydro.eq.ifalse ) return
 
@@ -1205,66 +1277,67 @@ contains
        sites(s)%si_hydr%nlevsoi_hyd = bc_in(s)%nlevsoil
        call sites(s)%si_hydr%InitHydrSite()
 
+       ! --------------------------------------------------------------------------------
        ! Initialize water transfer functions
+       ! which include both water retention functions (WRFs)
+       ! as well as the water conductance (K) functions (WKFs)
+       ! But, this is only for soil!
+       ! --------------------------------------------------------------------------------
+       ! Initialize the Water Retention Functions
+       ! -----------------------------------------------------------------------------------
+
+       select case(soil_wrf_type)
+       case(van_genuchten)
+           do j=1,sites(s)%si_hydr%nlevsoi_hyd
+               allocate(wrf_vg)
+               csite_hydr%wrf_soil(j) => wrf_vg
+               wrf_vg%set_wrf_param_vg(alpha_in = alpha_vg,   & 
+                                       psd_in = psd_vg,       & 
+                                       th_sat_in = th_sat_vg, & 
+                                       th_res_in = th_res_vg)
+           end do
+       case(campbell)
+           do j=1,sites(s)%si_hydr%nlevsoi_hyd
+               allocate(wrf_vg)
+               csite_hydr%wrf_soil(j) => wrf_cch
+               wrf_cch%set_wrf_param_cch(th_sat_in = bc_in(s)%watsat_sisl(j), & 
+                                         psi_sat_in =(-1.0_r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                                         beta_in = bc_in(s)%bsw_sisl(j))
+           end do
+       case(tfs)
+           write(fates_log(),*) 'TFS water retention curves not available for soil'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+       end select
        
-
-       ! We will use codes for the different ways to initialize the
-       ! models. The number refers to the specific hypothesis/form
-       ! The positions are as follows:
-       ! 1st: soil water retention function (eg theta vs psi)
-       ! 2nd: aroot ...
-       ! 3rd: troot ...
-       ! 4th: stem ...
-       ! 5th: leaf ...
-
-       ! integer, public, parameter :: van_genuchten      = 1
-       ! integer, public, parameter :: campbell           = 2
-       ! integer, public, parameter :: cx_eccp            = 3
-
-       ! This code assumes VG for all soil and organs,
-       ! but the Chistoffersen-Xu functions for FLC in plant organs
-       wtf_code = 1111113333
+       ! -----------------------------------------------------------------------------------
+       ! Initialize the Water Conductance (K) Functions
+       ! -----------------------------------------------------------------------------------
        
-       ! Set soil properties
-       if (wtf_code(1)==van_genuchten) then
-          do j=1,bc_in(s)%nlevsoil
-             allocate(wtf_vg)
-             sites(s)%si_hydr%wtf_soil(j) => wtf_vg
-             call wtf_vg%set_param_vg(bc_in%
-
-
-          end do
-       end if
-
-       ! Absorbing roots
-       if(wtf_code(2)==van_genuchten)then
-          allocate(wtf_vg)
-          sites(s)%si_hydr%wtf_plant(aroot_p_media) => wtf_vg
-       end if
-
-       ! Transporting roots
-       if(wtf_code(3)==van_genuchten)then
-          allocate(wtf_vg)
-          sites(s)%si_hydr%wtf_plant(troot_p_media) => wtf_vg
-       end if
-
-       ! Stem
-       if(wtf_code(4)==van_genuchten)then
-          allocate(wtf_vg)
-          sites(s)%si_hydr%wtf_plant(stem_p_media) => wtf_vg
-       end if
-
-       ! Leaf
-       if(wtf_code(5)==van_genuchten)then
-          allocate(wtf_vg)
-          sites(s)%si_hydr%wtf_plant(leaf_p_media) => wtf_vg
-       end if
-
-
-
-
-
-    end do
+       select case(soil_wkf_type)
+       case(van_genuchten)
+           do j=1,sites(s)%si_hydr%nlevsoi_hyd
+               allocate(wkf_vg)
+               csite_hydr%wkf_soil(j) => wkf_vg
+               wkf_vg%set_wkf_param_vg(alpha_in = alpha_vg,   & 
+                                       psd_in = psd_vg,       & 
+                                       th_sat_in = th_sat_vg, & 
+                                       th_res_in = th_res_vg, & 
+                                       tort_in = th_tort_vg)
+           end do
+       case(campbell)
+           do j=1,sites(s)%si_hydr%nlevsoi_hyd
+               allocate(wkf_cch)
+               csite_hydr%wkf_soil(j) => wkf_cch
+               wkf_cch%set_wkf_param_cch(th_sat_in = bc_in(s)%watsat_sisl(j), & 
+                                         psi_sat_in = (-1.0_r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                                         beta_in = bc_in(s)%bsw_sisl(j))
+           end do
+       case(tfs)
+           write(fates_log(),*) 'TFS conductance not used in soil'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+       end select
+       
+   end do
 
   end subroutine InitHydrSites
 

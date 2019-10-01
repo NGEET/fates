@@ -618,8 +618,7 @@ module FatesInterfaceMod
    public :: SetFatesTime
    public :: set_fates_global_elements
    public :: FatesReportParameters
-   public :: InitPARTEHGlobals
-   public :: InitHydroGlobals
+   public :: InitFatesGlobals
    public :: allocate_bcin
    public :: allocate_bcout
 
@@ -1788,6 +1787,37 @@ contains
    end subroutine FatesReportParameters
 
    ! ====================================================================================
+
+   subroutine InitFatesGlobals(masterproc)
+
+       ! --------------------------------------------------------------------------
+       ! This subroutine is simply a wrapper that calls various FATES modules
+       ! that initialize global objects, things, constructs, etc. Globals only
+       ! need to be set once during initialization, for each machine, and this
+       ! should not be called for forked SMP processes.
+       ! --------------------------------------------------------------------------
+
+       logical,intent(in) :: is_master        ! This is useful for reporting
+                                              ! and diagnostics so info is not printed
+                                              ! on numerous nodes to standard out. This
+                                              ! is not used to filter which machines
+                                              ! (nodes) to run these procedures, they
+                                              ! should be run on ALL nodes.
+
+       ! Initialize PARTEH globals 
+       ! (like the element lists, and mapping tables)
+       call InitPARTEHGlobals()
+
+       ! Initialize Hydro globals 
+       ! (like water retention functions)
+       call InitHydroGlobals()
+
+
+       return
+   end subroutine InitFatesGlobals
+
+   ! ====================================================================================
+   
 
    subroutine InitPARTEHGlobals()
    
