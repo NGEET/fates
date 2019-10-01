@@ -1052,7 +1052,7 @@ contains
              currentCohort%crownfire_mort = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then
                 ! Equation 22 in Thonicke et al. 2010. 
-                currentCohort%crownfire_mort = EDPftvarcon_inst%crown_resist(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
+                currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 
                 currentCohort%fire_mort = max(0.0_r8,min(1.0_r8,currentCohort%crownfire_mort+currentCohort%cambial_mort- &
                      (currentCohort%crownfire_mort*currentCohort%cambial_mort)))  !joint prob.   
