@@ -104,6 +104,7 @@ contains
       ! !USES:
       use shr_file_mod, only        : shr_file_getUnit
       use shr_file_mod, only        : shr_file_freeUnit
+      use FatesConstantsMod, only   : nearzero
       use EDPatchDynamicsMod, only  : create_patch
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
@@ -384,7 +385,7 @@ contains
          deallocate(patch_pointer_vec,patch_name_vec)
 
          ! now that we've read in the patch and cohort info, check to see if there is any real age info
-         if ( (sites(s)%youngest_patch%age .eq. sites(s)%oldest_patch%age) .and. &
+         if ( abs(sites(s)%youngest_patch%age - sites(s)%oldest_patch%age) <= nearzero .and. &
               associated(sites(s)%youngest_patch%older) ) then
 
             ! so there are at least two patches and the oldest and youngest are the same age.
