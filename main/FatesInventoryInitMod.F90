@@ -448,6 +448,8 @@ contains
                            currentpatch%older => head_of_unsorted_patch_list
                            ! Fix the older patch's younger pointer
                            olderpatch%younger => head_of_unsorted_patch_list
+                           ! Exit the loop once head sorted to avoid later re-sort
+                           exit
                         end if
                      end if
                      currentPatch => olderpatch
