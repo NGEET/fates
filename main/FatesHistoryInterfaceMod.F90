@@ -6,12 +6,23 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : fates_long_string_length
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : calloc_abs_error
+  use FatesConstantsMod        , only : mg_per_kg
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
   use EDTypesMod               , only : ican_upper
+  use EDTypesMod               , only : element_pos
+  use EDTypesMod               , only : num_elements
+  use EDTypesMod               , only : site_fluxdiags_type
+  use EDtypesMod               , only : ed_site_type
+  use EDtypesMod               , only : ed_cohort_type
+  use EDtypesMod               , only : ed_patch_type  
+  use EDtypesMod               , only : AREA
+  use EDtypesMod               , only : AREA_INV
   use EDTypesMod               , only : numWaterMem
   use EDTypesMod               , only : num_vegtemp_mem
+  use EDTypesMod               , only : site_massbal_type
+  use EDTypesMod               , only : element_list
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -24,6 +35,7 @@ module FatesHistoryInterfaceMod
   use EDParamsMod              , only : ED_val_phen_coldtemp
   use FatesInterfaceMod        , only : nlevsclass, nlevage
   use FatesInterfaceMod        , only : nlevheight
+  use FatesInterfaceMod        , only : bc_in_type
   use FatesInterfaceMod        , only : hlm_model_day
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
@@ -38,11 +50,13 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : sec_per_day
   use FatesConstantsMod        , only : days_per_year
   use FatesConstantsMod        , only : years_per_day
+  use FatesLitterMod           , only : litter_type
   use FatesConstantsMod        , only : secondaryforest
 
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
   use PRTGenericMod            , only : all_carbon_elements
+  use PRTGenericMod            , only : carbon12_element
 
 
   implicit none
@@ -133,16 +147,31 @@ module FatesHistoryInterfaceMod
   integer :: ih_fire_fuel_sav_pa
   integer :: ih_fire_fuel_mef_pa
   integer :: ih_sum_fuel_pa
-  integer :: ih_litter_in_si
-  integer :: ih_litter_out_pa
+
+  integer :: ih_cwd_elcwd
+
+  integer :: ih_litter_in_si    ! carbon only
+  integer :: ih_litter_out_si   ! carbon only
+  integer :: ih_seed_bank_si    ! carbon only
+  integer :: ih_seeds_in_si     ! carbon only
+
+  integer :: ih_litter_in_elem
+  integer :: ih_litter_out_elem
+  integer :: ih_seed_bank_elem
+  integer :: ih_seeds_in_local_elem
+  integer :: ih_seeds_in_extern_elem
+  integer :: ih_seed_decay_elem
+  integer :: ih_seed_germ_elem
+
+  integer :: ih_fines_ag_elem
+  integer :: ih_fines_bg_elem
+  integer :: ih_cwd_ag_elem
+  integer :: ih_cwd_bg_elem
 
   integer :: ih_daily_temp
   integer :: ih_daily_rh
   integer :: ih_daily_prec
-  integer :: ih_seed_bank_si
-  integer :: ih_seeds_in_pa
-  integer :: ih_seed_decay_pa
-  integer :: ih_seed_germination_pa
+ 
   integer :: ih_bstore_pa
   integer :: ih_bdead_pa
   integer :: ih_balive_pa
@@ -162,7 +191,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_gpp_understory_pa
   integer :: ih_canopy_biomass_pa
   integer :: ih_understory_biomass_pa
-  
+
   ! Indices to site by size-class by age variables
   integer :: ih_nplant_si_scag
   integer :: ih_nplant_canopy_si_scag
@@ -180,27 +209,19 @@ module FatesHistoryInterfaceMod
   integer :: ih_npp_si_agepft
 
   ! Indices to (site) variables
+
   integer :: ih_nep_si
-  integer :: ih_nep_timeintegrated_si
-  integer :: ih_npp_timeintegrated_si
-  integer :: ih_hr_timeintegrated_si
-  integer :: ih_nbp_si
   integer :: ih_npp_si
+
   integer :: ih_c_stomata_si
   integer :: ih_c_lblayer_si
+
   integer :: ih_fire_c_to_atm_si
-  integer :: ih_totecosysc_si
-  integer :: ih_totecosysc_old_si
-  integer :: ih_totedc_si
-  integer :: ih_totedc_old_si
-  integer :: ih_totbgcc_si
-  integer :: ih_totbgcc_old_si
-  integer :: ih_biomass_stock_si
-  integer :: ih_litter_stock_si
-  integer :: ih_cwd_stock_si
+
+
   integer :: ih_cbal_err_fates_si
-  integer :: ih_cbal_err_bgc_si
-  integer :: ih_cbal_err_tot_si
+  integer :: ih_err_fates_si
+
   integer :: ih_npatches_si
   integer :: ih_ncohorts_si
   integer :: ih_demotion_carbonflux_si
@@ -238,6 +259,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_dleafoff_si
   integer :: ih_dleafon_si
   integer :: ih_meanliqvol_si
+
+
   integer :: ih_nplant_si_scpf
   integer :: ih_gpp_si_scpf
   integer :: ih_npp_totl_si_scpf
@@ -480,15 +503,10 @@ module FatesHistoryInterfaceMod
   integer :: ih_crownarea_si_can
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter, public :: fates_history_num_dimensions = 16
-  integer, parameter, public :: fates_history_num_dim_kinds = 18
 
-  ! These flags are used to help specify what to do with non-fates
-  ! locations in the host model
-  integer, parameter, public :: zero_flag   = 0
-  integer, parameter, public :: ignore_flag = 1
+  integer, parameter, public :: fates_history_num_dimensions = 50
+  integer, parameter, public :: fates_history_num_dim_kinds = 50
 
-  
   ! This structure is allocated by thread, and must be calculated after the FATES
   ! sites are allocated, and their mapping to the HLM is identified.  This structure
   ! is not combined with iovar_bounds, because that one is multi-instanced.  This
@@ -525,6 +543,9 @@ module FatesHistoryInterfaceMod
      integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
      integer, private :: levscagpft_index_, levagepft_index_
      integer, private :: levheight_index_
+     integer, private :: levelem_index_, levelpft_index_
+     integer, private :: levelcwd_index_, levelage_index_
+
    contains
      
      procedure :: Init
@@ -538,6 +559,7 @@ module FatesHistoryInterfaceMod
      procedure :: update_history_hydraulics
 
      ! 'get' methods used by external callers to access private read only data
+
      procedure :: num_history_vars
      procedure :: patch_index
      procedure :: column_index
@@ -555,6 +577,10 @@ module FatesHistoryInterfaceMod
      procedure :: levscagpft_index
      procedure :: levagepft_index
      procedure :: levheight_index
+     procedure :: levelem_index
+     procedure :: levelpft_index
+     procedure :: levelcwd_index
+     procedure :: levelage_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -579,6 +605,12 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levscagpft_index
      procedure, private :: set_levagepft_index
      procedure, private :: set_levheight_index
+     
+     procedure, private :: set_levelem_index
+     procedure, private :: set_levelpft_index
+     procedure, private :: set_levelcwd_index
+     procedure, private :: set_levelage_index
+
 
   end type fates_history_interface_type
    
@@ -598,6 +630,8 @@ contains
     use FatesIODimensionsMod, only : levcan, levcnlf, levcnlfpft
     use FatesIODimensionsMod, only : fates_bounds_type
     use FatesIODimensionsMod, only : levheight
+    use FatesIODimensionsMod, only : levelem, levelpft
+    use FatesIODimensionsMod, only : levelcwd, levelage
 
     implicit none
 
@@ -686,6 +720,26 @@ contains
     call this%set_levheight_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levheight, num_threads, &
          fates_bounds%height_begin, fates_bounds%height_end)
+
+    dim_count = dim_count + 1
+    call this%set_levelem_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levelem, num_threads, &
+         fates_bounds%elem_begin, fates_bounds%elem_end)
+
+    dim_count = dim_count + 1
+    call this%set_levelpft_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levelpft, num_threads, &
+          fates_bounds%elpft_begin, fates_bounds%elpft_end)
+    
+    dim_count = dim_count + 1
+    call this%set_levelcwd_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levelcwd, num_threads, &
+         fates_bounds%elcwd_begin, fates_bounds%elcwd_end)
+
+    dim_count = dim_count + 1
+    call this%set_levelage_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levelage, num_threads, &
+          fates_bounds%elage_begin, fates_bounds%elage_end)
     
 
     ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
@@ -772,6 +826,27 @@ contains
     index = this%levheight_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
           thread_bounds%height_begin, thread_bounds%height_end)
+
+    index = this%levelem_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%elem_begin, thread_bounds%elem_end)
+
+    index = this%levelpft_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%elpft_begin, thread_bounds%elpft_end)
+    
+    index = this%levelcwd_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%elcwd_begin, thread_bounds%elcwd_end)
+
+    index = this%levelage_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%elage_begin, thread_bounds%elage_end)
+    
+
+    
+
+
     
   end subroutine SetThreadBoundsEach
   
@@ -785,6 +860,8 @@ contains
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     use FatesIOVariableKindMod, only : site_height_r8
+    use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
+    use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
 
    implicit none
 
@@ -843,6 +920,19 @@ contains
 
     call this%set_dim_indices(site_height_r8, 1, this%column_index())
     call this%set_dim_indices(site_height_r8, 2, this%levheight_index())
+
+    call this%set_dim_indices(site_elem_r8, 1, this%column_index())
+    call this%set_dim_indices(site_elem_r8, 2, this%levelem_index())
+    
+    call this%set_dim_indices(site_elpft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_elpft_r8, 2, this%levelpft_index())
+
+    call this%set_dim_indices(site_elcwd_r8, 1, this%column_index())
+    call this%set_dim_indices(site_elcwd_r8, 2, this%levelcwd_index())
+    
+    call this%set_dim_indices(site_elage_r8, 1, this%column_index())
+    call this%set_dim_indices(site_elage_r8, 2, this%levelage_index())
+    
 
   end subroutine assemble_history_output_types
   
@@ -1110,9 +1200,68 @@ contains
     class(fates_history_interface_type), intent(in) :: this
     levheight_index = this%levheight_index_
  end function levheight_index
- ! ======================================================================================                                                                                                                          
 
+ ! ======================================================================================
 
+ subroutine set_levelem_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levelem_index_ = index
+ end subroutine set_levelem_index
+
+ integer function levelem_index(this)
+    implicit none
+    class(fates_history_interface_type), intent(in) :: this
+    levelem_index = this%levelem_index_
+  end function levelem_index
+
+ ! ======================================================================================
+       
+ subroutine set_levelpft_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levelpft_index_ = index
+ end subroutine set_levelpft_index
+
+ integer function levelpft_index(this)
+    implicit none
+    class(fates_history_interface_type), intent(in) :: this
+    levelpft_index = this%levelpft_index_
+ end function levelpft_index
+
+ ! ======================================================================================
+
+ subroutine set_levelcwd_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levelcwd_index_ = index
+ end subroutine set_levelcwd_index
+
+ integer function levelcwd_index(this)
+    implicit none
+    class(fates_history_interface_type), intent(in) :: this
+    levelcwd_index = this%levelcwd_index_
+  end function levelcwd_index
+
+ ! ======================================================================================
+
+ subroutine set_levelage_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levelage_index_ = index
+ end subroutine set_levelage_index
+
+ integer function levelage_index(this)
+    implicit none
+    class(fates_history_interface_type), intent(in) :: this
+    levelage_index = this%levelage_index_
+ end function levelage_index
+
+ ! ======================================================================================
 
  subroutine flush_hvars(this,nc,upfreq_in)
  
@@ -1207,7 +1356,9 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     use FatesIOVariableKindMod, only : site_height_r8
-    
+    use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
+    use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
+
     implicit none
     
     ! Arguments
@@ -1288,60 +1439,75 @@ end subroutine flush_hvars
     index = index + 1
     call this%dim_kinds(index)%Init(site_height_r8, 2)
 
+    ! site x elemenet
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_elem_r8, 2)
+
+    ! site x element x pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_elpft_r8, 2)
+    
+    ! site x element x cwd
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_elcwd_r8, 2)
+
+    ! site x element x age
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_elage_r8, 2)
+
+
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
 
  ! =======================================================================
- subroutine update_history_cbal(this,nc,nsites,sites)
+
+  subroutine update_history_cbal(this,nc,nsites,sites,bc_in)
 
      use EDtypesMod          , only : ed_site_type
-     
+      
+
      ! Arguments
      class(fates_history_interface_type)             :: this
      integer                 , intent(in)            :: nc   ! clump index
      integer                 , intent(in)            :: nsites
      type(ed_site_type)      , intent(inout), target :: sites(nsites)
+     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
 
      ! Locals
      integer  :: s        ! The local site index
      integer  :: io_si     ! The site index of the IO array
+     type(ed_cohort_type), pointer  :: ccohort ! current cohort
+     type(ed_patch_type) , pointer  :: cpatch ! current patch
      
-     
-     associate( hio_nep_si            => this%hvars(ih_nep_si)%r81d, &
-                 hio_nbp_si            => this%hvars(ih_nbp_si)%r81d, &
-                 hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
-                 hio_totecosysc_si     => this%hvars(ih_totecosysc_si)%r81d, &
-                 hio_cbal_err_fates_si => this%hvars(ih_cbal_err_fates_si)%r81d, &
-                 hio_cbal_err_bgc_si   => this%hvars(ih_cbal_err_bgc_si)%r81d, &
-                 hio_cbal_err_tot_si   => this%hvars(ih_cbal_err_tot_si)%r81d, &
-                 hio_biomass_stock_si  => this%hvars(ih_biomass_stock_si)%r81d, &
-                 hio_litter_stock_si   => this%hvars(ih_litter_stock_si)%r81d, &
-                 hio_cwd_stock_si      => this%hvars(ih_cwd_stock_si)%r81d )
+     associate( hio_nep_si => this%hvars(ih_nep_si)%r81d )
+       
+       ! ---------------------------------------------------------------------------------
+       ! Flush arrays to values defined by %flushval (see registry entry in
+       ! subroutine define_history_vars()
+       ! ---------------------------------------------------------------------------------
 
-        ! ---------------------------------------------------------------------------------
-        ! Flush arrays to values defined by %flushval (see registry entry in
-        ! subroutine define_history_vars()
-        ! ---------------------------------------------------------------------------------
-        call this%flush_hvars(nc,upfreq_in=3)
+       call this%flush_hvars(nc,upfreq_in=3)        
         
-        
-        do s = 1,nsites
-         
+       do s = 1,nsites
+           
            io_si  = this%iovar_map(nc)%site_index(s)
 
-           hio_nep_si(io_si) = sites(s)%nep
-           hio_nbp_si(io_si) = sites(s)%nbp
-           hio_fire_c_to_atm_si(io_si) = sites(s)%fire_c_to_atm
-           hio_totecosysc_si(io_si) = sites(s)%totecosysc
-           hio_cbal_err_fates_si(io_si) = sites(s)%cbal_err_fates
-           hio_cbal_err_bgc_si(io_si) = sites(s)%cbal_err_bgc
-           hio_cbal_err_tot_si(io_si) = sites(s)%cbal_err_tot
-           hio_biomass_stock_si(io_si) = sites(s)%biomass_stock
-           hio_litter_stock_si(io_si) = sites(s)%ed_litter_stock
-           hio_cwd_stock_si(io_si) = sites(s)%cwd_stock
-
-        end do
-
+           hio_nep_si(io_si) = -bc_in(s)%tot_het_resp ! (gC/m2/s)
+           
+           cpatch => sites(s)%oldest_patch
+           do while(associated(cpatch))
+               ccohort => cpatch%shortest
+               do while(associated(ccohort))
+               
+                   ! Add up the total Net Ecosystem Production
+                   ! for this timestep.  [gC/m2/s]
+                   hio_nep_si(io_si) = hio_nep_si(io_si) + &
+                         (ccohort%gpp_tstep - ccohort%resp_tstep) * g_per_kg * ccohort%n * area_inv
+                   ccohort => ccohort%taller
+               end do
+               cpatch => cpatch%younger
+           end do
+       end do
       end associate
 
    end subroutine update_history_cbal
@@ -1356,13 +1522,9 @@ end subroutine flush_hvars
     ! after Ecosystem Dynamics have been processed.
     ! ---------------------------------------------------------------------------------
     
-    use EDtypesMod          , only : ed_site_type
-    use EDtypesMod          , only : ed_cohort_type
-    use EDtypesMod          , only : ed_patch_type
-    use EDtypesMod          , only : AREA
-    use EDtypesMod          , only : AREA_INV
+
     use EDtypesMod          , only : nfsc
-    use EDtypesMod          , only : ncwd
+    use FatesLitterMod      , only : ncwd
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
     use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
@@ -1381,6 +1543,12 @@ end subroutine flush_hvars
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     
     ! Locals
+    type(litter_type), pointer         :: litt_c   ! Pointer to the carbon12 litter pool
+    type(litter_type), pointer         :: litt     ! Generic pointer to any litter pool
+    type(site_fluxdiags_type), pointer :: flux_diags
+    type(site_fluxdiags_type), pointer :: flux_diags_c
+    type(site_massbal_type), pointer :: site_mass
+
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
     integer  :: ipa, ipa2 ! The local "I"ndex of "PA"tches 
@@ -1390,6 +1558,8 @@ end subroutine flush_hvars
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
+    integer  :: cwd
+    integer  :: elcwd, elpft            ! combined index of element and pft or cwd
     integer  :: i_scpf,i_pft,i_scls     ! iterators for scpf, pft, and scls dims
     integer  :: i_cwd,i_fuel            ! iterators for cwd and fuel dims
     integer  :: iscag        ! size-class x age index
@@ -1398,7 +1568,7 @@ end subroutine flush_hvars
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
-    integer  :: i_tmem        ! iterator for veg temp bins
+    integer  :: el           ! Loop index for elements
     integer  :: model_day_int ! integer model day from reference 
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
@@ -1434,6 +1604,7 @@ end subroutine flush_hvars
     real(r8) :: fnrt_c_net_alloc
     real(r8) :: struct_c_net_alloc
     real(r8) :: repro_c_net_alloc
+    real(r8) :: area_frac
 
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -1467,11 +1638,17 @@ end subroutine flush_hvars
                hio_fire_fuel_mef_pa    => this%hvars(ih_fire_fuel_mef_pa)%r81d, &
                hio_sum_fuel_pa         => this%hvars(ih_sum_fuel_pa)%r81d,  &
                hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
-               hio_litter_out_pa       => this%hvars(ih_litter_out_pa)%r81d, &
+               hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
                hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
-               hio_seeds_in_pa         => this%hvars(ih_seeds_in_pa)%r81d, &
-               hio_seed_decay_pa       => this%hvars(ih_seed_decay_pa)%r81d, &
-               hio_seed_germination_pa => this%hvars(ih_seed_germination_pa)%r81d, &
+               hio_seeds_in_si         => this%hvars(ih_seeds_in_si)%r81d, &
+               hio_litter_in_elem      => this%hvars(ih_litter_in_elem)%r82d, &
+               hio_litter_out_elem     => this%hvars(ih_litter_out_elem)%r82d, &
+               hio_seed_bank_elem      => this%hvars(ih_seed_bank_elem)%r82d, &
+               hio_seeds_in_local_elem => this%hvars(ih_seeds_in_local_elem)%r82d, &
+               hio_seed_in_extern_elem => this%hvars(ih_seeds_in_extern_elem)%r82d, & 
+               hio_seed_decay_elem     => this%hvars(ih_seed_decay_elem)%r82d, &
+               hio_seed_germ_elem      => this%hvars(ih_seed_germ_elem)%r82d, &
+
                hio_bstore_pa           => this%hvars(ih_bstore_pa)%r81d, &
                hio_bdead_pa            => this%hvars(ih_bdead_pa)%r81d, &
                hio_balive_pa           => this%hvars(ih_balive_pa)%r81d, &
@@ -1498,7 +1675,6 @@ end subroutine flush_hvars
                hio_npp_froot_si        => this%hvars(ih_npp_froot_si)%r81d, &
                hio_npp_croot_si        => this%hvars(ih_npp_croot_si)%r81d, &
                hio_npp_stor_si         => this%hvars(ih_npp_stor_si)%r81d, &
-
                hio_bstor_canopy_si_scpf      => this%hvars(ih_bstor_canopy_si_scpf)%r82d, &
                hio_bstor_understory_si_scpf  => this%hvars(ih_bstor_understory_si_scpf)%r82d, &
                hio_bleaf_canopy_si_scpf      => this%hvars(ih_bleaf_canopy_si_scpf)%r82d, &
@@ -1532,6 +1708,8 @@ end subroutine flush_hvars
                hio_crownfiremort_si_scpf     => this%hvars(ih_crownfiremort_si_scpf)%r82d, &
                hio_cambialfiremort_si_scpf   => this%hvars(ih_cambialfiremort_si_scpf)%r82d, &
 
+               hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
+
                hio_m1_si_scls          => this%hvars(ih_m1_si_scls)%r82d, &
                hio_m2_si_scls          => this%hvars(ih_m2_si_scls)%r82d, &
                hio_m3_si_scls          => this%hvars(ih_m3_si_scls)%r82d, &
@@ -1540,9 +1718,12 @@ end subroutine flush_hvars
                hio_m6_si_scls          => this%hvars(ih_m6_si_scls)%r82d, &
                hio_m7_si_scls          => this%hvars(ih_m7_si_scls)%r82d, &
                hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &    
-	       hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &                    
-
-
+               hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &
+               hio_cwd_elcwd           => this%hvars(ih_cwd_elcwd)%r82d, &
+               hio_cwd_ag_elem         => this%hvars(ih_cwd_ag_elem)%r82d, &
+               hio_cwd_bg_elem         => this%hvars(ih_cwd_bg_elem)%r82d, &
+               hio_fines_ag_elem       => this%hvars(ih_fines_bg_elem)%r82d, &
+               hio_fines_bg_elem       => this%hvars(ih_fines_ag_elem)%r82d, &
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_agb_si_scls          => this%hvars(ih_agb_si_scls)%r82d, &
                hio_biomass_si_scls          => this%hvars(ih_biomass_si_scls)%r82d, &
@@ -1635,7 +1816,9 @@ end subroutine flush_hvars
                hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
                hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
-               hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d )
+               hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
+               hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
+               hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
 
                
       ! ---------------------------------------------------------------------------------
@@ -1663,8 +1846,20 @@ end subroutine flush_hvars
          ! Set trimming on the soil patch to 1.0
          hio_trimming_pa(io_soipa) = 1.0_r8
 
-         ! The seed bank is a site level variable
-         hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * g_per_kg
+         ! Total carbon model error [kgC/day -> mgC/day]
+         hio_cbal_err_fates_si(io_si) = &
+               sites(s)%mass_balance(element_pos(carbon12_element))%err_fates * mg_per_kg
+
+         ! Total carbon lost to atmosphere from burning (kgC/site/day -> gC/m2/s)
+         hio_fire_c_to_atm_si(io_si) = &
+              sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm * &
+              g_per_kg * ha_per_m2 * days_per_sec
+
+         ! Total model error [kg/day -> mg/day]  (all elements)
+         do el = 1, num_elements
+             site_mass => sites(s)%mass_balance(el)
+             hio_err_fates_si(io_si,el) = site_mass%err_fates * mg_per_kg
+         end do
 
          hio_canopy_spread_si(io_si)        = sites(s)%spread
 
@@ -1907,12 +2102,10 @@ end subroutine flush_hvars
                        (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                   hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) + store_c_net_alloc * n_perm2
                   
-
-
                   associate( scpf => ccohort%size_by_pft_class, &
                              scls => ccohort%size_class )
-			     
-		    gpp_cached = hio_gpp_si_scpf(io_si,scpf)
+                    
+                    gpp_cached = hio_gpp_si_scpf(io_si,scpf)
 
                     hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
                                                        n_perm2*ccohort%gpp_acc_hold  ! [kgC/m2/yr]
@@ -2034,7 +2227,7 @@ end subroutine flush_hvars
 
                        hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort) * ccohort%n + &
-			    (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                            (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                             ccohort%n * sec_per_day * days_per_year
 
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n
@@ -2120,7 +2313,7 @@ end subroutine flush_hvars
 
                        hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort ) * ccohort%n + &
-			    (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                            (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                             ccohort%n * sec_per_day * days_per_year
 
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n
@@ -2256,39 +2449,25 @@ end subroutine flush_hvars
                hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
                     cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
             end do
+
             ! Update Litter Flux Variables
 
-            ! put litter_in flux onto site level variable so as to be able to append site-level 
-            ! distubance-related input flux after patch loop
-            hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
-                 (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in) + sum(cpatch%root_litter_in)) &
-                 * g_per_kg * cpatch%area * AREA_INV * years_per_day * days_per_sec
-            ! keep litter_out at patch level
-            hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out) &
-                 + sum(cpatch%root_litter_out)) &
-                 * g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec
-            
-            hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * &
-                 g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec
-            hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) * &
-                 g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec
-            hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) * &
-                 g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec 
-
-            
+            litt_c       => cpatch%litter(element_pos(carbon12_element))
+            flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
+                         
             do i_cwd = 1, ncwd
-               hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_AG(i_cwd)*cpatch%area * AREA_INV * g_per_kg
-               hio_cwd_bg_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_BG(i_cwd)*cpatch%area * AREA_INV * g_per_kg
-               hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_AG_IN(i_cwd)*cpatch%area * AREA_INV * g_per_kg
-               hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_BG_IN(i_cwd)*cpatch%area * AREA_INV * g_per_kg
-               hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_AG_OUT(i_cwd)*cpatch%area * AREA_INV * g_per_kg
-               hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_BG_OUT(i_cwd)*cpatch%area * AREA_INV * g_per_kg
+
+                hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
+                      litt_c%ag_cwd(i_cwd)*cpatch%area * AREA_INV * g_per_kg
+                hio_cwd_bg_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_si_cwdsc(io_si, i_cwd) + &
+                      sum(litt_c%bg_cwd(i_cwd,:)) * cpatch%area * AREA_INV * g_per_kg
+                
+                hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) + &
+                      litt_c%ag_cwd_frag(i_cwd)*cpatch%area * AREA_INV * g_per_kg
+                
+                hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) + &
+                      sum(litt_c%bg_cwd_frag(i_cwd,:)) * cpatch%area * AREA_INV * g_per_kg
+
             end do
 
             ipa = ipa + 1
@@ -2432,11 +2611,142 @@ end subroutine flush_hvars
                     hio_m4_si_scpf(io_si,i_scpf) + &
                     hio_m5_si_scpf(io_si,i_scpf) + &
                     hio_m6_si_scpf(io_si,i_scpf) + &
-		    hio_m7_si_scpf(io_si,i_scpf) + &
+                    hio_m7_si_scpf(io_si,i_scpf) + &
                     hio_m8_si_scpf(io_si,i_scpf)
 
             end do
          end do
+         
+         ! ------------------------------------------------------------------------------
+         ! Some carbon only litter diagnostics (legacy)
+         ! ------------------------------------------------------------------------------
+
+         flux_diags => sites(s)%flux_diags(element_pos(carbon12_element))
+
+         hio_litter_in_si(io_si) = (sum(flux_diags%cwd_ag_input(:)) + &
+              sum(flux_diags%cwd_bg_input(:)) + &
+              sum(flux_diags%leaf_litter_input(:)) + &
+              sum(flux_diags%root_litter_input(:))) * &
+              g_per_kg * AREA_INV * days_per_sec
+
+         hio_litter_out_si(io_si) = 0._r8
+         hio_seed_bank_si(io_si)  = 0._r8
+         hio_seeds_in_si(io_si)   = 0._r8
+
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            
+            litt => cpatch%litter(element_pos(carbon12_element))
+            
+            area_frac = cpatch%area * AREA_INV
+            
+            ! Sum up all output fluxes (fragmentation) kgC/m2/day -> gC/m2/s
+            hio_litter_out_si(io_si) = hio_litter_out_si(io_si) + &
+                 (sum(litt%leaf_fines_frag(:)) + &
+                 sum(litt%root_fines_frag(:,:)) + &
+                 sum(litt%ag_cwd_frag(:)) + &
+                 sum(litt%bg_cwd_frag(:,:))) * &
+                 area_frac * g_per_kg * days_per_sec
+
+            ! Sum up total seed bank (germinated and ungerminated)
+            hio_seed_bank_si(io_si) = hio_seed_bank_si(io_si) + &
+                 (sum(litt%seed(:))+sum(litt%seed_germ(:))) * &
+                 area_frac * g_per_kg * days_per_sec
+
+            ! Sum up the input flux into the seed bank (local and external)
+            hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
+                 (sum(litt%seed_in_local(:)) + sum(litt%seed_in_extern(:))) * &
+                 area_frac * g_per_kg * days_per_sec
+            
+            cpatch => cpatch%younger
+         end do
+         
+
+         ! ------------------------------------------------------------------------------
+         ! Diagnostics discretized by element type
+         ! ------------------------------------------------------------------------------
+
+         hio_cwd_elcwd(io_si,:)   = 0._r8
+
+
+         do el = 1, num_elements
+            
+            flux_diags => sites(s)%flux_diags(el)
+            
+            ! Sum up all input litter fluxes (above below, fines, cwd)
+            hio_litter_in_elem(io_si, el) = hio_litter_in_elem(io_si, el) + &
+                 sum(flux_diags%cwd_ag_input(:)) + & 
+                 sum(flux_diags%cwd_bg_input(:)) + &
+                 sum(flux_diags%leaf_litter_input(:)) + &
+                 sum(flux_diags%root_litter_input(:))
+
+            hio_cwd_ag_elem(io_si,el)         = 0._r8
+            hio_cwd_bg_elem(io_si,el)         = 0._r8
+            hio_fines_ag_elem(io_si,el)       = 0._r8
+            hio_fines_bg_elem(io_si,el)       = 0._r8
+
+            hio_seed_bank_elem(io_si,el)      = 0._r8
+            hio_seed_germ_elem(io_si,el)      = 0._r8
+            hio_seed_decay_elem(io_si,el)     = 0._r8
+            hio_seeds_in_local_elem(io_si,el) = 0._r8
+            hio_seed_in_extern_elem(io_si,el) = 0._r8
+            
+            cpatch => sites(s)%oldest_patch
+            do while(associated(cpatch))
+
+               litt => cpatch%litter(el)
+
+               area_frac = cpatch%area * AREA_INV
+
+               ! Sum up all output fluxes (fragmentation)
+               hio_litter_out_elem(io_si,el) = hio_litter_out_elem(io_si,el) + &
+                    (sum(litt%leaf_fines_frag(:)) + &
+                     sum(litt%root_fines_frag(:,:)) + &
+                     sum(litt%ag_cwd_frag(:)) + & 
+                     sum(litt%bg_cwd_frag(:,:))) * area_frac
+               
+               hio_seed_bank_elem(io_si,el) = hio_seed_bank_elem(io_si,el) + & 
+                    sum(litt%seed(:)) * area_frac
+
+               hio_seed_germ_elem(io_si,el) = hio_seed_germ_elem(io_si,el) + &
+                    sum(litt%seed_germ(:)) * area_frac
+                    
+               hio_seed_decay_elem(io_si,el) = hio_seed_decay_elem(io_si,el) + & 
+                    sum(litt%seed_decay(:)) * area_frac
+
+               hio_seeds_in_local_elem(io_si,el) = hio_seeds_in_local_elem(io_si,el) + & 
+                    sum(litt%seed_in_local(:)) * area_frac
+
+               hio_seed_in_extern_elem(io_si,el) = hio_seed_in_extern_elem(io_si,el) + & 
+                    sum(litt%seed_in_extern(:)) * area_frac
+
+               ! Litter State Variables
+               hio_cwd_ag_elem(io_si,el) = hio_cwd_ag_elem(io_si,el) + &
+                     sum(litt%ag_cwd(:)) * area_frac
+               
+               hio_cwd_bg_elem(io_si,el) = hio_cwd_bg_elem(io_si,el) + &
+                     sum(litt%bg_cwd(:,:)) * area_frac
+               
+               hio_fines_ag_elem(io_si,el) = hio_fines_ag_elem(io_si,el) + & 
+                     sum(litt%leaf_fines(:)) * area_frac
+               
+               hio_fines_bg_elem(io_si,el) = hio_fines_bg_elem(io_si,el) + &
+                     sum(litt%root_fines(:,:)) * area_frac
+
+
+               do cwd=1,ncwd
+                   elcwd = (el-1)*ncwd+cwd
+                   hio_cwd_elcwd(io_si,elcwd) = hio_cwd_elcwd(io_si,elcwd) + & 
+                         (litt%ag_cwd(cwd) + sum(litt%bg_cwd(cwd,:))) * area_frac
+
+               end do
+
+                    
+               cpatch => cpatch%younger
+            end do
+
+         end do
+         
 
          ! pass demotion rates and associated carbon fluxes to history
          do i_scls = 1,nlevsclass
@@ -2460,22 +2770,24 @@ end subroutine flush_hvars
          sites(s)%term_carbonflux_canopy = 0._r8
          sites(s)%term_carbonflux_ustory = 0._r8
          !
+
          ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
+
          do i_cwd = 1, ncwd
-            hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
-                 sites(s)%CWD_AG_diagnostic_input_carbonflux(i_cwd) * g_per_kg
-            hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
-                 sites(s)%CWD_BG_diagnostic_input_carbonflux(i_cwd) * g_per_kg
+             hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
+                   flux_diags_c%cwd_ag_input(i_cwd) * g_per_kg
+             
+             hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
+                   flux_diags_c%cwd_bg_input(i_cwd) * g_per_kg
+
          end do
-         hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
-              (sum(sites(s)%leaf_litter_diagnostic_input_carbonflux) + &
-              sum(sites(s)%root_litter_diagnostic_input_carbonflux)) * g_per_kg * days_per_sec * years_per_day
+
          ! and reset the disturbance-related field buffers
-         sites(s)%CWD_AG_diagnostic_input_carbonflux(:) = 0._r8
-         sites(s)%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
-         sites(s)%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
-         sites(s)%root_litter_diagnostic_input_carbonflux(:) = 0._r8
-         
+
+         do el = 1, num_elements
+             call sites(s)%flux_diags(el)%ZeroFluxDiags()
+         end do
+
       enddo ! site loop
       
     end associate
@@ -2492,12 +2804,6 @@ end subroutine flush_hvars
     ! after rapid timescale productivity calculations (gpp and respiration).
     ! ---------------------------------------------------------------------------------
     
-    use EDtypesMod          , only : ed_site_type,   &
-                                     ed_cohort_type, &
-                                     ed_patch_type,  &
-                                     AREA,           &
-                                     AREA_INV
-
     use EDTypesMod          , only : nclmax, nlevleaf
     !
     ! Arguments
@@ -2920,11 +3226,6 @@ end subroutine flush_hvars
     ! after rapid timescale productivity calculations (gpp and respiration).
     ! ---------------------------------------------------------------------------------
     
-    use EDtypesMod          , only : ed_site_type,   &
-                                     ed_cohort_type, &
-                                     ed_patch_type,  &
-                                     AREA
-
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type, nshell
     use EDTypesMod           , only : maxpft
 
@@ -3346,6 +3647,9 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
+    use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
+    use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
+
 
     implicit none
     
@@ -3587,7 +3891,7 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_effect_wspeed_pa )
 
-    call this%set_history_var(vname='FIRE_TFC_ROS', units='none',              &
+    call this%set_history_var(vname='FIRE_TFC_ROS', units='kgC/m2',              &
          long ='total fuel consumed', use_default='active',                     &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_TFC_ROS_pa )
@@ -3598,12 +3902,12 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_pa )
 
     call this%set_history_var(vname='FIRE_AREA', units='fraction',             &
-         long='spitfire fire area:m2', use_default='active',                    &
+         long='spitfire fire area burn fraction', use_default='active',                    &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_pa )
 
     call this%set_history_var(vname='SCORCH_HEIGHT', units='m',                &
-         long='spitfire fire area:m2', use_default='active',                    &
+         long='spitfire flame height:m', use_default='active',                    &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_pa )
 
@@ -3612,7 +3916,7 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_mef_pa )
 
-    call this%set_history_var(vname='fire_fuel_bulkd', units='m',              &
+    call this%set_history_var(vname='fire_fuel_bulkd', units='kg biomass/m3',              &
          long='spitfire fuel bulk density',  use_default='active',              &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_bulkd_pa )
@@ -3622,7 +3926,7 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_eff_moist_pa )
 
-    call this%set_history_var(vname='fire_fuel_sav', units='m',                &
+    call this%set_history_var(vname='fire_fuel_sav', units='per m',                &
          long='spitfire fuel surface/volume ',  use_default='active',           &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_sav_pa )
@@ -3647,8 +3951,8 @@ end subroutine flush_hvars
 
     call this%set_history_var(vname='LITTER_OUT', units='gC m-2 s-1',          &
          long='FATES litter flux out',  use_default='active',                  & 
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_litter_out_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_litter_out_si )
 
     call this%set_history_var(vname='SEED_BANK', units='gC m-2',               &
          long='Total Seed Mass of all PFTs',  use_default='active',             &
@@ -3657,18 +3961,45 @@ end subroutine flush_hvars
 
     call this%set_history_var(vname='SEEDS_IN', units='gC m-2 s-1',            &
          long='Seed Production Rate',  use_default='active',                    &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_seeds_in_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seeds_in_si )
 
-    call this%set_history_var(vname='SEED_GERMINATION', units='gC m-2 s-1',    &
-         long='Seed mass converted into new cohorts',   use_default='active',   &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_seed_germination_pa )
+    call this%set_history_var(vname='LITTER_IN_ELEM', units='kg m-2 d-1',         &
+         long='FATES litter flux in',  use_default='active',                      &
+         avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_litter_in_elem )
 
-    call this%set_history_var(vname='SEED_DECAY', units='gC m-2 s-1',          &
+    call this%set_history_var(vname='LITTER_OUT_ELEM', units='kg m-2 d-1',         &
+         long='FATES litter flux out (fragmentation only)',  use_default='active',                      & 
+         avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_litter_out_elem )
+
+    call this%set_history_var(vname='SEED_BANK_ELEM', units='kg m-2',             &
+         long='Total Seed Mass of all PFTs',  use_default='active',               &
+         avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seed_bank_elem )
+
+    call this%set_history_var(vname='SEEDS_IN_LOCAL_ELEM', units='kg m-2 d-1',     &
+         long='Within Site Seed Production Rate',  use_default='active',           &
+         avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seeds_in_local_elem )
+
+    call this%set_history_var(vname='SEEDS_IN_EXTERN_ELEM', units='kg m-2 d-1',     &
+         long='External Seed Influx Rate',  use_default='active',                   &
+         avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seeds_in_extern_elem )
+
+    call this%set_history_var(vname='SEED_GERM_ELEM', units='kg m-2 d-1',          &
+         long='Seed mass converted into new cohorts', use_default='active',        &
+         avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seed_germ_elem )
+
+    call this%set_history_var(vname='SEED_DECAY', units='kg m-2 d-1',           &
          long='Seed mass decay', use_default='active',                          &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_seed_decay_pa )
+         avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seed_decay_elem )
+
+
     
     call this%set_history_var(vname='ED_bstore', units='gC m-2',                  &
          long='Storage biomass', use_default='active',                          &
@@ -4718,47 +5049,43 @@ end subroutine flush_hvars
     call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
           long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
    
-    call this%set_history_var(vname='NBP', units='gC/m^2/s', &
-          long='net biosphere production', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nbp_si )
-   
-    call this%set_history_var(vname='TOTECOSYSC', units='gC/m^2',  &
-         long='total ecosystem carbon', use_default='active', &
+    call this%set_history_var(vname='CBALANCE_ERROR_FATES', units='mgC/day',  &
+         long='total carbon error, FATES', use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_totecosysc_si )
-    
-    call this%set_history_var(vname='CBALANCE_ERROR_ED', units='gC/m^2/s',  &
-         long='total carbon balance error on ED side', use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_fates_si )
+         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_fates_si )
 
-    call this%set_history_var(vname='CBALANCE_ERROR_BGC', units='gC/m^2/s',  &
-         long='total carbon balance error on HLMs BGC side', use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_bgc_si )
-    
-    call this%set_history_var(vname='CBALANCE_ERROR_TOTAL', units='gC/m^2/s', &
-          long='total carbon balance error total', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_tot_si )
-    
-    call this%set_history_var(vname='BIOMASS_STOCK_COL', units='gC/m^2',  &
-          long='total ED biomass carbon at the column level', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_biomass_stock_si )
-    
-    call this%set_history_var(vname='ED_LITTER_STOCK_COL', units='gC/m^2', &
-          long='total ED litter carbon at the column level', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_litter_stock_si )
-    
-    call this%set_history_var(vname='CWD_STOCK_COL', units='gC/m^2', &
-          long='total CWD carbon at the column level', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cwd_stock_si )
+    call this%set_history_var(vname='ERROR_FATES', units='mg/day',  &
+         long='total error, FATES mass-balance', use_default='active', &
+         avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_err_fates_si )
+
+
+    call this%set_history_var(vname='LITTER_FINES_AG_ELEM', units='kg/m^2', &
+          long='mass of above ground  litter in fines (leaves,nonviable seed)', use_default='active', &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_ag_elem )
+
+    call this%set_history_var(vname='LITTER_FINES_BG_ELEM', units='kg/m^2', &
+          long='mass of below ground litter in fines (fineroots)', use_default='active', &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_bg_elem )
+
+    call this%set_history_var(vname='LITTER_CWD_BG_ELEM', units='kg/m^2', &
+          long='mass of below ground litter in CWD (coarse roots)', use_default='active', &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_elem )
+
+    call this%set_history_var(vname='LITTER_CWD_AG_ELEM', units='kg/m^2', &
+          long='mass of above ground litter in CWD (trunks/branches/twigs)', use_default='active', &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_elem )
+
+    call this%set_history_var(vname='LITTER_CWD', units='kg/m^2', &
+          long='total mass of litter in CWD', use_default='active', &
+          avgflag='A', vtype=site_elcwd_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_elcwd )
 
     ! organ-partitioned NPP / allocation fluxes
     call this%set_history_var(vname='NPP_LEAF', units='kgC/m2/yr',       &
