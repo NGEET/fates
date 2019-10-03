@@ -48,8 +48,9 @@ module EDPftvarcon
      real(r8), allocatable :: crown(:)               ! fraction of the height of the plant 
                                                      ! that is occupied by crown. For fire model. 
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
-     real(r8), allocatable :: crown_resist(:)        ! resistance to fire. (1 = none) For fire model.
-     real(r8), allocatable :: crown_fire(:)          ! Does plant have passive crown fire? (1=yes, 0=no)
+     real(r8), allocatable :: crown_kill(:)          ! crown resistance to fire. (1 = none) For fire model.
+     real(r8), allocatable :: crown_fire(:)          ! Is plant susceptible to passive crown fire?(1=yes,0=no)
+     real(r8), allocatable :: crown_ignite_energy(:) ! heat of crown foliage ignition [kJ/kg]
      real(r8), allocatable :: initd(:)               ! initial seedling density 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
      real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
@@ -378,11 +379,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fire_crown_resist'
+    name = 'fates_fire_crown_kill'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_fire_crown_fire'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_fire_crown_ignite_energy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -814,13 +819,17 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bark_scaler)
 
-    name = 'fates_fire_crown_resist'
+    name = 'fates_fire_crown_kill'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%crown_resist)
+         data=this%crown_kill)
 
     name = 'fates_fire_crown_fire'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_fire)
+
+    name = 'fates_fire_crown_ignite_energy'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%crown_ignite_energy)
 
     name = 'fates_recruit_initd'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1730,8 +1739,9 @@ contains
         write(fates_log(),fmt0) 'leaf_stor_priority = ',EDPftvarcon_inst%leaf_stor_priority
         write(fates_log(),fmt0) 'crown = ',EDPftvarcon_inst%crown
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
-        write(fates_log(),fmt0) 'crown_resist = ',EDPftvarcon_inst%crown_resist
+        write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'crown_fire = ',EDPftvarcon_inst%crown_fire
+        write(fates_log(),fmt0) 'crown_ignite_energy = ',EDPftvarcon_inst%crown_ignite_energy
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope

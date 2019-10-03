@@ -344,8 +344,8 @@ module EDTypesMod
 
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
-     real(r8) ::  crown_fire_flg                         ! flag for passive crown fire ignition
      real(r8) ::  active_crown_fire_flg                  ! flag for active crown fire ignition
+     real(r8) ::  passive_crown_fire_flg                 ! flag for passive crown fire ignition (1=ignition)
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
                                                          ! (conditional on the tree being subjected to the fire)
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality 
@@ -522,11 +522,9 @@ module EDTypesMod
      real(r8) ::  fi                                               ! average fire intensity of flaming front:  kj/m/s or kw/m
      integer  ::  fire                                             ! Is there a fire? 1=yes 0=no
      real(r8) ::  fd                                               ! fire duration: mins
-     real(r8) ::  nf                                               ! number of fires initiated daily: n/gridcell/day
      real(r8) ::  sh                                               ! average scorch height: m 
 
      ! FIRE EFFECTS     
-     real(r8) ::  ab                                               ! area burnt:  m2/day
      real(r8) ::  frac_burnt                                       ! fraction burnt: frac gridcell/day  
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
@@ -1014,8 +1012,8 @@ module EDTypesMod
      write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
      write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
      write(fates_log(),*) 'co%fraction_crown_burned  = ', ccohort%fraction_crown_burned
-     write(fates_log(),*) 'co%crown_fire_flg         = ', ccohort%crown_fire_flg
      write(fates_log(),*) 'co%active_crown_fire_flg  = ', ccohort%active_crown_fire_flg
+     write(fates_log(),*) 'co%passive_crown_fire_flg = ', ccohort%passive_crown_fire_flg
      write(fates_log(),*) 'co%fire_mort              = ', ccohort%fire_mort
      write(fates_log(),*) 'co%crownfire_mort         = ', ccohort%crownfire_mort
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
