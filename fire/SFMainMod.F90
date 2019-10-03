@@ -937,7 +937,7 @@ contains
                    ! 0.01 = C from Van Wagner 1977 EQ4 for crown of base height 6m, 100% FMC, and FI 2500kW/m
                    passive_crown_FI = (0.01_r8 * height_cbb *EDPftvarcon_inst%crown_ignite_energy(currentCohort%pft))**1.5_r8
 
-                   if (passive_crown_FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
+                   if (currentPatch%FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
                       ! Initiation of passive crown fire, EQ 14 Bessie and Johnson 1995
                       ignite_crown = currentPatch%FI/passive_crown_FI
