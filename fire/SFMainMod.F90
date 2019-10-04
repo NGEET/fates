@@ -925,7 +925,7 @@ contains
 
                 
                 ! Evaluate for passive crown fire ignition
-                if (EDPftvarcon_inst%crown_fire(currentCohort%pft) == 1) then
+                if (EDPftvarcon_inst%crown_fire(currentCohort%pft) > 0.0_r8) then
                    
                    ! Note: crown_ignition_energy to be calculated based on foliar moisture content from FATES-Hydro
                    ! EQ 3 Van Wagner 1977
