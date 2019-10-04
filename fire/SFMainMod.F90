@@ -944,7 +944,7 @@ contains
                       
                       if (ignite_crown >= 1.0_r8) then
                          currentCohort%passive_crown_fire_flg = 1 ! passive crown fire ignited
-                         currentCohort%fraction_crown_burned =  1.0_r8
+                         currentCohort%fraction_crown_burned =  EDPftvarcon_inst%crown_fire(currentCohort%pft)
                       ! else ! evaluate crown damage based on scorch height
                       endif ! ignite passive crown fire
                    ! else no crown fire today
