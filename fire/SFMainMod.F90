@@ -944,6 +944,9 @@ contains
                       
                       if (ignite_crown >= 1.0_r8) then
                          currentCohort%passive_crown_fire_flg = 1 ! passive crown fire ignited
+                         ! "...in passive crown fires and high intensity surface fires trees can survive. Jack, red
+                         !  and white pine survive...scars used in dating fires"
+                         ! Johnson, E.A. 1992 Fire and Veg Dynamics: North American boreal forest. Cambridge Press
                          currentCohort%fraction_crown_burned =  EDPftvarcon_inst%crown_fire(currentCohort%pft)
                       ! else ! evaluate crown damage based on scorch height
                       endif ! ignite passive crown fire
