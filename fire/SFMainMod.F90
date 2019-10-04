@@ -933,7 +933,7 @@ contains
 
                 
                 ! Evaluate for passive crown fire ignition
-                if (EDPftvarcon_inst%crown_fire(currentCohort%pft) == 1) then
+                if (EDPftvarcon_inst%crown_fire(currentCohort%pft) > 0.001_r8) then
                    
                    ! Note: crown_ignition_energy to be calculated based on foliar moisture content from FATES-Hydro
                    ! EQ 3 Van Wagner 1977
@@ -961,7 +961,7 @@ contains
                       
                       if (ignite_crown >= 1.0_r8) then
                          currentCohort%passive_crown_fire_flg = 1 ! passive crown fire ignited
-                         currentCohort%fraction_crown_burned =  1.0_r8
+                         currentCohort%fraction_crown_burned = EDPftvarcon_inst%crown_fire(currentCohort%pft)
                          ! Initiation of active crown fire, EQ 14b Bessie and Johnson 1995
                          ignite_active_crown = currentPatch%FI/active_crown_FI
                          if (ignite_active_crown >= 1.0_r8) then
