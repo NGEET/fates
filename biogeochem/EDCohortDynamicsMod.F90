@@ -595,6 +595,8 @@ contains
     currentCohort%leaf_cost          = 0._r8
     currentcohort%excl_weight        = 0._r8
     currentcohort%prom_weight        = 0._r8
+    currentcohort%crownfire_mort     = 0._r8
+    currentcohort%cambial_mort       = 0._r8
     currentCohort%c13disc_clm        = 0._r8 
     currentCohort%c13disc_acc        = 0._r8
     

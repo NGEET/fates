@@ -1002,7 +1002,7 @@ contains
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))
-             currentCohort%cambial_mort = 0.0_r8
+             !currentCohort%cambial_mort = 0.0_r8 !testing this removal
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Equation 21 in Thonicke et al 2010
                 bt = EDPftvarcon_inst%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
@@ -1014,6 +1014,8 @@ contains
                 else
                    if ((currentPatch%tau_l/tau_c) > 0.22_r8) then
                       currentCohort%cambial_mort = (0.563_r8*(currentPatch%tau_l/tau_c)) - 0.125_r8
+                   else
+                      currentCohort%cambial_mort = 0.0_r8
                    endif
                 endif
              endif !trees 
