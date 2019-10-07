@@ -10,7 +10,10 @@ module FatesHydroWTFMod
   use FatesConstantsMod, only : grav_earth
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : pi_const
-
+  use FatesGlobals     , only : endrun => fates_endrun
+  use FatesGlobals     , only : fates_log 
+  use shr_log_mod      , only : errMsg => shr_log_errMsg
+ 
   implicit none
   private
 
@@ -21,14 +24,22 @@ module FatesHydroWTFMod
   ! may be applied to xylems, stems, etc, they are not limited to soils (pedo).
   ! -------------------------------------------------------------------------------------
 
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
+
+  real(r8), parameter :: min_ftc = 0.005_r8
+
+
   ! Generic class that can be extended to describe
   ! specific water retention functions
 
   type, public :: wrf_type
-     procedure :: th_from_psi     => wrf_base_func
-     procedure :: psi_from_th     => wrf_base_func
-     procedure :: dpsidth_from_th => wrf_base_func
-     procedure :: set_wrf_param   => wrf_base_sub
+   contains
+     procedure :: th_from_psi     => th_from_psi_base
+     procedure :: psi_from_th     => psi_from_th_base
+     procedure :: dpsidth_from_th => dpsidth_from_th_base
+     procedure :: set_wrf_param   => set_wrf_param_base
   end type wrf_type
 
 
@@ -36,9 +47,10 @@ module FatesHydroWTFMod
   ! water conductance functions
 
   type, public :: wkf_type
-     procedure :: ftc_from_psi      => wkf_base_func
-     procedure :: dftcdpsi_from_psi => wkf_base_func
-     procedure :: set_wkf_param     => wkf_base_sub
+   contains
+     procedure :: ftc_from_psi      => ftc_from_psi_base
+     procedure :: dftcdpsi_from_psi => dftcdpsi_from_psi_base
+     procedure :: set_wkf_param     => set_wkf_param_base
   end type wkf_type
 
 
@@ -67,9 +79,9 @@ module FatesHydroWTFMod
      real(r8) :: th_sat  ! Saturation volumetric water content [m3/m3]
      real(r8) :: th_res  ! Residual volumetric water content   [m3/m3]
    contains
-     procedure :: ftc_from_psi    => ftc_from_psi_vg
-     procedure :: dftcdpsi_from_psi    => dftcdpsi_from_psi_vg
-     procedure :: set_wkf_param   => set_wkf_param_vg
+     procedure :: ftc_from_psi      => ftc_from_psi_vg
+     procedure :: dftcdpsi_from_psi => dftcdpsi_from_psi_vg
+     procedure :: set_wkf_param     => set_wkf_param_vg
   end type wkf_type_vg
 
   ! =====================================================================================
@@ -108,14 +120,13 @@ module FatesHydroWTFMod
      real(r8) :: p50          ! matric potential at 50% conductivity loss   [Mpa]
      real(r8) :: avuln        ! vulnerability curve parameter
      real(r8) :: th_sat       ! volumetric water content at saturation
-     real(r8), parameter :: min_ftc = 0.005_r8
+     
    contains
      procedure :: ftc_from_psi      => ftc_from_psi_tfs
      procedure :: dftcdpsi_from_psi => dftcdpsi_from_psi_tfs
      procedure :: set_wkf_param     => set_wkf_param_tfs
   end type wkf_type_tfs
   
-
   
 contains
 
@@ -123,86 +134,115 @@ contains
   ! Functional definitions follow here
   ! Start off by writing the base types, which ultimately should never be pointed to.
   ! =====================================================================================
+!  procedure :: th_from_psi     => th_from_psi
+!  procedure :: psi_from_th     => psi_from_th
+!  procedure :: dpsidth_from_th => dpsidth_from_th
+!  procedure :: set_wrf_param   => set_wrf_param
+! 
+!  procedure :: set_wkf_param     => set_wkf_param
 
-  subroutine wrf_base_sub(this)
-    class(wrf_type) :: this
+
+  subroutine set_wrf_param_base(this,params_in)
+    class(wrf_type)     :: this
+    real(r8),intent(in) :: params_in(:)
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
-    call endrun(msg=errMsg(__FILE__, __LINE__))
-  end subroutine wrf_base_ignore
-
-  function wrf_base_func(this) return(ig_val)
-    class(wrf_type) :: this
-    real(r8)        :: ig_val
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end subroutine set_wrf_param_base
+  subroutine set_wkf_param_base(this,params_in)
+    class(wkf_type)     :: this
+    real(r8),intent(in) :: params_in(:)
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
-    call endrun(msg=errMsg(__FILE__, __LINE__))
-  end function wrf_base_func
-  
-  subroutine wkf_base_sub(this)
-    class(wkf_type) :: this
-    write(fates_log(),*) 'The base water conductivity function'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end subroutine set_wkf_param_base
+  function th_from_psi_base(this,psi) result(th)
+    class(wrf_type)     :: this
+    real(r8),intent(in) :: psi
+    real(r8)            :: th
+    write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
-    call endrun(msg=errMsg(__FILE__, __LINE__))
-  end subroutine wkf_base_ignore
-
-  function wkf_base_func(this) return(ig_val)
-    class(wkf_type) :: this
-    real(r8)        :: ig_val
-    write(fates_log(),*) 'The base water conductance function'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end function th_from_psi_base
+  function psi_from_th_base(this,th) result(psi)
+    class(wrf_type)     :: this
+    real(r8),intent(in) :: th
+    real(r8)            :: psi
+    write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
-    call endrun(msg=errMsg(__FILE__, __LINE__))
-  end function wkf_base_func
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end function psi_from_th_base
+  function dpsidth_from_th_base(this,th) result(dpsidth)
+    class(wrf_type)     :: this
+    real(r8),intent(in) :: th
+    real(r8)            :: dpsidth
+    write(fates_log(),*) 'The base water retention function'
+    write(fates_log(),*) 'should never be actualized'
+    write(fates_log(),*) 'check how the class pointer was setup'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end function dpsidth_from_th_base
+  function ftc_from_psi_base(this,psi) result(ftc)
+    class(wkf_type)     :: this
+    real(r8),intent(in) :: psi
+    real(r8)            :: ftc
+    write(fates_log(),*) 'The base water retention function'
+    write(fates_log(),*) 'should never be actualized'
+    write(fates_log(),*) 'check how the class pointer was setup'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end function ftc_from_psi_base
+  function dftcdpsi_from_psi_base(this,psi) result(dftcdpsi)
+    class(wkf_type)     :: this
+    real(r8),intent(in) :: psi
+    real(r8)            :: dftcdpsi
+    write(fates_log(),*) 'The base water retention function'
+    write(fates_log(),*) 'should never be actualized'
+    write(fates_log(),*) 'check how the class pointer was setup'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end function dftcdpsi_from_psi_base
 
-  
   ! =====================================================================================
   ! Van Genuchten Functions are defined here
   ! =====================================================================================
-  
 
-  subroutine set_wrf_param_vg(this,alpha_in,psd_in,th_sat_in,th_res_in)
+  subroutine set_wrf_param_vg(this,params_in)
     
     class(wrf_type_vg) :: this
-    real(r8), intent(in) :: alpha_in
-    real(r8), intent(in) :: psd_in
-    real(r8), intent(in) :: th_sat_in
-    real(r8), intent(in) :: th_res_in
+    real(r8), intent(in) :: params_in(:)
 
-    this%alpha  = alpha_in
-    this%psd    = psd_in
-    this%th_sat = th_sat_in
-    this%th_res = th_res_in
+    this%alpha  = params_in(1)
+    this%psd    = params_in(2)
+    this%th_sat = params_in(3)
+    this%th_res = params_in(4)
+
+    print*,this%alpha,this%psd,this%th_sat,this%th_res
+
     
     return
   end subroutine set_wrf_param_vg
 
   ! =====================================================================================
 
-  subroutine set_wkf_param_vg(this,alpha_in,psd_in,th_sat_in,th_res_in,tort_in)
+  subroutine set_wkf_param_vg(this,params_in)
     
     class(wkf_type_vg) :: this
-    real(r8), intent(in) :: alpha_in
-    real(r8), intent(in) :: psd_in
-    real(r8), intent(in) :: th_sat_in
-    real(r8), intent(in) :: th_res_in
-    real(r8), intent(in) :: tort_in
+    real(r8), intent(in) :: params_in(:)
 
-    this%alpha  = alpha_in
-    this%psd    = psd_in
-    this%th_sat = th_sat_in
-    this%th_res = th_res_in
-    this%tort   = tort_in
+    this%alpha  = params_in(1)
+    this%psd    = params_in(2)
+    this%th_sat = params_in(3)
+    this%th_res = params_in(4)
+    this%tort   = params_in(5)
     
     return
   end subroutine set_wkf_param_vg
 
   ! =====================================================================================
   
-  function th_from_psi_vg(psi) result(th)
+  function th_from_psi_vg(this,psi) result(th)
     
     ! Van Genuchten (1980) calculation of volumetric water content (theta)
     ! from matric potential.
@@ -224,7 +264,7 @@ contains
 
   ! =====================================================================================
   
-  function psi_from_th_vg(th) result(psi)
+  function psi_from_th_vg(this,th) result(psi)
     
     ! Van Genuchten (1980) calculation of matric potential from
     ! volumetric water content (theta).
@@ -242,6 +282,10 @@ contains
     ! -----------------------------------------------------------------------------------
     
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
+
+    print*,"sf: ",satfrac
+    stop
+
     m   = 1._r8/this%psd
     psi = (1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
 
@@ -249,7 +293,7 @@ contains
 
   ! =====================================================================================
 
-  function dpsidth_from_th_vg(th) result(dpsidth)
+  function dpsidth_from_th_vg(this,th) result(dpsidth)
 
     class(wrf_type_vg)  :: this
     real(r8),intent(in) :: th
@@ -276,7 +320,7 @@ contains
 
   ! =====================================================================================
 
-  function ftc_from_psi_vg(psi) result(ftc)
+  function ftc_from_psi_vg(this,psi) result(ftc)
 
     class(wkf_type_vg)  :: this
     real(r8),intent(in) :: psi
@@ -294,8 +338,7 @@ contains
 
   ! ====================================================================================
 
-  function dftcdpsi_from_psi_vg(psi) result(dftcdpsi)
-    
+  function dftcdpsi_from_psi_vg(this,psi) result(dftcdpsi)
 
     ! The derivative of the fraction of total conductivity
     ! Note, this function is fairly complex. To get the derivative
@@ -316,10 +359,10 @@ contains
     t1  = (this%alpha*psi)**(this%psd-1._r8)
     dt1 = this%alpha**(this%psd-1._r8)*(this%psd-1._r8)*psi**(this%psd-2._r8)
 
-    t2  = (1._r8 + (this%alpha*psi)**this%psd)**-(1._r8-1._r8/this%psd)
+    t2  = (1._r8 + (this%alpha*psi)**this%psd)**(-1._r8+1._r8/this%psd)
     dt2 = -(1._r8-1._r8/this%psd) * & 
          (1._r8 + (this%alpha*psi)**this%psd)**(1._r8/this%psd) * & 
-         this%psd*(this%alpha**psd)*psi**(this%psd-1._r8)
+         this%psd*(this%alpha**this%psd)*psi**(this%psd-1._r8)
    
     num  = (1._r8 - t1*t2)**2._r8
     dnum = 2._r8 * (1._r8 - t1*t2) * ( t1*dt2 + t2*dt1 )
@@ -330,7 +373,7 @@ contains
           this%alpha**this%psd * this%psd * psi**(this%psd-1._r8)
 
 
-    dftcdpsi = dnum*den**-1 + -(den**-2)*dden*num 
+    dftcdpsi = dnum*den**(-1._r8) - (den**(-2._r8))*dden*num 
 
   end function dftcdpsi_from_psi_vg
 
@@ -340,39 +383,36 @@ contains
   ! =====================================================================================
   ! =====================================================================================
   
-  subroutine set_wrf_param_cch(this,th_sat_in,psi_sat_in,beta_in)
+  subroutine set_wrf_param_cch(this,params_in)
     
     class(wrf_type_cch) :: this
-    real(r8), intent(in) :: th_sat_in
-    real(r8), intent(in) :: psi_sat_in
-    real(r8), intent(in) :: beta_in
+    real(r8), intent(in) :: params_in(:)
     
-    this%th_sat  = th_sat_in
-    this%psi_sat = psi_sat_in
-    this%beta    = th_beta_in
+    this%th_sat  = params_in(1)
+    this%psi_sat = params_in(2)
+    this%beta    = params_in(3)
     
     return
   end subroutine set_wrf_param_cch
 
   ! =====================================================================================
 
-  subroutine set_wkf_param_cch(this,th_sat_in,psi_sat_in,beta_in)
+  subroutine set_wkf_param_cch(this,params_in)
     
     class(wkf_type_cch) :: this
-    real(r8), intent(in) :: th_sat_in
-    real(r8), intent(in) :: psi_sat_in
-    real(r8), intent(in) :: beta_in
+    real(r8), intent(in) :: params_in(:)
+
     
-    this%th_sat  = th_sat_in
-    this%psi_sat = psi_sat_in
-    this%beta    = th_beta_in
+    this%th_sat  = params_in(1)
+    this%psi_sat = params_in(2)
+    this%beta    = params_in(3)
     
     return
   end subroutine set_wkf_param_cch
 
   ! =====================================================================================
   
-  function th_from_psi_cch(psi) result(th)
+  function th_from_psi_cch(this,psi) result(th)
     
     class(wrf_type_cch)   :: this
     real(r8), intent(in) :: psi
@@ -387,7 +427,7 @@ contains
 
   ! =====================================================================================
 
-  function psi_from_th_cch(th) result(psi)
+  function psi_from_th_cch(this,th) result(psi)
     
     class(wrf_type_cch)   :: this
     real(r8),intent(in)  :: th
@@ -399,7 +439,7 @@ contains
   
   ! =====================================================================================
 
-  function dpsidth_from_th_cch(th) result(dpsidth)
+  function dpsidth_from_th_cch(this,th) result(dpsidth)
 
     class(wrf_type_cch)  :: this
     real(r8),intent(in) :: th
@@ -415,9 +455,9 @@ contains
 
   ! =====================================================================================
 
-  function ftc_from_psi_cch(psi) result(ftc)
+  function ftc_from_psi_cch(this,psi) result(ftc)
 
-    class(wkf_type_cch)  :: this
+    class(wkf_type_cch) :: this
     real(r8),intent(in) :: psi
     real(r8)            :: psi_eff
     real(r8)            :: ftc
@@ -431,13 +471,13 @@ contains
     
     ftc = (psi_eff/this%psi_sat)**(-2._r8-3._r8/this%beta)
     
-  end function ftc_from_th_cch
+  end function ftc_from_psi_cch
 
   ! ====================================================================================
 
-  function dftcdpsi_from_psi_cch(psi) result(dftcdpsi)
+  function dftcdpsi_from_psi_cch(this,psi) result(dftcdpsi)
     
-    class(wkf_type_cch)  :: this
+    class(wkf_type_cch) :: this
     real(r8),intent(in) :: psi
     real(r8)            :: dftcdpsi ! change in frac total cond wrt psi
 
@@ -461,27 +501,24 @@ contains
   ! Fractional loss of conductivity via TFS style functions
   ! =====================================================================================
 
-  subroutine set_wkf_param_tfs(this,th_sat_in,p50_in,avuln_in)
+  subroutine set_wkf_param_tfs(this,params_in)
     
     class(wkf_type_tfs)  :: this
-    real(r8), intent(in) :: th_sat_in
-    real(r8), intent(in) :: p50_in
-    real(r8), intent(in) :: avuln_in
+    real(r8), intent(in) :: params_in(:)
     
-    this%th_sat = th_sat_in
-    this%p50    = p50_in
-    this%avuln  = avuln_in
+    this%th_sat = params_in(1)
+    this%p50    = params_in(2)
+    this%avuln  = params_in(3)
     
     return
   end subroutine set_wkf_param_tfs
 
   ! =====================================================================================
 
-  function ftc_from_psi_tfs(psi) result(ftc)
+  function ftc_from_psi_tfs(this,psi) result(ftc)
     
     class(wkf_type_tfs) :: this
     real(r8),intent(in) :: psi   ! 
-    integer,intent(in)  :: ft    ! plant functional type index
     real(r8)            :: ftc
     
     ftc = max(min_ftc,1._r8/(1._r8 + (psi/this%p50)**this%avuln))
@@ -490,7 +527,7 @@ contains
 
   ! ====================================================================================
 
-  function dftcdpsi_from_psi_tfs(psi) result(dftcdpsi)
+  function dftcdpsi_from_psi_tfs(this,psi) result(dftcdpsi)
     
     class(wkf_type_tfs) :: this
     real(r8),intent(in) :: psi

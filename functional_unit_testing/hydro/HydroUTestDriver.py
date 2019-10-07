@@ -26,12 +26,10 @@ from ctypes import *
 from operator import add
 
 
-
-
-
 CDLParse = imp.load_source('CDLParse','../shared/py_src/CDLParse.py')
 F90ParamParse = imp.load_source('F90ParamParse','../shared/py_src/F90ParamParse.py')
 PyF90Utils = imp.load_source('PyF90Utils','../shared/py_src/PyF90Utils.py')
+
 
 from CDLParse import CDLParseDims, CDLParseParam, cdl_param_type
 from F90ParamParse import f90_param_type, GetSymbolUsage, GetPFTParmFileSymbols, MakeListUnique
@@ -42,21 +40,37 @@ from PyF90Utils import c8, ci, cchar
 f90_edparams_obj = ctypes.CDLL('bld/EDParamsHydroMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_constants_obj = ctypes.CDLL('bld/FatesConstantsMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_unitwrap_obj = ctypes.CDLL('bld/UnitWrapMod.o',mode=ctypes.RTLD_GLOBAL)
-f90_hydrofuncs_obj = ctypes.CDLL('bld/FatesHydroUnitFunctionsMod.o',mode=ctypes.RTLD_GLOBAL)
+#f90_hydrofuncs_obj = ctypes.CDLL('bld/FatesHydroUnitFunctionsMod.o',mode=ctypes.RTLD_GLOBAL)
+f90_wftfuncs_obj = ctypes.CDLL('bld/FatesHydroWTFMod.o',mode=ctypes.RTLD_GLOBAL)
+f90_hydrounitwrap_obj = ctypes.CDLL('bld/HydroUnitWrapMod.o',mode=ctypes.RTLD_GLOBAL)
 
 # Alias the F90 functions, specify the return type
 # -----------------------------------------------------------------------------------
-psi_from_th = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_psi_from_th
+#psi_from_th = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_psi_from_th
+#psi_from_th.restype = c_double
+
+#dpsidth_from_th= f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_dpsidth_from_th
+#dpsidth_from_th.restype = c_double
+
+#flc_from_psi = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_flc_from_psi
+#flc_from_psi.restype = c_double
+
+#dflcdpsi_from_psi= f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_dflcdpsi_from_psi
+#dflcdpsi_from_psi.restype = c_double
+
+initalloc_wtfs = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_initallocwtfs
+setwrf = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_setwrf
+setwkf = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_setwkf
+th_from_psi = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapthfrompsi
+th_from_psi.restype = c_double
+psi_from_th = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrappsifromth
 psi_from_th.restype = c_double
-
-dpsidth_from_th= f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_dpsidth_from_th
+dpsidth_from_th = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapdpsidth
 dpsidth_from_th.restype = c_double
-
-flc_from_psi = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_flc_from_psi
-flc_from_psi.restype = c_double
-
-dflcdpsi_from_psi= f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_dflcdpsi_from_psi
-dflcdpsi_from_psi.restype = c_double
+ftc_from_psi = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapftcfrompsi
+ftc_from_psi.restype = c_double
+dftcdpsi_from_psi = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapftcfrompsi
+dftcdpsi_from_psi.restype = c_double
 
 #solutepsi = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_solutepsi
 #pressurepsi = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_pressurepsi
@@ -192,23 +206,52 @@ def main(argv):
 
     # Push the scalar params data to fortran
 
-    iret = f90_edparams_obj.__edparamsmod_MOD_edparamspyset(c8(scalarparms['hydr_psi0'].data[0]), \
-                                                            c_char_p(scalarparms['hydr_psi0'].symbol.strip()), \
-                                                            c_long(len(scalarparms['hydr_psi0'].symbol.strip())))
+    #iret = f90_edparams_obj.__edparamsmod_MOD_edparamspyset(c8(scalarparms['hydr_psi0'].data[0]), \
+    #                                                        c_char_p(scalarparms['hydr_psi0'].symbol.strip()), \
+    #                                                        c_long(len(scalarparms['hydr_psi0'].symbol.strip())))
 
-    iret = f90_edparams_obj.__edparamsmod_MOD_edparamspyset(c8(scalarparms['hydr_psicap'].data[0]), \
-                                                            c_char_p(scalarparms['hydr_psicap'].symbol.strip()), \
-                                                            c_long(len(scalarparms['hydr_psicap'].symbol.strip())))
+    #iret = f90_edparams_obj.__edparamsmod_MOD_edparamspyset(c8(scalarparms['hydr_psicap'].data[0]), \
+    #                                                        c_char_p(scalarparms['hydr_psicap'].symbol.strip()), \
+    #                                                        c_long(len(scalarparms['hydr_psicap'].symbol.strip())))
 
 
     # Initialize local objects in the unit test
-    iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_initallocateplantmedia(ci(4))
-    iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(1),c8(rwcft[0]),c8(rwccap[0]))
-    iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(2),c8(rwcft[1]),c8(rwccap[1]))
-    iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(3),c8(rwcft[2]),c8(rwccap[2]))
-    iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(4),c8(rwcft[3]),c8(rwccap[3]))
+    #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_initallocateplantmedia(ci(4))
+    #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(1),c8(rwcft[0]),c8(rwccap[0]))
+    #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(2),c8(rwcft[1]),c8(rwccap[1]))
+    #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(3),c8(rwcft[2]),c8(rwccap[2]))
+    #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(4),c8(rwcft[3]),c8(rwccap[3]))
+
+    npts = 1000
+
+    iret = initalloc_wtfs(ci(1),ci(1))
+
+    print('Allocated')
+#    code.interact(local=dict(globals(), **locals()))
+
+    init_wrf_args  = (4 * c_double)(0.001,2.7,0.65,0.35)               # alpha, psd, th_sat, th_res
+    iret = setwrf(ci(1),ci(1),ci(4),byref(init_wrf_args))
+
+    print('initialized WRF')
+
+    init_wkf_args  =  (5 * c_double)(0.001,2.7,0.65,0.35,0.5)
+    iret = setwkf(ci(1),ci(1),ci(5),byref(init_wkf_args))
 
 
+    stem_theta = np.linspace(0.35, 0.65, num=npts)
+    stem_psi   = np.full(shape=np.shape(stem_theta),dtype=np.float64,fill_value=np.nan)
+
+    for i,th in enumerate(stem_theta):
+        stem_psi[i] = psi_from_th(ci(1),c8(th))
+
+
+    fig0, ax1 = plt.subplots(1,1,figsize=(9,6))
+    ax1.plot(stem_theta,stem_psi,label='stem vg')
+
+    plt.show()
+
+
+    exit(0)
 
 
     # Test 1 For a set of thetas, calculate psi for each pm.
@@ -217,7 +260,7 @@ def main(argv):
     pft1 = 1
     pft2 = 2
 
-    npts = 1000
+
 
     if(unconstrained):
         min_leaf_theta = 0.01
