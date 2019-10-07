@@ -40,23 +40,11 @@ from PyF90Utils import c8, ci, cchar
 f90_edparams_obj = ctypes.CDLL('bld/EDParamsHydroMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_constants_obj = ctypes.CDLL('bld/FatesConstantsMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_unitwrap_obj = ctypes.CDLL('bld/UnitWrapMod.o',mode=ctypes.RTLD_GLOBAL)
-#f90_hydrofuncs_obj = ctypes.CDLL('bld/FatesHydroUnitFunctionsMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_wftfuncs_obj = ctypes.CDLL('bld/FatesHydroWTFMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_hydrounitwrap_obj = ctypes.CDLL('bld/HydroUnitWrapMod.o',mode=ctypes.RTLD_GLOBAL)
 
 # Alias the F90 functions, specify the return type
 # -----------------------------------------------------------------------------------
-#psi_from_th = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_psi_from_th
-#psi_from_th.restype = c_double
-
-#dpsidth_from_th= f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_dpsidth_from_th
-#dpsidth_from_th.restype = c_double
-
-#flc_from_psi = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_flc_from_psi
-#flc_from_psi.restype = c_double
-
-#dflcdpsi_from_psi= f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_dflcdpsi_from_psi
-#dflcdpsi_from_psi.restype = c_double
 
 initalloc_wtfs = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_initallocwtfs
 setwrf = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_setwrf
@@ -72,10 +60,6 @@ ftc_from_psi.restype = c_double
 dftcdpsi_from_psi = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapftcfrompsi
 dftcdpsi_from_psi.restype = c_double
 
-#solutepsi = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_solutepsi
-#pressurepsi = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_pressurepsi
-#delasticPVdth = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_delasticpvdth
-#dcavitationPVdth = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_dcavitationpvdth
 
 # Some constants
 rwcft  = [1.0,0.958,0.958,0.958]
@@ -222,32 +206,58 @@ def main(argv):
     #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(3),c8(rwcft[2]),c8(rwccap[2]))
     #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(4),c8(rwcft[3]),c8(rwccap[3]))
 
+    # Set number of analysis points
     npts = 1000
 
-    iret = initalloc_wtfs(ci(1),ci(1))
 
+    #    min_theta = np.full(shape=(2),dtype=np.float64,fill_value=np.nan)
+
+    th_ress = [0.10, 0.20, 0.30, 0.40]
+    th_sats = [0.65, 0.65, 0.65, 0.65]
+    alphas  = [1.0, 1.0, 1.0, 1.0]
+    psds    = [2.7, 2.7, 2.7, 2.7]
+
+    ncomp = len(th_sats)
+
+    # Allocate memory to our objective classes
+    iret = initalloc_wtfs(ci(ncomp),ci(ncomp))
     print('Allocated')
-#    code.interact(local=dict(globals(), **locals()))
 
-    init_wrf_args  = (4 * c_double)(0.001,2.7,0.65,0.35)               # alpha, psd, th_sat, th_res
+    # Push parameters to those classes
+    # -------------------------------------------------------------------------
+    # Generic VGs
+    init_wrf_args  = (4 * c_double)(alphas[0],psds[0],th_sats[0],th_ress[0]) # alpha, psd, th_sat, th_res
     iret = setwrf(ci(1),ci(1),ci(4),byref(init_wrf_args))
+
+    init_wrf_args  = (4 * c_double)(alphas[1],psds[1],th_sats[1],th_ress[1]) # alpha, psd, th_sat, th_res
+    iret = setwrf(ci(2),ci(1),ci(4),byref(init_wrf_args))
+
+    init_wrf_args  = (4 * c_double)(alphas[2],psds[2],th_sats[2],th_ress[2]) # alpha, psd, th_sat, th_res
+    iret = setwrf(ci(3),ci(1),ci(4),byref(init_wrf_args))
+
+    init_wrf_args  = (4 * c_double)(alphas[3],psds[3],th_sats[3],th_ress[3]) # alpha, psd, th_sat, th_res
+    iret = setwrf(ci(4),ci(1),ci(4),byref(init_wrf_args))
 
     print('initialized WRF')
 
-    init_wkf_args  =  (5 * c_double)(0.001,2.7,0.65,0.35,0.5)
-    iret = setwkf(ci(1),ci(1),ci(5),byref(init_wkf_args))
 
 
-    stem_theta = np.linspace(0.35, 0.65, num=npts)
-    stem_psi   = np.full(shape=np.shape(stem_theta),dtype=np.float64,fill_value=np.nan)
 
-    for i,th in enumerate(stem_theta):
-        stem_psi[i] = psi_from_th(ci(1),c8(th))
+    stem_theta = np.linspace(0.10, 0.7, num=npts)
+    stem_psi   = np.full(shape=(ncomp,len(stem_theta)),dtype=np.float64,fill_value=np.nan)
+
+
+    for ic in range(ncomp):
+
+        for i,th in enumerate(stem_theta):
+            stem_psi[ic,i] = psi_from_th(ci(ic+1),c8(th))
 
 
     fig0, ax1 = plt.subplots(1,1,figsize=(9,6))
-    ax1.plot(stem_theta,stem_psi,label='stem vg')
+    for ic in range(ncomp):
+        ax1.plot(stem_theta,stem_psi[ic,:])
 
+    ax1.set_ylim((-10,0))
     plt.show()
 
 

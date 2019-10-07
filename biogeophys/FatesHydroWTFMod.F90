@@ -53,6 +53,17 @@ module FatesHydroWTFMod
      procedure :: set_wkf_param     => set_wkf_param_base
   end type wkf_type
 
+  ! The WRF and WKF types cannot be arrays themselves
+  ! we require these holders
+
+  type, public :: wrf_arr_type
+      class(wrf_type), pointer :: p
+  end type wrf_arr_type
+  
+  type, public :: wkf_arr_type
+      class(wkf_type), pointer :: p
+  end type wkf_arr_type
+
 
   ! =====================================================================================
   ! Van Genuchten WTF Definitions
@@ -60,7 +71,7 @@ module FatesHydroWTFMod
 
   ! Water Retention Function
   type, public, extends(wrf_type) :: wrf_type_vg
-     real(r8) :: alpha   ! Inverse air entry parameter
+     real(r8) :: alpha   ! Inverse air entry parameter         [m3/Mpa]
      real(r8) :: psd     ! Inverse width of pore size distribution parameter
      real(r8) :: th_sat  ! Saturation volumetric water content [m3/m3]
      real(r8) :: th_res  ! Residual volumetric water content   [m3/m3]
@@ -73,7 +84,7 @@ module FatesHydroWTFMod
 
   ! Water Conductivity Function
   type, public, extends(wkf_type) :: wkf_type_vg
-     real(r8) :: alpha   ! Inverse air entry parameter
+     real(r8) :: alpha   ! Inverse air entry parameter         [m3/Mpa]
      real(r8) :: psd     ! Inverse width of pore size distribution parameter
      real(r8) :: tort    ! Tortuosity parameter (sometimes "l")
      real(r8) :: th_sat  ! Saturation volumetric water content [m3/m3]
@@ -218,9 +229,6 @@ contains
     this%th_sat = params_in(3)
     this%th_res = params_in(4)
 
-    print*,this%alpha,this%psd,this%th_sat,this%th_res
-
-    
     return
   end subroutine set_wrf_param_vg
 
@@ -248,14 +256,15 @@ contains
     ! from matric potential.
     
     class(wrf_type_vg)   :: this
-    real(r8), intent(in) :: psi
-    real(r8)             :: satfrac
-    real(r8)             :: th
+    real(r8), intent(in) :: psi           ! Matric potential [MPa]
+    real(r8)             :: satfrac       ! Saturated fraction [-]
+    real(r8)             :: th            ! Volumetric Water Cont [m3/m3]
 
     !satfrac = (1._r8/(1._r8 + (alpha*abs(psi))**n))**m
     ! Saturation fraction
+    ! 
 
-    satfrac = (1._r8 + (this%alpha*psi)**this%psd)**(-1._r8+1._r8/this%psd)
+    satfrac = (1._r8 + (-this%alpha*psi)**this%psd)**(-1._r8+1._r8/this%psd)
     
     ! convert to volumetric water content
     th = satfrac*(this%th_sat-this%th_res) + this%th_res
@@ -283,11 +292,8 @@ contains
     
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
 
-    print*,"sf: ",satfrac
-    stop
-
     m   = 1._r8/this%psd
-    psi = (1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
+    psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
 
   end function psi_from_th_vg
 
@@ -309,12 +315,12 @@ contains
 
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
 
-    ! psi = a1*(satfrac**m2 - 1._r8 )**m1
+    ! psi = -a1*(satfrac**m2 - 1._r8 )**m1
     ! f(x) = satfrac**m2 -1 
     ! g(x) = a1*f(x)**m1
     ! dpsidth = g'(f(x)) f'(x)
 
-    dpsidth = (m2/(this%th_sat - this%th_res))*m1*a1*(satfrac**m2 - 1._r8)**(m1-1._r8)
+    dpsidth = -(m2/(this%th_sat - this%th_res))*m1*a1*(satfrac**m2 - 1._r8)**(m1-1._r8)
 
   end function dpsidth_from_th_vg
 
@@ -328,9 +334,9 @@ contains
     real(r8)            :: den ! denominator term
     real(r8)            :: ftc
 
-    num = (1._r8 - (this%alpha*psi)**(this%psd-1._r8) * & 
-         (1._r8 + (this%alpha*psi)**this%psd)**(-(1._r8-1._r8/this%psd)))**2._r8
-    den = (1._r8 + (this%alpha*psi)**this%psd)**(this%tort*(1._r8-1._r8/this%psd))
+    num = (1._r8 - (-this%alpha*psi)**(this%psd-1._r8) * & 
+         (1._r8 + (-this%alpha*psi)**this%psd)**(-(1._r8-1._r8/this%psd)))**2._r8
+    den = (1._r8 + (-this%alpha*psi)**this%psd)**(this%tort*(1._r8-1._r8/this%psd))
     
     ftc = num/den
 
@@ -356,21 +362,21 @@ contains
     real(r8) :: dden     ! derivative of denominator
     real(r8) :: dftcdpsi ! change in frac total cond wrt psi
     
-    t1  = (this%alpha*psi)**(this%psd-1._r8)
+    t1  = (-this%alpha*psi)**(this%psd-1._r8)
     dt1 = this%alpha**(this%psd-1._r8)*(this%psd-1._r8)*psi**(this%psd-2._r8)
 
-    t2  = (1._r8 + (this%alpha*psi)**this%psd)**(-1._r8+1._r8/this%psd)
+    t2  = (1._r8 + (-this%alpha*psi)**this%psd)**(-1._r8+1._r8/this%psd)
     dt2 = -(1._r8-1._r8/this%psd) * & 
-         (1._r8 + (this%alpha*psi)**this%psd)**(1._r8/this%psd) * & 
-         this%psd*(this%alpha**this%psd)*psi**(this%psd-1._r8)
+         (1._r8 + (-this%alpha*psi)**this%psd)**(1._r8/this%psd) * & 
+         this%psd*(this%alpha**this%psd)*(-psi)**(this%psd-1._r8)
    
     num  = (1._r8 - t1*t2)**2._r8
     dnum = 2._r8 * (1._r8 - t1*t2) * ( t1*dt2 + t2*dt1 )
 
-    den  = (1._r8 + (this%alpha*psi)**this%psd)**(this%tort*( 1._r8-1._r8/this%psd))
+    den  = (1._r8 + (-this%alpha*psi)**this%psd)**(this%tort*( 1._r8-1._r8/this%psd))
     dden = (this%tort*( 1._r8-1._r8/this%psd)) * & 
-          (1._r8 + (this%alpha*psi)**this%psd)**(this%tort*( 1._r8-1._r8/this%psd)-1._r8) * & 
-          this%alpha**this%psd * this%psd * psi**(this%psd-1._r8)
+          (1._r8 + (-this%alpha*psi)**this%psd)**(this%tort*( 1._r8-1._r8/this%psd)-1._r8) * & 
+          this%alpha**this%psd * this%psd * (-psi)**(this%psd-1._r8)
 
 
     dftcdpsi = dnum*den**(-1._r8) - (den**(-2._r8))*dden*num 

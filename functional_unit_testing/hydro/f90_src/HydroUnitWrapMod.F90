@@ -13,7 +13,7 @@ module HydroUnitWrapMod
    
    use FatesHydroWTFMod, only : wrf_type,wrf_type_vg,wrf_type_cch
    use FatesHydroWTFMod, only : wkf_type,wkf_type_vg,wkf_type_cch,wkf_type_tfs
-
+   use FatesHydroWTFMod, only : wrf_arr_type,wkf_arr_type
 
    implicit none
    public
@@ -26,22 +26,8 @@ module HydroUnitWrapMod
    integer, public, parameter :: tfs                = 3
 
 
-   type wrf_arr_type
-      class(wrf_type), pointer :: wrf_obj
-   end type wrf_arr_type
-   
-   type wkf_arr_type
-      class(wkf_type), pointer :: wkf_obj
-   end type wkf_arr_type
-
-
-! IMPLEMENT THE ARR TYPE RYAN
-
    class(wrf_arr_type), public, pointer :: wrfs(:)   ! This holds all (soil and plant) water retention functions
    class(wkf_arr_type), public, pointer :: wkfs(:)   ! 
-
-!   class(wrf_type), public, pointer :: wrfs(:)
-!   class(wkf_type), public, pointer :: wkfs(:)
 
   
 contains
@@ -77,11 +63,11 @@ contains
 
       if(itype == van_genuchten) then
           allocate(wrf_vg)
-          wrfs(index)%wrf_obj => wrf_vg
+          wrfs(index)%p => wrf_vg
           call wrf_vg%set_wrf_param(pvals) !alpha,psd,th_sat,th_res
       elseif(itype==campbell) then
           allocate(wrf_cch)
-          wrfs(index)%wrf_obj => wrf_cch
+          wrfs(index)%p => wrf_cch
           call wrf_cch%set_wrf_param(pvals)  !th_sat,psi_sat,beta
       else
           print*,"UNKNOWN WRF"
@@ -104,15 +90,15 @@ contains
 
       if(itype == van_genuchten) then
           allocate(wkf_vg)
-          wkfs(index)%wkf_obj => wkf_vg
+          wkfs(index)%p => wkf_vg
           call wkf_vg%set_wkf_param(pvals) !alpha,psd,th_sat,th_res,tort
        elseif(itype==campbell) then
           allocate(wkf_cch)
-          wkfs(index)%wkf_obj => wkf_cch
+          wkfs(index)%p => wkf_cch
           call wkf_cch%set_wkf_param(pvals) !th_sat,psi_sat,beta
       elseif(itype==tfs) then
           allocate(wkf_tfs)
-          wkfs(index)%wkf_obj => wkf_tfs
+          wkfs(index)%p => wkf_tfs
           call wkf_tfs%set_wkf_param(pvals) !th_sat,p50,avuln
       else
           print*,"UNKNOWN WKF"
@@ -129,7 +115,7 @@ contains
       real(r8),intent(in) :: psi
       real(r8) :: th
 
-      th = wrfs(index)%wrf_obj%th_from_psi(psi)
+      th = wrfs(index)%p%th_from_psi(psi)
 
       return
   end function WrapTHFromPSI
@@ -141,7 +127,7 @@ contains
       real(r8),intent(in) :: th
       real(r8) :: psi
 
-      psi = wrfs(index)%wrf_obj%psi_from_th(th)
+      psi = wrfs(index)%p%psi_from_th(th)
 
   end function WrapPSIFromTH
 
@@ -152,7 +138,7 @@ contains
       real(r8),intent(in) :: th
       real(r8) :: dpsidth
 
-      dpsidth = wrfs(index)%wrf_obj%dpsidth_from_th(th)
+      dpsidth = wrfs(index)%p%dpsidth_from_th(th)
 
   end function WrapDPSIDTH
 
@@ -163,7 +149,7 @@ contains
       real(r8),intent(in) :: psi
       real(r8) :: dftcdpsi
 
-      dftcdpsi = wkfs(index)%wkf_obj%dftcdpsi_from_psi(psi)
+      dftcdpsi = wkfs(index)%p%dftcdpsi_from_psi(psi)
       
   end function WrapDFTCDPSI
 
@@ -174,7 +160,7 @@ contains
       real(r8),intent(in) :: psi
       real(r8) :: ftc
 
-      ftc = wkfs(index)%wkf_obj%ftc_from_psi(psi)
+      ftc = wkfs(index)%p%ftc_from_psi(psi)
 
       return
   end function WrapFTCFromPSI
