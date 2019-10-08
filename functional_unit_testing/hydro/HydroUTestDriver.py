@@ -188,24 +188,6 @@ def main(argv):
                                                                        c_char_p(pft_obj.symbol.strip()), \
                                                                        c_long(len(pft_obj.symbol.strip())))
 
-    # Push the scalar params data to fortran
-
-    #iret = f90_edparams_obj.__edparamsmod_MOD_edparamspyset(c8(scalarparms['hydr_psi0'].data[0]), \
-    #                                                        c_char_p(scalarparms['hydr_psi0'].symbol.strip()), \
-    #                                                        c_long(len(scalarparms['hydr_psi0'].symbol.strip())))
-
-    #iret = f90_edparams_obj.__edparamsmod_MOD_edparamspyset(c8(scalarparms['hydr_psicap'].data[0]), \
-    #                                                        c_char_p(scalarparms['hydr_psicap'].symbol.strip()), \
-    #                                                        c_long(len(scalarparms['hydr_psicap'].symbol.strip())))
-
-
-    # Initialize local objects in the unit test
-    #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_initallocateplantmedia(ci(4))
-    #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(1),c8(rwcft[0]),c8(rwccap[0]))
-    #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(2),c8(rwcft[1]),c8(rwccap[1]))
-    #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(3),c8(rwcft[2]),c8(rwccap[2]))
-    #iret = f90_hydrofuncs_obj.__fateshydrounitfunctionsmod_MOD_setplantmediaparam(ci(4),c8(rwcft[3]),c8(rwccap[3]))
-
     # Set number of analysis points
     npts = 1000
 
@@ -216,6 +198,7 @@ def main(argv):
     th_sats = [0.65, 0.65, 0.65, 0.65]
     alphas  = [1.0, 1.0, 1.0, 1.0]
     psds    = [2.7, 2.7, 2.7, 2.7]
+    tort    = [0.5, 0.5, 0.5, 0.5]
 
     ncomp = len(th_sats)
 
@@ -240,25 +223,49 @@ def main(argv):
 
     print('initialized WRF')
 
+    theta = np.linspace(0.10, 0.7, num=npts)
 
-
-
-    stem_theta = np.linspace(0.10, 0.7, num=npts)
-    stem_psi   = np.full(shape=(ncomp,len(stem_theta)),dtype=np.float64,fill_value=np.nan)
-
+    psi   = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
+    dpsidth = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
+    cdpsidth = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
 
     for ic in range(ncomp):
 
-        for i,th in enumerate(stem_theta):
-            stem_psi[ic,i] = psi_from_th(ci(ic+1),c8(th))
+        for i,th in enumerate(theta):
+            psi[ic,i] = psi_from_th(ci(ic+1),c8(th))
 
 
     fig0, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
-        ax1.plot(stem_theta,stem_psi[ic,:])
+        ax1.plot(theta,psi[ic,:])
 
-    ax1.set_ylim((-10,0))
+    ax1.set_ylim((-10,5))
+    ax1.set_ylabel('Matric Potential [MPa]')
+    ax1.set_xlabel('VWC [m3/m3]')
+
+
+    for ic in range(ncomp):
+        for i in range(1,len(theta)-1):
+            dpsidth[ic,i]  = dpsidth_from_th(ci(ic+1),c8(theta[i]))
+            cdpsidth[ic,i] = (psi[ic,i+1]-psi[ic,i-1])/(theta[i+1]-theta[i-1])
+
+
+    fig1, ax1 = plt.subplots(1,1,figsize=(9,6))
+    for ic in range(ncomp):
+        ax1.plot(theta,dpsidth[0,:],label='func')
+        ax1.plot(theta,cdpsidth[0,:],label='check')
+    ax1.set_ylim((0,1000))
+
+    ax1.set_ylabel('dPSI/dTh [MPa m3 m-3]')
+    ax1.set_xlabel('VWC [m3/m3]')
+    ax1.legend(loc='upper right')
     plt.show()
+
+
+
+
+
+
 
 
     exit(0)

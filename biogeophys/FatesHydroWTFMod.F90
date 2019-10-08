@@ -30,6 +30,8 @@ module FatesHydroWTFMod
 
   real(r8), parameter :: min_ftc = 0.005_r8
 
+  real(r8), parameter :: min_rwc_interp = 0.02
+  real(r8), parameter :: max_rwc_interp = 0.98
 
   ! Generic class that can be extended to describe
   ! specific water retention functions
@@ -75,6 +77,7 @@ module FatesHydroWTFMod
      real(r8) :: psd     ! Inverse width of pore size distribution parameter
      real(r8) :: th_sat  ! Saturation volumetric water content [m3/m3]
      real(r8) :: th_res  ! Residual volumetric water content   [m3/m3]
+     
    contains
      procedure :: th_from_psi     => th_from_psi_vg
      procedure :: psi_from_th     => psi_from_th_vg
@@ -283,17 +286,43 @@ contains
     real(r8)             :: psi
     real(r8)             :: m          ! inverse of psd
     real(r8)             :: satfrac    ! saturated fraction
+    real(r8)             :: th_interp  ! theta where we start interpolation
+    real(r8)             :: psi_inter  ! psi at interpolation point
    
     !------------------------------------------------------------------------------------
     ! saturation fraction is the origial equation in vg 1980, we just
     ! need to invert it:
     ! satfrac = (1._r8 + (alpha*psi)**n)**(1._r8/n-1)
+    ! we also modify these functions to 
     ! -----------------------------------------------------------------------------------
-    
-    satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
 
     m   = 1._r8/this%psd
-    psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
+    satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
+
+    if(satfrac>max_rwc_interp) then
+
+       th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
+       dpsidth_interp = this%dpsidth_from_th(th_interp)
+       psi_interp = -(1._r8/this%alpha)*(max_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m 
+       psi = psi_interp + dspidth_interp*(th-th_interp)
+
+    elseif(satfrac<min_rwc_interp) then
+       
+       th_interp = min_rwc_interp * (this%th_sat-this%th_res) + this%th_res
+       dpsidth_interp = this%dpsidth_from_th(th_interp)
+       psi_interp = -(1._r8/this%alpha)*(min_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m 
+       psi = psi_interp + dspidth_interp*(th-th_interp)
+
+    else
+
+       ! One may set the max and min rwc high and low enough to disable them
+       ! in that case, we will just cap theta between residual and saturation
+       ! otherwise the result is a nan
+
+       satfrac = max(min(satfrac,1._r8),0._r8)
+       psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
+
+    end if
 
   end function psi_from_th_vg
 
@@ -303,24 +332,33 @@ contains
 
     class(wrf_type_vg)  :: this
     real(r8),intent(in) :: th
-    real(r8)            :: a1       ! parameter intermediary
-    real(r8)            :: m1       ! parameter intermediary
-    real(r8)            :: m2       ! parameter intermediary
-    real(r8)            :: satfrac  ! saturation fraction
-    real(r8)            :: dpsidth  ! change in matric potential WRT VWC
+    real(r8)            :: a1           ! parameter intermediary
+    real(r8)            :: m1           ! parameter intermediary
+    real(r8)            :: m2           ! parameter intermediary
+    real(r8)            :: satfrac      ! saturation fraction
+    real(r8)            :: dsatfrac_dth ! deriv satfrac wrt theta
+    real(r8)            :: dpsidth      ! change in matric potential WRT VWC
 
     a1 = 1._r8/this%alpha
     m1 = 1._r8/this%psd
     m2 = 1._r8/(m1-1._r8)
 
-    satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
+    ! Since we apply linear interpolation beyond the max and min saturated fractions
+    ! we just cap satfrac at those values and calculate the derivative there
+    satfrac = max(min(max_rwc_interp,(th-this%th_res)/(this%th_sat-this%th_res)),min_rwc_interp)
 
-    ! psi = -a1*(satfrac**m2 - 1._r8 )**m1
+    dsatfrac_dth = 1._r8/(this%th_sat-this%th_res)
+
+    ! psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
+    ! psi = -a1 * (satfrac**m2 - 1)** m1
+    ! dpsi dth = -(m1)*a1*(satfrac**m2-1)**(m1-1) * m2*(satfrac)**(m2-1)*dsatfracdth
+
     ! f(x) = satfrac**m2 -1 
     ! g(x) = a1*f(x)**m1
     ! dpsidth = g'(f(x)) f'(x)
 
-    dpsidth = -(m2/(this%th_sat - this%th_res))*m1*a1*(satfrac**m2 - 1._r8)**(m1-1._r8)
+    dpsidth = -m1*a1*(satfrac**m2 - 1._r8)**(m1-1._r8) * m2*satfrac**(m2-1._r8)*dsatfrac_dth
+
 
   end function dpsidth_from_th_vg
 
