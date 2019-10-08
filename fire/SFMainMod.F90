@@ -113,7 +113,7 @@ contains
    !*****************************************************************
    ! currentSite%acc_NI is the accumulated Nesterov fire danger index
 
-    use SFParamsMod,        only : SF_val_fdi_a, SF_val_fdi_b
+    use SFParamsMod, only  : SF_val_fdi_a, SF_val_fdi_b
     use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod , only : sec_per_day
 
@@ -166,7 +166,7 @@ contains
 
     type(ed_patch_type),  pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
-    type(litter_type),    pointer :: litt_c
+    type(litter_type), pointer    :: litt_c
 
     real(r8) alpha_FMC(nfsc)     ! Relative fuel moisture adjusted per drying ratio
     real(r8) fuel_moisture(nfsc) ! Scaled moisture content of small litter fuels. 
@@ -438,8 +438,8 @@ contains
     real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
     real(r8) a,b,c,e              ! function of fuel sav
 
-    logical,parameter  :: debug_windspeed = .false.  !for debugging
-    real(r8),parameter :: q_dry           = 581.0_r8 !heat of pre-ignition of dry fuels (kJ/kg)
+    logical,parameter :: debug_windspeed = .false. !for debugging
+    real(r8),parameter :: q_dry = 581.0_r8 !heat of pre-ignition of dry fuels (kJ/kg)
 
     currentPatch=>currentSite%oldest_patch;  
 
@@ -572,8 +572,8 @@ contains
     !returns the  the hypothetic fuel consumed by the fire
 
     use SFParamsMod, only : SF_val_miner_total, SF_val_min_moisture, &
-                            SF_val_mid_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope, &
-                            SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
+         SF_val_mid_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope, &
+         SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
 
     type(ed_site_type) , intent(in), target :: currentSite
     type(ed_patch_type), pointer    :: currentPatch
@@ -662,8 +662,8 @@ contains
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
     use FatesInterfaceMod, only : hlm_use_spitfire
-    use SFParamsMod,       only : SF_val_fdi_alpha,SF_val_fuel_energy, &
-                                  SF_val_max_durat, SF_val_durat_slope
+    use SFParamsMod,  only : SF_val_fdi_alpha,SF_val_fuel_energy, &
+         SF_val_max_durat, SF_val_durat_slope
 
     type(ed_site_type), intent(inout), target :: currentSite
 
@@ -687,11 +687,11 @@ contains
        !'decide_fire' subroutine shortened and put in here... 
        if (currentPatch%FI >= fire_threshold) then  ! 50kW/m is the threshold for a self-sustaining fire
           currentPatch%fire = 1 ! Fire...    :D
-          
+
           ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
           ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
           currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
-          
+
           ! Equation 14 in Thonicke et al. 2010
           ! fire duration in minutes
 
@@ -705,7 +705,7 @@ contains
           !currentPatch%FD = 60.0_r8 * 24.0_r8 !no minutes in a day      
        else     
           currentPatch%fire = 0 ! No fire... :-/
-          currentPatch%FD   = 0.0_r8      
+          currentPatch%FD   = 0.0_r8
        endif
        !  FIX(SPM,032414) needs a refactor
        !  FIX(RF,032414) : should happen outside of SF loop - doing all spitfire code is inefficient otherwise. 
@@ -736,7 +736,6 @@ contains
     real(r8) AB               !daily area burnt in m2 per km2
     real(r8) size_of_fire !in m2
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m 
-    integer g, p
 
     !  ---initialize site parameters to zero--- 
     currentSite%frac_burnt = 0.0_r8   
@@ -775,7 +774,7 @@ contains
 
           ! --- calculate area burnt---
           if(lb > 0.0_r8) then
-     
+
              ! Equation 1 in Thonicke et al. 2010
              ! To Do: Connect here with the Li & Levis GDP fire suppression algorithm. 
              ! Equation 16 in arora and boer model JGR 2005
@@ -814,7 +813,7 @@ contains
 
     type(ed_site_type), intent(in), target :: currentSite
 
-    type(ed_patch_type),  pointer :: currentPatch
+    type(ed_patch_type), pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
     real(r8) ::  f_ag_bmass      ! fraction of tree cohort's above-ground biomass as a proportion of total patch ag tree biomass
@@ -888,7 +887,7 @@ contains
 
     !returns the updated currentCohort%fraction_crown_burned for each tree cohort within each patch.
     !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
-    
+
 
 
     type(ed_site_type), intent(in), target :: currentSite
@@ -917,7 +916,6 @@ contains
           do while(associated(currentCohort))  
              currentCohort%fraction_crown_burned = 0.0_r8
 
-             
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 
                 ! height_cbb = clear branch bole height at base of crown (m)
@@ -1027,7 +1025,7 @@ contains
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))
-             !currentCohort%cambial_mort = 0.0_r8 !testing this removal
+             currentCohort%cambial_mort = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Equation 21 in Thonicke et al 2010
                 bt = EDPftvarcon_inst%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
@@ -1084,7 +1082,7 @@ contains
                 ! Equation 22 in Thonicke et al. 2010. 
                 currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 
-                currentCohort%fire_mort = max(0.0_r8,min(1.0_r8,currentCohort%crownfire_mort+currentCohort%cambial_mort- &
+                currentCohort%fire_mort = max(0._r8,min(1.0_r8,currentCohort%crownfire_mort+currentCohort%cambial_mort- &
                      (currentCohort%crownfire_mort*currentCohort%cambial_mort)))  !joint prob.   
              else
                 currentCohort%fire_mort = 0.0_r8 !Set to zero. Grass mode of death is removal of leaves.

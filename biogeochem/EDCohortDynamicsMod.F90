@@ -534,11 +534,12 @@ contains
     currentCohort%ddbhdt             = nan ! time derivative of dbh 
 
     ! FIRE
-    currentCohort%fraction_crown_burned  = nan ! proportion of crown affected by fire
-    currentCohort%passive_crown_fire_flg = nan ! flag to indicate passive crown fire ignition
-    currentCohort%cambial_mort           = nan ! probability that trees dies due to cambial char P&R (1986)
-    currentCohort%crownfire_mort         = nan ! probability of tree post-fire mortality due to crown scorch
-    currentCohort%fire_mort              = nan ! post-fire mortality from cambial and crown damage assuming two are independent
+    currentCohort%fraction_crown_burned = nan ! proportion of crown affected by fire
+    currentCohort%passive_crown_fire_flg = 9999 ! flag to indicate passive crown fire ignition
+    currentCohort%active_crown_fire_flg = 9999 ! flag to indicate active crown fire ignition
+    currentCohort%cambial_mort          = nan ! probability that trees dies due to cambial char P&R (1986)
+    currentCohort%crownfire_mort        = nan ! probability of tree post-fire mortality due to crown scorch
+    currentCohort%fire_mort             = nan ! post-fire mortality from cambial and crown damage assuming two are independent
 
   end subroutine nan_cohort
 
@@ -580,7 +581,8 @@ contains
 
     currentcohort%year_net_uptake(:) = 999._r8 ! this needs to be 999, or trimming of new cohorts will break. 
     currentcohort%ts_net_uptake(:)   = 0._r8
-    currentCohort%size_class         = 1
+    currentcohort%fraction_crown_burned = 0._r8 
+    currentCohort%size_class            = 1
     currentCohort%seed_prod          = 0._r8
     currentCohort%size_class_lasttimestep = 0
     currentcohort%npp_acc_hold       = 0._r8 

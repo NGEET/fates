@@ -344,8 +344,8 @@ module EDTypesMod
 
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
-     real(r8) ::  active_crown_fire_flg                  ! flag for active crown fire ignition
-     real(r8) ::  passive_crown_fire_flg                 ! flag for passive crown fire ignition (1=ignition)
+     integer ::  active_crown_fire_flg                   ! flag for active crown fire ignition
+     integer ::  passive_crown_fire_flg                  ! flag for passive crown fire ignition (1=ignition)
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
                                                          ! (conditional on the tree being subjected to the fire)
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality 
