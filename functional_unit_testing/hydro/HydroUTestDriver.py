@@ -33,7 +33,7 @@ PyF90Utils = imp.load_source('PyF90Utils','../shared/py_src/PyF90Utils.py')
 
 from CDLParse import CDLParseDims, CDLParseParam, cdl_param_type
 from F90ParamParse import f90_param_type, GetSymbolUsage, GetPFTParmFileSymbols, MakeListUnique
-from PyF90Utils import c8, ci, cchar
+from PyF90Utils import c8, ci, cchar, c8_arr, ci_arr
 
 # Load the fortran objects via CTYPES
 
@@ -200,43 +200,48 @@ def main(argv):
     psds    = [2.7, 2.7, 2.7, 2.7]
     tort    = [0.5, 0.5, 0.5, 0.5]
 
-    ncomp = len(th_sats)
+    nwrf = 4
+    nwkf = 2
+
 
     # Allocate memory to our objective classes
-    iret = initalloc_wtfs(ci(ncomp),ci(ncomp))
+    iret = initalloc_wtfs(ci(nwrf),ci(nwkf))
     print('Allocated')
 
     # Push parameters to those classes
     # -------------------------------------------------------------------------
     # Generic VGs
     init_wrf_args  = (4 * c_double)(alphas[0],psds[0],th_sats[0],th_ress[0]) # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(1),ci(1),ci(4),byref(init_wrf_args))
+    iret = setwrf(ci(1),ci(1),ci(len(init_wrf_args)),byref(init_wrf_args))
 
     init_wrf_args  = (4 * c_double)(alphas[1],psds[1],th_sats[1],th_ress[1]) # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(2),ci(1),ci(4),byref(init_wrf_args))
+    iret = setwrf(ci(2),ci(1),ci(len(init_wrf_args)),byref(init_wrf_args))
 
     init_wrf_args  = (4 * c_double)(alphas[2],psds[2],th_sats[2],th_ress[2]) # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(3),ci(1),ci(4),byref(init_wrf_args))
+    iret = setwrf(ci(3),ci(1),ci(len(init_wrf_args)),byref(init_wrf_args))
 
     init_wrf_args  = (4 * c_double)(alphas[3],psds[3],th_sats[3],th_ress[3]) # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(4),ci(1),ci(4),byref(init_wrf_args))
+    iret = setwrf(ci(4),ci(1),ci(len(init_wrf_args)),byref(init_wrf_args))
+
+
+
 
     print('initialized WRF')
 
     theta = np.linspace(0.10, 0.7, num=npts)
 
-    psi   = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
-    dpsidth = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
-    cdpsidth = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
+    psi   = np.full(shape=(nwrf,len(theta)),dtype=np.float64,fill_value=np.nan)
+    dpsidth = np.full(shape=(nwrf,len(theta)),dtype=np.float64,fill_value=np.nan)
+    cdpsidth = np.full(shape=(nwrf,len(theta)),dtype=np.float64,fill_value=np.nan)
 
-    for ic in range(ncomp):
+    for ic in range(nwrf):
 
         for i,th in enumerate(theta):
             psi[ic,i] = psi_from_th(ci(ic+1),c8(th))
 
 
     fig0, ax1 = plt.subplots(1,1,figsize=(9,6))
-    for ic in range(ncomp):
+    for ic in range(nwrf):
         ax1.plot(theta,psi[ic,:])
 
     ax1.set_ylim((-10,5))
@@ -244,14 +249,14 @@ def main(argv):
     ax1.set_xlabel('VWC [m3/m3]')
 
 
-    for ic in range(ncomp):
+    for ic in range(nwrf):
         for i in range(1,len(theta)-1):
             dpsidth[ic,i]  = dpsidth_from_th(ci(ic+1),c8(theta[i]))
             cdpsidth[ic,i] = (psi[ic,i+1]-psi[ic,i-1])/(theta[i+1]-theta[i-1])
 
 
     fig1, ax1 = plt.subplots(1,1,figsize=(9,6))
-    for ic in range(ncomp):
+    for ic in range(nwrf):
         ax1.plot(theta,dpsidth[0,:],label='func')
         ax1.plot(theta,cdpsidth[0,:],label='check')
     ax1.set_ylim((0,1000))
@@ -263,10 +268,15 @@ def main(argv):
 
 
 
+    # Push parameters to WKF classes
+    # -------------------------------------------------------------------------
+    # Generic VGs
+    init_wkf_args  = c8_arr(alphas[0],psds[0],th_sats[0],th_ress[0],tort[0]) # alpha, psd, th_sat, th_res
+    iret = setwkf(ci(1),ci(1),ci(len(init_wkf_args)),byref(init_wkf_args))
 
 
 
-
+    code.interact(local=dict(globals(), **locals()))
 
     exit(0)
 

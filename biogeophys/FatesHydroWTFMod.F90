@@ -283,12 +283,13 @@ contains
 
     class(wrf_type_vg)   :: this
     real(r8),intent(in)  :: th
-    real(r8)             :: psi
-    real(r8)             :: m          ! inverse of psd
-    real(r8)             :: satfrac    ! saturated fraction
-    real(r8)             :: th_interp  ! theta where we start interpolation
-    real(r8)             :: psi_inter  ! psi at interpolation point
-   
+    real(r8)             :: psi            ! matric potential [MPa]
+    real(r8)             :: m              ! inverse of psd
+    real(r8)             :: satfrac        ! saturated fraction
+    real(r8)             :: th_interp      ! theta where we start interpolation
+    real(r8)             :: psi_interp     ! psi at interpolation point
+    real(r8)             :: dpsidth_interp 
+
     !------------------------------------------------------------------------------------
     ! saturation fraction is the origial equation in vg 1980, we just
     ! need to invert it:
@@ -304,14 +305,14 @@ contains
        th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
        dpsidth_interp = this%dpsidth_from_th(th_interp)
        psi_interp = -(1._r8/this%alpha)*(max_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m 
-       psi = psi_interp + dspidth_interp*(th-th_interp)
+       psi = psi_interp + dpsidth_interp*(th-th_interp)
 
     elseif(satfrac<min_rwc_interp) then
        
        th_interp = min_rwc_interp * (this%th_sat-this%th_res) + this%th_res
        dpsidth_interp = this%dpsidth_from_th(th_interp)
        psi_interp = -(1._r8/this%alpha)*(min_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m 
-       psi = psi_interp + dspidth_interp*(th-th_interp)
+       psi = psi_interp + dpsidth_interp*(th-th_interp)
 
     else
 
