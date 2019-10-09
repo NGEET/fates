@@ -942,15 +942,6 @@ contains
                    ! Van Wagner EQ4 FI = (Czh)**3/2 where z=crown base height,h=heat crown ignite energy, FI=fire intensity
                    ! 0.01 = C from Van Wagner 1977 EQ4 for crown of base height 6m, 100% FMC, and FI 2500kW/m
                    passive_crown_FI = (0.01_r8 * height_cbb *EDPftvarcon_inst%crown_ignite_energy(currentCohort%pft))**1.5_r8
-                   ! Critical intensity for active crowning (kW/m)
-                   ! EQ 12 Bessie and Johnson 1995
-                   ! Dividing fuels by 0.45 to get biomass but note that the
-                   ! 0.45 cancels out and could be removed. Also dividing
-                   ! critical_mass_flow_rate by 3.34, an empirical constant
-                   ! in Bessie & Johnson 1995
-                   leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                   crown_fuel_bulkd = leaf_c / (0.45_r8 * crown_depth)
-                   active_crown_FI = critical_mass_flow_rate * low_heat_of_combustion * currentPatch%sum_fuel / (0.45_r8 * 3.34_r8 * crown_fuel_bulkd)
 
                    if (currentPatch%FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
@@ -959,23 +950,49 @@ contains
                       
                       if (ignite_crown >= 1.0_r8) then
                          currentCohort%passive_crown_fire_flg = 1 ! passive crown fire ignited
-                         ! "...in passive crown fires and high intensity surface fires trees can survive. Jack, red
-                         !  and white pine survive...scars used in dating fires"
+                         write(fates_log(),*) 'SF currentCohort%passive_crown_fire_flg = ', currentCohort%passive_crown_fire_flg  ! slevis diag
+                         ! "...in passive crown fires and high intensity surface
+                         ! fires trees can survive. Jack, red
+                         ! and white pine survive...scars used in dating fires"
                          ! Johnson, E.A. 1992 Fire and Veg Dynamics: North American boreal forest. Cambridge Press
                          currentCohort%fraction_crown_burned = EDPftvarcon_inst%crown_fire(currentCohort%pft)
-                         ! Initiation of active crown fire, EQ 14b Bessie and Johnson 1995
-                         ignite_active_crown = currentPatch%FI/active_crown_FI
+
+                         ! Critical intensity for active crowning (kW/m)
+                         ! EQ 12 Bessie and Johnson 1995
+                         ! Fuels / 0.45 to get biomass but note that the 0.45
+                         ! cancels out and could be removed. Also dividing
+                         ! critical_mass_flow_rate by 3.34, an empirical
+                         ! constant in Bessie & Johnson 1995
+                         leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                         crown_fuel_bulkd = currentCohort%n * leaf_c /  &
+                            (0.45_r8 * currentCohort%c_area * crown_depth)
+                         active_crown_FI = critical_mass_flow_rate *  &
+                            low_heat_of_combustion * currentPatch%sum_fuel /  &
+                            (0.45_r8 * 3.34_r8 * crown_fuel_bulkd)
+
+                         ! Initiate active crown fire?
+                         ! EQ 14b Bessie & Johnson 1995
+                         ignite_active_crown = currentPatch%FI / active_crown_FI
+
                          if (ignite_active_crown >= 1.0_r8) then
-                            ! In code design phase; see
-                            ! https://github.com/NGEET/fates/issues/573
                             currentCohort%active_crown_fire_flg = 1  ! active crown fire ignited
+                            write(fates_log(),*) 'SF currentCohort%active_crown_fire_flg = ', currentCohort%active_crown_fire_flg  ! slevis diag
+                            currentCohort%fraction_crown_burned = 1.0_r8
+                            ! TODO Additional effects of active crown fire.
+                            ! Currently in code design phase; see
+                            ! https://github.com/NGEET/fates/issues/573
+                         else
+                            write(fates_log(),*) 'SF currentPatch%FI < active_crown_FI = ', currentPatch%FI, active_crown_FI  ! slevis diag
                          endif ! ignite active crown fire
-                      ! else ! evaluate crown damage based on scorch height
+                      else ! crown damage based on scorch height done below
+                         write(fates_log(),*) 'SF currentPatch%FI < passive_crown_FI = ', currentPatch%FI, passive_crown_FI  ! slevis diag
                       endif ! ignite passive crown fire
-                   ! else no crown fire today
-                   endif ! crown fire intensity
-                ! else ! not crown fire plant
-                endif ! evaluate passive crown fire
+                   else  ! crown fire not possible
+                      write(fates_log(),*) 'SF currentPatch%FI < crown_fire_threshold = ', currentPatch%FI, crown_fire_threshold  ! slevis diag
+                   endif ! fire intensity vs. crown fire threshold
+                else ! not a crown-fire pft
+                   write(fates_log(),*) 'SF Not a crown-fire pft'  ! slevis diag
+                endif ! crown-fire pft
                 
                 ! For surface fires, are flames in the canopy?
                 ! height_cbb is clear branch bole height or height of bottom of canopy 
