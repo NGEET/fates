@@ -950,7 +950,7 @@ contains
                       
                       if (ignite_crown >= 1.0_r8) then
                          currentCohort%passive_crown_fire_flg = 1 ! passive crown fire ignited
-                         write(fates_log(),*) 'SF currentCohort%passive_crown_fire_flg = ', currentCohort%passive_crown_fire_flg  ! slevis diag
+                         write(fates_log(),*) 'SF currentCohort%passive_crown_fire_flg, height_cbb = ', currentCohort%passive_crown_fire_flg, height_cbb  ! slevis diag
                          ! "...in passive crown fires and high intensity surface
                          ! fires trees can survive. Jack, red
                          ! and white pine survive...scars used in dating fires"
@@ -976,16 +976,16 @@ contains
 
                          if (ignite_active_crown >= 1.0_r8) then
                             currentCohort%active_crown_fire_flg = 1  ! active crown fire ignited
-                            write(fates_log(),*) 'SF currentCohort%active_crown_fire_flg = ', currentCohort%active_crown_fire_flg  ! slevis diag
+                            write(fates_log(),*) 'SF currentCohort%active_crown_fire_flg, crown_fuel_bulkd = ', currentCohort%active_crown_fire_flg, crown_fuel_bulkd  ! slevis diag
                             currentCohort%fraction_crown_burned = 1.0_r8
                             ! TODO Additional effects of active crown fire.
                             ! Currently in code design phase; see
                             ! https://github.com/NGEET/fates/issues/573
                          else
-                            write(fates_log(),*) 'SF currentPatch%FI < active_crown_FI = ', currentPatch%FI, active_crown_FI  ! slevis diag
+                            write(fates_log(),*) 'SF currentPatch%FI < active_crown_FI, crown_fuel_bulkd = ', currentPatch%FI, active_crown_FI, crown_fuel_bulkd  ! slevis diag
                          endif ! ignite active crown fire
                       else ! crown damage based on scorch height done below
-                         write(fates_log(),*) 'SF currentPatch%FI < passive_crown_FI = ', currentPatch%FI, passive_crown_FI  ! slevis diag
+                         write(fates_log(),*) 'SF currentPatch%FI < passive_crown_FI, height_cbb = ', currentPatch%FI, passive_crown_FI, height_cbb  ! slevis diag
                       endif ! ignite passive crown fire
                    else  ! crown fire not possible
                       write(fates_log(),*) 'SF currentPatch%FI < crown_fire_threshold = ', currentPatch%FI, crown_fire_threshold  ! slevis diag
@@ -1002,9 +1002,11 @@ contains
                      .and. currentCohort%active_crown_fire_flg == 0) then  
 
                       currentCohort%fraction_crown_burned = min(1.0_r8, ((currentPatch%SH - height_cbb)/crown_depth))
+                      write(fates_log(),*) 'SF Cohort%fraction_crown_burned, Patch%SH, Cohort%hite, height_cbb, crown_depth =', currentCohort%fraction_crown_burned, currentPatch%SH, currentCohort%hite, height_cbb, crown_depth  ! slevis diag
                 endif  !SH frac crown burnt calculation
                 ! Check for strange values. 
                 currentCohort%fraction_crown_burned = min(1.0_r8, max(0.0_r8,currentCohort%fraction_crown_burned))              
+                write(fates_log(),*) 'SF currentCohort%fraction_crown_burned =', currentCohort%fraction_crown_burned  ! slevis diag
              endif !trees only
              !shrink canopy to account for burnt section.     
              !currentCohort%canopy_trim = min(currentCohort%canopy_trim,(1.0_r8-currentCohort%fraction_crown_burned)) 
