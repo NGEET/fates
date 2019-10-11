@@ -92,7 +92,7 @@ module PRTAllometricCarbonMod
   integer, public, parameter :: ac_bc_in_id_pft   = 1   ! Index for the PFT input BC
   integer, public, parameter :: ac_bc_in_id_ctrim = 2   ! Index for the canopy trim function
   integer, public, parameter :: ac_bc_in_id_lstat = 3   ! Leaf status (on or off)
-  integer, parameter         :: num_bc_in         = 3   ! Number of input boundary condition
+  integer, parameter         :: num_bc_in         = 3   ! Number of input boundary conditions
 
   ! THere are no purely output boundary conditions
   integer, parameter         :: num_bc_out        = 0   ! Number of purely output boundary condtions
