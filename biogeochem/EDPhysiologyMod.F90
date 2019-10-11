@@ -961,7 +961,7 @@ contains
                    
                    if(store_c>nearzero) then
                    ! flush either the amount required from the laimemory, or -most- of the storage pool
-                   ! RF: added a criterium to stop the entire store pool emptying and triggering termination mortality
+                   ! RF: added a criterion to stop the entire store pool emptying and triggering termination mortality
                    ! n.b. this might not be necessary if we adopted a more gradual approach to leaf flushing... 
                        store_c_transfer_frac =  min((EDPftvarcon_inst%phenflush_fraction(ipft)* &
                             currentCohort%laimemory)/store_c,(1.0_r8-carbon_store_buffer))
