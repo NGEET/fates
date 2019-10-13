@@ -14,7 +14,6 @@ module EDPatchDynamicsMod
   use FatesLitterMod       , only : ncwd
   use FatesLitterMod       , only : ndcmpy
   use FatesLitterMod       , only : litter_type
-  use FatesLitterMod       , only : ilabi,icell,ilign
   use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
@@ -35,6 +34,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : element_list
   use EDTypesMod           , only : element_pos
   use EDTypesMod           , only : lg_sf
+  use EDTypesMod           , only : dl_sf
   use EDTypesMod           , only : dump_patch
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesInterfaceMod    , only : hlm_use_planthydro
@@ -101,7 +101,7 @@ module EDPatchDynamicsMod
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
 
   ! When creating new patches from other patches, we need to send some of the
   ! litter from the old patch to the new patch.  Likewise, when plants die
@@ -202,6 +202,7 @@ contains
           
           currentCohort => currentCohort%taller
        end do
+       currentPatch%disturbance_mode = fates_unset_int
        currentPatch => currentPatch%younger
     end do
 
@@ -251,14 +252,14 @@ contains
        endif
 
        ! Fire Disturbance Rate
-       ! Fudge - fires can't burn the whole patch, as this causes /0 errors.
-       ! This is accumulating the daily fires over the whole 30 day patch generation phase.  
-       currentPatch%disturbance_rates(dtype_ifire) = &
-             min(0.99_r8,currentPatch%disturbance_rates(dtype_ifire) + currentPatch%frac_burnt)
+       ! Fires can't burn the whole patch, as this causes /0 errors. 
+       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
 
-       if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
+       if (debug) then
+          if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
           write(fates_log(),*) 'very high fire areas', &
-                currentPatch%disturbance_rates(dtype_ifire),currentPatch%frac_burnt
+               currentPatch%disturbance_rates(dtype_ifire),currentPatch%frac_burnt
+          endif
        endif
 
 
@@ -387,7 +388,6 @@ contains
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day    
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
-    integer  :: c12_el                       ! element loop index for carbon12
     integer  :: el                           ! element loop index
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
@@ -401,12 +401,6 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
-    real(r8) :: error
-    real(r8) :: total_stock1,biomass_stock1,litter_stock1,seed_stock1
-    real(r8) :: total_stock0,biomass_stock0,litter_stock0,seed_stock0
-    real(r8) :: total_stock2,biomass_stock2,litter_stock2,seed_stock2
-    real(r8) :: burn_flux2,burn_flux1,burn_flux0
-    real(r8) :: wood_product2,wood_product1,wood_product0
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -420,7 +414,7 @@ contains
 
     do while(associated(currentPatch))
 
-       !FIX(RF,032414) Does using the max(fire,mort) actually make sense here?
+    
        if(currentPatch%disturbance_rate>1.0_r8) then
           write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
           call endrun(msg=errMsg(sourcefile, __LINE__))          
@@ -479,14 +473,6 @@ contains
           new_patch_primary%tallest  => null()
           new_patch_primary%shortest => null()
 
-          
-          ! Insert New patch into the linked list
-       
-          currentPatch               => currentSite%youngest_patch
-          new_patch_primary%older    => currentPatch
-          new_patch_primary%younger  => null()
-          currentPatch%younger       => new_patch_primary
-          currentSite%youngest_patch => new_patch_primary
        endif
 
 
@@ -510,13 +496,6 @@ contains
           new_patch_secondary%tallest  => null()
           new_patch_secondary%shortest => null() 
 
-          ! Insert New patch into the linked list
-
-          currentPatch               => currentSite%youngest_patch
-          new_patch_secondary%older  => currentPatch
-          new_patch_secondary%younger=> null()
-          currentPatch%younger       => new_patch_secondary
-          currentSite%youngest_patch => new_patch_secondary
        endif
     
        ! loop round all the patches that contribute surviving indivduals and litter 
@@ -525,9 +504,7 @@ contains
        ! two new pointers.
 
        currentPatch => currentSite%oldest_patch
-       do while(associated(currentPatch) .and. &
-             .not.associated(currentPatch,new_patch_secondary) .and. &
-             .not.associated(currentPatch,new_patch_primary))
+       do while(associated(currentPatch))
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
@@ -552,16 +529,6 @@ contains
                   call endrun(msg=errMsg(sourcefile, __LINE__)) 
               end if
 
-              ! This  is a useful check to see if each individual patch disturbance, 
-              ! and mass transfer is conserving mass
-
-              if(debug) then
-                  c12_el = element_pos(carbon12_element)
-                  wood_product0 = currentSite%mass_balance(c12_el)%wood_product
-                  burn_flux0    = currentSite%mass_balance(c12_el)%burn_flux_to_atm
-                  call SiteMassStock(currentSite,c12_el,total_stock0,biomass_stock0,litter_stock0,seed_stock0)
-              end if
-
              ! for the case where the donating patch is secondary forest, if 
              ! the dominant disturbance from this patch is non-anthropogenic,
              ! we need to average in the time-since-anthropogenic-disturbance 
@@ -578,8 +545,7 @@ contains
              ! Transfer the litter existing already in the donor patch to the new patch
              ! This call will only transfer non-burned litter to new patch
              ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
-             ! fire is not the dominant disturbance regime. Make sure to zero out the
-             ! burnt fraction of litter if fire was not dominant.
+             ! fire is not the dominant disturbance regime. 
 
              if(currentPatch%disturbance_mode .ne. dtype_ifire) then
                  currentPatch%burnt_frac_litter(:) = 0._r8
@@ -686,7 +652,6 @@ contains
                               nc%n * ED_val_understorey_death / hlm_freq_day
                          
                          
-                         
                          currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
                               (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
@@ -747,7 +712,7 @@ contains
                    nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
                    
                    ! loss of individuals from source patch due to area shrinking
-                   currentCohort%n = currentCohort%n - nc%n
+                   currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
                    
                    levcan = currentCohort%canopy_layer 
                    
@@ -801,8 +766,8 @@ contains
                        leaf_burn_frac = currentCohort%fraction_crown_burned
                    else
 
-                       ! GRASS! Grasses determine their fraction of
-                       ! leaves burned right here!
+                       ! Grasses determine their fraction of leaves burned here
+
                        leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
                    endif
                    
@@ -948,7 +913,11 @@ contains
                       
                    endif  ! Select canopy layer
                    
-                end if   ! Select disturbance mode
+               else
+                  write(fates_log(),*) 'unknown disturbance mode?'
+                  write(fates_log(),*) 'disturbance_mode: ',currentPatch%disturbance_mode 
+                  call endrun(msg=errMsg(sourcefile, __LINE__))          
+               end if   ! Select disturbance mode
                 
                 if (nc%n > 0.0_r8) then   
                    storebigcohort   =>  new_patch%tallest
@@ -989,35 +958,6 @@ contains
              !update area of donor patch
              currentPatch%area = currentPatch%area - patch_site_areadis
 
-             ! --------------------------------------------------------------------------
-             ! Mass conservation check (carbon only, expand as necessary upon failing
-             ! checks in EDMainMod
-             ! --------------------------------------------------------------------------
-             if(.false.) then
-                 c12_el = element_pos(carbon12_element)
-                 wood_product1 = currentSite%mass_balance(c12_el)%wood_product
-                 burn_flux1    = currentSite%mass_balance(c12_el)%burn_flux_to_atm
-                 call SiteMassStock(currentSite,c12_el,total_stock1,biomass_stock1,litter_stock1,seed_stock1)
-                 error = (total_stock1 - total_stock0) + (burn_flux1-burn_flux0) + (wood_product1-wood_product0)
-                 if(abs(error)>1.e-7_r8) then
-                     write(fates_log(),*) 'non trivial carbon mass balance error on patch disturbance'
-                     write(fates_log(),*) 'abs error: ',error
-                     write(fates_log(),*) 'disturb mode: ',currentPatch%disturbance_mode
-                     write(fates_log(),*) 'disturb rate',currentPatch%disturbance_rate
-                     write(fates_log(),*) 'terms: ',currentPatch%area,(total_stock1 - total_stock0),&
-                           (burn_flux1-burn_flux0),(wood_product1-wood_product0)
-                     write(fates_log(),*) biomass_stock1-biomass_stock0, &
-                           litter_stock1-litter_stock0, seed_stock1-seed_stock0
-                     write(fates_log(),*) ''
-                     write(fates_log(),*) 'donor patch details: '
-                     call dump_patch(currentPatch)
-                     write(fates_log(),*) ''
-                     write(fates_log(),*) 'new patch details: '
-                     call dump_patch(new_patch)
-                     call endrun(msg=errMsg(sourcefile, __LINE__))
-                 end if
-             end if
-
              ! sort out the cohorts, since some of them may be so small as to need removing. 
              ! the first call to terminate cohorts removes sparse number densities,
              ! the second call removes for all other reasons (sparse culling must happen
@@ -1036,9 +976,27 @@ contains
           
           currentPatch => currentPatch%younger
           
-       enddo ! currentPatch patch loop. 
+      enddo ! currentPatch patch loop. 
 
-          
+      !*************************/
+      !**  INSERT NEW PATCH(ES) INTO LINKED LIST    
+      !**********`***************/
+       
+      if ( site_areadis_primary .gt. nearzero) then
+          currentPatch               => currentSite%youngest_patch
+          new_patch_primary%older    => currentPatch
+          new_patch_primary%younger  => null()
+          currentPatch%younger       => new_patch_primary
+          currentSite%youngest_patch => new_patch_primary
+      endif
+      
+      if ( site_areadis_secondary .gt. nearzero) then
+          currentPatch               => currentSite%youngest_patch
+          new_patch_secondary%older  => currentPatch
+          new_patch_secondary%younger=> null()
+          currentPatch%younger       => new_patch_secondary
+          currentSite%youngest_patch => new_patch_secondary
+      endif
  
        
        ! sort out the cohorts, since some of them may be so small as to need removing. 
@@ -1127,7 +1085,7 @@ contains
            call PatchMassStock(largestPatch,el,live_stock,seed_stock,litter_stock)
            
            ! Then we scale the total mass by the added area
-           mass_gain = (live_stock+seed_stock+litter_stock) * &
+           mass_gain = (seed_stock+litter_stock) * &
                  (area_site-areatot)/largestPatch%area
 
            currentSite%mass_balance(el)%patch_resize_err = &
@@ -1194,8 +1152,8 @@ contains
     !
     ! The "newPatch" is the newly created patch. This patch has already been given
     ! an area which is the sum of disturbed area from a list of donors.  
-    ! At this point in the call seequence, we are looping over a list of
-    ! donot patches, and transfering over their litter pools which is in units 
+    ! At this point in the call sequence, we are looping over a list of
+    ! donor patches, and transferring over their litter pools which is in units 
     ! kg/m2, we need to make sure that we are conserving mass.
     !
     ! AD = Area of each Donor    [m2]
@@ -1208,7 +1166,7 @@ contains
     !
     ! The fragmentation/decomposition flux from donor patches has 
     ! already occured in existing patches.  However some of their area 
-    ! has been carved out for this new patches which is receiving donations.
+    ! has been carved out for this new patch which is receiving donations.
     ! Lets maintain conservation on that pre-existing mass flux in these 
     ! newly disturbed patches.  Include only the fragmentation flux.
     ! -----------------------------------------------------------------------------------
@@ -1251,9 +1209,6 @@ contains
        curr_litt  => currentPatch%litter(el)
        new_litt  => newPatch%litter(el)
 
-
-
-
        ! Distribute the fragmentation litter flux rates. This is only used for diagnostics
        ! at this point.  Litter fragmentation has already been passed to the output
        ! boundary flux arrays.
@@ -1282,7 +1237,7 @@ contains
 
        ! -----------------------------------------------------------------------------
        ! Distribute the existing litter that was already in place on the donor
-       ! patch.  Some of this burns and is sent to the atosphere, and some goes to the 
+       ! patch.  Some of this burns and is sent to the atmosphere, and some goes to the 
        ! litter stocks of the newly created patch. ALso, some may be retained in the 
        ! donor patch.
        !
@@ -1311,7 +1266,7 @@ contains
            donate_m2 = (1.0_r8-retain_frac)/newPatch%area
        else
            retain_m2 = 0._r8
-           donate_m2  = 1./newPatch%area
+           donate_m2 = 1.0_r8/newPatch%area
        end if
 
 
@@ -1349,10 +1304,10 @@ contains
 
            ! Transfer leaf fines
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      (1._r8 - currentPatch%burnt_frac_litter(lg_sf))
+                                      (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
 
            burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      currentPatch%burnt_frac_litter(lg_sf)
+                                      currentPatch%burnt_frac_litter(dl_sf)
 
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
@@ -1380,8 +1335,6 @@ contains
 
           new_litt%seed_germ(pft) = new_litt%seed_germ(pft) + donatable_mass * donate_m2
           curr_litt%seed_germ(pft) = curr_litt%seed_germ(pft) + donatable_mass * retain_m2
-
-          
           
        enddo
 
@@ -1425,12 +1378,13 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(inout), target :: currentSite
-    type(ed_patch_type) , intent(inout), target :: currentPatch
-    type(ed_patch_type) , intent(inout), target :: newPatch
+    type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
+    type(ed_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
                                                                       ! by current patch
     !
     ! !LOCAL VARIABLES:
+
     type(ed_cohort_type), pointer      :: currentCohort
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
@@ -1442,11 +1396,9 @@ contains
     real(r8) :: burned_mass          ! the mass of litter that was supposed to be provided
                                      ! by the donor, but was burned [kg]
     real(r8) :: remainder_area       ! current patch's remaining area after donation [m2]
-    real(r8) :: donate_frac          ! the fraction of litter mass sent to the new patch
     real(r8) :: retain_frac          ! the fraction of litter mass retained by the donor patch
     real(r8) :: bcroot               ! amount of below ground coarse root per cohort kg
     real(r8) :: bstem                ! amount of above ground stem biomass per cohort kg
-    real(r8) :: burned_leaves        ! amount of tissue consumed by fire for leaves. KgC/individual/day
     real(r8) :: leaf_burn_frac       ! fraction of leaves burned 
     real(r8) :: leaf_m               ! leaf mass [kg]
     real(r8) :: fnrt_m               ! fineroot mass [kg]
@@ -1457,7 +1409,7 @@ contains
     real(r8) :: num_dead_trees       ! total number of dead trees passed in with the burn area
     real(r8) :: num_live_trees       ! total number of live trees passed in with the burn area
     real(r8) :: donate_m2            ! area normalization for litter mass destined to new patch [m-2]
-    real(r8) :: retain_m2            ! area normalization for litter mass destined to old patch [m-2]
+    real(r8) :: retain_m2            ! area normalization for litter mass staying in donor patch [m-2]
     real(r8) :: dcmpy_frac           ! fraction of mass going to each decomposability partition
     integer  :: el                   ! element loop index
     integer  :: sl                   ! soil layer index
@@ -1482,7 +1434,8 @@ contains
        end do
     end if
 
-    ! If/when sending litter fluxes to the old patch, we divide the total 
+
+    ! If/when sending litter fluxes to the donor patch, we divide the total 
     ! mass sent to that patch, by the area it will have remaining
     ! after it donates area.
     ! i.e. subtract the area it is donating.
@@ -1491,8 +1444,8 @@ contains
    
     ! Calculate the fraction of litter to be retained versus donated
     ! vis-a-vis the new and donor patch (if the area remaining
-    ! in the original patch is small, don't bother 
-    ! retaining anything.
+    ! in the original donor patch is small, don't bother 
+    ! retaining anything.)
     retain_frac = (1.0_r8-burn_localization) * &
           remainder_area/(newPatch%area+remainder_area)
 
@@ -1501,7 +1454,7 @@ contains
         donate_m2 = (1.0_r8-retain_frac)/newPatch%area
     else
         retain_m2 = 0._r8
-        donate_m2  = 1./newPatch%area
+        donate_m2 = 1.0_r8/newPatch%area
     end if
 
     do el = 1,num_elements
@@ -1547,7 +1500,7 @@ contains
              burned_mass  = num_dead_trees * (leaf_m+repro_m) * currentCohort%fraction_crown_burned
              
              do dcmpy=1,ndcmpy
-                 dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+                 dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
                  new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
                                               donatable_mass*donate_m2*dcmpy_frac
                  curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
@@ -1559,9 +1512,9 @@ contains
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                    icontext = i_biomass_rootprof_context)
 
-             ! Contribution of dead trees to root litter (no root burn flux)
+             ! Contribution of dead trees to root litter (no root burn flux to atm)
              do dcmpy=1,ndcmpy
-                 dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+                 dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
                  do sl = 1,currentSite%nlevsoil
                      donatable_mass = num_dead_trees * (fnrt_m+store_m) * currentSite%rootfrac_scr(sl)
                      new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + &
@@ -1606,40 +1559,22 @@ contains
 
              ! Above ground coarse woody debris from twigs and small branches
              ! a portion of this pool may burn
-             do c = 1,2
-
-                donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
-                      (1.0_r8-currentCohort%fraction_crown_burned)
-                burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * & 
+             do c = 1,ncwd
+                 donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
+                 if (c == 1 .or. c == 2) then
+                      donatable_mass = donatable_mass * (1.0_r8-currentCohort%fraction_crown_burned)
+                      burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * & 
                       currentCohort%fraction_crown_burned
-
+                      site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
-                
-                ! track as diagnostic fluxes
-                flux_diags%cwd_ag_input(c) = &
-                     flux_diags%cwd_ag_input(c) + donatable_mass
-                
-                site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
-             enddo
-             
-             ! Above ground coarse woody debris from large branches 
-             ! and stems: these do not burn in crown fires. 
-             do c = 3,4
-                donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
-                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
-                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
-
-                ! track as diagnostic fluxes
-                flux_diags%cwd_ag_input(c) = &
-                     flux_diags%cwd_ag_input(c) + donatable_mass
-            enddo
-             
+                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
+             enddo   
+                  
 
             currentCohort => currentCohort%taller
         enddo
-
     end do
     
     return
@@ -1714,7 +1649,7 @@ contains
        donate_m2 = (1.0_r8-retain_frac)/newPatch%area
     else
        retain_m2 = 0._r8
-       donate_m2  = 1._r8/newPatch%area
+       donate_m2 = 1._r8/newPatch%area
     end if
 
 
@@ -1772,7 +1707,7 @@ contains
           
           ! Transfer leaves of dying trees to leaf litter (includes seeds too)
           do dcmpy=1,ndcmpy
-              dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+              dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
               new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
                     num_dead*(leaf_m+repro_m)*donate_m2*dcmpy_frac
               
@@ -1810,7 +1745,7 @@ contains
 
           ! Transfer fine roots of dying trees to below ground litter pools
           do dcmpy=1,ndcmpy
-              dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+              dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
               do sl=1,currentSite%nlevsoil
                   new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + &
                         num_dead * currentSite%rootfrac_scr(sl) * &
@@ -2023,6 +1958,7 @@ contains
 
 
     ! FIRE
+    currentPatch%litter_moisture(:)         = 0.0_r8 ! litter moisture
     currentPatch%fuel_eff_moist             = 0.0_r8 ! average fuel moisture content of the ground fuel 
     ! (incl. live grasses. omits 1000hr fuels)
     currentPatch%livegrass                  = 0.0_r8 ! total ag grass biomass in patch. 1=c3 grass, 2=c4 grass. gc/m2
@@ -2044,10 +1980,8 @@ contains
     currentPatch%fire                       = 999    ! sr decide_fire.1=fire hot enough to proceed. 0=stop everything- no fires today
     currentPatch%fd                         = 0.0_r8 ! fire duration (mins)
     currentPatch%ros_back                   = 0.0_r8 ! backward ros (m/min)
-    currentPatch%ab                         = 0.0_r8 ! area burnt daily m2
-    currentPatch%nf                         = 0.0_r8 ! number of fires initiated daily 
     currentPatch%sh                         = 0.0_r8 ! average scorch height for the patch(m)
-    currentPatch%frac_burnt                 = 0.0_r8 ! fraction burnt in each timestep. 
+    currentPatch%frac_burnt                 = 0.0_r8 ! fraction burnt daily  
     currentPatch%burnt_frac_litter(:)       = 0.0_r8 
     currentPatch%btran_ft(:)                = 0.0_r8
 
@@ -2115,13 +2049,13 @@ contains
     do i_disttype = 1, n_anthro_disturbance_categories
 
        !---------------------------------------------------------------------!
-       !  We only really care about fusing patches if nopatches > 1           !
+       !  We only really care about fusing patches if nopatches > 1          !
        !---------------------------------------------------------------------!
 
        iterate = 1
 
        !---------------------------------------------------------------------!
-       !  Keep doing this until nopatches >= maxPatchesPerSite                         !
+       !  Keep doing this until nopatches <= maxPatchesPerSite               !
        !---------------------------------------------------------------------!
 
        do while(iterate == 1)
@@ -2134,9 +2068,9 @@ contains
              currentPatch => currentPatch%older
           enddo
 
-          !---------------------------------------------------------------------!
+          !-------------------------------------------------------------------------------!
           ! Loop round current & target (currentPatch,tpp) patches to assess combinations !
-          !---------------------------------------------------------------------!   
+          !-------------------------------------------------------------------------------!   
           currentPatch => currentSite%youngest_patch
           do while(associated(currentPatch))      
              tpp => currentSite%youngest_patch
@@ -2147,8 +2081,10 @@ contains
                 endif
 
                 if(associated(tpp).and.associated(currentPatch))then
-
-                   ! only fuse patches whose anthropogenic disturbance categroy matches taht of the outer loop that we are in
+                   !--------------------------------------------------------------------!
+                   ! only fuse patches whose anthropogenic disturbance category matches !
+                   ! that of the outer loop that we are in                              !
+                   !--------------------------------------------------------------------!
                    if ( tpp%anthro_disturbance_label .eq. i_disttype .and. &
                         currentPatch%anthro_disturbance_label .eq. i_disttype) then
 
@@ -2194,15 +2130,16 @@ contains
                                   do z = 1,n_dbh_bins      ! loop over hgt bins 
 
                                      !----------------------------------
-                                     !is there biomass in this category?
+                                     ! is there biomass in this category?
                                      !----------------------------------
 
                                      if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8 .or.  &
                                           tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
 
-                                        !-------------------------------------------------------------------------------------
-                                        ! what is the relative difference in biomass i nthis category between the two patches?
-                                        !-------------------------------------------------------------------------------------
+                                        !---------------------------------------------------------------------!
+                                        ! what is the relative difference in biomass in this category between
+                                        ! the two patches?
+                                        !---------------------------------------------------------------------!
 
                                         norm = abs(currentPatch%pft_agb_profile(ft,z) - &
                                              tpp%pft_agb_profile(ft,z))/(0.5_r8 * &
@@ -2229,12 +2166,31 @@ contains
                          ! or both are older than forced fusion age                                !
                          !-------------------------------------------------------------------------!
 
-                         if(fuse_flag  ==  1)then 
+                         if(fuse_flag  ==  1)then
+                            
+                            !-----------------------!
+                            ! fuse the two patches  !
+                            !-----------------------!
+                            
                             tmpptr => currentPatch%older       
                             call fuse_2_patches(csite, currentPatch, tpp)
                             call fuse_cohorts(csite,tpp, bc_in)
                             call sort_cohorts(tpp)
                             currentPatch => tmpptr
+
+                            !------------------------------------------------------------------------!
+                            ! since we've just fused two patches, but are still in the midst of      !
+                            ! a patch x patch loop, reset the patch fusion tolerance to the starting !
+                            ! value so that any subsequent fusions in this loop are done with that   !
+                            ! value. otherwise we can end up in a situation where we've loosened the !
+                            ! fusion tolerance to get nopatches <= maxPatchesPerSite, but then,      !
+                            ! having accomplished that, we continue through all the patch x patch    !
+                            ! combinations and then all the patches get fused, ending up with        !
+                            ! nopatches << maxPatchesPerSite and losing all heterogeneity.           !
+                            !------------------------------------------------------------------------!
+
+                            profiletol = ED_val_patch_fusion_tol
+                            
                          else
                             ! write(fates_log(),*) 'patches not fused'
                          endif
@@ -2340,8 +2296,6 @@ contains
     rp%fi                   = (dp%fi*dp%area + rp%fi*rp%area) * inv_sum_area
     rp%fd                   = (dp%fd*dp%area + rp%fd*rp%area) * inv_sum_area
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
-    rp%ab                   = (dp%ab*dp%area + rp%ab*rp%area) * inv_sum_area
-    rp%nf                   = (dp%nf*dp%area + rp%nf*rp%area) * inv_sum_area
     rp%sh                   = (dp%sh*dp%area + rp%sh*rp%area) * inv_sum_area
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
     rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area) * inv_sum_area

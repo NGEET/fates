@@ -5,7 +5,7 @@ module FatesLitterMod
   ! "litter" means all organic material that is no longer associated with a live plant.
   ! Also, in FATES we only track "un-fragmented" and "un-decomposed" litter. This
   ! is a decision of pragmatism, as FATES is not a soil decomposition model, yet FATES
-  ! does need to retain litter for fire calculations.  THerefore, we raitain
+  ! does need to retain litter for fire calculations.  Therefore, we retain
   ! undecomposed litter for a period of time in FATES, until it fragments and is passed
   ! to another model to handle deocomposition.
   ! 
@@ -51,9 +51,9 @@ module FatesLitterMod
    integer, public, parameter :: ndcmpy = 3   ! number of "decomposability" pools in
                                               ! fines (lignin, cellulose, labile)
 
-   integer, public, parameter :: ilabi  = 1   ! Array index for labile portion
-   integer, public, parameter :: icell  = 2   ! Array index for cellulose portion
-   integer, public, parameter :: ilign  = 3   ! Array index for the lignin portion
+   integer, public, parameter :: ilabile     = 1   ! Array index for labile portion
+   integer, public, parameter :: icellulose  = 2   ! Array index for cellulose portion
+   integer, public, parameter :: ilignin     = 3   ! Array index for the lignin portion
 
 
    type, public ::  litter_type
@@ -343,10 +343,10 @@ contains
     real(r8),intent(in) :: init_seed
     real(r8),intent(in) :: init_seed_germ
     
-    this%ag_cwd(:)              = init_leaf_fines
-    this%bg_cwd(:,:)            = init_root_fines
-    this%leaf_fines(:)          = init_ag_cwd
-    this%root_fines(:,:)        = init_bg_cwd
+    this%ag_cwd(:)              = init_ag_cwd
+    this%bg_cwd(:,:)            = init_bg_cwd
+    this%leaf_fines(:)          = init_leaf_fines
+    this%root_fines(:,:)        = init_root_fines
     this%seed(:)                = init_seed
     this%seed_germ(:)           = init_seed_germ
 

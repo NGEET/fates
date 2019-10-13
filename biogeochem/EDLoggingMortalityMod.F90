@@ -547,14 +547,15 @@ contains
 
             do dcmpy=1,ndcmpy
 
-               dcmpy_frac = GetDecompyFrac(pft,dcmpy)
+               dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
 
                new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
                     leaf_litter * donate_frac/newPatch%area * dcmpy_frac
                
                cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + &
                     leaf_litter * retain_frac/remainder_area * dcmpy_frac
-               
+
+               dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
                do ilyr = 1,nlevsoil
                   new_litt%root_fines(dcmpy,ilyr) = new_litt%root_fines(dcmpy,ilyr) + &
                        root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &

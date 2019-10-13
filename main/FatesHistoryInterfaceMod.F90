@@ -149,6 +149,12 @@ module FatesHistoryInterfaceMod
   integer :: ih_sum_fuel_pa
 
   integer :: ih_cwd_elcwd
+
+  integer :: ih_litter_in_si    ! carbon only
+  integer :: ih_litter_out_si   ! carbon only
+  integer :: ih_seed_bank_si    ! carbon only
+  integer :: ih_seeds_in_si     ! carbon only
+
   integer :: ih_litter_in_elem
   integer :: ih_litter_out_elem
   integer :: ih_seed_bank_elem
@@ -209,6 +215,9 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_c_stomata_si
   integer :: ih_c_lblayer_si
+
+  integer :: ih_fire_c_to_atm_si
+
 
   integer :: ih_cbal_err_fates_si
   integer :: ih_err_fates_si
@@ -1628,7 +1637,10 @@ end subroutine flush_hvars
                hio_fire_fuel_sav_pa    => this%hvars(ih_fire_fuel_sav_pa)%r81d, &
                hio_fire_fuel_mef_pa    => this%hvars(ih_fire_fuel_mef_pa)%r81d, &
                hio_sum_fuel_pa         => this%hvars(ih_sum_fuel_pa)%r81d,  &
-
+               hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
+               hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
+               hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
+               hio_seeds_in_si         => this%hvars(ih_seeds_in_si)%r81d, &
                hio_litter_in_elem      => this%hvars(ih_litter_in_elem)%r82d, &
                hio_litter_out_elem     => this%hvars(ih_litter_out_elem)%r82d, &
                hio_seed_bank_elem      => this%hvars(ih_seed_bank_elem)%r82d, &
@@ -1696,6 +1708,8 @@ end subroutine flush_hvars
                hio_crownfiremort_si_scpf     => this%hvars(ih_crownfiremort_si_scpf)%r82d, &
                hio_cambialfiremort_si_scpf   => this%hvars(ih_cambialfiremort_si_scpf)%r82d, &
 
+               hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
+
                hio_m1_si_scls          => this%hvars(ih_m1_si_scls)%r82d, &
                hio_m2_si_scls          => this%hvars(ih_m2_si_scls)%r82d, &
                hio_m3_si_scls          => this%hvars(ih_m3_si_scls)%r82d, &
@@ -1706,15 +1720,10 @@ end subroutine flush_hvars
                hio_m8_si_scls          => this%hvars(ih_m8_si_scls)%r82d, &    
                hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &
                hio_cwd_elcwd           => this%hvars(ih_cwd_elcwd)%r82d, &
-               ! SWAP THIS BACK TO 2D WHEN TESTING COMPLETE (RGK 06-2019)
-               hio_cwd_ag_elem         => this%hvars(ih_cwd_ag_elem)%r81d, &
-               hio_cwd_bg_elem         => this%hvars(ih_cwd_bg_elem)%r81d, &
-               hio_fines_ag_elem       => this%hvars(ih_fines_bg_elem)%r81d, &
-               hio_fines_bg_elem       => this%hvars(ih_fines_ag_elem)%r81d, &     
-!               hio_cwd_ag_elem         => this%hvars(ih_cwd_ag_elem)%r82d, & 
-!               hio_cwd_bg_elem         => this%hvars(ih_cwd_bg_elem)%r82d, & 
-!               hio_fines_ag_elem       => this%hvars(ih_fines_bg_elem)%r82d, & 
-!               hio_fines_bg_elem       => this%hvars(ih_fines_ag_elem)%r82d, & 
+               hio_cwd_ag_elem         => this%hvars(ih_cwd_ag_elem)%r82d, &
+               hio_cwd_bg_elem         => this%hvars(ih_cwd_bg_elem)%r82d, &
+               hio_fines_ag_elem       => this%hvars(ih_fines_bg_elem)%r82d, &
+               hio_fines_bg_elem       => this%hvars(ih_fines_ag_elem)%r82d, &
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_agb_si_scls          => this%hvars(ih_agb_si_scls)%r82d, &
                hio_biomass_si_scls          => this%hvars(ih_biomass_si_scls)%r82d, &
@@ -1840,6 +1849,11 @@ end subroutine flush_hvars
          ! Total carbon model error [kgC/day -> mgC/day]
          hio_cbal_err_fates_si(io_si) = &
                sites(s)%mass_balance(element_pos(carbon12_element))%err_fates * mg_per_kg
+
+         ! Total carbon lost to atmosphere from burning (kgC/site/day -> gC/m2/s)
+         hio_fire_c_to_atm_si(io_si) = &
+              sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm * &
+              g_per_kg * ha_per_m2 * days_per_sec
 
          ! Total model error [kg/day -> mg/day]  (all elements)
          do el = 1, num_elements
@@ -2440,8 +2454,7 @@ end subroutine flush_hvars
 
             litt_c       => cpatch%litter(element_pos(carbon12_element))
             flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
-
-             
+                         
             do i_cwd = 1, ncwd
 
                 hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
@@ -2605,10 +2618,56 @@ end subroutine flush_hvars
          end do
          
          ! ------------------------------------------------------------------------------
+         ! Some carbon only litter diagnostics (legacy)
+         ! ------------------------------------------------------------------------------
+
+         flux_diags => sites(s)%flux_diags(element_pos(carbon12_element))
+
+         hio_litter_in_si(io_si) = (sum(flux_diags%cwd_ag_input(:)) + &
+              sum(flux_diags%cwd_bg_input(:)) + &
+              sum(flux_diags%leaf_litter_input(:)) + &
+              sum(flux_diags%root_litter_input(:))) * &
+              g_per_kg * AREA_INV * days_per_sec
+
+         hio_litter_out_si(io_si) = 0._r8
+         hio_seed_bank_si(io_si)  = 0._r8
+         hio_seeds_in_si(io_si)   = 0._r8
+
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            
+            litt => cpatch%litter(element_pos(carbon12_element))
+            
+            area_frac = cpatch%area * AREA_INV
+            
+            ! Sum up all output fluxes (fragmentation) kgC/m2/day -> gC/m2/s
+            hio_litter_out_si(io_si) = hio_litter_out_si(io_si) + &
+                 (sum(litt%leaf_fines_frag(:)) + &
+                 sum(litt%root_fines_frag(:,:)) + &
+                 sum(litt%ag_cwd_frag(:)) + &
+                 sum(litt%bg_cwd_frag(:,:))) * &
+                 area_frac * g_per_kg * days_per_sec
+
+            ! Sum up total seed bank (germinated and ungerminated)
+            hio_seed_bank_si(io_si) = hio_seed_bank_si(io_si) + &
+                 (sum(litt%seed(:))+sum(litt%seed_germ(:))) * &
+                 area_frac * g_per_kg * days_per_sec
+
+            ! Sum up the input flux into the seed bank (local and external)
+            hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
+                 (sum(litt%seed_in_local(:)) + sum(litt%seed_in_extern(:))) * &
+                 area_frac * g_per_kg * days_per_sec
+            
+            cpatch => cpatch%younger
+         end do
+         
+
+         ! ------------------------------------------------------------------------------
          ! Diagnostics discretized by element type
          ! ------------------------------------------------------------------------------
 
          hio_cwd_elcwd(io_si,:)   = 0._r8
+
 
          do el = 1, num_elements
             
@@ -2621,16 +2680,11 @@ end subroutine flush_hvars
                  sum(flux_diags%leaf_litter_input(:)) + &
                  sum(flux_diags%root_litter_input(:))
 
-            ! SWITCH BACK AFTER TESTING (RGK 06-2019)
-            hio_cwd_ag_elem(io_si)         = 0._r8
-            hio_cwd_bg_elem(io_si)         = 0._r8
-            hio_fines_ag_elem(io_si)       = 0._r8
-            hio_fines_bg_elem(io_si)       = 0._r8
+            hio_cwd_ag_elem(io_si,el)         = 0._r8
+            hio_cwd_bg_elem(io_si,el)         = 0._r8
+            hio_fines_ag_elem(io_si,el)       = 0._r8
+            hio_fines_bg_elem(io_si,el)       = 0._r8
 
-        !    hio_cwd_ag_elem(io_si,el)         = 0._r8
-        !    hio_cwd_bg_elem(io_si,el)         = 0._r8
-        !    hio_fines_ag_elem(io_si,el)       = 0._r8
-        !    hio_fines_bg_elem(io_si,el)       = 0._r8
             hio_seed_bank_elem(io_si,el)      = 0._r8
             hio_seed_germ_elem(io_si,el)      = 0._r8
             hio_seed_decay_elem(io_si,el)     = 0._r8
@@ -2666,34 +2720,18 @@ end subroutine flush_hvars
                hio_seed_in_extern_elem(io_si,el) = hio_seed_in_extern_elem(io_si,el) + & 
                     sum(litt%seed_in_extern(:)) * area_frac
 
-               ! SWITCH BACK AFTER TESTING IS COMPLETE (RGK 06-2019)
-               if(element_list(el)==carbon12_element) then
-                   hio_cwd_ag_elem(io_si) = hio_cwd_ag_elem(io_si) + &
-                         sum(litt%ag_cwd(:)) * area_frac
-                   
-                   hio_cwd_bg_elem(io_si) = hio_cwd_bg_elem(io_si) + &
-                         sum(litt%bg_cwd(:,:)) * area_frac
-                   
-                   hio_fines_ag_elem(io_si) = hio_fines_ag_elem(io_si) + &
-                         sum(litt%leaf_fines(:)) * area_frac
-                   
-                   hio_fines_bg_elem(io_si) = hio_fines_bg_elem(io_si) + &
-                         sum(litt%root_fines(:,:)) * area_frac
-                   
-               end if
-
-!               hio_cwd_ag_elem(io_si,el) = hio_cwd_ag_elem(io_si,el) + &
-!                     sum(litt%ag_cwd(:)) * area_frac
+               ! Litter State Variables
+               hio_cwd_ag_elem(io_si,el) = hio_cwd_ag_elem(io_si,el) + &
+                     sum(litt%ag_cwd(:)) * area_frac
                
-!               hio_cwd_bg_elem(io_si,el) = hio_cwd_bg_elem(io_si,el) + &
-!                     sum(litt%bg_cwd(:,:)) * area_frac
+               hio_cwd_bg_elem(io_si,el) = hio_cwd_bg_elem(io_si,el) + &
+                     sum(litt%bg_cwd(:,:)) * area_frac
                
-!               hio_fines_ag_elem(io_si,el) = hio_fines_ag_elem(io_si,el) + & 
-!                     sum(litt%leaf_fines(:)) * area_frac
+               hio_fines_ag_elem(io_si,el) = hio_fines_ag_elem(io_si,el) + & 
+                     sum(litt%leaf_fines(:)) * area_frac
                
-!               hio_fines_bg_elem(io_si,el) = hio_fines_bg_elem(io_si,el) + &
-!                     sum(litt%root_fines(:,:)) * area_frac
-               
+               hio_fines_bg_elem(io_si,el) = hio_fines_bg_elem(io_si,el) + &
+                     sum(litt%root_fines(:,:)) * area_frac
 
 
                do cwd=1,ncwd
@@ -3853,7 +3891,7 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_effect_wspeed_pa )
 
-    call this%set_history_var(vname='FIRE_TFC_ROS', units='none',              &
+    call this%set_history_var(vname='FIRE_TFC_ROS', units='kgC/m2',              &
          long ='total fuel consumed', use_default='active',                     &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_TFC_ROS_pa )
@@ -3864,12 +3902,12 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_pa )
 
     call this%set_history_var(vname='FIRE_AREA', units='fraction',             &
-         long='spitfire fire area:m2', use_default='active',                    &
+         long='spitfire fire area burn fraction', use_default='active',                    &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_pa )
 
     call this%set_history_var(vname='SCORCH_HEIGHT', units='m',                &
-         long='spitfire fire area:m2', use_default='active',                    &
+         long='spitfire flame height:m', use_default='active',                    &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_pa )
 
@@ -3878,7 +3916,7 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_mef_pa )
 
-    call this%set_history_var(vname='fire_fuel_bulkd', units='m',              &
+    call this%set_history_var(vname='fire_fuel_bulkd', units='kg biomass/m3',              &
          long='spitfire fuel bulk density',  use_default='active',              &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_bulkd_pa )
@@ -3888,7 +3926,7 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_eff_moist_pa )
 
-    call this%set_history_var(vname='fire_fuel_sav', units='m',                &
+    call this%set_history_var(vname='fire_fuel_sav', units='per m',                &
          long='spitfire fuel surface/volume ',  use_default='active',           &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_sav_pa )
@@ -3905,6 +3943,26 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_litter_moisture_si_fuel )
 
     ! Litter Variables
+
+    call this%set_history_var(vname='LITTER_IN', units='gC m-2 s-1',           &
+         long='FATES litter flux in',  use_default='active',                   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_litter_in_si )
+
+    call this%set_history_var(vname='LITTER_OUT', units='gC m-2 s-1',          &
+         long='FATES litter flux out',  use_default='active',                  & 
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_litter_out_si )
+
+    call this%set_history_var(vname='SEED_BANK', units='gC m-2',               &
+         long='Total Seed Mass of all PFTs',  use_default='active',             &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seed_bank_si )
+
+    call this%set_history_var(vname='SEEDS_IN', units='gC m-2 s-1',            &
+         long='Seed Production Rate',  use_default='active',                    &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seeds_in_si )
 
     call this%set_history_var(vname='LITTER_IN_ELEM', units='kg m-2 d-1',         &
          long='FATES litter flux in',  use_default='active',                      &
@@ -4988,21 +5046,11 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nep_si )
 
-!    call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
-!          long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
-!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
+    call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
+          long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
    
-!    call this%set_history_var(vname='NBP', units='gC/m^2/s', &
-!          long='net biosphere production', use_default='active', &
-!          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-!          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nbp_si )
-   
-!    call this%set_history_var(vname='TOTECOSYSC', units='gC/m^2',  &
-!         long='total ecosystem carbon', use_default='active', &
-!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-!         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_totecosysc_si )
-    
     call this%set_history_var(vname='CBALANCE_ERROR_FATES', units='mgC/day',  &
          long='total carbon error, FATES', use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
@@ -5014,26 +5062,24 @@ end subroutine flush_hvars
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_err_fates_si )
 
 
-    ! THE NEXT FOUR ENTRIES SHOULD BE SWITCHED BACK TO site_elem_r8 AFTER TESTING (RGK 06-2019)
-
-    call this%set_history_var(vname='LITTER_FINES_AG', units='kg/m^2', &
+    call this%set_history_var(vname='LITTER_FINES_AG_ELEM', units='kg/m^2', &
           long='mass of above ground  litter in fines (leaves,nonviable seed)', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_ag_elem )
 
-    call this%set_history_var(vname='LITTER_FINES_BG', units='kg/m^2', &
+    call this%set_history_var(vname='LITTER_FINES_BG_ELEM', units='kg/m^2', &
           long='mass of below ground litter in fines (fineroots)', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_bg_elem )
 
-    call this%set_history_var(vname='LITTER_CWD_BG', units='kg/m^2', &
+    call this%set_history_var(vname='LITTER_CWD_BG_ELEM', units='kg/m^2', &
           long='mass of below ground litter in CWD (coarse roots)', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_elem )
 
-    call this%set_history_var(vname='LITTER_CWD_AG', units='kg/m^2', &
+    call this%set_history_var(vname='LITTER_CWD_AG_ELEM', units='kg/m^2', &
           long='mass of above ground litter in CWD (trunks/branches/twigs)', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_elem )
 
     call this%set_history_var(vname='LITTER_CWD', units='kg/m^2', &

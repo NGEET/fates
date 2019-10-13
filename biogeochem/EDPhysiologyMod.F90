@@ -35,14 +35,13 @@ module EDPhysiologyMod
   use EDTypesMod          , only : dl_sf, dinc_ed
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
-  use FatesLitterMod      , only : ilabi
-  use FatesLitterMod      , only : ilign
-  use FatesLitterMod      , only : icell
+  use FatesLitterMod      , only : ilabile
+  use FatesLitterMod      , only : ilignin
+  use FatesLitterMod      , only : icellulose
   use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod          , only : first_leaf_aclass
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
   use EDTypesMod          , only : min_n_safemath
@@ -921,7 +920,7 @@ contains
 
           ! Retrieve existing leaf and storage carbon
 
-          call currentCohort%prt%CheckMassConservation(ipft,0)
+          if(debug) call currentCohort%prt%CheckMassConservation(ipft,0)
 
           store_c = currentCohort%prt%GetState(store_organ, all_carbon_elements)
           leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
@@ -1032,7 +1031,7 @@ contains
              endif !status
           endif !drought dec.
 
-          call currentCohort%prt%CheckMassConservation(ipft,1)
+          if(debug) call currentCohort%prt%CheckMassConservation(ipft,1)
 
           currentCohort => currentCohort%shorter
        enddo !currentCohort
@@ -1076,7 +1075,6 @@ contains
     integer  :: pft
     real(r8) :: store_m_to_repro       ! mass sent from storage to reproduction upon death [kg/plant]
     real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
-    real(r8) :: mean_site_seed_rain    ! The mean site level seed rain for all PFTs
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
     real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]
@@ -1097,8 +1095,6 @@ contains
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
           
-          litt => currentPatch%litter(el)
-
           currentCohort => currentPatch%tallest
           do while (associated(currentCohort))
              
@@ -1139,8 +1135,7 @@ contains
        ! add up all the seed from each pft at the site level, and then
        ! equally distribute to the PFT pools
        if ( homogenize_seed_pfts ) then
-          mean_site_seed_rain = sum(site_seed_rain(:))/real(numpft,r8)
-          site_seed_rain(1:numpft) = mean_site_seed_rain
+          site_seed_rain(1:numpft) = sum(site_seed_rain(:))/real(numpft,r8)
        end if
        
        
@@ -1255,7 +1250,7 @@ contains
     ! germination_timescale is being pulled to PFT parameter; units are 1/yr
     ! thus the mortality rate of seed -> recruit (in units of carbon) 
     ! is seed_decay_turnover(p)/germination_timescale(p)
-    ! and thus the mortlaity rate (in units of individuals) is the product of 
+    ! and thus the mortality rate (in units of individuals) is the product of 
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
     do pft = 1,numpft
@@ -1592,15 +1587,17 @@ contains
                                 ! with direct logging
     real(r8) :: leaf_m          ! mass of the element of interest in the 
                                 ! leaf  [kg]
-    real(r8) :: fnrt_m
-    real(r8) :: sapw_m
-    real(r8) :: struct_m
-    real(r8) :: store_m
+    real(r8) :: fnrt_m           ! fine-root [kg]
+    real(r8) :: sapw_m    ! sapwood [kg]
+    real(r8) :: struct_m    ! structural [kg]
+    real(r8) :: store_m    ! storage [kg]
+    real(r8) :: repro_m    ! reproductive [kg]
     real(r8) :: leaf_m_turnover ! leaf turnover [kg]
     real(r8) :: fnrt_m_turnover
     real(r8) :: sapw_m_turnover
     real(r8) :: struct_m_turnover
     real(r8) :: store_m_turnover
+    real(r8) :: repro_m_turnover
     real(r8) :: dcmpy_frac        ! Fraction of mass sent to decomposability pool
     real(r8) :: plant_dens        ! Number of plants per m2
     real(r8) :: bg_cwd_tot        ! Total below-ground coarse woody debris
@@ -1642,12 +1639,14 @@ contains
       fnrt_m_turnover   = currentCohort%prt%GetTurnover(fnrt_organ,element_id)
       sapw_m_turnover   = currentCohort%prt%GetTurnover(sapw_organ,element_id)
       struct_m_turnover = currentCohort%prt%GetTurnover(struct_organ,element_id)
+      repro_m_turnover  = currentCohort%prt%GetTurnover(repro_organ,element_id)
 
       leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
       store_m         = currentCohort%prt%GetState(store_organ,element_id)
       fnrt_m          = currentCohort%prt%GetState(fnrt_organ,element_id)
       sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
       struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
+      repro_m         = currentCohort%prt%GetState(repro_organ,element_id)
 
       plant_dens =  currentCohort%n/currentPatch%area
 
@@ -1667,11 +1666,11 @@ contains
             plant_dens
 
       do dcmpy=1,ndcmpy
-          dcmpy_frac = GetDecompyFrac(pft,dcmpy)
-
+          dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
           litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
-                leaf_m_turnover * plant_dens * dcmpy_frac
+                (leaf_m_turnover+repro_m_turnover) * plant_dens * dcmpy_frac
 
+          dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
           do ilyr = 1, numlevsoil
               litt%root_fines_in(dcmpy,ilyr) = litt%root_fines_in(dcmpy,ilyr) + &
                     currentSite%rootfrac_scr(ilyr) * root_fines_tot * dcmpy_frac
@@ -1754,11 +1753,12 @@ contains
            store_m*(1._r8-EDPftvarcon_inst%allom_frbstor_repro(pft)) )
 
       do dcmpy=1,ndcmpy
-          dcmpy_frac = GetDecompyFrac(pft,dcmpy)
-          
+
+          dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
           litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
-                leaf_m * dead_n * dcmpy_frac
-          
+                (leaf_m+repro_m) * dead_n * dcmpy_frac
+
+          dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
           do ilyr = 1, numlevsoil
               litt%root_fines_in(dcmpy,ilyr) = litt%root_fines_in(dcmpy,ilyr) + &
                     root_fines_tot * currentSite%rootfrac_scr(ilyr) * dcmpy_frac
@@ -1769,7 +1769,7 @@ contains
             flux_diags%root_litter_input(pft) +  &
             root_fines_tot*currentPatch%area
 
-      ! Track CWD inputs from mortal plants
+      ! Track CWD inputs from dead plants
       
       do c = 1,ncwd
 
@@ -1827,7 +1827,7 @@ contains
                  EDPftvarcon_inst%allom_agb_frac(pft)
 
             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-                  SF_val_CWD_frac(c) * dead_n * &
+                  SF_val_CWD_frac(c) * dead_n * (struct_m + sapw_m) * &
                   currentPatch%area * EDPftvarcon_inst%allom_agb_frac(pft)
             
          end if
@@ -1894,13 +1894,13 @@ contains
 
     do pft = 1,numpft
 
-        litt%leaf_fines_in(ilabi) = litt%leaf_fines_in(ilabi) + & 
+        litt%leaf_fines_in(ilabile) = litt%leaf_fines_in(ilabile) + & 
               (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flab(pft)
         
-        litt%leaf_fines_in(icell) = litt%leaf_fines_in(icell) + & 
+        litt%leaf_fines_in(icellulose) = litt%leaf_fines_in(icellulose) + & 
               (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_fcel(pft)
         
-        litt%leaf_fines_in(ilign) = litt%leaf_fines_in(ilign) + & 
+        litt%leaf_fines_in(ilignin) = litt%leaf_fines_in(ilignin) + & 
               (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flig(pft)
 
     enddo
@@ -1969,7 +1969,7 @@ contains
     !BTRAN APPROACH - is quite simple, but max's out decomp at all unstressed 
     !soil moisture values, which is not realistic.  
     !litter decomp is proportional to water limitation on average... 
-    w_scalar = sum(currentPatch%btran_ft(1:numpft))/numpft
+    w_scalar = sum(currentPatch%btran_ft(1:numpft))/real(numpft,r8)
 
     currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,t_scalar * w_scalar))
     
@@ -2212,13 +2212,13 @@ contains
              do id = 1,nlev_eff_decomp
                    
                  flux_lab_si(id) = flux_lab_si(id) + &
-                       litt%leaf_fines_frag(ilabi) * area_frac* surface_prof(id)
+                       litt%leaf_fines_frag(ilabile) * area_frac* surface_prof(id)
                    
                  flux_cel_si(id) = flux_cel_si(id) + &
-                       litt%leaf_fines_frag(icell) * area_frac* surface_prof(id)
+                       litt%leaf_fines_frag(icellulose) * area_frac* surface_prof(id)
                  
                  flux_lig_si(id) = flux_lig_si(id) + &
-                       litt%leaf_fines_frag(ilign) * area_frac* surface_prof(id)
+                       litt%leaf_fines_frag(ilignin) * area_frac* surface_prof(id)
                  
              end do
 
@@ -2227,11 +2227,11 @@ contains
                  id = bc_in(s)%decomp_id(j)
 
                  flux_lab_si(id) = flux_lab_si(id) + &
-                       litt%root_fines_frag(ilabi,j) * area_frac
+                       litt%root_fines_frag(ilabile,j) * area_frac
                  flux_cel_si(id) = flux_cel_si(id) + &
-                       litt%root_fines_frag(icell,j) * area_frac
+                       litt%root_fines_frag(icellulose,j) * area_frac
                  flux_lig_si(id) = flux_lig_si(id) + &
-                       litt%root_fines_frag(ilign,j) * area_frac
+                       litt%root_fines_frag(ilignin,j) * area_frac
              enddo
 
          

@@ -32,9 +32,6 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
-  use EDTypesMod            , only : equal_leaf_aclass
-  use EDTypesMod            , only : first_leaf_aclass
-  use EDTypesMod            , only : nan_leaf_aclass
   use EDTypesMod            , only : max_nleafage
   use EDTypesMod            , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
@@ -640,8 +637,7 @@ contains
     real(r8) :: fnrt_c    ! fineroot carbon [kg]
     real(r8) :: repro_c   ! reproductive carbon [kg]
     real(r8) :: struct_c  ! structural carbon [kg]
-
-    integer :: terminate   ! do we terminate (1) or not (0) 
+    integer :: terminate  ! do we terminate (itrue) or not (ifalse)
     integer :: c           ! counter for litter size class. 
     integer :: levcan      ! canopy level
     !----------------------------------------------------------------------
@@ -777,7 +773,8 @@ contains
     ! on a vegetation cohort, into the litter pool.
     ! 
     ! Important: (1) This IS NOT turnover, this is not a partial transfer.
-    !            (2) This is from a select number of the cohort
+    !            (2) This is from a select number of plants in the cohort. ie this is
+    !                not a "whole-sale" sending of all plants to litter.
     !            (3) This does not affect the PER PLANT mass pools, so 
     !                do not update any PARTEH structures.
     !            (4) The change in plant number density (due to death or termination)
@@ -834,11 +831,13 @@ contains
        flux_diags => csite%flux_diags(el)
 
        do c=1,ncwd
-                   
+
+          ! above ground CWD
           litt%ag_cwd(c) = litt%ag_cwd(c) + plant_dens * &
                (struct_m+sapw_m)  * SF_val_CWD_frac(c) * &
                EDPftvarcon_inst%allom_agb_frac(pft)
-       
+
+          ! below ground CWD
           do sl=1,csite%nlevsoil
              litt%bg_cwd(c,sl) = litt%bg_cwd(c,sl) + plant_dens * &
                   (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
@@ -846,10 +845,12 @@ contains
                   csite%rootfrac_scr(sl)
           enddo
 
+          ! above ground
           flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                 (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
                 EDPftvarcon_inst%allom_agb_frac(pft) * nplant
 
+          ! below ground
           flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
                 (struct_m + sapw_m) * SF_val_CWD_frac(c) * &
                 (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(pft)) * nplant
@@ -857,11 +858,12 @@ contains
        enddo
        
        do dcmpy=1,ndcmpy
-           dcmpy_frac = GetDecompyFrac(pft,dcmpy)
-           
+           dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+                      
            litt%leaf_fines(dcmpy) = litt%leaf_fines(dcmpy) + &
                  plant_dens * (leaf_m+repro_m) * dcmpy_frac
        
+           dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
            do sl=1,csite%nlevsoil
                litt%root_fines(dcmpy,sl) = litt%root_fines(dcmpy,sl) + &
                      plant_dens * (fnrt_m+store_m) * csite%rootfrac_scr(sl) * dcmpy_frac

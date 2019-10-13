@@ -38,34 +38,30 @@ module ChecksBalancesMod
 contains
    
   ! ==============================================================================================
-
-  subroutine SiteMassStock(currentSite,i_element,total_stock,biomass_stock,litter_stock,seed_stock)
-     
+  
+  subroutine SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
+  
      type(ed_site_type),intent(inout),target :: currentSite
-     integer,intent(in)                      :: i_element    ! This is the element index
+     integer,intent(in)                      :: el           ! This is the element index
                                                              ! in FATES (not the parteh global id)
      real(r8),intent(out)                    :: total_stock    ! kg
      real(r8),intent(out)                    :: litter_stock   ! kg
      real(r8),intent(out)                    :: biomass_stock  ! kg
      real(r8),intent(out)                    :: seed_stock     ! kg
-     integer                                 :: element_id     ! parteh element id
-     type(litter_type), pointer              :: litt           ! litter object
      type(ed_patch_type), pointer            :: currentPatch
      type(ed_cohort_type), pointer           :: currentCohort
-     real(r8)                                :: patch_biomass
-     real(r8)                                :: patch_seed
-     real(r8)                                :: patch_litter
-     
+     real(r8)                                :: patch_biomass  ! kg
+     real(r8)                                :: patch_seed     ! kg
+     real(r8)                                :: patch_litter   ! kg
+       
      litter_stock  = 0.0_r8
      biomass_stock = 0.0_r8
      seed_stock    = 0.0_r8
 
-     element_id = element_list(i_element)
-
      currentPatch => currentSite%oldest_patch 
      do while(associated(currentPatch))
 
-        call PatchMassStock(currentPatch,i_element,patch_biomass,patch_seed,patch_litter)
+        call PatchMassStock(currentPatch,el,patch_biomass,patch_seed,patch_litter)
         litter_stock  = litter_stock + patch_litter
         biomass_stock = biomass_stock + patch_biomass
         seed_stock    = seed_stock + patch_seed
@@ -85,11 +81,11 @@ contains
       ! ---------------------------------------------------------------------------------
       ! Sum up the mass of the different stocks on a patch for each element
       ! ---------------------------------------------------------------------------------
-      type(ed_patch_type),intent(in),target :: currentPatch
-      integer                               :: el
-      real(r8)                              :: live_stock
-      real(r8)                              :: seed_stock
-      real(r8)                              :: litter_stock
+      type(ed_patch_type),intent(inout),target :: currentPatch
+      integer,intent(in)                       :: el
+      real(r8),intent(out)                     :: live_stock
+      real(r8),intent(out)                     :: seed_stock
+      real(r8),intent(out)                     :: litter_stock
 
       type(litter_type), pointer            :: litt           ! litter object
       type(ed_cohort_type), pointer         :: currentCohort

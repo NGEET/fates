@@ -36,7 +36,6 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : ed_patch_type
    use EDTypesMod       , only : ed_cohort_type 
    use EDTypesMod       , only : area
-   use EDTypesMod       , only : equal_leaf_aclass
    use EDTypesMod       , only : leaves_on
    use EDTypesMod       , only : leaves_off
    use EDTypesMod       , only : num_elements
@@ -91,6 +90,9 @@ module FatesInventoryInitMod
                                                            ! defined in model memory and a physical
                                                            ! site listed in the file
 
+   logical, parameter :: do_inventory_out = .false.
+
+
    public :: initialize_sites_by_inventory
 
 contains
@@ -102,11 +104,13 @@ contains
       ! !USES:
       use shr_file_mod, only        : shr_file_getUnit
       use shr_file_mod, only        : shr_file_freeUnit
+      use FatesConstantsMod, only   : nearzero
       use EDPatchDynamicsMod, only  : create_patch
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
       use EDCohortDynamicsMod, only : sort_cohorts
       use EDcohortDynamicsMod, only : count_cohorts
+      use EDPatchDynamicsMod, only  : patch_pft_size_profile
 
       ! Arguments
       integer,            intent(in)               :: nsites
@@ -119,6 +123,8 @@ contains
       type(ed_cohort_type), pointer                :: currentcohort
       type(ed_patch_type), pointer                 :: newpatch
       type(ed_patch_type), pointer                 :: olderpatch
+      type(ed_patch_type), pointer                 :: head_of_unsorted_patch_list
+      type(ed_patch_type), pointer                 :: next_in_unsorted_patch_list
       integer                                      :: sitelist_file_unit   ! fortran file unit for site list
       integer                                      :: pss_file_unit        ! fortran file unit for the pss file
       integer                                      :: css_file_unit        ! fortran file unit for the css file
@@ -135,6 +141,7 @@ contains
       integer,                         allocatable :: inv_format_list(:)   ! list of format specs
       character(len=path_strlen),      allocatable :: inv_css_list(:)      ! list of css file names
       character(len=path_strlen),      allocatable :: inv_pss_list(:)      ! list of pss file names
+ 
       real(r8),                        allocatable :: inv_lat_list(:)      ! list of lat coords
       real(r8),                        allocatable :: inv_lon_list(:)      ! list of lon coords
       integer                                      :: invsite              ! index of inventory site 
@@ -147,13 +154,12 @@ contains
       real(r8)                                     :: basal_area_postf     ! basal area before fusion (m2/ha)
       real(r8)                                     :: basal_area_pref      ! basal area after fusion (m2/ha)
 
-      real(r8), parameter                          :: max_ba_diff = 1.0e-2 ! 1% is the maximum allowable
-                                                                           ! change in BA due to fusion
-
       ! I. Load the inventory list file, do some file handle checks
       ! ------------------------------------------------------------------------------------------
 
       sitelist_file_unit = shr_file_getUnit()
+     
+
       inquire(file=trim(hlm_inventory_ctrl_file),exist=lexist,opened=lopen)
       if( .not.lexist ) then   ! The inventory file list DNE
          write(fates_log(), *) 'An inventory Initialization was requested.'
@@ -378,6 +384,84 @@ contains
 
          deallocate(patch_pointer_vec,patch_name_vec)
 
+         ! now that we've read in the patch and cohort info, check to see if there is any real age info
+         if ( abs(sites(s)%youngest_patch%age - sites(s)%oldest_patch%age) <= nearzero .and. &
+              associated(sites(s)%youngest_patch%older) ) then
+
+            ! so there are at least two patches and the oldest and youngest are the same age.
+            ! this means that sorting by age wasn't very useful.  try sorting by total biomass instead
+
+            ! first calculate the biomass in each patch.  simplest way is to use the patch fusion criteria
+            currentpatch => sites(s)%youngest_patch
+            do while(associated(currentpatch))
+               call patch_pft_size_profile(currentPatch)
+               currentPatch => currentpatch%older
+            enddo
+
+            ! now we need to sort them.
+            ! first generate a new head of the linked list.
+            head_of_unsorted_patch_list => sites(s)%youngest_patch%older
+
+            ! reset the site-level patch linked list, keeping only the youngest patch.
+            sites(s)%youngest_patch%older => null()
+            sites(s)%youngest_patch%younger => null()
+            sites(s)%oldest_patch   => sites(s)%youngest_patch
+
+            ! loop through each patch in the unsorted LL, peel it off,
+            ! and insert it into the new, sorted LL
+            do while(associated(head_of_unsorted_patch_list))
+
+               ! first keep track of the next patch in the old (unsorted) linked list
+               next_in_unsorted_patch_list => head_of_unsorted_patch_list%older
+               
+               ! check the two end-cases
+
+               ! Youngest Patch
+               if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) <= &
+                    sum(sites(s)%youngest_patch%pft_agb_profile(:,:)))then
+                  head_of_unsorted_patch_list%older                  => sites(s)%youngest_patch
+                  head_of_unsorted_patch_list%younger                => null()
+                  sites(s)%youngest_patch%younger => head_of_unsorted_patch_list
+                  sites(s)%youngest_patch         => head_of_unsorted_patch_list
+
+                  ! Oldest Patch
+               else if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) > &
+                    sum(sites(s)%oldest_patch%pft_agb_profile(:,:)))then
+                  head_of_unsorted_patch_list%older              => null()
+                  head_of_unsorted_patch_list%younger            => sites(s)%oldest_patch
+                  sites(s)%oldest_patch%older => head_of_unsorted_patch_list
+                  sites(s)%oldest_patch       => head_of_unsorted_patch_list
+
+                  ! Somewhere in the middle
+               else
+                  currentpatch => sites(s)%youngest_patch
+                  do while(associated(currentpatch))
+                     olderpatch => currentpatch%older
+                     if(associated(currentpatch%older)) then
+                        if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) >= &
+                             sum(currentpatch%pft_agb_profile(:,:)) .and. &
+                             sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) < &
+                             sum(olderpatch%pft_agb_profile(:,:))) then
+                           ! Set the new patches pointers
+                           head_of_unsorted_patch_list%older   => currentpatch%older
+                           head_of_unsorted_patch_list%younger => currentpatch
+                           ! Fix the patch's older pointer
+                           currentpatch%older => head_of_unsorted_patch_list
+                           ! Fix the older patch's younger pointer
+                           olderpatch%younger => head_of_unsorted_patch_list
+                           ! Exit the loop once head sorted to avoid later re-sort
+                           exit
+                        end if
+                     end if
+                     currentPatch => olderpatch
+                  enddo
+               end if
+
+               ! now work through to the next element in the unsorted linked list
+               head_of_unsorted_patch_list => next_in_unsorted_patch_list
+            end do
+         endif
+         
          ! Report Basal Area (as a check on if things were read in)
          ! ------------------------------------------------------------------------------
          basal_area_pref = 0.0_r8
@@ -448,8 +532,13 @@ contains
          write(fates_log(),*) basal_area_postf,' [m2/ha]'
          write(fates_log(),*) '-------------------------------------------------------'
          
-      end do
+         ! If this is flagged as true, the post-fusion inventory will be written to file
+         ! in the run directory.
+         if(do_inventory_out)then
+             call write_inventory_type1(sites(s))
+         end if
 
+      end do
       deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list)
 
       return
@@ -1034,5 +1123,102 @@ contains
 
       return
     end subroutine set_inventory_edcohort_type1
+
+   ! ====================================================================================
+
+   subroutine write_inventory_type1(currentSite)
+
+       ! --------------------------------------------------------------------------------
+       ! This subroutine writes the cohort/patch inventory type files in the "type 1"
+       ! format.  Note that for compatibility with ED2, we chose an old type that has
+       ! both extra unused fields and is missing fields from FATES. THis is not
+       ! a recommended file type for restarting a run.
+       ! The files will have a lat/long tag added to their name, and will be
+       ! generated in the run folder.
+       ! --------------------------------------------------------------------------------
+
+       use shr_file_mod, only        : shr_file_getUnit
+       use shr_file_mod, only        : shr_file_freeUnit
+       
+       ! Arguments
+       type(ed_site_type), target :: currentSite
+       
+       ! Locals
+       type(ed_patch_type), pointer          :: currentpatch
+       type(ed_cohort_type), pointer         :: currentcohort
+       
+       character(len=128)                    :: pss_name_out         ! output file string
+       character(len=128)                    :: css_name_out         ! output file string
+       integer                               :: pss_file_out
+       integer                               :: css_file_out
+       integer                               :: ilat_int,ilat_dec    ! for output string parsing
+       integer                               :: ilon_int,ilon_dec    ! for output string parsing
+       character(len=32)                     :: patch_str
+       character(len=32)                     :: cohort_str
+       integer                               :: ipatch
+       integer                               :: icohort
+       character(len=1)                      :: ilat_sign,ilon_sign
+
+       ! Generate pss/css file name based on the location of the site
+       ilat_int = abs(int(currentSite%lat))
+       ilat_dec = int(100000*(abs(currentSite%lat) - real(ilat_int,r8)))
+       ilon_int = abs(int(currentSite%lon))
+       ilon_dec = int(100000*(abs(currentSite%lon) - real(ilon_int,r8)))
+       
+       if(currentSite%lat>=0._r8)then
+           ilat_sign = 'N'
+       else
+           ilat_sign = 'S'
+       end if
+       if(currentSite%lon>=0._r8)then
+           ilon_sign = 'E'
+       else
+           ilon_sign = 'W'
+       end if
+
+       write(pss_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
+             'pss_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
+       write(css_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
+             'css_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
+
+       pss_file_out       = shr_file_getUnit()
+       css_file_out       = shr_file_getUnit()
+       
+       open(unit=pss_file_out,file=trim(pss_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
+       open(unit=css_file_out,file=trim(css_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
+       
+       write(pss_file_out,*) 'time patch trk age area water fsc stsc stsl ssc psc msn fsn'
+       write(css_file_out,*) 'time patch cohort dbh hite pft nplant bdead alive Avgrg'
+             
+       ipatch=0
+       currentpatch => currentSite%youngest_patch
+       do while(associated(currentpatch))
+           ipatch=ipatch+1
+           
+           write(patch_str,'(A7,i4.4,A)') '<patch_',ipatch,'>'
+           
+           write(pss_file_out,*) '0000 ',trim(patch_str),' 2 ',currentPatch%age,currentPatch%area/AREA, &
+                 '0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000'
+           
+           icohort=0
+           currentcohort => currentpatch%tallest
+           do while(associated(currentcohort))
+               icohort=icohort+1
+               write(cohort_str,'(A7,i4.4,A)') '<coh_',icohort,'>'
+               write(css_file_out,*) '0000 ',trim(patch_str),' ',trim(cohort_str), &
+                     currentCohort%dbh,0.0,currentCohort%pft,currentCohort%n/currentPatch%area,0.0,0.0,0.0
+               
+               currentcohort => currentcohort%shorter
+           end do
+           currentPatch => currentpatch%older
+       enddo
+       
+       close(css_file_out)
+       close(pss_file_out)
+       
+       call shr_file_freeUnit(css_file_out)
+       call shr_file_freeUnit(pss_file_out)
+       
+   end subroutine write_inventory_type1
 
 end module FatesInventoryInitMod

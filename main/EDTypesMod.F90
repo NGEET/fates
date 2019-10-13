@@ -4,7 +4,6 @@ module EDTypesMod
   use FatesConstantsMod,     only : ifalse
   use FatesConstantsMod,     only : itrue
   use FatesGlobals,          only : fates_log
-  use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
   use PRTGenericMod,         only : prt_vartypes
@@ -179,14 +178,8 @@ module EDTypesMod
   logical, parameter, public :: homogenize_seed_pfts  = .false.
 
   
-  ! Leaf age class initialization schemes
-  integer, parameter, public :: nan_leaf_aclass = 0     ! initialize leaf age classes as undefined
-                                                        ! (used when copying)
-  integer, parameter, public :: equal_leaf_aclass = 1   ! initialize leaf age classes equal
-                                                        ! (used for inventory initialization)
-  integer, parameter, public :: first_leaf_aclass = 2   ! initialize leaf age classes as all in
-                                                        ! youngest class (used for recruitment)
 
+  ! Global identifiers for which elements we are using (apply mostly to litter)
 
   integer, public              :: num_elements          ! This is the number of elements in this simulation
                                                         ! e.g. (C,N,P,K, etc)
@@ -526,11 +519,9 @@ module EDTypesMod
      real(r8) ::  fi                                               ! average fire intensity of flaming front:  kj/m/s or kw/m
      integer  ::  fire                                             ! Is there a fire? 1=yes 0=no
      real(r8) ::  fd                                               ! fire duration: mins
-     real(r8) ::  nf                                               ! number of fires initiated daily: n/gridcell/day
      real(r8) ::  sh                                               ! average scorch height: m 
 
      ! FIRE EFFECTS     
-     real(r8) ::  ab                                               ! area burnt:  m2/day
      real(r8) ::  frac_burnt                                       ! fraction burnt: frac gridcell/day  
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
