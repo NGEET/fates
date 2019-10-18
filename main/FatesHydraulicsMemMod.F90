@@ -36,9 +36,9 @@ module FatesHydraulicsMemMod
    ! vector indexing the type of porous medium over an arbitrary number of plant pools
    integer, parameter, public, dimension(n_hypool_tot) :: porous_media = (/1,2,3,4,5,5,5,5,5/) 
    ! number of unknowns
-   integer                                       :: num_nodes
+   integer, public                                       :: num_nodes
    ! number of connections between organs, root/shell
-   integer                                       :: num_connections
+   integer, public                                       :: num_connections
 
    ! number of previous timestep's leaf water potential to be retained
    integer, parameter, public                          :: numLWPmem             = 4

@@ -1,6 +1,6 @@
 module FatesPlantHydraulicsMod
 !
-#include <petsc/finclude/petsc.h>
+!#include <petsc/finclude/petsc.h>
    ! ==============================================================================================
    ! This module contains the relevant code for plant hydraulics. Currently, one hydraulics module
    ! is available.  Other methods of estimating plant hydraulics may become available in future
@@ -99,8 +99,8 @@ module FatesPlantHydraulicsMod
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
    use shr_infnan_mod   , only : isnan => shr_infnan_isnan
-   use petscMod, only: fksp, frhs_vec, fsol_vec, fmat
-   use petscMod, only: petsc_solver_init
+!   use petscMod, only: fksp, frhs_vec, fsol_vec, fmat
+   use LUsolveMod, only: lubksb, ludcmp
    use spmdMod                , only : mpicom
 
 
@@ -140,7 +140,7 @@ module FatesPlantHydraulicsMod
    
    ! We use this parameter as the value for which we set un-initialized values
    real(r8), parameter :: un_initialized = -9.9e32_r8
-   PetscErrorCode :: ierr
+!   PetscErrorCode :: ierr
 
 
    !
@@ -610,13 +610,14 @@ contains
     ! Update compartment size and conductance
     if(hlm_use_alt_planthydro.eq.itrue) then
         call UpdatePhsOrganConnectionProp(ccohort_hydr)
-     end if
+    else 
     ! This updates plant compartment volumes, lengths and 
     ! maximum conductances. Make sure for already
     ! initialized vegetation, that SavePreviousCompartment
     ! volumes, and UpdateTreeHydrNodes is called prior to this.
     
-    call UpdateWaterDepTreeHydrCond(currentSite,ccohort,nlevsoi_hyd,bc_in)
+      call UpdateWaterDepTreeHydrCond(currentSite,ccohort,nlevsoi_hyd,bc_in)
+    end if
     
     
   end subroutine updateWaterDepTreeHydProps
@@ -1379,8 +1380,8 @@ contains
             enddo
 !
           enddo ! end soil layer
-          call petsc_solver_init(fksp,fmat,frhs_vec,fsol_vec, &
-                        conn_dn, conn_up)
+!          call petsc_solver_init(fksp,fmat,frhs_vec,fsol_vec, &
+!                        conn_dn, conn_up)
       
           deallocate(conn_dn)
           deallocate(conn_up)
@@ -1539,6 +1540,9 @@ contains
        cCohort => cPatch%tallest
        do while(associated(cCohort))
           ccohort_hydr => cCohort%co_hydr
+!
+          call UpdateWaterDepTreeHydrCond(currentSite,ccohort,csite_hydr%nlevsoi_hyd,bc_in)
+
           associate( & 
             z_node => ccohort_hydr%z_node, & 
             v_node => ccohort_hydr%v_node, & 
@@ -1552,9 +1556,15 @@ contains
             nt_ab = n_hypool_ag+n_hypool_troot+n_hypool_aroot
             num_cnxs = n_hypool_ag
             do j = 1,csite_hydr%nlevsoi_hyd
-     
-              kmax_bound_shell_1l(:) = &
-                               csite_hydr%kmax_bound_shell(j,:) * ccohort_hydr%l_aroot_layer(j) / csite_hydr%l_aroot_layer(j)
+              csite_hydr%kmax_bound_shell(j,1)=ccohort_hydr%kmax_innershell(j)
+              csite_hydr%kmax_upper_shell(j,1)=ccohort_hydr%kmax_innershell(j)
+              csite_hydr%kmax_lower_shell(j,1)=ccohort_hydr%kmax_innershell(j)
+              if(j == 1) then
+                 kmax_bound_shell_1l(1) = ccohort_hydr%kmax_innershell(j)
+              else  
+                 kmax_bound_shell_1l(2:) = &
+                  csite_hydr%kmax_bound_shell(j,:) * ccohort_hydr%l_aroot_layer(j) / csite_hydr%l_aroot_layer(j)
+              endif 
 
               do k = 1, n_hypool_aroot + nshell 
                 num_nds = num_nds + 1
@@ -4114,15 +4124,15 @@ contains
    !------------------------------------------------------------------------------
   subroutine Hydraulics_alt_1DSolve(dtime, s, cc_p,ft, qtop, site_hydr,ccohort_hydr,bc_in,dth_layershell,sapflow)
 !
-      use petscMod
-      use petscvec
-      use petscmat
-      use petscsys
+      use LUsolveMod
+!      use petscvec
+!      use petscmat
+!      use petscsys
       use clm_time_manager     , only : get_nstep
       use EDTypesMod     , only : AREA
 
      ! ARGUMENTS:
-#include <petsc/finclude/petsc.h>
+!#include <petsc/finclude/petsc.h>
      ! -----------------------------------------------------------------------------------
     type(ed_site_hydr_type), intent(inout),target :: site_hydr        ! ED site_hydr structure
      type(ed_cohort_hydr_type), target :: ccohort_hydr
@@ -4134,6 +4144,7 @@ contains
      real(r8) :: psisat,B,thsat,psi_pt,tmp
      real(r8) :: values(4)
      real(r8) :: residual(num_nodes)
+     real(r8) :: ajac(num_nodes,num_nodes)
      real(r8) :: dth_node(num_nodes)
      real(r8) :: th_node_init(num_nodes)
      real(r8) :: psi_node_init(num_nodes)
@@ -4159,6 +4170,7 @@ contains
      integer :: num_nds
      real(r8) :: blu(num_nodes)
      real(r8) :: blux(num_nodes)
+     integer :: indices(num_nodes)
      real(r8) :: th_node_1l(   n_hypool_tot)      ! volumetric water in water storage compartments (single-layer soln) [m3 m-3]
      real(r8) :: flc_min_node( n_hypool_tot-nshell) ! minimum attained fractional loss of conductivity (for xylem refilling dynamics)[-]
      real(r8) :: dpsidth_node( n_hypool_tot)      ! derivative of water potential wrt to theta                      [MPa]
@@ -4182,6 +4194,7 @@ contains
      real(r8) :: dplx
      real(r8) :: rsd, rsdx, rlfx, rsdp
      real(r8) :: acp
+     real(r8) :: dcomp
      real(r8) :: dtime, dtx, dtcf, tm, dto, dtimex, var, varx, tmx,dtime_o
      real(r8) :: dwat_veg_coh
      integer :: nsd
@@ -4197,9 +4210,10 @@ contains
      real(r8) :: e1(num_nodes)
      real(r8) :: e2(num_nodes)
      real(r8) :: sapflow
+     
      integer :: itshk
      type(ed_cohort_type),pointer      :: ccohort     ! current cohort
-     PetscErrorCode :: ierr
+!     PetscErrorCode :: ierr
      integer :: nstep !number of time steps
 !
      !for debug only
@@ -4319,8 +4333,9 @@ contains
           200   continue
           niter = niter + 1
 !zero matrix and residual
-          if(inewt == 0) &
-              call MatZeroEntries(fmat,ierr)
+          if(inewt == 0) then
+            ajac(:,:) = 0._r8
+          endif
           residual(:) = 0._r8
           blu(:) = 0._r8
 !
@@ -4340,7 +4355,7 @@ contains
              values(:) = 0._r8
              nc = 1
              nr = 1
-             icol = k-1
+             icol = k
              ic(1) = icol
              ir(1) = icol
 !            dnr = -1.e-6_r8
@@ -4365,8 +4380,10 @@ contains
                endif
                values(1) = denh2o*v_node(k)/dtime*bc_in%watsat_sisl(j)*tmp
             endif
-            if(inewt == 0) &
-              call MatSetValues( fmat,nr,ir(1),nc,ic(1),values(1),ADD_VALUES,ierr )
+            if(inewt == 0) then
+!              call MatSetValues( fmat,nr,ir(1),nc,ic(1),values(1),ADD_VALUES,ierr )
+              ajac(ir(1),ic(1)) = ajac(ir(1),ic(1)) + values(1)
+            end if
           enddo
 
 ! calculate boundary fluxes     
@@ -4385,16 +4402,19 @@ contains
              residual(id_up) = residual(id_up) + qflx
              dqflx_dn = -1._r8 * (hdiff_bound(icnx) * dkdpsi(icnx,1) + k_bound(icnx)*dhdpsi(icnx,1))
              dqflx_up = -1._r8 * (hdiff_bound(icnx) * dkdpsi(icnx,2) + k_bound(icnx)*dhdpsi(icnx,2))
-             ir(1) = id_dn-1
-             ir(2) = id_up-1
-             ic(1) = id_dn-1
-             ic(2) = id_up-1 
+             ir(1) = id_dn
+             ir(2) = id_up
+             ic(1) = id_dn
+             ic(2) = id_up 
              values(1) = -dqflx_dn
              values(2) = -dqflx_up
              values(3) = dqflx_dn 
              values(4) = dqflx_up
-             if(inewt == 0) &
-                call MatSetValues( fmat,nr,ir,nc,ic,values,ADD_VALUES,ierr )     
+             if(inewt == 0) then
+!                call MatSetValues( fmat,nr,ir,nc,ic,values,ADD_VALUES,ierr )     
+                ajac(ir(1),ic(1:2)) = ajac(ir(1),ic(1:2)) + values(1:2)
+                ajac(ir(2),ic(1:2)) = ajac(ir(2),ic(1:2)) + values(3:4)
+             end if
           enddo
 !
 
@@ -4426,11 +4446,15 @@ contains
 !          call MatSetValues( fmat,nr,ir,nc,ic,dqtopdth_leaf,ADD_VALUES,ierr )     
  
           residual(:) = -residual(:)
-          call petsc_put_rhs(residual, frhs_vec)
+!          call petsc_put_rhs(residual, frhs_vec)
 !
           icnv = 3
-          call petsc_solve(fksp,fmat,frhs_vec,fsol_vec)
-          call petsc_get_solution(blu,fsol_vec)
+!          call petsc_solve(fksp,fmat,frhs_vec,fsol_vec)
+!          call petsc_get_solution(blu,fsol_vec)
+          call ludcmp(ajac,num_nodes,indices,dcomp)
+          call lubksb(ajac,num_nodes,indices,residual)
+          blu(:) = residual(:)
+
 ! update pressure
 ! limit pressure change
           do k = 1, num_nodes

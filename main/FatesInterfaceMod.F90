@@ -139,7 +139,7 @@ module FatesInterfaceMod
                                                        ! plant hydraulics (bchristo/xu methods)
                                                        ! 1 = TRUE, 0 = FALSE
                                                        ! THIS IS CURRENTLY NOT SUPPORTED 
-   integer, protected :: hlm_use_alt_planthydro    ! This flag signals whether or not to use
+   integer, public, protected :: hlm_use_alt_planthydro    ! This flag signals whether or not to use
 
    integer, public, protected :: hlm_use_ed_st3        ! This flag signals whether or not to use
                                                        ! (ST)atic (ST)and (ST)ructure mode (ST3)
