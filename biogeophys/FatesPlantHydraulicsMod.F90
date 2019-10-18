@@ -777,7 +777,7 @@ contains
      
          ! Estimate absorbing root total length (all layers)
          ! ------------------------------------------------------------------------------
-         ccohort_hydr%l_aroot_tot        = fnrt_c*C2B*EDPftvarcon_inst%hydr_srl(ft)
+         ccohort_hydr%l_aroot_tot        = fnrt_c*C2B*EDPftvarcon_inst%hydr_srl(ft)*1000._r8
 
          ! Estimate absorbing root volume (all layers)
          ! ------------------------------------------------------------------------------
@@ -4192,7 +4192,7 @@ contains
      real(r8) :: slx
      real(r8) :: plx
      real(r8) :: dplx
-     real(r8) :: rsd, rsdx, rlfx, rsdp
+     real(r8) :: rsd, rsdx, rlfx, rlfx1, rsdp
      real(r8) :: acp
      real(r8) :: dcomp
      real(r8) :: dtime, dtx, dtcf, tm, dto, dtimex, var, varx, tmx,dtime_o
@@ -4219,7 +4219,7 @@ contains
      !for debug only
      nstep = get_nstep()
 
-          if(nstep >= 331) then
+          if(nstep >= 37) then
             print *,'nstep =',nstep
           end if
      ccohort => cc_p 
@@ -4312,6 +4312,7 @@ contains
        nt_ab = n_hypool_ag+n_hypool_troot+n_hypool_aroot
 !
        rlfx = 1._r8
+       rlfx1 = 0.15_r8
        rsdp = 0._r8
        inewt = 0
        tmx = dtime
@@ -4320,7 +4321,8 @@ contains
        ntsr = 0
        dth_layershell(:,:) = 0._r8
        do while(tm < tmx)
-          rlfx = 1._r8
+          rlfx = 0.6_r8
+          rlfx1 = 0.15_r8
           rsdp = 0._r8
           inewt = 0
           100   continue
@@ -4459,7 +4461,7 @@ contains
 ! limit pressure change
           do k = 1, num_nodes
              if(pm_type(k)  >= 4) then
-                psi_node(k) = psi_node(k) + blu(k) * 0.2
+                psi_node(k) = psi_node(k) + blu(k) * rlfx1
              else
                 psi_node(k) = psi_node(k) + blu(k) * rlfx
              endif
@@ -4485,7 +4487,10 @@ contains
           if( rsd > 1.e-8_r8 ) then
                icnv = 2
           endif
-          if(niter > 20) rlfx = 0.5_r8
+          if(niter > 50) then
+            rlfx = 0.4_r8
+            rlfx1 = 0.1_r8
+          end if
 
           if( icnv == 1 ) then
              write(*,'(10x,a)') '---  Convergence Failure  ---'
@@ -4508,7 +4513,8 @@ contains
                      psi_node(k) = psi_node_init(k)
                      th_node(k) = th_node_init(k)
                    enddo
-                   rlfx = 1_r8
+                   rlfx = 0.6_r8
+                   rlfx1 = 0.15_r8
 !
 !---  Number of time step reductions failure: stop simulation  ---
 !
