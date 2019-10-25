@@ -47,7 +47,7 @@
 
   public :: fire_model
   public :: fire_danger_index 
-  public :: charecteristics_of_fuel
+  public :: characteristics_of_fuel
   public :: rate_of_spread
   public :: ground_fuel_consumption
   public :: fire_intensity
@@ -79,6 +79,9 @@ contains
 
     type (ed_patch_type), pointer :: currentPatch
 
+    real(r8) :: MEF(nfsc)  ! Moisture extinction factor of fuels
+    real(r8) :: fuel_moisture(nfsc)  ! Scaled moisture content of small litter fuels
+
     !zero fire things
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
@@ -94,13 +97,15 @@ contains
     if( hlm_use_spitfire == itrue )then
        call fire_danger_index(currentSite, bc_in)
        call wind_effect(currentSite, bc_in) 
-       call charecteristics_of_fuel(currentSite)
-       call rate_of_spread(currentSite)
+       call characteristics_of_fuel(currentSite, MEF, fuel_moisture)
+       call rate_of_spread(currentSite, MEF, fuel_moisture)
        call ground_fuel_consumption(currentSite)
        call fire_intensity(currentSite)
        call area_burnt(currentSite)
        call crown_scorching(currentSite)
        call crown_damage(currentSite)
+       call rate_of_spread(currentSite, MEF, fuel_moisture)
+       ! TODO Recalculate area_burnt, FI for altered Scorch Height (SH)
        call cambial_damage_kill(currentSite)
        call post_fire_mortality(currentSite)
     end if
@@ -157,7 +162,7 @@ contains
 
 
   !*****************************************************************
-  subroutine  charecteristics_of_fuel ( currentSite )
+  subroutine  characteristics_of_fuel ( currentSite, MEF, fuel_moisture )
   !*****************************************************************
 
     use SFParamsMod, only  : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
@@ -168,9 +173,12 @@ contains
     type(ed_cohort_type), pointer :: currentCohort
     type(litter_type), pointer    :: litt_c
 
+    ! ARGUMENTS
+    real(r8), intent(out) :: MEF(nfsc)  ! Moisture extinction factor of fuels     integer n
+    real(r8), intent(out) :: fuel_moisture(nfsc)  ! Scaled moisture content of small litter fuels
+
+    ! LOCAL VARIABLES
     real(r8) alpha_FMC(nfsc)     ! Relative fuel moisture adjusted per drying ratio
-    real(r8) fuel_moisture(nfsc) ! Scaled moisture content of small litter fuels. 
-    real(r8) MEF(nfsc)           ! Moisture extinction factor of fuels     integer n 
 
     fuel_moisture(:) = 0.0_r8
     
@@ -322,7 +330,7 @@ contains
 
     enddo !end patch loop
     
-  end subroutine charecteristics_of_fuel
+  end subroutine characteristics_of_fuel
 
 
   !*****************************************************************
@@ -330,7 +338,7 @@ contains
   !*****************************************************************.
 
     ! Routine called daily from within ED within a site loop.
-    ! Calculates the effective windspeed based on vegetation charecteristics.
+    ! Calculates the effective windspeed based on vegetation characteristics.
     ! currentSite%wind is daily wind converted to m/min for Spitfire units 
 
     use FatesConstantsMod, only : sec_per_min
@@ -411,13 +419,15 @@ contains
   end subroutine wind_effect
 
   !*****************************************************************
-  subroutine rate_of_spread ( currentSite ) 
+  subroutine rate_of_spread ( currentSite, MEF, fuel_moisture )
     !*****************************************************************.
     !Routine called daily from within ED within a site loop.
     !Returns the updated currentPatch%ROS_front value for each patch.
 
     use SFParamsMod, only  : SF_val_miner_total, &
                              SF_val_part_dens,   &
+                             SF_val_SAV,  &
+                             SF_val_drying_ratio,  &
                              SF_val_miner_damp,  &
                              SF_val_fuel_energy
     
@@ -426,7 +436,19 @@ contains
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type), pointer :: currentPatch
+    type(ed_cohort_type), pointer :: currentCohort
+    type(litter_type), pointer :: litt_c
 
+    ! ARGUMENTS
+    real(r8), intent(in) :: MEF(nfsc)  ! Moisture extinction factor of fuels
+    real(r8), intent(in) :: fuel_moisture(nfsc)  ! Scaled moisture content of small litter fuels
+
+    ! LOCAL VARIABLES
+    real(r8) :: sum_fuel  ! value saved for comparison
+    real(r8) :: leaf_c  ! leaf carbon [kg]
+    real(r8) :: alpha_live_fuel  ! ratio of mass fine live fuel to mass total fine fuel (1-hour fuels Rothermal 1972)
+    real(r8) :: fuel_eff_moist_dead
+    real(r8) :: fuel_mef_fine
     ! Rothermal fire spread model parameters. 
     real(r8) beta,beta_op         ! weighted average of packing ratio (unitless)
     real(r8) ir                   ! reaction intensity (kJ/m2/min)
@@ -442,6 +464,7 @@ contains
     real(r8),parameter :: q_dry = 581.0_r8 !heat of pre-ignition of dry fuels (kJ/kg)
 
     currentPatch=>currentSite%oldest_patch;  
+    litt_c => currentPatch%litter(element_pos(carbon12_element))
 
     do while(associated(currentPatch))
               
@@ -453,6 +476,36 @@ contains
 
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%sum_fuel  = currentPatch%sum_fuel * (1.0_r8 - SF_val_miner_total) !net of minerals
+
+       ! ---------------------------------------------------
+       ! Active crown fire effects: https://github.com/NGEET/fates/issues/573
+       ! Update some characteristics of fuel
+       sum_fuel = currentPatch%sum_fuel  ! save for comparison later
+       if (currentPatch%fire == 1) then
+          currentCohort=>currentPatch%tallest
+          do while(associated(currentCohort))
+             if (currentCohort%active_crown_fire_flg == 1) then
+                ! Add the leaf carbon from each cohort to currentPatch%sum_fuel
+                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                currentPatch%sum_fuel = currentPatch%sum_fuel + leaf_c
+             end if
+             currentCohort => currentCohort%shorter;
+          enddo !end cohort loop
+
+          ! if sum_fuel was indeed updated for a case of active crown fire, go
+          ! on to update currentPatch%fuel_mef and currentPatch%fuel_eff_moist
+          if (currentPatch%sum_fuel > sum_fuel) then
+             alpha_live_fuel = (currentPatch%livegrass + leaf_c) /  &
+                               (currentPatch%livegrass + leaf_c + sum(litt_c%leaf_fines(:)) + litt_c%ag_cwd(tw_sf))
+             fuel_eff_moist_dead = sum(currentPatch%fuel_frac(tw_sf:dl_sf) * fuel_moisture(tw_sf:dl_sf))
+             fuel_mef_fine = currentPatch%fuel_frac(tw_sf) * MEF(tw_sf) +  &
+                             currentPatch%fuel_frac(dl_sf) * MEF(dl_sf) +  &
+                             currentPatch%fuel_frac(lg_sf) * MEF(lg_sf)
+             currentPatch%fuel_mef = max((2.9_r8 * ((1.0_r8 - alpha_live_fuel) / alpha_live_fuel) * (1.0_r8 - fuel_eff_moist_dead) - 0.226_r8), fuel_mef_fine)
+             currentPatch%fuel_eff_moist = exp(-1.0_r8 * currentSite%acc_NI * SF_val_SAV(lg_sf) / SF_val_drying_ratio)
+          end if
+       end if
+       ! ---------------------------------------------------
 
        ! ----start spreading---
 
@@ -888,15 +941,12 @@ contains
     !returns the updated currentCohort%fraction_crown_burned for each tree cohort within each patch.
     !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
 
-
-
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type) , pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
     real(r8) :: leaf_c  ! leaf carbon [kg]
-    real(r8) :: crown_fuel_bulkd  ! leaf biomass per unit area divided by canopy depth [kg/m3] Van Wagner used this method according to Scott (2006) p. 12
     real(r8), parameter :: low_heat_of_combustion = 12700.0_r8  ! [kJ/kg]
     real(r8), parameter :: critical_mass_flow_rate = 0.05_r8  ! [kg/m2/s] value for conifer forests; if available for other vegetation, move to the params file?
     real(r8) active_crown_FI    ! critical fire intensity for active crown fire ignition (kW/m)
@@ -964,11 +1014,11 @@ contains
                          ! critical_mass_flow_rate by 3.34, an empirical
                          ! constant in Bessie & Johnson 1995
                          leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                         crown_fuel_bulkd = currentCohort%n * leaf_c /  &
+                         currentPatch%fuel_bulkd = currentCohort%n * leaf_c /  &
                             (0.45_r8 * currentCohort%c_area * crown_depth)
                          active_crown_FI = critical_mass_flow_rate *  &
                             low_heat_of_combustion * currentPatch%sum_fuel /  &
-                            (0.45_r8 * 3.34_r8 * crown_fuel_bulkd)
+                            (0.45_r8 * 3.34_r8 * currentPatch%fuel_bulkd)
 
                          ! Initiate active crown fire?
                          ! EQ 14b Bessie & Johnson 1995
@@ -976,13 +1026,10 @@ contains
 
                          if (ignite_active_crown >= 1.0_r8) then
                             currentCohort%active_crown_fire_flg = 1  ! active crown fire ignited
-                            write(fates_log(),*) 'SF currentCohort%active_crown_fire_flg, crown_fuel_bulkd = ', currentCohort%active_crown_fire_flg, crown_fuel_bulkd  ! slevis diag
+                            write(fates_log(),*) 'SF currentCohort%active_crown_fire_flg, currentPatch%fuel_bulkd = ', currentCohort%active_crown_fire_flg, currentPatch%fuel_bulkd  ! slevis diag
                             currentCohort%fraction_crown_burned = 1.0_r8
-                            ! TODO Additional effects of active crown fire.
-                            ! Currently in code design phase; see
-                            ! https://github.com/NGEET/fates/issues/573
                          else
-                            write(fates_log(),*) 'SF currentPatch%FI < active_crown_FI, crown_fuel_bulkd = ', currentPatch%FI, active_crown_FI, crown_fuel_bulkd  ! slevis diag
+                            write(fates_log(),*) 'SF currentPatch%FI < active_crown_FI, currentPatch%fuel_bulkd = ', currentPatch%FI, active_crown_FI, currentPatch%fuel_bulkd  ! slevis diag
                          endif ! ignite active crown fire
                       else ! crown damage based on scorch height done below
                          write(fates_log(),*) 'SF currentPatch%FI < passive_crown_FI, height_cbb = ', currentPatch%FI, passive_crown_FI, height_cbb  ! slevis diag
@@ -1014,6 +1061,7 @@ contains
              currentCohort => currentCohort%shorter;
 
           enddo !end cohort loop
+
        endif !fire?
 
        currentPatch => currentPatch%younger;
