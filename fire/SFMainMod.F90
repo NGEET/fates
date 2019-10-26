@@ -166,6 +166,7 @@ contains
   !*****************************************************************
 
     use SFParamsMod, only  : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
+    use SFParamsMod, only  : SF_val_miner_total
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -326,6 +327,11 @@ contains
             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'problem with spitfire fuel averaging'
        endif 
        
+       ! remove mineral content from net fuel load per Thonicke 2010
+       ! for ir calculation in subr. rate_of_spread
+       ! slevis moved here because rate_of_spread is now called twice/timestep
+       currentPatch%sum_fuel  = currentPatch%sum_fuel * (1.0_r8 - SF_val_miner_total) !net of minerals
+
        currentPatch => currentPatch%younger
 
     enddo !end patch loop
@@ -424,8 +430,7 @@ contains
     !Routine called daily from within ED within a site loop.
     !Returns the updated currentPatch%ROS_front value for each patch.
 
-    use SFParamsMod, only  : SF_val_miner_total, &
-                             SF_val_part_dens,   &
+    use SFParamsMod, only  : SF_val_part_dens,   &
                              SF_val_SAV,  &
                              SF_val_drying_ratio,  &
                              SF_val_miner_damp,  &
@@ -474,9 +479,6 @@ contains
        moist_damp = 0.0_r8;   ir = 0.0_r8; a_beta = 0.0_r8;     
        currentPatch%ROS_front = 0.0_r8
 
-       ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
-       currentPatch%sum_fuel  = currentPatch%sum_fuel * (1.0_r8 - SF_val_miner_total) !net of minerals
-
        ! ---------------------------------------------------
        ! Active crown fire effects: https://github.com/NGEET/fates/issues/573
        ! Update some characteristics of fuel
@@ -488,6 +490,7 @@ contains
                 ! Add the leaf carbon from each cohort to currentPatch%sum_fuel
                 leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                 currentPatch%sum_fuel = currentPatch%sum_fuel + leaf_c
+                currentCohort%active_crown_fire_flg = 0  ! reset for next tstep
              end if
              currentCohort => currentCohort%shorter;
           enddo !end cohort loop
