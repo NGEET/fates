@@ -104,8 +104,13 @@ contains
        call area_burnt(currentSite)
        call crown_scorching(currentSite)
        call crown_damage(currentSite)
+       ! Begin: Repeat calls to calculate effects of active crown fire
        call rate_of_spread(currentSite, MEF, fuel_moisture)
-       ! TODO Recalculate area_burnt, FI for altered Scorch Height (SH)
+       call fire_intensity(currentSite)
+       call area_burnt(currentSite)
+       call crown_scorching(currentSite)
+       call crown_damage(currentSite)
+       ! End: Repeat calls to calculate effects of active crown fire
        call cambial_damage_kill(currentSite)
        call post_fire_mortality(currentSite)
     end if
@@ -201,6 +206,11 @@ contains
                   currentCohort%n/currentPatch%area
 
           endif
+
+          ! slevis: A bit random to place this here, but it works.
+          ! Resetting this flag before the first call of rate_of_spread.
+          currentCohort%active_crown_fire_flg = 0
+
           currentCohort => currentCohort%shorter
        enddo
        
@@ -482,6 +492,8 @@ contains
        ! ---------------------------------------------------
        ! Active crown fire effects: https://github.com/NGEET/fates/issues/573
        ! Update some characteristics of fuel
+       ! TODO Would it make sense to move this section of code to subr.
+       ! characteristics_of_fuel?
        sum_fuel = currentPatch%sum_fuel  ! save for comparison later
        if (currentPatch%fire == 1) then
           currentCohort=>currentPatch%tallest
@@ -490,7 +502,6 @@ contains
                 ! Add the leaf carbon from each cohort to currentPatch%sum_fuel
                 leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                 currentPatch%sum_fuel = currentPatch%sum_fuel + leaf_c
-                currentCohort%active_crown_fire_flg = 0  ! reset for next tstep
              end if
              currentCohort => currentCohort%shorter;
           enddo !end cohort loop
