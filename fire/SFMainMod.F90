@@ -87,6 +87,11 @@ contains
     do while(associated(currentPatch))
        currentPatch%frac_burnt = 0.0_r8
        currentPatch%fire       = 0
+       currentCohort => currentPatch%tallest
+       do while(associated(currentCohort))
+          currentCohort%active_crown_fire_flg = 0
+          currentCohort => currentCohort%shorter
+       enddo
        currentPatch => currentPatch%older
     enddo
 
@@ -206,11 +211,6 @@ contains
                   currentCohort%n/currentPatch%area
 
           endif
-
-          ! slevis: A bit random to place this here, but it works.
-          ! Resetting this flag before the first call of rate_of_spread.
-          currentCohort%active_crown_fire_flg = 0
-
           currentCohort => currentCohort%shorter
        enddo
        
