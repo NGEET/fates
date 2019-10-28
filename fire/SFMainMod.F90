@@ -78,6 +78,7 @@ contains
     
 
     type (ed_patch_type), pointer :: currentPatch
+    type(ed_cohort_type), pointer :: currentCohort
 
     real(r8) :: MEF(nfsc)  ! Moisture extinction factor of fuels
     real(r8) :: fuel_moisture(nfsc)  ! Scaled moisture content of small litter fuels
