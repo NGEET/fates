@@ -2038,6 +2038,251 @@ contains
 
   ! =====================================================================================
 
+  subroutine PrepNutrientAquisitionBCs(sites, bc_in, bc_out)
+
+    ! -----------------------------------------------------------------------------------
+    ! This subroutine will generate the appropriate boundary condition output 
+    ! structures, depending on:
+    ! 1) Which soil-bgc competition method is active in the HLM
+    ! 2) If nitrification/denitrification is turned on
+    ! 3) Which competitor scaling type is used
+    ! -----------------------------------------------------------------------------------
+
+    ! !ARGUMENTS    
+    type(ed_site_type), intent(inout) :: sites(:)
+    type(bc_in_type),  intent(in)     :: bc_in(:)  
+    type(bc_out_type), intent(inout)  :: bc_out(:)
+
+    ! Locals
+    integer                       :: nsites        ! number of sites
+    integer                       :: s             ! site loop index
+    integer                       :: icomp         ! competitor index
+    integer                       :: j             ! soil layer index
+    integer                       :: pft           ! plant functional type
+    integer                       :: nlev_eff_soil ! number of active soil layers
+    integer                       :: nlev_eff_decomp ! number of active decomposition layers
+    type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
+    type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
+    real(r8) :: fnrt_c                             ! fine-root carbon [kg]
+
+    ! Note that "leaf" in this context may contain the storage along with it
+    
+    real(r8) :: leaf_c                             ! leaf carbon [kg]
+    real(r8) :: leaf_p                             ! leaf phosphorus [kg]
+    real(r8) :: leaf_n                             ! leaf nitrogen [kg]
+    real(r8) :: nc_leaf_ideal                      ! ideal leaf C:N ratio [kg/kg]
+    real(r8) :: pc_leaf_ideal                      ! ideal leaf C:P ratio [kg/kg]
+    real(r8) :: nc_leaf_actual                     ! actual leaf C:N ratio [kg/kg]
+    real(r8) :: pc_leaf_actual                     ! actual leaf C:P ratio [kg/kg]
+    real(r8) :: nc_leaf_min                        ! minimum leaf C:N ratio [kg/kg]
+    real(r8) :: pc_leaf_min                        ! minimum leaf C:P ratio [kg/kg]
+    real(r8) :: target_leaf_c                      ! maximum leaf C for this dbh [kg]
+    real(r8) :: target_store_c                     ! maximum store C for this dbh [kg]
+
+    real(r8), parameter :: cn_stoich_var=0.2    ! variability of CN ratio (ECA)
+    real(r8), parameter :: cp_stoich_var=0.4    ! variability of CP ratio (ECA)
+
+
+    real(r8) :: comp_per_pft(numpft) ! Competitors per PFT, used for averaging
+
+
+    nsites = size(sites,dim=1)
+
+    do s = 1,nsites
+       
+       
+       ! This is the number of effective soil layers to transfer from
+       nlev_eff_soil   = max(bc_in(s)%max_rooting_depth_index_col, 1)
+       
+       ! The decomposition layers are most likely the exact same layers
+       ! as the soil layers (same depths also), unless it is a simplified
+       ! single layer case, where nlevdecomp = 1
+       nlev_eff_decomp = min(bc_in(s)%nlevdecomp,nlev_eff_soil)
+          
+       bc_out(s)%veg_rootc(:,:) = 0._r8  ! Zero this, it will be incremented
+                                         ! since soil to decomp layer is
+                                         ! not necessarily synonomous
+       
+       ! Right now the microbial decomposer biomass is just a constant
+       ! parameter for each PFT, but maybe not in the future
+       do pft = 1, numpft
+          bc_out(s)%decompmicc(pft,:) = EDPftvarcon%decompmicc(pft)
+       end do
+       
+       ! Loop over all patches and sum up the seed input for each PFT
+       icomp = 0
+       cpatch => sites(s)%oldest_patch
+       do while (associated(cpatch))
+          
+          ccohort => cpatch%tallest
+          do while (associated(ccohort))
+
+             pft   = ccohort%pft
+
+             if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                icomp = icomp+1
+             else
+                icomp = pft
+             end if
+                
+             call set_root_fraction(sites(s)%rootfrac_scr, pft, sites(s)%zi_soil, &
+                  icontext = i_biomass_rootprof_context)
+                
+             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+             
+             ! Map the soil layers to the decomposition layers
+             ! (which may be synonomous)
+             do j = 1, nlev_eff_soil
+                id = bc_in(s)%decomp_id(j)  ! Map from soil layer to decomp layer                
+                bc_out(s)%veg_rootc(icomp,id) = bc_out(s)%veg_rootc(icomp,id) + & 
+                     fnrt_c * sites(s)%rootfrac_scr(j) * AREA_INV * g_per_kg / sites(s)%dz_soil(j)
+             end do
+             
+             bc_out(s)%ft_index(icomp) = pft
+                
+             ccohort => cpatch%shorter
+          end do
+
+          cpatch => cpatch%younger
+       end do
+       
+       ! Process nitrogen relevent dynamic output boundary conditions
+       ! --------------------------------------------------------------------------------
+
+       if(hlm_nitrogen_spec>0)   bc_out(s)%cn_scalar(:) = 0._r8
+       if(hlm_phosphorus_spec>0) bc_out(s)%cp_scalar(:) = 0._r8
+       
+       icomp = 0
+       comp_per_pft(:) = 0               ! This counts how many competitors per
+                                         ! pft, used for averaging
+
+       cpatch => sites(s)%oldest_patch
+       do while (associated(cpatch))
+             
+          ccohort => cpatch%tallest
+          do while (associated(ccohort))
+             
+             pft   = ccohort%pft
+             
+             if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                icomp = icomp+1
+             else
+                icomp = pft
+                comp_per_pft(pft) = comp_per_pft(pft) + 1
+             end if
+          
+             leaf_c = max(rsnbl_math_prec,currentCohort%prt%GetState(leaf_organ, all_carbon_elements) + &
+                          currentCohort%prt%GetState(store_organ, all_carbon_elements))
+
+             ! Target leaf biomass according to allometry and trimming
+             call bleaf(ccohort%dbh,pft,sites(s)%canopy_trim,target_leaf_c)
+             call bstore_allom(ccohort%dbh,pft,sites(s)%canopy_trim,target_store_c)
+             
+             ! Process the nitrogen CN scalar
+             
+             if(hlm_nitrogen_spec>0) then
+                leaf_n = max(rsnbl_math_prec,currentCohort%prt%GetState(leaf_organ, nitrogen_element) + & 
+                                             currentCohort%prt%GetState(store_organ, nitrogen_element))
+                
+                ! Calculate the ideal CN ratio for leaves and storage organs
+                nc_leaf_ideal = ((target_leaf_c*EDPftvarcon%prt_nitr_stoich_p2(pft,leaf_organ)) + &
+                                 (target_store_c*EDPftvarcon%prt_nitr_stoich_p2(pft,store_organ))) / & 
+                                 (target_leaf_c+target_store_c)
+                nc_leaf_min =  ((target_leaf_c*EDPftvarcon%prt_nitr_stoich_p1(pft,leaf_organ)) + &
+                                 (target_store_c*EDPftvarcon%prt_nitr_stoich_p1(pft,store_organ))) / & 
+                                 (target_leaf_c+target_store_c)
+                       
+                nc_leaf_actual = max(leaf_n/leaf_c,rsnbl_math_prec)
+                
+                bc_out(s)%cn_scalar(icomp) = min(1._r8,max(0._r8, & 
+                     (nc_leaf_ideal - nc_leaf_actual + cn_stoich_var*nc_leaf_min) / & 
+                     (nc_leaf_ideal - nc_leaf_min + cn_stoich_var*nc_leaf_min)))
+
+!                bc_out(s)%cn_scalar(icomp) = bc_out(s)%cn_scalar(icomp) + & 
+!                                             min(1._r8,max(0._r8,((cn_leaf_actual - cn_leaf_ideal*(1._r8-cn_stoich_var)) / &
+!                                                                  (cn_leaf_ideal  - cn_leaf_ideal*(1._r8-cn_stoich_var)))))
+             end if
+             if(hlm_phosphorus_spec>0) then
+                leaf_p = max(rsnbl_math_prec,currentCohort%prt%GetState(leaf_organ, phosphorus_element) + & 
+                                             currentCohort%prt%GetState(store_organ, phosphorus_element))
+
+                ! Calculate the ideal CN ratio for leaves and storage organs
+                pc_leaf_ideal = ((target_leaf_c*EDPftvarcon%prt_phos_stoich_p2(pft,leaf_organ)) + &
+                                 (target_store_c*EDPftvarcon%prt_phos_stoich_p2(pft,store_organ))) / & 
+                                 (target_leaf_c+target_store_c)
+                pc_leaf_min = ((target_leaf_c*EDPftvarcon%prt_phos_stoich_p1(pft,leaf_organ)) + &
+                               (target_store_c*EDPftvarcon%prt_phos_stoich_p1(pft,store_organ))) / & 
+                               (target_leaf_c+target_store_c)
+                
+                cp_leaf_actual = max(leaf_c/leaf_p,rsnbl_math_prec)
+                
+                bc_out(s)%cp_scalar(icomp) = min(1._r8,max(0._r8, & 
+                     (pc_leaf_ideal - pc_leaf_actual + cp_stoich_var*pc_leaf_min) / & 
+                     (pc_leaf_ideal - pc_leaf_min + cp_stoich_var*pc_leaf_min)))
+                
+!                bc_out(s)%cp_scalar(icomp) = bc_out(s)%cp_scalar(icomp) + & 
+!                                             min(1._r8,max(0._r8,((cp_leaf_actual - cp_leaf_ideal*(1._r8-cp_stoich_var)) / &
+!                                                                  (cp_leaf_ideal  - cp_leaf_ideal*(1._r8-cp_stoich_var)))))
+             end if
+             
+             ccohort => cpatch%shorter
+          end do
+          
+          cpatch => cpatch%younger
+       end do
+       
+       ! ECA Specific Parameters
+       ! --------------------------------------------------------------------------------
+
+       ! Process and potentially normalize N parameters
+       if(hlm_nitrogen_spec>0 ) then
+          if(fates_ncomp_scaling.ne.cohort_ncomp_scaling) then
+             do icomp = 1, numpft
+                bc_out(s)%cn_scalar(icomp) = bc_out(s)%cn_scalar(icomp)/real(comp_per_pft(icomp),r8)
+             end do
+          end if
+          
+          ! Set the KM parameter and vmax for ammonium
+          bc_out(s)%km_plant_nh4(1:numpft)   = EDPftvarcon%eca_km_nh4(1:numpft)
+          bc_out(s)%vmax_plant_nh4(1:numpft) = EDPftvarcon%eca_vmax_nh4(1:numpft)
+          
+          ! If the soil BGC has nitrification/denitrification turned on
+          ! we must send the nitrate parameters as well
+          if(hlm_nitrogen_spec==2) then
+             bc_out(s)%km_plant_no3(1:numpft)   = EDPftvarcon%eca_km_no3(1:numpft)
+             bc_out(s)%vmax_plant_no3(1:numpft) = EDPftvarcon%eca_vmax_no3(1:numpft)
+          end if
+          
+       end if
+       
+       ! Process and potentially normalize P parameters
+       if(hlm_phosphorus_spec>0) then
+          if(fates_ncomp_scaling.ne.cohort_ncomp_scaling) then
+             do icomp = 1, numpft
+                bc_out(s)%cp_scalar(icomp) = bc_out(s)%cp_scalar(icomp)/real(comp_per_pft(icomp),r8)
+             end do
+          end if
+          
+          ! Set the KM parameter and vmax for ammonium
+          bc_out(s)%km_plant_p(1:numpft)   = EDPftvarcon%eca_km_p(1:numpft)
+          bc_out(s)%vmax_plant_p(1:numpft) = EDPftvarcon%eca_vmax_p(1:numpft)
+          
+       end if
+
+       ! RD Specific Parameters
+       ! --------------------------------------------------------------------------------
+
+       ! forthcoming
+
+
+    end do  ! do s=1,nsites
+
+
+    return
+  end subroutine PrepNutrientAquisitionBCs
+
+  ! =====================================================================================
+
   subroutine FluxIntoLitterPools(nsites, sites, bc_in, bc_out)
     
     ! -----------------------------------------------------------------------------------

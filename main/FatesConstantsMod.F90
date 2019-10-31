@@ -30,6 +30,21 @@ module FatesConstantsMod
   integer, parameter, public :: n_anthro_disturbance_categories = 2
   integer, parameter, public :: primaryforest = 1
   integer, parameter, public :: secondaryforest = 2
+
+
+  integer, public, parameter :: cohort_ncomp_scaling = 1  ! This flag definition indicates that EVERY cohort on
+                                                          ! the column should compete independently in the soil
+                                                          ! BGC acquisition scheme.
+
+  integer, public, parameter :: pft_ncomp_scaling    = 2  ! This flag definition indicates that cohorts should
+                                                          ! be grouped into PFTs, and each PFT will be represented
+                                                          ! as the competitor
+
+  ! This flag specifies the scaling of how we present
+  ! nutrient competitors to the HLM's soil BGC model
+  
+  integer, public, parameter :: fates_ncomp_scaling = cohort_ncomp_scaling
+
   
   ! Error Tolerances
 

@@ -89,7 +89,26 @@ module FatesInterfaceMod
                                                     ! ATS, ALM and CLM will only want variables 
                                                     ! specficially packaged for them.
                                                     ! This string sets which filter is enacted.
+
+   character(len=16), public, protected :: hlm_nu_com ! This string defines which soil
+                                                      ! nutrient competition scheme is in use.
+                                                      ! current options with
+                                                      ! E3SM: RD, ECA
+                                                      ! CESM: NONE
+                                                      ! ATS: ?
+                                                      ! NORESM: ?
    
+
+   integer, public, protected :: hlm_nitrogen_spec   ! This flag signals which nitrogen
+                                                     ! species are active if any:
+                                                     ! 0: none
+                                                     ! 1: nh4 only
+                                                     ! 2: nh4 and no3
+
+   integer, public, protected :: hlm_phosphorus_spec ! Signals if phosphorous is turned on in the HLM
+                                                     ! 0: none
+                                                     ! 1: p is on
+
   
    real(r8), public, protected :: hlm_hio_ignore_val  ! This value can be flushed to history 
                                                       ! diagnostics, such that the
@@ -191,6 +210,12 @@ module FatesInterfaceMod
                                                            ! each grid cell and effects the striding in the ED restart 
                                                            ! data as some fields are arrays where each array is
                                                            ! associated with one cohort
+
+
+
+   integer, public, protected :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
+                                                           ! competitors that will be generated on each site
+                                                           
 
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
@@ -538,6 +563,38 @@ module FatesInterfaceMod
       real(r8), allocatable :: litt_flux_cel_p_si(:) ! cellulose phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignan phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
+
+
+      ! Nutrient competition boundary conditions
+      integer               :: n_comps               ! Number of unique competitors
+      real(r8), allocatable :: veg_rootc(:,:)        ! Total fine-root carbon of each competitor
+                                                     ! [gC/m3 of site area]  
+                                                     ! (maxcohort_per_site x nlevdecomp)
+      real(r8), allocatable :: decompmicc(:)       ! Microbial decomposer biomass [gc/m3] 
+                                                     ! (numpft x nledecomp_full)
+      integer, allocatable :: ft_index(:)            ! functional type index of each competitor
+                                                     ! (maxcohort_per_site)
+      real(r8), allocatable :: cn_scalar(:)          ! C:N scaling factor for root n uptake 
+                                                     ! kinetics (exact meaning differs between
+                                                     ! soil BGC hypotheses)
+      real(r8), allocatable :: cp_scalar(:)          ! C:P scaling factor for root p uptake
+                                                     ! kinetics (exact meaning differs between
+                                                     ! soil BGC hypotheses)
+
+      ! Nutrient competition boundary conditions for ECA hypothesis
+      ! Note, these "could" be stored globaly for each machine, saving them on
+      ! each column is inefficient. Each of these are dimensioned by PFT.
+
+      real(r8), allocatable :: km_pl_nh4(:)
+      real(r8), allocatable :: vmax_pl_nh4(:)
+      real(r8), allocatable :: km_pl_no3(:)
+      real(r8), allocatable :: vmax_pl_no3(:)
+      real(r8), allocatable :: km_pl_p(:)     
+      real(r8), allocatable :: vmax_pl_p(:)
+
+      ! Nutrient competition boundary conditions specific to the RD soil bgc hypothesis
+      real(r8), allocatable :: demand_n(:,:)    ! Nitrogen demand   (competitors x nledecomp_full)
+      real(r8), allocatable :: demand_p(:,:)    ! Phosphorus demand (competitors x nlevdecomp_full)
       
       ! Canopy Structure
 
@@ -830,6 +887,7 @@ contains
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
       case(prt_cnp_flex_allom_hyp) 
+
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -839,6 +897,37 @@ contains
          allocate(bc_out%litt_flux_cel_p_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_p_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_p_si(nlevdecomp_in))
+
+         ! Allocate aquisition variables sent to HLM Soil BGC
+         allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
+         allocate(bc_out%decompmicc(nlevdecomp_in))
+         allocate(bc_out%ft_index(max_comp_per_site))
+         
+         if(hlm_nitrogen_spec>0) then
+            allocate(bc_out%cn_scalar(max_comp_per_site,nlevdecomp_in))
+            if(trim(hlm_nu_comp).eq.'ECA') then
+               allocate(km_pl_nh4(numpft))
+               allocate(vmax_pl_nh4(numpft))
+               if(hlm_nitrogen_spec==2) then
+                  allocate(km_pl_no3(numpft))
+                  allocate(vmax_pl_no3(numpft))          
+               end if
+            elseif(trim(hlm_nu_comp).eq.'RD') then
+               allocate(demand_n(max_comp_per_site,nlevdecomp_in))
+            end if
+         end if
+
+
+         if(hlm_phosphorus_spec>0) then
+            allocate(bc_out%cp_scalar(max_comp_per_site,nlevdecomp_in))
+            if(trim(hlm_nu_comp).eq.'ECA') then
+               allocate(km_pl_p(numpft))
+               allocate(vmax_pl_p(numpft))
+            elseif(trim(hlm_nu_comp).eq.'RD') then
+               allocate(demand_p(max_comp_per_site,nlevdecomp_in))
+            end if
+         end if
+
       case default
          write(fates_log(), *) 'An unknown parteh hypothesis was passed'
          write(fates_log(), *) 'to the site level output boundary conditions'
@@ -945,6 +1034,13 @@ contains
          this%bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
          this%bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
          this%bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
+
+
+
+
+
+
+
       case default
          write(fates_log(), *) 'An unknown parteh hypothesis was passed'
          write(fates_log(), *) 'while zeroing output boundary conditions'
@@ -1093,6 +1189,22 @@ contains
          end if
          
          fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
+
+
+         ! Set the maximum number of nutrient aquisition competitors per site
+         ! This is used to set array sizes for the boundary conditions.
+
+         if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+            max_comp_per_site = fates_maxElementsPerSite
+         elseif(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+            max_comp_per_site = numpft
+         else
+            write(fates_log(), *) 'An unknown nutrient competitor scaling method was chosen?'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+            
+            
+
 
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
@@ -1424,6 +1536,9 @@ contains
          hlm_hio_ignore_val   = unset_double
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
+         hlm_nu_com       = 'unset'
+         hlm_nitrogen_spec = unset_int
+         hlm_phosphorus_spec = unset_int
          hlm_max_patch_per_site = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
@@ -1559,6 +1674,27 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(trim(hlm_nu_com) .eq. 'unset') then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_nu_com, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         if(hlm_nitrogen_spec .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_phosphorus_spec .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES parameters unset: hlm_phosphorus_spec, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
@@ -1572,6 +1708,11 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
+
+
+         if(hlm_nitrogen_model .eq. unset_int) then
+            
+
 
          if(hlm_max_patch_per_site .eq. unset_int ) then
             if (fates_global_verbose()) then
@@ -1661,6 +1802,19 @@ contains
                   write(fates_log(),*) 'Transfering hlm_ipedof = ',ival,' to FATES'
                end if
 
+            case('nitrogen_spec')
+               hlm_nitrogen_spec = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_nitrogen_spec = ',ival,' to FATES'
+               end if
+
+            case('phosphorus_spec')
+               hlm_phosphorus_spec = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_phosphorus_spec = ',ival,' to FATES'
+               end if
+
+               
             case('max_patch_per_site')
                hlm_max_patch_per_site = ival
                if (fates_global_verbose()) then
@@ -1746,6 +1900,12 @@ contains
                hlm_name = trim(cval)
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering the HLM name = ',trim(cval)
+               end if
+
+            case('nu_com')
+               hlm_nu_com = trim(cval)
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering the nutrient competition name = ',trim(cval)
                end if
 
             case('inventory_ctrl_file')

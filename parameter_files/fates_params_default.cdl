@@ -330,6 +330,35 @@ variables:
 	double fates_prt_phos_stoich_p2(fates_prt_organs, fates_pft) ;
 		fates_prt_phos_stoich_p2:units = "(gP/gC)" ;
 		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2" ;
+
+    double fates_ncomp_decompmicc(fates_pft) ;
+        fates_ncomp_decompmicc:units = "" ;
+        fates_ncomp_decompmicc:long_name = "" ;
+
+    double fates_ncomp_eca_km_nh4(fates_pft) ;
+        fates_ncomp_eca_km_nh4:units = "" ;
+        fates_ncomp_eca_km_nh4:long_name = "" ;    
+
+    double fates_ncomp_eca_vmax_nh4(fates_pft) ;
+        fates_ncomp_eca_vmax_nh4:units = "" ;
+        fates_ncomp_eca_vmax_nh4:long_name = "" ;    
+
+    double fates_ncomp_eca_km_no3(fates_pft) ;
+        fates_ncomp_eca_km_no3:units = "" ;
+        fates_ncomp_eca_km_no3:long_name = "" ;
+
+    double fates_ncomp_eca_vmax_no3(fates_pft) ;
+        fates_ncomp_eca_vmax_no3:units = "" ;
+        fates_ncomp_eca_vmax_no3:long_name = "" ;
+
+    double fates_ncomp_eca_km_p(fates_pft) ;
+        fates_ncomp_eca_km_p:units = "" ;
+        fates_ncomp_eca_km_p:long_name = "" ;
+
+    double fates_ncomp_eca_vmax_p(fates_pft) ;
+        fates_ncomp:units = "" ;
+        fates_ncomp:long_name = "" ;
+
 	double fates_recruit_hgt_min(fates_pft) ;
 		fates_recruit_hgt_min:units = "m" ;
 		fates_recruit_hgt_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;

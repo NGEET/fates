@@ -198,6 +198,25 @@ module EDPftvarcon
      real(r8), allocatable :: prt_phos_stoich_p2(:,:)   ! Parameter 2 for phosphorus stoichiometry (pft x organ) 
      real(r8), allocatable :: prt_alloc_priority(:,:)   ! Allocation priority for each organ (pft x organ) [integer 0-6]
 
+
+     ! Nutrient Aquisition (ECA & RD)
+     real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
+                                                        ! on root surface
+
+     ! ECA Parameters: See Zhu et al. Multiple soil nutrient competition between plants,
+     !                     microbes, and mineral surfaces: model development, parameterization,
+     !                     and example applications in several tropical forests.  Biogeosciences,
+     !                     13, pp.341-363, 2016.
+     ! KM: Michaeles-Menten half-saturation constants for ECA (plant–enzyme affinity)
+     ! VMAX: Product of the reaction-rate and enzyme abundance for each PFT in ECA
+
+     real(r8), allocatable :: eca_km_nh4(:)             ! KM for NH4
+     real(r8), allocatable :: eca_vmax_nh4(:)
+     real(r8), allocatable :: eca_km_no3(:)
+     real(r8), allocatable :: eca_vmax_no3(:)
+     real(r8), allocatable :: eca_km_p(:)
+     real(r8), allocatable :: eca_vmax_p(:)
+
      ! Turnover related things
 
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
@@ -758,6 +777,37 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+
+    ! Nutrient competition parameters
+
+    name = 'fates_ncomp_decompmicc'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_ncomp_eca_km_nh4'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_ncomp_eca_vmax_nh4'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_ncomp_eca_km_no3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_ncomp_eca_vmax_no3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_ncomp_eca_km_p'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_ncomp_eca_vmax_p'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     
   end subroutine Register_PFT
 
@@ -1189,6 +1239,36 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
 
+    name = 'fates_ncomp_decompmicc'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%phenflush_fraction)
+
+    name = 'fates_ncomp_eca_km_nh4'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_nh4
+    
+    name = 'fates_ncomp_eca_vmax_nh4'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_nh4)
+    
+    name = 'fates_ncomp_eca_km_no3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_no3)
+
+    name = 'fates_ncomp_eca_vmax_no3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_no3)
+
+    name = 'fates_ncomp_eca_km_p'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_p)
+
+    name = 'fates_ncomp_eca_vmax_p'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_p)
+
+
+    
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------
@@ -1882,11 +1962,45 @@ contains
      if(.not.is_master) return
 
      if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-        write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport'
-        write(fates_log(),*) 'with flexible target stoichiometry for NP and'
-        write(fates_log(),*) 'allometrically constrianed C is still under development'
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        ! Check to see if either RD/ECA/MIC is turned on
+
+        if (.not.( (trim(hlm_nu_comp).eq.'RD') .or. (trim(hlm_nu_comp).eq.'ECA') .or. (trim(hlm_nu_comp).eq.'MIC'))) then
+           write(fates_log(),*) 'FATES PARTEH with allometric flexible CNP must have'
+           write(fates_log(),*) 'a valid BGC model enabled: RD,ECA,MIC or SYN'
+           write(fates_log(),*) 'nu_comp: ',trim(hlm_nu_comp)
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        ! If nitrogen is turned on, check to make sure there are valid ammonium
+        ! parameters
+        if(hlm_nitrogen_spec>0)then
+           if (trim(hlm_nu_comp).eq.'ECA') then
+              
+              if(any(eca_km_nh4(:)<0._r8) .or. any(eca_km_nh4(:)>1._r8))then
+                 write(fates_log(),*) 'ECA with nitrogen is turned on'
+                 write(fates_log(),*) 'bad ECA km value(s) for nh4: ',eca_km_nh4(:)
+                 write(fates_log(),*) 'Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+
+           end if
+           if (trim(hlm_nu_comp).eq.'RD') then
+           end if
+
+           if(hlm_nitrogen_spec==2)then
+              if(any(eca_km_no3(:)<0._r8) .or. any(eca_km_no3(:)>1._r8))then
+                 write(fates_log(),*) 'ECA with nit/denitr is turned on'
+                 write(fates_log(),*) 'bad ECA km value(s) for no3: ',eca_km_no3(:)
+                 write(fates_log(),*) 'Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+           end if
+
+        end if
+
+
         
      elseif (parteh_mode .ne. prt_carbon_allom_hyp) then
         
