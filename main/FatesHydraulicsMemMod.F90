@@ -1,10 +1,10 @@
 module FatesHydraulicsMemMod
 
    use FatesConstantsMod, only : r8 => fates_r8
-   use shr_infnan_mod   , only : nan => shr_infnan_nan, assignment(=)
+   use shr_infnan_mod,    only : nan => shr_infnan_nan, assignment(=)
    use FatesConstantsMod, only : itrue,ifalse
-   use FatesHydroWTFMod,  only : wtf_type
-
+   use FatesHydroWTFMod,  only : wrf_arr_type
+   use FatesHydroWTFMod,  only : wkf_arr_type
    
    implicit none
    private
@@ -19,8 +19,8 @@ module FatesHydraulicsMemMod
    integer, parameter, public                  :: nlevsoi_hyd_max = 40
 
    ! number of distinct types of plant porous media (leaf, stem, troot, aroot)
-   integer, parameter, public                  :: n_porous_media = 4
-
+   integer, parameter, public                  :: n_porous_media = 5
+   integer, parameter, public                  :: n_plant_media  = 4
    integer, parameter, public                  :: n_hypool_leaf  = 1
    integer, parameter, public                  :: n_hypool_stem  = 1
    integer, parameter, public                  :: n_hypool_troot = 1 ! CANNOT BE CHANGED
@@ -32,30 +32,18 @@ module FatesHydraulicsMemMod
 
    ! total number of water storage nodes
    integer, parameter, public                  :: n_hypool_tot = n_hypool_ag + n_hypool_troot + n_hypool_aroot + nshell
+   integer, parameter, public                  :: n_hypool_plant = n_hypool_tot - nshell
+
 
    ! vector indexing the type of porous medium over an arbitrary number of plant pools
 
+   integer, parameter, public :: stomata_p_media = 0
    integer, parameter, public :: leaf_p_media  = 1
    integer, parameter, public :: stem_p_media  = 2
    integer, parameter, public :: troot_p_media = 3
    integer, parameter, public :: aroot_p_media = 4
-   integer, parameter, public :: n_p_media     = 4   ! This is just the number of plant
-                                                     ! organ porous media types, does
-                                                     ! not include soil
+   integer, parameter, public :: rhiz_p_media  = 5
 
-   ! This vector holds the identifiers for which porous media type is in the comaprtment
-   integer, parameter, public, dimension(n_hypool_tot) :: porous_media = (/leaf_p_media,  & 
-                                                                           stem_p_media,  & 
-                                                                           troot_p_media, & 
-                                                                           aroot_p_media, & 
-                                                                           rhiz_p_media,  & 
-                                                                           rhiz_p_media,  & 
-                                                                           rhiz_p_media,  & 
-                                                                           rhiz_p_media,  & 
-                                                                           rhiz_p_media /) 
-
-   ! number of previous timestep's leaf water potential to be retained
-   integer, parameter, public                          :: numLWPmem             = 4
 
    ! mirror of nlevcan, hard-set for simplicity, remove nlevcan_hyd on a rainy day
    ! Note (RGK): uscing nclmax causes annoying circular dependency (this needs EDTypes, EDTypes needs this)
@@ -65,12 +53,6 @@ module FatesHydraulicsMemMod
    ! Mean fine root radius expected in the bulk soil                
    real(r8), parameter, public                         :: fine_root_radius_const = 0.0001_r8
    
-   ! Constant parameters (for time being, C2B is constant, 
-   ! slated for addition to parameter file (RGK 08-2017))
-   ! Carbon 2 biomass ratio
-   real(r8), parameter, public                         :: C2B        = 2.0_r8 
-              
-  
 
    ! Derived parameters
    ! ----------------------------------------------------------------------------------------------
@@ -110,7 +92,7 @@ module FatesHydraulicsMemMod
 
      real(r8),allocatable :: rs1(:)                 ! Mean fine root radius (m) (currently a constant)
 
-     integer,allocatable :: supsub_flag(:)          ! index of the outermost rhizosphere shell 
+     integer, allocatable :: supsub_flag(:)         ! index of the outermost rhizosphere shell 
                                                     ! encountering super- or sub-saturation
      real(r8),allocatable :: h2osoi_liqvol_shell(:,:) ! volumetric water in rhizosphere compartment (m3/m3)
 
@@ -118,8 +100,6 @@ module FatesHydraulicsMemMod
                                                     ! defined at the end of the hydraulics sequence
                                                     ! after root water has been extracted.  This should
                                                     ! be equal to the sum of the water over the rhizosphere shells
-     
-     real(r8),allocatable :: psisoi_liq_innershell(:) ! Matric potential of the inner rhizosphere shell (MPa)
      
      
      real(r8),allocatable :: recruit_w_uptake(:)    ! recruitment water uptake (kg H2o/m2/s)
@@ -150,8 +130,8 @@ module FatesHydraulicsMemMod
                                                     !  support transpiration
 
      
-     class(wrf_type), pointer :: wrf_soil(:)       ! Water retention function for soil layers
-     class(wkf_type), pointer :: wkf_soil(:)       ! Water conductivity (K) function for soil
+     class(wrf_arr_type), pointer :: wrf_soil(:)       ! Water retention function for soil layers
+     class(wkf_arr_type), pointer :: wkf_soil(:)       ! Water conductivity (K) function for soil
 
   contains
      
@@ -368,7 +348,6 @@ module FatesHydraulicsMemMod
          allocate(this%supsub_flag(1:nlevsoil_hyd))                ; this%supsub_flag = -999
          allocate(this%h2osoi_liqvol_shell(1:nlevsoil_hyd,1:nshell)) ; this%h2osoi_liqvol_shell = nan
          allocate(this%h2osoi_liq_prev(1:nlevsoil_hyd))          ; this%h2osoi_liq_prev = nan
-         allocate(this%psisoi_liq_innershell(1:nlevsoil_hyd)); this%psisoi_liq_innershell = nan
          allocate(this%rs1(1:nlevsoil_hyd)); this%rs1(:) = fine_root_radius_const
          allocate(this%recruit_w_uptake(1:nlevsoil_hyd)); this%recruit_w_uptake = nan
 
@@ -391,6 +370,9 @@ module FatesHydraulicsMemMod
 
        return
     end subroutine InitHydrSite
+
+
+
     
 
 end module FatesHydraulicsMemMod

@@ -57,7 +57,7 @@ dpsidth_from_th = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapdpsidth
 dpsidth_from_th.restype = c_double
 ftc_from_psi = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapftcfrompsi
 ftc_from_psi.restype = c_double
-dftcdpsi_from_psi = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapftcfrompsi
+dftcdpsi_from_psi = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapdftcdpsi
 dftcdpsi_from_psi.restype = c_double
 
 
@@ -199,49 +199,47 @@ def main(argv):
     alphas  = [1.0, 1.0, 1.0, 1.0]
     psds    = [2.7, 2.7, 2.7, 2.7]
     tort    = [0.5, 0.5, 0.5, 0.5]
+    avuln   = [2.0, 2.0, 2.5, 2.5]
+    p50     = [-1.5, -1.5, -2.25, -2.25]
 
-    nwrf = 4
-    nwkf = 2
+    ncomp= 4
 
 
     # Allocate memory to our objective classes
-    iret = initalloc_wtfs(ci(nwrf),ci(nwkf))
+    iret = initalloc_wtfs(ci(ncomp),ci(ncomp))
     print('Allocated')
 
     # Push parameters to those classes
     # -------------------------------------------------------------------------
     # Generic VGs
-    init_wrf_args  = (4 * c_double)(alphas[0],psds[0],th_sats[0],th_ress[0]) # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(1),ci(1),ci(len(init_wrf_args)),byref(init_wrf_args))
+    init_wrf_args  = [alphas[0],psds[0],th_sats[0],th_ress[0]] # alpha, psd, th_sat, th_res
+    iret = setwrf(ci(1),ci(1),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
 
-    init_wrf_args  = (4 * c_double)(alphas[1],psds[1],th_sats[1],th_ress[1]) # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(2),ci(1),ci(len(init_wrf_args)),byref(init_wrf_args))
+    init_wrf_args  = [alphas[1],psds[1],th_sats[1],th_ress[1]] # alpha, psd, th_sat, th_res
+    iret = setwrf(ci(2),ci(1),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
 
-    init_wrf_args  = (4 * c_double)(alphas[2],psds[2],th_sats[2],th_ress[2]) # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(3),ci(1),ci(len(init_wrf_args)),byref(init_wrf_args))
+    init_wrf_args  = [alphas[2],psds[2],th_sats[2],th_ress[2]] # alpha, psd, th_sat, th_res
+    iret = setwrf(ci(3),ci(1),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
 
-    init_wrf_args  = (4 * c_double)(alphas[3],psds[3],th_sats[3],th_ress[3]) # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(4),ci(1),ci(len(init_wrf_args)),byref(init_wrf_args))
-
-
+    init_wrf_args  = [alphas[3],psds[3],th_sats[3],th_ress[3]] # alpha, psd, th_sat, th_res
+    iret = setwrf(ci(4),ci(1),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
 
 
     print('initialized WRF')
 
     theta = np.linspace(0.10, 0.7, num=npts)
+    psi   = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
+    dpsidth = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
+    cdpsidth = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
 
-    psi   = np.full(shape=(nwrf,len(theta)),dtype=np.float64,fill_value=np.nan)
-    dpsidth = np.full(shape=(nwrf,len(theta)),dtype=np.float64,fill_value=np.nan)
-    cdpsidth = np.full(shape=(nwrf,len(theta)),dtype=np.float64,fill_value=np.nan)
-
-    for ic in range(nwrf):
+    for ic in range(ncomp):
 
         for i,th in enumerate(theta):
             psi[ic,i] = psi_from_th(ci(ic+1),c8(th))
 
 
     fig0, ax1 = plt.subplots(1,1,figsize=(9,6))
-    for ic in range(nwrf):
+    for ic in range(ncomp):
         ax1.plot(theta,psi[ic,:])
 
     ax1.set_ylim((-10,5))
@@ -249,14 +247,14 @@ def main(argv):
     ax1.set_xlabel('VWC [m3/m3]')
 
 
-    for ic in range(nwrf):
+    for ic in range(ncomp):
         for i in range(1,len(theta)-1):
             dpsidth[ic,i]  = dpsidth_from_th(ci(ic+1),c8(theta[i]))
             cdpsidth[ic,i] = (psi[ic,i+1]-psi[ic,i-1])/(theta[i+1]-theta[i-1])
 
 
     fig1, ax1 = plt.subplots(1,1,figsize=(9,6))
-    for ic in range(nwrf):
+    for ic in range(ncomp):
         ax1.plot(theta,dpsidth[0,:],label='func')
         ax1.plot(theta,cdpsidth[0,:],label='check')
     ax1.set_ylim((0,1000))
@@ -264,21 +262,77 @@ def main(argv):
     ax1.set_ylabel('dPSI/dTh [MPa m3 m-3]')
     ax1.set_xlabel('VWC [m3/m3]')
     ax1.legend(loc='upper right')
-    plt.show()
+
 
 
 
     # Push parameters to WKF classes
     # -------------------------------------------------------------------------
     # Generic VGs
-    init_wkf_args  = c8_arr(alphas[0],psds[0],th_sats[0],th_ress[0],tort[0]) # alpha, psd, th_sat, th_res
-    iret = setwkf(ci(1),ci(1),ci(len(init_wkf_args)),byref(init_wkf_args))
+    init_wkf_args  = [alphas[0],psds[0],th_sats[0],th_ress[0],tort[0]] # alpha, psd, th_sat, th_res
+    iret = setwkf(ci(1),ci(1),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
+
+    init_wkf_args = [th_sats[0],p50[0],avuln[0]]
+    iret = setwkf(ci(2),ci(3),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
+
+    init_wkf_args = [th_sats[1],p50[1],avuln[1]]
+    iret = setwkf(ci(3),ci(3),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
+
+    init_wkf_args = [th_sats[2],p50[2],avuln[2]]
+    iret = setwkf(ci(4),ci(3),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
+
+    ftc   = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
+    dftcdpsi = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
+    cdftcdpsi = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
+
+
+    for ic in range(ncomp):
+        for i in range(0,len(theta)):
+            ftc[ic,i] = ftc_from_psi(ci(ic+1),c8(psi[ic,i]))
+
+    for ic in range(ncomp):
+        for i in range(1,len(theta)-1):
+            dftcdpsi[ic,i]  = dftcdpsi_from_psi(ci(ic+1),c8(psi[ic,i]))
+            cdftcdpsi[ic,i] = (ftc[ic,i+1]-ftc[ic,i-1])/(psi[ic,i+1]-psi[ic,i-1])
+
+
+
+    fig2, ax1 = plt.subplots(1,1,figsize=(9,6))
+    for ic in range(ncomp):
+        ax1.plot(psi[ic,:],ftc[ic,:],label='{}'.format(ic+1))
+
+    ax1.set_ylabel('FTC')
+    ax1.set_xlabel('Psi [MPa]')
+    ax1.set_xlim([-10,3])
+    ax1.legend(loc='upper right')
+
+
+
+    fig3,ax1 = plt.subplots(1,1,figsize=(9,6))
+    for ic in range(ncomp):
+        ax1.plot(psi[ic,:],abs(dftcdpsi[ic,:]-cdftcdpsi[ic,:])/abs(cdftcdpsi[ic,:]),label='{}'.format(ic))
+#        ax1.plot(psi[ic,:],cdftcdpsi[ic,:],label='check')
+
+    ax1.set_ylabel('dFTC/dPSI')
+    ax1.set_xlabel('Psi [MPa]')
+    ax1.set_xlim([-30,3])
+#    ax1.set_ylim([0,10])
+    ax1.legend(loc='upper right')
+    plt.show()
 
 
 
     code.interact(local=dict(globals(), **locals()))
 
+
+
+
+
+
+
     exit(0)
+
+
 
 
     # Test 1 For a set of thetas, calculate psi for each pm.

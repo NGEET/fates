@@ -372,13 +372,25 @@ contains
     real(r8)            :: num ! numerator term
     real(r8)            :: den ! denominator term
     real(r8)            :: ftc
+    real(r8)            :: psi_eff
 
-    num = (1._r8 - (-this%alpha*psi)**(this%psd-1._r8) * & 
-         (1._r8 + (-this%alpha*psi)**this%psd)**(-(1._r8-1._r8/this%psd)))**2._r8
-    den = (1._r8 + (-this%alpha*psi)**this%psd)**(this%tort*(1._r8-1._r8/this%psd))
+    if(psi<0._r8) then
     
-    ftc = num/den
+       ! VG 1980 assumes a postive pressure convention...
+       psi_eff = -psi
 
+       num = (1._r8 - (this%alpha*psi_eff)**(this%psd-1._r8) * & 
+            (1._r8 + (this%alpha*psi_eff)**this%psd)**(-(1._r8-1._r8/this%psd)))**2._r8
+       den = (1._r8 + (this%alpha*psi_eff)**this%psd)**(this%tort*(1._r8-1._r8/this%psd))
+
+       ! Make sure this is well behaved
+       ftc = min(1._r8,max(min_ftc,num/den))
+
+    else
+       ftc = 1._r8
+
+    end if
+       
   end function ftc_from_psi_vg
 
   ! ====================================================================================
@@ -387,38 +399,49 @@ contains
 
     ! The derivative of the fraction of total conductivity
     ! Note, this function is fairly complex. To get the derivative
-    ! we brake it into terms, and also into numerator and denominator
-    ! and then differentiate those by parts
+    ! we brake it into terms, see the technical note.
+
     class(wkf_type_vg) :: this
     real(r8),intent(in) :: psi
+    real(r8) :: psi_eff  ! VG 1980 assumed positive convention, so we switch sign
     real(r8) :: t1       ! term 1 in numerator
     real(r8) :: t2       ! term 2 in numerator
+    real(r8) :: t3       ! term 3 (denomenator)
     real(r8) :: dt1      ! derivative of term 1
     real(r8) :: dt2      ! derivative of term 2
-    real(r8) :: num      ! numerator
-    real(r8) :: dnum     ! derivative of numerator
-    real(r8) :: den      ! denominator
-    real(r8) :: dden     ! derivative of denominator
+    real(r8) :: dt3      ! derivative of term 3
+    real(r8) :: ftc      ! calculate current ftc to see if we are at min
     real(r8) :: dftcdpsi ! change in frac total cond wrt psi
-    
-    t1  = (-this%alpha*psi)**(this%psd-1._r8)
-    dt1 = this%alpha**(this%psd-1._r8)*(this%psd-1._r8)*psi**(this%psd-2._r8)
 
-    t2  = (1._r8 + (-this%alpha*psi)**this%psd)**(-1._r8+1._r8/this%psd)
-    dt2 = -(1._r8-1._r8/this%psd) * & 
-         (1._r8 + (-this%alpha*psi)**this%psd)**(1._r8/this%psd) * & 
-         this%psd*(this%alpha**this%psd)*(-psi)**(this%psd-1._r8)
-   
-    num  = (1._r8 - t1*t2)**2._r8
-    dnum = 2._r8 * (1._r8 - t1*t2) * ( t1*dt2 + t2*dt1 )
+    if(psi>=0._r8) then
+       dftcdpsi = 0._r8
+    else
+       psi_eff = -psi  ! switch VG 1980 convention
 
-    den  = (1._r8 + (-this%alpha*psi)**this%psd)**(this%tort*( 1._r8-1._r8/this%psd))
-    dden = (this%tort*( 1._r8-1._r8/this%psd)) * & 
-          (1._r8 + (-this%alpha*psi)**this%psd)**(this%tort*( 1._r8-1._r8/this%psd)-1._r8) * & 
-          this%alpha**this%psd * this%psd * (-psi)**(this%psd-1._r8)
+       ftc = this%ftc_from_psi(psi)
 
+       if(ftc<=min_ftc) then
+          dftcdpsi = 0._r8   ! We cap ftc, so derivative is zero
+       else
 
-    dftcdpsi = dnum*den**(-1._r8) - (den**(-2._r8))*dden*num 
+          t1  = (this%alpha*psi_eff)**(this%psd-1._r8)
+          dt1 = this%alpha*(this%psd-1._r8)*(this%alpha*psi_eff)**(this%psd-2._r8)
+       
+          t2  = (1._r8 + (this%alpha*psi_eff)**this%psd)**(1._r8/this%psd-1._r8)
+          dt2 = (1._r8/this%psd-1._r8) * & 
+               (1._r8 + (this%alpha*psi_eff)**this%psd)**(1._r8/this%psd-2._r8) * & 
+               this%psd * (this%alpha*psi_eff)**(this%psd-1._r8) * this%alpha
+          
+          t3  = (1._r8 + (this%alpha*psi_eff)**this%psd)**(this%tort*( 1._r8-1._r8/this%psd))
+          dt3 = this%tort*(1._r8-1._r8/this%psd) * & 
+               (1._r8 + (this%alpha*psi_eff)**this%psd )**(this%tort*(1._r8-1._r8/this%psd)-1._r8) * & 
+               this%psd * (this%alpha*psi_eff)**(this%psd-1._r8) * this%alpha
+          
+          dftcdpsi = 2._r8*(1._r8-t1*t2)*(t1*dt2 + t2*dt1)/t3 - & 
+               t3**(-2._r8)*dt3*(1._r8-t1*t2)**2._r8
+       end if
+
+    end if
 
   end function dftcdpsi_from_psi_vg
 
@@ -427,7 +450,7 @@ contains
   ! Campbell, Clapp-Hornberger Water Retention Functions
   ! =====================================================================================
   ! =====================================================================================
-  
+
   subroutine set_wrf_param_cch(this,params_in)
     
     class(wrf_type_cch) :: this
@@ -459,7 +482,7 @@ contains
   
   function th_from_psi_cch(this,psi) result(th)
     
-    class(wrf_type_cch)   :: this
+    class(wrf_type_cch)  :: this
     real(r8), intent(in) :: psi
     real(r8)             :: th
     real(r8)             :: satfrac
@@ -474,7 +497,7 @@ contains
 
   function psi_from_th_cch(this,th) result(psi)
     
-    class(wrf_type_cch)   :: this
+    class(wrf_type_cch)  :: this
     real(r8),intent(in)  :: th
     real(r8)             :: psi
 
@@ -506,7 +529,7 @@ contains
     real(r8),intent(in) :: psi
     real(r8)            :: psi_eff
     real(r8)            :: ftc
-
+    
     ! th = this%th_sat*(psi/this%psi_sat)**(-1.0_r8/this%beta)
     ! ftc = ((psi/this%psi_sat)**(-1.0_r8/this%beta))**(2._r8*this%beta+3._r8)
     ! 
@@ -551,9 +574,8 @@ contains
     class(wkf_type_tfs)  :: this
     real(r8), intent(in) :: params_in(:)
     
-    this%th_sat = params_in(1)
-    this%p50    = params_in(2)
-    this%avuln  = params_in(3)
+    this%p50    = params_in(1)
+    this%avuln  = params_in(2)
     
     return
   end subroutine set_wkf_param_tfs
@@ -565,8 +587,11 @@ contains
     class(wkf_type_tfs) :: this
     real(r8),intent(in) :: psi   ! 
     real(r8)            :: ftc
+    real(r8)            :: psi_eff
+
+    psi_eff = min(0._r8,psi)
     
-    ftc = max(min_ftc,1._r8/(1._r8 + (psi/this%p50)**this%avuln))
+    ftc = max(min_ftc,1._r8/(1._r8 + (psi_eff/this%p50)**this%avuln))
 
   end function ftc_from_psi_tfs
 
@@ -584,13 +609,17 @@ contains
     ! Differentiate
     ! ftc = 1._r8/(1._r8 + (psi/this%p50(ft))**this%avuln(ft))
 
-    ftc = 1._r8/(1._r8 + (psi/this%p50)**this%avuln)
-    if(ftc<min_ftc) then
+    if(psi>0._r8)then
        dftcdpsi = 0._r8
     else
-       fx  = 1._r8 + (psi/this%p50)**this%avuln
-       dfx = this%avuln*(psi/this%p50)**(this%avuln-1._r8)
-       dftcdpsi = -fx**(-2._r8)*dfx
+       ftc = 1._r8/(1._r8 + (psi/this%p50)**this%avuln)
+       if(ftc<min_ftc) then
+          dftcdpsi = 0._r8
+       else
+          fx  = 1._r8 + (psi/this%p50)**this%avuln
+          dfx = this%avuln*(psi/this%p50)**(this%avuln-1._r8) * (1._r8/this%p50)
+          dftcdpsi = -fx**(-2._r8)*dfx
+       end if
     end if
 
   end function dftcdpsi_from_psi_tfs
