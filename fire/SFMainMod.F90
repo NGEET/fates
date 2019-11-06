@@ -658,30 +658,30 @@ contains
 
     !currentPatch%FI  avg fire intensity of flaming front during day. Backward ROS plays no role here. kJ/m/s or kW/m.
     !currentSite%FDI  probability that an ignition will start a fire
+    !currentSite%NF   number of lighting strikes per day per km2
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
     use FatesInterfaceMod, only : hlm_use_spitfire
     use EDParamsMod,       only : ED_val_nignitions
     use FatesConstantsMod, only : years_per_day
-    use SFParamsMod,  only : SF_val_fdi_alpha,SF_val_fuel_energy, &
+    use SFParamsMod,       only : SF_val_fdi_alpha,SF_val_fuel_energy, &
          SF_val_max_durat, SF_val_durat_slope
 
     type(ed_site_type), intent(inout), target :: currentSite
-
     type(ed_patch_type), pointer :: currentPatch
 
     real(r8) ROS !m/s
     real(r8) W   !kgBiomass/m2
-    real(r8) NF  !number of lighting strikes per day per km2
     real(r8),parameter :: CG_strikes = .20_r8      !cloud to ground lightning strikes
                                                    !Latham and Williams (2001)
 
+    currentSite%NF = 0.0_r8
     !NF = number of lighting strikes per day per km2
-    NF = ED_val_nignitions * years_per_day * CG_strikes
+    currentSite%NF = ED_val_nignitions * years_per_day * CG_strikes
 
     ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
-    ! then there are 15 * 1/365 strikes/km2 each day. 
+    ! then there are 15 * 1/365 strikes/km2 each day  
 
     currentPatch => currentSite%oldest_patch;  
 
@@ -696,7 +696,7 @@ contains
           if( hlm_masterproc == itrue ) write(fates_log(),*) 'fire_intensity',currentPatch%fi,W,currentPatch%ROS_front
        endif
        !'decide_fire' subroutine shortened and put in here... 
-       if (currentPatch%FI >= fire_threshold) .and. (NF > 0._r8) then  !50kW/m is threshold for a self-sustaining fire
+       if (currentPatch%FI >= fire_threshold .and. currentSite%NF > 0._r8) then !50kW/m threshold for self-sustaining fire
           currentPatch%fire = 1 ! Fire...    :D
           
           ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
@@ -741,6 +741,7 @@ contains
     real(r8) df               !distance fire has travelled forward in m
     real(r8) db               !distance fire has travelled backward in m
     real(r8) AB               !daily area burnt in m2 per km2
+    
     real(r8) size_of_fire !in m2
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
 
@@ -787,7 +788,7 @@ contains
 
              !AB = daily area burnt = size fires in m2 * num ignitions per day per km2 * prob ignition starts fire
              !AB = m2 per km2 per day
-             AB = size_of_fire * NF * currentSite%FDI
+             AB = size_of_fire * currentSite%NF * currentSite%FDI
 
               !frac_burnt in units of m2 here. 
              currentPatch%frac_burnt = min(0.99_r8, AB / km2_to_m2)
