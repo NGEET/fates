@@ -687,7 +687,8 @@ module EDTypesMod
      real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
-     real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.
+     real(r8) ::  NF                                           ! daily ignitions in km2
+     real(r8) ::  frac_burnt                                   ! fraction of area burnt in this day.
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr

@@ -718,11 +718,6 @@ contains
           currentPatch%fire = 0 ! No fire... :-/
           currentPatch%FD   = 0.0_r8      
        endif
-       !  FIX(SPM,032414) needs a refactor
-       !  FIX(RF,032414) : should happen outside of SF loop - doing all spitfire code is inefficient otherwise. 
-       if( hlm_use_spitfire == ifalse )then   
-          currentPatch%fire = 0 !fudge to turn fire off
-       endif
 
        currentPatch => currentPatch%younger;
     enddo !end patch loop
