@@ -210,12 +210,12 @@ module EDPftvarcon
      ! KM: Michaeles-Menten half-saturation constants for ECA (plant–enzyme affinity)
      ! VMAX: Product of the reaction-rate and enzyme abundance for each PFT in ECA
 
-     real(r8), allocatable :: eca_km_nh4(:)             ! KM for NH4
-     real(r8), allocatable :: eca_vmax_nh4(:)
-     real(r8), allocatable :: eca_km_no3(:)
-     real(r8), allocatable :: eca_vmax_no3(:)
-     real(r8), allocatable :: eca_km_p(:)
-     real(r8), allocatable :: eca_vmax_p(:)
+     real(r8), allocatable :: eca_km_nh4(:)   ! half-saturation constant for plant nh4 uptake  g/m2
+     real(r8), allocatable :: eca_vmax_nh4(:) ! maximum production rate for plant nh4 uptake
+     real(r8), allocatable :: eca_km_no3(:)   ! half-saturation constant for plant no3 uptake  g/m2
+     real(r8), allocatable :: eca_vmax_no3(:) ! maximum production rate for plant no3 uptake
+     real(r8), allocatable :: eca_km_p(:)     ! half-saturation constant for plant p uptake  g/m2
+     real(r8), allocatable :: eca_vmax_p(:)   ! maximum production rate for plant p uptake
 
      ! Turnover related things
 
@@ -780,31 +780,31 @@ contains
 
     ! Nutrient competition parameters
 
-    name = 'fates_ncomp_decompmicc'
+    name = 'fates_eca_decompmicc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_ncomp_eca_km_nh4'
+    name = 'fates_eca_km_nh4'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_ncomp_eca_vmax_nh4'
+    name = 'fates_eca_vmax_nh4'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_ncomp_eca_km_no3'
+    name = 'fates_eca_km_no3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_ncomp_eca_vmax_no3'
+    name = 'fates_eca_vmax_no3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_ncomp_eca_km_p'
+    name = 'fates_eca_km_p'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_ncomp_eca_vmax_p'
+    name = 'fates_eca_vmax_p'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
@@ -1239,31 +1239,31 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
 
-    name = 'fates_ncomp_decompmicc'
+    name = 'fates_eca_decompmicc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
 
-    name = 'fates_ncomp_eca_km_nh4'
+    name = 'fates_eca_km_nh4'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_km_nh4
     
-    name = 'fates_ncomp_eca_vmax_nh4'
+    name = 'fates_eca_vmax_nh4'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_vmax_nh4)
     
-    name = 'fates_ncomp_eca_km_no3'
+    name = 'fates_eca_km_no3'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_km_no3)
 
-    name = 'fates_ncomp_eca_vmax_no3'
+    name = 'fates_eca_vmax_no3'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_vmax_no3)
 
-    name = 'fates_ncomp_eca_km_p'
+    name = 'fates_eca_km_p'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_km_p)
 
-    name = 'fates_ncomp_eca_vmax_p'
+    name = 'fates_eca_vmax_p'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_vmax_p)
 

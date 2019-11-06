@@ -90,7 +90,7 @@ module FatesInterfaceMod
                                                     ! specficially packaged for them.
                                                     ! This string sets which filter is enacted.
 
-   character(len=16), public, protected :: hlm_nu_com ! This string defines which soil
+   character(len=16), public, protected :: hlm_nu_comp ! This string defines which soil
                                                       ! nutrient competition scheme is in use.
                                                       ! current options with
                                                       ! E3SM: RD, ECA

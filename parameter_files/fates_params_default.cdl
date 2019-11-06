@@ -331,33 +331,33 @@ variables:
 		fates_prt_phos_stoich_p2:units = "(gP/gC)" ;
 		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2" ;
 
-    double fates_ncomp_decompmicc(fates_pft) ;
-        fates_ncomp_decompmicc:units = "" ;
-        fates_ncomp_decompmicc:long_name = "" ;
+    double fates_eca_decompmicc(fates_pft) ;
+        fates_eca_decompmicc:units = "gC/m3" ;
+        fates_eca_decompmicc:long_name = "soil microbial decomposer biomass (ECA)" ;
 
-    double fates_ncomp_eca_km_nh4(fates_pft) ;
-        fates_ncomp_eca_km_nh4:units = "" ;
-        fates_ncomp_eca_km_nh4:long_name = "" ;    
+    double fates_eca_km_nh4(fates_pft) ;
+        fates_eca_km_nh4:units = "g/m2" ;
+        fates_eca_km_nh4:long_name = "half-saturation constant for plant nh4 uptake (ECA)" ;    
 
-    double fates_ncomp_eca_vmax_nh4(fates_pft) ;
-        fates_ncomp_eca_vmax_nh4:units = "" ;
-        fates_ncomp_eca_vmax_nh4:long_name = "" ;    
+    double fates_eca_vmax_nh4(fates_pft) ;
+        fates_eca_vmax_nh4:units = "g/m2" ;
+        fates_eca_vmax_nh4:long_name = "maximum production rate for plant nh4 uptake (ECA)" ;    
 
-    double fates_ncomp_eca_km_no3(fates_pft) ;
-        fates_ncomp_eca_km_no3:units = "" ;
-        fates_ncomp_eca_km_no3:long_name = "" ;
+    double fates_eca_km_no3(fates_pft) ;
+        fates_eca_km_no3:units = "g/m2" ;
+        fates_eca_km_no3:long_name = "half-saturation constant for plant no3 uptake (ECA)" ;
 
-    double fates_ncomp_eca_vmax_no3(fates_pft) ;
-        fates_ncomp_eca_vmax_no3:units = "" ;
-        fates_ncomp_eca_vmax_no3:long_name = "" ;
+    double fates_eca_vmax_no3(fates_pft) ;
+        fates_eca_vmax_no3:units = "g/m2" ;
+        fates_eca_vmax_no3:long_name = "maximum production rate for plant no3 uptake (ECA)" ;
 
-    double fates_ncomp_eca_km_p(fates_pft) ;
-        fates_ncomp_eca_km_p:units = "" ;
-        fates_ncomp_eca_km_p:long_name = "" ;
+    double fates_eca_km_p(fates_pft) ;
+        fates_eca_km_p:units = "g/m2" ;
+        fates_eca_km_p:long_name = "half-saturation constant for plant p uptake (ECA)"" ;
 
-    double fates_ncomp_eca_vmax_p(fates_pft) ;
-        fates_ncomp:units = "" ;
-        fates_ncomp:long_name = "" ;
+    double fates_eca_vmax_p(fates_pft) ;
+        fates_eca_vmax_p:units = "g/m2" ;
+        fates_eca_vmax_p:long_name = "maximum production rate for plant p uptake (ECA)" ;
 
 	double fates_recruit_hgt_min(fates_pft) ;
 		fates_recruit_hgt_min:units = "m" ;
@@ -400,10 +400,10 @@ variables:
 		fates_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool" ;
 	double fates_seed_decay_turnover(fates_pft) ;
 		fates_seed_decay_turnover:units = "1/yr" ;
-		fates_seed_decay_turnover:long_name = "turnover time for seeds with respect to germination" ;
+		fates_seed_decay_turnover:long_name = "turnover time for seeds with respect to decay" ;
 	double fates_seed_germination_timescale(fates_pft) ;
 		fates_seed_germination_timescale:units = "1/yr" ;
-		fates_seed_germination_timescale:long_name = "turnover time for seeds with respect to decay" ;
+		fates_seed_germination_timescale:long_name = "germination timescale for seeds (fraction germinated per year)" ;
 	double fates_seed_suppl(fates_pft) ;
 		fates_seed_suppl:units = "KgC/m2/yr" ;
 		fates_seed_suppl:long_name = "Supplemental external seed rain source term (non-mass conserving)" ;
