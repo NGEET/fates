@@ -438,7 +438,8 @@ contains
     real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
     real(r8) a,b,c,e              ! function of fuel sav
 
-    logical,parameter :: debug_windspeed = .false. !for debugging
+    logical, parameter :: debug_windspeed = .false. !for debugging
+    real(r8),parameter :: q_dry = 581.0_r8          !heat of pre-ignition of dry fuels (kJ/kg) 
 
     currentPatch=>currentSite%oldest_patch;  
 
@@ -481,7 +482,7 @@ contains
        !  Rothermal EQ12= 250 Btu/lb + 1116 Btu/lb * fuel_eff_moist
        !  conversion of Rothermal (1972) EQ12 in BTU/lb to current kJ/kg 
        !  q_ig in kJ/kg 
-       q_ig = 581.0_r8 +2594.0_r8 * currentPatch%fuel_eff_moist
+       q_ig = q_dry +2594.0_r8 * currentPatch%fuel_eff_moist
 
        ! ---effective heating number---
        ! Equation A3 in Thonicke et al. 2010.  
@@ -661,6 +662,8 @@ contains
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
     use FatesInterfaceMod, only : hlm_use_spitfire
+    use EDParamsMod,       only : ED_val_nignitions
+    use FatesConstantsMod, only : years_per_day
     use SFParamsMod,  only : SF_val_fdi_alpha,SF_val_fuel_energy, &
          SF_val_max_durat, SF_val_durat_slope
 
@@ -670,6 +673,15 @@ contains
 
     real(r8) ROS !m/s
     real(r8) W   !kgBiomass/m2
+    real(r8) NF  !number of lighting strikes per day per km2
+    real(r8),parameter :: CG_strikes = .20_r8      !cloud to ground lightning strikes
+                                                   !Latham and Williams (2001)
+
+    !NF = number of lighting strikes per day per km2
+    NF = ED_val_nignitions * years_per_day * CG_strikes
+
+    ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
+    ! then there are 15 * 1/365 strikes/km2 each day. 
 
     currentPatch => currentSite%oldest_patch;  
 
@@ -684,7 +696,7 @@ contains
           if( hlm_masterproc == itrue ) write(fates_log(),*) 'fire_intensity',currentPatch%fi,W,currentPatch%ROS_front
        endif
        !'decide_fire' subroutine shortened and put in here... 
-       if (currentPatch%FI >= fire_threshold) then  ! 50kW/m is the threshold for a self-sustaining fire
+       if (currentPatch%FI >= fire_threshold) .and. (NF > 0._r8) then  !50kW/m is threshold for a self-sustaining fire
           currentPatch%fire = 1 ! Fire...    :D
           
           ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
@@ -722,29 +734,19 @@ contains
   subroutine  area_burnt ( currentSite ) 
     !*****************************************************************
 
-    use EDParamsMod,       only : ED_val_nignitions
-    use FatesConstantsMod, only : years_per_day
-
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type), pointer :: currentPatch
 
     real(r8) lb               !length to breadth ratio of fire ellipse (unitless)
     real(r8) df               !distance fire has travelled forward in m
     real(r8) db               !distance fire has travelled backward in m
-    real(r8) NF               !number of lightning strikes per day per km2
     real(r8) AB               !daily area burnt in m2 per km2
     real(r8) size_of_fire !in m2
-    real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m 
-    integer g, p
+    real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
+
 
     !  ---initialize site parameters to zero--- 
     currentSite%frac_burnt = 0.0_r8   
-
-    !NF = number of lighting strikes per day per km2
-    NF = ED_val_nignitions * years_per_day
-
-    ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
-    ! then there are 15 * 1/365 strikes/km2 each day. 
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
