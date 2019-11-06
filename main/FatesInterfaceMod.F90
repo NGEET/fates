@@ -370,7 +370,13 @@ module FatesInterfaceMod
       ! Downwelling diffuse (I-ndirect) radiation (patch,radiation-band) [W/m2]
       real(r8), allocatable :: solai_parb(:,:)
 
+      ! Nutrient input fluxes
 
+      real(r8), pointer :: plant_n_uptake_flux(:)   ! Nitrogen input flux for
+                                                        ! each competitor [gN/m2/s]
+      real(r8), pointer :: plant_p_uptake_flux(:)   ! Phosphorus input flux for
+                                                        ! each competitor [gP/m2/s]
+       
 
       ! Photosynthesis variables
       ! ---------------------------------------------------------------------------------
@@ -566,18 +572,22 @@ module FatesInterfaceMod
 
 
       ! Nutrient competition boundary conditions
+      ! (These are all pointer allocations, this is because the host models
+      !  will point to these arrays)
+      ! ---------------------------------------------------------------------------------
+
       integer               :: n_comps               ! Number of unique competitors
-      real(r8), allocatable :: veg_rootc(:,:)        ! Total fine-root carbon of each competitor
+      real(r8), pointer :: veg_rootc(:,:)        ! Total fine-root carbon of each competitor
                                                      ! [gC/m3 of site area]  
                                                      ! (maxcohort_per_site x nlevdecomp)
-      real(r8), allocatable :: decompmicc(:)       ! Microbial decomposer biomass [gc/m3] 
+      real(r8), pointer :: decompmicc(:)         ! Microbial decomposer biomass [gc/m3] 
                                                      ! (numpft x nledecomp_full)
-      integer, allocatable :: ft_index(:)            ! functional type index of each competitor
+      integer, pointer :: ft_index(:)            ! functional type index of each competitor
                                                      ! (maxcohort_per_site)
-      real(r8), allocatable :: cn_scalar(:)          ! C:N scaling factor for root n uptake 
+      real(r8), pointer :: cn_scalar(:)          ! C:N scaling factor for root n uptake 
                                                      ! kinetics (exact meaning differs between
                                                      ! soil BGC hypotheses)
-      real(r8), allocatable :: cp_scalar(:)          ! C:P scaling factor for root p uptake
+      real(r8), pointer :: cp_scalar(:)          ! C:P scaling factor for root p uptake
                                                      ! kinetics (exact meaning differs between
                                                      ! soil BGC hypotheses)
 
@@ -585,16 +595,23 @@ module FatesInterfaceMod
       ! Note, these "could" be stored globaly for each machine, saving them on
       ! each column is inefficient. Each of these are dimensioned by PFT.
 
-      real(r8), allocatable :: km_pl_nh4(:)
-      real(r8), allocatable :: vmax_pl_nh4(:)
-      real(r8), allocatable :: km_pl_no3(:)
-      real(r8), allocatable :: vmax_pl_no3(:)
-      real(r8), allocatable :: km_pl_p(:)     
-      real(r8), allocatable :: vmax_pl_p(:)
+      real(r8), pointer :: km_pl_nh4(:)
+      real(r8), pointer :: vmax_pl_nh4(:)
+      real(r8), pointer :: km_pl_no3(:)
+      real(r8), pointer :: vmax_pl_no3(:)
+      real(r8), pointer :: km_pl_p(:)     
+      real(r8), pointer :: vmax_pl_p(:)
 
-      ! Nutrient competition boundary conditions specific to the RD soil bgc hypothesis
-      real(r8), allocatable :: demand_n(:,:)    ! Nitrogen demand   (competitors x nledecomp_full)
-      real(r8), allocatable :: demand_p(:,:)    ! Phosphorus demand (competitors x nlevdecomp_full)
+
+      ! CTC/RD Nutrient Boundary Conditions
+      ! ---------------------------------------------------------------------------------
+
+      real(r8), pointer :: n_demand(:)           ! Nitrogen demand from each competitor
+                                                     ! for use in ELMs CTC/RD [g/m2/s] 
+      real(r8), pointer :: p_demand(:)           ! Phosophorus demand from each competitor
+                                                     ! for use in ELMs CTC/RD [g/m2/s] 
+
+
       
       ! Canopy Structure
 
@@ -781,6 +798,12 @@ contains
          end if
       end if
 
+      ! Plant Nutrient Aquisition variables
+      if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+         allocate(bc_in%plant_n_uptake_flux(max_comp_per_site))
+         allocate(bc_in%plant_p_uptake_flux(max_comp_per_site))
+      end if
+
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
       allocate(bc_in%z_sisl(nlevsoil_in))
@@ -899,33 +922,46 @@ contains
          allocate(bc_out%litt_flux_lab_p_si(nlevdecomp_in))
 
          ! Allocate aquisition variables sent to HLM Soil BGC
-         allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
-         allocate(bc_out%decompmicc(nlevdecomp_in))
-         allocate(bc_out%ft_index(max_comp_per_site))
-         
-         if(hlm_nitrogen_spec>0) then
-            allocate(bc_out%cn_scalar(max_comp_per_site,nlevdecomp_in))
-            if(trim(hlm_nu_comp).eq.'ECA') then
-               allocate(km_pl_nh4(numpft))
-               allocate(vmax_pl_nh4(numpft))
-               if(hlm_nitrogen_spec==2) then
-                  allocate(km_pl_no3(numpft))
-                  allocate(vmax_pl_no3(numpft))          
-               end if
-            elseif(trim(hlm_nu_comp).eq.'RD') then
-               allocate(demand_n(max_comp_per_site,nlevdecomp_in))
-            end if
+         ! NOTE: ELM SOIL BGC CODE ASSUMES THAT N AND P
+         ! HAVE ALL OF THEIR ARRAYS ALLOCATED. TO DISABLE
+         ! ALLOCATE A SINGLE VALUE WITH NO DEMAND
+
+        
+
+
+         if(trim(hlm_nu_comp).eq.'RD') then
+            allocate(bc_out%n_demand(max_comp_per_site))
+            allocate(bc_out%p_demand(max_comp_per_site))
+
          end if
+         if(trim(hlm_nu_comp).eq.'ECA') then
 
-
-         if(hlm_phosphorus_spec>0) then
-            allocate(bc_out%cp_scalar(max_comp_per_site,nlevdecomp_in))
-            if(trim(hlm_nu_comp).eq.'ECA') then
-               allocate(km_pl_p(numpft))
-               allocate(vmax_pl_p(numpft))
-            elseif(trim(hlm_nu_comp).eq.'RD') then
-               allocate(demand_p(max_comp_per_site,nlevdecomp_in))
+            allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
+            allocate(bc_out%decompmicc(nlevdecomp_in))
+            allocate(bc_out%ft_index(max_comp_per_site))
+         
+            if(hlm_nitrogen_spec>0) then
+               allocate(bc_out%cn_scalar(max_comp_per_site,nlevdecomp_in))
+               if(trim(hlm_nu_comp).eq.'ECA') then
+                  allocate(km_pl_nh4(numpft))
+                  allocate(vmax_pl_nh4(numpft))
+                  if(hlm_nitrogen_spec==2) then
+                     allocate(km_pl_no3(numpft))
+                     allocate(vmax_pl_no3(numpft))          
+                  end if
+               elseif(trim(hlm_nu_comp).eq.'RD') then
+                  allocate(n_demand(max_comp_per_site))
+               end if
             end if
+            
+            if(hlm_phosphorus_spec>0) then
+               allocate(bc_out%cp_scalar(max_comp_per_site,nlevdecomp_in))
+               if(trim(hlm_nu_comp).eq.'ECA') then
+                  allocate(km_pl_p(numpft))
+                  allocate(vmax_pl_p(numpft))
+               elseif(trim(hlm_nu_comp).eq.'RD') then
+                  allocate(p_demand(max_comp_per_site))
+               end if
          end if
 
       case default
@@ -1034,12 +1070,6 @@ contains
          this%bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
          this%bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
          this%bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
-
-
-
-
-
-
 
       case default
          write(fates_log(), *) 'An unknown parteh hypothesis was passed'
