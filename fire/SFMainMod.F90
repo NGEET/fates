@@ -676,7 +676,6 @@ contains
     real(r8),parameter :: CG_strikes = .20_r8      !cloud to ground lightning strikes
                                                    !Latham and Williams (2001)
 
-    currentSite%NF = 0.0_r8
     !NF = number of lighting strikes per day per km2
     currentSite%NF = ED_val_nignitions * years_per_day * CG_strikes
 
