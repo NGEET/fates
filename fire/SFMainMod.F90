@@ -805,8 +805,9 @@ contains
   !*****************************************************************
   subroutine  crown_scorching ( currentSite ) 
   !*****************************************************************
-    !currentPatch%SH !average scorch height for the patch(m)
-    !currentPatch%FI  average fire intensity of flaming front during day.  kW/m.
+
+    !currentPatch%FI   average fire intensity of flaming front during day.  kW/m.
+    !currentCohort%SH  scorch height for the cohort(m)
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -846,9 +847,10 @@ contains
           !This loop weights the scorch height for the contribution of each cohort to the overall biomass.   
 
          ! does this do anything? I think it might be redundant? RF. 
-          currentPatch%SH = 0.0_r8
+
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))
+             currentCohort%SH = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1 &
                   .and. (tree_ag_biomass > 0.0_r8)) then !trees only
 
@@ -862,11 +864,10 @@ contains
 
                 !equation 16 in Thonicke et al. 2010
                 if(write_SF == itrue)then
-                   if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass
+                   if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentCohort%SH',currentCohort%SH,f_ag_bmass
                 endif
                 !2/3 Byram (1959)
-                currentPatch%SH = currentPatch%SH + f_ag_bmass * &
-                      EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8) 
+                currentCohort%SH = EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8) 
 
              endif !trees only
              currentCohort=>currentCohort%shorter;
@@ -902,16 +903,16 @@ contains
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
-                if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft))) then 
+                if (currentCohort%SH < (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft))) then 
                    currentCohort%fraction_crown_burned = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy but not over top.
-                   if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH >=  &
+                   if ((currentCohort%hite > 0.0_r8).and.(currentCohort%SH >=  &
                         (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)))) then 
 
-                           currentCohort%fraction_crown_burned =  (currentPatch%SH-currentCohort%hite*(1.0_r8- &
+                           currentCohort%fraction_crown_burned =  (currentCohort%SH-currentCohort%hite*(1.0_r8- &
                                 EDPftvarcon_inst%crown(currentCohort%pft)))/(currentCohort%hite* &
                                 EDPftvarcon_inst%crown(currentCohort%pft)) 
 
