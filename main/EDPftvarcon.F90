@@ -216,6 +216,10 @@ module EDPftvarcon
      real(r8), allocatable :: eca_vmax_no3(:) ! maximum production rate for plant no3 uptake
      real(r8), allocatable :: eca_km_p(:)     ! half-saturation constant for plant p uptake  g/m2
      real(r8), allocatable :: eca_vmax_p(:)   ! maximum production rate for plant p uptake
+     real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production g/m2
+     real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod
+     real(r8), allocatable :: eca_km_nfix(:)     ! half-saturation constant for plant p uptake  g/m2
+     real(r8), allocatable :: eca_vmax_nfix(:)   ! maximum production rate for plant p uptake
 
      ! Turnover related things
 

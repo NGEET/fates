@@ -359,6 +359,30 @@ variables:
         fates_eca_vmax_p:units = "g/m2" ;
         fates_eca_vmax_p:long_name = "maximum production rate for plant p uptake (ECA)" ;
 
+    double fates_eca_vmax_ptase(fates_pft) ;
+        fates_eca_vmax_ptase:units = "g/m2" ;
+        fates_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (ECA)" ;
+
+    double fates_eca_km_ptase(fates_pft) ;
+        fates_eca_km_ptase:units = "g/m2" ;
+        fates_eca_km_ptase:long_name = "half-saturation constant for biochemical P (ECA)" ;
+
+	double fates_eca_lambda_ptase(fates_pft) ;
+        fates_eca_lambda_ptase:units = "g/m2" ;
+        fates_eca_lambda_ptase:long_name = "critical value for biochemical production (ECA)" ;
+
+    double fates_eca_vmax_nfix(fates_pft) ;
+        fates_eca_vmax_nfix:units = "g/m2" ;
+        fates_eca_vmax_nfix:long_name = "maximum production rate for symbiotic N fixation (ECA-NOT IMPLEMENTED)" ;
+
+	double fates_eca_km_nfix(fates_pft) ;
+        fates_eca_km_nfix:units = "g/m2" ;
+        fates_eca_km_nfix:long_name = "half-saturation constant for symbiotic N fixation (ECA-NOT IMPLEMENTED)" ;
+
+	double fates_eca_plant_escalar ;
+        fates_eca_plant_escalar:units = "" ;
+        fates_eca_plant_escalar:long_name = "scaling factor for plant fine root biomass to calculate nutrient carrier enzyme abundance (ECA)" ;
+
 	double fates_recruit_hgt_min(fates_pft) ;
 		fates_recruit_hgt_min:units = "m" ;
 		fates_recruit_hgt_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;

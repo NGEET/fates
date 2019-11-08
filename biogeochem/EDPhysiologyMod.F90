@@ -2303,6 +2303,12 @@ contains
                        comp_per_pft(pft) = comp_per_pft(pft) + 1
                    end if
                    
+                   plant_c = currentCohort%prt%GetState(leaf_organ,_element) + & 
+                             currentCohort%prt%GetState(store_organ, nitrogen_element) + &
+                             currentCohort%prt%GetState(fnrt_organ, nitrogen_element) + &
+                             currentCohort%prt%GetState(struct_organ, nitrogen_element) + &
+                             currentCohort%prt%GetState(sapw_organ, nitrogen_element)
+
                    if(hlm_nitrogen_spec>0) then
 
                        ! Calculate the total plant nitrogen content (kg)
