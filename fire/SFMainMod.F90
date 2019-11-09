@@ -50,9 +50,8 @@
   public :: charecteristics_of_fuel
   public :: rate_of_spread
   public :: ground_fuel_consumption
-  public :: fire_intensity
   public :: wind_effect
-  public :: area_burnt
+  public :: area_burnt_intensity
   public :: crown_scorching
   public :: crown_damage
   public :: cambial_damage_kill
@@ -97,8 +96,7 @@ contains
        call charecteristics_of_fuel(currentSite)
        call rate_of_spread(currentSite)
        call ground_fuel_consumption(currentSite)
-       call fire_intensity(currentSite)
-       call area_burnt(currentSite)
+       call area_burnt_intensity(currentSite)
        call crown_scorching(currentSite)
        call crown_damage(currentSite)
        call cambial_damage_kill(currentSite)
@@ -651,9 +649,11 @@ contains
 
   end subroutine ground_fuel_consumption
 
+  
   !*****************************************************************
-  subroutine  fire_intensity ( currentSite ) 
-    !*****************************************************************
+  subroutine  area_burnt_intensity ( currentSite ) 
+  !*****************************************************************
+
     !returns the updated currentPatch%FI value for each patch.
 
     !currentPatch%FI  avg fire intensity of flaming front during day. Backward ROS plays no role here. kJ/m/s or kW/m.
@@ -667,70 +667,12 @@ contains
     use FatesConstantsMod, only : years_per_day
     use SFParamsMod,       only : SF_val_fdi_alpha,SF_val_fuel_energy, &
          SF_val_max_durat, SF_val_durat_slope
-
+    
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type), pointer :: currentPatch
 
     real(r8) ROS !m/s
     real(r8) W   !kgBiomass/m2
-    real(r8),parameter :: CG_strikes = .20_r8      !cloud to ground lightning strikes
-                                                   !Latham and Williams (2001)
-
-    !NF = number of lighting strikes per day per km2
-    currentSite%NF = ED_val_nignitions * years_per_day * CG_strikes
-
-    ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
-    ! then there are 15 * 1/365 strikes/km2 each day  
-
-    currentPatch => currentSite%oldest_patch;  
-
-    do while(associated(currentPatch))
-       ROS   = currentPatch%ROS_front / 60.0_r8 !m/min to m/sec 
-       W     = currentPatch%TFC_ROS / 0.45_r8 !kgC/m2 to kgbiomass/m2
-       
-       !units of fire intensity = (kJ/kg)*(kgBiomass/m2)*(m/min)
-       currentPatch%FI = SF_val_fuel_energy * W * ROS !kj/m/s, or kW/m
-       
-       if(write_sf == itrue)then
-          if( hlm_masterproc == itrue ) write(fates_log(),*) 'fire_intensity',currentPatch%fi,W,currentPatch%ROS_front
-       endif
-       !'decide_fire' subroutine shortened and put in here... 
-       if (currentPatch%FI >= fire_threshold .and. currentSite%NF > 0._r8) then !50kW/m threshold for self-sustaining fire
-          currentPatch%fire = 1 ! Fire...    :D
-          
-          ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
-          ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
-          currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
-          
-          ! Equation 14 in Thonicke et al. 2010
-          ! fire duration in minutes
-
-          currentPatch%FD = (SF_val_max_durat+1.0_r8) / (1.0_r8 + SF_val_max_durat * &
-                            exp(SF_val_durat_slope*currentSite%FDI))
-
-          if(write_SF == itrue)then
-             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'fire duration minutes',currentPatch%fd
-          endif
-          !equation 15 in Arora and Boer CTEM model.Average fire is 1 day long.
-          !currentPatch%FD = 60.0_r8 * 24.0_r8 !no minutes in a day      
-       else     
-          currentPatch%fire = 0 ! No fire... :-/
-          currentPatch%FD   = 0.0_r8      
-       endif
-
-       currentPatch => currentPatch%younger;
-    enddo !end patch loop
-
-  end subroutine fire_intensity
-
-
-  !*****************************************************************
-  subroutine  area_burnt ( currentSite ) 
-    !*****************************************************************
-
-    type(ed_site_type), intent(inout), target :: currentSite
-    type(ed_patch_type), pointer :: currentPatch
-
     real(r8) lb               !length to breadth ratio of fire ellipse (unitless)
     real(r8) df               !distance fire has travelled forward in m
     real(r8) db               !distance fire has travelled backward in m
@@ -738,17 +680,42 @@ contains
     
     real(r8) size_of_fire !in m2
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
-
+    real(r8),parameter :: CG_strikes = .20_r8      !cloud to ground lightning strikes
+                                                   !Latham and Williams (2001)
 
     !  ---initialize site parameters to zero--- 
-    currentSite%frac_burnt = 0.0_r8   
+    currentSite%frac_burnt = 0.0_r8  
+
+    
+    ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
+    ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
+    currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
+    
+    !NF = number of lighting strikes per day per km2
+    currentSite%NF = ED_val_nignitions * years_per_day * CG_strikes
+
+    ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
+    ! then there are 15 * 1/365 strikes/km2 each day 
+ 
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
        !  ---initialize patch parameters to zero---
        currentPatch%frac_burnt = 0.0_r8
 
-       if (currentPatch%fire == 1) then
+       if (currentSite%NF > 0) then
+          
+          ! Equation 14 in Thonicke et al. 2010
+          ! fire duration in minutes
+          currentPatch%FD = (SF_val_max_durat+1.0_r8) / (1.0_r8 + SF_val_max_durat * &
+                            exp(SF_val_durat_slope*currentSite%FDI))
+          if(write_SF == itrue)then
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'fire duration minutes',currentPatch%fd
+          endif
+          !equation 15 in Arora and Boer CTEM model.Average fire is 1 day long.
+          !currentPatch%FD = 60.0_r8 * 24.0_r8 !no minutes in a day
+
+           
        ! The feedback between vegetation structure and ellipse size if turned off for now, 
        ! to reduce the positive feedback in the syste,
        ! This will also be investigated by William Hoffmans proposal. 
@@ -784,23 +751,48 @@ contains
              !AB = m2 per km2 per day
              AB = size_of_fire * currentSite%NF * currentSite%FDI
 
-              !frac_burnt in units of m2 here. 
-             currentPatch%frac_burnt = min(0.99_r8, AB / km2_to_m2)
+             !frac_burnt 
+             currentPatch%frac_burnt = (min(0.99_r8, AB / km2_to_m2)) * currentPatch%area/area 
              
              if(write_SF == itrue)then
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
              endif
 
-          endif
-       endif! fire
-       ! convert frac_burnt to % prior to accumulating at site level
-       currentSite%frac_burnt = currentSite%frac_burnt + currentPatch%frac_burnt * currentPatch%area/area     
+          endif ! lb
+
+         ROS   = currentPatch%ROS_front / 60.0_r8 !m/min to m/sec 
+         W     = currentPatch%TFC_ROS / 0.45_r8 !kgC/m2 to kgbiomass/m2          
+
+         !units of fire intensity = (kJ/kg)*(kgBiomass/m2)*(m/min)*unitless_fraction
+         currentPatch%FI = SF_val_fuel_energy * W * ROS * currentPatch%frac_burnt !kj/m/s, or kW/m
+       
+         if(write_sf == itrue)then
+             if( hlm_masterproc == itrue ) write(fates_log(),*) 'fire_intensity',currentPatch%fi,W,currentPatch%ROS_front
+         endif
+
+         !'decide_fire' subroutine 
+         if (currentPatch%FI >= fire_threshold) then !50kW/m threshold for self-sustaining fire
+            currentPatch%fire = 1 ! Fire...    :D
+          
+         else     
+            currentPatch%fire       = 0 ! No fire... :-/
+            currentPatch%FD         = 0.0_r8
+            currentPatch%frac_burnt = 0.0_r8
+         endif         
+          
+       endif! NF ignitions check
+
+       
+       ! accumulate frac_burnt % at site level
+       currentSite%frac_burnt = currentSite%frac_burnt + currentPatch%frac_burnt    
 
        currentPatch => currentPatch%younger
 
     enddo !end patch loop
 
-  end subroutine area_burnt
+  end subroutine area_burnt_intensity
+
+
 
   !*****************************************************************
   subroutine  crown_scorching ( currentSite ) 
