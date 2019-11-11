@@ -105,6 +105,9 @@ module FatesRestartInterfaceMod
   integer :: ir_cmort_co
   integer :: ir_frmort_co
 
+  integer :: ir_daily_n_uptake_co
+  integer :: ir_daily_p_uptake_co
+
   !Logging
   integer :: ir_lmort_direct_co
   integer :: ir_lmort_collateral_co
@@ -136,6 +139,14 @@ module FatesRestartInterfaceMod
   integer :: ir_area_pa
   integer :: ir_agesinceanthrodist_pa
   integer :: ir_patchdistturbcat_pa
+
+  ! Litter Fluxes (needed to restart
+  ! with nutrient dynamics on, restarting
+  ! mid-day
+  integer :: ir_agcwd_frag_litt
+  integer :: ir_bgcwd_frag_litt
+  integer :: ir_lfines_frag_litt
+  integer :: ir_rfines_frag_litt
 
 
   ! Site level
@@ -708,6 +719,16 @@ contains
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cmort_co )
 
+    call this%set_restart_var(vname='fates_daily_n_uptake', vtype=cohort_r8, &
+         long_name='fates cohort- daily nitrogen uptake', &
+         units='kg/plant/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_uptake_co )
+
+    call this%set_restart_var(vname='fates_daily_p_uptake', vtype=cohort_r8, &
+         long_name='fates cohort- daily phosphorus uptake', &
+         units='kg/plant/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_uptake_co )
+
     call this%set_restart_var(vname='fates_frmort', vtype=cohort_r8, &
          long_name='ed cohort - freezing mortality rate', &
          units='/year', flushval = flushzero, &
@@ -832,6 +853,26 @@ contains
            long_name_base='seed bank (germinated)',  &
            units='kg/m2', veclength=num_elements, flushval = flushzero, &
            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_ag_cwd_frag', vtype=cohort_r8, &
+            long_name_base='above ground CWD frag flux',  &
+            units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_agcwd_frag_litt) 
+
+    call this%RegisterCohortVector(symbol_base='fates_bg_cwd_frag', vtype=cohort_r8, &
+            long_name_base='below ground CWD frag flux',  &
+            units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bgcwd_frag_litt) 
+    
+    call this%RegisterCohortVector(symbol_base='fates_lfines_frag', vtype=cohort_r8, &
+            long_name_base='frag flux from leaf fines',  &
+            units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_lfines_frag_litt)
+    
+    call this%RegisterCohortVector(symbol_base='fates_rfines_frag', vtype=cohort_r8, &
+            long_name_base='frag flux from froot fines',  &
+            units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_rfines_frag_litt)
 
 
     ! Site level flux diagnostics for each element
@@ -1473,6 +1514,8 @@ contains
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
+           rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, & 
+           rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &           
            rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
            rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
            rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
@@ -1678,6 +1721,10 @@ contains
                 rio_cmort_co(io_idx_co)        = ccohort%cmort
                 rio_frmort_co(io_idx_co)       = ccohort%frmort                
 
+                ! Nutrient uptake
+                rio_daily_n_uptake_co(io_idx_co) = ccohort%daily_n_uptake
+                rio_daily_p_uptake_co(io_idx_co) = ccohort%daily_p_uptake
+
                 !Logging
                 rio_lmort_direct_co(io_idx_co)       = ccohort%lmort_direct
                 rio_lmort_collateral_co(io_idx_co)   = ccohort%lmort_collateral
@@ -1754,18 +1801,22 @@ contains
 
                  do i = 1,ndcmpy
                      this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc) = litt%leaf_fines(i)
+                     this%rvars(ir_lfines_frag_litt+el)%r81d(io_idx_pa_dc) = litt%leaf_fines_frag(i)
                      io_idx_pa_dc = io_idx_pa_dc + 1
                      do ilyr=1,sites(s)%nlevsoil
                          this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_dcsl) = litt%root_fines(i,ilyr)
+                         this%rvars(ir_rfines_frag_litt+el)%r81d(io_idx_pa_dcsl) = litt%root_fines_frag(i,ilyr)
                          io_idx_pa_dcsl = io_idx_pa_dcsl + 1
                      end do
                  end do
                  
                  do i = 1,ncwd
                      this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd(i)
+                     this%rvars(ir_agcwd_frag_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd_frag(i)
                      io_idx_pa_cwd = io_idx_pa_cwd + 1
                      do ilyr=1,sites(s)%nlevsoil
                          this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwsl) = litt%bg_cwd(i,ilyr)
+                         this%rvars(ir_bgcwd_frag_litt+el)%r81d(io_idx_pa_cwsl) = litt%bg_cwd_frag(i,ilyr)
                          io_idx_pa_cwsl = io_idx_pa_cwsl + 1
                      end do
                  end do
@@ -2198,6 +2249,8 @@ contains
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
+          rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, & 
+          rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &       
           rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
           rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
           rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
@@ -2363,6 +2416,10 @@ contains
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
+                
+                ! Nutrient uptake
+                ccohort%daily_n_uptake = rio_daily_n_uptake_co(io_idx_co)
+                ccohort%daily_p_uptake = rio_daily_p_uptake_co(io_idx_co)
 
                 !Logging
                 ccohort%lmort_direct       = rio_lmort_direct_co(io_idx_co)
@@ -2461,9 +2518,11 @@ contains
 
                   do i = 1,ndcmpy
                      litt%leaf_fines(i) = this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc)
+                     litt%leaf_fines_frag(i) = this%rvars(ir_lfines_frag_litt+el)%r81d(io_idx_pa_dc)
                      io_idx_pa_dc       = io_idx_pa_dc + 1
                      do ilyr=1,nlevsoil
-                         litt%root_fines(i,ilyr) = this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_dcsl)
+                         litt%root_fines(i,ilyr)      = this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_dcsl)
+                         litt%root_fines_frag(i,ilyr) = this%rvars(ir_rfines_frag_litt+el)%r81d(io_idx_pa_dcsl)
                          io_idx_pa_dcsl = io_idx_pa_dcsl + 1
                      end do
                  end do
@@ -2471,10 +2530,12 @@ contains
                  do i = 1,ncwd
 
                      litt%ag_cwd(i) = this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd)
+                     litt%ag_cwd_frag(i) = this%rvars(ir_agcwd_frag_litt+el)%r81d(io_idx_pa_cwd)
                      io_idx_pa_cwd = io_idx_pa_cwd + 1
                      
                      do ilyr=1,nlevsoil
                          litt%bg_cwd(i,ilyr) = this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwsl)
+                         litt%bg_cwd_frag(i,ilyr) = this%rvars(ir_bgcwd_frag_litt+el)%r81d(io_idx_pa_cwsl)
                          io_idx_pa_cwsl = io_idx_pa_cwsl + 1
                      end do
                  end do

@@ -271,6 +271,8 @@ contains
 
     call InitPRTBoundaryConditions(new_cohort)
 
+   
+
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics
     ! until they have experienced a full day.  We need a newly recruited flag.
@@ -599,6 +601,14 @@ contains
     currentcohort%cambial_mort       = 0._r8
     currentCohort%c13disc_clm        = 0._r8 
     currentCohort%c13disc_acc        = 0._r8
+
+    ! Daily nutrient fluxes are INTEGRATED over the course of the
+    ! day.  This variable MUST be zerod upon creation AND
+    ! after allocation. These variables exist in
+    ! carbon-only mode but are not used.
+
+    currentCohort%daily_n_uptake = 0._r8
+    currentCohort%daily_p_uptake = 0._r8
     
   end subroutine zero_cohort
 
@@ -1244,6 +1254,11 @@ contains
                                    currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
                                    currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
                                    currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
+
+                                   currentCohort%daily_n_uptake = (currentCohort%n*currentCohort%daily_n_uptake + & 
+                                                                   nextc%n*nextc%daily_n_uptake)/newn
+                                   currentCohort%daily_p_uptake = (currentCohort%n*currentCohort%daily_p_uptake + & 
+                                                                   nextc%n*nextc%daily_p_uptake)/newn
 
                                    ! logging mortality, Yi Xu
                                    currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &

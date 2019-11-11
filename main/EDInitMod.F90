@@ -558,7 +558,7 @@ contains
 
           select case(hlm_parteh_mode)
           case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
-             
+
              ! Put all of the leaf mass into the first bin
              call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
              do iage = 2,nleafage

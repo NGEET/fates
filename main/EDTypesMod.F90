@@ -278,6 +278,11 @@ module EDTypesMod
      real(r8) ::  c13disc_clm         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/timestep
      real(r8) ::  c13disc_acc         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/day, at the end of a day
 
+     ! Nutrient Fluxes (if N, P, etc. are turned on)
+
+     real(r8) :: daily_n_uptake   ! integrated daily uptake of mineralized N through competitive acquisition in soil [kg N / plant/ day]
+     real(r8) :: daily_p_uptake   ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
+
 
      ! The following four biophysical rates are assumed to be
      ! at the canopy top, at reference temp 25C, and based on the 
@@ -708,6 +713,13 @@ module EDTypesMod
                                               ! layers for each site, and save allocating deallocating.
                                               ! NOTE: THIS SCRATCH SPACE WOULD NOT BE THREAD-SAFE
                                               ! IF WE FORK ON PATCHES
+
+
+     ! Mineralized nutrient flux from veg to the soil, via multiple mechanisms
+     ! inluding symbiotic fixation, or other 
+
+     !real(r8) :: allocatable :: minn_flux_out  ! kg/ha/day
+     !real(r8) :: allocatable :: minp_flux_out  ! kg/ha/day
 
      
      ! DIAGNOSTICS

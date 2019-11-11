@@ -370,12 +370,17 @@ module FatesInterfaceMod
       ! Downwelling diffuse (I-ndirect) radiation (patch,radiation-band) [W/m2]
       real(r8), allocatable :: solai_parb(:,:)
 
-      ! Nutrient input fluxes
-
-      real(r8), pointer :: plant_n_uptake_flux(:)   ! Nitrogen input flux for
-                                                        ! each competitor [gN/m2/s]
-      real(r8), pointer :: plant_p_uptake_flux(:)   ! Phosphorus input flux for
-                                                        ! each competitor [gP/m2/s]
+      ! Nutrient input fluxes (these are integrated fluxes over the day, most
+      !                        likely calculated over shorter dynamics steps,
+      !                        and then incremented until the end of the day)
+      !
+      ! Note 1: If these are indexed by COHORT, they don't also need to be indexed
+      !         by decomposition layer. So it is allocated with 2nd dim=1.
+      ! Note 2: Has it's own zero'ing call
+      real(r8), pointer :: plant_n_uptake_flux(:,:)   ! Nitrogen input flux for
+                                                      ! each competitor [gN/m2/day]
+      real(r8), pointer :: plant_p_uptake_flux(:,:)   ! Phosphorus input flux for
+                                                      ! each competitor [gP/m2/day]
        
 
       ! Photosynthesis variables
@@ -575,6 +580,13 @@ module FatesInterfaceMod
       ! (These are all pointer allocations, this is because the host models
       !  will point to these arrays)
       ! ---------------------------------------------------------------------------------
+
+      real(r8), allocatable :: source_nh4(:)  ! FATES generated source of ammonium to the mineralized N pool
+                                              ! in the BGC model [gN/m3]
+      real(r8), allocatable :: source_p(:)    ! FATES generated source of phosphorus to mineralized P
+                                              ! pool in the BGC model [gP/m3]
+
+      real(r8) :: source_p
 
       integer               :: n_comps               ! Number of unique competitors
       real(r8), pointer :: veg_rootc(:,:)        ! Total fine-root carbon of each competitor
@@ -799,9 +811,20 @@ contains
       end if
 
       ! Plant Nutrient Aquisition variables
+      ! If we are up-scaling to PFT, then we need to pass bach PFTxlayer
+      ! if we don't, then there is ambiguity in the uptake. If we
+      ! do not upscale to PFT, then we can simply send back the
+      ! uptake for each cohort, and don't need to allocate by layer
+      ! Allocating differently could save a lot of memory and time
+
       if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-         allocate(bc_in%plant_n_uptake_flux(max_comp_per_site))
-         allocate(bc_in%plant_p_uptake_flux(max_comp_per_site))
+         if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+            allocate(bc_in%plant_n_uptake_flux(max_comp_per_site,1))
+            allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
+         else
+            allocate(bc_in%plant_n_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
+            allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
+         end if
       end if
 
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
@@ -926,44 +949,28 @@ contains
          ! HAVE ALL OF THEIR ARRAYS ALLOCATED. TO DISABLE
          ! ALLOCATE A SINGLE VALUE WITH NO DEMAND
 
-        
+         allocate(bc_out%source_nh4(nlevdecomp_in))
+         allocate(bc_out%source_p(nlevdecomp_in))
 
 
          if(trim(hlm_nu_comp).eq.'RD') then
             allocate(bc_out%n_demand(max_comp_per_site))
             allocate(bc_out%p_demand(max_comp_per_site))
-
          end if
          if(trim(hlm_nu_comp).eq.'ECA') then
 
             allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
             allocate(bc_out%decompmicc(nlevdecomp_in))
             allocate(bc_out%ft_index(max_comp_per_site))
-         
-            if(hlm_nitrogen_spec>0) then
-               allocate(bc_out%cn_scalar(max_comp_per_site,nlevdecomp_in))
-               if(trim(hlm_nu_comp).eq.'ECA') then
-                  allocate(km_pl_nh4(numpft))
-                  allocate(vmax_pl_nh4(numpft))
-                  if(hlm_nitrogen_spec==2) then
-                     allocate(km_pl_no3(numpft))
-                     allocate(vmax_pl_no3(numpft))          
-                  end if
-               elseif(trim(hlm_nu_comp).eq.'RD') then
-                  allocate(n_demand(max_comp_per_site))
-               end if
-            end if
+            allocate(bc_out%cn_scalar(max_comp_per_site,nlevdecomp_in))
+            allocate(km_pl_nh4(numpft))
+            allocate(vmax_pl_nh4(numpft))
+            allocate(km_pl_no3(numpft))
+            allocate(vmax_pl_no3(numpft))          
+            allocate(bc_out%cp_scalar(max_comp_per_site,nlevdecomp_in))
+            allocate(km_pl_p(numpft))
+            allocate(vmax_pl_p(numpft))
             
-            if(hlm_phosphorus_spec>0) then
-               allocate(bc_out%cp_scalar(max_comp_per_site,nlevdecomp_in))
-               if(trim(hlm_nu_comp).eq.'ECA') then
-                  allocate(km_pl_p(numpft))
-                  allocate(vmax_pl_p(numpft))
-               elseif(trim(hlm_nu_comp).eq.'RD') then
-                  allocate(p_demand(max_comp_per_site))
-               end if
-         end if
-
       case default
          write(fates_log(), *) 'An unknown parteh hypothesis was passed'
          write(fates_log(), *) 'to the site level output boundary conditions'
@@ -1061,6 +1068,8 @@ contains
          this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
          this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
       case(prt_cnp_flex_allom_hyp) 
+         this%bc_out(s)%source_p(:)           = 0._r8
+         this%bc_out(s)%source_nh4(:)         = 0._r8
          this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
          this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
          this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
@@ -1738,10 +1747,6 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-
-
-         if(hlm_nitrogen_model .eq. unset_int) then
-            
 
 
          if(hlm_max_patch_per_site .eq. unset_int ) then

@@ -20,6 +20,7 @@ module EDPftvarcon
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
 
+
    ! CIME Globals
   use shr_log_mod ,   only : errMsg => shr_log_errMsg
   
@@ -209,17 +210,19 @@ module EDPftvarcon
      !                     13, pp.341-363, 2016.
      ! KM: Michaeles-Menten half-saturation constants for ECA (plant–enzyme affinity)
      ! VMAX: Product of the reaction-rate and enzyme abundance for each PFT in ECA
+     ! Note*: units of [gC] is grams carbon of fine-root
 
-     real(r8), allocatable :: eca_km_nh4(:)   ! half-saturation constant for plant nh4 uptake  g/m2
-     real(r8), allocatable :: eca_vmax_nh4(:) ! maximum production rate for plant nh4 uptake
-     real(r8), allocatable :: eca_km_no3(:)   ! half-saturation constant for plant no3 uptake  g/m2
-     real(r8), allocatable :: eca_vmax_no3(:) ! maximum production rate for plant no3 uptake
-     real(r8), allocatable :: eca_km_p(:)     ! half-saturation constant for plant p uptake  g/m2
-     real(r8), allocatable :: eca_vmax_p(:)   ! maximum production rate for plant p uptake
-     real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production g/m2
-     real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod
-     real(r8), allocatable :: eca_km_nfix(:)     ! half-saturation constant for plant p uptake  g/m2
-     real(r8), allocatable :: eca_vmax_nfix(:)   ! maximum production rate for plant p uptake
+     real(r8), allocatable :: eca_km_nh4(:)   ! half-saturation constant for plant nh4 uptake  [gN/m3]
+     real(r8), allocatable :: eca_vmax_nh4(:) ! maximum production rate for plant nh4 uptake   [gN/gC/s] 
+     real(r8), allocatable :: eca_km_no3(:)   ! half-saturation constant for plant no3 uptake  [gN/m3]
+     real(r8), allocatable :: eca_vmax_no3(:) ! maximum production rate for plant no3 uptake   [gN/gC/s]
+     real(r8), allocatable :: eca_km_p(:)     ! half-saturation constant for plant p uptake    [gP/m3]
+     real(r8), allocatable :: eca_vmax_p(:)   ! maximum production rate for plant p uptake     [gP/gC/s]
+     real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production [gP/m3]
+     real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod        [gP/gC/s]
+
+     !real(r8), allocatable :: eca_km_nfix(:)     ! half-saturation constant for plant p uptake [gP/m3]
+     !real(r8), allocatable :: eca_vmax_nfix(:)   ! maximum production rate for plant p uptake  [gP/gC/s]
 
      ! Turnover related things
 
@@ -1969,13 +1972,26 @@ contains
 
         ! Check to see if either RD/ECA/MIC is turned on
 
-        if (.not.( (trim(hlm_nu_comp).eq.'RD') .or. (trim(hlm_nu_comp).eq.'ECA') .or. (trim(hlm_nu_comp).eq.'MIC'))) then
+        if (.not.( (trim(hlm_nu_comp).eq.'RD') .or. (trim(hlm_nu_comp).eq.'ECA'))) then
            write(fates_log(),*) 'FATES PARTEH with allometric flexible CNP must have'
            write(fates_log(),*) 'a valid BGC model enabled: RD,ECA,MIC or SYN'
            write(fates_log(),*) 'nu_comp: ',trim(hlm_nu_comp)
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
+
+!        ! Check to make sure we have ST3 or prescribed phys off
+!        if(hlm_use_ed_st3.eq.itrue) then
+!           write(fates_log(),*) 'Fates with CNP cycling is not compatible with ST3 mode, yet'
+!           write(fates_log(),*) 'Aborting'
+!           call endrun(msg=errMsg(sourcefile, __LINE__))
+!        end if
+!
+!        if(hlm_use_ed_prescribed_phys.eq.itrue) then
+!           write(fates_log(),*) 'Fates with CNP cycling is not compatible with prescribed phys mode, yet'
+!           write(fates_log(),*) 'Aborting'
+!           call endrun(msg=errMsg(sourcefile, __LINE__))
+!        end if
 
         ! If nitrogen is turned on, check to make sure there are valid ammonium
         ! parameters

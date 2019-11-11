@@ -145,6 +145,13 @@ contains
     ! This is limited to a global event until more structured event handling is enabled
     call IsItLoggingTime(hlm_masterproc,currentSite)
 
+    ! -----------------------------------------------------------------------------------
+    ! Parse nutrient flux rates 
+    ! The input boundary conditions from the HLM should now have a daily integrated
+    ! flux.  But, that flux still needs to be parsed out to the existing cohorts.
+    ! -----------------------------------------------------------------------------------
+
+
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
     !**************************************************************************
@@ -190,6 +197,9 @@ contains
        call bypass_dynamics(currentSite)
        
     end if
+
+   
+
 
     !******************************************************************************
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organization 
@@ -396,9 +406,26 @@ contains
           hite_old = currentCohort%hite
           dbh_old  = currentCohort%dbh
 
-
+          ! -----------------------------------------------------------------------------
           ! Growth and Allocation (PARTEH)
+          ! -----------------------------------------------------------------------------
+          
           call currentCohort%prt%DailyPRT()
+
+          ! Update the mass balance tracking for the daily nutrient uptake flux
+          ! Then zero out the daily uptakes, they have been used
+
+          if(fates_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
+
+             currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = & 
+                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + ccohort%daily_n_uptake*ccohort%n
+             
+             currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = & 
+                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + ccohort%daily_p_uptake*ccohort%n
+             
+             ccohort%daily_n_uptake = 0._r8
+             ccohort%daily_p_uptake = 0._r8
+          end if
     
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &
@@ -498,7 +525,7 @@ contains
   end subroutine ed_integrate_state_variables
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_update_site( currentSite, bc_in )
+  subroutine ed_update_site( currentSite, bc_in, bc_out )
     !
     ! !DESCRIPTION:
     ! Calls routines to consolidate the ED growth process.
@@ -512,7 +539,8 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: currentSite
-    type(bc_in_type)        , intent(in)             :: bc_in
+    type(bc_in_type)        , intent(in)       :: bc_in
+    type(bc_out_type)  , intent(inout)         :: bc_out
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch   
@@ -540,6 +568,20 @@ contains
 
         currentPatch => currentPatch%younger    
     enddo
+
+    ! Aggregate FATES litter output fluxes and
+    ! package them into boundary conditions
+    ! Note: The FATES state variables that generate these
+    ! boundary conditions are read in on the restart,
+    ! and, they are zero'd only at the start of ecosystem
+    ! dynamics
+
+    call FluxIntoLitterPools(currentSite,bc_in, bc_out)
+
+
+    ! Based on current status of the
+    call PrepNutrientAquisitionBCs(currentSite,bc_in,bc_out)
+
 
     ! FIX(RF,032414). This needs to be monthly, not annual
     ! If this is the second to last day of the year, then perform trimming
@@ -759,6 +801,10 @@ contains
           currentCohort%dndt      = 0.0_r8
           currentCohort%dhdt      = 0.0_r8
           currentCohort%ddbhdt    = 0.0_r8
+
+          ! Shouldn't need to zero any nutrient fluxes
+          ! as they should just be zero, no uptake
+          ! in ST3 mode.
 
           currentCohort => currentCohort%taller
        enddo
