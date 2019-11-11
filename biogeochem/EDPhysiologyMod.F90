@@ -2303,29 +2303,7 @@ contains
        bc_out%cn_scalar(:)   = 0._r8
        bc_out%cp_scalar(:)   = 0._r8
 
-       ! Set the KM parameter and vmax for ammonium
-       bc_out%km_plant_nh4(1:numpft)   = EDPftvarcon%eca_km_nh4(1:numpft)
-       bc_out%vmax_plant_nh4(1:numpft) = EDPftvarcon%eca_vmax_nh4(1:numpft)
-
-       ! If the soil BGC has nitrification/denitrification turned on
-       ! we must send the nitrate parameters as well
-       if(hlm_nitrogen_spec==2) then
-          bc_out%km_plant_no3(1:numpft)   = EDPftvarcon%eca_km_no3(1:numpft)
-          bc_out%vmax_plant_no3(1:numpft) = EDPftvarcon%eca_vmax_no3(1:numpft)
-       end if
-
-       ! Set the KM parameter and vmax for ammonium
-       bc_out%km_plant_p(1:numpft)   = EDPftvarcon%eca_km_p(1:numpft)
-       bc_out%vmax_plant_p(1:numpft) = EDPftvarcon%eca_vmax_p(1:numpft)
-
-       ! since soil to decomp layer is
-       ! not necessarily synonomous
-
-       ! Right now the microbial decomposer biomass is just a constant
-       ! parameter for each PFT, but maybe not in the future
-       do pft = 1, numpft
-          bc_out%decompmicc(pft,:) = EDPftvarcon%decompmicc(pft)
-       end do
+       bc_out%decompmicc(:) = 0._r8
 
        ! Loop over all patches and sum up the seed input for each PFT
        icomp = 0
@@ -2356,9 +2334,11 @@ contains
              ! veg_rootc in units:  [g/m3] = [kgC/plant] * [plant/ha] * [ha/ 10k m2] * [1000 g / kg] * [1/m]
 
              do j = 1, nlev_eff_soil
-                id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer                
-                bc_out%veg_rootc(icomp,id) = bc_out%veg_rootc(icomp,id) + & 
-                     fnrt_c * ccohort%n * csite%rootfrac_scr(j) * AREA_INV * g_per_kg / csite%dz_soil(j)
+                id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer     
+                veg_rootc = fnrt_c * ccohort%n * csite%rootfrac_scr(j) * AREA_INV * g_per_kg / csite%dz_soil(j)
+                bc_out%veg_rootc(icomp,id) = bc_out%veg_rootc(icomp,id) + veg_rootc
+                bc_out%decompmicc(id) = bc_out%decompmicc(id) + &
+                      EDPftvarcon%decompmicc(pft) * veg_rootc
              end do
 
              bc_out%ft_index(icomp) = pft
@@ -2440,7 +2420,13 @@ contains
        else
           bc_out%n_plant_comps = numpft
        end if
-
+       
+       ! We calculate the decomposer microbial biomass by weighting with the
+       ! root biomass. This is just the normalization step
+       do id = 1,nlevdecomp
+           bc_out%decompmicc(id) = bc_out%decompmicc(id) / &
+                 max(nearzero,sum(bc_out%veg_rootc(:,id),dim=1))
+       end do
 
        ! Normalize the sum to a mean, if this is a PFT scale
        ! boundary flux

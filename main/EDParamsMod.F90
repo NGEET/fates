@@ -40,7 +40,8 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_phen_coldtemp
    real(r8),protected, public :: ED_val_cohort_fusion_tol
    real(r8),protected, public :: ED_val_patch_fusion_tol
-   real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
+   real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where 
+                                                              ! trees take on forest (narrow) versus savannah (wide) crown allometry
 
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
@@ -132,6 +133,11 @@ module EDParamsMod
                                                     ! leftovers will be left onsite as large CWD
    character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_logging_export_frac"   
 
+   real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to 
+                                               ! calculate nutrient carrier enzyme abundance (ECA)
+
+   character(len=param_string_length),parameter,public :: eca_name_plant_escalar
+
    public :: FatesParamsInit
    public :: FatesRegisterParams
    public :: FatesReceiveParams
@@ -186,6 +192,7 @@ contains
     logging_event_code                    = nan
     logging_dbhmax_infra                  = nan
     logging_export_frac                   = nan
+    eca_plant_escalar                     = nan
     q10_mr                                = nan
     q10_froz                              = nan
 
@@ -450,6 +457,9 @@ contains
     call fates_params%RetreiveParameter(name=logging_name_export_frac, &
           data=logging_export_frac)
 
+    call fates_params%RetreiveParameter(name=eca_name_plant_escalar, &
+          data=eca_plant_escalar)
+
     call fates_params%RetreiveParameter(name=fates_name_q10_mr, &
           data=q10_mr)
     
@@ -515,6 +525,7 @@ contains
         write(fates_log(),fmt0) 'logging_mechanical_frac = ',logging_mechanical_frac
         write(fates_log(),fmt0) 'logging_event_code = ',logging_event_code
         write(fates_log(),fmt0) 'logging_dbhmax_infra = ',logging_dbhmax_infra
+        write(fates_log(),fmt0) 'eca_plant_escalar = ',eca_plant_escalar
         write(fates_log(),fmt0) 'q10_mr = ',q10_mr
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
         write(fates_log(),*) '------------------------------------------------------'

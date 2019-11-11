@@ -26,6 +26,8 @@ module FatesInterfaceMod
    use EDTypesMod          , only : element_pos
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesConstantsMod   , only : itrue,ifalse
+   use FatesConstantsMod   , only : fates_ncomp_scaling
+   use FatesConstantsMod   , only : cohort_ncomp_scaling
    use FatesGlobals        , only : fates_global_verbose
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
@@ -37,6 +39,7 @@ module FatesInterfaceMod
    use SFParamsMod         , only : SpitFireCheckParams
    use EDParamsMod         , only : FatesReportParams
    use EDParamsMod         , only : bgc_soil_salinity
+   use EDParamsMod         , only : eca_plant_escalar
    use PRTGenericMod         , only : prt_carbon_allom_hyp
    use PRTGenericMod         , only : prt_cnp_flex_allom_hyp
    use PRTGenericMod         , only : carbon12_element
@@ -501,6 +504,37 @@ module FatesInterfaceMod
    end type bc_in_type
 
 
+   ! This new type hold parameter constants
+   ! These parameter constants only need to specified once, and never modified again.
+   ! After re-factoring this module to split the procedures from the data-types
+   ! we can then set the datatypes as protected.
+
+   type, public :: bc_pconst_type
+
+       ! Nutrient competition boundary conditions for ECA hypothesis
+       ! Note, these "could" be stored globaly for each machine, saving them on
+       ! each column is inefficient. Each of these are dimensioned by PFT.
+       
+       integer           :: max_plant_comps
+       real(r8), pointer :: eca_km_nh4(:)
+       real(r8), pointer :: eca_vmax_nh4(:)
+       real(r8), pointer :: eca_km_no3(:)
+       real(r8), pointer :: eca_vmax_no3(:)
+       real(r8), pointer :: eca_km_p(:)     
+       real(r8), pointer :: eca_vmax_p(:)
+       real(r8), pointer :: eca_km_ptase(:)     
+       real(r8), pointer :: eca_vmax_ptase(:)
+       real(r8), pointer :: eca_alpha_ptase(:)
+       real(r8), pointer :: eca_lambda_ptase(:)
+       real(r8) :: plant_escalar
+       integer, pointer  :: j_uptake(:)         ! Mapping between decomposition
+                                                ! layers and the uptake layers
+                                                ! in FATES (is either incrementally
+                                                ! increasing, or all 1s)
+
+   end type bc_pconst_type
+   
+
    type, public :: bc_out_type
 
       ! Sunlit fraction of the canopy for this patch [0-1]
@@ -586,8 +620,6 @@ module FatesInterfaceMod
       real(r8), allocatable :: source_p(:)    ! FATES generated source of phosphorus to mineralized P
                                               ! pool in the BGC model [gP/m3]
 
-      real(r8) :: source_p
-
       integer               :: n_comps               ! Number of unique competitors
       real(r8), pointer :: veg_rootc(:,:)        ! Total fine-root carbon of each competitor
                                                      ! [gC/m3 of site area]  
@@ -603,16 +635,7 @@ module FatesInterfaceMod
                                                      ! kinetics (exact meaning differs between
                                                      ! soil BGC hypotheses)
 
-      ! Nutrient competition boundary conditions for ECA hypothesis
-      ! Note, these "could" be stored globaly for each machine, saving them on
-      ! each column is inefficient. Each of these are dimensioned by PFT.
 
-      real(r8), pointer :: km_pl_nh4(:)
-      real(r8), pointer :: vmax_pl_nh4(:)
-      real(r8), pointer :: km_pl_no3(:)
-      real(r8), pointer :: vmax_pl_no3(:)
-      real(r8), pointer :: km_pl_p(:)     
-      real(r8), pointer :: vmax_pl_p(:)
 
 
       ! CTC/RD Nutrient Boundary Conditions
@@ -690,6 +713,15 @@ module FatesInterfaceMod
       
       type(bc_out_type), allocatable  :: bc_out(:)
 
+      
+      ! These are parameter constants that FATES may need to provide a host model
+      ! We have other methods of reading in input parameters. Since these
+      ! are parameter constants, we don't need them allocated over every site,one
+      ! instance is fine.
+
+      type(bc_pconst_type) :: bc_pconst
+
+
    contains
       
       procedure, public :: zero_bcs
@@ -707,6 +739,8 @@ module FatesInterfaceMod
    public :: InitPARTEHGlobals
    public :: allocate_bcin
    public :: allocate_bcout
+   public :: allocate_bcpconst
+   public :: set_bcpconst
 
 contains
 
@@ -744,6 +778,58 @@ contains
       return
    end subroutine fates_clean
 
+
+   ! ====================================================================================
+   
+   subroutine allocate_bcpconst(bc_pconst,nlevdecomp)
+
+       type(bc_pconst_type), intent(inout) :: bc_pconst
+       integer             , intent(in)    :: nlevdecomp 
+
+       allocate(bc_pconst%km_pl_nh4(numpft))
+       allocate(bc_pconst%vmax_pl_nh4(numpft))
+       allocate(bc_pconst%km_pl_no3(numpft))
+       allocate(bc_pconst%vmax_pl_no3(numpft))      
+       allocate(bc_pconst%km_pl_p(numpft))
+       allocate(bc_pconst%vmax_pl_p(numpft))
+       allocate(bc_pconst%km_pl_ptase(numpft))
+       allocate(bc_pconst%vmax_pl_ptase(numpft))
+       allocate(bc_pconst%alpha_pl_ptase(numpft))
+       allocate(bc_pconst%lambda_pl_ptase(numpft))
+       allocate(bc_pconst%j_uptake(nlevdecomp))
+
+       return
+   end subroutine allocate_bcpconst
+
+   ! ====================================================================================
+
+   subroutine set_bcpconst(bc_pconst,nlevdecomp)
+
+       type(bc_pconst_type), intent(inout) :: bc_pconst
+       integer             , intent(in)    :: nlevdecomp 
+       integer                             :: j
+
+       bc_pconst%km_pl_nh4(1:numpft)       = EDPftvarcon_inst%eca_km_nh4(1:numpft)
+       bc_pconst%vmax_pl_nh4(1:numpft)     = EDPftvarcon_inst%eca_vmax_nh4(1:numpft)
+       bc_pconst%km_pl_no3(1:numpft)       = EDPftvarcon_inst%eca_km_no3(1:numpft)
+       bc_pconst%vmax_pl_no3(1:numpft)     = EDPftvarcon_inst%eca_vmax_no3(1:numpft)
+       bc_pconst%km_pl_p(1:numpft)         = EDPftvarcon_inst%eca_km_p(1:numpft)
+       bc_pconst%vmax_pl_p(1:numpft)       = EDPftvarcon_inst%eca_vmax_p(1:numpft)
+       bc_pconst%km_pl_ptase(1:numpft)     = EDPftvarcon_inst%eca_km_ptase(1:numpft)
+       bc_pconst%vmax_pl_ptase(1:numpft)   = EDPftvarcon_inst%eca_vmax_ptase(1:numpft)
+       bc_pconst%alpha_pl_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
+       bc_pconst%lambda_pl_ptase(1:numpft) = EDPftvarcon_inst%eca_lambda_ptase(1:numpft)
+       bc_pconst%plant_escalar             = eca_plant_escalar
+       if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+           bc_pconst%j_uptake(1:nlevdecomp)    = 1
+       else
+           do j=1,nlevdecomp
+               bc_pconst%j_uptake(j) = j
+           end do
+       end if
+
+       return
+   end subroutine set_bcpconst
 
    ! ====================================================================================
    
@@ -962,15 +1048,11 @@ contains
             allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
             allocate(bc_out%decompmicc(nlevdecomp_in))
             allocate(bc_out%ft_index(max_comp_per_site))
-            allocate(bc_out%cn_scalar(max_comp_per_site,nlevdecomp_in))
-            allocate(km_pl_nh4(numpft))
-            allocate(vmax_pl_nh4(numpft))
-            allocate(km_pl_no3(numpft))
-            allocate(vmax_pl_no3(numpft))          
-            allocate(bc_out%cp_scalar(max_comp_per_site,nlevdecomp_in))
-            allocate(km_pl_p(numpft))
-            allocate(vmax_pl_p(numpft))
-            
+            allocate(bc_out%cn_scalar(max_comp_per_site))
+            allocate(bc_out%cp_scalar(max_comp_per_site))
+
+         
+
       case default
          write(fates_log(), *) 'An unknown parteh hypothesis was passed'
          write(fates_log(), *) 'to the site level output boundary conditions'

@@ -220,9 +220,14 @@ module EDPftvarcon
      real(r8), allocatable :: eca_vmax_p(:)   ! maximum production rate for plant p uptake     [gP/gC/s]
      real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production [gP/m3]
      real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod        [gP/gC/s]
+     real(r8), allocatable :: eca_alpha_ptase(:)  ! Fraction of min P generated from ptase activity
+                                                  ! that is immediately sent to the plant [/]
+     real(r8), allocatable :: eca_lambda_ptase(:) ! critical value for Ptase that incurs 
+                                                  ! biochemical production, fraction based how much
+                                                  ! more in need a plant is for P versus N [/]
 
-     !real(r8), allocatable :: eca_km_nfix(:)     ! half-saturation constant for plant p uptake [gP/m3]
-     !real(r8), allocatable :: eca_vmax_nfix(:)   ! maximum production rate for plant p uptake  [gP/gC/s]
+     !real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1
+     !real(r8), allocatable :: nfix2(:)   ! nitrogen fixation parameter 2
 
      ! Turnover related things
 
@@ -815,6 +820,22 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
+    name = 'fates_eca_km_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_eca_alpha_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_eca_lambda_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     
   end subroutine Register_PFT
 
@@ -1274,8 +1295,22 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_vmax_p)
 
+    name = 'fates_eca_km_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_ptase)
 
-    
+    name = 'fates_eca_vmax_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_ptase)
+
+    name = 'fates_eca_alpha_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_alpha_ptase)
+
+    name = 'fates_eca_lambda_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_lambda_ptase)
+
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------
