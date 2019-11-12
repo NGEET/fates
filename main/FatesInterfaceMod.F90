@@ -1150,6 +1150,9 @@ contains
          this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
          this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
       case(prt_cnp_flex_allom_hyp) 
+
+         this%bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
+         this%bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
          this%bc_out(s)%source_p(:)           = 0._r8
          this%bc_out(s)%source_nh4(:)         = 0._r8
          this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
