@@ -2058,7 +2058,7 @@ contains
 
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout) :: sites(:)
-    type(bc_out_type), intent(in)     :: bc_in(:)
+    type(bc_in_type), intent(in)     :: bc_in(:)
 
     ! Locals
     integer                       :: nsites        ! number of sites
