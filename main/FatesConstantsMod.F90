@@ -85,6 +85,9 @@ module FatesConstantsMod
   ! Conversion factor: grams per kilograms
   real(fates_r8), parameter, public :: g_per_kg = 1000.0_fates_r8
   
+  ! Conversion factor: kilograms per gram
+  real(fates_r8), parameter, public :: kg_per_g = 1.0E-3_fates_r8
+
   ! Conversion factor: miligrams per grams
   real(fates_r8), parameter, public :: mg_per_g = 1000.0_fates_r8
 

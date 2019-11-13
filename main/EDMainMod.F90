@@ -17,9 +17,15 @@ module EDMainMod
   use FatesInterfaceMod        , only : hlm_reference_date
   use FatesInterfaceMod        , only : hlm_use_ed_prescribed_phys
   use FatesInterfaceMod        , only : hlm_use_ed_st3 
+  use FatesInterfaceMod        , only : hlm_parteh_mode
   use FatesInterfaceMod        , only : bc_in_type
+  use FatesInterfaceMod        , only : bc_out_type
   use FatesInterfaceMod        , only : hlm_masterproc
   use FatesInterfaceMod        , only : numpft
+  use PRTGenericMod            , only : prt_carbon_allom_hyp
+  use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod            , only : nitrogen_element
+  use PRTGenericMod            , only : phosphorus_element
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
@@ -415,16 +421,16 @@ contains
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
 
-          if(fates_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
+          if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
 
              currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = & 
-                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + ccohort%daily_n_uptake*ccohort%n
+                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + currentCohort%daily_n_uptake*currentCohort%n
              
              currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = & 
-                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + ccohort%daily_p_uptake*ccohort%n
+                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + currentCohort%daily_p_uptake*currentCohort%n
              
-             ccohort%daily_n_uptake = 0._r8
-             ccohort%daily_p_uptake = 0._r8
+             currentCohort%daily_n_uptake = 0._r8
+             currentCohort%daily_p_uptake = 0._r8
           end if
     
           ! And simultaneously add the input fluxes to mass balance accounting
@@ -539,8 +545,8 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: currentSite
-    type(bc_in_type)        , intent(in)       :: bc_in
-    type(bc_out_type)  , intent(inout)         :: bc_out
+    type(bc_in_type)   , intent(in)       :: bc_in
+    type(bc_out_type)  , intent(inout)    :: bc_out
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch   

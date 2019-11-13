@@ -136,7 +136,7 @@ module EDParamsMod
    real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to 
                                                ! calculate nutrient carrier enzyme abundance (ECA)
 
-   character(len=param_string_length),parameter,public :: eca_name_plant_escalar
+   character(len=param_string_length),parameter,public :: eca_name_plant_escalar = "fates_eca_plant_escalar"
 
    public :: FatesParamsInit
    public :: FatesRegisterParams
