@@ -100,7 +100,7 @@ module FatesPlantHydraulicsMod
    use shr_log_mod , only      : errMsg => shr_log_errMsg
    use shr_infnan_mod   , only : isnan => shr_infnan_isnan
 !   use petscMod, only: fksp, frhs_vec, fsol_vec, fmat
-   use LUsolveMod, only: lubksb, ludcmp
+   !use LUsolveMod, only: lubksb, ludcmp
    use spmdMod                , only : mpicom
 
 
@@ -4210,7 +4210,8 @@ contains
      real(r8) :: e1(num_nodes)
      real(r8) :: e2(num_nodes)
      real(r8) :: sapflow
-     
+     integer :: ipiv(num_nodes)
+     integer :: info
      integer :: itshk
      type(ed_cohort_type),pointer      :: ccohort     ! current cohort
 !     PetscErrorCode :: ierr
@@ -4453,8 +4454,14 @@ contains
           icnv = 3
 !          call petsc_solve(fksp,fmat,frhs_vec,fsol_vec)
 !          call petsc_get_solution(blu,fsol_vec)
-          call ludcmp(ajac,num_nodes,indices,dcomp)
-          call lubksb(ajac,num_nodes,indices,residual)
+          !call ludcmp(ajac,num_nodes,indices,dcomp)
+          !call lubksb(ajac,num_nodes,indices,residual)
+          !CALL DGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+          call dgesv(num_nodes,1,ajac,num_nodes,ipiv,residual,num_nodes,info)
+          if ( info > 0 ) then
+            write(fates_log(),*) 'singular matrix in dgesv'  !There is a row of zeros.
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+          END IF
           blu(:) = residual(:)
 
 ! update pressure
@@ -4486,6 +4493,9 @@ contains
 ! check convergence
           if( rsd > 1.e-8_r8 ) then
                icnv = 2
+          endif
+          if( icnv == 2 .and. niter > 200) then
+              icnv = 1
           endif
           if(niter > 50) then
             rlfx = 0.4_r8
