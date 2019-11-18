@@ -680,7 +680,7 @@ contains
     
     real(r8) size_of_fire !in m2
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
-    real(r8),parameter :: CG_strikes = .20_r8      !cloud to ground lightning strikes
+    real(r8),parameter :: CG_strikes = 0.20_r8     !cloud to ground lightning strikes
                                                    !Latham and Williams (2001)
 
     !  ---initialize site parameters to zero--- 
@@ -703,7 +703,7 @@ contains
        !  ---initialize patch parameters to zero---
        currentPatch%frac_burnt = 0.0_r8
 
-       if (currentSite%NF > 0) then
+       if (currentSite%NF > 0.0_r8) then
           
           ! Equation 14 in Thonicke et al. 2010
           ! fire duration in minutes
