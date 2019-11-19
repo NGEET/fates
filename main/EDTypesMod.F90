@@ -146,7 +146,7 @@ module EDTypesMod
   integer,  parameter, public :: lg_sf                = 6          ! array index of live grass pool for spitfire
 
   !real(r8), parameter, public :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
-  real(r8), parameter, public :: fire_threshold       = 0.0_r8     ! track all fires with energy greater than 0 kW/m2
+  real(r8), parameter, public :: fire_threshold       = 0.01_r8     ! track all fires with energy greater than .01 kW/m2
 
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
