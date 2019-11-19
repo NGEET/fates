@@ -771,7 +771,7 @@ contains
          endif
 
          !'decide_fire' subroutine 
-         if (currentPatch%FI >= fire_threshold) then !50kW/m threshold for self-sustaining fire
+         if (currentPatch%FI > fire_threshold) then !track fires greater than kW/m2 energy threshold
             currentPatch%fire = 1 ! Fire...    :D
           
          else     
