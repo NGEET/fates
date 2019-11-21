@@ -891,6 +891,7 @@ contains
     !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
     
 
+    use SFParamsMod,    only : SF_VAL_CWD_FRAC
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -900,15 +901,95 @@ contains
     real(r8) ::  crown_depth          ! depth of crown (m)
     real(r8) ::  height_cbb           ! clear branch bole height or crown base height (m)
     real(r8) ::  passive_crown_FI     ! critical fire intensity for passive crown fire ignition (kW/m)
-    real(r8) ::  ignite_crown         ! ratio for ignition of passive crown fire,EQ 14 Bessie & Johnson 1995
-
+    real(r8) ::  ignite_passive_crown ! ratio for ignition of passive crown fire,EQ 14 Bessie & Johnson 1995
+    real(r8) ::  tree_sap_struct_biomass ! above-ground tree struct and sap biomass in current cohort. kgC/m2
+    real(r8) ::  leaf_c                  ! leaf carbon (kg)
+    real(r8) ::  twig_sapw_c             ! above-ground twig sap biomass in current cohort. kgC/m2
+    real(r8) ::  twig_struct_c           ! above-ground twig struct biomass in current cohort. kgC/m2
+    real(r8) ::  crown_fuel_biomass      ! biomass of 1 hr fuels (leaves,twigs) in current Patch. kgC/m2
+    real(r8) ::  crown_fuel_density      ! density of crown fuel in current Patch. kgC/m3
+    real(r8) ::  crown_density_per_m     ! density crown fuel per 1m section.
+    real(r8) ::  crown_density           ! density crown fuel to find min height for passive crown fire       
+    
+    real(r8),parameter ::  min_passive_crown_fuel = 0.11_r8 !minimum crown fuel density to ignite passive crown fire 
+    
     currentPatch => currentSite%oldest_patch
 
-    do while(associated(currentPatch)) 
+    do while(associated(currentPatch))
+
+       passive_crown_FI                     = 0.0_r8  
+       ignite_passive_crown                 = 0.0_r8  
+       tree_sap_struct_biomass              = 0.0_r8 
+       leaf_c                               = 0.0_r8 ! zero here or in cohort loop?
+       twig_sapw_c                          = 0.0_r8
+       twig_struct_c                        = 0.0_r8
+       canopy_fuel_biomass                   = 0.0_r8               
+       canopy_fuel_density                   = 0.0_r8
+       canopy_density_per_m                  = 0.0_r8
+       
        if (currentPatch%fire == 1) then
 
-          currentCohort=>currentPatch%tallest
+          canopy_fuel_density = 0.0_r8
+          canopy_fuel_biomass = 0.0_r8
+          min_height_fuel     = 0.0_r8
+          max_height_fuel     = 0.0_r8
 
+          currentCohort=>currentPatch%tallest
+          do while(associated(currentCohort)) 
+
+                    ! Calculate crown 1hr fuel biomass (leaf, twig sapwood, twig structural biomass)         
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
+
+                crown_depth                          = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
+                height_cbb                           = currentCohort%hite - crown_depth
+
+                if (height_cbb < min_height) then
+                   min_height = height_cbb
+                endif ! find min height for canopy fuels
+
+                if (currentCohort%hite > max_height) then
+                   max_height = currentCohort%hite
+                endif ! find max height for canopy fuels 
+
+                leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+
+                tree_sap_struct_biomass =  currentCohort%n * & 
+                        (EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
+
+                twig_sapw_c   = tree_sap_struct_biomass * SF_VAL_CWD_frac(1) ! find sapw_c for twigs
+                twig_struct_c = tree_sap_struct_biomass * SF_VAL_CWD_frac(1) ! find struct_c for twigs
+
+                canopy_fuel_biomass = canopy_fuel_biomass = &
+                        (currentCohort%n * leaf_c) + twig_sapw_c + twig_struct_c ! canopy fuel biomass. Patch                       
+
+               endif !trees only
+
+          currentCohort => currentCohort%shorter;
+
+          enddo !end cohort loop
+
+          canopy_fuel_density = canopy_fuel_biomass / currentPatch%area ! kgC/m3 in canopy for patch
+
+          canopy_depth = max_height_fuel - min_height_fuel              ! depth across patch
+
+          canopy_density_per_m = canopy_fuel_density / canopy_depth  ! density per 1m section of canopy
+
+                        ! find height where canopy fuel density in 1 m section is >= to 0.11 kg/m3
+                        ! loop from min_height to max_height
+                        ! canopy_density = 0.0_r8
+                        ! canopy_denisty = canopy_density + canopy_density_per_m
+                        ! if canopy_density >= min_passive_crown_fuel
+                        ! then height_base_canopy = this height
+                        ! replace height_cbb with height_base_canopy in EQ passive_crown_FI
+                        ! this prevents small trees without much fuel from starting crown fires in patch
+
+
+          
+                     
+          currentCohort=>currentPatch%tallest
+                     
           do while(associated(currentCohort))  
              currentCohort%fraction_crown_burned = 0.0_r8
 
@@ -919,13 +1000,8 @@ contains
                 ! inst%crown = crown_depth_frac (PFT)
                 crown_depth                          = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
                 height_cbb                           = currentCohort%hite - crown_depth
-                passive_crown_FI                     = 0.0_r8  
-                ignite_crown                         = 0.0_r8  
-                currentCohort%passive_crown_fire_flg = 0
 
-                
-                ! Evaluate for passive crown fire ignition
-                if (EDPftvarcon_inst%crown_fire(currentCohort%pft) > 0.0_r8) then
+                currentCohort%passive_crown_fire_flg = 0               
                    
                    ! Note: crown_ignition_energy to be calculated based on foliar moisture content from FATES-Hydro
                    ! EQ 3 Van Wagner 1977
