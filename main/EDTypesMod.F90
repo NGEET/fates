@@ -4,13 +4,15 @@ module EDTypesMod
   use FatesConstantsMod,     only : ifalse
   use FatesConstantsMod,     only : itrue
   use FatesGlobals,          only : fates_log
-  use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
   use PRTGenericMod,         only : prt_vartypes
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,         only : all_carbon_elements
+  use PRTGenericMod,         only : num_organ_types
+  use FatesLitterMod,        only : litter_type
+  use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
 
   implicit none
@@ -102,10 +104,15 @@ module EDTypesMod
 
 
   ! MODEL PARAMETERS
-  real(r8), parameter, public :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
-  real(r8), parameter, public :: AREA_INV             = 1.0e-4_r8  ! Inverse of the notion area (faster math)
 
-  integer, parameter, public :: numWaterMem           = 10         ! watermemory saved as site level var
+  real(r8), parameter, public :: area                 = 10000.0_r8 ! Notional area of simulated forest m2
+  real(r8), parameter, public :: area_inv             = 1.0e-4_r8  ! Inverse of the notion area (faster math)
+
+  integer, parameter, public  :: numWaterMem          = 10         ! watermemory saved as site level var
+
+  integer, parameter, public  :: numlevsoil_max       = 30         ! This is scratch space used for static arrays
+                                                                   ! The actual number of soil layers should not exceed this
+
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
@@ -115,7 +122,6 @@ module EDTypesMod
   integer , parameter, public :: dtype_ifall          = 1          ! index for naturally occuring tree-fall generated event
   integer , parameter, public :: dtype_ifire          = 2          ! index for fire generated disturbance event
   integer , parameter, public :: dtype_ilog           = 3          ! index for logging generated disturbance event
-
 
   ! Phenology status flag definitions (cold type is cstat, dry type is dstat)
 
@@ -131,8 +137,8 @@ module EDTypesMod
 
 
   ! SPITFIRE     
-  integer,  parameter, public :: NCWD                 = 4          ! number of coarse woody debris pools (twig,s branch,l branch, trunk)
-  integer , parameter, public :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
+
+  integer,  parameter, public :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
   integer,  parameter, public :: tw_sf                = 1          ! array index of twig pool for spitfire
   integer,  parameter, public :: lb_sf                = 3          ! array index of large branch pool for spitfire
   integer,  parameter, public :: tr_sf                = 4          ! array index of dead trunk pool for spitfire
@@ -172,14 +178,19 @@ module EDTypesMod
   logical, parameter, public :: homogenize_seed_pfts  = .false.
 
   
-  ! Leaf age class initialization schemes
-  integer, parameter, public :: nan_leaf_aclass = 0     ! initialize leaf age classes as undefined
-                                                        ! (used when copying)
-  integer, parameter, public :: equal_leaf_aclass = 1   ! initialize leaf age classes equal
-                                                        ! (used for inventory initialization)
-  integer, parameter, public :: first_leaf_aclass = 2   ! initialize leaf age classes as all in
-                                                        ! youngest class (used for recruitment)
 
+  ! Global identifiers for which elements we are using (apply mostly to litter)
+
+  integer, public              :: num_elements          ! This is the number of elements in this simulation
+                                                        ! e.g. (C,N,P,K, etc)
+  integer, allocatable, public :: element_list(:)       ! This vector holds the element ids that are found
+                                                        ! in PRTGenericMod.F90. examples are carbon12_element
+                                                        ! nitrogen_element, etc.
+
+  integer, public :: element_pos(num_organ_types)       ! This is the reverse lookup
+                                                        ! for element types. Pick an element
+                                                        ! global index, and it gives you
+                                                        ! the position in the element_list
 
   !************************************
   !** COHORT type structure          **
@@ -211,6 +222,7 @@ module EDTypesMod
      real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort
                                                          ! (1 = canopy, 2 = understorey, etc.)  
                                                          ! real to be conservative during fusion
+
      real(r8) ::  lai                                    ! leaf area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
      real(r8) ::  sai                                    ! stem area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
      real(r8) ::  g_sb_laweight                          ! Total conductance (stomata+boundary layer) of the cohort, weighted by its leaf area [m/s]*[m2]
@@ -298,11 +310,6 @@ module EDTypesMod
                                                          ! (below ground)
      real(r8) ::  froot_mr                               ! Live fine root   maintenance respiration: kgC/indiv/s
 
-     ! ALLOCATION
-
-     real(r8) ::  seed_prod                              ! reproduction seed and clonal: KgC/indiv/year
-
-
      !MORTALITY
      real(r8) ::  dmort                                  ! proportional mortality rate. (year-1)
 
@@ -321,6 +328,8 @@ module EDTypesMod
                                                          ! (i.e. they are moved to newly-anthro-disturbed secondary 
                                                          !  forest patch).  fraction /per logging activity
 
+     real(r8) :: seed_prod                               ! diagnostic seed production rate [kgC/plant/day]
+
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
      ! Nitrogen pools are not prognostic in the current implementation.
@@ -333,22 +342,19 @@ module EDTypesMod
      real(r8) ::  dhdt                                   ! time derivative of height       : m/year
      real(r8) ::  ddbhdt                                 ! time derivative of dbh          : cm/year
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
-     real(r8) ::  dbstoredt                              ! time derivative of stored biomass       : KgC/year
 
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
-     real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char (conditional on the tree being subjected to the fire)
-     real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch (conditional on the tree being subjected to the fire)
+     real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
+                                                         ! (conditional on the tree being subjected to the fire)
+     real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality 
+                                                         ! due to crown scorch (conditional on the tree being subjected to the fire)
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
 
      ! Hydraulics
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
 
   end type ed_cohort_type
-
-  
-     
-     
 
   !************************************
   !** Patch type structure           **
@@ -466,18 +472,11 @@ module EDTypesMod
      real(r8),allocatable ::  sabs_dif(:)                                 ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
 
-     !SEED BANK
-     real(r8) :: seeds_in(maxpft)                               ! seed production KgC/m2/year
-     real(r8) :: seed_decay(maxpft)                             ! seed decay in KgC/m2/year
-     real(r8) :: seed_germination(maxpft)                       ! germination rate of seed pool in KgC/m2/year
-
      ! PHOTOSYNTHESIS       
 
      real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
 
      ! ROOTS
-     real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
-     real(r8), allocatable ::  rootr_ft(:,:)                       ! fraction of water taken from each PFT and soil layer:-
      real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-
      real(r8) ::  bstress_sal_ft(maxpft)                        ! bstress from salinity calculated seperately for each PFT:-   
      
@@ -487,33 +486,16 @@ module EDTypesMod
                                                                    !                       2) fire: fraction/day 
                                                                    !                       3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
+     integer  ::  disturbance_mode                                 ! index identifying which disturbance was applied
+                                                                   ! can be one of: dtype_ifall, dtype_ilog or dtype_ifire
      real(r8) ::  fract_ldist_not_harvested                        ! fraction of logged area that is canopy trees that weren't harvested
 
-     ! LITTER AND COARSE WOODY DEBRIS 
-     ! Pools of litter (non respiring) 
-     real(r8) ::  cwd_ag(ncwd)                                     ! above ground coarse wood debris litter that does not respire. KgC/m2
-     real(r8) ::  cwd_bg(ncwd)                                     ! below ground coarse wood debris litter that does not respire. KgC/m2
-     real(r8) ::  leaf_litter(maxpft)                           ! above ground leaf litter that does not respire. KgC/m2
-     real(r8) ::  root_litter(maxpft)                           ! below ground fine root litter that does not respire. KgC/m2
 
-     ! Fluxes of litter (non respiring) 
-     real(r8) :: fragmentation_scaler                              ! Scale rate of litter fragmentation. 0 to 1.
-     real(r8) :: cwd_ag_in(ncwd)                                   ! Flux into CWD_AG from turnover and mortality KgC/m2/y
-     real(r8) :: cwd_bg_in(ncwd)                                   ! Flux into cwd_bg from root turnover and mortality KgC/m2/y
-     real(r8) :: cwd_ag_out(ncwd)                                  ! Flux out of AG CWD into AG litter KgC/m2/y
-     real(r8) :: cwd_bg_out(ncwd)                                  ! Flux out of BG CWD into BG litter KgC/m2/
+     ! Litter and Coarse Woody Debris
 
+     type(litter_type), pointer :: litter(:)  ! Litter (leaf,fnrt,CWD and seeds) for different elements
 
-     real(r8) :: leaf_litter_in(maxpft)                         ! Flux in  to AG leaf litter from leaf turnover and mortality KgC/m2/y
-     real(r8) :: leaf_litter_out(maxpft)                        ! Flux out of AG leaf litter from fragmentation KgC/m2/y
-     real(r8) :: root_litter_in(maxpft)                         ! Flux in  to BG root litter from leaf turnover and mortality KgC/m2/y
-     real(r8) :: root_litter_out(maxpft)                        ! Flux out of BG root from fragmentation KgC/m2/y
-
-     ! Derivatives of litter (non respiring) 
-     real(r8) ::  dcwd_AG_dt(ncwd)                                 ! rate of change of above ground CWD in each size class: KgC/m2/year. 
-     real(r8) ::  dcwd_BG_dt(ncwd)                                 ! rate of change of below ground CWD in each size class: KgC/m2/year. 
-     real(r8) ::  dleaf_litter_dt(maxpft)                       ! rate of change of leaf litter in each size class: KgC/m2/year. 
-     real(r8) ::  droot_litter_dt(maxpft)                       ! rate of change of root litter in each size class: KgC/m2/year. 
+     real(r8) :: fragmentation_scaler          ! Scale rate of litter fragmentation. 0 to 1.
 
      real(r8) ::  repro(maxpft)                                 ! allocation to reproduction per PFT : KgC/m2
 
@@ -539,11 +521,9 @@ module EDTypesMod
      real(r8) ::  fi                                               ! average fire intensity of flaming front:  kj/m/s or kw/m
      integer  ::  fire                                             ! Is there a fire? 1=yes 0=no
      real(r8) ::  fd                                               ! fire duration: mins
-     real(r8) ::  nf                                               ! number of fires initiated daily: n/gridcell/day
      real(r8) ::  sh                                               ! average scorch height: m 
 
      ! FIRE EFFECTS     
-     real(r8) ::  ab                                               ! area burnt:  m2/day
      real(r8) ::  frac_burnt                                       ! fraction burnt: frac gridcell/day  
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
@@ -565,13 +545,94 @@ module EDTypesMod
      real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
 
      !debug variables
-     real(r8) ::  delta_litter_stock
-     real(r8) ::  delta_biomass_stock
-     real(r8) ::  delta_individual
+     real(r8) ::  delta_litter_stock                       ! kgC/site = kgC/ha
+     real(r8) ::  delta_biomass_stock                      ! kgC/site
+     real(r8) ::  delta_individual                         ! 
   
   end type ed_resources_management_type
 
+  ! =====================================================================================
 
+  type, public :: site_fluxdiags_type
+
+     ! ----------------------------------------------------------------------------------
+     ! Diagnostics for fluxes into the litter pool from plants
+     ! these fluxes are the total from 
+     ! (1) turnover from living plants
+     ! (2) mass transfer from non-disturbance inducing mortality events
+     ! (3) mass transfer from disturbance inducing mortality events
+     ! [kg / ha / day]
+     ! ---------------------------------------------------------------------------------
+
+     real(r8) :: cwd_ag_input(1:ncwd)               
+     real(r8) :: cwd_bg_input(1:ncwd)               
+     real(r8),allocatable :: leaf_litter_input(:)
+     real(r8),allocatable :: root_litter_input(:)
+     
+   contains
+
+     procedure :: ZeroFluxDiags
+     
+  end type site_fluxdiags_type
+
+  ! ====================================================================================
+
+  type, public ::  site_massbal_type
+
+     ! ----------------------------------------------------------------------------------
+     ! This type is used for accounting purposes to ensure that we are not
+     ! loosing or creating mass. This type is supposed to be allocated for each element 
+     ! we simulate (e.g. carbon12_element, etc)
+     ! Note that the unit of "site", is nominally equivalent to 1 hectare
+     !
+     ! This set of mass checks are for INCREMENTAL checks during the dynamics step.
+     ! ----------------------------------------------------------------------------------
+     
+     real(r8) :: old_stock    ! remember biomass stock from last time  [Kg/site]
+     real(r8) :: err_fates    ! Total mass balance error for FATES processes     [kg/site]
+
+
+     ! ----------------------------------------------------------------------------------
+     ! Group 3: Components of the total site level mass fluxes
+     ! ----------------------------------------------------------------------------------
+
+     real(r8) :: gpp_acc          ! Accumulated gross primary productivity [kg/site/day]
+     real(r8) :: aresp_acc        ! Accumulated autotrophic respiration [kg/site/day]
+
+     real(r8) :: net_root_uptake  ! Net uptake of carbon or nutrients through the roots [kg/site/day]
+                                  ! (if carbon most likely exudation, if even active)
+
+     real(r8) :: seed_in          ! Total mass of external seed rain into fates site [kg/site/day]
+                                  ! This is from external grid-cells or from user parameterization
+                                  ! (user param seed rain, or dispersal model)
+     real(r8) :: seed_out         ! Total mass of seeds exported outside of fates site [kg/site/day]
+                                  ! (this is not used currently, placeholder, rgk feb-2019)
+
+     real(r8) :: frag_out         ! Litter and coarse woody debris fragmentation flux [kg/site/day]
+
+     real(r8) :: wood_product          ! Total mass exported as wood product [kg/site/day]
+     real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
+
+     real(r8) :: flux_generic_in       ! Used for prescribed or artificial input fluxes
+                                       ! and initialization [kg/site/day]
+     real(r8) :: flux_generic_out      ! Used for prescribed or artificial output fluxes
+                                       ! for instance when prescribed physiology is on
+     real(r8) :: patch_resize_err      ! This is the amount of mass gained (or loss when negative)
+                                       ! due to re-sizing patches when area math starts to lose
+                                       ! precision
+
+   contains
+
+     procedure :: ZeroMassBalState
+     procedure :: ZeroMassBalFlux
+     
+  end type site_massbal_type
+
+
+
+
+
+  
 
   !************************************
   !** Site type structure           **
@@ -591,43 +652,14 @@ module EDTypesMod
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
-
-     ! CARBON BALANCE       
-     real(r8) :: flux_in                                      ! for carbon balance purpose. C coming into biomass pool:  KgC/site
-     real(r8) :: flux_out                                     ! for carbon balance purpose. C leaving ED pools  KgC/site
-     real(r8) :: old_stock                                    ! for accounting purposes, remember biomass stock from last time:  KgC/site
-     real(r8) :: npp                                          ! used for calculating NEP and NBP during BGC summarization phase
-     real(r8) :: nep                                          ! Net ecosystem production, i.e. fast-timescale carbon balance that 
-                                                              ! does not include disturbance [gC/m2/s]
-     real(r8) :: nbp                                          ! Net biosphere production, i.e. slow-timescale carbon balance that 
-                                                              ! integrates to total carbon change [gC/m2/s]
-     real(r8) :: tot_seed_rain_flux                           ! [gC/m2/s] total flux of carbon from seed rain
-     real(r8) :: fire_c_to_atm                                ! total fire carbon loss to atmosphere [gC/m2/s]
-     real(r8) :: ed_litter_stock                              ! litter in [gC/m2]
-     real(r8) :: cwd_stock                                    ! coarse woody debris [gC/m2]
-     real(r8) :: biomass_stock                                ! total biomass at the column level in [gC / m2]
-     real(r8) :: totfatesc                                    ! Total FATES carbon at the site, including vegetation, CWD, seeds, 
-                                                              ! and FATES portion of litter [gC/m2] 
-     real(r8) :: totbgcc                                      ! Total BGC carbon at the site, including litter, and soil pools [gC/m2] 
-     real(r8) :: totecosysc                                   ! Total ecosystem C at the site, including vegetation, 
-                                                              ! CWD, litter (from HLM and FATES), and soil pools [gC/m2]
-
-     real(r8) :: totfatesc_old                                ! Total FATES C at the site from last call to balance check [gC/m2]
-     real(r8) :: totbgcc_old                                  ! Total BGC C at the site from last call to balance check [gC/m2] 
-     real(r8) :: totecosysc_old                               ! Total ecosystem C at the site from last call to balance check [gC/m2]
      
-     real(r8) :: fates_to_bgc_this_ts                         ! total flux of carbon from FATES to BGC models on current timestep [gC/m2/s] 
-     real(r8) :: fates_to_bgc_last_ts                         ! total flux of carbon from FATES to BGC models on previous timestep [gC/m2/s] 
+     ! Mass Balance (allocation for each element)
 
-     real(r8) :: cbal_err_fates                               ! [gC/m2/s]  total carbon balance error for FATES processes
-     real(r8) :: cbal_err_bgc                                 ! [gC/m2/s]  total carbon balance error for BGC (HLM) processes
-     real(r8) :: cbal_err_tot                                 ! [gC/m2/s]  total carbon balance error for all land processes
+     type(site_massbal_type), pointer :: mass_balance(:)
 
-     real(r8) :: nep_timeintegrated                           ! Net ecosystem production accumulated over model time-steps [gC/m2]
-     real(r8) :: hr_timeintegrated                            ! Heterotrophic respiration accumulated over model time-steps [gC/m2]
-     real(r8) :: npp_timeintegrated                           ! Net primary production accumulated over model time-steps [gC/m2]
-     real(r8) :: nbp_integrated                               ! Net biosphere production accumulated over model time-steps [gC/m2]
+     ! Flux diagnostics (allocation for each element)
 
+     type(site_fluxdiags_type), pointer :: flux_diags(:)
 
      ! PHENOLOGY 
      real(r8) ::  grow_deg_days                                ! Phenology growing degree days
@@ -652,49 +684,66 @@ module EDTypesMod
 
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
-     !SEED BANK
-     real(r8) :: seed_bank(maxpft)                              ! seed pool in KgC/m2
-     real(r8) :: dseed_dt(maxpft)                               ! change in seed pool in KgC/m2/year
-     real(r8) :: seed_rain_flux(maxpft)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! FIRE
      real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.
-     real(r8) ::  total_burn_flux_to_atm                       ! total carbon burnt to the atmosphere in this day. KgC/site
-     real(r8) ::  cwd_ag_burned(ncwd)
-     real(r8) ::  leaf_litter_burned(maxpft)
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
+
+     ! Soil Layering
+
+     integer :: nlevsoil                      ! Number of soil layers in this site
+     real(r8), allocatable :: zi_soil(:)      ! interface level below a "z" level (m)
+                                              ! this contains a zero index for surface.
+     real(r8), allocatable :: dz_soil(:)      ! layer thickness (m)
+     real(r8), allocatable :: z_soil(:)       ! layer depth (m)
+     real(r8), allocatable :: rootfrac_scr(:) ! This is just allocated scratch space to hold
+                                              ! root fractions. Since root fractions may be dependant
+                                              ! on cohort properties, and we do not want to store this infromation
+                                              ! on each cohort, we do not keep root fractions in
+                                              ! memory, and instead calculate them on demand.
+                                              ! This array is allocated over the number of soil
+                                              ! layers for each site, and save allocating deallocating.
+                                              ! NOTE: THIS SCRATCH SPACE WOULD NOT BE THREAD-SAFE
+                                              ! IF WE FORK ON PATCHES
+
      
      ! DIAGNOSTICS
+
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
      
      real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
                                                        ! were terminated this timestep, on size x pft
      real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which 
                                                        ! were terminated this timestep, on size x pft
+ 
      real(r8) :: term_carbonflux_canopy                ! carbon flux from live to dead pools associated 
                                                        ! with termination mortality, per canopy level
      real(r8) :: term_carbonflux_ustory                ! carbon flux from live to dead pools associated 
-                                                       ! with termination mortality, per canopy level
-     
+                                                       ! with termination mortality, per canopy level    
+     real(r8) :: demotion_carbonflux                             ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
+     real(r8) :: promotion_carbonflux                            ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
+     real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
+     real(r8) :: fmort_carbonflux_canopy                         ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
+     real(r8) :: fmort_carbonflux_ustory                         ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+
      real(r8) :: recruitment_rate(1:maxpft)            ! number of individuals that were recruited into new cohorts
      real(r8), allocatable :: demotion_rate(:)         ! rate of individuals demoted from canopy to understory per FATES timestep
-     real(r8) :: demotion_carbonflux                             ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
+    
      real(r8), allocatable :: promotion_rate(:)                  ! rate of individuals promoted from understory to canopy per FATES timestep
-     real(r8) :: promotion_carbonflux                            ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
+     
      real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
-     real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
+     
 
      real(r8), allocatable :: fmort_rate_canopy(:,:)             ! rate of canopy individuals killed due to fire mortality per year.  
                                                                  ! on size x pft array  (1:nlevsclass,1:numpft)
      real(r8), allocatable :: fmort_rate_ustory(:,:)             ! rate of understory individuals killed due to fire mortality per year.  
                                                                  ! on size x pft array  (1:nlevsclass,1:numpft)
-     real(r8) :: fmort_carbonflux_canopy                         ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
-     real(r8) :: fmort_carbonflux_ustory                         ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+    
      real(r8), allocatable :: fmort_rate_cambial(:,:)            ! rate of individuals killed due to fire mortality 
                                                                  ! from cambial damage per year.  on size x pft array
      real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality 
@@ -704,11 +753,7 @@ module EDTypesMod
                                                                  ! due to fusion in a given day. on size x pft array 
 
 
-     ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
-     real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
-     real(r8) :: CWD_BG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to BG CWD [kg C / m2 / yr]
-     real(r8) :: leaf_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
-     real(r8) :: root_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
+
 
      ! Canopy Spread
      real(r8) ::  spread                                          ! dynamic canopy allometric term [unitless]
@@ -723,6 +768,51 @@ module EDTypesMod
   public :: dump_cohort_hydr
 
   contains
+
+
+    subroutine ZeroFluxDiags(this)
+      
+      class(site_fluxdiags_type) :: this
+      
+      this%cwd_ag_input(:)      = 0._r8
+      this%cwd_bg_input(:)      = 0._r8
+      this%leaf_litter_input(:) = 0._r8
+      this%root_litter_input(:) = 0._r8
+      
+      return
+    end subroutine ZeroFluxDiags
+
+    ! =====================================================================================
+    
+    subroutine ZeroMassBalState(this)
+      
+      class(site_massbal_type) :: this
+      
+      this%old_stock = 0._r8
+      this%err_fates = 0._r8
+      
+      return
+    end subroutine ZeroMassBalState
+    
+    subroutine ZeroMassBalFlux(this)
+      
+      class(site_massbal_type) :: this
+
+      this%gpp_acc           = 0._r8
+      this%aresp_acc         = 0._r8
+      this%net_root_uptake   = 0._r8
+      this%seed_in           = 0._r8
+      this%seed_out          = 0._r8
+      this%frag_out          = 0._r8
+      this%wood_product      = 0._r8
+      this%burn_flux_to_atm  = 0._r8
+      this%flux_generic_in   = 0._r8
+      this%flux_generic_out  = 0._r8
+      this%patch_resize_err  = 0._r8
+
+      return
+  end subroutine ZeroMassBalFlux
+
    
   ! =====================================================================================
 
@@ -818,6 +908,9 @@ module EDTypesMod
 
      type(ed_patch_type),intent(in),target :: cpatch
 
+     ! locals
+     integer :: el  ! element loop counting index
+
      write(fates_log(),*) '----------------------------------------'
      write(fates_log(),*) ' Dumping Patch Information              '
      write(fates_log(),*) ' (omitting arrays)                      '
@@ -839,6 +932,16 @@ module EDTypesMod
      write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
      write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
      write(fates_log(),*) '----------------------------------------'
+     do el = 1,num_elements
+        write(fates_log(),*) 'element id: ',element_list(el)
+        write(fates_log(),*) 'seed mass: ',sum(cpatch%litter(el)%seed)
+        write(fates_log(),*) 'seed germ mass: ',sum(cpatch%litter(el)%seed_germ)
+        write(fates_log(),*) 'leaf fines(pft): ',sum(cpatch%litter(el)%leaf_fines)
+        write(fates_log(),*) 'root fines(pft,sl): ',sum(cpatch%litter(el)%root_fines)
+        write(fates_log(),*) 'ag_cwd(c): ',sum(cpatch%litter(el)%ag_cwd)
+        write(fates_log(),*) 'bg_cwd(c,sl): ',sum(cpatch%litter(el)%bg_cwd)
+     end do
+
      return
 
   end subroutine dump_patch
@@ -897,7 +1000,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr
      write(fates_log(),*) 'co%froot_mr               = ', ccohort%froot_mr
      write(fates_log(),*) 'co%dmort                  = ', ccohort%dmort
-     write(fates_log(),*) 'co%seed_prod              = ', ccohort%seed_prod
      write(fates_log(),*) 'co%treelai                = ', ccohort%treelai
      write(fates_log(),*) 'co%treesai                = ', ccohort%treesai
      write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area
@@ -910,7 +1012,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt
      write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
      write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
-     write(fates_log(),*) 'co%dbstoredt              = ', ccohort%dbstoredt
      write(fates_log(),*) 'co%fraction_crown_burned  = ', ccohort%fraction_crown_burned
      write(fates_log(),*) 'co%fire_mort              = ', ccohort%fire_mort
      write(fates_log(),*) 'co%crownfire_mort         = ', ccohort%crownfire_mort

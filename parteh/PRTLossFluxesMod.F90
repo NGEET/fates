@@ -13,7 +13,7 @@ module PRTLossFluxesMod
   use PRTGenericMod, only : carbon13_element
   use PRTGenericMod, only : carbon14_element
   use PRTGenericMod, only : nitrogen_element
-  use PRTGenericMod, only : phosphorous_element
+  use PRTGenericMod, only : phosphorus_element
   use PRTGenericMod, only : un_initialized
   use PRTGenericMod, only : check_initialized
   use PRTGenericMod, only : num_organ_types
@@ -222,9 +222,9 @@ contains
              ! Calculate the stoichiometry with C for this element
              
              if( element_id == nitrogen_element ) then
-                 target_stoich = EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
-             else if( element_id == phosphorous_element ) then
-                      target_stoich = EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
+                target_stoich = EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
+             else if( element_id == phosphorus_element ) then
+                target_stoich = EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
              else
                   write(fates_log(),*) ' Trying to calculate nutrient flushing target'
                   write(fates_log(),*) ' for element that DNE'
@@ -317,7 +317,7 @@ contains
                   + burned_mass
              
              ! Update the state of the pool to reflect the mass lost
-             prt%variables(i_var)%val(i_pos)      = prt%variables(i_var)%val(i_pos) &
+             prt%variables(i_var)%val(i_pos)    = prt%variables(i_var)%val(i_pos) &
                   - burned_mass
              
           end do
@@ -362,8 +362,8 @@ contains
       ! tissues (ie seeds, flowers, etc). but now we just have 1.
      
       if (organ_id .ne. repro_organ) then
-         write(fates_log(),*) 'Reproductive tissue releases were called for a non-reproductive'
-         write(fates_log(),*) 'organ.'
+         write(fates_log(),*) 'Reproductive tissue releases were called'
+         write(fates_log(),*) 'for a non-reproductive organ.'
          call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
 
@@ -516,7 +516,7 @@ contains
              retrans = EDPftvarcon_inst%turnover_carb_retrans(ipft,organ_id)
           else if( element_id == nitrogen_element ) then
              retrans = EDPftvarcon_inst%turnover_nitr_retrans(ipft,organ_id)
-          else if( element_id == phosphorous_element ) then
+          else if( element_id == phosphorus_element ) then
              retrans = EDPftvarcon_inst%turnover_phos_retrans(ipft,organ_id)
           else
              write(fates_log(),*) 'Please add a new re-translocation clause to your '
@@ -703,7 +703,7 @@ contains
             retrans = EDPftvarcon_inst%turnover_carb_retrans(ipft,organ_id)
          else if( element_id == nitrogen_element ) then
             retrans = EDPftvarcon_inst%turnover_nitr_retrans(ipft,organ_id)
-         else if( element_id == phosphorous_element ) then
+         else if( element_id == phosphorus_element ) then
             retrans = EDPftvarcon_inst%turnover_phos_retrans(ipft,organ_id)
          else
             write(fates_log(),*) 'Please add a new re-translocation clause to your '

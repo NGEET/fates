@@ -2,14 +2,14 @@ module EDParamsMod
    !
    ! module that deals with reading the ED parameter file
    !
-  
+
+   use FatesConstantsMod, only : r8 => fates_r8
    use FatesParametersInterface, only : param_string_length
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
-   use shr_kind_mod        , only: r8 => shr_kind_r8
 
    implicit none
    private
@@ -322,10 +322,6 @@ contains
 
     call fates_params%RegisterParameter(name=fates_name_q10_froz, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-
-
-!    call fates_params%RegisterParameter(name=logging_export_frac, dimension_shape=dimension_shape_1d, &
-!         dimension_names=dim_names)
 
     ! non-scalar parameters
     call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
