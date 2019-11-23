@@ -831,7 +831,7 @@ contains
  
 
              currentCohort%SH = 0.0_r8
-             if (tree_ag_biomass > 0.0_r8)) then 
+             if (tree_ag_biomass > 0.0_r8) then 
 
                 !Equation 16 in Thonicke et al. 2010   !2/3 Byram (1959)
                 currentCohort%SH = EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8)
