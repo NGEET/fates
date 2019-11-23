@@ -828,24 +828,17 @@ contains
                 tree_ag_biomass = tree_ag_biomass + &
                       currentCohort%n * (leaf_c + & 
                       EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
-             endif !trees only
+ 
 
-             currentCohort=>currentCohort%shorter;
-
-          enddo !end cohort loop 
-
-          currentCohort => currentPatch%tallest;
-          do while(associated(currentCohort))
              currentCohort%SH = 0.0_r8
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1 &
-                  .and. (tree_ag_biomass > 0.0_r8)) then !trees only
+             if (tree_ag_biomass > 0.0_r8)) then 
 
-                !equation 16 in Thonicke et al. 2010
+                !Equation 16 in Thonicke et al. 2010   !2/3 Byram (1959)
+                currentCohort%SH = EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8)
+             
                 if(write_SF == itrue)then
                    if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentCohort%SH',currentCohort%SH
                 endif
-                !2/3 Byram (1959)
-                currentCohort%SH = EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8) 
 
              endif !trees only
              currentCohort=>currentCohort%shorter;
