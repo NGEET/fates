@@ -971,7 +971,7 @@ contains
           canopy_bulk_density = sum(biom_matrix) / (max_height - height_base_canopy)
 
           ! Note: crown_ignition_energy to be calculated based on PFT foliar moisture content from FATES-Hydro
-          ! Use EDPftvarcon_inst%crown_ignite_energy(currentCohort%pft) and compute weighted average
+          ! Use EDPftvarcon_inst%foliar_moisture(currentCohort%pft) and compute weighted PFT average
           ! in place of crown_ignite_energy parameter
           
           ! EQ 3 Van Wagner 1977
@@ -996,7 +996,7 @@ contains
                 crown_depth  = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
                 height_cbb   = currentCohort%hite - crown_depth
 
-                currentCohort%passive_crown_fire_flg = 0   ! does tand have canopy fuels for active crown fire?            
+                currentCohort%passive_crown_fire_flg = 0         !does patch have canopy fuels for active crown fire?            
                   
                    if (currentPatch%FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
@@ -1008,7 +1008,6 @@ contains
 
        !evaluate active crown fire conditions
 
-                      ! else ! evaluate crown damage based on scorch height
                       endif ! ignite crown fire
                    ! else no crown fire today
                    endif ! crown fire intensity

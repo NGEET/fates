@@ -49,8 +49,8 @@ module EDPftvarcon
                                                      ! that is occupied by crown. For fire model. 
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! crown resistance to fire. (1 = none) For fire model.
-     real(r8), allocatable :: crown_fire(:)          ! Is plant susceptible to passive crown fire?(1=yes,0=no)
-     real(r8), allocatable :: crown_ignite_energy(:) ! heat of crown foliage ignition [kJ/kg]
+     real(r8), allocatable :: active_crown_fire(:)   ! Is plant susceptible to active crown fire?(1=yes,0=no)
+     real(r8), allocatable :: foliar_moisture(:)     ! foliar moisture content from dry fuel [%]
      real(r8), allocatable :: initd(:)               ! initial seedling density 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
      real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
@@ -383,11 +383,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fire_crown_fire'
+    name = 'fates_fire_active_crown_fire'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fire_crown_ignite_energy'
+    name = 'fates_fire_foliar_moisture'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -823,11 +823,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_kill)
 
-    name = 'fates_fire_crown_fire'
+    name = 'fates_fire_active_crown_fire'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_fire)
 
-    name = 'fates_fire_crown_ignite_energy'
+    name = 'fates_fire_foliar_moisture'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_ignite_energy)
 
