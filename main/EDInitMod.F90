@@ -174,6 +174,7 @@ contains
 
     ! FIRE 
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
+    site_in%NF               = 0.0_r8     ! daily lightning strikes per km2 
     site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
 
     do el=1,num_elements
@@ -280,6 +281,7 @@ contains
           sites(s)%dstatus = dstat
           
           sites(s)%acc_NI     = acc_NI
+          sites(s)%NF         = 0.0_r8         
           sites(s)%frac_burnt = 0.0_r8
 
           

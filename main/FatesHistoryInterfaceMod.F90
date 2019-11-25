@@ -141,7 +141,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_TFC_ROS_pa
   integer :: ih_fire_intensity_pa
   integer :: ih_fire_area_pa
-  integer :: ih_scorch_height_pa
+ ! integer :: ih_scorch_height_pa
   integer :: ih_fire_fuel_bulkd_pa
   integer :: ih_fire_fuel_eff_moist_pa
   integer :: ih_fire_fuel_sav_pa
@@ -1631,7 +1631,7 @@ end subroutine flush_hvars
                hio_effect_wspeed_pa    => this%hvars(ih_effect_wspeed_pa)%r81d, &
                hio_fire_intensity_pa   => this%hvars(ih_fire_intensity_pa)%r81d, &
                hio_fire_area_pa        => this%hvars(ih_fire_area_pa)%r81d, &
-               hio_scorch_height_pa    => this%hvars(ih_scorch_height_pa)%r81d, &
+              ! hio_scorch_height_pa    => this%hvars(ih_scorch_height_pa)%r81d, &
                hio_fire_fuel_bulkd_pa  => this%hvars(ih_fire_fuel_bulkd_pa)%r81d, &
                hio_fire_fuel_eff_moist_pa => this%hvars(ih_fire_fuel_eff_moist_pa)%r81d, &
                hio_fire_fuel_sav_pa    => this%hvars(ih_fire_fuel_sav_pa)%r81d, &
@@ -2438,7 +2438,7 @@ end subroutine flush_hvars
             hio_tfc_ros_pa(io_pa)              = cpatch%TFC_ROS
             hio_fire_intensity_pa(io_pa)       = cpatch%FI
             hio_fire_area_pa(io_pa)            = cpatch%frac_burnt
-            hio_scorch_height_pa(io_pa)        = cpatch%SH
+            !hio_scorch_height_pa(io_pa)        = cpatch%SH
             hio_fire_fuel_bulkd_pa(io_pa)      = cpatch%fuel_bulkd
             hio_fire_fuel_eff_moist_pa(io_pa)  = cpatch%fuel_eff_moist
             hio_fire_fuel_sav_pa(io_pa)        = cpatch%fuel_sav
@@ -3906,10 +3906,10 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_pa )
 
-    call this%set_history_var(vname='SCORCH_HEIGHT', units='m',                &
-         long='spitfire flame height:m', use_default='active',                    &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_pa )
+    !call this%set_history_var(vname='SCORCH_HEIGHT', units='m',                &
+     !    long='spitfire flame height:m', use_default='active',                    &
+     !    avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+     !    ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_pa )
 
     call this%set_history_var(vname='fire_fuel_mef', units='m',                &
          long='spitfire fuel moisture',  use_default='active',                  &
