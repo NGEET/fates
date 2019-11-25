@@ -825,11 +825,11 @@ contains
 
     name = 'fates_fire_active_crown_fire'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%crown_fire)
+         data=this%active_crown_fire)
 
     name = 'fates_fire_foliar_moisture'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%crown_ignite_energy)
+         data=this%foliar_moisture)
 
     name = 'fates_recruit_initd'
     call fates_params%RetreiveParameterAllocate(name=name, &
