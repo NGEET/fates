@@ -1021,7 +1021,7 @@ contains
 
        !add active flag !.and. currentCohort%active_crown_fire_flg == 0) then  
 
-                   currentCohort%fraction_crown_burned = min(1.0_r8, ((currentPatch%SH - height_cbb)/crown_depth))
+                   currentCohort%fraction_crown_burned = min(1.0_r8, ((currentCohort%SH - height_cbb)/crown_depth))
                 endif  !SH frac crown burnt calculation
                 ! Check for strange values. 
                 currentCohort%fraction_crown_burned = min(1.0_r8, max(0.0_r8,currentCohort%fraction_crown_burned))              
