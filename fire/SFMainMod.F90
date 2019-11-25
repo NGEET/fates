@@ -701,7 +701,10 @@ contains
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
        !  ---initialize patch parameters to zero---
+       currentPatch%fire       = 0
+       currentPatch%FD         = 0.0_r8
        currentPatch%frac_burnt = 0.0_r8
+       
 
        if (currentSite%NF > 0.0_r8) then
           
@@ -763,6 +766,7 @@ contains
          ROS   = currentPatch%ROS_front / 60.0_r8 !m/min to m/sec 
          W     = currentPatch%TFC_ROS / 0.45_r8 !kgC/m2 to kgbiomass/m2          
 
+         ! EQ 15 Thonicke et al 2010
          !units of fire intensity = (kJ/kg)*(kgBiomass/m2)*(m/min)*unitless_fraction
          currentPatch%FI = SF_val_fuel_energy * W * ROS * currentPatch%frac_burnt !kj/m/s, or kW/m
        
