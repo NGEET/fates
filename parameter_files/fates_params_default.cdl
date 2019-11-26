@@ -112,7 +112,7 @@ variables:
 		fates_allom_stmode:units = "index" ;
 		fates_allom_stmode:long_name = "storage allometry function index" ;
 	double fates_branch_turnover(fates_pft) ;
-		fates_branch_turnover:units = "yr-1" ;
+		fates_branch_turnover:units = "yr" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
 	double fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
@@ -412,10 +412,10 @@ variables:
 		fates_seed_dbh_repro_threshold:units = "cm" ;
 		fates_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool" ;
 	double fates_seed_decay_turnover(fates_pft) ;
-		fates_seed_decay_turnover:units = "1/yr" ;
+		fates_seed_decay_turnover:units = "yr" ;
 		fates_seed_decay_turnover:long_name = "turnover time for seeds with respect to decay" ;
 	double fates_seed_germination_timescale(fates_pft) ;
-		fates_seed_germination_timescale:units = "1/yr" ;
+		fates_seed_germination_timescale:units = "yr" ;
 		fates_seed_germination_timescale:long_name = "germination timescale for seeds (fraction germinated per year)" ;
 	double fates_seed_suppl(fates_pft) ;
 		fates_seed_suppl:units = "KgC/m2/yr" ;
