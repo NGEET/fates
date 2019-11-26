@@ -535,7 +535,6 @@ contains
 
     ! FIRE
 
-    currentCohort%passive_crown_fire_flg = nan ! flag to indicate passive crown fire ignition
     currentCohort%sh                    = nan ! scorch height affecting crown (m)
     currentCohort%fraction_crown_burned = nan ! proportion of crown affected by fire
     currentCohort%cambial_mort          = nan ! probability that trees dies due to cambial char P&R (1986)
