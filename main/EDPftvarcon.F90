@@ -202,6 +202,12 @@ module EDPftvarcon
 
      ! Nutrient Aquisition parameters
 
+     real(r8), allocatable :: prescribed_nuptake(:)     ! Nitrogen uptake flux per unit crown area 
+                                                        ! (negative implies fraction of NPP) kgN/m2/yr
+
+     real(r8), allocatable :: prescribed_puptake(:)     ! Phosphorus uptake flux per unit crown area 
+                                                        ! (negative implies fraction of NPP) kgP/m2/yr
+
      ! (NONE OF THESE ARE ACTIVE YET - PLACEHOLDERS ONLY!!!!!)
 
      ! Nutrient Aquisition (ECA & RD)
@@ -1664,6 +1670,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_prescribed_nuptake'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prescribed_puptake'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_turnover_carb_retrans'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)    
@@ -1712,6 +1726,14 @@ contains
      name = 'fates_prt_alloc_priority'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%prt_alloc_priority)
+
+     name = 'fates_prescribed_nuptake'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%prescribed_nuptake)
+
+     name = 'fates_prescribed_puptake'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%prescribed_puptake)
 
      name = 'fates_turnover_carb_retrans'
      call fates_params%RetreiveParameterAllocate(name=name, &
