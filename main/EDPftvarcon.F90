@@ -49,6 +49,7 @@ module EDPftvarcon
                                                      ! that is occupied by crown. For fire model. 
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model. 
+     real(r8), allocatable :: active_crown_fire(:)   ! Is plant susceptible to active crown fire?
      real(r8), allocatable :: initd(:)               ! initial seedling density 
      real(r8), allocatable :: seed_suppl(:)           ! seeds that come from outside the gridbox.
      real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
@@ -417,6 +418,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_fire_active_crown_fire'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_recruit_initd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -894,6 +899,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_kill)
 
+    name = 'fates_fire_active_crown_fire'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%active_crown_fire)
+
     name = 'fates_recruit_initd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%initd)
@@ -1232,11 +1241,11 @@ contains
 
     name = 'fates_seed_germination_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%germination_timescale)
+         data=this%germination_rate)
 
     name = 'fates_seed_decay_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%seed_decay_turnover)
+         data=this%seed_decay_rate)
 
     name = 'fates_branch_turnover'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1847,6 +1856,7 @@ contains
         write(fates_log(),fmt0) 'crown = ',EDPftvarcon_inst%crown
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
+        write(fates_log(),fmt0) 'active_crown_fire = ',EDPftvarcon_inst%active_crown_fire
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
@@ -1892,8 +1902,8 @@ contains
         write(fates_log(),fmt0) 'vcmaxse = ',EDPftvarcon_inst%vcmaxse
         write(fates_log(),fmt0) 'jmaxse = ',EDPftvarcon_inst%jmaxse
         write(fates_log(),fmt0) 'tpuse = ',EDPftvarcon_inst%tpuse
-        write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_timescale
-        write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_turnover
+        write(fates_log(),fmt0) 'germination_rate = ',EDPftvarcon_inst%germination_rate
+        write(fates_log(),fmt0) 'seed_decay_rate = ',EDPftvarcon_inst%seed_decay_rate
         write(fates_log(),fmt0) 'branch_turnover = ',EDPftvarcon_inst%branch_turnover
         write(fates_log(),fmt0) 'trim_limit = ',EDPftvarcon_inst%trim_limit
         write(fates_log(),fmt0) 'trim_inc = ',EDPftvarcon_inst%trim_inc
