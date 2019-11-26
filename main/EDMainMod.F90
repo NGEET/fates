@@ -43,6 +43,8 @@ module EDMainMod
   use EDPhysiologyMod          , only : ZeroLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceIntegrateLitter
+  use EDPhysiologyMod          , only : PrepNutrientAquisitionBCs
+  use EDPhysiologyMod          , only : FluxIntoLitterPools
   use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use SFMainMod                , only : fire_model 
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
@@ -120,7 +122,7 @@ module EDMainMod
 contains
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_ecosystem_dynamics(currentSite, bc_in)
+  subroutine ed_ecosystem_dynamics(currentSite, bc_in, bc_out)
     !
     ! !DESCRIPTION:
     !  Core of ed model, calling all subsequent vegetation dynamics routines         
@@ -128,6 +130,7 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type)      , intent(inout), target  :: currentSite
     type(bc_in_type)        , intent(in)             :: bc_in
+    type(bc_out_type)       , intent(inout)          :: bc_out
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
@@ -192,7 +195,7 @@ contains
 
     if (hlm_use_ed_st3.eq.ifalse) then
        ! Integrate state variables from annual rates to daily timestep
-       call ed_integrate_state_variables(currentSite, bc_in ) 
+       call ed_integrate_state_variables(currentSite, bc_in, bc_out ) 
     else
        ! ed_intergrate_state_variables is where the new cohort flag
        ! is set. This flag designates wether a cohort has
@@ -203,9 +206,6 @@ contains
        call bypass_dynamics(currentSite)
        
     end if
-
-   
-
 
     !******************************************************************************
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organization 
@@ -289,7 +289,7 @@ contains
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_integrate_state_variables(currentSite, bc_in )
+  subroutine ed_integrate_state_variables(currentSite, bc_in, bc_out )
     !
     ! !DESCRIPTION:
     ! FIX(SPM,032414) refactor so everything goes through interface
@@ -299,6 +299,7 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type)     , intent(inout) :: currentSite
     type(bc_in_type)        , intent(in)   :: bc_in
+    type(bc_out_type)       , intent(inout)  :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -308,6 +309,7 @@ contains
 
     integer  :: c                     ! Counter for litter size class 
     integer  :: ft                    ! Counter for PFT
+    integer  :: iscpf                 ! index for the size-class x pft multiplexed bins
     integer  :: el                    ! Counter for element type (c,n,p,etc)
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
@@ -418,19 +420,66 @@ contains
           
           call currentCohort%prt%DailyPRT()
 
+
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
+          ! -----------------------------------------------------------------------------
 
           if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
 
+             ! Mass balance for N uptake
              currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = & 
-                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + currentCohort%daily_n_uptake*currentCohort%n
+                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + & 
+                  (currentCohort%daily_n_uptake-currentCohort%daily_n_efflux)*currentCohort%n
              
+             ! Mass balance for P uptake
              currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = & 
-                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + currentCohort%daily_p_uptake*currentCohort%n
+                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + & 
+                  (currentCohort%daily_p_uptake-currentCohort%daily_p_efflux)*currentCohort%n
+             
+             ! mass balance for C efflux (if any)
+             currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake = & 
+                  currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake - & 
+                  currentCohort%daily_c_efflux*currentCohort%n
+
+             ! size class index
+             iscpf = currentCohort%size_by_pft_class
+             
+             ! Diagnostics for uptake and efflux, by size and pft and element, [kgX/ha/day]
+             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_uptake_scpf(iscpf) = & 
+                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_uptake_scpf(iscpf) + & 
+                  currentCohort%daily_n_uptake*currentCohort%n
+             
+             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_uptake_scpf(iscpf) = & 
+                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_uptake_scpf(iscpf) + & 
+                  currentCohort%daily_p_uptake*currentCohort%n
+
+             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_efflux_scpf(iscpf) = & 
+                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_efflux_scpf(iscpf) + & 
+                  currentCohort%daily_n_efflux*currentCohort%n
+             
+             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_efflux_scpf(iscpf) = & 
+                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_efflux_scpf(iscpf) + & 
+                  currentCohort%daily_p_efflux*currentCohort%n
+             
+             currentSite%flux_diags(element_pos(carbon12_element))%nutrient_efflux_scpf(iscpf) = & 
+                  currentSite%flux_diags(element_pos(carbon12_element))%nutrient_efflux_scpf(iscpf) + & 
+                  currentCohort%daily_c_efflux*currentCohort%n
+
+             
+             ! Create a diagnostic save array for N and P uptake rates,
+             ! fill it here before these are zero'd
              
              currentCohort%daily_n_uptake = 0._r8
              currentCohort%daily_p_uptake = 0._r8
+
+             ! Don't zero out the efflux terms, they need to be written to restarts,
+             ! so that litter fluxes can be reconstructed.
+
+             ! If this was a flex CNP type run, we also need to update total autotrophic
+             ! respiration, because we just updated growth respiration (along with allocation)
+             currentCohort%resp_acc = currentCohort%resp_acc + currentCohort%resp_g_daily
+
           end if
     
           ! And simultaneously add the input fluxes to mass balance accounting
@@ -511,21 +560,32 @@ contains
        
 
        call PreDisturbanceIntegrateLitter(currentPatch )
-     
-
-       ! Update cohort number. 
-       ! This needs to happen after the CWD_input and seed_input calculations as they 
-       ! assume the pre-mortality currentCohort%n. 
-
-
-       currentCohort => currentPatch%shortest
-       do while(associated(currentCohort)) 
-         currentCohort%n = max(0._r8,currentCohort%n + currentCohort%dndt * hlm_freq_day )  
-         currentCohort => currentCohort%taller
-       enddo
 
        currentPatch => currentPatch%older
+    enddo
+
+
+    ! Before we start messing with the patch areas, and before we start removing
+    ! trees, this is a good time to pass fragmentation litter fluxes and
+    ! plant-to-soil fluxes (such as efflux and fixation fluxes)
+
+    call FluxIntoLitterPools(currentsite, bc_in, bc_out)
+
+
+    ! Update cohort number. 
+    ! This needs to happen after the CWD_input and seed_input calculations as they 
+    ! assume the pre-mortality currentCohort%n. 
+    
+    currentPatch => currentSite%youngest_patch
+    do while(associated(currentPatch))
+       currentCohort => currentPatch%shortest
+       do while(associated(currentCohort)) 
+          currentCohort%n = max(0._r8,currentCohort%n + currentCohort%dndt * hlm_freq_day )  
+          currentCohort => currentCohort%taller
+       enddo
+       currentPatch => currentPatch%older
    enddo
+
 
    return
   end subroutine ed_integrate_state_variables
@@ -581,9 +641,6 @@ contains
     ! boundary conditions are read in on the restart,
     ! and, they are zero'd only at the start of ecosystem
     ! dynamics
-
-    call FluxIntoLitterPools(currentSite,bc_in, bc_out)
-
 
     ! Based on current status of the
     call PrepNutrientAquisitionBCs(currentSite,bc_in,bc_out)

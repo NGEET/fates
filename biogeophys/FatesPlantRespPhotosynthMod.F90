@@ -704,11 +704,21 @@ contains
                      if ( debug ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
                      if ( debug ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
                      
-                     currentCohort%resp_g     = EDPftvarcon_inst%grperc(ft) * &
-                                                (max(0._r8,currentCohort%gpp_tstep - &
-                                                currentCohort%resp_m))
+                     
+                     ! In the CNP flex scheme, we calculate growth
+                     ! respiration at the time of allocation, don't
+                     ! apply it here. That scheme will also track it with 
+                     ! different variable, resp_g_daily.
+
+                     if( hlm_parteh_mode.eq.prt_carbon_allom_hyp ) then
+                        currentCohort%resp_g_tstep     = EDPftvarcon_inst%grperc(ft) * &
+                             (max(0._r8,currentCohort%gpp_tstep - &
+                             currentCohort%resp_m))
+                     end if
+
+                                                
                      currentCohort%resp_tstep = currentCohort%resp_m + &
-                                                currentCohort%resp_g ! kgC/indiv/ts
+                                                currentCohort%resp_g_tstep ! kgC/indiv/ts
                      currentCohort%npp_tstep  = currentCohort%gpp_tstep - &
                                                 currentCohort%resp_tstep  ! kgC/indiv/ts
                      

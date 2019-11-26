@@ -2096,22 +2096,35 @@ contains
 
      case(prt_cnp_flex_allom_hyp)
         
-        num_elements = 3
-        allocate(element_list(num_elements))
-        element_list(1) = carbon12_element
-        element_list(2) = nitrogen_element
-        element_list(3) = phosphorus_element
-        element_pos(:)  = 0
-        element_pos(carbon12_element)   = 1
-        element_pos(nitrogen_element)   = 2
-        element_pos(phosphorus_element) = 3
+        if(hlm_nitrogen_spec>0.and.hlm_phosphorus_spec>0)then
+           num_elements = 3
+           allocate(element_list(num_elements))
+           element_list(1) = carbon12_element
+           element_list(2) = nitrogen_element
+           element_list(3) = phosphorus_element
+           element_pos(:)  = 0
+           element_pos(carbon12_element)   = 1
+           element_pos(nitrogen_element)   = 2
+           element_pos(phosphorus_element) = 3
+        elseif(hlm_nitrogen_spec>0) then
+           num_elements = 2
+           allocate(element_list(num_elements))
+           element_list(1) = carbon12_element
+           element_list(2) = nitrogen_element
+           element_pos(:)  = 0
+           element_pos(carbon12_element)   = 1
+           element_pos(nitrogen_element)   = 2
+        elseif(hlm_phosphorus_spec>0) then
+           num_elements = 2
+           allocate(element_list(num_elements))
+           element_list(1) = carbon12_element
+           element_list(2) = phosphorus_element
+           element_pos(:)  = 0
+           element_pos(carbon12_element)   = 1
+           element_pos(phosphorus_element)   = 2
+        end if
 
         call InitPRTGlobalAllometricCNP()
-        write(fates_log(),*) 'You specified the allometric CNP mode'
-        write(fates_log(),*) 'with relaxed target stoichiometry.'
-        write(fates_log(),*) 'I.e., namelist parametre fates_parteh_mode = 2'
-        write(fates_log(),*) 'This mode is not available yet. Please set it to 1.'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
         
      case DEFAULT
         write(fates_log(),*) 'You specified an unknown PRT module'
@@ -2198,7 +2211,7 @@ contains
         if(hlm_nitrogen_spec>0)then
            if (trim(hlm_nu_com).eq.'ECA') then
               
-              if(any(EDPftvarcon_inst%eca_km_nh4(:)<0._r8) .or. any(EDPftvarcon_inst%eca_km_nh4(:)>1._r8))then
+              if(any(EDPftvarcon_inst%eca_km_nh4(:)<0._r8) ) then
                  write(fates_log(),*) 'ECA with nitrogen is turned on'
                  write(fates_log(),*) 'bad ECA km value(s) for nh4: ',EDPftvarcon_inst%eca_km_nh4(:)
                  write(fates_log(),*) 'Aborting'
@@ -2210,7 +2223,7 @@ contains
            end if
 
            if(hlm_nitrogen_spec==2)then
-              if(any(EDPftvarcon_inst%eca_km_no3(:)<0._r8) .or. any(EDPftvarcon_inst%eca_km_no3(:)>1._r8))then
+              if(any(EDPftvarcon_inst%eca_km_no3(:)<0._r8)) then
                  write(fates_log(),*) 'ECA with nit/denitr is turned on'
                  write(fates_log(),*) 'bad ECA km value(s) for no3: ',EDPftvarcon_inst%eca_km_no3(:)
                  write(fates_log(),*) 'Aborting'
@@ -2219,14 +2232,12 @@ contains
            end if
 
         end if
-
-
         
      elseif (parteh_mode .ne. prt_carbon_allom_hyp) then
         
         write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport has'
-        write(fates_log(),*) 'only 1 module supported, allometric carbon only.'
-        write(fates_log(),*) 'fates_parteh_mode must be set to 1 in the namelist'
+        write(fates_log(),*) 'only 2 modules supported, allometric carbon and CNP.'
+        write(fates_log(),*) 'fates_parteh_mode must be set to 1 or 2 in the namelist'
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if

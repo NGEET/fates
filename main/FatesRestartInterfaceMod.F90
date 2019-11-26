@@ -100,6 +100,8 @@ module FatesRestartInterfaceMod
   integer :: ir_gpp_acc_hold_co
   integer :: ir_npp_acc_hold_co
   integer :: ir_resp_acc_hold_co
+  integer :: ir_resp_g_daily_co
+  integer :: ir_resp_m_def_co
   integer :: ir_bmort_co
   integer :: ir_hmort_co
   integer :: ir_cmort_co
@@ -107,6 +109,9 @@ module FatesRestartInterfaceMod
 
   integer :: ir_daily_n_uptake_co
   integer :: ir_daily_p_uptake_co
+  integer :: ir_daily_c_efflux_co
+  integer :: ir_daily_n_efflux_co
+  integer :: ir_daily_p_efflux_co
 
   !Logging
   integer :: ir_lmort_direct_co
@@ -704,6 +709,16 @@ contains
          units='kgC/indiv/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_hold_co )
 
+    call this%set_restart_var(vname='fates_resp_g_daily', vtype=cohort_r8, &
+         long_name='ed cohort - daily growth respiration', &
+         units='kgC/indiv/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_g_daily_co )
+
+    call this%set_restart_var(vname='fates_resp_m_def', vtype=cohort_r8, &
+         long_name='ed cohort - maintenance respiration deficit', &
+         units='kgC/indiv', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_m_def_co )
+    
     call this%set_restart_var(vname='fates_bmort', vtype=cohort_r8, &
          long_name='ed cohort - background mortality rate', &
          units='/year', flushval = flushzero, &
@@ -728,6 +743,23 @@ contains
          long_name='fates cohort- daily phosphorus uptake', &
          units='kg/plant/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_uptake_co )
+
+    call this%set_restart_var(vname='fates_daily_c_efflux', vtype=cohort_r8, &
+         long_name='fates cohort- daily carbon efflux', &
+         units='kg/plant/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_c_efflux_co )
+
+    call this%set_restart_var(vname='fates_daily_n_efflux', vtype=cohort_r8, &
+         long_name='fates cohort- daily nitrogen efflux', &
+         units='kg/plant/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_efflux_co )
+    
+    call this%set_restart_var(vname='fates_daily_p_efflux', vtype=cohort_r8, &
+         long_name='fates cohort- daily phosphorus efflux', &
+         units='kg/plant/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_efflux_co )
+
+
 
     call this%set_restart_var(vname='fates_frmort', vtype=cohort_r8, &
          long_name='ed cohort - freezing mortality rate', &
@@ -1511,11 +1543,16 @@ contains
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
            rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
            rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
+           rio_resp_g_daily_co         => this%rvars(ir_resp_g_daily_co)%r81d, &
+           rio_resp_m_def_co           => this%rvars(ir_resp_m_def_co)%r81d, & 
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-           rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, & 
-           rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &           
+           rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, &
+           rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &
+           rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, & 
+           rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &      
+           rio_daily_p_efflux_co       => this%rvars(ir_daily_p_efflux_co)%r81d, & 
            rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
            rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
            rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
@@ -1716,14 +1753,21 @@ contains
                 rio_resp_acc_hold_co(io_idx_co) = ccohort%resp_acc_hold
                 rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
 
+                rio_resp_g_daily_co(io_idx_co) = ccohort%resp_g_daily
+                rio_resp_m_def_co(io_idx_co)   = ccohort%resp_m_def
+
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
                 rio_hmort_co(io_idx_co)        = ccohort%hmort
                 rio_cmort_co(io_idx_co)        = ccohort%cmort
                 rio_frmort_co(io_idx_co)       = ccohort%frmort                
 
-                ! Nutrient uptake
+                ! Nutrient uptake/efflux
                 rio_daily_n_uptake_co(io_idx_co) = ccohort%daily_n_uptake
                 rio_daily_p_uptake_co(io_idx_co) = ccohort%daily_p_uptake
+                
+                rio_daily_c_efflux_co(io_idx_co) = ccohort%daily_c_efflux
+                rio_daily_n_efflux_co(io_idx_co) = ccohort%daily_n_efflux
+                rio_daily_p_efflux_co(io_idx_co) = ccohort%daily_p_efflux
 
                 !Logging
                 rio_lmort_direct_co(io_idx_co)       = ccohort%lmort_direct
@@ -2246,11 +2290,16 @@ contains
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
           rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
           rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
+          rio_resp_g_daily_co         => this%rvars(ir_resp_g_daily_co)%r81d, &
+          rio_resp_m_def_co           => this%rvars(ir_resp_m_def_co)%r81d, & 
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
           rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, & 
           rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &       
+          rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, & 
+          rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &      
+          rio_daily_p_efflux_co       => this%rvars(ir_daily_p_efflux_co)%r81d, & 
           rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
           rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
           rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
@@ -2412,14 +2461,21 @@ contains
                 ccohort%resp_acc_hold = rio_resp_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
 
+                ccohort%resp_g_daily = rio_resp_g_daily_co(io_idx_co)
+                ccohort%resp_m_def   = rio_resp_m_def_co(io_idx_co)
+
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
                 
-                ! Nutrient uptake
+                ! Nutrient uptake / efflux
                 ccohort%daily_n_uptake = rio_daily_n_uptake_co(io_idx_co)
                 ccohort%daily_p_uptake = rio_daily_p_uptake_co(io_idx_co)
+                ccohort%daily_c_efflux = rio_daily_c_efflux_co(io_idx_co)
+                ccohort%daily_n_efflux = rio_daily_n_efflux_co(io_idx_co)
+                ccohort%daily_p_efflux = rio_daily_p_efflux_co(io_idx_co)
+                
 
                 !Logging
                 ccohort%lmort_direct       = rio_lmort_direct_co(io_idx_co)

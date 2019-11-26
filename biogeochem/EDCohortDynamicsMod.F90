@@ -82,8 +82,14 @@ module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
+  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_leafon, acnp_bc_inout_id_dbh
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_inout_id_netdc
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_out_id_growresp
 
-  !  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
 
@@ -359,10 +365,18 @@ contains
     
     case (prt_cnp_flex_allom_hyp)
 
-       write(fates_log(),*) 'You have not specified the boundary conditions for the'
-       write(fates_log(),*) 'CNP with flexible stoichiometries hypothesis. Please do so. Dude.'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-       
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_in_id_pft,bc_ival = new_cohort%pft)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_in_id_leafon,bc_ival = new_cohort%status_coh)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def,bc_rval = new_cohort%resp_m_def)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdc, bc_rval = new_cohort%npp_acc)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval = new_cohort%daily_n_uptake)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval = new_cohort%daily_p_uptake)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_out_id_growresp, bc_rval = new_cohort%resp_g_daily)
 
     case DEFAULT
        
@@ -397,7 +411,7 @@ contains
     
     ! Potential Extended types
     class(callom_prt_vartypes), pointer :: c_allom_prt
-    !    class(cnp_allom_prt_vartypes), pointer :: cnp_allom_prt
+    class(cnp_allom_prt_vartypes), pointer :: cnp_allom_prt
   
 
     select case(hlm_parteh_mode)
@@ -408,12 +422,8 @@ contains
         
     case (prt_cnp_flex_allom_hyp)
         
-        !! allocate(cnp_allom_prt)
-        !! prt => cnp_allom_prt
-        
-        write(fates_log(),*) 'Flexible CNP allocation is still in development'
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+       allocate(cnp_allom_prt)
+       prt => cnp_allom_prt
 
     case DEFAULT
         
@@ -504,6 +514,13 @@ contains
     currentCohort%resp_acc_hold      = nan ! RESP: kgC/indiv/year
     currentCohort%resp_tstep         = nan ! RESP: kgC/indiv/timestep
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
+
+    ! Fluxes from nutrient allocation
+    currentCohort%daily_n_uptake = nan
+    currentCohort%daily_p_uptake = nan
+    currentCohort%daily_c_efflux = nan
+    currentCohort%daily_n_efflux = nan
+    currentCohort%daily_p_efflux = nan
     
     currentCohort%c13disc_clm        = nan ! C13 discrimination, per mil at indiv/timestep
     currentCohort%c13disc_acc        = nan ! C13 discrimination, per mil at indiv/timestep at indiv/daily at the end of a day
@@ -511,10 +528,13 @@ contains
     !RESPIRATION
     currentCohort%rdark              = nan
     currentCohort%resp_m             = nan ! Maintenance respiration.  kGC/cohort/year
-    currentCohort%resp_g             = nan ! Growth respiration.       kGC/cohort/year
+    currentCohort%resp_m_def         = nan ! Maintenance respiration deficit kgC/plant
     currentCohort%livestem_mr        = nan ! Live stem maintenance respiration. kgC/indiv/s-1 
     currentCohort%livecroot_mr       = nan ! Coarse root maintenance respiration. kgC/indiv/s-1 
     currentCohort%froot_mr           = nan ! Fine root maintenance respiration. kgC/indiv/s-1 
+    currentCohort%resp_g_tstep       = nan ! Growth respiration.       kGC/indiv/timestep
+    currentCohort%resp_g_daily       = nan ! Growth respiration.       kgC/indiv/day
+
 
     ! ALLOCATION
     currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
@@ -565,8 +585,10 @@ contains
     currentCohort%NV                 = 0    
     currentCohort%status_coh         = 0    
     currentCohort%rdark              = 0._r8
-    currentCohort%resp_m             = 0._r8 
-    currentCohort%resp_g             = 0._r8
+    currentCohort%resp_m             = 0._r8
+    currentCohort%resp_m_def         = 0._r8
+    currentCohort%resp_g_tstep       = 0._r8
+    currentCohort%resp_g_daily       = 0._r8
     currentCohort%livestem_mr        = 0._r8
     currentCohort%livecroot_mr       = 0._r8
     currentCohort%froot_mr           = 0._r8
@@ -610,6 +632,10 @@ contains
     currentCohort%daily_n_uptake = 0._r8
     currentCohort%daily_p_uptake = 0._r8
     
+    currentCohort%daily_c_efflux = 0._r8
+    currentCohort%daily_n_efflux = 0._r8
+    currentCohort%daily_p_efflux = 0._r8
+
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
@@ -1255,10 +1281,26 @@ contains
                                    currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
                                    currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
+                                   ! Nutrient fluxes
                                    currentCohort%daily_n_uptake = (currentCohort%n*currentCohort%daily_n_uptake + & 
                                                                    nextc%n*nextc%daily_n_uptake)/newn
                                    currentCohort%daily_p_uptake = (currentCohort%n*currentCohort%daily_p_uptake + & 
                                                                    nextc%n*nextc%daily_p_uptake)/newn
+                                   
+                                   currentCohort%daily_c_efflux = (currentCohort%n*currentCohort%daily_c_efflux + & 
+                                                                   nextc%n*nextc%daily_c_efflux)/newn
+                                   currentCohort%daily_n_efflux = (currentCohort%n*currentCohort%daily_n_efflux + & 
+                                                                   nextc%n*nextc%daily_n_efflux)/newn
+                                   currentCohort%daily_p_efflux = (currentCohort%n*currentCohort%daily_p_efflux + & 
+                                                                   nextc%n*nextc%daily_p_efflux)/newn
+
+                                   ! These two carbon variables need continuity from day to day, as resp_m_def
+                                   ! needs to hold mass and be conservative, and resp_g_daily needs to inform
+                                   ! diagnostics post fusion (during the next day's short timesteps)
+                                   currentCohort%resp_m_def = (currentCohort%n*currentCohort%resp_m_def + & 
+                                                               nextc%n*nextc%resp_m_def)/newn
+                                   currentCohort%resp_g_daily = (currentCohort%n*currentCohort%resp_g_daily+ & 
+                                                               nextc%n*nextc%resp_g_daily)/newn
 
                                    ! logging mortality, Yi Xu
                                    currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &
@@ -1627,6 +1669,12 @@ contains
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
 
+    n%daily_n_uptake = o%daily_n_uptake
+    n%daily_p_uptake = o%daily_p_uptake
+    n%daily_c_efflux = o%daily_c_efflux
+    n%daily_n_efflux = o%daily_n_efflux
+    n%daily_p_efflux = o%daily_p_efflux
+
     ! C13 discrimination
     n%c13disc_clm   = o%c13disc_clm
     n%c13disc_acc   = o%c13disc_acc
@@ -1634,7 +1682,9 @@ contains
     !RESPIRATION
     n%rdark           = o%rdark
     n%resp_m          = o%resp_m
-    n%resp_g          = o%resp_g
+    n%resp_m_def      = o%resp_m_def
+    n%resp_g_tstep    = o%resp_g_tstep
+    n%resp_g_daily    = o%resp_g_daily
     n%livestem_mr     = o%livestem_mr
     n%livecroot_mr    = o%livecroot_mr
     n%froot_mr        = o%froot_mr

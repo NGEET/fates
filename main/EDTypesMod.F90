@@ -192,6 +192,8 @@ module EDTypesMod
                                                         ! global index, and it gives you
                                                         ! the position in the element_list
 
+  
+
   !************************************
   !** COHORT type structure          **
   !************************************
@@ -283,6 +285,10 @@ module EDTypesMod
      real(r8) :: daily_n_uptake   ! integrated daily uptake of mineralized N through competitive acquisition in soil [kg N / plant/ day]
      real(r8) :: daily_p_uptake   ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
 
+     real(r8) :: daily_c_efflux   ! daily mean efflux of excess carbon from roots into labile pool [kg C/plant/day]
+     real(r8) :: daily_n_efflux   ! daily mean efflux of excess nitrogen from roots into labile pool [kg N/plant/day]
+     real(r8) :: daily_p_efflux   ! daily mean efflux of excess phophorus from roots into labile pool [kg P/plant/day]
+
 
      ! The following four biophysical rates are assumed to be
      ! at the canopy top, at reference temp 25C, and based on the 
@@ -305,8 +311,23 @@ module EDTypesMod
 
      ! RESPIRATION COMPONENTS
      real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
-     real(r8) ::  resp_g                                 ! Growth respiration:  kgC/indiv/timestep
+
+     ! These two respiration rates are mutually exclusive.  If we use:
+     ! parteh_mode = prt_carbon_allom_hyp, then growth respiration
+     !               is calculated during photosynthesis as a tax on (GPP-R_maint), 
+     !               and tracked with resp_g_tstep
+     ! if
+     ! parteh_mode = prt_cnp_flex_allom_hyp, then growth respiration
+     !               is calculated during during each allocation, and thus tracked
+     !               with resp_g_daily
+
+     real(r8) ::  resp_g_tstep                           ! Growth respiration:  kgC/indiv/timestep
+     real(r8) ::  resp_g_daily                           !                      kgC/indiv/day
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
+     real(r8) ::  resp_m_def                             ! Optional: (NOT IMPLEMENTED YET)
+                                                         ! It may be possible to not respire at desired rate
+                                                         ! because of low carbon stores, and thus build
+                                                         ! up a deficit. This tracks that deficit. kgC/indiv
      real(r8) ::  livestem_mr                            ! Live stem        maintenance respiration: kgC/indiv/s
                                                          ! (Above ground)
      real(r8) ::  livecroot_mr                           ! Live stem        maintenance respiration: kgC/indiv/s
@@ -571,7 +592,10 @@ module EDTypesMod
      real(r8) :: cwd_bg_input(1:ncwd)               
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
-     
+
+     real(r8),allocatable :: nutrient_uptake_scpf(:)
+     real(r8),allocatable :: nutrient_efflux_scpf(:)
+
    contains
 
      procedure :: ZeroFluxDiags
@@ -788,7 +812,9 @@ module EDTypesMod
       this%cwd_bg_input(:)      = 0._r8
       this%leaf_litter_input(:) = 0._r8
       this%root_litter_input(:) = 0._r8
-      
+      this%nutrient_uptake_scpf(:) = 0._r8
+      this%nutrient_efflux_scpf(:) = 0._r8
+
       return
     end subroutine ZeroFluxDiags
 
@@ -1003,7 +1029,9 @@ module EDTypesMod
      write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
-     write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g
+     write(fates_log(),*) 'co%resp_m_def             = ', ccohort%resp_m_def
+     write(fates_log(),*) 'co%resp_g_tstep           = ', ccohort%resp_g_tstep
+     write(fates_log(),*) 'co%resp_g_daily           = ', ccohort%resp_g_daily
      write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr
      write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr
      write(fates_log(),*) 'co%froot_mr               = ', ccohort%froot_mr

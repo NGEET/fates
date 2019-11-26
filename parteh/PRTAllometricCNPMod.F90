@@ -146,16 +146,15 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_in_id_ctrim   = 2     ! Index for the canopy trim function
   integer, public, parameter :: acnp_bc_in_id_leafon  = 3     ! phenology status logical
                                                               ! 0=leaf off, 1=leaf on
-
   integer, parameter         :: num_bc_in             = 3
 
   ! -------------------------------------------------------------------------------------
   ! Output Boundary Indices (These are public)
   ! -------------------------------------------------------------------------------------
 
-  integer, public, parameter :: acnp_bc_out_id_rootcexude = 1  ! Daily exudation of C  [kg]
-  integer, public, parameter :: acnp_bc_out_id_rootnexude = 2  ! Daily exudation of N  [kg]
-  integer, public, parameter :: acnp_bc_out_id_rootpexude = 3  ! Daily exudation of P  [kg]
+  integer, public, parameter :: acnp_bc_out_id_cefflux = 1  ! Daily exudation of C  [kg]
+  integer, public, parameter :: acnp_bc_out_id_nefflux = 2  ! Daily exudation of N  [kg]
+  integer, public, parameter :: acnp_bc_out_id_pefflux = 3  ! Daily exudation of P  [kg]
   integer, public, parameter :: acnp_bc_out_id_growresp   = 4
   integer, parameter         :: num_bc_out                = 4  ! Total number of
 
@@ -221,7 +220,6 @@ contains
      ! -----------------------------------------------------------------------------------
 
      integer :: nleafage
-
 
      allocate(prt_global_acnp)
      allocate(prt_global_acnp%state_descriptor(num_vars))
@@ -291,11 +289,18 @@ contains
 
     class(cnp_allom_prt_vartypes) :: this
 
-    real(r8),pointer :: dbh              ! Diameter at breast height [cm]
-    real(r8),pointer :: carbon_gain      ! Daily carbon balance for this cohort [kgC]
-    real(r8),pointer :: nitrogen_gain    ! Daily nitrogen uptake through fine-roots [kgN]
+    ! Pointers to in-out bcs
+    real(r8),pointer :: dbh             ! Diameter at breast height [cm]
+    real(r8),pointer :: carbon_gain     ! Daily carbon balance for this cohort [kgC]
+    real(r8),pointer :: nitrogen_gain   ! Daily nitrogen uptake through fine-roots [kgN]
     real(r8),pointer :: phosphorus_gain ! Daily phosphorus uptake through fine-roots [kgN]
-    real(r8),pointer :: maint_r_deficit  ! Current maintenance respiration deficit [kgC]
+    real(r8),pointer :: maint_r_deficit ! Current maintenance respiration deficit [kgC]
+
+    ! Pointers to output bcs
+    real(r8),pointer :: c_efflux        ! Total plant efflux of carbon (kgC)
+    real(r8),pointer :: n_efflux        ! Total plant efflux of nitrogen (kgN)
+    real(r8),pointer :: p_efflux        ! Total plant efflux of phosphorus (kgP)
+    real(r8),pointer :: totgrowresp     ! Total plant respiration (kgC)
 
 
     real(r8) :: canopy_trim              ! The canopy trimming function [0-1]
@@ -434,7 +439,7 @@ contains
 
     real(r8), dimension(num_organs) :: r_g                 ! Unit growth respriation for each pool [kg/kg]
     real(r8), dimension(num_organs) :: growth_resp         ! Total growth respiration for each pool [kg]
-    real(r8) :: total_growth_respiration                   ! Total plant respiration (kgC)
+    
 
     integer, dimension(num_organs) :: curpri_c_ids         ! C variable ID's of the current priority level
     integer, dimension(num_organs) :: curpri_n_ids         ! N variable ID's of the current priority level
@@ -521,22 +526,25 @@ contains
     ! Copy the in/out boundary conditions as pointers
     ! -----------------------------------------------------------------------------------
 
-    dbh                               => this%bc_inout(acnp_bc_inout_id_dbh)%rval
-    carbon_gain                       => this%bc_inout(acnp_bc_inout_id_netdc)%rval
-    maint_r_deficit                   => this%bc_inout(acnp_bc_inout_id_rmaint_def)%rval
-    nitrogen_gain                     => this%bc_inout(acnp_bc_inout_id_netdn)%rval
-    phosphorus_gain                   => this%bc_inout(acnp_bc_inout_id_netdp)%rval
+    dbh             => this%bc_inout(acnp_bc_inout_id_dbh)%rval
+    carbon_gain     => this%bc_inout(acnp_bc_inout_id_netdc)%rval
+    maint_r_deficit => this%bc_inout(acnp_bc_inout_id_rmaint_def)%rval
+    nitrogen_gain   => this%bc_inout(acnp_bc_inout_id_netdn)%rval
+    phosphorus_gain => this%bc_inout(acnp_bc_inout_id_netdp)%rval
 
     ! Copy the in boundary conditions into readable local variables
     ! We don't use pointers, because inputs should be intent in only
     ! -----------------------------------------------------------------------------------
 
-    canopy_trim                       = this%bc_in(acnp_bc_in_id_ctrim)%rval
-    leaves_on                         = this%bc_in(acnp_bc_in_id_leafon)%ival
-    ipft                              = this%bc_in(acnp_bc_in_id_pft)%ival
+    canopy_trim     = this%bc_in(acnp_bc_in_id_ctrim)%rval
+    leaves_on       = this%bc_in(acnp_bc_in_id_leafon)%ival
+    ipft            = this%bc_in(acnp_bc_in_id_pft)%ival
 
-!    print*,"BCs: ",dbh, carbon_gain,maint_r_deficit,nitrogen_gain,phosphorus_gain,canopy_trim,leaves_on,ipft
-
+    ! Output only boundary conditions
+    totgrowresp     => this%bc_out(acnp_bc_out_id_growresp)%rval; totgrowresp = 0._r8
+    c_efflux        => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
+    n_efflux        => this%bc_out(acnp_bc_out_id_nefflux)%rval;  n_efflux = 0._r8
+    p_efflux        => this%bc_out(acnp_bc_out_id_pefflux)%rval;  p_efflux = 0._r8
 
 ! PLACEHOLDER IN CASE SOMEONE WANTS TO HAVE VARIABLE GROWTH RESP RATES PER ORGAN
 !    r_g(leaf_organ)                    = EDPftvarcon_inst%prt_grperc_organ(ipft,leaf_organ)
@@ -556,10 +564,6 @@ contains
     intgr_params(:)                    = -9.9e32_r8
     intgr_params(acnp_bc_in_id_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
     intgr_params(acnp_bc_in_id_pft)   = real(this%bc_in(acnp_bc_in_id_pft)%ival)
-
-    ! All growth respiration is handled internally, and is tallied in this
-    ! daily routine.  Initialize it here.
-    total_growth_respiration = 0.0_r8
 
 
     ! Initialize some fields at the beginning of the routine for balance checking later on
@@ -698,6 +702,10 @@ contains
        ! The priority code associated with this organ
        priority_code = int(EDPftvarcon_inst%prt_alloc_priority(ipft, organ_list(ii)))
 
+       ! Don't allow allocation to leaves if they are in an "off" status.
+       ! (this prevents accidental re-flushing on the day they drop)
+       if((leaves_on.ne.2) .and. (organ_list(ii).eq.leaf_organ)) cycle
+       
        ! 1 is the highest priority code possible
        if( priority_code == 1 ) then
           i = i + 1
@@ -725,12 +733,11 @@ contains
     ! -----------------------------------------------------------------------------------
 
     sum_c_demand = 0.0_r8
-    if(leaves_on == 2) then
-       do i = 1, num_organs_curpri
-          i_cvar       = curpri_c_ids(i)
-          sum_c_demand = sum_c_demand + v_demand(i_cvar)
-       end do
-    end if
+    do i = 1, num_organs_curpri
+       i_cvar       = curpri_c_ids(i)
+       sum_c_demand = sum_c_demand + v_demand(i_cvar)
+    end do
+
 
     if( (sum_c_demand+maint_r_deficit) > nearzero .or. carbon_gain < 0.0_r8   ) then
 
@@ -968,6 +975,10 @@ contains
           ! The priority code associated with this organ
           priority_code = int(EDPftvarcon_inst%prt_alloc_priority(ipft, organ_list(ii)))
 
+          ! Don't allow allocation to leaves if they are in an "off" status.
+          ! (this prevents accidental re-flushing on the day they drop)
+          if((leaves_on.ne.2) .and. (organ_list(ii).eq.leaf_organ)) cycle
+
           ! 1 is the highest priority code possible
           if( priority_code == i_priority ) then
              i = i + 1
@@ -1130,6 +1141,10 @@ contains
        do i = 1, num_organs
 
           i_cvar = sp_organ_map(organ_list(i),carbon12_element)
+
+          ! Don't allow allocation to leaves if they are in an "off" status.
+          ! (this prevents accidental re-flushing on the day they drop)
+          if((leaves_on.ne.2) .and. (organ_list(i).eq.leaf_organ)) cycle
 
           cdeficit =  v_target(i_cvar) - sum(this%variables(i_cvar)%val(:))
 
@@ -1582,32 +1597,29 @@ contains
 
     end if
 
+    ! Process output boundary conditions, (growth respiration and efflux)
+    ! ----------------------------------------------------------------------------------
+    
     ! Sum up growth respiration
-    total_growth_respiration = 0.0_r8
+    totgrowresp = 0.0_r8
     do i = 1, num_organs
        i_cvar   = sp_organ_map(organ_list(i),carbon12_element)
-       total_growth_respiration = total_growth_respiration + growth_resp(i_cvar)
+       totgrowresp = totgrowresp + growth_resp(i_cvar)
     end do
 
-    ! -----------------------------------------------------------------------------------
-    ! -----------------------------------------------------------------------------------
-    !
+
     ! Figure out what to do with excess carbon and nutrients
-    !
     ! 1) excude through roots cap at 0 to flush out imprecisions
-    !
-    ! -----------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------
 
+    c_efflux = max(0.0_r8,carbon_gain)
+    n_efflux = max(0.0_r8,nitrogen_gain)
+    p_efflux = max(0.0_r8,phosphorus_gain)
 
-    this%bc_out(acnp_bc_out_id_rootcexude)%rval = max(0.0_r8,carbon_gain)
-    this%bc_out(acnp_bc_out_id_rootnexude)%rval = max(0.0_r8,nitrogen_gain)
-    this%bc_out(acnp_bc_out_id_rootpexude)%rval = max(0.0_r8,phosphorus_gain)
-    this%bc_out(acnp_bc_out_id_growresp)%rval   = total_growth_respiration
 
     carbon_gain      = 0.0_r8
     nitrogen_gain    = 0.0_r8
-    phosphorus_gain = 0.0_r8
+    phosphorus_gain  = 0.0_r8
 
 
     ! Update the diagnostic on daily rate of change
@@ -1692,7 +1704,6 @@ contains
   end subroutine FastPRTAllometricCNP
 
   ! =====================================================================================
-
 
   subroutine GrowEquivC(this,carbon_gain,nitrogen_gain,phosphorus_gain, &
                         alloc_frac,ipft,organ_id, &

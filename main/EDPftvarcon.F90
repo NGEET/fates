@@ -15,8 +15,6 @@ module EDPftvarcon
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
   use FatesLitterMod, only : ilabile,icellulose,ilignin
-  use PRTGenericMod,  only : prt_cnp_flex_allom_hyp
-  use PRTGenericMod,  only : prt_carbon_allom_hyp
   use PRTGenericMod,  only : num_organ_types
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ

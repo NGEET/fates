@@ -2372,6 +2372,16 @@ contains
                 nc_actual = max(leaf_n/leaf_c,rsnbl_math_prec)
 
                 if(cnp_scalar_method.eq.cnp_scalar_method1)then
+                   
+                   !x0 = 0.5*(nc_ideal+nc_min)
+                   
+                   ! Fit the logistic shape parameter so that 95%tile of
+                   ! nutrient concentration matches 95%tile of scalar
+                   ! 0.95 = 1._r8/(1._r8 + exp(-logi_k*(  0.95*(nc_ideal-x0) )))
+                   ! logi_k = -log(1._r8-0.95/0.95)/ (  0.95*(nc_ideal-x0) )
+
+                   !bc_out%cn_scalar(icomp) = 1._r8/(1._r8 + exp(-logi_k*(nc_actual-x0)))
+
                    bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp) + & 
                         min(1._r8,max(0._r8, & 
                         (nc_ideal - nc_actual + cn_stoich_var*nc_min) / & 
@@ -2520,7 +2530,7 @@ contains
                    ! we instead demand 1% of its total nitrogen for that first day of life
                    npp_n_demand = 0.01_r8*plant_max_n
                 else
-                   npp_n_demand = (plant_max_n/plant_c)*ccohort%npp_acc_hold
+                   npp_n_demand = (plant_n/plant_c)*ccohort%npp_acc_hold
                 end if
 
 
@@ -2647,6 +2657,8 @@ contains
     real(r8), pointer              :: flux_cel_si(:)
     real(r8), pointer              :: flux_lab_si(:)
     real(r8), pointer              :: flux_lig_si(:)
+    real(r8), pointer              :: efflux_ptr      ! Points to the current
+                                                      ! element's root efflux                                         
     type(litter_type), pointer     :: litt
      
     real(r8) :: surface_prof(1:hlm_numlevgrnd) ! this array is used to distribute
@@ -2732,6 +2744,27 @@ contains
        
        currentPatch => csite%oldest_patch
        do while (associated(currentPatch))
+
+          ! If there is any efflux (from stores overlowing)
+          ! than pass that to the labile litter pool
+
+          currentCohort => currentPatch%tallest
+          do while(associated(currentCohort))
+             if(.not.currentCohort%isnew)then
+                if(element_list(el).eq.carbon12_element) then
+                   efflux_ptr => currentCohort%daily_c_efflux
+                elseif(element_list(el).eq.nitrogen_element) then
+                   efflux_ptr => currentCohort%daily_n_efflux
+                elseif(element_list(el).eq.phosphorus_element) then
+                   efflux_ptr => currentCohort%daily_p_efflux
+                end if
+                do id = 1,nlev_eff_decomp
+                   flux_lab_si(id) = flux_lab_si(id) + &
+                        efflux_ptr*currentCohort%n* AREA_INV * surface_prof(id)
+                end do
+             end if
+             currentCohort => currentCohort%shorter
+          end do
           
           ! Set a pointer to the litter object
           ! for the current element on the current
