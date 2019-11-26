@@ -108,8 +108,9 @@ module EDPftvarcon
      real(r8), allocatable :: vcmaxse(:)
      real(r8), allocatable :: jmaxse(:)
      real(r8), allocatable :: tpuse(:)
-     real(r8), allocatable :: germination_timescale(:)
-     real(r8), allocatable :: seed_decay_turnover(:)
+     real(r8), allocatable :: germination_rate(:)        ! Fraction of seed mass germinating per year (yr-1)
+     real(r8), allocatable :: seed_decay_rate(:)         ! Fraction of seed mass (both germinated and 
+                                                         ! ungerminated), decaying per year    (yr-1)
      
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
@@ -753,11 +754,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_germination_timescale'
+    name = 'fates_seed_germination_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_decay_turnover'
+    name = 'fates_seed_decay_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -1229,11 +1230,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%tpuse)
 
-    name = 'fates_seed_germination_timescale'
+    name = 'fates_seed_germination_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%germination_timescale)
 
-    name = 'fates_seed_decay_turnover'
+    name = 'fates_seed_decay_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_decay_turnover)
 

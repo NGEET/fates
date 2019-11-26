@@ -411,12 +411,12 @@ variables:
 	double fates_seed_dbh_repro_threshold(fates_pft) ;
 		fates_seed_dbh_repro_threshold:units = "cm" ;
 		fates_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool" ;
-	double fates_seed_decay_turnover(fates_pft) ;
-		fates_seed_decay_turnover:units = "yr" ;
-		fates_seed_decay_turnover:long_name = "turnover time for seeds with respect to decay" ;
-	double fates_seed_germination_timescale(fates_pft) ;
-		fates_seed_germination_timescale:units = "yr" ;
-		fates_seed_germination_timescale:long_name = "germination timescale for seeds (fraction germinated per year)" ;
+	double fates_seed_decay_rate(fates_pft) ;
+		fates_seed_decay_rate:units = "yr-1" ;
+		fates_seed_decay_rate:long_name = "fraction of seeds that decay per year" ;
+	double fates_seed_germination_rate(fates_pft) ;
+		fates_seed_germination_rate:units = "yr-1" ;
+		fates_seed_germination_rate:long_name = "fraction of seeds that germinate per year" ;
 	double fates_seed_suppl(fates_pft) ;
 		fates_seed_suppl:units = "KgC/m2/yr" ;
 		fates_seed_suppl:long_name = "Supplemental external seed rain source term (non-mass conserving)" ;
@@ -1096,10 +1096,10 @@ data:
  fates_seed_dbh_repro_threshold = 150, 90, 90, 90, 90, 90, 3, 3, 2, 1.47, 
     1.47, 1.47 ;
 
- fates_seed_decay_turnover = 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 
+ fates_seed_decay_rate = 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 
     0.51, 0.51, 0.51, 0.51 ;
 
- fates_seed_germination_timescale = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+ fates_seed_germination_rate = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5, 0.5, 0.5 ;
 
  fates_seed_suppl = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;

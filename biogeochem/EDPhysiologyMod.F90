@@ -1231,16 +1231,16 @@ contains
 
     ! default value from Liscke and Loffler 2006 ; making this a PFT-specific parameter
     ! decays the seed pool according to exponential model
-    ! seed_decay_turnover is in yr-1
+    ! seed_decay_rate is in yr-1
     ! seed_decay is kg/day
     ! Assume that decay rates are same for all chemical species
 
     do pft = 1,numpft 
        litt%seed_decay(pft) = litt%seed(pft) * &
-             EDPftvarcon_inst%seed_decay_turnover(pft)*years_per_day
+             EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
 
        litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
-             EDPftvarcon_inst%seed_decay_turnover(pft)*years_per_day
+             EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
 
     enddo
 
@@ -1274,14 +1274,14 @@ contains
 
     !----------------------------------------------------------------------
 
-    ! germination_timescale is being pulled to PFT parameter; units are 1/yr
+    ! germination_rate is being pulled to PFT parameter; units are 1/yr
     ! thus the mortality rate of seed -> recruit (in units of carbon) 
-    ! is seed_decay_turnover(p)/germination_timescale(p)
+    ! is seed_decay_turnover(p)/germination_rate(p)
     ! and thus the mortality rate (in units of individuals) is the product of 
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
     do pft = 1,numpft
-       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_timescale(pft), &
+       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
                                      max_germination)*years_per_day
        
        !set the germination only under the growing season...c.xu
