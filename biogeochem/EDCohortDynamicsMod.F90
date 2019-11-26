@@ -534,7 +534,7 @@ contains
     currentCohort%ddbhdt             = nan ! time derivative of dbh 
 
     ! FIRE
-    currentCohort%sh                    = nan ! scorch height affecting crown (m)
+    currentCohort%scorch_ht             = nan ! scorch height affecting crown (m)
     currentCohort%fraction_crown_burned = nan ! proportion of crown affected by fire
     currentCohort%cambial_mort          = nan ! probability that trees dies due to cambial char P&R (1986)
     currentCohort%crownfire_mort        = nan ! probability of tree post-fire mortality due to crown scorch
