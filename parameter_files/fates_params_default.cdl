@@ -1,4 +1,4 @@
-netcdf fates_params_default {
+netcdf fates_params_default_ordered {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -120,6 +120,42 @@ variables:
 	double fates_displar(fates_pft) ;
 		fates_displar:units = "unitless" ;
 		fates_displar:long_name = "Ratio of displacement height to canopy top height" ;
+	double fates_eca_alpha_ptase(fates_pft) ;
+		fates_eca_alpha_ptase:units = "g/m3" ;
+		fates_eca_alpha_ptase:long_name = "fraction of P from ptase activity sent directly to plant (ECA)" ;
+	double fates_eca_decompmicc(fates_pft) ;
+		fates_eca_decompmicc:units = "gC/m3" ;
+		fates_eca_decompmicc:long_name = "mean soil microbial decomposer biomass (ECA)" ;
+	double fates_eca_km_nh4(fates_pft) ;
+		fates_eca_km_nh4:units = "gN/m3" ;
+		fates_eca_km_nh4:long_name = "half-saturation constant for plant nh4 uptake (ECA)" ;
+	double fates_eca_km_no3(fates_pft) ;
+		fates_eca_km_no3:units = "gN/m3" ;
+		fates_eca_km_no3:long_name = "half-saturation constant for plant no3 uptake (ECA)" ;
+	double fates_eca_km_p(fates_pft) ;
+		fates_eca_km_p:units = "gP/m3" ;
+		fates_eca_km_p:long_name = "half-saturation constant for plant p uptake (ECA)" ;
+	double fates_eca_km_ptase(fates_pft) ;
+		fates_eca_km_ptase:units = "gP/m3" ;
+		fates_eca_km_ptase:long_name = "half-saturation constant for biochemical P (ECA)" ;
+	double fates_eca_lambda_ptase(fates_pft) ;
+		fates_eca_lambda_ptase:units = "g/m3" ;
+		fates_eca_lambda_ptase:long_name = "critical value for biochemical production (ECA)" ;
+	double fates_eca_vmax_nh4(fates_pft) ;
+		fates_eca_vmax_nh4:units = "gN/gC/s" ;
+		fates_eca_vmax_nh4:long_name = "maximum production rate for plant nh4 uptake (ECA)" ;
+	double fates_eca_vmax_no3(fates_pft) ;
+		fates_eca_vmax_no3:units = "gN/gC/s" ;
+		fates_eca_vmax_no3:long_name = "maximum production rate for plant no3 uptake (ECA)" ;
+	double fates_eca_vmax_p(fates_pft) ;
+		fates_eca_vmax_p:units = "gP/gC/s" ;
+		fates_eca_vmax_p:long_name = "maximum production rate for plant p uptake (ECA)" ;
+	double fates_eca_vmax_ptase(fates_pft) ;
+		fates_eca_vmax_ptase:units = "gP/m2/s" ;
+		fates_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (per m2) (ECA)" ;
+	double fates_fire_active_crown_fire(fates_pft) ;
+		fates_fire_active_crown_fire:units = "fraction" ;
+		fates_fire_active_crown_fire:long_name = "resistance to active crown fire (1=none)" ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "NA" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
@@ -282,6 +318,12 @@ variables:
 	double fates_mort_scalar_hydrfailure(fates_pft) ;
 		fates_mort_scalar_hydrfailure:units = "1/yr" ;
 		fates_mort_scalar_hydrfailure:long_name = "maximum mortality rate from hydraulic failure" ;
+	double fates_nfix1(fates_pft) ;
+		fates_nfix1:units = "NA" ;
+		fates_nfix1:long_name = "place-holder for future n-fixation parameter (NOT IMPLEMENTED)" ;
+	double fates_nfix2(fates_pft) ;
+		fates_nfix2:units = "NA" ;
+		fates_nfix2:long_name = "place-holder for future n-fixation parameter (NOT IMPLEMENTED)" ;
 	double fates_phen_evergreen(fates_pft) ;
 		fates_phen_evergreen:units = "logical flag" ;
 		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
@@ -306,6 +348,12 @@ variables:
 	double fates_prescribed_npp_understory(fates_pft) ;
 		fates_prescribed_npp_understory:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_understory:long_name = "NPP per unit crown area of understory trees for prescribed physiology mode" ;
+	double fates_prescribed_nuptake(fates_pft) ;
+		fates_prescribed_nuptake:units = "kgN/m^2/yr" ;
+		fates_prescribed_nuptake:long_name = "Nitrogen uptake flux per unit crown area (negative implies fraction of NPP)" ;
+	double fates_prescribed_puptake(fates_pft) ;
+		fates_prescribed_puptake:units = "kgP/m^2/yr" ;
+		fates_prescribed_puptake:long_name = "Phosphorus uptake flux per unit crown area (negative implies fraction of NPP)" ;
 	double fates_prescribed_recruitment(fates_pft) ;
 		fates_prescribed_recruitment:units = "n/yr" ;
 		fates_prescribed_recruitment:long_name = "recruitment rate for prescribed physiology mode" ;
@@ -365,10 +413,10 @@ variables:
 		fates_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool" ;
 	double fates_seed_decay_turnover(fates_pft) ;
 		fates_seed_decay_turnover:units = "1/yr" ;
-		fates_seed_decay_turnover:long_name = "turnover time for seeds with respect to germination" ;
+		fates_seed_decay_turnover:long_name = "turnover time for seeds with respect to decay" ;
 	double fates_seed_germination_timescale(fates_pft) ;
 		fates_seed_germination_timescale:units = "1/yr" ;
-		fates_seed_germination_timescale:long_name = "turnover time for seeds with respect to decay" ;
+		fates_seed_germination_timescale:long_name = "germination timescale for seeds (fraction germinated per year)" ;
 	double fates_seed_suppl(fates_pft) ;
 		fates_seed_suppl:units = "KgC/m2/yr" ;
 		fates_seed_suppl:long_name = "Supplemental external seed rain source term (non-mass conserving)" ;
@@ -706,6 +754,30 @@ data:
  fates_displar = 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 
     0.67, 0.67 ;
 
+ fates_eca_alpha_ptase = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_eca_decompmicc = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_eca_km_nh4 = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_eca_km_no3 = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_eca_km_p = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_eca_km_ptase = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_eca_lambda_ptase = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_eca_vmax_nh4 = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_eca_vmax_no3 = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_eca_vmax_p = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_eca_vmax_ptase = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_fire_active_crown_fire = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
  fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.2 ;
 
@@ -898,6 +970,10 @@ data:
  fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
     0.6, 0.6, 0.6 ;
 
+ fates_nfix1 = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_nfix2 = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
  fates_phen_evergreen = 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0 ;
 
  fates_phen_season_decid = 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0 ;
@@ -918,16 +994,22 @@ data:
  fates_prescribed_npp_understory = 0.03125, 0.03125, 0.03125, 0.03125, 
     0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125 ;
 
+ fates_prescribed_nuptake = -0.02, -0.02, -0.02, -0.02, -0.02, -0.02, -0.02, 
+    -0.02, -0.02, -0.02, -0.02, -0.02 ;
+
+ fates_prescribed_puptake = -0.002, -0.002, -0.002, -0.002, -0.002, -0.002, 
+    -0.002, -0.002, -0.002, -0.002, -0.002, -0.002 ;
+
  fates_prescribed_recruitment = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
     0.02, 0.02, 0.02, 0.02, 0.02 ;
 
  fates_prt_alloc_priority =
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _ ;
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 ;
 
  fates_prt_nitr_stoich_p1 =
   0.033, 0.029, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 0.04, 0.04, 0.04, 0.04,
@@ -942,28 +1024,42 @@ data:
     0.0047, 0.0047, 0.0047 ;
 
  fates_prt_nitr_stoich_p2 =
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _ ;
+  0.033, 0.029, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 0.04, 0.04, 0.04, 0.04,
+  0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 
+    0.024, 0.024,
+  1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 
+    1e-08, 1e-08,
+  1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 
+    1e-08, 1e-08,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 
+    0.0047, 0.0047, 0.0047 ;
 
  fates_prt_phos_stoich_p1 =
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _ ;
+  0.0033, 0.0029, 0.004, 0.0033, 0.004, 0.004, 0.0033, 0.004, 0.004, 0.004, 
+    0.004, 0.004,
+  0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 
+    0.0024, 0.0024, 0.0024,
+  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
+    1e-09, 1e-09,
+  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
+    1e-09, 1e-09,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 
+    0.00047, 0.00047, 0.00047, 0.00047 ;
 
  fates_prt_phos_stoich_p2 =
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _ ;
+  0.0033, 0.0029, 0.004, 0.0033, 0.004, 0.004, 0.0033, 0.004, 0.004, 0.004, 
+    0.004, 0.004,
+  0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 
+    0.0024, 0.0024, 0.0024,
+  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
+    1e-09, 1e-09,
+  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
+    1e-09, 1e-09,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 
+    0.00047, 0.00047, 0.00047, 0.00047 ;
 
  fates_recruit_hgt_min = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.75, 0.75, 0.75, 
     0.125, 0.125, 0.125 ;
@@ -1043,20 +1139,20 @@ data:
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_turnover_nitr_retrans =
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _ ;
+  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
+  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_turnover_phos_retrans =
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _,
-  _, _, _, _, _, _, _, _, _, _, _, _ ;
+  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
+  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_turnover_retrans_mode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
@@ -1172,7 +1268,7 @@ data:
 
  fates_phen_drought_threshold = 0.15 ;
 
- fates_phen_mindayson = 90 ;
+ fates_phen_mindayson = 30 ;
 
  fates_phen_ncolddayslim = 5 ;
 
