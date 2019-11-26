@@ -198,6 +198,41 @@ module EDPftvarcon
      real(r8), allocatable :: prt_phos_stoich_p2(:,:)   ! Parameter 2 for phosphorus stoichiometry (pft x organ) 
      real(r8), allocatable :: prt_alloc_priority(:,:)   ! Allocation priority for each organ (pft x organ) [integer 0-6]
 
+     ! Nutrient Aquisition parameters
+
+     ! (NONE OF THESE ARE ACTIVE YET - PLACEHOLDERS ONLY!!!!!)
+
+     ! Nutrient Aquisition (ECA & RD)
+     real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
+                                                        ! on root surface
+
+     ! ECA Parameters: See Zhu et al. Multiple soil nutrient competition between plants,
+     !                     microbes, and mineral surfaces: model development, parameterization,
+     !                     and example applications in several tropical forests.  Biogeosciences,
+     !                     13, pp.341-363, 2016.
+     ! KM: Michaeles-Menten half-saturation constants for ECA (plant–enzyme affinity)
+     ! VMAX: Product of the reaction-rate and enzyme abundance for each PFT in ECA
+     ! Note*: units of [gC] is grams carbon of fine-root
+
+     real(r8), allocatable :: eca_km_nh4(:)       ! half-saturation constant for plant nh4 uptake  [gN/m3]
+     real(r8), allocatable :: eca_vmax_nh4(:)     ! maximum production rate for plant nh4 uptake   [gN/gC/s] 
+     real(r8), allocatable :: eca_km_no3(:)       ! half-saturation constant for plant no3 uptake  [gN/m3]
+     real(r8), allocatable :: eca_vmax_no3(:)     ! maximum production rate for plant no3 uptake   [gN/gC/s]
+     real(r8), allocatable :: eca_km_p(:)         ! half-saturation constant for plant p uptake    [gP/m3]
+     real(r8), allocatable :: eca_vmax_p(:)       ! maximum production rate for plant p uptake     [gP/gC/s]
+     real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production [gP/m3]
+     real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod        [gP/m2/s]
+     real(r8), allocatable :: eca_alpha_ptase(:)  ! Fraction of min P generated from ptase activity
+                                                  ! that is immediately sent to the plant [/]
+     real(r8), allocatable :: eca_lambda_ptase(:) ! critical value for Ptase that incurs 
+                                                  ! biochemical production, fraction based how much
+                                                  ! more in need a plant is for P versus N [/]
+
+     !real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1 (in file, but not used yet)
+     !real(r8), allocatable :: nfix2(:)   ! nitrogen fixation parameter 2 (in file, but not used yet)
+
+
+
      ! Turnover related things
 
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
@@ -758,7 +793,52 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    ! Nutrient competition parameters
+
+    name = 'fates_eca_decompmicc'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_eca_km_nh4'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
+    name = 'fates_eca_vmax_nh4'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_km_no3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_no3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_km_p'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_p'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_km_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_alpha_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_lambda_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
   end subroutine Register_PFT
 
   !-----------------------------------------------------------------------
@@ -1188,6 +1268,50 @@ contains
     name = 'fates_phenflush_fraction'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
+
+    name = 'fates_eca_decompmicc'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_decompmicc)
+
+    name = 'fates_eca_km_nh4'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_nh4)
+
+    name = 'fates_eca_vmax_nh4'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_nh4)
+
+    name = 'fates_eca_km_no3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_no3)
+
+    name = 'fates_eca_vmax_no3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_no3)
+
+    name = 'fates_eca_km_p'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_p)
+
+    name = 'fates_eca_vmax_p'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_p)
+
+    name = 'fates_eca_km_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_ptase)
+
+    name = 'fates_eca_vmax_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_ptase)
+
+    name = 'fates_eca_alpha_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_alpha_ptase)
+
+    name = 'fates_eca_lambda_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_lambda_ptase)
 
   end subroutine Receive_PFT
 
