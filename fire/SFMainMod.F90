@@ -176,8 +176,8 @@ contains
   subroutine  characteristics_of_fuel ( currentSite, MEF, fuel_moisture )
   !*****************************************************************
 
-    use SFParamsMod, only  : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
-    use SFParamsMod, only  : SF_val_miner_total
+    use SFParamsMod, only: SF_val_drying_ratio, SF_val_SAV, SF_val_FBD, &
+                           SF_val_miner_total
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -964,12 +964,12 @@ contains
     real(r8) :: leaf_c  ! leaf carbon [kg]
     real(r8), parameter :: low_heat_of_combustion = 12700.0_r8  ! [kJ/kg]
     real(r8), parameter :: critical_mass_flow_rate = 0.05_r8  ! [kg/m2/s] value for conifer forests; if available for other vegetation, move to the params file?
-    real(r8) active_crown_FI    ! critical fire intensity for active crown fire ignition (kW/m)
-    real(r8) ignite_active_crown  ! ratio for ignition of active crown fire,EQ 14b Bessie & Johnson 1995
+    real(r8) :: active_crown_FI  ! critical fire intensity for active crown fire ignition (kW/m)
+    real(r8) :: ignite_active_crown  ! ratio for ignition of active crown fire,EQ 14b Bessie & Johnson 1995
     real(r8) ::  crown_depth          ! depth of crown (m)
     real(r8) ::  height_cbb           ! clear branch bole height or crown base height (m)
     real(r8) ::  passive_crown_FI     ! critical fire intensity for passive crown fire ignition (kW/m)
-    real(r8) ::  ignite_crown         ! ratio for ignition of passive crown fire,EQ 14 Bessie & Johnson 1995
+    real(r8) ::  ignite_passive_crown  ! ratio for ignition of passive crown fire,EQ 14 Bessie & Johnson 1995
 
     currentPatch => currentSite%oldest_patch
 
@@ -985,17 +985,20 @@ contains
                 
                 ! height_cbb = clear branch bole height at base of crown (m)
                 ! inst%crown = crown_depth_frac (PFT)
-                active_crown_FI               = 0.0_r8  !critical fire intensity for active crown fire
-                ignite_active_crown           = 0.0_r8  !ratio for ignition of active crown fire,EQ 14b Bessie & Johnson 1995
-                currentCohort%active_crown_fire_flg = 0  !flag for active crown fire ignition
+                active_crown_FI                      = 0.0_r8  !critical fire intensity for active crown fire
+                ignite_active_crown                  = 0.0_r8  !ratio for ignition of active crown fire,EQ 14b Bessie & Johnson 1995
+                currentCohort%active_crown_fire_flg  = 0  !flag for active crown fire ignition
                 crown_depth                          = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
                 height_cbb                           = currentCohort%hite - crown_depth
                 passive_crown_FI                     = 0.0_r8  
-                ignite_crown                         = 0.0_r8  
+                ignite_passive_crown                 = 0.0_r8
                 currentCohort%passive_crown_fire_flg = 0
 
                 
                 ! Evaluate for passive crown fire ignition
+                ! If crown_fire > 0, then pft succeptible to crown fire.
+                ! slevis: Do not want a number so close to zero that it is
+                ! meaningles, so using 1e-3 for the threshold.
                 if (EDPftvarcon_inst%crown_fire(currentCohort%pft) > 0.001_r8) then
                    
                    ! Note: crown_ignition_energy to be calculated based on foliar moisture content from FATES-Hydro
@@ -1011,9 +1014,9 @@ contains
                    if (currentPatch%FI >= crown_fire_threshold) then ! 200 kW/m = threshold for crown fire potential
                       
                       ! Initiation of passive crown fire, EQ 14 Bessie and Johnson 1995
-                      ignite_crown = currentPatch%FI/passive_crown_FI
+                      ignite_passive_crown = currentPatch%FI / passive_crown_FI
                       
-                      if (ignite_crown >= 1.0_r8) then
+                      if (ignite_passive_crown >= 1.0_r8) then
                          currentCohort%passive_crown_fire_flg = 1 ! passive crown fire ignited
                          write(fates_log(),*) 'SF currentCohort%passive_crown_fire_flg, height_cbb = ', currentCohort%passive_crown_fire_flg, height_cbb  ! slevis diag
                          ! "...in passive crown fires and high intensity surface
