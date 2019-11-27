@@ -324,6 +324,9 @@ contains
     call fates_params%RegisterParameter(name=logging_name_export_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=eca_name_plant_escalar, dimension_shape=dimension_shape_scalar, & 
+         dimension_names=dim_names_scalar)
+
     call fates_params%RegisterParameter(name=fates_name_q10_mr, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 

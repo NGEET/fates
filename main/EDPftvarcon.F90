@@ -1267,7 +1267,7 @@ contains
 
     name = 'fates_eca_decompmicc'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%phenflush_fraction)
+         data=this%decompmicc)
 
     name = 'fates_eca_km_nh4'
     call fates_params%RetreiveParameterAllocate(name=name, &

@@ -16,6 +16,7 @@ import code  # For development: code.interact(local=locals())
 from datetime import datetime
 from scipy.io import netcdf
 import matplotlib.pyplot as plt
+from future.utils import iteritems
 
 # =======================================================================================
 # Parameters
@@ -144,7 +145,7 @@ def main(argv):
 
     fp_in  = netcdf.netcdf_file(input_fname, 'r')
 
-    for key, value in sorted(fp_in.dimensions.iteritems()):
+    for key, value in sorted(iteritems(fp_in.dimensions)):
         if(key==pft_dim_name):
             fp_out.createDimension(key,int(num_pft_out))
             print('Creating Dimension: {}={}'.format(key,num_pft_out))
@@ -152,7 +153,7 @@ def main(argv):
             fp_out.createDimension(key,int(value))
             print('Creating Dimension: {}={}'.format(key,value))
 
-    for key, value in sorted(fp_in.variables.iteritems()):
+    for key, value in sorted(iteritems(fp_in.variables)):
         print('Creating Variable: ',key)
         #   code.interact(local=locals())
 
