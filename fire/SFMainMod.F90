@@ -841,7 +841,7 @@ contains
                 currentCohort%Scorch_ht = EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8)
              
                   if(write_SF == itrue)then
-                     if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentCohort%SH',currentCohort%SH
+                     if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentCohort%SH',currentCohort%Scorch_ht
                   endif
                 endif ! tree biomass
 

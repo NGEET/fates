@@ -343,7 +343,7 @@ module EDTypesMod
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
 
      ! FIRE
-     real(r8) ::  sh                                     ! scorch height: m 
+     real(r8) ::  scorch_ht                              ! scorch height: m 
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
                                                          ! (conditional on the tree being subjected to the fire)
