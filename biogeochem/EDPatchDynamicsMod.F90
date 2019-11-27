@@ -1978,8 +1978,7 @@ contains
     currentPatch%fi                         = 0._r8  ! average fire intensity of flaming front during day.  
     ! backward ros plays no role. kj/m/s or kw/m.
     currentPatch%fire                       = 999    ! sr decide_fire.1=fire hot enough to proceed. 0=stop everything- no fires today
-    currentPatch%active_crown_fire_flg      = 9999   ! flag to indicate active crown
-fire ignition
+    currentPatch%active_crown_fire_flg      = 9999   ! flag to indicate active crown fire ignition
     currentPatch%fd                         = 0.0_r8 ! fire duration (mins)
     currentPatch%ros_back                   = 0.0_r8 ! backward ros (m/min)
     currentPatch%frac_burnt                 = 0.0_r8 ! fraction burnt daily  

@@ -77,7 +77,6 @@ contains
     
 
     type (ed_patch_type), pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
 
     real(r8) :: MEF(nfsc)  ! Moisture extinction factor of fuels
     real(r8) :: fuel_moisture(nfsc)  ! Scaled moisture content of small litter fuels
@@ -87,11 +86,7 @@ contains
     do while(associated(currentPatch))
        currentPatch%frac_burnt = 0.0_r8
        currentPatch%fire       = 0
-       currentCohort => currentPatch%tallest
-       do while(associated(currentCohort))
-          currentCohort%active_crown_fire_flg = 0
-          currentCohort => currentCohort%shorter
-       enddo
+       currentPatch%active_crown_fire_flg = 0
        currentPatch => currentPatch%older
     enddo
 
@@ -1101,7 +1096,6 @@ contains
                 
                 ! height_cbb = clear branch bole height at base of crown (m) 
                 ! inst%crown = crown_depth_frac (PFT)
-=======
                 crown_depth  = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
                 height_cbb   = currentCohort%hite - crown_depth
 
