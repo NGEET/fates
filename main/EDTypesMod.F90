@@ -148,6 +148,7 @@ module EDTypesMod
   real(r8), parameter, public :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
   real(r8), parameter, public :: crown_fire_threshold = 200.0_r8   ! threshold for passive crown fire ignition. KWm-2 (Bessie & Johnson 1995)
 
+
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
   integer , parameter, public :: N_DBH_BINS           = 6                 ! no. of dbh bins used when comparing patches
@@ -343,6 +344,7 @@ module EDTypesMod
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
 
      ! FIRE
+     real(r8) ::  sh                                     ! scorch height: m 
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
      integer ::  active_crown_fire_flg                   ! flag for active crown fire ignition
      integer ::  passive_crown_fire_flg                  ! flag for passive crown fire ignition (1=ignition)
@@ -522,7 +524,6 @@ module EDTypesMod
      real(r8) ::  fi                                               ! average fire intensity of flaming front:  kj/m/s or kw/m
      integer  ::  fire                                             ! Is there a fire? 1=yes 0=no
      real(r8) ::  fd                                               ! fire duration: mins
-     real(r8) ::  sh                                               ! average scorch height: m 
 
      ! FIRE EFFECTS     
      real(r8) ::  frac_burnt                                       ! fraction burnt: frac gridcell/day  
@@ -690,7 +691,8 @@ module EDTypesMod
      real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
-     real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.
+     real(r8) ::  NF                                           ! daily ignitions in km2
+     real(r8) ::  frac_burnt                                   ! fraction of area burnt in this day.
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr

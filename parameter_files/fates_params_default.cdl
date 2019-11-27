@@ -132,12 +132,9 @@ variables:
 	double fates_fire_crown_kill(fates_pft) ;
 		fates_fire_crown_kill:units = "NA" ;
 		fates_fire_crown_kill:long_name = "crown resistance to fire (1 = none), EQ 22 in Thonicke et al 2010" ;
-	double fates_fire_crown_fire(fates_pft) ;
-		fates_fire_crown_fire:units = "binary flag" ;
-		fates_fire_crown_fire:long_name = "binary flag for plants susceptible to passive crown fire (1=yes)";
-        double fates_fire_crown_ignite_energy(fates_pft) ;
-		fates_fire_crown_ignite_energy:units = "kJ/kg" ;
-		fates_fire_crown_ignite_energy:long_name = "spitfire parameter, heat of crown foliage ignition" ;		
+	double fates_fire_active_crown_fire(fates_pft) ;
+		fates_fire_active_crown_fire:units = "fraction" ;
+		fates_fire_active_crown_fire:long_name = "resistance to active crown fire (1=none)";		
 	double fates_fr_fcel(fates_pft) ;
 		fates_fr_fcel:units = "fraction" ;
 		fates_fr_fcel:long_name = "Fine root litter cellulose fraction" ;
@@ -724,9 +721,7 @@ data:
  fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 
     0.775, 0.775, 0.775, 0.775, 0.775 ;
 
- fates_fire_passive_crown_fire =  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_fire_crown_ignite_energy = 3060, 3060, 3060, 3060, 3060, 3060, 3060, 3060, 3060, 3060, 3060, 3060 ;
+ fates_fire_active_crown_fire =  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_fr_fcel = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ;
 
