@@ -2051,6 +2051,92 @@ contains
 
   ! =====================================================================================
 
+  function GetPlantDemand(ccohort,element_id) result(plant_demand)
+
+
+    ! This function calculates the plant's demand for a given nutrient
+    ! based upon the need to fill its NPP demand and/or the need to
+    ! get its tissues to the maximum carrying capacity of that nutrient.
+    ! This routine is used for informing BGC competition schemes, and
+    ! for generating synthetic upake rates.
+    
+    type(ed_cohhort_type) :: ccohort
+    integer               :: element_id   ! Should match nitrogen_element or
+    ! phosphorus_element
+    real(r8)              :: plant_demand ! Nutrient demand per plant [kg]
+    real(r8)              :: plant_c      ! Total carbon across organs in list [kg]
+    real(r8)              :: plant_x      ! Total mass for element of interest [kg]
+    real(r8)              :: plant_max_x  ! Maximum mass for element of interest [kg]
+    real(r8)              :: npp_demand
+    real(r8)              :: deficit_demand
+    
+    ! Total plant carbon [kg]
+    plant_c = ccohort%prt%GetState(leaf_organ,element_id) + & 
+              ccohort%prt%GetState(store_organ, element_id) + &
+              ccohort%prt%GetState(fnrt_organ, element_id) + &
+              ccohort%prt%GetState(struct_organ, element_id) + &
+              ccohort%prt%GetState(sapw_organ, element_id)
+    
+    ! Calculate the total plant nitrogen content [kg]
+    ! Exclude seeds since that pool is ephemeral
+    plant_x = ccohort%prt%GetState(leaf_organ, element_id) + & 
+              ccohort%prt%GetState(store_organ, element_id) + &
+              ccohort%prt%GetState(fnrt_organ, element_id) + &
+              ccohort%prt%GetState(struct_organ, element_id) + &
+              ccohort%prt%GetState(sapw_organ, element_id)
+
+    if(ccohort%status_coh.eq.leaves_on) then
+       call bleaf(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,c_leaf)
+    else
+       c_leaf = 0._r8
+    end if
+    call bfineroot(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,c_fnrt)
+    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapw, c_sapw)
+    call bagw_allom(ccohort%dbh,ccohort%pft,c_agw)
+    call bbgw_allom(ccohort%dbh,ccohort%pft,c_bgw)
+    call bdead_allom(c_agw,c_bgw,c_sapw,ccohort%pft,c_struct)
+    call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,c_store)
+    
+    ! Calculate plant maximum nutrient content [kg]
+    if(element_id.eq.nitrogen_element) then
+       plant_max_x = & 
+            c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,leaf_organ) + & 
+            c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,fnrt_organ) + & 
+            c_store*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,store_organ) + & 
+            c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,sapw_organ) + & 
+            c_struct*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,struct_organ)
+    elseif(element_id.eq.phosphorus_element) then
+       plant_max_x = &
+            c_leaf*EDPftvarcon_inst%prt_phos_stoich_p2(pft,leaf_organ) + & 
+            c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p2(pft,fnrt_organ) + & 
+            c_store*EDPftvarcon_inst%prt_phos_stoich_p2(pft,store_organ) + & 
+            c_sapw*EDPftvarcon_inst%prt_phos_stoich_p2(pft,sapw_organ) + & 
+            c_struct*EDPftvarcon_inst%prt_phos_stoich_p2(pft,struct_organ)
+    end if
+
+    if(ccohort%isnew) then
+       ! If a cohort is new, we don't have a precedent of npp, so
+       ! we instead demand 1% of its total phosphorus for that first day of life
+       npp_demand = 0.01_r8*plant_max_x
+    else
+       npp_demand = (plant_x/plant_c)*ccohort%npp_acc_hold
+    end if
+
+    
+    ! If this plant has flexible stoichiometry, then we also calculate
+    ! if there is any deficit between the current nitrogen content and
+    
+    deficit_demand = (plant_max_x - plant_x)
+    
+    ! kg/plant/day
+    
+    plant_demand = max(0._r8,npp_n_demand+deficit_n_demand)!*EDPftvarcon_inst%prt_prescribed_nuptake(pft)
+    
+  end function GetPlantDemand
+
+  ! =====================================================================================
+  
+  
   subroutine UnPackNutrientAquisitionBCs(sites, bc_in)
 
     ! -----------------------------------------------------------------------------------
@@ -2081,6 +2167,10 @@ contains
     type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
     type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
     real(r8) :: fnrt_c                             ! fine-root carbon [kg]
+    real(r8) :: plant_c
+    real(r8) :: plant_x
+    real(r8) :: plant_max_x
+    
     integer  :: nlevdecomp
     integer  :: nlev_eff_soil                      ! we only operate over
                                                    ! the effective soil
@@ -2098,105 +2188,144 @@ contains
 
     do s = 1, nsites
 
-       ! If nutrient competition is sent to the BGC model as PFTs
-       ! and not as individual cohorts, we need to unravel the input
-       ! boundary condition and send to cohort.  We do this downscaling
-       ! by finding each cohort's fraction of total fine-root for the group
 
-       nlev_eff_soil = max(bc_in(s)%max_rooting_depth_index_col, 1)
-       nlevdecomp    = bc_in(s)%nlevdecomp
+       ! If the host BGC model is not running
+       ! we generate synthetic boundary uptakes
        
-       if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
- 
-          allocate(rootfrac_pft_decomp(numpft,nlevdecomp))
-          allocate(fnrt_c_pft(numpft))
- 
-          ! Construct the pft x decomp layer fine-root profile
-          ! USe the profile associated with hydraulic uptake! 
-          
-          do pft = 1, numpft
-             rootfrac_pft_decomp(pft,:) = 0._r8
-             call set_root_fraction(sites(s)%rootfrac_scr, pft, sites(s)%zi_soil, &
-                  icontext = i_hydro_rootprof_context)
-             
-             do j = 1,nlev_eff_soil
-                id = bc_in(s)%decomp_id(j)  ! Map from soil layer to decomp layer    
-                rootfrac_pft_decomp(pft,id) = rootfrac_pft_decomp(pft,id) + & 
-                     sites(s)%rootfrac_scr(j)
-             end do
-             
-             ! Make sure that the rootfrac profile sums to unity
-             rootfrac_pft_decomp(pft,:) = rootfrac_pft_decomp(pft,:)/sum(rootfrac_pft_decomp(pft,:))
-          end do
-
-          ! Calculate the total fineroot mass for each PFT, so we can weight
-          fnrt_c_pft(:) = 0._r8
-          cpatch => sites(s)%oldest_patch
+       if(hlm_nitrogen_spec==0) then
+          cpatch => csite%oldest_patch
           do while (associated(cpatch))
              ccohort => cpatch%tallest
              do while (associated(ccohort))
-                pft   = ccohort%pft
-                fnrt_c_pft(pft) = fnrt_c_pft(pft) + &
-                     ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
+                ccohort%daily_n_uptake = &
+                     EDPftvarcon_inst%prt_prescribed_nuptake(pft)*GetPlantDemand(ccohort,nitrogen_element)
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
           end do
-       end if  ! end if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
-       
-       ! --------------------------------------------------------------------------------
-       ! Now that we have the arrays ready for downscaling (if needed)
-       ! loop through all cohorts and acquire nutrient
-       ! --------------------------------------------------------------------------------
-
-       icomp = 0
-       cpatch => sites(s)%oldest_patch
-       do while (associated(cpatch))
-          
-          ccohort => cpatch%tallest
-          do while (associated(ccohort))
-             
-             pft   = ccohort%pft
-             
-             if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
-                icomp = icomp+1
-                          
-                ! N Uptake:  Convert g/m2/day -> kg/plant/day
-                ! Note: this sum is over 1 index.
-                ccohort%daily_n_uptake = ccohort%daily_n_uptake + sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
-
-                ! P uptake: Convert g/m2/day -> kg/plant/day
-                ! Note: this sum is over 1 index
-                ccohort%daily_p_uptake = ccohort%daily_p_uptake + sum(bc_in(s)%plant_p_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
-
-             else
-
-                icomp = pft
-
-                ! Total fine-root carbon of the cohort [kgC/ha]
-                fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
-
-                ! Loop through soil layers, add up the uptake this cohort gets from each layer
-
-                do id = 1,nlevdecomp
-                   ccohort%daily_n_uptake = ccohort%daily_n_uptake + & 
-                        bc_in(s)%plant_n_uptake_flux(icomp,id) * (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
-                   
-                   ccohort%daily_p_uptake = ccohort%daily_p_uptake + & 
-                        bc_in(s)%plant_p_uptake_flux(icomp,id) * (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
-                end do
-             end if
-
-             ccohort => ccohort%shorter
+       end if
+       if(hlm_phosphorus_spec==0) then
+          cpatch => csite%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                ccohort%daily_p_uptake = &
+                     EDPftvarcon_inst%prt_prescribed_nuptake(pft)*GetPlantDemand(ccohort,phosphorus_element)
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
           end do
-          cpatch => cpatch%younger
-       end do
+       end if
 
+       
+       ! If nutrient competition is sent to the BGC model as PFTs
+       ! and not as individual cohorts, we need to unravel the input
+       ! boundary condition and send to cohort.  We do this downscaling
+       ! by finding each cohort's fraction of total fine-root for the group
+       if((hlm_nitrogen_spec>0) .or. (hlm_phosphorus_spec>0))then
+      
+          nlev_eff_soil = max(bc_in(s)%max_rooting_depth_index_col, 1)
+          nlevdecomp    = bc_in(s)%nlevdecomp
+          
+          if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+             
+             allocate(rootfrac_pft_decomp(numpft,nlevdecomp))
+             allocate(fnrt_c_pft(numpft))
+             
+             ! Construct the pft x decomp layer fine-root profile
+             ! USe the profile associated with hydraulic uptake! 
+             
+             do pft = 1, numpft
+                rootfrac_pft_decomp(pft,:) = 0._r8
+                call set_root_fraction(sites(s)%rootfrac_scr, pft, sites(s)%zi_soil, &
+                     icontext = i_hydro_rootprof_context)
+                
+                do j = 1,nlev_eff_soil
+                   id = bc_in(s)%decomp_id(j)  ! Map from soil layer to decomp layer    
+                   rootfrac_pft_decomp(pft,id) = rootfrac_pft_decomp(pft,id) + & 
+                        sites(s)%rootfrac_scr(j)
+                end do
+                
+             ! Make sure that the rootfrac profile sums to unity
+                rootfrac_pft_decomp(pft,:) = rootfrac_pft_decomp(pft,:)/sum(rootfrac_pft_decomp(pft,:))
+             end do
+             
+             ! Calculate the total fineroot mass for each PFT, so we can weight
+             fnrt_c_pft(:) = 0._r8
+             cpatch => sites(s)%oldest_patch
+             do while (associated(cpatch))
+                ccohort => cpatch%tallest
+                do while (associated(ccohort))
+                   pft   = ccohort%pft
+                   fnrt_c_pft(pft) = fnrt_c_pft(pft) + &
+                        ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
+                   ccohort => ccohort%shorter
+                end do
+                cpatch => cpatch%younger
+             end do
+          end if  ! end if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+          
+          ! --------------------------------------------------------------------------------
+          ! Now that we have the arrays ready for downscaling (if needed)
+          ! loop through all cohorts and acquire nutrient
+          ! --------------------------------------------------------------------------------
+          
+          icomp = 0
+          cpatch => sites(s)%oldest_patch
+          do while (associated(cpatch))
+             
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                
+                pft   = ccohort%pft
+                
+                if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                   icomp = icomp+1
+                   
+                   ! N Uptake:  Convert g/m2/day -> kg/plant/day
+                   ! Note: this sum is over 1 index.
+                   if(hlm_nitrogen_spec>0) & 
+                        ccohort%daily_n_uptake = ccohort%daily_n_uptake + sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                   
+                   ! P uptake: Convert g/m2/day -> kg/plant/day
+                   ! Note: this sum is over 1 index
+                   if(hlm_phosphorus_spec>0) &
+                        ccohort%daily_p_uptake = ccohort%daily_p_uptake + sum(bc_in(s)%plant_p_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                   
+                else
+                   
+                   icomp = pft
+                   
+                   ! Total fine-root carbon of the cohort [kgC/ha]
+                   fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
+                   
+                   ! Loop through soil layers, add up the uptake this cohort gets from each layer
+                   if(hlm_nitrogen_spec>0)then
+                      do id = 1,nlevdecomp
+                         ccohort%daily_n_uptake = ccohort%daily_n_uptake + & 
+                              bc_in(s)%plant_n_uptake_flux(icomp,id) * (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
+                      end do
+                   end if
+                   if(hlm_phosphorus_spec>0)then
+                      do id = 1,nlevdecomp
+                         ccohort%daily_p_uptake = ccohort%daily_p_uptake + & 
+                              bc_in(s)%plant_p_uptake_flux(icomp,id) * (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
+                      end do
+                   end if
+                   
+                end if
+                
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
 
-       ! Free the temprorary arrays (if used)
-       if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
-          deallocate(rootfrac_pft_decomp)
-          deallocate(fnrt_c_pft)
+          ! Free the temprorary arrays (if used)
+          if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+             deallocate(rootfrac_pft_decomp)
+             deallocate(fnrt_c_pft)
+          end if
+
        end if
        
        ! These can now be zero'd
@@ -2482,6 +2611,7 @@ contains
        do while (associated(cpatch))
           ccohort => cpatch%tallest
           do while (associated(ccohort))
+
              pft   = ccohort%pft
              dbh   = ccohort%dbh
              if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
@@ -2491,12 +2621,6 @@ contains
                 comp_per_pft(pft) = comp_per_pft(pft) + 1
              end if
 
-             plant_c = ccohort%prt%GetState(leaf_organ,nitrogen_element) + & 
-                  ccohort%prt%GetState(store_organ, nitrogen_element) + &
-                  ccohort%prt%GetState(fnrt_organ, nitrogen_element) + &
-                  ccohort%prt%GetState(struct_organ, nitrogen_element) + &
-                  ccohort%prt%GetState(sapw_organ, nitrogen_element)
-
              ! --------------------------------------------------------------------
              ! Demand comes from two parts. (1) Some demand seeks to fullfill the N 
              ! or P requirements needed for the construction costs that match NPP. 
@@ -2505,86 +2629,15 @@ contains
              ! P concentration lower than optimal, and therefore demand seeks to 
              ! replace this deficit.
              ! --------------------------------------------------------------------
-
+             ! [gX/m2/s]  convert [kgX/plant/day] * [plant/ha] * 
+             !                                      [ha/10000 m2] * [1000 g/kg] * [1 day /86400 sec]
              if(hlm_nitrogen_spec>0) then
-
-                ! Calculate the total plant nitrogen content (kg)
-                ! Exclude seeds since that pool is ephemeral
-                plant_n = ccohort%prt%GetState(leaf_organ, nitrogen_element) + & 
-                     ccohort%prt%GetState(store_organ, nitrogen_element) + &
-                     ccohort%prt%GetState(fnrt_organ, nitrogen_element) + &
-                     ccohort%prt%GetState(struct_organ, nitrogen_element) + &
-                     ccohort%prt%GetState(sapw_organ, nitrogen_element)
-
-                ! Calculate plant maximum nitrogen content (kg)
-                plant_max_n = & 
-                     ccohort%prt%GetState(leaf_organ, carbon12_element)*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,leaf_organ) + & 
-                     ccohort%prt%GetState(fnrt_organ, carbon12_element)*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,fnrt_organ) + & 
-                     ccohort%prt%GetState(store_organ, carbon12_element)*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,store_organ) + & 
-                     ccohort%prt%GetState(sapw_organ, carbon12_element)*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,sapw_organ) + & 
-                     ccohort%prt%GetState(struct_organ, carbon12_element)*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,struct_organ)
-
-
-                if(ccohort%isnew) then
-                   ! If a cohort is new, we don't have a precedent of npp, so
-                   ! we instead demand 1% of its total nitrogen for that first day of life
-                   npp_n_demand = 0.01_r8*plant_max_n
-                else
-                   npp_n_demand = (plant_n/plant_c)*ccohort%npp_acc_hold
-                end if
-
-
-                ! If this plant has flexible stoichiometry, then we also calculate
-                ! if there is any deficit between the current nitrogen content and
-
-                deficit_n_demand = (plant_max_n - plant_n)
-
-                ! Nitrogen demand is [gN/m2/s]  convert [kgN/plant/day] * [plant/ha] * 
-                !                                      [ha/10000 m2] * [1000 g/kg] * [1 day /86400 sec]
-                ! This may be summing over cohorts, which does not require normalization
-                
                 bc_out%n_demand(icomp) = bc_out%n_demand(icomp) + & 
-                     max(0._r8,npp_n_demand+deficit_n_demand)*ccohort%n*AREA_INV*g_per_kg*days_per_sec
-
+                     GetPlantDemand(ccohort,nitrogen_element)*ccohort%n*AREA_INV*g_per_kg*days_per_sec
              end if
              if(hlm_phosphorus_spec>0) then
-
-                ! Calculate the total plant phosphorus content (kg)
-                ! Exclude seeds since that pool is ephemeral
-                plant_p = ccohort%prt%GetState(leaf_organ, phosphorus_element) + & 
-                     ccohort%prt%GetState(store_organ, phosphorus_element) + &
-                     ccohort%prt%GetState(fnrt_organ, phosphorus_element) + &
-                     ccohort%prt%GetState(struct_organ, phosphorus_element) + &
-                     ccohort%prt%GetState(sapw_organ, phosphorus_element)
-
-                ! Calculate plant maximum phosphorus content (kg)
-                plant_max_p = & 
-                     ccohort%prt%GetState(leaf_organ, carbon12_element)*EDPftvarcon_inst%prt_phos_stoich_p2(pft,leaf_organ) + & 
-                     ccohort%prt%GetState(fnrt_organ, carbon12_element)*EDPftvarcon_inst%prt_phos_stoich_p2(pft,fnrt_organ) + & 
-                     ccohort%prt%GetState(store_organ, carbon12_element)*EDPftvarcon_inst%prt_phos_stoich_p2(pft,store_organ) + & 
-                     ccohort%prt%GetState(sapw_organ, carbon12_element)*EDPftvarcon_inst%prt_phos_stoich_p2(pft,sapw_organ) + & 
-                     ccohort%prt%GetState(struct_organ, carbon12_element)*EDPftvarcon_inst%prt_phos_stoich_p2(pft,struct_organ)
-
-                if(ccohort%isnew) then
-                   ! If a cohort is new, we don't have a precedent of npp, so
-                   ! we instead demand 1% of its total phosphorus for that first day of life
-                   npp_p_demand = 0.01_r8*plant_max_p
-                else
-                   npp_p_demand = (plant_max_p/plant_c)*ccohort%npp_acc_hold
-                end if
-
-
-                ! If this plant has flexible stoichiometry, then we also calculate
-                ! if there is any deficit between the current nitrogen content and
-
-                deficit_p_demand = (plant_max_p - plant_p)
-
-                ! Phosphorus demand is [gP/m2/s]  convert [kgP/plant/day] * [plant/ha] * 
-                !                                        [ha/10000 m2] * [1000 g/kg] * [1 day /86400 sec]
-
                 bc_out%p_demand(icomp) = bc_out%p_demand(icomp) + & 
-                     max(0._r8,npp_p_demand+deficit_p_demand)*ccohort%n*AREA_INV*g_per_kg*days_per_sec
-
+                     GetPlantDemand(ccohort,phosphorus_element)*ccohort%n*AREA_INV*g_per_kg*days_per_sec
              end if
 
              ccohort => ccohort%shorter

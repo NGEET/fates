@@ -2096,33 +2096,15 @@ contains
 
      case(prt_cnp_flex_allom_hyp)
         
-        if(hlm_nitrogen_spec>0.and.hlm_phosphorus_spec>0)then
-           num_elements = 3
-           allocate(element_list(num_elements))
-           element_list(1) = carbon12_element
-           element_list(2) = nitrogen_element
-           element_list(3) = phosphorus_element
-           element_pos(:)  = 0
-           element_pos(carbon12_element)   = 1
-           element_pos(nitrogen_element)   = 2
-           element_pos(phosphorus_element) = 3
-        elseif(hlm_nitrogen_spec>0) then
-           num_elements = 2
-           allocate(element_list(num_elements))
-           element_list(1) = carbon12_element
-           element_list(2) = nitrogen_element
-           element_pos(:)  = 0
-           element_pos(carbon12_element)   = 1
-           element_pos(nitrogen_element)   = 2
-        elseif(hlm_phosphorus_spec>0) then
-           num_elements = 2
-           allocate(element_list(num_elements))
-           element_list(1) = carbon12_element
-           element_list(2) = phosphorus_element
-           element_pos(:)  = 0
-           element_pos(carbon12_element)   = 1
-           element_pos(phosphorus_element)   = 2
-        end if
+        num_elements = 3
+        allocate(element_list(num_elements))
+        element_list(1) = carbon12_element
+        element_list(2) = nitrogen_element
+        element_list(3) = phosphorus_element
+        element_pos(:)  = 0
+        element_pos(carbon12_element)   = 1
+        element_pos(nitrogen_element)   = 2
+        element_pos(phosphorus_element) = 3
 
         call InitPRTGlobalAllometricCNP()
         

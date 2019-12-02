@@ -233,6 +233,14 @@ module EDPftvarcon
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
 
+     real(r8), allocatable :: prt_prescribed_nuptake(:)   ! If there is no soil BGC model active,
+     ! prescribe an uptake rate for nitrogen
+
+     real(r8), allocatable :: prt_prescribed_puptake(:)   ! If there is no soil BGC model active,
+     ! prescribe an uptake rate for phosphorus
+
+     
+
      real(r8), allocatable :: senleaf_long_fdrought(:)    ! Multiplication factor for leaf longevity of senescent 
                                                           ! leaves during drought( 1.0 indicates no change)
 
@@ -787,7 +795,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_prt_prescribed_nuptake'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_prt_prescribed_puptake'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+ 
     ! Nutrient competition parameters
 
     name = 'fates_eca_decompmicc'
@@ -1265,6 +1280,14 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
 
+    name = 'fates_prt_prescribed_nuptake'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prt_prescribed_nuptake)
+
+     name = 'fates_prt_prescribed_puptake'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prt_prescribed_puptake)
+    
     name = 'fates_eca_decompmicc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%decompmicc)
