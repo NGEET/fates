@@ -745,7 +745,8 @@ contains
     
     real(r8) size_of_fire !in m2
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
-    real(r8),parameter :: CG_strikes = 0.20_r8     !cloud to ground lightning strikes
+!   real(r8),parameter :: CG_strikes = 0.20_r8     !cloud to ground lightning strikes
+    real(r8),parameter :: CG_strikes = 1.00_r8     !cloud to ground lightning strikes
                                                    !Latham and Williams (2001)
 
     !  ---initialize site parameters to zero--- 
@@ -941,8 +942,8 @@ contains
     real(r8) ::  crown_depth          ! depth of crown (m)
     real(r8) ::  height_cbb           ! clear branch bole height or crown base height (m)
     real(r8) ::  max_height           ! max cohort on patch (m)
-    real(r8) ::  passive_crown_FI     ! fire intensity for ignition from passive canopy fuel (kW/m), EQ 8
-    real(r8) ::  ignite_passive_crown ! ratio for ignition from passive canopy fuel,EQ 14 Bessie & Johnson 1995
+!   real(r8) ::  passive_crown_FI     ! fire intensity for ignition from passive canopy fuel (kW/m), EQ 8
+!   real(r8) ::  ignite_passive_crown ! ratio for ignition from passive canopy fuel,EQ 14 Bessie & Johnson 1995
     real(r8) ::  tree_sapw_struct_c   ! above-ground tree struct and sap biomass in cohort (kgC)
     real(r8) ::  leaf_c                  ! leaf carbon (kgC)
     real(r8) ::  sapw_c                  ! sapwood carbon (kgC)
@@ -970,8 +971,8 @@ contains
     do while(associated(currentPatch))
        
        !zero Patch level variables
-       passive_crown_FI                     = 0.0_r8  
-       ignite_passive_crown                 = 0.0_r8
+!      passive_crown_FI                     = 0.0_r8  
+!      ignite_passive_crown                 = 0.0_r8
        biom_matrix                          = 0.0_r8
        canopy_bulk_density                  = 0.0_r8
        max_height                           = 0.0_r8
@@ -1056,23 +1057,22 @@ contains
           ! Crown fuel ignition potential, EQ 8 Bessie and Johnson 1995, EQ 4 Van Wagner 1977
           ! FI = (Czh)**3/2 where z=canopy base height,h=heat of crown ignite energy, FI=fire intensity
           ! 0.01 = C from Van Wagner 1977 EQ4 for canopy base height 6m, 100% FMC, and FI 2500kW/m
-          passive_crown_FI = (0.01_r8 * height_base_canopy * crown_ignite_energy)**1.5_r8
+!         passive_crown_FI = (0.01_r8 * height_base_canopy * crown_ignite_energy)**1.5_r8
 
-          passive_canopy_fuel_flg = 0         !does patch have canopy fuels for vertical spread?            
+!         passive_canopy_fuel_flg = 0         !does patch have canopy fuels for vertical spread?            
                                       
           ! Initiation of passive crown fire, EQ 14a Bessie and Johnson 1995
           ! Are the canopy fuels in the stand large enough to support vertical spread of fire?
-          ignite_passive_crown = currentPatch%FI/passive_crown_FI
+!         ignite_passive_crown = currentPatch%FI/passive_crown_FI
                       
-          if (ignite_passive_crown >= 1.0_r8) then
-             passive_canopy_fuel_flg = 1      !enough passive canopy fuels for vertical spread
-          endif
+!         if (ignite_passive_crown >= 1.0_r8) then
+!            passive_canopy_fuel_flg = 1      !enough passive canopy fuels for vertical spread
+!         endif
           
  !evaluate active crown fire conditions         
           ! Critical intensity for active crowning (kW/m)
           ! EQ 12 Bessie and Johnson 1995
-          ! Fuels / 0.45 to get biomass but note that the 0.45
-          ! cancels out and could be removed. Also dividing
+          ! Fuels / 0.45 to get biomass. Also dividing
           ! critical_mass_flow_rate by 3.34, an empirical
           ! constant in Bessie & Johnson 1995
           active_crown_FI = critical_mass_flow_rate *  &
@@ -1083,7 +1083,6 @@ contains
           ! EQ 14b Bessie & Johnson 1995
           ignite_active_crown = currentPatch%FI / active_crown_FI
 
-          currentPatch%active_crown_fire_flg  = 0  !flag for active crown fire ignition
           if (ignite_active_crown >= 1.0_r8) then
              currentPatch%active_crown_fire_flg = 1  ! active crown fire ignited
           end if
@@ -1111,7 +1110,6 @@ contains
                 endif  !SH frac crown burnt calculation
                 ! Check for strange values. 
                 currentCohort%fraction_crown_burned = min(1.0_r8, max(0.0_r8,currentCohort%fraction_crown_burned))              
-                write(fates_log(),*) 'SF currentCohort%fraction_crown_burned =', currentCohort%fraction_crown_burned  ! slevis diag
              endif !trees only
              !shrink canopy to account for burnt section.     
              !currentCohort%canopy_trim = min(currentCohort%canopy_trim,(1.0_r8-currentCohort%fraction_crown_burned)) 
