@@ -41,6 +41,16 @@
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
 
+  use spmdMod, only : masterproc, mpicom, comp_id
+  use shr_kind_mod, only : CL => shr_kind_CL
+  use shr_strdata_mod, only : shr_strdata_type, shr_strdata_create
+  use shr_strdata_mod, only : shr_strdata_advance, shr_strdata_print
+  use shr_log_mod, only : errmsg => shr_log_errMsg
+  use abortutils, only : endrun
+  use clm_varctl, only : iulog
+  use fileutils, only : getavu, relavu
+  use decompMod, only : bounds_type, gsmap_lnd_gdc2glo
+  use domainMod, only : ldomain
 
   implicit none
   private
@@ -57,6 +67,33 @@
   public :: cambial_damage_kill
   public :: post_fire_mortality
 
+  public :: FATESFireInit  ! Initialize fire-related inputs
+  public :: FATESFireInterp  ! Interpolate fire-related inputs
+
+  type, public :: sfmain_type
+
+     real(r8), public, pointer :: lnfm24(:)  ! Daily avg lightning by grid cell (#/km2/hr)
+
+   contains
+
+     procedure, public  :: InitAccBuffer  ! Initialize accumulation processes
+     procedure, public  :: InitAccVars  ! Initialize accumulation variables
+     procedure, public  :: UpdateAccVars  ! Update/extract accumulations vars
+
+  end type sfmain_type
+
+  ! !PRIVATE MEMBER FUNCTIONS:
+  private :: lnfm_init   ! position datasets for Lightning
+  private :: lnfm_interp ! interpolates between two years of Lightning file data
+
+  real(r8), pointer :: forc_lnfm(:)  ! Lightning frequency from file (#/km2/hr)
+
+  type(shr_strdata_type) :: sdat_lnfm   ! Lightning input data stream
+
+  character(len=CL)  :: stream_fldFileName_lightng ! lightning stream filename to read
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
   integer :: write_SF = 0     ! for debugging
   logical :: debug = .false.  ! for debugging
 
@@ -64,6 +101,328 @@
   ! ============================================================================
 
 contains
+
+  subroutine InitAccBuffer (this, bounds)
+    !
+    ! !DESCRIPTION:
+    ! Initialize accumulation buffer for all required module accumulated fields
+    ! This routine set defaults values that are then overwritten by the
+    ! restart file for restart or branch runs
+    !
+    ! !USES
+    use clm_varcon, only : spval
+    use accumulMod, only : init_accum_field
+    !
+    ! !ARGUMENTS:
+    class(sfmain_type) :: this
+    type(bounds_type), intent(in) :: bounds
+
+    ! !LOCAL VARIABLES:
+    integer  :: begg, endg
+    integer  :: ier
+    !---------------------------------------------------------------------
+
+    begg = bounds%begg; endg = bounds%endg
+
+    allocate(this%lnfm24(begg:endg), stat=ier)
+    if (ier/=0) then
+       call endrun(msg="allocation error for lnfm24"//&
+            errMsg(sourcefile, __LINE__))
+    endif
+    this%lnfm24(:) = spval
+    call init_accum_field (name='lnfm24', units='strikes/km2/hr', &
+         desc='24hr average of lightning strikes',  accum_type='runmean', &
+         accum_period=-1, subgrid_type='gridcell', numlev=1, init_value=0._r8)
+
+  end subroutine InitAccBuffer
+
+  !-----------------------------------------------------------------------
+  subroutine InitAccVars(this, bounds)
+    !
+    ! !DESCRIPTION:
+    ! Initialize module variables that are associated with
+    ! time accumulated fields. This routine is called for both an initial run
+    ! and a restart run (and must therefore must be called after the restart
+    ! file is read in and the accumulation buffer is obtained)
+    !
+    ! !USES
+    use accumulMod       , only : extract_accum_field
+    use clm_time_manager , only : get_nstep
+    !
+    ! !ARGUMENTS:
+    class(sfmain_type) :: this
+    type(bounds_type), intent(in) :: bounds
+    !
+    ! !LOCAL VARIABLES:
+    integer  :: begg, endg
+    integer  :: nstep
+    integer  :: ier
+    real(r8), pointer :: rbufslg(:)  ! temporary
+    !---------------------------------------------------------------------
+
+    begg = bounds%begg; endg = bounds%endg
+
+    ! Allocate needed dynamic memory for single level patch field
+    allocate(rbufslg(begg:endg), stat=ier)
+    if (ier/=0) then
+       call endrun(msg="allocation error for rbufslg"//&
+            errMsg(sourcefile, __LINE__))
+    endif
+
+    ! Determine time step
+    nstep = get_nstep()
+
+    call extract_accum_field ('lnfm24', rbufslg, nstep)
+    this%lnfm24(begg:endg) = rbufslg(begg:endg)
+
+    deallocate(rbufslg)
+
+  end subroutine InitAccVars
+
+  !-----------------------------------------------------------------------
+  subroutine UpdateAccVars (this, bounds)
+    !
+    ! USES
+    use clm_time_manager, only : get_nstep
+    use accumulMod      , only : update_accum_field, extract_accum_field
+    use abortutils      , only : endrun
+    !
+    ! !ARGUMENTS:
+    class(sfmain_type) :: this
+    type(bounds_type), intent(in) :: bounds
+    !
+    ! !LOCAL VARIABLES:
+    integer :: dtime                 ! timestep size [seconds]
+    integer :: nstep                 ! timestep number
+    integer :: ier                   ! error status
+    integer :: begg, endg
+    real(r8), pointer :: rbufslg(:)  ! temporary single level - gridcell level
+    !---------------------------------------------------------------------
+
+    begg = bounds%begg; endg = bounds%endg
+
+    nstep = get_nstep()
+
+    ! Allocate needed dynamic memory for single level gridcell field
+
+    allocate(rbufslg(begg:endg), stat=ier)
+    if (ier/=0) then
+       write(iulog,*)'UpdateAccVars allocation error for rbuf1dg'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+
+    ! Accumulate and extract lnfm24
+    rbufslg(begg:endg) = forc_lnfm(begg:endg)
+    call update_accum_field  ('lnfm24', rbufslg, nstep)
+    call extract_accum_field ('lnfm24', this%lnfm24, nstep)
+
+    deallocate(rbufslg)
+
+  end subroutine UpdateAccVars
+
+  !-----------------------------------------------------------------------
+  subroutine FATESFireInit(bounds, NLFilename)
+
+    ! !DESCRIPTION:
+    ! Initialize FATES Fire module
+    ! !USES:
+    use FatesInterfaceMod, only : hlm_use_spitfire
+    use shr_infnan_mod  , only : nan => shr_infnan_nan, assignment(=)
+    !
+    ! !ARGUMENTS:
+    type(bounds_type), intent(in) :: bounds
+    character(len=*),  intent(in) :: NLFilename
+
+    ! !LOCAL VARIABLES:
+    integer :: begg, endg
+    !-----------------------------------------------------------------------
+
+    begg = bounds%begg; endg = bounds%endg
+
+    ! Allocate lightning forcing data
+    allocate( forc_lnfm(begg:endg) )
+    forc_lnfm(begg:) = nan
+
+    if( hlm_use_spitfire == itrue )then
+       call lnfm_init(bounds, NLFilename)
+       call lnfm_interp(bounds)
+    end if
+
+  end subroutine FATESFireInit
+
+  !*****************************************************************
+  subroutine FATESFireInterp(bounds)
+
+    ! !DESCRIPTION:
+    ! Interpolate FATES Fire datasets
+    ! !USES:
+    use FatesInterfaceMod, only : hlm_use_spitfire
+    !
+    ! !ARGUMENTS:
+    type(bounds_type), intent(in) :: bounds
+    !-----------------------------------------------------------------------
+
+    if( hlm_use_spitfire == itrue )then
+       call lnfm_interp(bounds)
+    end if
+
+  end subroutine FATESFireInterp
+
+  !-----------------------------------------------------------------------
+  subroutine lnfm_init( bounds, NLFilename )
+  !
+  ! !DESCRIPTION:
+  !
+  ! Initialize data stream information for Lightning.
+  !
+  ! !USES:
+  use clm_varctl       , only : inst_name
+  use clm_time_manager , only : get_calendar
+  use ncdio_pio        , only : pio_subsystem
+  use shr_pio_mod      , only : shr_pio_getiotype
+  use clm_nlUtilsMod   , only : find_nlgroup_name
+  use ndepStreamMod    , only : clm_domain_mct
+  use histFileMod      , only : hist_addfld1d
+  use shr_mpi_mod, only : shr_mpi_bcast
+  use mct_mod, only: mct_ggrid
+  !
+  ! !ARGUMENTS:
+  implicit none
+  type(bounds_type), intent(in) :: bounds
+  character(len=*),  intent(in) :: NLFilename
+  !
+  ! !LOCAL VARIABLES:
+  integer            :: stream_year_first_lightng  ! first year in Lightning stream to use
+  integer            :: stream_year_last_lightng   ! last year in Lightning stream to use
+  integer            :: model_year_align_lightng   ! align stream_year_first_lnfm with
+  integer            :: nu_nml                     ! unit for namelist file
+  integer            :: nml_error                  ! namelist i/o error flag
+  type(mct_ggrid)    :: dom_clm                    ! domain information
+  character(len=CL)  :: lightngmapalgo = 'bilinear'! Mapping alogrithm
+  character(*), parameter :: subName = "('lnfmdyn_init')"
+  character(*), parameter :: F00 = "('(lnfmdyn_init) ',4a)"
+  !-----------------------------------------------------------------------
+
+   namelist /light_streams/         &
+        stream_year_first_lightng,  &
+        stream_year_last_lightng,   &
+        model_year_align_lightng,   &
+        lightngmapalgo,             &
+        stream_fldFileName_lightng
+
+   ! Default values for namelist
+    stream_year_first_lightng  = 1  ! first year in stream to use
+    stream_year_last_lightng   = 1  ! last  year in stream to use
+    model_year_align_lightng   = 1  ! align stream_year_first_lnfm with this model year
+    stream_fldFileName_lightng = ' '
+
+   ! Read light_streams namelist
+   if (masterproc) then
+      nu_nml = getavu()
+      open( nu_nml, file=trim(NLFilename), status='old', iostat=nml_error )
+      call find_nlgroup_name(nu_nml, 'light_streams', status=nml_error)
+      if (nml_error == 0) then
+         read(nu_nml, nml=light_streams,iostat=nml_error)
+         if (nml_error /= 0) then
+            call endrun(msg='ERROR reading light_streams namelist'//errmsg(sourcefile, __LINE__))
+         end if
+      end if
+      close(nu_nml)
+      call relavu( nu_nml )
+   endif
+
+   call shr_mpi_bcast(stream_year_first_lightng, mpicom)
+   call shr_mpi_bcast(stream_year_last_lightng, mpicom)
+   call shr_mpi_bcast(model_year_align_lightng, mpicom)
+   call shr_mpi_bcast(stream_fldFileName_lightng, mpicom)
+
+   if (masterproc) then
+      write(iulog,*) ' '
+      write(iulog,*) 'light_stream settings:'
+      write(iulog,*) '  stream_year_first_lightng  = ',stream_year_first_lightng
+      write(iulog,*) '  stream_year_last_lightng   = ',stream_year_last_lightng
+      write(iulog,*) '  model_year_align_lightng   = ',model_year_align_lightng
+      write(iulog,*) '  stream_fldFileName_lightng = ',stream_fldFileName_lightng
+      write(iulog,*) ' '
+   endif
+
+   if (index(stream_fldFileName_lightng, 'nofile') == 0) then
+      call clm_domain_mct (bounds, dom_clm)
+
+      call shr_strdata_create(sdat_lnfm,name="clmlnfm",  &
+           pio_subsystem=pio_subsystem,                  &
+           pio_iotype=shr_pio_getiotype(inst_name),      &
+           mpicom=mpicom, compid=comp_id,                &
+           gsmap=gsmap_lnd_gdc2glo, ggrid=dom_clm,       &
+           nxg=ldomain%ni, nyg=ldomain%nj,               &
+           yearFirst=stream_year_first_lightng,          &
+           yearLast=stream_year_last_lightng,            &
+           yearAlign=model_year_align_lightng,           &
+           offset=0,                                     &
+           domFilePath='',                               &
+           domFileName=trim(stream_fldFileName_lightng), &
+           domTvarName='time',                           &
+           domXvarName='lon' ,                           &
+           domYvarName='lat' ,                           &
+           domAreaName='area',                           &
+           domMaskName='mask',                           &
+           filePath='',                                  &
+           filename=(/trim(stream_fldFileName_lightng)/),&
+           fldListFile='lnfm',                           &
+           fldListModel='lnfm',                          &
+           fillalgo='none',                              &
+           mapalgo=lightngmapalgo,                       &
+           calendar=get_calendar(),                      &
+           taxmode='cycle'                            )
+
+      if (masterproc) then
+         call shr_strdata_print(sdat_lnfm,'Lightning data')
+      endif
+
+      ! Add history fields
+      call hist_addfld1d (fname='LNFM', units='counts/km^2/hr',  &
+            avgflag='A', long_name='Lightning frequency',        &
+            ptr_lnd=forc_lnfm, default='inactive')
+
+   end if
+
+  end subroutine lnfm_init
+
+  !-----------------------------------------------------------------------
+  subroutine lnfm_interp( bounds )
+  !
+  ! !DESCRIPTION:
+  ! Interpolate data stream information for Lightning.
+  !
+  ! !USES:
+  use clm_time_manager, only : get_curr_date
+  !
+  ! !ARGUMENTS:
+  type(bounds_type), intent(in) :: bounds
+  !
+  ! !LOCAL VARIABLES:
+  integer :: g, ig
+  integer :: year    ! year (0, ...) for nstep+1
+  integer :: mon     ! month (1, ..., 12) for nstep+1
+  integer :: day     ! day of month (1, ..., 31) for nstep+1
+  integer :: sec     ! seconds into current date for nstep+1
+  integer :: mcdate  ! Current model date (yyyymmdd)
+  !-----------------------------------------------------------------------
+
+   call get_curr_date(year, mon, day, sec)
+   mcdate = year*10000 + mon*100 + day
+
+   if (index(stream_fldFileName_lightng, 'nofile') == 0) then
+      call shr_strdata_advance(sdat_lnfm, mcdate, sec, mpicom, 'lnfmdyn')
+
+      ig = 0
+      do g = bounds%begg,bounds%endg
+         ig = ig+1
+         forc_lnfm(g) = sdat_lnfm%avs(1)%rAttr(1,ig)
+      end do
+   end if
+
+  end subroutine lnfm_interp
 
   ! ============================================================================
   !        Area of site burned by fire           
@@ -100,12 +459,12 @@ contains
        call characteristics_of_fuel(currentSite, MEF, fuel_moisture)
        call rate_of_spread(currentSite, MEF, fuel_moisture)
        call ground_fuel_consumption(currentSite)
-       call area_burnt_intensity(currentSite)
+       call area_burnt_intensity(currentSite, bc_in)
        call crown_scorching(currentSite)
        call crown_damage(currentSite)
        ! Begin: Repeat calls to calculate effects of active crown fire
 !      call rate_of_spread(currentSite, MEF, fuel_moisture)
-!      call area_burnt_intensity(currentSite)
+!      call area_burnt_intensity(currentSite, bc_in)
 !      call crown_scorching(currentSite)
 !      call crown_damage(currentSite)
        ! End: Repeat calls to calculate effects of active crown fire
@@ -716,7 +1075,7 @@ contains
 
   
   !*****************************************************************
-  subroutine  area_burnt_intensity ( currentSite ) 
+  subroutine  area_burnt_intensity ( currentSite, bc_in )
   !*****************************************************************
 
     !returns the updated currentPatch%FI value for each patch.
@@ -735,6 +1094,7 @@ contains
 
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type), pointer :: currentPatch
+    type(bc_in_type), intent(in) :: bc_in
 
     real(r8) ROS !m/s
     real(r8) W   !kgBiomass/m2
@@ -755,10 +1115,20 @@ contains
     
     ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
-    currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
+    if (index(stream_fldFileName_lightng, 'ignition') > 0) then
+       currentSite%FDI = 1.0_r8  ! READING "SUCCESSFUL IGNITION" DATA
+    else
+       currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
+    end if
     
     !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
-    currentSite%NF = ED_val_nignitions * years_per_day * CG_strikes
+    ! ED_val_nignitions is from the params file
+    ! lightning is the daily avg from a lightning dataset
+    if (index(stream_fldFileName_lightng, 'nofile') > 0) then
+       currentSite%NF = ED_val_nignitions * years_per_day * CG_strikes
+    else
+       currentSite%NF = bc_in%lightning24 * 24._r8 * CG_strikes ! #/km2/hr to #/km2/day
+    end if
 
     ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
     ! then there are 15 * 1/365 strikes/km2 each day 
@@ -1083,7 +1453,8 @@ contains
           ! EQ 14b Bessie & Johnson 1995
           ignite_active_crown = currentPatch%FI / active_crown_FI
 
-          if (ignite_active_crown >= 1.0_r8) then
+          if (ignite_active_crown >= 1.0_r8 .and.  &
+              EDPftvarcon_inst%active_crown_fire(currentCohort%pft) > 0.0_r8) then
              currentPatch%active_crown_fire_flg = 1  ! active crown fire ignited
           end if
                      
