@@ -2060,8 +2060,8 @@ contains
     ! This routine is used for informing BGC competition schemes, and
     ! for generating synthetic upake rates.
     
-    type(ed_cohhort_type) :: ccohort
-    integer               :: element_id   ! Should match nitrogen_element or
+    type(ed_cohort_type),intent(in) :: ccohort
+    integer,intent(in)              :: element_id   ! Should match nitrogen_element or
     ! phosphorus_element
     real(r8)              :: plant_demand ! Nutrient demand per plant [kg]
     real(r8)              :: plant_c      ! Total carbon across organs in list [kg]
@@ -2069,6 +2069,12 @@ contains
     real(r8)              :: plant_max_x  ! Maximum mass for element of interest [kg]
     real(r8)              :: npp_demand
     real(r8)              :: deficit_demand
+    real(r8)              :: c_leaf,c_fnrt,c_sapw,a_sapw,c_agw,c_bgw,c_struct,c_store
+    integer               :: pft
+    real(r8)              :: dbh
+
+    pft = ccohort%pft
+    dbh = ccohort%dbh
     
     ! Total plant carbon [kg]
     plant_c = ccohort%prt%GetState(leaf_organ,element_id) + & 
@@ -2086,16 +2092,16 @@ contains
               ccohort%prt%GetState(sapw_organ, element_id)
 
     if(ccohort%status_coh.eq.leaves_on) then
-       call bleaf(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,c_leaf)
+       call bleaf(dbh,pft,ccohort%canopy_trim,c_leaf)
     else
        c_leaf = 0._r8
     end if
-    call bfineroot(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,c_fnrt)
-    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapw, c_sapw)
-    call bagw_allom(ccohort%dbh,ccohort%pft,c_agw)
-    call bbgw_allom(ccohort%dbh,ccohort%pft,c_bgw)
-    call bdead_allom(c_agw,c_bgw,c_sapw,ccohort%pft,c_struct)
-    call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,c_store)
+    call bfineroot(dbh,pft,ccohort%canopy_trim,c_fnrt)
+    call bsap_allom(dbh,pft,ccohort%canopy_trim,a_sapw, c_sapw)
+    call bagw_allom(dbh,pft,c_agw)
+    call bbgw_allom(dbh,pft,c_bgw)
+    call bdead_allom(c_agw,c_bgw,c_sapw,pft,c_struct)
+    call bstore_allom(dbh,pft,ccohort%canopy_trim,c_store)
     
     ! Calculate plant maximum nutrient content [kg]
     if(element_id.eq.nitrogen_element) then
@@ -2130,7 +2136,7 @@ contains
     
     ! kg/plant/day
     
-    plant_demand = max(0._r8,npp_n_demand+deficit_n_demand)!*EDPftvarcon_inst%prt_prescribed_nuptake(pft)
+    plant_demand = max(0._r8,npp_demand+deficit_demand)
     
   end function GetPlantDemand
 
@@ -2182,18 +2188,35 @@ contains
     real(r8), allocatable :: fnrt_c_pft(:)            ! total mass of root for each PFT [kgC]
 
 
-    if(hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) return
-
     nsites = size(sites,dim=1)
+    
+    ! Trivial solution
+    if(hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) then
+       do s = 1, nsites
+          cpatch => sites(s)%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                ccohort%daily_n_uptake = 0._r8
+                ccohort%daily_p_uptake = 0._r8
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+          ! These can now be zero'd
+          bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
+          bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
+       end do
+       return   ! EXIT
+    end if
 
     do s = 1, nsites
-
 
        ! If the host BGC model is not running
        ! we generate synthetic boundary uptakes
        
        if(hlm_nitrogen_spec==0) then
-          cpatch => csite%oldest_patch
+          cpatch => sites(s)%oldest_patch
           do while (associated(cpatch))
              ccohort => cpatch%tallest
              do while (associated(ccohort))
@@ -2205,7 +2228,7 @@ contains
           end do
        end if
        if(hlm_phosphorus_spec==0) then
-          cpatch => csite%oldest_patch
+          cpatch => sites(s)%oldest_patch
           do while (associated(cpatch))
              ccohort => cpatch%tallest
              do while (associated(ccohort))
@@ -2416,8 +2439,24 @@ contains
 
     real(r8) :: comp_per_pft(numpft) ! Competitors per PFT, used for averaging
 
-    if(hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) return
 
+    ! Run the trivial case where we do not have a nutrient model
+    ! running in fates, send zero demands to the BGC model
+    if(hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) then
+       bc_out%n_plant_comps  = 1
+       bc_out%ft_index(:)    = 1
+       if(trim(hlm_nu_com).eq.'ECA')then
+          bc_out%veg_rootc(:,:) = 0._r8
+          bc_out%cn_scalar(:)   = 0._r8
+          bc_out%cp_scalar(:)   = 0._r8
+          bc_out%decompmicc(:)  = 0._r8
+       elseif(trim(hlm_nu_com).eq.'RD') then
+          bc_out%n_demand(:) = 0._r8
+          bc_out%p_demand(:) = 0._r8
+       end if
+       return
+    end if
+    
     ! This is the number of effective soil layers to transfer from
     nlev_eff_soil   = max(bc_in%max_rooting_depth_index_col, 1)
 

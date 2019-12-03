@@ -366,12 +366,6 @@ contains
          call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
 
-      if (element_id .ne. carbon12_element) then
-         write(fates_log(),*) 'Reproductive tissue releases were called for a element other than c12'
-         write(fates_log(),*) 'Only carbon seed masses are curently handled.'
-         call endrun(msg=errMsg(__FILE__, __LINE__))
-      end if
-
       ! This is the total number of state variables associated
       ! with this particular organ
 

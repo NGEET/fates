@@ -795,11 +795,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prt_prescribed_nuptake'
+    name = 'fates_prescribed_nuptake'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prt_prescribed_puptake'
+    name = 'fates_prescribed_puptake'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
  
@@ -1280,11 +1280,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
 
-    name = 'fates_prt_prescribed_nuptake'
+    name = 'fates_prescribed_nuptake'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prt_prescribed_nuptake)
 
-     name = 'fates_prt_prescribed_puptake'
+    name = 'fates_prescribed_puptake'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prt_prescribed_puptake)
     

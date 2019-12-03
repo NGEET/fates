@@ -918,6 +918,9 @@ contains
             allocate(bc_in%plant_n_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
             allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
          end if
+      else
+         allocate(bc_in%plant_n_uptake_flux(1,1))
+         allocate(bc_in%plant_p_uptake_flux(1,1))
       end if
 
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
@@ -1323,16 +1326,21 @@ contains
 
          ! Set the maximum number of nutrient aquisition competitors per site
          ! This is used to set array sizes for the boundary conditions.
+         ! Note: since BGC code may be active even when no nutrients
+         ! present, we still need to allocate things when no nutrients
 
-         if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
-            max_comp_per_site = fates_maxElementsPerSite
-         elseif(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
-            max_comp_per_site = numpft
+         if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
+            if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+               max_comp_per_site = fates_maxElementsPerSite
+            elseif(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+               max_comp_per_site = numpft
+            else
+               write(fates_log(), *) 'An unknown nutrient competitor scaling method was chosen?'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
          else
-            write(fates_log(), *) 'An unknown nutrient competitor scaling method was chosen?'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+            max_comp_per_site = 1
          end if
-            
             
 
 

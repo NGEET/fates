@@ -414,6 +414,20 @@ contains
           hite_old = currentCohort%hite
           dbh_old  = currentCohort%dbh
 
+          if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
+             
+             ! Mass balance for N uptake
+             currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = & 
+                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + & 
+                  currentCohort%daily_n_uptake*currentCohort%n
+             
+             ! Mass balance for P uptake
+             currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = & 
+                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + & 
+                  currentCohort%daily_p_uptake*currentCohort%n
+          end if
+
+          
           ! -----------------------------------------------------------------------------
           ! Growth and Allocation (PARTEH)
           ! -----------------------------------------------------------------------------
@@ -429,19 +443,19 @@ contains
 
              ! Mass balance for N uptake
              currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = & 
-                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + & 
-                  (currentCohort%daily_n_uptake-currentCohort%daily_n_efflux)*currentCohort%n
+                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake - &
+                  currentCohort%daily_n_efflux*currentCohort%n
              
              ! Mass balance for P uptake
              currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = & 
-                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + & 
-                  (currentCohort%daily_p_uptake-currentCohort%daily_p_efflux)*currentCohort%n
+                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake - & 
+                  currentCohort%daily_p_efflux*currentCohort%n
              
              ! mass balance for C efflux (if any)
              currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake = & 
                   currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake - & 
                   currentCohort%daily_c_efflux*currentCohort%n
-
+             
              ! size class index
              iscpf = currentCohort%size_by_pft_class
              

@@ -1002,9 +1002,9 @@ data:
 
  fates_prescribed_npp_understory = 0.03125 ;
 
- fates_prescribed_nuptake = -0.02 ;
+ fates_prescribed_nuptake = 1.1 ;
 
- fates_prescribed_puptake = -0.002 ;
+ fates_prescribed_puptake = 1.1 ;
 
  fates_prescribed_recruitment = 0.02 ;
 
