@@ -42,6 +42,12 @@ module EDPhysiologyMod
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
+  use EDTypesMod          , only : p_uptake_mode
+  use EDTypesMod          , only : n_uptake_mode
+  use FatesConstantsMod   , only : prescribed_p_uptake
+  use FatesConstantsMod   , only : prescribed_n_uptake
+  use FatesConstantsMod   , only : coupled_p_uptake
+  use FatesConstantsMod   , only : coupled_n_uptake
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
   use FatesLitterMod      , only : ilabile
@@ -2212,41 +2218,46 @@ contains
 
     do s = 1, nsites
 
-       ! If the host BGC model is not running
-       ! we generate synthetic boundary uptakes
-       
-       if(hlm_nitrogen_spec==0) then
-          cpatch => sites(s)%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                ccohort%daily_n_uptake = &
-                     EDPftvarcon_inst%prt_prescribed_nuptake(pft)*GetPlantDemand(ccohort,nitrogen_element)
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-       end if
-       if(hlm_phosphorus_spec==0) then
-          cpatch => sites(s)%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                ccohort%daily_p_uptake = &
-                     EDPftvarcon_inst%prt_prescribed_nuptake(pft)*GetPlantDemand(ccohort,phosphorus_element)
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-       end if
+       ! If the plant's PFT has a non-zero positive prescribed rate,
+       ! use that instead of the fully coupled version.
 
+       if (n_uptake_mode.eq.prescribed_n_uptake) then
+          cpatch => sites(s)%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                pft = ccohort%pft
+                ccohort%daily_n_uptake = &
+                     EDPftvarcon_inst%prescribed_nuptake(pft) * &
+                     GetPlantDemand(ccohort,nitrogen_element)
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+       end if
+       
+       if (p_uptake_mode.eq.prescribed_p_uptake) then
+          cpatch => sites(s)%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                pft = ccohort%pft
+                ccohort%daily_p_uptake = &
+                     EDPftvarcon_inst%prescribed_puptake(pft) * &
+                     GetPlantDemand(ccohort,phosphorus_element)
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+       end if
+       
        
        ! If nutrient competition is sent to the BGC model as PFTs
        ! and not as individual cohorts, we need to unravel the input
        ! boundary condition and send to cohort.  We do this downscaling
        ! by finding each cohort's fraction of total fine-root for the group
-       if((hlm_nitrogen_spec>0) .or. (hlm_phosphorus_spec>0))then
-      
+       if(n_uptake_mode.eq.coupled_n_uptake .or. p_uptake_mode.eq.coupled_p_uptake)then
+
           nlev_eff_soil = max(bc_in(s)%max_rooting_depth_index_col, 1)
           nlevdecomp    = bc_in(s)%nlevdecomp
           
@@ -2292,63 +2303,73 @@ contains
           ! Now that we have the arrays ready for downscaling (if needed)
           ! loop through all cohorts and acquire nutrient
           ! --------------------------------------------------------------------------------
-          
-          icomp = 0
-          cpatch => sites(s)%oldest_patch
-          do while (associated(cpatch))
-             
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                
-                pft   = ccohort%pft
-                
-                if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
-                   icomp = icomp+1
-                   
-                   ! N Uptake:  Convert g/m2/day -> kg/plant/day
-                   ! Note: this sum is over 1 index.
-                   if(hlm_nitrogen_spec>0) & 
-                        ccohort%daily_n_uptake = ccohort%daily_n_uptake + sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
-                   
-                   ! P uptake: Convert g/m2/day -> kg/plant/day
-                   ! Note: this sum is over 1 index
-                   if(hlm_phosphorus_spec>0) &
-                        ccohort%daily_p_uptake = ccohort%daily_p_uptake + sum(bc_in(s)%plant_p_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
-                   
-                else
-                   
-                   icomp = pft
-                   
-                   ! Total fine-root carbon of the cohort [kgC/ha]
-                   fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
-                   
-                   ! Loop through soil layers, add up the uptake this cohort gets from each layer
-                   if(hlm_nitrogen_spec>0)then
+
+          if(n_uptake_mode.eq.coupled_n_uptake) then
+             icomp = 0
+             cpatch => sites(s)%oldest_patch
+             do while (associated(cpatch))
+                ccohort => cpatch%tallest
+                do while (associated(ccohort))
+                   pft   = ccohort%pft
+                   if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                      icomp = icomp+1
+                      ! N Uptake:  Convert g/m2/day -> kg/plant/day
+                      ! Note: this sum is over 1 index.
+                      ccohort%daily_n_uptake = ccohort%daily_n_uptake + &
+                           sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                   else
+                      icomp = pft
+                      ! Total fine-root carbon of the cohort [kgC/ha]
+                      fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
+                      ! Loop through soil layers, add up the uptake this cohort gets from each layer
                       do id = 1,nlevdecomp
                          ccohort%daily_n_uptake = ccohort%daily_n_uptake + & 
-                              bc_in(s)%plant_n_uptake_flux(icomp,id) * (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
+                              bc_in(s)%plant_n_uptake_flux(icomp,id) * &
+                              (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
                       end do
                    end if
-                   if(hlm_phosphorus_spec>0)then
+                   ccohort => ccohort%shorter
+                end do
+                cpatch => cpatch%younger
+             end do
+          end if
+
+          if(p_uptake_mode.eq.coupled_p_uptake) then
+             icomp = 0
+             cpatch => sites(s)%oldest_patch
+             do while (associated(cpatch))
+                ccohort => cpatch%tallest
+                do while (associated(ccohort))
+                   pft   = ccohort%pft
+                   if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                      icomp = icomp+1
+                      ! P Uptake:  Convert g/m2/day -> kg/plant/day
+                      ! Note: this sum is over 1 index.
+                      ccohort%daily_p_uptake = ccohort%daily_p_uptake + &
+                           sum(bc_in(s)%plant_p_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                   else
+                      icomp = pft
+                      ! Total fine-root carbon of the cohort [kgC/ha]
+                      fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
+                      ! Loop through soil layers, add up the uptake this cohort gets from each layer
                       do id = 1,nlevdecomp
                          ccohort%daily_p_uptake = ccohort%daily_p_uptake + & 
-                              bc_in(s)%plant_p_uptake_flux(icomp,id) * (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
+                              bc_in(s)%plant_p_uptake_flux(icomp,id) * &
+                              (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
                       end do
                    end if
-                   
-                end if
-                
-                ccohort => ccohort%shorter
+                   ccohort => ccohort%shorter
+                end do
+                cpatch => cpatch%younger
              end do
-             cpatch => cpatch%younger
-          end do
-
+          end if
+          
           ! Free the temprorary arrays (if used)
           if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
              deallocate(rootfrac_pft_decomp)
              deallocate(fnrt_c_pft)
           end if
-
+          
        end if
        
        ! These can now be zero'd
@@ -2442,17 +2463,18 @@ contains
 
     ! Run the trivial case where we do not have a nutrient model
     ! running in fates, send zero demands to the BGC model
-    if(hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) then
+    if((hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) .or. &
+         (n_uptake_mode.eq.prescribed_n_uptake .and. p_uptake_mode.eq.prescribed_p_uptake)) then
        bc_out%n_plant_comps  = 1
-       bc_out%ft_index(:)    = 1
        if(trim(hlm_nu_com).eq.'ECA')then
-          bc_out%veg_rootc(:,:) = 0._r8
-          bc_out%cn_scalar(:)   = 0._r8
-          bc_out%cp_scalar(:)   = 0._r8
-          bc_out%decompmicc(:)  = 0._r8
+          bc_out%ft_index(1)    = 1
+          bc_out%veg_rootc(1,:) = 0._r8
+          bc_out%cn_scalar(1)   = 0._r8
+          bc_out%cp_scalar(1)   = 0._r8
+          bc_out%decompmicc(1)  = 0._r8
        elseif(trim(hlm_nu_com).eq.'RD') then
-          bc_out%n_demand(:) = 0._r8
-          bc_out%p_demand(:) = 0._r8
+          bc_out%n_demand(1) = 0._r8
+          bc_out%p_demand(1) = 0._r8
        end if
        return
     end if
@@ -2468,7 +2490,6 @@ contains
     ! bc_out(s)%source_n(:) = 0._r8
     ! bc_out(s)%source_p(:) = 0._r8
 
-
     ! ECA Specific Parameters
     ! --------------------------------------------------------------------------------
     if(trim(hlm_nu_com).eq.'ECA')then
@@ -2477,58 +2498,91 @@ contains
        bc_out%cn_scalar(:)   = 0._r8
        bc_out%cp_scalar(:)   = 0._r8
        bc_out%decompmicc(:)  = 0._r8
-
+       bc_out%ft_index(:)    = -1
+       
        ! Loop over all patches and sum up the seed input for each PFT
        icomp = 0
        comp_per_pft(:) = 0     ! This counts how many competitors per
        ! pft, used for averaging
        cpatch => csite%oldest_patch
        do while (associated(cpatch))
-
+          
           ccohort => cpatch%tallest
           do while (associated(ccohort))
-
+             
              pft   = ccohort%pft
-
+             
              if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
                 icomp = icomp+1
              else
                 icomp = pft
                 comp_per_pft(pft) = comp_per_pft(pft) + 1
              end if
-
+             
              call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
                   icontext = i_hydro_rootprof_context)
-
+             
              fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
-
+             
              ! Map the soil layers to the decomposition layers
              ! (which may be synonomous)
              ! veg_rootc in units:  [g/m3] = [kgC/plant] * [plant/ha] * [ha/ 10k m2] * [1000 g / kg] * [1/m]
-
+             
              do j = 1, nlev_eff_soil
                 id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer     
                 veg_rootc = fnrt_c * ccohort%n * csite%rootfrac_scr(j) * AREA_INV * g_per_kg / csite%dz_soil(j)
                 bc_out%veg_rootc(icomp,id) = bc_out%veg_rootc(icomp,id) + veg_rootc
                 bc_out%decompmicc(id) = bc_out%decompmicc(id) + &
-                      EDPftvarcon_inst%decompmicc(pft) * veg_rootc
+                     EDPftvarcon_inst%decompmicc(pft) * veg_rootc
              end do
-
+             
              bc_out%ft_index(icomp) = pft
 
-             leaf_c = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, all_carbon_elements) + &
-                  ccohort%prt%GetState(store_organ, all_carbon_elements))
+             ccohort => ccohort%shorter
+          end do
+          
+          cpatch => cpatch%younger
+       end do
+       
+       if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+          bc_out%n_plant_comps = icomp
+       else
+          bc_out%n_plant_comps = numpft
+       end if
+       
 
-             ! Target leaf biomass according to allometry and trimming
-             call bleaf(ccohort%dbh,pft,ccohort%canopy_trim,target_leaf_c)
-             call bstore_allom(ccohort%dbh,pft,ccohort%canopy_trim,target_store_c)
+       ! We calculate the decomposer microbial biomass by weighting with the
+       ! root biomass. This is just the normalization step
+       do id = 1,bc_in%nlevdecomp
+          bc_out%decompmicc(id) = bc_out%decompmicc(id) / &
+               max(nearzero,sum(bc_out%veg_rootc(:,id),dim=1))
+       end do
 
-             ! Process the nitrogen CN scalar
+       ! ECA, in coupled mode affinity is diagnosed
+       if(n_uptake_mode.eq.coupled_n_uptake) then
+          icomp = 0
+          cpatch => csite%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
 
-             if(hlm_nitrogen_spec>0) then
+                pft   = ccohort%pft
+                if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                   icomp = icomp+1
+                else
+                   icomp = pft
+                end if
+                
+                leaf_c = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, all_carbon_elements) + &
+                     ccohort%prt%GetState(store_organ, all_carbon_elements))
+
+                ! Target leaf biomass according to allometry and trimming
+                call bleaf(ccohort%dbh,pft,ccohort%canopy_trim,target_leaf_c)
+                call bstore_allom(ccohort%dbh,pft,ccohort%canopy_trim,target_store_c)
+                
                 leaf_n = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, nitrogen_element) + & 
                      ccohort%prt%GetState(store_organ, nitrogen_element))
-
+                
                 ! Calculate the ideal CN ratio for leaves and storage organs
                 nc_ideal = ((target_leaf_c*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,leaf_organ)) + &
                      (target_store_c*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,store_organ))) / & 
@@ -2536,9 +2590,9 @@ contains
                 nc_min =  ((target_leaf_c*EDPftvarcon_inst%prt_nitr_stoich_p1(pft,leaf_organ)) + &
                      (target_store_c*EDPftvarcon_inst%prt_nitr_stoich_p1(pft,store_organ))) / & 
                      (target_leaf_c+target_store_c)
-
+                
                 nc_actual = max(leaf_n/leaf_c,rsnbl_math_prec)
-
+                
                 if(cnp_scalar_method.eq.cnp_scalar_method1)then
                    
                    !x0 = 0.5*(nc_ideal+nc_min)
@@ -2547,9 +2601,9 @@ contains
                    ! nutrient concentration matches 95%tile of scalar
                    ! 0.95 = 1._r8/(1._r8 + exp(-logi_k*(  0.95*(nc_ideal-x0) )))
                    ! logi_k = -log(1._r8-0.95/0.95)/ (  0.95*(nc_ideal-x0) )
-
+                   
                    !bc_out%cn_scalar(icomp) = 1._r8/(1._r8 + exp(-logi_k*(nc_actual-x0)))
-
+                   
                    bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp) + & 
                         min(1._r8,max(0._r8, & 
                         (nc_ideal - nc_actual + cn_stoich_var*nc_min) / & 
@@ -2563,11 +2617,49 @@ contains
                    
                 end if
 
-             end if
-             if(hlm_phosphorus_spec>0) then
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+
+          ! Normalize the sum to a mean, if this is a PFT scale
+          ! boundary flux
+          if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+             do icomp = 1, numpft
+                bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp)/real(comp_per_pft(icomp),r8)
+             end do
+          end if
+          
+       end if
+       
+       if(p_uptake_mode.eq.prescribed_p_uptake) then
+          ! ECA, affinity for P should be zero when in un-coupled mode
+          bc_out%cp_scalar(1:bc_out%n_plant_comps) = 0._r8
+       else
+          ! ECA, in coupled mode affinity for P is diagnosed
+          icomp = 0
+          cpatch => csite%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+
+                pft   = ccohort%pft
+                if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                   icomp = icomp+1
+                else
+                   icomp = pft
+                end if
+
+                leaf_c = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, all_carbon_elements) + &
+                     ccohort%prt%GetState(store_organ, all_carbon_elements))
+                
+                ! Target leaf biomass according to allometry and trimming
+                call bleaf(ccohort%dbh,pft,ccohort%canopy_trim,target_leaf_c)
+                call bstore_allom(ccohort%dbh,pft,ccohort%canopy_trim,target_store_c)
+                
                 leaf_p = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, phosphorus_element) + & 
                      ccohort%prt%GetState(store_organ, phosphorus_element))
-
+                
                 ! Calculate the ideal CN ratio for leaves and storage organs
                 pc_ideal = ((target_leaf_c*EDPftvarcon_inst%prt_phos_stoich_p2(pft,leaf_organ)) + &
                      (target_store_c*EDPftvarcon_inst%prt_phos_stoich_p2(pft,store_organ))) / & 
@@ -2575,9 +2667,9 @@ contains
                 pc_min = ((target_leaf_c*EDPftvarcon_inst%prt_phos_stoich_p1(pft,leaf_organ)) + &
                      (target_store_c*EDPftvarcon_inst%prt_phos_stoich_p1(pft,store_organ))) / & 
                      (target_leaf_c+target_store_c)
-
+                
                 pc_actual = max(leaf_c/leaf_p,rsnbl_math_prec)
-
+                
                 if(cnp_scalar_method.eq.cnp_scalar_method1)then
                    bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp) + & 
                         min(1._r8,max(0._r8, & 
@@ -2590,109 +2682,90 @@ contains
                         min(1._r8,max(0._r8, & 
                         (cp_actual - cp_ideal*(1._r8-cn_stoich_var))/(cp_ideal*cn_stoich_var)))
                 end if
-             end if
-
-             ccohort => ccohort%shorter
+                
+                ccohort => ccohort%shorter
+             end do
+             
+             cpatch => cpatch%younger
           end do
+          
+          if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+             do icomp = 1, numpft
+                bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp)/real(comp_per_pft(icomp),r8)
+             end do
+          end if
+          
+       end if
+       
+    elseif(trim(hlm_nu_com).eq.'RD') then
 
-          cpatch => cpatch%younger
-       end do
-
+       ! RD Specific Parameters
+       ! --------------------------------------------------------------------------------
+       ! --------------------------------------------------------------------
+       ! Demand comes from two parts. (1) Some demand seeks to fullfill the N 
+       ! or P requirements needed for the construction costs that match NPP. 
+       ! We have to predict the next day based on the current day's NPP.  (2) 
+       ! If a plant has flexible stoichiometry, it may currently have an N or 
+       ! P concentration lower than optimal, and therefore demand seeks to 
+       ! replace this deficit.
+       ! --------------------------------------------------------------------
+       ! [gX/m2/s]  convert [kgX/plant/day] * [plant/ha] * 
+       !                                      [ha/10000 m2] * [1000 g/kg] * [1 day /86400 sec]
+       
+       bc_out%n_demand(:) = 0._r8
+       bc_out%p_demand(:) = 0._r8
+       
+       if(n_uptake_mode.eq.coupled_n_uptake) then
+          icomp = 0
+          cpatch => csite%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                pft   = ccohort%pft
+                dbh   = ccohort%dbh
+                if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                   icomp = icomp+1
+                else
+                   icomp = pft
+                end if
+                bc_out%n_demand(icomp) = bc_out%n_demand(icomp) + & 
+                     GetPlantDemand(ccohort,nitrogen_element)*ccohort%n*AREA_INV*g_per_kg*days_per_sec
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+       end if
+       
+       if(p_uptake_mode.eq.coupled_p_uptake) then
+          icomp = 0
+          cpatch => csite%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                pft   = ccohort%pft
+                dbh   = ccohort%dbh
+                if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                   icomp = icomp+1
+                else
+                   icomp = pft
+                end if
+                bc_out%p_demand(icomp) = bc_out%p_demand(icomp) + & 
+                     GetPlantDemand(ccohort,phosphorus_element)*ccohort%n*AREA_INV*g_per_kg*days_per_sec
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+       end if
+       
        if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
           bc_out%n_plant_comps = icomp
        else
           bc_out%n_plant_comps = numpft
        end if
        
-       ! We calculate the decomposer microbial biomass by weighting with the
-       ! root biomass. This is just the normalization step
-       do id = 1,bc_in%nlevdecomp
-           bc_out%decompmicc(id) = bc_out%decompmicc(id) / &
-                 max(nearzero,sum(bc_out%veg_rootc(:,id),dim=1))
-       end do
-
-       ! Normalize the sum to a mean, if this is a PFT scale
-       ! boundary flux
-       if(hlm_nitrogen_spec>0 ) then
-          if(fates_ncomp_scaling.ne.cohort_ncomp_scaling) then
-             do icomp = 1, numpft
-                bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp)/real(comp_per_pft(icomp),r8)
-             end do
-          end if
-       end if
-
-       ! Process and potentially normalize P parameters
-       if(hlm_phosphorus_spec>0) then
-          if(fates_ncomp_scaling.ne.cohort_ncomp_scaling) then
-             do icomp = 1, numpft
-                bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp)/real(comp_per_pft(icomp),r8)
-             end do
-          end if
-       end if
-
-
-    elseif(trim(hlm_nu_com).eq.'RD') then
-
-       ! RD Specific Parameters
-       ! --------------------------------------------------------------------------------
-
-       ! bc_out%n_demand
-       ! bc_out%p_demand
-
-       bc_out%n_demand(:) = 0._r8
-       bc_out%p_demand(:) = 0._r8
-
-       icomp = 0
-       comp_per_pft(:) = 0     ! This counts how many competitors per
-       ! pft, used for averaging
-
-       cpatch => csite%oldest_patch
-       do while (associated(cpatch))
-          ccohort => cpatch%tallest
-          do while (associated(ccohort))
-
-             pft   = ccohort%pft
-             dbh   = ccohort%dbh
-             if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
-                icomp = icomp+1
-             else
-                icomp = pft
-                comp_per_pft(pft) = comp_per_pft(pft) + 1
-             end if
-
-             ! --------------------------------------------------------------------
-             ! Demand comes from two parts. (1) Some demand seeks to fullfill the N 
-             ! or P requirements needed for the construction costs that match NPP. 
-             ! We have to predict the next day based on the current day's NPP.  (2) 
-             ! If a plant has flexible stoichiometry, it may currently have an N or 
-             ! P concentration lower than optimal, and therefore demand seeks to 
-             ! replace this deficit.
-             ! --------------------------------------------------------------------
-             ! [gX/m2/s]  convert [kgX/plant/day] * [plant/ha] * 
-             !                                      [ha/10000 m2] * [1000 g/kg] * [1 day /86400 sec]
-             if(hlm_nitrogen_spec>0) then
-                bc_out%n_demand(icomp) = bc_out%n_demand(icomp) + & 
-                     GetPlantDemand(ccohort,nitrogen_element)*ccohort%n*AREA_INV*g_per_kg*days_per_sec
-             end if
-             if(hlm_phosphorus_spec>0) then
-                bc_out%p_demand(icomp) = bc_out%p_demand(icomp) + & 
-                     GetPlantDemand(ccohort,phosphorus_element)*ccohort%n*AREA_INV*g_per_kg*days_per_sec
-             end if
-
-             ccohort => ccohort%shorter
-          end do
-
-          cpatch => cpatch%younger
-       end do
-
-       if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
-          bc_out%n_plant_comps = icomp
-       else
-          bc_out%n_plant_comps = numpft
-       end if
-
     end if
 
+    
     return
   end subroutine PrepNutrientAquisitionBCs
 
@@ -2818,6 +2891,7 @@ contains
           flux_cel_si => bc_out%litt_flux_cel_c_si(:)
           flux_lab_si => bc_out%litt_flux_lab_c_si(:)
           flux_lig_si => bc_out%litt_flux_lig_c_si(:)
+          
        case (nitrogen_element) 
           bc_out%litt_flux_cel_n_si(:) = 0._r8
           bc_out%litt_flux_lig_n_si(:) = 0._r8
@@ -2825,6 +2899,12 @@ contains
           flux_cel_si => bc_out%litt_flux_cel_n_si(:)
           flux_lab_si => bc_out%litt_flux_lab_n_si(:)
           flux_lig_si => bc_out%litt_flux_lig_n_si(:)
+
+          ! If we have prescribed boundary conditions
+          ! we do not take N out of the BGC model's
+          ! stores, so nor do we send any back
+          if(n_uptake_mode.eq.prescribed_n_uptake) cycle
+          
        case (phosphorus_element)
           bc_out%litt_flux_cel_p_si(:) = 0._r8
           bc_out%litt_flux_lig_p_si(:) = 0._r8
@@ -2832,12 +2912,18 @@ contains
           flux_cel_si => bc_out%litt_flux_cel_p_si(:)
           flux_lab_si => bc_out%litt_flux_lab_p_si(:)
           flux_lig_si => bc_out%litt_flux_lig_p_si(:)
+
+          ! If we have prescribed boundary conditions
+          ! we do not take N out of the BGC model's
+          ! stores, so nor do we send any back
+          if(p_uptake_mode.eq.prescribed_p_uptake) cycle
+          
        end select
        
        currentPatch => csite%oldest_patch
        do while (associated(currentPatch))
 
-          ! If there is any efflux (from stores overlowing)
+          ! If there is any efflux (from stores overflowing)
           ! than pass that to the labile litter pool
 
           currentCohort => currentPatch%tallest

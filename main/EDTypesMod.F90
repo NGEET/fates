@@ -193,7 +193,15 @@ module EDTypesMod
                                                         ! the position in the element_list
 
   
+  ! Global identifier of how nutrients interact with the host land model
+  ! either they are fully coupled, or they generate uptake rates synthetically
+  ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
+  ! BGC N and P pools, and there is also none removed.
 
+  integer, public :: n_uptake_mode
+  integer, public :: p_uptake_mode
+  
+  
   !************************************
   !** COHORT type structure          **
   !************************************

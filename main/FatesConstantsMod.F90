@@ -31,7 +31,17 @@ module FatesConstantsMod
   integer, parameter, public :: primaryforest = 1
   integer, parameter, public :: secondaryforest = 2
 
+  ! Flags specifying how phosphorous uptake and turnover interacts
+  ! with the host model.
+  integer, public, parameter :: prescribed_p_uptake = 1
+  integer, public, parameter :: coupled_p_uptake    = 2
 
+  ! Flags specifying how nitrogen uptake and turnover interacts
+  ! with the host model.
+  integer, public, parameter :: prescribed_n_uptake = 1
+  integer, public, parameter :: coupled_n_uptake    = 2
+
+  
   integer, public, parameter :: cohort_ncomp_scaling = 1  ! This flag definition indicates that EVERY cohort on
                                                           ! the column should compete independently in the soil
                                                           ! BGC acquisition scheme.

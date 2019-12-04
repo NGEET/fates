@@ -24,6 +24,12 @@ module FatesInterfaceMod
    use EDTypesMod          , only : num_elements
    use EDTypesMod          , only : element_list
    use EDTypesMod          , only : element_pos
+   use EDTypesMod          , only : p_uptake_mode
+   use EDTypesMod          , only : n_uptake_mode
+   use FatesConstantsMod   , only : prescribed_p_uptake
+   use FatesConstantsMod   , only : prescribed_n_uptake
+   use FatesConstantsMod   , only : coupled_p_uptake
+   use FatesConstantsMod   , only : coupled_n_uptake
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesConstantsMod   , only : itrue,ifalse
    use FatesConstantsMod   , only : fates_ncomp_scaling
@@ -1022,6 +1028,30 @@ contains
       allocate(bc_out%ftid_parb(maxPatchesPerSite,hlm_numSWb))
       allocate(bc_out%ftii_parb(maxPatchesPerSite,hlm_numSWb))
 
+
+      ! We allocate the boundary conditions to the BGC
+      ! model, regardless of what scheme we use. The BGC
+      ! model in ELM allocates all species C,N,P even if they
+      ! are not turned on. Also, it is feasible that the
+      ! one would want to allow soil BGC nutrient dynamics
+      ! to proceed even if we are not passing source fluxes
+      ! or uptake from FATES.
+      ! When FATES does not have nutrients enabled, these
+      ! arrays are indexed by 1.
+      
+      if(trim(hlm_nu_com).eq.'RD') then
+         allocate(bc_out%n_demand(max_comp_per_site))
+         allocate(bc_out%p_demand(max_comp_per_site))
+      end if
+      if(trim(hlm_nu_com).eq.'ECA') then
+         allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
+         allocate(bc_out%decompmicc(nlevdecomp_in))
+         allocate(bc_out%ft_index(max_comp_per_site))
+         allocate(bc_out%cn_scalar(max_comp_per_site))
+         allocate(bc_out%cp_scalar(max_comp_per_site))
+      end if
+
+      
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
       case(prt_carbon_allom_hyp)
@@ -1040,27 +1070,8 @@ contains
          allocate(bc_out%litt_flux_lig_p_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_p_si(nlevdecomp_in))
 
-         ! Allocate aquisition variables sent to HLM Soil BGC
-         ! NOTE: ELM SOIL BGC CODE ASSUMES THAT N AND P
-         ! HAVE ALL OF THEIR ARRAYS ALLOCATED. TO DISABLE
-         ! ALLOCATE A SINGLE VALUE WITH NO DEMAND
-
          allocate(bc_out%source_nh4(nlevdecomp_in))
          allocate(bc_out%source_p(nlevdecomp_in))
-
-
-         if(trim(hlm_nu_com).eq.'RD') then
-            allocate(bc_out%n_demand(max_comp_per_site))
-            allocate(bc_out%p_demand(max_comp_per_site))
-         end if
-         if(trim(hlm_nu_com).eq.'ECA') then
-            allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
-            allocate(bc_out%decompmicc(nlevdecomp_in))
-            allocate(bc_out%ft_index(max_comp_per_site))
-            allocate(bc_out%cn_scalar(max_comp_per_site))
-            allocate(bc_out%cp_scalar(max_comp_per_site))
-         end if
-         
 
       case default
          write(fates_log(), *) 'An unknown parteh hypothesis was passed'
@@ -2207,20 +2218,17 @@ contains
                  write(fates_log(),*) 'Aborting'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
-
-           end if
-           if (trim(hlm_nu_com).eq.'RD') then
-           end if
-
-           if(hlm_nitrogen_spec==2)then
-              if(any(EDPftvarcon_inst%eca_km_no3(:)<0._r8)) then
-                 write(fates_log(),*) 'ECA with nit/denitr is turned on'
-                 write(fates_log(),*) 'bad ECA km value(s) for no3: ',EDPftvarcon_inst%eca_km_no3(:)
-                 write(fates_log(),*) 'Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              
+              if(hlm_nitrogen_spec==2)then
+                 if(any(EDPftvarcon_inst%eca_km_no3(:)<0._r8)) then
+                    write(fates_log(),*) 'ECA with nit/denitr is turned on'
+                    write(fates_log(),*) 'bad ECA km value(s) for no3: ',EDPftvarcon_inst%eca_km_no3(:)
+                    write(fates_log(),*) 'Aborting'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                 end if
               end if
-           end if
 
+           end if
         end if
         
      elseif (parteh_mode .ne. prt_carbon_allom_hyp) then
@@ -2610,8 +2618,7 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
-        end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+
            if ( any(EDPftvarcon_inst%prt_alloc_priority(ipft,:) < 0) .or. &
                 any(EDPftvarcon_inst%prt_alloc_priority(ipft,:) > 6) ) then
               write(fates_log(),*) ' PFT#: ',ipft
@@ -2620,8 +2627,43 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
+
+           ! If any PFTs are specified as either prescribed N or P uptake
+           ! then they all must be
+           if (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+              if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+                 write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
+                 write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
+                 write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
+                 write(fates_log(),*) 'EDPftvarcon_inst%prescribed_nuptake(:):', &
+                      EDPftvarcon_inst%prescribed_nuptake(:)
+                 write(fates_log(),*) ' Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+              n_uptake_mode = prescribed_n_uptake
+           else
+              n_uptake_mode = coupled_n_uptake
+           end if
+           
+           if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
+              if(.not.all(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
+                 write(fates_log(),*) 'If any PFTs are specified as having prescribed P'
+                 write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
+                 write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
+                 write(fates_log(),*) 'EDPftvarcon_inst%prescribed_puptake(:):', &
+                      EDPftvarcon_inst%prescribed_puptake(:)
+                 write(fates_log(),*) ' Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+              p_uptake_mode = prescribed_p_uptake
+           else
+              p_uptake_mode = coupled_p_uptake
+           end if
+           
         end if
 
+
+        
 
         ! Check turnover time-scales
         

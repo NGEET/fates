@@ -233,10 +233,10 @@ module EDPftvarcon
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
 
-     real(r8), allocatable :: prt_prescribed_nuptake(:)   ! If there is no soil BGC model active,
+     real(r8), allocatable :: prescribed_nuptake(:)   ! If there is no soil BGC model active,
      ! prescribe an uptake rate for nitrogen
 
-     real(r8), allocatable :: prt_prescribed_puptake(:)   ! If there is no soil BGC model active,
+     real(r8), allocatable :: prescribed_puptake(:)   ! If there is no soil BGC model active,
      ! prescribe an uptake rate for phosphorus
 
      
@@ -1282,11 +1282,11 @@ contains
 
     name = 'fates_prescribed_nuptake'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%prt_prescribed_nuptake)
+         data=this%prescribed_nuptake)
 
     name = 'fates_prescribed_puptake'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%prt_prescribed_puptake)
+         data=this%prescribed_puptake)
     
     name = 'fates_eca_decompmicc'
     call fates_params%RetreiveParameterAllocate(name=name, &
