@@ -2166,7 +2166,13 @@ contains
      integer :: nleafage ! size of the leaf age class array
      integer :: iage     ! leaf age class index
      integer :: norgans  ! size of the plant organ dimension
+     integer :: i, io    ! generic loop index and organ loop index
 
+     
+     integer, parameter,dimension(6) :: cnpflex_organs = &
+          [leaf_organ, fnrt_organ, sapw_organ, store_organ, repro_organ, struct_organ]
+
+     
      npft = size(EDPftvarcon_inst%evergreen,1)
 
      ! Prior to performing checks copy grperc to the 
@@ -2542,14 +2548,14 @@ contains
         end if
 
         ! Growth respiration
-!        if (parteh_mode .eq. prt_carbon_allom_hyp) then
-           if ( ( EDPftvarcon_inst%grperc(ipft) < 0.0_r8) .or. &
-                ( EDPftvarcon_inst%grperc(ipft) > 1.0_r8 ) ) then
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',EDPftvarcon_inst%grperc(ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
+        !        if (parteh_mode .eq. prt_carbon_allom_hyp) then
+        if ( ( EDPftvarcon_inst%grperc(ipft) < 0.0_r8) .or. &
+             ( EDPftvarcon_inst%grperc(ipft) > 1.0_r8 ) ) then
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',EDPftvarcon_inst%grperc(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 !        elseif(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
 !           if ( ( any(EDPftvarcon_inst%prt_grperc_organ(ipft,:) < 0.0_r8)) .or. &
 !                ( any(EDPftvarcon_inst%prt_grperc_organ(ipft,:) >= 1.0_r8)) ) then
@@ -2559,31 +2565,7 @@ contains
 !              call endrun(msg=errMsg(sourcefile, __LINE__))
 !           end if
 !        end if
-        
-        ! Stoichiometric Ratios
 
-        ! Firstly, the seed production and germination models cannot handle nutrients. So 
-        ! we assume (for now) that seeds do not have nutrients (parteh_mode = 1 is c only)
-        if(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ( (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ) > nearzero) .or. &
-                 (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ) < -nearzero) .or. & 
-                 (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ) > nearzero) .or. &
-                 (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ) < -nearzero) .or. &
-                 (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,repro_organ) > nearzero) .or. &
-                 (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,repro_organ) < -nearzero) .or. & 
-                 (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,repro_organ) > nearzero) .or. &
-                 (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,repro_organ) < -nearzero) ) then
-              write(fates_log(),*) 'N & P should be zero in reproductive tissues'
-              write(fates_log(),*) 'until nutrients are coupled into recruitment'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ)
-              write(fates_log(),*) EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ)
-              write(fates_log(),*) EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,repro_organ)
-              write(fates_log(),*) EDPftvarcon_inst%prt_phos_stoich_p2(ipft,repro_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
 
         ! The first nitrogen stoichiometry is used in all cases
         if ( (any(EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
@@ -2594,42 +2576,49 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        if(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if( (any(EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,:) < 0.0_r8)) .or. &
-               (any(EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,:) >= 1.0_r8)) ) then
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' N per C stoichiometry must bet between 0-1'
-              write(fates_log(),*) EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,:)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
 
-        ! Stoichiometric Ratios
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ( (any(EDPftvarcon_inst%prt_phos_stoich_p1(ipft,:) < 0.0_r8)) .or. &
-                (any(EDPftvarcon_inst%prt_phos_stoich_p1(ipft,:) >= 1.0_r8)) .or. &
-                (any(EDPftvarcon_inst%prt_phos_stoich_p2(ipft,:) < 0.0_r8)) .or. &
-                (any(EDPftvarcon_inst%prt_phos_stoich_p2(ipft,:) >= 1.0_r8)) ) then
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' P per C stoichiometry must bet between 0-1'
-              write(fates_log(),*) EDPftvarcon_inst%prt_phos_stoich_p1(ipft,:)
-              write(fates_log(),*) EDPftvarcon_inst%prt_phos_stoich_p2(ipft,:)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
+
+        if(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+
+           do i = 1,size(cnpflex_organs,dim=1)
+              io = cnpflex_organs(i)
+              if ( (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,io) < 0._r8) .or. &
+                   (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,io) < 0._r8) .or. &
+                   (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,io) < 0._r8) .or. &
+                   (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,io) < 0._r8) .or. & 
+                   (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,io) > 1._r8) .or. &
+                   (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,io) > 1._r8) .or. &
+                   (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,io) > 1._r8) .or. &
+                   (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,io) > 1._r8) ) then
+                 write(fates_log(),*) 'When the C,N,P allocation hypothesis with flexible'
+                 write(fates_log(),*) 'stoichiometry is turned on (prt_cnp_flex_allom_hyp),'
+                 write(fates_log(),*) 'all stoichiometries must be greater than or equal to zero,'
+                 write(fates_log(),*) 'and less than 1 (probably way less than 1).'
+                 write(fates_log(),*) 'Setting both p1 and p2 parameters to zero will turn'
+                 write(fates_log(),*) 'off nutrient dynamics for the given species.'
+                 write(fates_log(),*) 'You specified an organ/pft less than zero.'
+                 write(fates_log(),*) 'PFT: ',ipft
+                 write(fates_log(),*) 'organ index (see head of PRTGenericMod): ',io
+                 write(fates_log(),*) 'nitr_stoich_p1: ',EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,io)
+                 write(fates_log(),*) 'nitr_stoich_p2: ',EDPftvarcon_inst%prt_phos_stoich_p1(ipft,io)
+                 write(fates_log(),*) 'phos_stoich_p1: ',EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,io)
+                 write(fates_log(),*) 'phos_stoich_p2: ',EDPftvarcon_inst%prt_phos_stoich_p2(ipft,io)
+                 write(fates_log(),*) 'Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+           end do
 
            if ( any(EDPftvarcon_inst%prt_alloc_priority(ipft,:) < 0) .or. &
                 any(EDPftvarcon_inst%prt_alloc_priority(ipft,:) > 6) ) then
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' Allocation priorities should be 0-6 for H1'
+              write(fates_log(),*) ' Allocation priorities should be 0-6 for CNP flex hypothesis'
               write(fates_log(),*) EDPftvarcon_inst%prt_alloc_priority(ipft,:)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
 
            ! If any PFTs are specified as either prescribed N or P uptake
-           ! then they all must be
+           ! then they all must be !
            if (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
               if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
                  write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
@@ -2644,7 +2633,7 @@ contains
            else
               n_uptake_mode = coupled_n_uptake
            end if
-           
+           ! Same for phosphorus
            if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
               if(.not.all(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
                  write(fates_log(),*) 'If any PFTs are specified as having prescribed P'

@@ -448,18 +448,18 @@ contains
                               
                               ! Then scale this value at the top of the canopy for canopy depth
                               ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
-                              select case(hlm_parteh_mode)
-                              case (prt_carbon_allom_hyp)
+!!                              select case(hlm_parteh_mode)
+!!                              case (prt_carbon_allom_hyp)
 
                                  lnc_top  = EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
                                  
-                              case (prt_cnp_flex_allom_hyp)
-
-                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                                 lnc_top = leaf_n / (slatop(ft) * leaf_c )
-
-                              end select
+!!                              case (prt_cnp_flex_allom_hyp)
+!!
+ !!                                leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+ !!                                leaf_n  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+!!                                 lnc_top = leaf_n / (slatop(ft) * leaf_c )
+!!
+ !!                             end select
 
                               lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
                               lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)

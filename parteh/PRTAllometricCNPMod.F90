@@ -1278,26 +1278,28 @@ contains
 
        if (state_mask(intgr_repro_c_id)) then
           grow_c_from_c = grow_c_from_c + carbon_gain * repro_c_frac / (1.0_r8 + r_g(repro_organ))
-          grow_c_from_n = grow_c_from_n + nitrogen_gain * repro_c_frac / EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ)
-          grow_c_from_p = grow_c_from_p + phosphorus_gain * repro_c_frac / EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ)
+          grow_c_from_n = grow_c_from_n + nitrogen_gain * repro_c_frac / &
+               max(nearzero,EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ))
+          grow_c_from_p = grow_c_from_p + phosphorus_gain * repro_c_frac / &
+               max(nearzero,EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ))
        end if
 
 
-       if( (grow_c_from_n<grow_c_from_c) .or. (grow_c_from_p<grow_c_from_c))then
-          print*,"--------------------------------"
-          print*,grow_c_from_c
-          print*,grow_c_from_n
-          print*,grow_c_from_p
-          print*,nitrogen_gain
-          print*,phosphorus_gain
-          print*,state_mask(intgr_leaf_c_id)
-          print*,state_mask(intgr_fnrt_c_id)
-          print*,state_mask(intgr_store_c_id)
-          print*,state_mask(intgr_sapw_c_id)
-          print*,state_mask(intgr_struct_c_id)
-          print*,state_mask(intgr_repro_c_id)
-          stop
-       end if
+       !if( (grow_c_from_n<grow_c_from_c) .or. (grow_c_from_p<grow_c_from_c))then
+       !   print*,"--------------------------------"
+       !   print*,grow_c_from_c
+       !   print*,grow_c_from_n
+       !   print*,grow_c_from_p
+       !   print*,nitrogen_gain
+       !   print*,phosphorus_gain
+       !   print*,state_mask(intgr_leaf_c_id)
+       !   print*,state_mask(intgr_fnrt_c_id)
+       !   print*,state_mask(intgr_store_c_id)
+       !   print*,state_mask(intgr_sapw_c_id)
+       !   print*,state_mask(intgr_struct_c_id)
+       !   print*,state_mask(intgr_repro_c_id)
+       !end if
+          
 
        ! --------------------------------------------------------------------------------
        ! We limit growth to align with the species would motivate the least flux of

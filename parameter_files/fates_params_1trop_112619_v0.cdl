@@ -672,7 +672,7 @@ data:
   0.024,
   1e-08,
   1e-08,
-  0,
+  0.02,
   0.0047 ;
 
  fates_prt_nitr_stoich_p2 =
@@ -680,7 +680,7 @@ data:
   0.024,
   1e-08,
   1e-08,
-  0,
+  0.02,
   0.0047 ;
 
  fates_prt_phos_stoich_p1 =
@@ -688,7 +688,7 @@ data:
   0.0024,
   1e-09,
   1e-09,
-  0,
+  0.002,
   0.00047 ;
 
  fates_prt_phos_stoich_p2 =
@@ -696,7 +696,7 @@ data:
   0.0024,
   1e-09,
   1e-09,
-  0,
+  0.002,
   0.00047 ;
 
  fates_turnover_carb_retrans =
