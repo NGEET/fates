@@ -41,6 +41,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_cohort_fusion_tol
    real(r8),protected, public :: ED_val_patch_fusion_tol
    real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
+   real(r8),protected, public :: active_crown_fire
 
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
@@ -50,6 +51,7 @@ module EDParamsMod
    real(r8),protected,allocatable,public :: ED_val_history_ageclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_height_bin_edges(:)
 
+   
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
@@ -73,6 +75,8 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
 
+   ! Resistance to active crown fire
+   character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
    character(len=param_string_length),parameter :: fates_name_q10_mr="fates_q10_mr"
    character(len=param_string_length),parameter :: fates_name_q10_froz="fates_q10_froz"
 
@@ -170,7 +174,7 @@ contains
     ED_val_cohort_fusion_tol              = nan
     ED_val_patch_fusion_tol               = nan
     ED_val_canopy_closure_thresh          = nan    
-    
+    active_crown_fire                     = nan
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
 
@@ -333,6 +337,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_history_height_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_height)
 
+    call fates_params%RegisterParameter(name=fates_name_active_crown_fire, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_scalar)
+
   end subroutine FatesRegisterParams
 
   
@@ -466,6 +473,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_height_bin_edges, &
           data=ED_val_history_height_bin_edges)
 
+    call fates_params%RetreiveParameterAllocate(name=fates_name_active_crown_fire, &
+          data=active_crown_fire)
+    
 
   end subroutine FatesReceiveParams
   
@@ -517,6 +527,7 @@ contains
         write(fates_log(),fmt0) 'logging_dbhmax_infra = ',logging_dbhmax_infra
         write(fates_log(),fmt0) 'q10_mr = ',q10_mr
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
+        write(fates_log(),fmt0) 'active_crown_fire = ',active_crown_fire
         write(fates_log(),*) '------------------------------------------------------'
 
      end if
