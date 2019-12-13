@@ -1276,7 +1276,7 @@ contains
 
     ! germination_rate is being pulled to PFT parameter; units are 1/yr
     ! thus the mortality rate of seed -> recruit (in units of carbon) 
-    ! is seed_decay_turnover(p)/germination_rate(p)
+    ! is seed_decay_rate(p)/germination_rate(p)
     ! and thus the mortality rate (in units of individuals) is the product of 
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
