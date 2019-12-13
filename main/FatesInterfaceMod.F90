@@ -1043,6 +1043,7 @@ contains
          allocate(bc_out%n_demand(max_comp_per_site))
          allocate(bc_out%p_demand(max_comp_per_site))
       end if
+
       if(trim(hlm_nu_com).eq.'ECA') then
          allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
          allocate(bc_out%decompmicc(nlevdecomp_in))
@@ -1257,7 +1258,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine set_fates_global_elements(use_fates)
+    subroutine set_fates_global_elements(use_fates,parteh_mode)
 
        ! --------------------------------------------------------------------------------
        !
@@ -1281,6 +1282,7 @@ contains
       implicit none
       
       logical,intent(in) :: use_fates    ! Is fates turned on?
+      integer,intent(in) :: parteh_mode  ! The type of parteh mode effects allocations
       
       integer :: i
       
@@ -1340,7 +1342,7 @@ contains
          ! Note: since BGC code may be active even when no nutrients
          ! present, we still need to allocate things when no nutrients
 
-         if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
+         if (parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
             if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
                max_comp_per_site = fates_maxElementsPerSite
             elseif(fates_ncomp_scaling.eq.pft_ncomp_scaling) then

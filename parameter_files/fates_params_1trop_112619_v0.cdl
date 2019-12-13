@@ -874,7 +874,7 @@ data:
 
  fates_displar = 0.67 ;
 
- fates_eca_alpha_ptase = 0.5 ;
+ fates_eca_alpha_ptase = 0.0 ;
 
  fates_eca_decompmicc = 280 ;
 

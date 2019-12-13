@@ -2463,8 +2463,8 @@ contains
 
     ! Run the trivial case where we do not have a nutrient model
     ! running in fates, send zero demands to the BGC model
-    if((hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) .or. &
-         (n_uptake_mode.eq.prescribed_n_uptake .and. p_uptake_mode.eq.prescribed_p_uptake)) then
+    if((hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp)) then! .or. &
+!         (n_uptake_mode.eq.prescribed_n_uptake .and. p_uptake_mode.eq.prescribed_p_uptake)) then
        bc_out%n_plant_comps  = 1
        if(trim(hlm_nu_com).eq.'ECA')then
           bc_out%ft_index(1)    = 1
@@ -2549,7 +2549,6 @@ contains
        else
           bc_out%n_plant_comps = numpft
        end if
-       
 
        ! We calculate the decomposer microbial biomass by weighting with the
        ! root biomass. This is just the normalization step
@@ -2765,6 +2764,8 @@ contains
        
     end if
 
+   
+    
     
     return
   end subroutine PrepNutrientAquisitionBCs
@@ -3015,8 +3016,9 @@ contains
                flux_lab_si(id) / bc_in%dz_decomp_sisl(id)
        end do
 
+
     end do  ! do elements
-       
+
 
     return
 end subroutine FluxIntoLitterPools

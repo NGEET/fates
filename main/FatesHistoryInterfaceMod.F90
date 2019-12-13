@@ -134,6 +134,27 @@ module FatesHistoryInterfaceMod
   
   ! Indices to 1D Patch variables
 
+  integer :: ih_storec_si
+  integer :: ih_leafc_si
+  integer :: ih_sapwc_si
+  integer :: ih_fnrtc_si
+  integer :: ih_reproc_si
+  integer :: ih_totvegc_si
+
+  integer :: ih_storen_si
+  integer :: ih_leafn_si
+  integer :: ih_sapwn_si
+  integer :: ih_fnrtn_si
+  integer :: ih_repron_si
+  integer :: ih_totvegn_si
+
+  integer :: ih_storep_si
+  integer :: ih_leafp_si
+  integer :: ih_sapwp_si
+  integer :: ih_fnrtp_si
+  integer :: ih_reprop_si
+  integer :: ih_totvegp_si
+  
   integer :: ih_trimming_pa
   integer :: ih_area_plant_pa
   integer :: ih_area_treespread_pa
@@ -209,14 +230,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_daily_temp
   integer :: ih_daily_rh
   integer :: ih_daily_prec
- 
-  integer :: ih_bstore_pa
-  integer :: ih_bdead_pa
-  integer :: ih_balive_pa
-  integer :: ih_bleaf_pa
-  integer :: ih_bsapwood_pa
-  integer :: ih_bfineroot_pa
-  integer :: ih_btotal_pa
+
   integer :: ih_agb_pa
   integer :: ih_npp_pa
   integer :: ih_gpp_pa
@@ -297,7 +311,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_dleafoff_si
   integer :: ih_dleafon_si
   integer :: ih_meanliqvol_si
-
 
   integer :: ih_nplant_si_scpf
   integer :: ih_gpp_si_scpf
@@ -1684,15 +1697,6 @@ end subroutine flush_hvars
                hio_seed_in_extern_elem => this%hvars(ih_seeds_in_extern_elem)%r82d, & 
                hio_seed_decay_elem     => this%hvars(ih_seed_decay_elem)%r82d, &
                hio_seed_germ_elem      => this%hvars(ih_seed_germ_elem)%r82d, &
-
-               hio_bstore_pa           => this%hvars(ih_bstore_pa)%r81d, &
-               hio_bdead_pa            => this%hvars(ih_bdead_pa)%r81d, &
-               hio_balive_pa           => this%hvars(ih_balive_pa)%r81d, &
-               hio_bleaf_pa            => this%hvars(ih_bleaf_pa)%r81d, &
-               hio_bsapwood_pa         => this%hvars(ih_bsapwood_pa)%r81d, &
-               hio_bfineroot_pa        => this%hvars(ih_bfineroot_pa)%r81d, &
-               hio_btotal_pa           => this%hvars(ih_btotal_pa)%r81d, &
-               hio_agb_pa              => this%hvars(ih_agb_pa)%r81d, &
                hio_canopy_biomass_pa   => this%hvars(ih_canopy_biomass_pa)%r81d, &
                hio_understory_biomass_pa   => this%hvars(ih_understory_biomass_pa)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
@@ -2053,30 +2057,74 @@ end subroutine flush_hvars
                endif
 
                ! Update biomass components
-
-
                ! Mass pools [kgC]
-               sapw_m   = ccohort%prt%GetState(sapw_organ, all_carbon_elements)
-               struct_m = ccohort%prt%GetState(struct_organ, all_carbon_elements)
-               leaf_m   = ccohort%prt%GetState(leaf_organ, all_carbon_elements)
-               fnrt_m   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
-               store_m  = ccohort%prt%GetState(store_organ, all_carbon_elements)
- 
-               alive_m  = leaf_m + fnrt_m + sapw_m
-               total_m  = alive_m + store_m + struct_m
+               do el = 1, num_elements
+            
+                  sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
+                  struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
+                  leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
+                  fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
+                  store_m  = ccohort%prt%GetState(store_organ, element_list(el))
+                  repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
+                  
+                  alive_m  = leaf_m + fnrt_m + sapw_m
+                  total_m  = alive_m + store_m + struct_m
+                  
+                  ! Plant multi-element states and fluxes
+                  ! Zero states, and set the fluxes
+                  if(any(element_list(:).eq.all_carbon_elements))then
 
-               hio_bleaf_pa(io_pa)     = hio_bleaf_pa(io_pa)  + n_density * leaf_m  * g_per_kg
-               hio_bstore_pa(io_pa)    = hio_bstore_pa(io_pa) + n_density * store_m * g_per_kg
-               hio_bdead_pa(io_pa)     = hio_bdead_pa(io_pa)  + n_density * struct_m * g_per_kg
-               hio_balive_pa(io_pa)    = hio_balive_pa(io_pa) + n_density * alive_m * g_per_kg
+                     this%hvars(ih_storec_si)%r81d(io_si)  = &
+                          this%hvars(ih_storec_si)%r81d(io_si) + n_perm2 * store_m * g_per_kg
+                     this%hvars(ih_leafc_si)%r81d(io_si)   = &
+                          this%hvars(ih_leafc_si)%r81d(io_si) + n_perm2 * leaf_m * g_per_kg
+                     this%hvars(ih_fnrtc_si)%r81d(io_si)   = &
+                          this%hvars(ih_fnrtc_si)%r81d(io_si) + n_perm2 * fnrt_m * g_per_kg
+                     this%hvars(ih_reproc_si)%r81d(io_si)  = &
+                          this%hvars(ih_reproc_si)%r81d(io_si)+ n_perm2 * repro_m * g_per_kg
+                     this%hvars(ih_sapwc_si)%r81d(io_si)   = &
+                          this%hvars(ih_sapwc_si)%r81d(io_si)+ n_perm2 * sapw_m * g_per_kg
+                     this%hvars(ih_totvegc_si)%r81d(io_si) = &
+                          this%hvars(ih_totvegc_si)%r81d(io_si)+ n_perm2 * total_m * g_per_kg
 
-               hio_bsapwood_pa(io_pa)  = hio_bsapwood_pa(io_pa)   + n_density * sapw_m  * g_per_kg
-               hio_bfineroot_pa(io_pa) = hio_bfineroot_pa(io_pa) + n_density * fnrt_m * g_per_kg
-               hio_btotal_pa(io_pa)    = hio_btotal_pa(io_pa) + n_density * total_m * g_per_kg
+                     this%hvars(ih_agb_pa)%r81d(io_pa)     = &
+                          this%hvars(ih_agb_pa)%r81d(io_pa)+ n_density * g_per_kg * &
+                          ( leaf_m + (sapw_m + struct_m + store_m) * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) )
+                     
+                  elseif(element_list(el).eq.nitrogen_element)then
 
-               hio_agb_pa(io_pa)       = hio_agb_pa(io_pa) + n_density * g_per_kg * &
-                    ( leaf_m + (sapw_m + struct_m + store_m) * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) )
+                     this%hvars(ih_storen_si)%r81d(io_si)  = &
+                          this%hvars(ih_storen_si)%r81d(io_si) + n_perm2 * store_m * g_per_kg
+                     this%hvars(ih_leafn_si)%r81d(io_si)   = &
+                          this%hvars(ih_leafn_si)%r81d(io_si) + n_perm2 * leaf_m * g_per_kg
+                     this%hvars(ih_fnrtn_si)%r81d(io_si)   = &
+                          this%hvars(ih_fnrtn_si)%r81d(io_si) + n_perm2 * fnrt_m * g_per_kg
+                     this%hvars(ih_repron_si)%r81d(io_si)  = &
+                          this%hvars(ih_repron_si)%r81d(io_si)+ n_perm2 * repro_m * g_per_kg
+                     this%hvars(ih_sapwn_si)%r81d(io_si)   = &
+                          this%hvars(ih_sapwn_si)%r81d(io_si)+ n_perm2 * sapw_m * g_per_kg
+                     this%hvars(ih_totvegn_si)%r81d(io_si) = &
+                          this%hvars(ih_totvegn_si)%r81d(io_si)+ n_perm2 * total_m * g_per_kg
+                     
+                  elseif(element_list(el).eq.phosphorus_element) then
+                     this%hvars(ih_storep_si)%r81d(io_si)  = &
+                          this%hvars(ih_storep_si)%r81d(io_si) + n_perm2 * store_m * g_per_kg
+                     this%hvars(ih_leafp_si)%r81d(io_si)   = &
+                          this%hvars(ih_leafp_si)%r81d(io_si) + n_perm2 * leaf_m * g_per_kg
+                     this%hvars(ih_fnrtp_si)%r81d(io_si)   = &
+                          this%hvars(ih_fnrtp_si)%r81d(io_si) + n_perm2 * fnrt_m * g_per_kg
+                     this%hvars(ih_reprop_si)%r81d(io_si)  = &
+                          this%hvars(ih_reprop_si)%r81d(io_si)+ n_perm2 * repro_m * g_per_kg
+                     this%hvars(ih_sapwp_si)%r81d(io_si)   = &
+                          this%hvars(ih_sapwp_si)%r81d(io_si)+ n_perm2 * sapw_m * g_per_kg
+                     this%hvars(ih_totvegp_si)%r81d(io_si) = &
+                          this%hvars(ih_totvegp_si)%r81d(io_si)+ n_perm2 * total_m * g_per_kg
 
+                  end if
+                     
+               end do
+
+               
                ! Update PFT partitioned biomass components
                hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
                     (ccohort%n * AREA_INV) * leaf_m     * g_per_kg
@@ -4142,44 +4190,104 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_seed_decay_elem )
 
+    
+    ! SITE LEVEL CARBON STATE VARIABLES
+    call this%set_history_var(vname='STOREC', units='gC m-2',                      &
+         long='Total carbon in live plant storage', use_default='active',          &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_storec_si )
+    
+    call this%set_history_var(vname='TOTVEGC', units='gC m-2',                     &
+         long='Total carbon in live plants', use_default='active',                 &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_totvegc_si )
+    
+    call this%set_history_var(vname='SAPWC', units='gC m-2',                       &
+         long='Total carbon in live plant sapwood', use_default='active',          &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_sapwc_si )
+    
+    call this%set_history_var(vname='LEAFC', units='gC m-2',                       &
+         long='Total carbon in live plant leaves', use_default='active',           &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_leafc_si )
+    
+    call this%set_history_var(vname='FNRTC', units='gC m-2',                       &
+         long='Total carbon in live plant fine-roots', use_default='active',       &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fnrtc_si )
+
+    call this%set_history_var(vname='REPROC', units='gC m-2',                          &
+         long='Total carbon in live plant reproductive tissues', use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+         ivar=ivar, initialize=initialize_variables, index = ih_reproc_si )
+
+    if(any(element_list(:)==nitrogen_element)) then
+       call this%set_history_var(vname='STOREN', units='gN m-2',                      &
+            long='Total nitrogen in live plant storage', use_default='active',          &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_storen_si )
+       
+       call this%set_history_var(vname='TOTVEGN', units='gN m-2',                     &
+            long='Total nitrogen in live plants', use_default='active',                 &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_totvegn_si )
+       
+       call this%set_history_var(vname='SAPWN', units='gN m-2',                       &
+            long='Total nitrogen in live plant sapwood', use_default='active',          &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_sapwn_si )
+       
+       call this%set_history_var(vname='LEAFN', units='gN m-2',                       &
+            long='Total nitrogen in live plant leaves', use_default='active',           &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_leafn_si )
+       
+       call this%set_history_var(vname='FNRTN', units='gN m-2',                       &
+            long='Total nitrogen in live plant fine-roots', use_default='active',       &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_fnrtn_si )
+       
+       call this%set_history_var(vname='REPRON', units='gN m-2',                          &
+            long='Total nitrogen in live plant reproductive tissues', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+            ivar=ivar, initialize=initialize_variables, index = ih_repron_si )
+    end if
 
     
-    call this%set_history_var(vname='ED_bstore', units='gC m-2',                  &
-         long='Storage biomass', use_default='active',                          &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_bstore_pa )
+    if(any(element_list(:)==phosphorus_element)) then
+       call this%set_history_var(vname='STOREP', units='gP m-2',                      &
+            long='Total phosphorus in live plant storage', use_default='active',          &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_storep_si )
+       
+       call this%set_history_var(vname='TOTVEGP', units='gP m-2',                     &
+            long='Total phosphorus in live plants', use_default='active',                 &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_totvegp_si )
+       
+       call this%set_history_var(vname='SAPWP', units='gP m-2',                       &
+            long='Total phosphorus in live plant sapwood', use_default='active',          &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_sapwp_si )
+       
+       call this%set_history_var(vname='LEAFP', units='gP m-2',                       &
+            long='Total phosphorus in live plant leaves', use_default='active',           &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_leafp_si )
+       
+       call this%set_history_var(vname='FNRTP', units='gP m-2',                       &
+            long='Total phosphorus in live plant fine-roots', use_default='active',       &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_fnrtp_si )
+       
+       call this%set_history_var(vname='REPROP', units='gP m-2',                          &
+            long='Total phosphorus in live plant reproductive tissues', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+            ivar=ivar, initialize=initialize_variables, index = ih_reprop_si )
+    end if
 
-    call this%set_history_var(vname='ED_bdead', units='gC m-2',                   &
-         long='Dead (structural) biomass (live trees, not CWD)',                &
-         use_default='active',                                                  &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_bdead_pa )
-
-    call this%set_history_var(vname='ED_balive', units='gC m-2',                  &
-         long='Live biomass', use_default='active',                             &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_balive_pa )
-
-    call this%set_history_var(vname='ED_bleaf', units='gC m-2',                   &
-         long='Leaf biomass',  use_default='active',                            &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_bleaf_pa )
-
-    call this%set_history_var(vname='ED_bsapwood', units='gC m-2',                 &
-         long='Sapwood biomass',  use_default='active',                            &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_bsapwood_pa )    
-
-    call this%set_history_var(vname='ED_bfineroot', units='gC m-2',                 &
-         long='Fine root biomass',  use_default='active',                            &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_bfineroot_pa )    
-
-    call this%set_history_var(vname='ED_biomass', units='gC m-2',                  &
-         long='Total biomass',  use_default='active',                           &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_btotal_pa )
-
+    
     call this%set_history_var(vname='AGB', units='gC m-2',                  &
          long='Aboveground biomass',  use_default='active',                           &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
@@ -5204,7 +5312,6 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_err_fates_si )
 
-
     call this%set_history_var(vname='LITTER_FINES_AG_ELEM', units='kg/m^2', &
           long='mass of above ground  litter in fines (leaves,nonviable seed)', use_default='active', &
           avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
@@ -5233,84 +5340,84 @@ end subroutine flush_hvars
     ! Mass states C/N/P SCPF dimensions
     ! CARBON
     call this%set_history_var(vname='TOTVEGC_SCPF', units='kg/ha', &
-         long='total (live) vegetation carbon mass by size-class x pft', use_default='active', &
+         long='total (live) vegetation carbon mass by size-class x pft', use_default='inactive', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_totvegc_scpf )
     
     call this%set_history_var(vname='LEAFC_SCPF', units='kg/ha', &
-         long='leaf carbon mass by size-class x pft', use_default='active', &
+         long='leaf carbon mass by size-class x pft', use_default='inactive', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_leafc_scpf )
 
     call this%set_history_var(vname='FNRTC_SCPF', units='kg/ha', &
-         long='fine-root carbon mass by size-class x pft', use_default='active', &
+         long='fine-root carbon mass by size-class x pft', use_default='inactive', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fnrtc_scpf )
     
     call this%set_history_var(vname='SAPWC_SCPF', units='kg/ha', &
-         long='sapwood carbon mass by size-class x pft', use_default='active', &
+         long='sapwood carbon mass by size-class x pft', use_default='inactive', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_sapwc_scpf )
     
     call this%set_history_var(vname='STOREC_SCPF', units='kg/ha', &
-         long='storage carbon mass by size-class x pft', use_default='active', &
+         long='storage carbon mass by size-class x pft', use_default='inactive', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storec_scpf )
     
     call this%set_history_var(vname='REPROC_SCPF', units='kg/ha/day', &
-         long='reproductive carbon mass (on plant) by size-class x pft', use_default='active', &
+         long='reproductive carbon mass (on plant) by size-class x pft', use_default='inactive', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_reproc_scpf )
     
     call this%set_history_var(vname='CUPTAKE_SCPF', units='kg/ha/day', &
-         long='carbon uptake, soil to root, by size-class x pft', use_default='active', &
+         long='carbon uptake, soil to root, by size-class x pft', use_default='inactive', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cuptake_scpf )
     
     call this%set_history_var(vname='CEFFLUX_SCPF', units='kg/ha/day', &
-         long='carbon efflux, root to soil, by size-class x pft', use_default='active', &
+         long='carbon efflux, root to soil, by size-class x pft', use_default='inactive', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cefflux_scpf )
 
     ! NITROGEN
     if(any(element_list(:)==nitrogen_element)) then
        call this%set_history_var(vname='TOTVEGN_SCPF', units='kg/ha', &
-            long='total (live) vegetation nitrogen mass by size-class x pft', use_default='active', &
+            long='total (live) vegetation nitrogen mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_totvegn_scpf )
 
        call this%set_history_var(vname='LEAFN_SCPF', units='kg/ha', &
-            long='leaf nitrogen mass by size-class x pft', use_default='active', &
+            long='leaf nitrogen mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_leafn_scpf )
 
        call this%set_history_var(vname='FNRTN_SCPF', units='kg/ha', &
-            long='fine-root nitrogen mass by size-class x pft', use_default='active', &
+            long='fine-root nitrogen mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fnrtn_scpf )
 
        call this%set_history_var(vname='SAPWN_SCPF', units='kg/ha', &
-            long='sapwood nitrogen mass by size-class x pft', use_default='active', &
+            long='sapwood nitrogen mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_sapwn_scpf )
 
        call this%set_history_var(vname='STOREN_SCPF', units='kg/ha', &
-            long='storage nitrogen mass by size-class x pft', use_default='active', &
+            long='storage nitrogen mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storen_scpf )
 
        call this%set_history_var(vname='REPRON_SCPF', units='kg/ha/day', &
-            long='reproductive nitrogen mass (on plant) by size-class x pft', use_default='active', &
+            long='reproductive nitrogen mass (on plant) by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_repron_scpf )
 
        call this%set_history_var(vname='NUPTAKE_SCPF', units='kg/ha/day', &
-            long='nitrogen uptake, soil to root, by size-class x pft', use_default='active', &
+            long='nitrogen uptake, soil to root, by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nuptake_scpf )
 
        call this%set_history_var(vname='NEFFLUX_SCPF', units='kg/ha/day', &
-            long='nitrogen efflux, root to soil, by size-class x pft', use_default='active', &
+            long='nitrogen efflux, root to soil, by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nefflux_scpf )
     end if
@@ -5318,42 +5425,42 @@ end subroutine flush_hvars
     ! PHOSPHORUS
     if(any(element_list(:)==phosphorus_element))then
        call this%set_history_var(vname='TOTVEGP_SCPF', units='kg/ha', &
-            long='total (live) vegetation phosphorus mass by size-class x pft', use_default='active', &
+            long='total (live) vegetation phosphorus mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_totvegp_scpf )
 
        call this%set_history_var(vname='LEAFP_SCPF', units='kg/ha', &
-            long='leaf phosphorus mass by size-class x pft', use_default='active', &
+            long='leaf phosphorus mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_leafp_scpf )
 
        call this%set_history_var(vname='FNRTP_SCPF', units='kg/ha', &
-            long='fine-root phosphorus mass by size-class x pft', use_default='active', &
+            long='fine-root phosphorus mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fnrtp_scpf )
 
        call this%set_history_var(vname='SAPWP_SCPF', units='kg/ha', &
-            long='sapwood phosphorus mass by size-class x pft', use_default='active', &
+            long='sapwood phosphorus mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_sapwp_scpf )
 
        call this%set_history_var(vname='STOREP_SCPF', units='kg/ha', &
-            long='storage phosphorus mass by size-class x pft', use_default='active', &
+            long='storage phosphorus mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storep_scpf )
 
        call this%set_history_var(vname='REPROP_SCPF', units='kg/ha/day', &
-            long='reproductive phosphorus mass (on plant) by size-class x pft', use_default='active', &
+            long='reproductive phosphorus mass (on plant) by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_reprop_scpf )
 
        call this%set_history_var(vname='PUPTAKE_SCPF', units='kg/ha/day', &
-            long='phosphorus uptake, soil to root, by size-class x pft', use_default='active', &
+            long='phosphorus uptake, soil to root, by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_puptake_scpf )
 
        call this%set_history_var(vname='PEFFLUX_SCPF', units='kg/ha/day', &
-            long='phosphorus efflux, root to soil, by size-class x pft', use_default='active', &
+            long='phosphorus efflux, root to soil, by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_pefflux_scpf )
     end if
