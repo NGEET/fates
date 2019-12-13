@@ -235,9 +235,9 @@ module EDPftvarcon
                                                   ! biochemical production, fraction based how much
                                                   ! more in need a plant is for P versus N [/]
 
-     !real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1 (in file, but not used yet)
-     !real(r8), allocatable :: nfix2(:)   ! nitrogen fixation parameter 2 (in file, but not used yet)
-
+     
+     real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1 (in file, but not used yet)
+     real(r8), allocatable :: nfix2(:)   ! nitrogen fixation parameter 2 (in file, but not used yet)
 
 
      ! Turnover related things
@@ -859,6 +859,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_nfix1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_nfix2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    
   end subroutine Register_PFT
 
   !-----------------------------------------------------------------------
@@ -1341,6 +1350,15 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_lambda_ptase)
 
+    name = 'fates_nfix1'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%nfix1)
+
+    name = 'fates_nfix2'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%nfix2)
+    
+    
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------
