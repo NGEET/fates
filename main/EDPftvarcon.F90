@@ -210,7 +210,7 @@ module EDPftvarcon
      ! (NONE OF THESE ARE ACTIVE YET - PLACEHOLDERS ONLY!!!!!)
 
      ! Nutrient Aquisition (ECA & RD)
-     real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
+!     real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
                                                         ! on root surface
 
      ! ECA Parameters: See Zhu et al. Multiple soil nutrient competition between plants,
@@ -815,9 +815,9 @@ contains
 
     ! Nutrient competition parameters
 
-    name = 'fates_eca_decompmicc'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+!    name = 'fates_eca_decompmicc'
+!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+!          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_eca_km_nh4'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -867,7 +867,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    
+    name = 'fates_prescribed_nuptake'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prescribed_puptake'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)    
+  
   end subroutine Register_PFT
 
   !-----------------------------------------------------------------------
@@ -1306,9 +1313,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%phen_stem_drop_fraction)
 
-    name = 'fates_eca_decompmicc'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%eca_decompmicc)
+!    name = 'fates_eca_decompmicc'
+!    call fates_params%RetreiveParameterAllocate(name=name, &
+!         data=this%eca_decompmicc)
 
     name = 'fates_eca_km_nh4'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1357,6 +1364,14 @@ contains
     name = 'fates_nfix2'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%nfix2)
+
+    name = 'fates_prescribed_nuptake'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_nuptake)
+    
+    name = 'fates_prescribed_puptake'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_puptake)
     
     
   end subroutine Receive_PFT
@@ -1679,14 +1694,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prescribed_nuptake'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_prescribed_puptake'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_turnover_carb_retrans'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)    
@@ -1735,14 +1742,6 @@ contains
      name = 'fates_prt_alloc_priority'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%prt_alloc_priority)
-
-     name = 'fates_prescribed_nuptake'
-     call fates_params%RetreiveParameterAllocate(name=name, &
-           data=this%prescribed_nuptake)
-
-     name = 'fates_prescribed_puptake'
-     call fates_params%RetreiveParameterAllocate(name=name, &
-           data=this%prescribed_puptake)
 
      name = 'fates_turnover_carb_retrans'
      call fates_params%RetreiveParameterAllocate(name=name, &
