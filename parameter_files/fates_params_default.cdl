@@ -4,7 +4,7 @@ dimensions:
 	fates_history_age_bins = 7 ;
 	fates_history_height_bins = 6 ;
 	fates_history_size_bins = 13 ;
-	fates_history_coage_bins = - ;
+	fates_history_coage_bins = 1 ;
 	fates_hydr_organs = 4 ;
 	fates_leafage_class = 1 ;
 	fates_litterclass = 6 ;
@@ -16,15 +16,15 @@ variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
 		fates_history_ageclass_bin_edges:long_name = "Lower edges for age class bins used in age-resolved patch history output" ;
+	double fates_history_coageclass_bin_edges(fates_history_coage_bins) ;
+		fates_history_coageclass_bin_edges:units = "years" ;
+		fates_history_coageclass_bin_edges:long_name = "Lower edges for cohort age class bins used in cohort age resolved history output" ;
 	double fates_history_height_bin_edges(fates_history_height_bins) ;
 		fates_history_height_bin_edges:units = "m" ;
 		fates_history_height_bin_edges:long_name = "Lower edges for height bins used in height-resolved history output" ;
 	double fates_history_sizeclass_bin_edges(fates_history_size_bins) ;
 		fates_history_sizeclass_bin_edges:units = "cm" ;
 		fates_history_sizeclass_bin_edges:long_name = "Lower edges for DBH size class bins used in size-resolved cohort history output" ;
-	double fates_history_coageclass_bin_edges(fates_history_coage_bins) ;
-	        fates_history_coageclass_bin_edges:units = "years" ;
-		fates_history_coageclass_bin_edges:long_name = "Lower edges for cohort age class bins used in cohort age resolved history output" ;	
 	char fates_pftname(fates_pft, fates_string_length) ;
 		fates_pftname:units = "unitless - string" ;
 		fates_pftname:long_name = "Description of plant type" ;
@@ -301,18 +301,6 @@ variables:
 	double fates_mort_bmort(fates_pft) ;
 		fates_mort_bmort:units = "1/yr" ;
 		fates_mort_bmort:long_name = "background mortality rate" ;
-	double fates_mort_ip_senescence(fates_pft);
-                fates_mort_ip_senescence:units = "dbh cm";
-                fates_mort_ip_senescence:long_name ="Mortality dbh senescence inflection point";
-        double fates_mort_r_senescence(fates_pft);
-                fates_mort_r_senescence:units = "mortality rate dbh^-1";
-                fates_mort_r_senescence:long_name = "Mortality dbh senescence rate of change";
-	double fates_mort_ip_age_senescence(fates_pft);
-                fates_mort_ip_age_senescence:units = "years";
-                fates_mort_ip_age_senescence:long_name ="Mortality cohort age senescence inflection point";
-        double fates_mort_r_age_senescence(fates_pft);
-                fates_mort_r_age_senescence:units = "mortality rate year^-1";
-                fates_mort_r_age_senescence:long_name = "Mortality age senescence rate of change";	
 	double fates_mort_freezetol(fates_pft) ;
 		fates_mort_freezetol:units = "NA" ;
 		fates_mort_freezetol:long_name = "minimum temperature tolerance (NOT USED)" ;
@@ -322,6 +310,18 @@ variables:
 	double fates_mort_hf_sm_threshold(fates_pft) ;
 		fates_mort_hf_sm_threshold:units = "unitless" ;
 		fates_mort_hf_sm_threshold:long_name = "soil moisture (btran units) at which drought mortality begins for non-hydraulic model" ;
+	double fates_mort_ip_age_senescence(fates_pft) ;
+		fates_mort_ip_age_senescence:units = "years" ;
+		fates_mort_ip_age_senescence:long_name = "Mortality cohort age senescence inflection point" ;
+	double fates_mort_ip_senescence(fates_pft) ;
+		fates_mort_ip_senescence:units = "dbh cm" ;
+		fates_mort_ip_senescence:long_name = "Mortality dbh senescence inflection point" ;
+	double fates_mort_r_age_senescence(fates_pft) ;
+		fates_mort_r_age_senescence:units = "mortality rate year^-1" ;
+		fates_mort_r_age_senescence:long_name = "Mortality age senescence rate of change" ;
+	double fates_mort_r_senescence(fates_pft) ;
+		fates_mort_r_senescence:units = "mortality rate dbh^-1" ;
+		fates_mort_r_senescence:long_name = "Mortality dbh senescence rate of change" ;
 	double fates_mort_scalar_coldstress(fates_pft) ;
 		fates_mort_scalar_coldstress:units = "1/yr" ;
 		fates_mort_scalar_coldstress:long_name = "maximum mortality rate from cold stress" ;
@@ -529,12 +529,12 @@ variables:
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
+	double fates_cohort_age_fusion_tol ;
+		fates_cohort_age_fusion_tol:units = "unitless" ;
+		fates_cohort_age_fusion_tol:long_name = "minimum fraction in differece in cohort age between cohorts" ;
 	double fates_cohort_fusion_tol ;
 		fates_cohort_fusion_tol:units = "unitless" ;
 		fates_cohort_fusion_tol:long_name = "minimum fraction in difference in dbh between cohorts" ;
-	double fates_cohort_age_fusion_tol ;
-	        fates_cohort_age_fusion_tol:units = "unitless" ;
-		fates_cohort_age_fusion_tol:long_name = "minimum fraction in differece in cohort age between cohorts" ;	
 	double fates_comp_excln ;
 		fates_comp_excln:units = "none" ;
 		fates_comp_excln:long_name = "weighting factor (exponent on dbh) for canopy layer exclusion and promotion" ;
@@ -671,12 +671,12 @@ data:
 
  fates_history_ageclass_bin_edges = 0, 1, 2, 5, 10, 20, 50 ;
 
+ fates_history_coageclass_bin_edges = _ ;
+
  fates_history_height_bin_edges = 0, 0.1, 0.3, 1, 3, 10 ;
 
  fates_history_sizeclass_bin_edges = 0, 5, 10, 15, 20, 30, 40, 50, 60, 70, 
     80, 90, 100 ;
-
-fates_history_coageclass_bin_edges = - ;
 
  fates_pftname =
   "broadleaf_evergreen_tropical_tree          ",
@@ -978,14 +978,6 @@ fates_history_coageclass_bin_edges = - ;
  fates_mort_bmort = 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 
     0.014, 0.014, 0.014, 0.014 ;
 
- fates_mort_ip_senescence = -, -, -, -, -, -, -, -, -, -, -, - ;
-
- fates_mort_r_senescence = -, -, -, -, -, -, -, -, -, -, -, - ;
-
- fates_mort_ip_age_senescence = -, -, -, -, -, -, -, -, -, -, -, - ;
-
- fates_mort_r_age_senescence = -, -, -, -, -, -, -, -, -, -, -, - ;
-
  fates_mort_freezetol = 2.5, -55, -80, -30, 2.5, -30, -60, -10, -80, -80, 
     -20, 2.5 ;
 
@@ -994,6 +986,14 @@ fates_history_coageclass_bin_edges = - ;
 
  fates_mort_hf_sm_threshold = 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 
     1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06 ;
+
+ fates_mort_ip_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_mort_ip_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_mort_r_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_mort_r_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
  fates_mort_scalar_coldstress = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
 
@@ -1218,9 +1218,9 @@ fates_history_coageclass_bin_edges = - ;
 
  fates_canopy_closure_thresh = 0.8 ;
 
- fates_cohort_fusion_tol = 0.08 ;
+ fates_cohort_age_fusion_tol = _ ;
 
- fates_cohort_age_fusion_tol = - ;
+ fates_cohort_fusion_tol = 0.08 ;
 
  fates_comp_excln = 3 ;
 
