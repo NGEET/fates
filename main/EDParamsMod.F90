@@ -41,7 +41,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_cohort_fusion_tol
    real(r8),protected, public :: ED_val_patch_fusion_tol
    real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
-   real(r8),protected, public :: active_crown_fire
+   logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
 
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
@@ -174,7 +174,7 @@ contains
     ED_val_cohort_fusion_tol              = nan
     ED_val_patch_fusion_tol               = nan
     ED_val_canopy_closure_thresh          = nan    
-    active_crown_fire                     = nan
+    active_crown_fire                     = .true.
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
 
@@ -352,6 +352,9 @@ contains
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
+    real(r8) :: active_crown_fire_real !Local temp to transfer real data in file, into 
+
+
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
 
@@ -464,7 +467,9 @@ contains
           data=q10_froz)
 
     call fates_params%RetreiveParameter(name=fates_name_active_crown_fire, &
-          data=active_crown_fire)
+          data=active_crown_fire_real)
+    active_crown_fire = (abs(active_crown_fire_real-1.0_r8)<nearzero)
+
 
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
@@ -527,7 +532,7 @@ contains
         write(fates_log(),fmt0) 'logging_dbhmax_infra = ',logging_dbhmax_infra
         write(fates_log(),fmt0) 'q10_mr = ',q10_mr
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
-        write(fates_log(),fmt0) 'active_crown_fire = ',active_crown_fire
+        write(fates_log(),'(a,L)') 'active_crown_fire = ',active_crown_fire
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

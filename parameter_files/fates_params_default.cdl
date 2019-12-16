@@ -526,8 +526,8 @@ variables:
 		fates_cwd_flig:units = "unitless" ;
 		fates_cwd_flig:long_name = "Lignin fraction of coarse woody debris" ;
 	double fates_fire_active_crown_fire ;
-		fates_fire_active_crown_fire:units = "fraction" ;
-		fates_fire_active_crown_fire:long_name = "resistance to active crown fire (1=none)" ;
+		fates_fire_active_crown_fire:units = "0 or 1" ;
+		fates_fire_active_crown_fire:long_name = "flag, 1=active crown fire 0=no active crown fire" ;
 	double fates_fire_drying_ratio ;
 		fates_fire_drying_ratio:units = "NA" ;
 		fates_fire_drying_ratio:long_name = "spitfire parameter, fire drying ratio for fuel moisture, alpha_FMC EQ 6 Thonicke et al 2010" ;
