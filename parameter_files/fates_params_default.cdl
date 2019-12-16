@@ -1220,7 +1220,7 @@ data:
 
  fates_cohort_age_fusion_tol = _ ;
 
- fates_cohort_fusion_tol = 0.08 ;
+ fates_cohort_size_fusion_tol = 0.08 ;
 
  fates_comp_excln = 3 ;
 
