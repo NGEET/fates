@@ -531,10 +531,10 @@ variables:
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
 	double fates_cohort_age_fusion_tol ;
 		fates_cohort_age_fusion_tol:units = "unitless" ;
-		fates_cohort_age_fusion_tol:long_name = "minimum fraction in differece in cohort age between cohorts" ;
-	double fates_cohort_fusion_tol ;
-		fates_cohort_fusion_tol:units = "unitless" ;
-		fates_cohort_fusion_tol:long_name = "minimum fraction in difference in dbh between cohorts" ;
+		fates_cohort_age_fusion_tol:long_name = "minimum fraction in differece in cohort age between cohorts. 0 or _ implies functionality is turned off." ;
+	double fates_cohort_size_fusion_tol ;
+		fates_cohort_size_fusion_tol:units = "unitless" ;
+		fates_cohort_size_fusion_tol:long_name = "minimum fraction in difference in dbh between cohorts" ;
 	double fates_comp_excln ;
 		fates_comp_excln:units = "none" ;
 		fates_comp_excln:long_name = "weighting factor (exponent on dbh) for canopy layer exclusion and promotion" ;
