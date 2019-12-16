@@ -174,7 +174,6 @@ contains
     ED_val_cohort_fusion_tol              = nan
     ED_val_patch_fusion_tol               = nan
     ED_val_canopy_closure_thresh          = nan    
-    active_crown_fire                     = .true.
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
 
@@ -352,7 +351,7 @@ contains
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
-    real(r8) :: active_crown_fire_real !Local temp to transfer real data in file, into 
+    real(r8) :: active_crown_fire_real !Local temp to transfer real data in file
 
 
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
