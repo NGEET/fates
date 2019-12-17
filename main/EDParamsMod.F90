@@ -1,4 +1,5 @@
 module EDParamsMod
+
    !
    ! module that deals with reading the ED parameter file
    !
@@ -72,7 +73,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_phen_mindayson= "fates_phen_mindayson"   
    character(len=param_string_length),parameter,public :: ED_name_phen_ncolddayslim= "fates_phen_ncolddayslim"   
    character(len=param_string_length),parameter,public :: ED_name_phen_coldtemp= "fates_phen_coldtemp"   
-   character(len=param_string_length),parameter,public :: ED_name_cohort_fusion_tol= "fates_cohort_fusion_tol"   
+   character(len=param_string_length),parameter,public :: ED_name_cohort_fusion_tol= "fates_cohort_size_fusion_tol"   
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
 
