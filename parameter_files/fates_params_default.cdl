@@ -999,7 +999,7 @@ data:
 
  fates_mort_r_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
- fates_mort_r_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
+ fates_mort_r_size_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
  fates_mort_scalar_coldstress = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
 
