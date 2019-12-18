@@ -995,7 +995,7 @@ data:
 
  fates_mort_ip_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
- fates_mort_ip_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
+ fates_mort_ip_size_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
  fates_mort_r_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
