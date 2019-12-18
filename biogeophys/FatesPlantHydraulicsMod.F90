@@ -101,6 +101,7 @@ module FatesPlantHydraulicsMod
    use shr_infnan_mod   , only : isnan => shr_infnan_isnan
 !   use petscMod, only: fksp, frhs_vec, fsol_vec, fmat
    !use LUsolveMod, only: lubksb, ludcmp
+!   use LUsolveMod, only: dgelg
    use spmdMod                , only : mpicom
 
 
@@ -1559,12 +1560,10 @@ contains
               csite_hydr%kmax_bound_shell(j,1)=ccohort_hydr%kmax_innershell(j)
               csite_hydr%kmax_upper_shell(j,1)=ccohort_hydr%kmax_innershell(j)
               csite_hydr%kmax_lower_shell(j,1)=ccohort_hydr%kmax_innershell(j)
-              if(j == 1) then
-                 kmax_bound_shell_1l(1) = ccohort_hydr%kmax_innershell(j)
-              else  
-                 kmax_bound_shell_1l(2:) = &
-                  csite_hydr%kmax_bound_shell(j,:) * ccohort_hydr%l_aroot_layer(j) / csite_hydr%l_aroot_layer(j)
-              endif 
+              kmax_bound_shell_1l(1) = & 
+                  ccohort_hydr%kmax_innershell(j) * ccohort_hydr%l_aroot_layer(j) / csite_hydr%l_aroot_layer(j)
+              kmax_bound_shell_1l(2:) = &
+                  csite_hydr%kmax_bound_shell(j,2:) * ccohort_hydr%l_aroot_layer(j) / csite_hydr%l_aroot_layer(j)
 
               do k = 1, n_hypool_aroot + nshell 
                 num_nds = num_nds + 1
@@ -1586,7 +1585,6 @@ contains
                   conductance(num_cnxs) = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)
                   cond_dn(num_cnxs) = 4._r8 * ccohort_hydr%kmax_treebg_layer(j)
                   cond_up(num_cnxs) = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)
-        
                 else
                   if(k == 2) then !aroot-soil
                     kmax_bound_aroot_soil1      = 2._r8 * ccohort_hydr%kmax_treebg_layer(j)
@@ -2808,6 +2806,7 @@ contains
               ccohort_hydr => ccohort%co_hydr
               gscan_patch       = gscan_patch + ccohort%g_sb_laweight
               ccohort => ccohort%shorter
+!if(get_nstep() == 15764) print *,'ifpp-',ccohort%pft,gscan_patch,ccohort%g_sb_laweight,ccohort_hydr%psi_node(1)
            enddo !cohort
            
            ! The HLM predicted transpiration flux even though no leaves are present?
@@ -2831,7 +2830,9 @@ contains
               ! Relative transpiration of this cohort from the whole patch
               ! [mm H2O/cohort/s] = [mm H2O / patch / s] / [cohort/patch]
 
-              if(ccohort%g_sb_laweight>nearzero) then
+!              if(ccohort%g_sb_laweight>nearzero) then
+              if(ccohort%g_sb_laweight>nearzero .and. bc_in(s)%qflx_transp_pa(ifp) > 1.e-10_r8) then
+!if(get_nstep() == 15764) print *,'ifp-',ifp,bc_in(s)%qflx_transp_pa(ifp),ccohort%g_sb_laweight, gscan_patch,cpatch%area,ccohort%n
                   qflx_tran_veg_patch_coh = bc_in(s)%qflx_transp_pa(ifp) * ccohort%g_sb_laweight/gscan_patch
                   
                   qflx_tran_veg_indiv     = qflx_tran_veg_patch_coh * cpatch%area* &
@@ -4001,7 +4002,8 @@ contains
     real(r8) :: k_lower                                  ! conductance node k to lower boundary                            [kg s-1 MPa-1]
     real(r8) :: k_upper                                  ! conductance node k+1 to upper boundary                          [kg s-1 MPa-1]
     !----------------------------------------------------------------------
-
+integer :: nstep
+nstep = get_nstep()
     do k = 1, (size(z_node)-1)
        hdiff_bound(k) = 1.e-6_r8*denh2o*grav*(z_node(k) - z_node(k+1)) + &
                         (psi_node(k) - psi_node(k+1))
@@ -4067,6 +4069,8 @@ contains
     real(r8) :: k_bound_aroot_soil1        ! radial conductance ofabsorbing roots                   [kg s-1 MPa-1]
     real(r8) :: k_bound_aroot_soil2        ! conductance to root surface from innermost rhiz shell   [kg s-1 MPa-1]
 !
+    integer :: nstep
+    nstep = get_nstep()
     associate( &
        z_node => ccohort_hydr%z_node, &
        conn_up => ccohort_hydr%conn_up, &
@@ -4220,7 +4224,7 @@ contains
      !for debug only
      nstep = get_nstep()
 
-          if(nstep >= 37) then
+          if(nstep >= 669) then
             print *,'nstep =',nstep
           end if
      ccohort => cc_p 
@@ -4323,7 +4327,8 @@ contains
        dth_layershell(:,:) = 0._r8
        do while(tm < tmx)
           rlfx = 0.6_r8
-          rlfx1 = 0.15_r8
+          !rlfx1 = 0.15_r8
+          rlfx1 = 0.1_r8
           rsdp = 0._r8
           inewt = 0
           100   continue
@@ -4362,7 +4367,8 @@ contains
              ic(1) = icol
              ir(1) = icol
 !            dnr = -1.e-6_r8
-             dnr = -0.05*abs(psi_node(k)) + 1e-12
+!             dnr = -0.005*abs(psi_node(k)) - 1e-12
+             dnr = -1.e-8_r8            
 !            dnr = -max(1.e-6,0.05*abs(psi_node(k)))
              if(pm_type(k) <= nt_ab) then
                 call th_from_psi(ft, pm_type(k), psi_node(k), thx,site_hydr,bc_in)
@@ -4420,7 +4426,6 @@ contains
              end if
           enddo
 !
-
           residual(1) = residual(1) + qtop
 !          call dflcgsdpsi_from_psi(psi_node(1),ft, dflcgsdpsi)
 !          dflcgsdth   = dflcgsdpsi
@@ -4457,8 +4462,38 @@ contains
           !call ludcmp(ajac,num_nodes,indices,dcomp)
           !call lubksb(ajac,num_nodes,indices,residual)
           !CALL DGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
-          call dgesv(num_nodes,1,ajac,num_nodes,ipiv,residual,num_nodes,info)
-          if ( info > 0 ) then
+! check residual
+!if(nstep==15764) print *,'ft,it,rsd-',ft,niter,rsd,'qtop',qtop,psi_node,'init-',psi_node_init,'resi-',residual, 'qflux-',q_flux,'v_n',v_node
+          rsd = 0._r8
+          nsd = 0
+          do k = 1, num_nodes
+             rsdx = abs(residual(k))
+! check NaNs
+             if( rsdx /= rsdx ) then
+              icnv = 1
+              exit
+             endif
+             if( rsdx > rsd ) then
+                rsd = rsdx
+                nsd = k
+             endif
+          enddo
+!  matrix no update if inewt = 1
+!          if( niter > 100 .and. rsd < 1.e-1) inewt = 1
+          if(icnv == 1) goto 199
+          rsdp = rsd
+! check convergence
+          if( rsd > 1.e-8_r8 ) then
+               icnv = 2
+          !endif
+            call ludcmp(ajac,num_nodes,indices,dcomp)
+            call lubksb(ajac,num_nodes,indices,residual)
+
+          info = 0
+!          call dgelg(residual,ajac,num_nodes,num_nodes,1.e-14_r8,info)
+          !call dgesv(num_nodes,1,ajac,num_nodes,ipiv,residual,num_nodes,info)
+       
+          if ( info == -1 ) then
             write(fates_log(),*) 'singular matrix in dgesv'  !There is a row of zeros.
             call endrun(msg=errMsg(sourcefile, __LINE__))
           END IF
@@ -4468,40 +4503,28 @@ contains
 ! limit pressure change
           do k = 1, num_nodes
              if(pm_type(k)  >= 4) then
-                psi_node(k) = psi_node(k) + blu(k) * rlfx1
+!                psi_node(k) = psi_node(k) + sign(min(abs(0.1*psi_node(k)),abs(blu(k))),blu(k))*rlfx1
+!if(abs(blu(k))> abs(psi_node(k))) then
+!                psi_node(k) = psi_node(k) + blu(k)*rlfx1*0.5
+!else
+                psi_node(k) = psi_node(k) + blu(k)*rlfx1
+!endif
+
              else
+!                psi_node(k) = psi_node(k) + sign(min(abs(0.1*psi_node(k)),abs(blu(k))),blu(k))*rlfx
                 psi_node(k) = psi_node(k) + blu(k) * rlfx
              endif
                    
           enddo
-! check residual
-          rsd = 0._r8
-          nsd = 0
-          do k = 1, num_nodes
-             acp = th_node(k)*denh2o/dtime*v_node(k)
-             acp = th_node(k)*denh2o/dtime*v_node(k)
-             acp = 1._r8
-             rsdx = abs(residual(k))
-             if( rsdx > rsd ) THEN
-                rsd = rsdx
-                nsd = k
-             endif
-          enddo
-!  matrix no update if inewt = 1
-!          if( niter > 100 .and. rsd < 1.e-1) inewt = 1
-          rsdp = rsd
-! check convergence
-          if( rsd > 1.e-8_r8 ) then
-               icnv = 2
           endif
           if( icnv == 2 .and. niter > 200) then
               icnv = 1
           endif
-          if(niter > 50) then
+          if(niter > 500) then
             rlfx = 0.4_r8
             rlfx1 = 0.1_r8
           end if
-
+199       continue
           if( icnv == 1 ) then
              write(*,'(10x,a)') '---  Convergence Failure  ---'
              write(*,'(4x,a,1pe11.4,2(a,i6),1pe11.4)') 'Equation Maximum Residual = ', &
@@ -4927,7 +4950,7 @@ contains
 
        call tq2(ft, pm, th_node*cap_corr(pm), psi_node)
 
-    else if(pm == 5) then  ! soil
+    else if(pm >= 5) then  ! soil
 
 !! NOTE. FIX: The below sidesteps the problem of averaging potentially variable soil hydraulic properties with depth
 !!        and simply assigns the bulk soil (bucket) approximation of hydraulic properties as equal to the top soil layer.
@@ -4981,7 +5004,7 @@ contains
   
     if(pm <= 4) then       ! plant
        call dtq2dth(ft, pm, th_node*cap_corr(pm), y)
-    else if(pm == 5) then  ! soil
+    else if(pm >= 5) then  ! soil
        select case (iswc)
        case (van_genuchten)
           write(fates_log(),*) 'Van Genuchten plant hydraulics is inoperable until further notice'
