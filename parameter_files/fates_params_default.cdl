@@ -547,6 +547,9 @@ variables:
 	double fates_fire_active_crown_fire ;
 		fates_fire_active_crown_fire:units = "0 or 1" ;
 		fates_fire_active_crown_fire:long_name = "flag, 1=active crown fire 0=no active crown fire" ;
+	double fates_fire_cg_strikes ;
+		fates_fire_cg_strikes:units = "fraction (0-1)" ;
+		fates_fire_cg_strikes:long_name = "fraction of cloud to ground lightning strikes" ;
 	double fates_fire_drying_ratio ;
 		fates_fire_drying_ratio:units = "NA" ;
 		fates_fire_drying_ratio:long_name = "spitfire parameter, fire drying ratio for fuel moisture, alpha_FMC EQ 6 Thonicke et al 2010" ;
@@ -666,7 +669,10 @@ variables:
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
 
 // global attributes:
-		:history = "This parameter file is maintained in version control\nSee https://github.com/NGEET/fates/blob/master/parameter_files/fates_params_default.cdl \nFor changes, use git blame \n" ;
+		:history = "This parameter file is maintained in version control\n",
+			"See https://github.com/NGEET/fates/blob/master/parameter_files/fates_params_default.cdl \n",
+			"For changes, use git blame \n",
+			"" ;
 data:
 
  fates_history_ageclass_bin_edges = 0, 1, 2, 5, 10, 20, 50 ;
@@ -1229,6 +1235,8 @@ data:
  fates_cwd_flig = 0.24 ;
 
  fates_fire_active_crown_fire = 0 ;
+
+ fates_fire_cg_strikes = 0.2 ;
 
  fates_fire_drying_ratio = 66000 ;
 
