@@ -321,7 +321,7 @@ variables:
 		fates_mort_r_age_senescence:long_name = "Mortality age senescence rate of change" ;
 	double fates_mort_r_size_senescence(fates_pft) ;
 		fates_mort_r_size_senescence:units = "mortality rate dbh^-1" ;
-		fates_mort_r_senescence:long_name = "Mortality dbh senescence rate of change" ;
+		fates_mort_r_size_senescence:long_name = "Mortality dbh senescence rate of change" ;
 	double fates_mort_scalar_coldstress(fates_pft) ;
 		fates_mort_scalar_coldstress:units = "1/yr" ;
 		fates_mort_scalar_coldstress:long_name = "maximum mortality rate from cold stress" ;
