@@ -313,7 +313,7 @@ variables:
 	double fates_mort_ip_age_senescence(fates_pft) ;
 		fates_mort_ip_age_senescence:units = "years" ;
 		fates_mort_ip_age_senescence:long_name = "Mortality cohort age senescence inflection point" ;
-	double fates_mort_ip_senescence(fates_pft) ;
+	double fates_mort_ip_size_senescence(fates_pft) ;
 		fates_mort_ip_senescence:units = "dbh cm" ;
 		fates_mort_ip_senescence:long_name = "Mortality dbh senescence inflection point" ;
 	double fates_mort_r_age_senescence(fates_pft) ;
