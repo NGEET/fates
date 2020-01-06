@@ -1,9 +1,11 @@
 module EDParamsMod
+
    !
    ! module that deals with reading the ED parameter file
    !
 
    use FatesConstantsMod, only : r8 => fates_r8
+   use FatesConstantsMod, only : nearzero
    use FatesParametersInterface, only : param_string_length
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
@@ -42,6 +44,13 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_patch_fusion_tol
    real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
 
+   
+   logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
+   character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
+   
+   real(r8), protected, public :: cg_strikes             ! fraction of cloud to ground lightning strikes (0-1)
+   character(len=param_string_length),parameter :: fates_name_cg_strikes="fates_fire_cg_strikes"
+   
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
@@ -50,6 +59,7 @@ module EDParamsMod
    real(r8),protected,allocatable,public :: ED_val_history_ageclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_height_bin_edges(:)
 
+   
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
@@ -69,9 +79,12 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_phen_mindayson= "fates_phen_mindayson"   
    character(len=param_string_length),parameter,public :: ED_name_phen_ncolddayslim= "fates_phen_ncolddayslim"   
    character(len=param_string_length),parameter,public :: ED_name_phen_coldtemp= "fates_phen_coldtemp"   
-   character(len=param_string_length),parameter,public :: ED_name_cohort_fusion_tol= "fates_cohort_fusion_tol"   
+   character(len=param_string_length),parameter,public :: ED_name_cohort_fusion_tol= "fates_cohort_size_fusion_tol"   
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
+
+   ! Resistance to active crown fire
+  
 
    character(len=param_string_length),parameter :: fates_name_q10_mr="fates_q10_mr"
    character(len=param_string_length),parameter :: fates_name_q10_froz="fates_q10_froz"
@@ -170,7 +183,6 @@ contains
     ED_val_cohort_fusion_tol              = nan
     ED_val_patch_fusion_tol               = nan
     ED_val_canopy_closure_thresh          = nan    
-    
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
 
@@ -333,6 +345,12 @@ contains
     call fates_params%RegisterParameter(name=ED_name_history_height_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_height)
 
+    call fates_params%RegisterParameter(name=fates_name_active_crown_fire, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=fates_name_cg_strikes, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
   end subroutine FatesRegisterParams
 
   
@@ -344,6 +362,9 @@ contains
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
+
+    real(r8) :: active_crown_fire_real !Local temp to transfer real data in file
+
 
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
@@ -456,6 +477,13 @@ contains
     call fates_params%RetreiveParameter(name=fates_name_q10_froz, &
           data=q10_froz)
 
+    call fates_params%RetreiveParameter(name=fates_name_active_crown_fire, &
+          data=active_crown_fire_real)
+    active_crown_fire = (abs(active_crown_fire_real-1.0_r8)<nearzero)
+
+    call fates_params%RetreiveParameter(name=fates_name_cg_strikes, &
+          data=cg_strikes)
+
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
           data=ED_val_history_sizeclass_bin_edges)
@@ -465,7 +493,7 @@ contains
 
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_height_bin_edges, &
           data=ED_val_history_height_bin_edges)
-
+    
 
   end subroutine FatesReceiveParams
   
@@ -517,6 +545,8 @@ contains
         write(fates_log(),fmt0) 'logging_dbhmax_infra = ',logging_dbhmax_infra
         write(fates_log(),fmt0) 'q10_mr = ',q10_mr
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
+        write(fates_log(),fmt0) 'cg_strikes = ',cg_strikes
+        write(fates_log(),'(a,L)') 'active_crown_fire = ',active_crown_fire
         write(fates_log(),*) '------------------------------------------------------'
 
      end if
