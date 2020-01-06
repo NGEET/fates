@@ -9,12 +9,22 @@ module FatesHydraulicsMemMod
    implicit none
    private
 
+
+   ! This parameter turns on Yilin Fang's alternative 2D solution
+   ! to the flux equations.
+   logical, parameter, public                  :: use_2d_hydrosolve = .true.
+
+
    ! Number of soil layers for indexing cohort fine root quanitities
    ! NOTE: The hydraulics code does have some capacity to run a single soil
    ! layer that was developed for comparisons with TFS. However, this has 
    ! not maintained support through the integration with FATES and its
    ! communications with the LSM.  Please do not set nlevsoi_hyd_max
    ! to 1 unless you are developing and testing.
+
+   
+
+
 
    integer, parameter, public                  :: nlevsoi_hyd_max = 40
 
@@ -195,7 +205,7 @@ module FatesHydraulicsMemMod
 
   type, public :: ed_cohort_hydr_type
      integer              :: nlevsoi_hyd            ! The number of soil hydraulic layers
-                                               !variables for alternate HYDRO solver
+                                                    !variables for alternate HYDRO solver
      real(r8), allocatable :: z_node(:)
      real(r8), allocatable :: z_upper(:)
      real(r8), allocatable :: z_lower(:)

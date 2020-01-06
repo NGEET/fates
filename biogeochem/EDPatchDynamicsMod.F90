@@ -38,7 +38,6 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dump_patch
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesInterfaceMod    , only : hlm_use_planthydro
-  use FatesInterfaceMod    , only : hlm_use_alt_planthydro
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_days_per_year

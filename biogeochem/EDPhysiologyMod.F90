@@ -14,7 +14,6 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : numpft
   use FatesInterfaceMod, only    : nleafage
   use FatesInterfaceMod, only    : hlm_use_planthydro
-  use FatesInterfaceMod, only    : hlm_use_alt_planthydro
   use FatesInterfaceMod, only    : hlm_parteh_mode
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero

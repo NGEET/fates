@@ -53,12 +53,12 @@ module FatesPlantHydraulicsMod
    use FatesInterfaceMod  , only : bc_out_type
 
    use FatesInterfaceMod  , only : hlm_use_planthydro
-   use FatesInterfaceMod  , only : hlm_use_alt_planthydro
 
    use FatesAllometryMod, only    : bsap_allom
    use FatesAllometryMod, only    : CrownDepth
    use FatesAllometryMod , only   : set_root_fraction
    use FatesAllometryMod , only   : i_hydro_rootprof_context
+   use FatesHydraulicsMemMod, only: use_2d_hydrosolve
    use FatesHydraulicsMemMod, only: ed_site_hydr_type
    use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
    use FatesHydraulicsMemMod, only: n_hypool_leaf
@@ -261,7 +261,7 @@ contains
              ! This calculates volumes, lengths and max conductances
              call UpdateTreeHydrLenVolCond(ccohort,sites(s)%si_hydr%nlevsoi_hyd,bc_in(s))
              ! Update compartment size and conductance
-             if(hlm_use_alt_planthydro.eq.itrue) then
+             if(use_2d_hydrosolve) then
                 call UpdatePhsOrganConnectionProp(ccohort_hydr)
              end if
               
@@ -304,7 +304,7 @@ contains
        call SavePreviousRhizVolumes(sites(s), bc_in(s))
        
        ! Update compartment size and conductance
-       if(hlm_use_alt_planthydro.eq.itrue) then
+       if(use_2d_hydrosolve) then
            csite_hydr =>sites(s)%si_hydr
            call UpdatePhsSoilConnectionProp(sites(s), bc_in(s))
        end if
@@ -609,7 +609,7 @@ contains
     ft                         =  ccohort%pft
     
     ! Update compartment size and conductance
-    if(hlm_use_alt_planthydro.eq.itrue) then
+    if(use_2d_hydrosolve) then
         call UpdatePhsOrganConnectionProp(ccohort_hydr)
     else 
     ! This updates plant compartment volumes, lengths and 
@@ -1295,14 +1295,15 @@ contains
     type(ed_cohort_type), target :: currentCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
-    if ( hlm_use_planthydro.eq.ifalse .and. hlm_use_alt_planthydro.eq.ifalse) return
+    if ( hlm_use_planthydro.eq.ifalse) return
     allocate(ccohort_hydr)
     currentCohort%co_hydr => ccohort_hydr
     call ccohort_hydr%AllocateHydrCohortArrays(currentSite%si_hydr%nlevsoi_hyd)
 
     ccohort_hydr%is_newly_recruited = .false. 
-    
-    if ( hlm_use_alt_planthydro.eq.ifalse) return
+
+    if(.not.use_2d_hydrosolve) return
+
     ccohort_hydr%nlevsoi_hyd = currentSite%si_hydr%nlevsoi_hyd
     call ccohort_hydr%InitPhs() !initialized conn_dn etc.
     call ccohort_hydr%SetPhsOrganConnection() !set connection b/w plant organs
@@ -1330,7 +1331,7 @@ contains
        integer, dimension(:),allocatable :: conn_dn
        integer, dimension(:),allocatable :: conn_up
 !
-       if(hlm_use_alt_planthydro.eq.ifalse) return
+       if(.not.use_2d_hydrosolve) return
        ! number of connections between organs, root/shell
 !
        nsites = ubound(sites,1)
@@ -1396,7 +1397,7 @@ contains
     type(ed_cohort_type), target :: currentCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
-    if ( hlm_use_planthydro.eq.ifalse .and. hlm_use_alt_planthydro.eq.ifalse) return
+    if ( hlm_use_planthydro.eq.ifalse ) return
     
     ccohort_hydr => currentCohort%co_hydr
     call ccohort_hydr%DeAllocateHydrCohortArrays()
@@ -1420,8 +1421,7 @@ contains
        type(ed_site_hydr_type),pointer :: csite_hydr
        
 
-       if ( hlm_use_planthydro.eq.ifalse .and. &
-            hlm_use_alt_planthydro.eq.ifalse) return
+       if ( hlm_use_planthydro.eq.ifalse ) return
        
        ! Initialize any derived hydraulics parameters
        call InitHydraulicsDerived(numpft)
@@ -1665,7 +1665,7 @@ contains
            end do
         end if
         
-        if(hlm_use_alt_planthydro) then
+        if(use_2d_hydrosolve) then
 
            cpatch => sites(s)%oldest_patch
            do while(associated(cpatch))
@@ -1772,7 +1772,7 @@ contains
         bc_out(s)%plant_stored_h2o_si = 0.0_r8
      end do
 
-     if( hlm_use_planthydro.eq.ifalse .and. hlm_use_alt_planthydro.eq.ifalse) return
+     if( hlm_use_planthydro.eq.ifalse ) return
 
      do s = 1,nsites
 
@@ -2136,7 +2136,7 @@ contains
     ! these are independent on the water state
     
     call UpdateSizeDepRhizVolLenCon(currentSite, bc_in)
-    if(hlm_use_alt_planthydro.eq.itrue) then
+    if(use_2d_hydrosolve) then
         call UpdatePhsSoilConnectionProp(currentSite, bc_in)
     end if
 
@@ -3439,56 +3439,42 @@ contains
                 site_hydr%h2osoi_liq_prev(j) = bc_in(s)%h2o_liq_sisl(j) - &
                      dtime*bc_out(s)%qflx_soil2root_sisl(j)
 
-	     end if
-             
-           enddo !site_hydr%nlevsoi_hyd
-           !-----------------------------------------------------------------------
-           ! mass balance check and pass the total stored vegetation water to HLM
-           ! in order for it to fill its balance checks
-	   totalrootuptake = 0.0_r8
-	   totalqtop_dt = 0.0_r8
-	   cpatch => sites(s)%oldest_patch
-           do while (associated(cpatch))
+         end if
+      
+     enddo !site_hydr%nlevsoi_hyd
+     !-----------------------------------------------------------------------
+     ! mass balance check and pass the total stored vegetation water to HLM
+     ! in order for it to fill its balance checks
+     totalrootuptake = 0.0_r8
+     totalqtop_dt = 0.0_r8
+     cpatch => sites(s)%oldest_patch
+     do while (associated(cpatch))
 	     ccohort=>cpatch%tallest
-	     do while(associated(ccohort))
+      do while(associated(ccohort))
                 ccohort_hydr => ccohort%co_hydr
                 !totalrootuptake = totalrootuptake + ccohort_hydr%rootuptake* ccohort%n/AREA
-		totalqtop_dt= totalqtop_dt+  ccohort_hydr%qtop_dt* ccohort%n/AREA
-!                if(hlm_use_alt_planthydro) then
-!                   bc_out(s)%psi_ag(ft,:) = ccohort_hydr%psi_ag(:)*1e6/1000.0/9.81*1000 !MPa to mm
-!                   bc_out(s)%th_ag(ft,:) = ccohort_hydr%th_ag(:)
-!                   bc_out(s)%th_troot(ft,:) = ccohort_hydr%th_troot(:)
-!                   bc_out(s)%th_aroot(ft,:) = ccohort_hydr%th_aroot(:)
-!                   bc_out(s)%flc_min_ag(ft,:) = ccohort_hydr%flc_min_ag(:)
-!                   bc_out(s)%flc_min_troot(ft,:) = ccohort_hydr%flc_min_troot(:)
-!                   bc_out(s)%flc_min_aroot(ft,:) = ccohort_hydr%flc_min_aroot(:)
-!                end if
+                totalqtop_dt= totalqtop_dt+  ccohort_hydr%qtop_dt* ccohort%n/AREA
                 ccohort => ccohort%shorter
-             enddo !cohort
-	     cpatch => cpatch%younger
-	   enddo !patch
-	   !remove the recruitment water uptake as it has been added to prev_h2oveg 
-	   totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:)- &
-	                  site_hydr%recruit_w_uptake(:))*dtime
-	   
-           total_e = site_hydr%h2oveg-(prev_h2oveg + totalrootuptake - totalqtop_dt)
-	       
-	   site_hydr%h2oveg_hydro_err = site_hydr%h2oveg_hydro_err + total_e
-	   
-           bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead - &
-                                           site_hydr%h2oveg_growturn_err - &
-                                           site_hydr%h2oveg_pheno_err-&
-					   site_hydr%h2oveg_hydro_err
-!           if( hlm_use_alt_planthydro) then
-!              bc_out(s)%h2osoi_liq_prev(:) = site_hydr%h2osoi_liq_prev(:)  
-!              bc_out(s)%h2osoi_liqvol_shell(:,:) =site_hydr%h2osoi_liqvol_shell(:,:)
-!           end if
-
-           
-        enddo !site
+            enddo !cohort
+            cpatch => cpatch%younger
+        enddo !patch
+        !remove the recruitment water uptake as it has been added to prev_h2oveg 
+        totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:)- &
+              site_hydr%recruit_w_uptake(:))*dtime
+        
+        total_e = site_hydr%h2oveg-(prev_h2oveg + totalrootuptake - totalqtop_dt)
+        
+        site_hydr%h2oveg_hydro_err = site_hydr%h2oveg_hydro_err + total_e
+         
+        bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead - &
+                                        site_hydr%h2oveg_growturn_err - &
+                                        site_hydr%h2oveg_pheno_err-&
+                                        site_hydr%h2oveg_hydro_err
+         
+    enddo !site
       
   end subroutine Hydraulics_BC
-
+  
   ! =====================================================================================
 
 
@@ -3558,7 +3544,7 @@ contains
      type(ed_site_hydr_type), pointer :: csite_hydr
      integer :: s
 
-     if( hlm_use_planthydro.eq.ifalse .and. hlm_use_alt_planthydro.eq.ifalse) return
+     if( hlm_use_planthydro.eq.ifalse) return
 
      do s = 1,nsites
 
