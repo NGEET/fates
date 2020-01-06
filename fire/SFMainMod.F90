@@ -664,6 +664,7 @@ contains
 
     use FatesInterfaceMod, only : hlm_use_spitfire
     use EDParamsMod,       only : ED_val_nignitions
+    use EDParamsMod,       only : cg_strikes    ! fraction of cloud-to-ground ligtning strikes
     use FatesConstantsMod, only : years_per_day
     use SFParamsMod,       only : SF_val_fdi_alpha,SF_val_fuel_energy, &
          SF_val_max_durat, SF_val_durat_slope
@@ -680,8 +681,6 @@ contains
     
     real(r8) size_of_fire !in m2
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
-    real(r8),parameter :: CG_strikes = 0.20_r8     !cloud to ground lightning strikes
-                                                   !Latham and Williams (2001)
 
     !  ---initialize site parameters to zero--- 
     currentSite%frac_burnt = 0.0_r8  
@@ -692,7 +691,7 @@ contains
     currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
     
     !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
-    currentSite%NF = ED_val_nignitions * years_per_day * CG_strikes
+    currentSite%NF = ED_val_nignitions * years_per_day * cg_strikes
 
     ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
     ! then there are 15 * 1/365 strikes/km2 each day 

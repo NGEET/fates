@@ -82,6 +82,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat
 
   !  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   
@@ -354,7 +355,8 @@ contains
        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
-    
+       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
+
     case (prt_cnp_flex_allom_hyp)
 
        write(fates_log(),*) 'You have not specified the boundary conditions for the'
