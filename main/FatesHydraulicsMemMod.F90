@@ -377,6 +377,25 @@ module FatesHydraulicsMemMod
        deallocate(this%errh2o_pheno_aroot)
        deallocate(this%kmax_innershell)
 
+       if(use_2d_hydrosolve) then
+           deallocate(this%z_node)
+           deallocate(this%z_lower)
+           deallocate(this%z_upper)
+           deallocate(this%v_node)
+           deallocate(this%conn_up)
+           deallocate(this%conn_dn)
+           deallocate(this%cond_up)
+           deallocate(this%cond_dn)
+           deallocate(this%conductance)
+           deallocate(this%th_node)
+           deallocate(this%th_node_init)
+           deallocate(this%psi_node)
+           deallocate(this%src_node)
+           deallocate(this%psi_node_init)
+           deallocate(this%pm_type)
+       end if
+
+
        return
     end subroutine DeallocateHydrCohortArrays
 
@@ -390,7 +409,7 @@ module FatesHydraulicsMemMod
        associate( nlevsoil_hyd => this%nlevsoi_hyd ) 
           num_nodes = n_hypool_leaf + n_hypool_stem + n_hypool_troot  &
                            + (n_hypool_aroot + nshell) * nlevsoil_hyd ! total number of unknowns
-   ! number of connections between organs, root/shell
+          ! number of connections between organs, root/shell
           num_connections = n_hypool_leaf + n_hypool_stem + n_hypool_troot - 1  &
                            + (n_hypool_aroot + nshell) * nlevsoil_hyd
        end associate
@@ -403,7 +422,7 @@ module FatesHydraulicsMemMod
        allocate(this%cond_up(num_connections)) ; this%cond_up = 0.d0 ! conductance of upstream connection
        allocate(this%cond_dn(num_connections)) ; this%cond_dn = 0.d0 ! conductance of downstream connection
        allocate(this%conductance(num_connections)) ; this%conductance = 0.d0 !node conductance
-! State variables
+       ! State variables
        allocate(this%th_node(num_nodes)) ; this%th_node = 0.d0
        allocate(this%th_node_init(num_nodes)) ; this%th_node_init = 0.d0
        allocate(this%psi_node(num_nodes)) ; this%psi_node = 0.d0
@@ -464,6 +483,7 @@ module FatesHydraulicsMemMod
    end subroutine SetPhsOrganConnection
 
   ! =====================================================================================
+
    subroutine SetPhsSoilConnection(this)
 !
 
