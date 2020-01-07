@@ -2185,7 +2185,7 @@ contains
                 ( EDPFtvarcon_inst%phen_stem_drop_fraction(ipft) > 1 ) ) then
 
               write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
-              write(fates_log(),*) ' during the dedicous period.'
+              write(fates_log(),*) ' during the deciduous period.'
               write(fates_log(),*) ' PFT#: ',ipft
               write(fates_log(),*) ' evergreen flag: (shold be 0):',int(EDPftvarcon_inst%evergreen(ipft))
               write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
