@@ -41,6 +41,7 @@ module EDInitMod
   use FatesInterfaceMod         , only : numpft
   use FatesInterfaceMod         , only : nleafage
   use FatesInterfaceMod         , only : nlevsclass
+  use FatesInterfaceMod         , only : nlevcoage
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
@@ -201,6 +202,7 @@ contains
 
     ! fusoin-induced growth flux of individuals
     site_in%growthflux_fusion(:,:) = 0._r8
+!    site_in%ageflux_fusion(:,:) = 0._r8
 
     ! demotion/promotion info
     site_in%demotion_rate(:) = 0._r8
@@ -468,6 +470,7 @@ contains
        temp_cohort%pft         = pft
        temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
+       
 
        ! Calculate the plant diameter from height
        call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
@@ -514,6 +517,9 @@ contains
 
        if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
+       temp_cohort%coage = 0.0_r8
+       
+       
        ! --------------------------------------------------------------------------------
        ! Initialize the mass of every element in every organ of the organ
        ! --------------------------------------------------------------------------------
@@ -581,7 +587,7 @@ contains
        call prt_obj%CheckInitialConditions()
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-             temp_cohort%dbh, prt_obj, temp_cohort%laimemory, cstatus, rstatus,        &
+             temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%laimemory, cstatus, rstatus,        &
              temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort

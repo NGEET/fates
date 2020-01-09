@@ -36,6 +36,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
   use EDTypesMod            , only : num_elements
+  use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
@@ -50,6 +51,7 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
   use FatesPlantHydraulicsMod, only : ConstrainRecruitNumber
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+  use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
   use FatesAllometryMod  , only : bsap_allom
@@ -128,10 +130,10 @@ contains
 
   !-------------------------------------------------------------------------------------!
 
-  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh,   &
+    
+  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
                            prt, laimemory, status, recruitstatus,ctrim, &
                            clayer, spread, bc_in)
-
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -149,6 +151,7 @@ contains
 
     type(ed_site_type), intent(inout),   target :: currentSite
     type(ed_patch_type), intent(inout), pointer :: patchptr
+
     integer,  intent(in)      :: pft              ! Cohort Plant Functional Type
     integer,  intent(in)      :: clayer           ! canopy status of cohort 
                                                   ! (1 = canopy, 2 = understorey, etc.)
@@ -159,6 +162,7 @@ contains
     real(r8), intent(in)      :: nn               ! number of individuals in cohort 
                                                   ! per 'area' (10000m2 default)
     real(r8), intent(in)      :: hite             ! height: meters
+    real(r8), intent(in)      :: coage            ! cohort age in days
     real(r8), intent(in)      :: dbh              ! dbh: cm
     class(prt_vartypes),target :: prt             ! The allocated PARTEH
                                                   ! object
@@ -169,6 +173,7 @@ contains
     real(r8), intent(in)      :: spread           ! The community assembly effects how 
                                                   ! spread crowns are in horizontal space
     type(bc_in_type), intent(in) :: bc_in         ! External boundary conditions
+
      
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
@@ -180,7 +185,7 @@ contains
     integer  :: nlevsoi_hyd                    ! number of hydraulically active soil layers 
 
     !----------------------------------------------------------------------
-
+    
     allocate(new_cohort)
 
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
@@ -208,6 +213,7 @@ contains
     new_cohort%n            = nn
     new_cohort%hite         = hite
     new_cohort%dbh          = dbh
+    new_cohort%coage        = coage
     new_cohort%canopy_trim  = ctrim
     new_cohort%canopy_layer = clayer
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
@@ -218,10 +224,16 @@ contains
     ! leaf age fractions (which are defined by PARTEH)
     call UpdateCohortBioPhysRates(new_cohort)
 
-    call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
+    call sizetype_class_index(new_cohort%dbh, new_cohort%pft, &
                               new_cohort%size_class,new_cohort%size_by_pft_class)
 
-
+    ! If cohort age trackign is off we call this here once
+    ! just so everythin is in the first bin -
+    ! this makes it easier to copy and terminate cohorts later
+    ! we don't need to update this ever if cohort age tracking is off
+    call coagetype_class_index(new_cohort%coage, new_cohort%pft, &
+            new_cohort%coage_class,new_cohort%coage_by_pft_class)
+    
     ! This routine may be called during restarts, and at this point in the call sequence
     ! the actual cohort data is unknown, as this is really only used for allocation
     ! In these cases, testing if things like biomass are reasonable is pre-mature
@@ -472,8 +484,12 @@ contains
     currentCohort%size_class         = fates_unset_int  ! size class index
     currentCohort%size_class_lasttimestep = fates_unset_int  ! size class index
     currentCohort%size_by_pft_class  = fates_unset_int  ! size by pft classification index
+    currentCohort%coage_class        = fates_unset_int  ! cohort age class index
+    currentCohort%coage_by_pft_class = fates_unset_int  ! cohort age by pft class index 
+
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
-    currentCohort%dbh                = nan ! 'diameter at breast height' in cm                            
+    currentCohort%dbh                = nan ! 'diameter at breast height' in cm
+    currentCohort%coage              = nan ! age of the cohort in years
     currentCohort%hite               = nan ! height: meters                   
     currentCohort%laimemory          = nan ! target leaf biomass- set from previous year: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2      
@@ -583,6 +599,7 @@ contains
     currentcohort%ts_net_uptake(:)   = 0._r8
     currentcohort%fraction_crown_burned = 0._r8 
     currentCohort%size_class            = 1
+    currentCohort%coage_class        = 1
     currentCohort%seed_prod          = 0._r8
     currentCohort%size_class_lasttimestep = 0
     currentcohort%npp_acc_hold       = 0._r8 
@@ -921,7 +938,10 @@ contains
      ! Join similar cohorts to reduce total number            
      !
      ! !USES:
-     use EDParamsMod , only :  ED_val_cohort_fusion_tol
+     use EDParamsMod , only :  ED_val_cohort_size_fusion_tol
+     use EDParamsMod , only :  ED_val_cohort_age_fusion_tol
+     use FatesConstantsMod, only : days_per_year
+     
      !
      ! !ARGUMENTS   
      type (ed_site_type), intent(inout),  target :: currentSite 
@@ -943,15 +963,19 @@ contains
      integer  :: nocohorts
      real(r8) :: newn
      real(r8) :: diff
+     real(r8) :: coage_diff
      real(r8) :: leaf_c_next   ! Leaf carbon * plant density of current (for weighting)
      real(r8) :: leaf_c_curr   ! Leaf carbon * plant density of next (for weighting)
      real(r8) :: leaf_c_target 
-     real(r8) :: dynamic_fusion_tolerance
+     real(r8) :: dynamic_size_fusion_tolerance
+     real(r8) :: dynamic_age_fusion_tolerance 
      real(r8) :: dbh
      real(r8) :: leaf_c             ! leaf carbon [kg]
 
      integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
      real(r8) :: larger_n, smaller_n
+     integer  :: oldercacls, youngercacls, cacls_i ! indices for tracking the age flux caused by fusion
+     real(r8) :: older_n, younger_n
 
      logical, parameter :: fuse_debug = .false.   ! This debug is over-verbose
                                                  ! and gets its own flag
@@ -959,7 +983,9 @@ contains
      !----------------------------------------------------------------------
 
      !set initial fusion tolerance
-     dynamic_fusion_tolerance = ED_val_cohort_fusion_tol
+     dynamic_size_fusion_tolerance = ED_val_cohort_size_fusion_tol
+     ! set the cohort age fusion tolerance (this is in days - remains constant)
+     dynamic_age_fusion_tolerance = ED_val_cohort_age_fusion_tol
 
      !This needs to be a function of the canopy layer, because otherwise, at canopy closure
      !the number of cohorts doubles and very dissimilar cohorts are fused together
@@ -994,7 +1020,20 @@ contains
 
                  !Criteria used to divide up the height continuum into different cohorts.
 
-                 if (diff < dynamic_fusion_tolerance) then
+                 if (diff < dynamic_size_fusion_tolerance) then
+
+                    ! Only fuse if the cohorts are within x years of each other 
+                    ! if they are the same age we make diff 0- to avoid errors divding by zero
+                    !NB if cohort age tracking is off then the age of both should be 0
+                    ! and hence the age fusion criterion is met    
+                   if (currentCohort%coage .eq. nextc%coage) then
+                      coage_diff = 0.0_r8
+                      else
+                    coage_diff = abs((currentCohort%coage - nextc%coage)/ &
+                         (0.5*(currentCohort%coage + nextc%coage)))
+                   end if
+
+                    if (coage_diff <= dynamic_age_fusion_tolerance ) then 
 
                     ! Don't fuse a cohort with itself!
                     if (.not.associated(currentCohort,nextc) ) then
@@ -1025,6 +1064,7 @@ contains
                                    write(fates_log(),*) 'isnew:',currentCohort%isnew,nextc%isnew
                                    write(fates_log(),*) 'laimemory:',currentCohort%laimemory,nextc%laimemory
                                    write(fates_log(),*) 'hite:',currentCohort%hite,nextc%hite
+                                   write(fates_log(),*) 'coage:',currentCohort%coage,nextc%coage
                                    write(fates_log(),*) 'dbh:',currentCohort%dbh,nextc%dbh
                                    write(fates_log(),*) 'pft:',currentCohort%pft,nextc%pft
                                    write(fates_log(),*) 'canopy_trim:',currentCohort%canopy_trim,nextc%canopy_trim
@@ -1036,6 +1076,17 @@ contains
                                    end do
                                 end if
 
+                                ! new cohort age is weighted mean of two cohorts
+                                currentCohort%coage = &
+                                      (currentCohort%coage * (currentCohort%n/(currentCohort%n + nextc%n))) + &
+                                                      (nextc%coage * (nextc%n/(currentCohort%n + nextc%n)))
+
+                                ! update the cohort age again
+                                if (ED_val_cohort_age_fusion_tol > 0.0_r8) then 
+                                   call coagetype_class_index(currentCohort%coage, currentCohort%pft, &
+                                        currentCohort%coage_class, currentCohort%coage_by_pft_class)
+                                end if
+                             
                                 ! Fuse all mass pools
                                 call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, &
                                                                                currentCohort%n/newn )
@@ -1167,7 +1218,8 @@ contains
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
-				      
+
+                                                   
                                 if(hlm_use_planthydro.eq.itrue) then			  					  				  
                                     call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
                                 endif
@@ -1212,9 +1264,10 @@ contains
                                    ! now that we've tracked the change flux.  reset the memory of the prior timestep
                                    currentCohort%size_class_lasttimestep = currentCohort%size_class
                                 endif
+
                                    
                                 ! Flux and biophysics variables have not been calculated for recruits we just default to 
-                                ! their initization values, which should be the same for eahc
+                                ! their initization values, which should be the same for each
                                 
                                 if ( .not.currentCohort%isnew) then
                                    currentCohort%seed_prod      = (currentCohort%n*currentCohort%seed_prod + &
@@ -1245,6 +1298,8 @@ contains
                                    currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
                                    currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
                                    currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
+                                   currentCohort%smort = (currentCohort%n*currentCohort%smort + nextc%n*nextc%smort)/newn
+                                   currentCohort%asmort = (currentCohort%n*currentCohort%asmort + nextc%n*nextc%asmort)/newn
                                    currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                    ! logging mortality, Yi Xu
@@ -1316,7 +1371,8 @@ contains
                           endif !canopy layer
                        endif !pft
                     endif  !index no. 
-                 endif !diff   
+                  endif  ! cohort age diff 
+                endif !diff   
                  
                  nextc => nextnextc
                  
@@ -1350,8 +1406,8 @@ contains
               !---------------------------------------------------------------------!
               ! Making profile tolerance larger means that more fusion will happen  !
               !---------------------------------------------------------------------!        
-              dynamic_fusion_tolerance = dynamic_fusion_tolerance * 1.1_r8
-
+              dynamic_size_fusion_tolerance = dynamic_size_fusion_tolerance * 1.1_r8
+              dynamic_age_fusion_tolerance = dynamic_age_fusion_tolerance * 1.1_r8
               !write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
            else
@@ -1359,13 +1415,14 @@ contains
               iterate = 0
         endif
 
-        if ( dynamic_fusion_tolerance .gt. 100._r8) then
+        if ( dynamic_size_fusion_tolerance .gt. 100._r8) then
               ! something has gone terribly wrong and we need to report what
               write(fates_log(),*) 'exceeded reasonable expectation of cohort fusion.'
               currentCohort => currentPatch%tallest
               nocohorts = 0
               do while(associated(currentCohort))
-                 write(fates_log(),*) 'cohort ', nocohorts, currentCohort%dbh, currentCohort%canopy_layer, currentCohort%n
+                 write(fates_log(),*) 'cohort ', nocohorts, currentCohort%dbh,&
+                      currentCohort%coage, currentCohort%canopy_layer, currentCohort%n
                  nocohorts = nocohorts + 1
                  currentCohort => currentCohort%shorter
               enddo
@@ -1569,7 +1626,8 @@ contains
     ! VEGETATION STRUCTURE
     n%pft             = o%pft
     n%n               = o%n                         
-    n%dbh             = o%dbh                                        
+    n%dbh             = o%dbh
+    n%coage           = o%coage 
     n%hite            = o%hite
     n%laimemory       = o%laimemory
     n%lai             = o%lai                         
@@ -1584,9 +1642,10 @@ contains
     n%excl_weight     = o%excl_weight               
     n%prom_weight     = o%prom_weight               
     n%size_class      = o%size_class
-    n%size_class_lasttimestep      = o%size_class_lasttimestep
+    n%size_class_lasttimestep = o%size_class_lasttimestep
     n%size_by_pft_class = o%size_by_pft_class
-
+    n%coage_class     = o%coage_class
+    n%coage_by_pft_class = o%coage_by_pft_class
     ! This transfers the PRT objects over.
     call n%prt%CopyPRTVartypes(o%prt)
 
@@ -1638,6 +1697,8 @@ contains
     n%cmort = o%cmort
     n%bmort = o%bmort
     n%hmort = o%hmort
+    n%smort = o%smort
+    n%asmort = o%asmort
     n%frmort = o%frmort
 
     ! logging mortalities, Yi Xu
@@ -1670,7 +1731,9 @@ contains
     n%size_class      = o%size_class
     n%size_class_lasttimestep      = o%size_class_lasttimestep
     n%size_by_pft_class   = o%size_by_pft_class
-
+    n%coage_class     = o%coage_class
+    n%coage_by_pft_class   = o%coage_by_pft_class
+       
     !Pointers
     n%taller          => NULL()     ! pointer to next tallest cohort     
     n%shorter         => NULL()     ! pointer to next shorter cohort     

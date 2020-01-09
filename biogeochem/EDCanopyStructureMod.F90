@@ -29,7 +29,8 @@ module EDCanopyStructureMod
   use FatesInterfaceMod     , only : numpft
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
-
+  use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
+  
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -1258,9 +1259,11 @@ contains
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+    use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod           , only : area
     use EDPftvarcon          , only : EDPftvarcon_inst
-
+    use EDParamsMod          , only : ED_val_cohort_age_fusion_tol
+    
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -1279,8 +1282,9 @@ contains
     real(r8) :: sapw_c           ! sapwood carbon [kg]
     real(r8) :: store_c          ! storage carbon [kg]
     real(r8) :: struct_c         ! structure carbon [kg]
-    !----------------------------------------------------------------------
 
+    !----------------------------------------------------------------------
+    
     if ( debug ) then
        write(fates_log(),*) 'in canopy_summarization'
     endif
@@ -1319,8 +1323,13 @@ contains
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
              call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
-                                       currentCohort%size_class,currentCohort%size_by_pft_class)
+                  currentCohort%size_class,currentCohort%size_by_pft_class)
 
+             if (ED_val_cohort_age_fusion_tol > 0.0_r8) then
+             call coagetype_class_index(currentCohort%coage,currentCohort%pft, &
+                  currentCohort%coage_class,currentCohort%coage_by_pft_class)
+          end if
+          
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                   currentCohort%pft,currentCohort%c_area)
 

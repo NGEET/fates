@@ -40,7 +40,8 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_phen_mindayson
    real(r8),protected, public :: ED_val_phen_ncolddayslim
    real(r8),protected, public :: ED_val_phen_coldtemp
-   real(r8),protected, public :: ED_val_cohort_fusion_tol
+   real(r8),protected, public :: ED_val_cohort_size_fusion_tol
+   real(r8),protected, public :: ED_val_cohort_age_fusion_tol
    real(r8),protected, public :: ED_val_patch_fusion_tol
    real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
 
@@ -58,7 +59,7 @@ module EDParamsMod
    real(r8),protected,allocatable,public :: ED_val_history_sizeclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_ageclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_height_bin_edges(:)
-
+   real(r8),protected,allocatable,public :: ED_val_history_coageclass_bin_edges(:)
    
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
@@ -79,7 +80,8 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_phen_mindayson= "fates_phen_mindayson"   
    character(len=param_string_length),parameter,public :: ED_name_phen_ncolddayslim= "fates_phen_ncolddayslim"   
    character(len=param_string_length),parameter,public :: ED_name_phen_coldtemp= "fates_phen_coldtemp"   
-   character(len=param_string_length),parameter,public :: ED_name_cohort_fusion_tol= "fates_cohort_size_fusion_tol"   
+   character(len=param_string_length),parameter,public :: ED_name_cohort_size_fusion_tol= "fates_cohort_size_fusion_tol"
+   character(len=param_string_length),parameter,public :: ED_name_cohort_age_fusion_tol = "fates_cohort_age_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
 
@@ -94,6 +96,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
    character(len=param_string_length),parameter,public :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -180,7 +183,8 @@ contains
     ED_val_phen_mindayson                 = nan
     ED_val_phen_ncolddayslim              = nan
     ED_val_phen_coldtemp                  = nan
-    ED_val_cohort_fusion_tol              = nan
+    ED_val_cohort_size_fusion_tol         = nan
+    ED_val_cohort_age_fusion_tol          = nan
     ED_val_patch_fusion_tol               = nan
     ED_val_canopy_closure_thresh          = nan    
     hydr_kmax_rsurf1                      = nan
@@ -211,7 +215,10 @@ contains
 
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_1d
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
-    use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_shape_scalar
+    use FatesParametersInterface, only : dimension_name_history_height_bins
+    use FatesParametersInterface, only : dimension_name_history_coage_bins
+    use FatesParametersInterface, only : dimension_shape_scalar
+
 
     implicit none
 
@@ -221,6 +228,7 @@ contains
     character(len=param_string_length), parameter :: dim_names_sizeclass(1) = (/dimension_name_history_size_bins/)
     character(len=param_string_length), parameter :: dim_names_ageclass(1) = (/dimension_name_history_age_bins/)
     character(len=param_string_length), parameter :: dim_names_height(1) = (/dimension_name_history_height_bins/)
+    character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
 
     call FatesParamsInit()
 
@@ -281,7 +289,10 @@ contains
     call fates_params%RegisterParameter(name=ED_name_phen_coldtemp, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_cohort_fusion_tol, dimension_shape=dimension_shape_scalar, &
+    call fates_params%RegisterParameter(name=ED_name_cohort_size_fusion_tol, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_cohort_age_fusion_tol, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_patch_fusion_tol, dimension_shape=dimension_shape_scalar, &
@@ -295,7 +306,7 @@ contains
 
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf2, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-
+    
     call fates_params%RegisterParameter(name=hydr_name_psi0, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -350,6 +361,10 @@ contains
 
     call fates_params%RegisterParameter(name=fates_name_cg_strikes, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
+    
+    call fates_params%RegisterParameter(name=ED_name_history_coageclass_bin_edges, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_coageclass)
+
 
   end subroutine FatesRegisterParams
 
@@ -423,8 +438,11 @@ contains
     call fates_params%RetreiveParameter(name=ED_name_phen_coldtemp, &
          data=ED_val_phen_coldtemp)
 
-    call fates_params%RetreiveParameter(name=ED_name_cohort_fusion_tol, &
-         data=ED_val_cohort_fusion_tol)
+    call fates_params%RetreiveParameter(name=ED_name_cohort_size_fusion_tol, &
+         data=ED_val_cohort_size_fusion_tol)
+
+    call fates_params%RetreiveParameter(name=ED_name_cohort_age_fusion_tol, &
+         data=ED_val_cohort_age_fusion_tol)
 
     call fates_params%RetreiveParameter(name=ED_name_patch_fusion_tol, &
          data=ED_val_patch_fusion_tol)
@@ -493,7 +511,10 @@ contains
 
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_height_bin_edges, &
           data=ED_val_history_height_bin_edges)
-    
+
+    call fates_params%RetreiveParameterAllocate(name=ED_name_history_coageclass_bin_edges, &
+         data=ED_val_history_coageclass_bin_edges)
+
 
   end subroutine FatesReceiveParams
   
@@ -528,7 +549,8 @@ contains
         write(fates_log(),fmt0) 'ED_val_phen_mindayson = ',ED_val_phen_mindayson
         write(fates_log(),fmt0) 'ED_val_phen_ncolddayslim = ',ED_val_phen_ncolddayslim
         write(fates_log(),fmt0) 'ED_val_phen_coldtemp = ',ED_val_phen_coldtemp
-        write(fates_log(),fmt0) 'ED_val_cohort_fusion_tol = ',ED_val_cohort_fusion_tol
+        write(fates_log(),fmt0) 'ED_val_cohort_size_fusion_tol = ',ED_val_cohort_size_fusion_tol
+        write(fates_log(),fmt0) 'ED_val_cohort_age_fusion_tol = ',ED_val_cohort_age_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh      
         write(fates_log(),fmt0) 'hydr_kmax_rsurf1 = ',hydr_kmax_rsurf1
