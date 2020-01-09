@@ -47,6 +47,7 @@ module FATESPlantRespPhotosynthMod
    use PRTGenericMod,     only : repro_organ
    use PRTGenericMod,     only : struct_organ
    use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
+   !use PhotosynthesisMod , only : photosyns_type     !ADDED BY LIQIANYU
 
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -56,7 +57,7 @@ module FATESPlantRespPhotosynthMod
 
    public  :: FATESReadNML                 !subroutine to read in the FATES namelist added by LIQIANYU
    public :: FatesPlantRespPhotosynthDrive ! Called by the HLM-Fates interface
-   
+   !type(photosyns_type), public   :: photosyns_inst  !ADDED BY LIQIANYU 
    
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -68,8 +69,10 @@ module FATESPlantRespPhotosynthMod
    logical   ::  debug = .false.
 
   integer, parameter, private :: stomatalcond_mtd_bb1987     = 1   ! Ball-Berry 1987 method for photosynthesis_LIQIANYU
-  integer, parameter, private :: stomatalcond_mtd_medlyn2011 = 2   ! Medlyn 2011 method for photosynthesis_LIQIANYU         
-  integer, private :: stomatalcond_mtd                  ! Stomatal conduction method type_LIQIANYU
+  integer, parameter, private :: stomatalcond_mtd_medlyn2011 = 2   ! Medlyn 2011 method for photosynthesis_LIQIANYU 
+  !type(photosyns_type)   , private :: photosyns_inst  !ADDED BY LIQIANYU        
+ ! integer, private :: stomatalcond_mtd                  ! Stomatal conduction method type_LIQIANYU
+   !stomatalcond_mtd=> photosyns_inst%stomatalcond_mtd
   
 contains
   
@@ -92,7 +95,7 @@ contains
     ! !LOCAL VARIABLES:
     integer :: ierr                 ! error code
     integer :: unitn                ! unit for namelist file
-
+    integer :: stomatalcond_mtd 
     character(len=*), parameter :: subname = 'Photosyn::ReadNML'
     character(len=*), parameter :: nmlname = 'photosyns_inparm'
     character(len=50) :: stomatalcond_method = 'Medlyn2011' ! gs method string
@@ -285,7 +288,11 @@ contains
     integer  :: nv                  ! number of leaf layers
     integer  :: NCL_p               ! number of canopy layers in patch
     integer  :: iage                ! loop counter for leaf age classes
-    integer  :: stomatalcond_mtd    ! Stomatal conduction method type_LIQIANYU
+    !integer  :: stomatalcond_mtd    ! Stomatal conduction method type_LIQIANYU
+    
+   !type(photosyns_type)   , intent(inout) :: photosyns_inst
+   !stomatalcond_mtd=> photosyns_inst%stomatalcond_mtd
+
     ! Parameters
     ! -----------------------------------------------------------------------
     ! Base maintenance respiration rate for plant tissues base_mr_20
@@ -589,7 +596,7 @@ contains
                                                         mm_ko2,                             &  ! in
                                                         co2_cpoint,                         &  ! in
                                                         lmr_z(iv,ft,cl),                    &  ! in
-                                                        stomatalcond_mtd,                   &  ! in added by LIQIANYU
+   !                                                     stomatalcond_mtd,                   &  ! in added by LIQIANYU
                                                         currentPatch%psn_z(cl,ft,iv),       &  ! out
                                                         rs_z(iv,ft,cl),                     &  ! out
                                                         anet_av_z(iv,ft,cl),                &  ! out
@@ -895,7 +902,7 @@ contains
                                      mm_ko2,            &  ! in
                                      co2_cpoint,        &  ! in
                                      lmr,               &  ! in
-                                     stomatalcond_mtd,  &  ! in added by LIQIANYU
+   !                                  stomatalcond_mtd,  &  ! in added by LIQIANYU
                                      psn_out,           &  ! out
                                      rstoma_out,        &  ! out
                                      anet_av_out,       &  ! out
@@ -912,7 +919,8 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use EDPftvarcon       , only : EDPftvarcon_inst
-
+    use PhotosynthesisMod , only : photosyns_type      !added by LIQIANYU
+ 
     
     ! Arguments
     ! ------------------------------------------------------------------------------------
@@ -953,7 +961,7 @@ contains
    real(r8), intent(in) :: mm_ko2          ! Michaelis-Menten constant for O2 (Pa)
    real(r8), intent(in) :: co2_cpoint      ! CO2 compensation point (Pa)
    real(r8), intent(in) :: lmr             ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
-   integer,  intent(in) :: stomatalcond_mtd  ! Stomatal conductance method type_LIQIANYU
+   !integer,  intent(in) :: stomatalcond_mtd  ! Stomatal conductance method type_LIQIANYU
    real(r8), intent(out) :: psn_out        ! carbon assimilated in this leaf layer umolC/m2/s
    real(r8), intent(out) :: rstoma_out     ! stomatal resistance (1/gs_lsl) (s/m)
    real(r8), intent(out) :: anet_av_out    ! net leaf photosynthesis (umol CO2/m**2/s) 
@@ -990,6 +998,12 @@ contains
 
    real(r8), dimension(0:1) :: bbbopt ! Cuticular conductance at full water potential (umol H2O /m2/s)
    real(r8) :: term                 ! intermediate in Medlyn stomatal model added by LIQIANYU
+   !integer :: stomatalcond_mtd_f  ! Stomatal conductance method type_LIQIANYU
+  
+
+  type(photosyns_type)   :: photosyns_inst  !ADDED BY LIQIANYU
+  !character(len=SHR_KIND_CL) :: NLFilename = 'lnd.stdin' ! Namelist filename
+  !call photosyns_inst%ReadNML(   NLFilename )
 
 
    ! Parameters
@@ -1020,12 +1034,15 @@ contains
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
    
-   associate( bb_slope  => EDPftvarcon_inst%BB_slope      , & ! slope of BB relationship
-      medlynslope=> EDPftvarcon_inst%medlynslope          , & ! Slope for Medlyn stomatal conductance model method added by LIQIANYU
-      medlynintercept=> EDPftvarcon_inst%medlynintercept  ) !Intercept for Medlyn stomatal conductance model method added by LIQIANYU
-
-     write (fates_log(),*) 'stomatalcond_mtd_lqy', stomatalcond_mtd
+   associate( & 
+      bb_slope  => EDPftvarcon_inst%BB_slope      , & ! slope of BB relationship
+      medlynslope => EDPftvarcon_inst%medlynslope          , & ! Slope for Medlyn stomatal conductance model method added by LIQIANYU
+      medlynintercept => EDPftvarcon_inst%medlynintercept  , & ! Intercept for Medlyn stomatal conductance model method added by LIQIANYU
+      stomatalcond_mtd => photosyns_inst%stomatalcond_mtd  &
+      ) !  added by LIQIANYU
      ! photosynthetic pathway: 0. = c4, 1. = c3
+   ! WRITE(fates_log(),*) ' medlynslope_lqy ',  medlynslope
+    WRITE(fates_log(),*) 'stomatalcond_mtd_lqy ', photosyns_inst%stomatalcond_mtd
      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
      
      bbbopt(0) = ED_val_bbopt_c4
