@@ -9,6 +9,9 @@ module FatesHydraulicsMemMod
    implicit none
    private
 
+   logical, parameter, public :: use_2d_hydrosolve = .true.
+   
+   
    ! Number of soil layers for indexing cohort fine root quanitities
    ! NOTE: The hydraulics code does have some capacity to run a single soil
    ! layer that was developed for comparisons with TFS. However, this has 

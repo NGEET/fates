@@ -62,7 +62,7 @@ module FatesPlantHydraulicsMod
   use FatesAllometryMod , only   : set_root_fraction
   use FatesAllometryMod , only   : i_hydro_rootprof_context
 
-
+  use FatesHydraulicsMemMod, only: use_2d_hydrosolve
   use FatesHydraulicsMemMod, only: ed_site_hydr_type
   use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only: n_hypool_plant
@@ -2214,18 +2214,14 @@ contains
     real(r8) :: aroot_frac_plant  ! The fraction of the total lenght of absorbing roots contained in one soil layer
                                   ! that are devoted to a single plant
 
-    ! hydraulics conductances
-    real(r8) :: kbg_layer(nlevsoi_hyd_max)     ! total absorbing root & rhizosphere conductance (over all shells) by soil layer   [MPa]
-    real(r8) :: kbg_tot                       ! total absorbing root & rhizosphere conductance (over all shells and soil layers  [MPa]
+   
     real(r8) :: psi_aroot                     ! matric potential in absorbing root [MPa]
     real(r8) :: ftc_aroot                     ! fraction of total conductance in absorbing root [-]
     real(r8) :: psi_shell                     ! matric potential of a given shell [-]
     real(r8) :: ftc_shell                     ! fraction of total cond. of a given rhiz shell [-]
     real(r8) :: kmax_up                       ! Kmax of upper rhizosphere compartments [kg s-1 Mpa-1]
     real(r8) :: kmax_lo                       ! Kamx of lower rhizosphere compartments [kg s-1 Mpa-1]
-    real(r8) :: kmax_aroot                    ! max conductance of the absorbing root [kg s-1 Mpa-1]
-    real(r8) :: r_bg                          ! total estimated resistance in below ground compartments
-                                              ! for each soil layer [s Mpa kg-1] (used to predict order in 1d solve)
+
     real(r8) :: wb_error                      ! Solve error for a single plant-layer [kg]
     real(r8) :: wb_error_site                 ! Error reflecting difference between site storage before and after
                                               ! integration, with the change in the uptake boundary condition
@@ -2247,8 +2243,7 @@ contains
     ! as defined by the input boundary condition
     real(r8) :: transp_col_check              ! Column mean transpiration rate [mm H2O/m2] as defined
     ! by the sum of water fluxes through the cohorts
-    real(r8) :: psi_inner_shell               ! matric potential of the inner shell, used for calculating
-                                              ! which kmax to use when forecasting uptake layer ordering [MPa]
+    
 
     real(r8) :: patch_wgt                     ! fraction of current patch relative to the whole site
     ! note that this is almost but not quite cpatch%area/AREA
@@ -2429,187 +2424,47 @@ contains
              !                      |_____|      |      |  k-1   |    k     |    k+1    |
              !---------------------------------------------------------------------------
 
-             ! Approach: do nlevsoi_hyd sequential solutions to Richards' equation,
-             !           each of which encompass all plant nodes and soil nodes for a given soil layer j,
-             !           with the timestep fraction for each layer-specific solution proportional to each 
-             ! layer's contribution to the total root-soil conductance
-             ! Water potential in plant nodes is updated after each solution
-             ! As such, the order across soil layers in which the solution is conducted matters.
-             ! For now, the order proceeds across soil layers in order of decreasing root-soil conductance
-             ! NET EFFECT: total water removed from plant-soil system remains the same: it 
-             !             sums up to total transpiration (qflx_tran_veg_indiv*dtime)
-             !             root water uptake in each layer is proportional to each layer's total 
-             !             root length density and soil matric potential
-             !             root hydraulic redistribution emerges within this sequence when a 
-             !             layers have transporting-to-absorbing root water potential gradients of opposite sign
-
-
-             kbg_tot = 0._r8
-             do j=1,site_hydr%nlevsoi_hyd
-
-                ! Path is between the absorbing root
-                ! and the first rhizosphere shell nodes
-                ! Special case. Maximum conductance depends on the 
-                ! potential gradient (same elevation, no geopotential
-                ! required.
-
-                psi_inner_shell = site_hydr%wrf_soil(j)%p%psi_from_th(site_hydr%h2osoi_liqvol_shell(j,1)) 
-
-                
-                ! Note, since their is no elevation difference between
-                ! the absorbing root and its layer, no need to calc
-                ! diff in total, just matric is fine [MPa]
-                if(ccohort_hydr%psi_aroot(j) < psi_inner_shell) then
-                   kmax_aroot = ccohort_hydr%kmax_aroot_radial_in(j)
-                else
-                   kmax_aroot = ccohort_hydr%kmax_aroot_radial_out(j)
-                end if
-
-                ! Get matric potential [Mpa] of the absorbing root
-                psi_aroot = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j))
-
-                ! Get Fraction of Total Conductivity [-] of the absorbing root
-                ftc_aroot = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
-
-                ! Calculate total effective conductance over path  [kg s-1 MPa-1]
-                ! from absorbing root node to 1st rhizosphere shell
-                r_bg = 1._r8/(kmax_aroot*ftc_aroot)
-
-                ! Path is across the upper an lower rhizosphere comparment
-                ! on each side of the nodes. Since there is no flow across the outer
-                ! node to the edge, we ignore that last half compartment
-                aroot_frac_plant = ccohort_hydr%l_aroot_layer(j)/site_hydr%l_aroot_layer(j)
-
-                do k = 1,nshell
-
-                   kmax_up = site_hydr%kmax_upper_shell(j,k)*aroot_frac_plant
-                   kmax_lo = site_hydr%kmax_lower_shell(j,k)*aroot_frac_plant
-                   
-                   psi_shell = site_hydr%wrf_soil(j)%p%psi_from_th(site_hydr%h2osoi_liqvol_shell(j,k))
-
-                   ftc_shell = site_hydr%wkf_soil(j)%p%ftc_from_psi(psi_shell)
-
-                   r_bg = r_bg + 1._r8/(kmax_up*ftc_shell)
-                   if(k<nshell) r_bg = r_bg + 1._r8/(kmax_lo*ftc_shell )
-                end do
-
-                !! upper bound limited to size()-1 b/c of zero-flux outer boundary condition
-                kbg_layer(j)        = 1._r8/r_bg
-                kbg_tot             = kbg_tot + kbg_layer(j)
-
-             enddo !soil layer
-
-             ! order soil layers in terms of decreasing volumetric water content
-             ! algorithm same as that used in histFileMod.F90 to alphabetize history tape contents
-             do j = site_hydr%nlevsoi_hyd-1,1,-1
-                do jj = 1,j
-                   if (kbg_layer(ordered(jj)) <= kbg_layer(ordered(jj+1))) then
-                      tmp           = ordered(jj)
-                      ordered(jj)   = ordered(jj+1)
-                      ordered(jj+1) = tmp
-                   end if
-                enddo
-             enddo
-
              ccohort_hydr%errh2o                   = 0._r8
              ccohort_hydr%iterh1                   = 0._r8
              ccohort_hydr%iterh2                   = 0._r8
              ccohort_hydr%iterlayer                = 0._r8
 
-             ! to go through soil layers in order of decreasing total root-soil conductance
-             do jj=1,site_hydr%nlevsoi_hyd
 
-                j = ordered(jj)
+             ! This routine will update the theta values for 1 cohort's flow-path
+             ! from leaf to the current soil layer.  This does NOT
+             ! update cohort%th_*
 
-                if(do_parallel_stem) then
-                   ! If we do "parallel" stem
-                   ! conduits, we integrate
-                   ! each layer over the whole time, but
-                   ! reduce the conductance cross section
-                   ! according to what fraction of root is active
-                   dt_step = dtime
-                else
-                   if(weight_serial_dt)then
-                      dt_step = dtime*kbg_layer(j)/kbg_tot
-                   else
-                      dt_step = dtime/real(site_hydr%nlevsoi_hyd,r8)
-                   end if
-                end if
-                   
+             if(use_2d_hydrosolve) then
 
-
-                ! This routine will update the theta values for 1 cohort's flow-path
-                ! from leaf to the current soil layer.  This does NOT
-                ! update cohort%th_*  
-                call ImTaylorSolve1D(ccohort,ccohort_hydr,site_hydr,bc_in(s), &
-                     j,dt_step,qflx_tran_veg_indiv, & 
-                     dth_node,sapflow,rootuptake,wb_error,iter,nsteps)
-
-                ! Record the layer with the most iterations, but only
-                ! if it greater than 1. It will default to zero
-                ! if no layers took extra iterations.
-                if( (real(iter)>ccohort_hydr%iterh1) .and. (iter>1) )then
-                   ccohort_hydr%iterlayer = real(j)
-                end if
-
-                ! Save the number of times we refined our sub-step counts (iterh1)
-                ccohort_hydr%iterh1 = max(ccohort_hydr%iterh1,real(iter))
-                ! Save the number of sub-steps we ultimately used
-                ccohort_hydr%iterh2 = max(ccohort_hydr%iterh2,real(nsteps))
-
-                ! Update water contents in the relevant plant compartments [m3/m3]
-
-                ! Leaf and above-ground stems
-                ccohort_hydr%th_ag(1:n_hypool_ag) = ccohort_hydr%th_ag(1:n_hypool_ag) + dth_node(1:n_hypool_ag)
-                ! Transporting root
-                ccohort_hydr%th_troot = ccohort_hydr%th_troot + dth_node(n_hypool_ag+1)
-                ! Absorbing root
-                ccohort_hydr%th_aroot(j)  = ccohort_hydr%th_aroot(j) + dth_node(n_hypool_ag+2)
-
-
-                ! Change in water per plant [kg/plant]
-                dwat_veg_coh                          = &
-                     (sum(dth_node(1:n_hypool_ag)*ccohort_hydr%v_ag(1:n_hypool_ag)) + &
-                          dth_node(n_hypool_ag+1)*ccohort_hydr%v_troot + & 
-                          dth_node(n_hypool_ag+2)*ccohort_hydr%v_aroot_layer(j))*denh2o
-
-                ! Accumulate site level diagnosti of plant water change
-                site_hydr%dwat_veg   = site_hydr%dwat_veg + dwat_veg_coh*ccohort%n*AREA_INV
-
-                ! Update total site-level stored plant water
-                site_hydr%h2oveg     = site_hydr%h2oveg + dwat_veg_coh*ccohort%n*AREA_INV
+                call MatSolve2D(site_hydr,bc_in(s),cohort,cohort_hydr, &
+                                dtime,qflx_tran_veg_indiv, &
+                                sapflow,rootuptake,wb_error,iter,nsteps)
                 
-                ! Remember the error for the cohort
-                ccohort_hydr%errh2o  = ccohort_hydr%errh2o + wb_error
+             else
 
-                ! Update total error in [kg/m2 ground]
-                ! (RGK: should this be  + wb_error*ccohort%n/ccohort%c_area ???
-                site_hydr%errh2o_hyd = site_hydr%errh2o_hyd + wb_error*ccohort%c_area*AREA_INV
-
-
-                ccohort_hydr%sapflow       = ccohort_hydr%sapflow + sapflow
-                ccohort_hydr%rootuptake(j) = ccohort_hydr%rootuptake(j) + rootuptake
-
-                ! Save the change in water mass in the rhizosphere. Note that we did
-                ! not immediately update the state variables upon completing each
-                ! plant-layer solve. We accumulate the difference, and apply them
-                ! after all cohort-layers are complete. This allows each cohort
-                ! to experience the same water conditions (for good or bad).
-
-                if(site_hydr%l_aroot_layer(j)<nearzero)then
-                    write(fates_log(),*) 'no site level root?'
-                    write(fates_log(),*) j,site_hydr%l_aroot_layer(j)
-                    write(fates_log(),*) ccohort_hydr%l_aroot_layer(j)
-                end if
-
-                dth_layershell_col(j,:) = dth_layershell_col(j,:) + &
-                     dth_node((n_hypool_tot-nshell+1):n_hypool_tot) * & 
-                     ccohort_hydr%l_aroot_layer(j) * &
-                     ccohort%n / site_hydr%l_aroot_layer(j)
-
+                ! ---------------------------------------------------------------------------------
+                ! Approach: do nlevsoi_hyd sequential solutions to Richards' equation,
+                !           each of which encompass all plant nodes and soil nodes for a given soil layer j,
+                !           with the timestep fraction for each layer-specific solution proportional to each 
+                ! layer's contribution to the total root-soil conductance
+                ! Water potential in plant nodes is updated after each solution
+                ! As such, the order across soil layers in which the solution is conducted matters.
+                ! For now, the order proceeds across soil layers in order of decreasing root-soil conductance
+                ! NET EFFECT: total water removed from plant-soil system remains the same: it 
+                !             sums up to total transpiration (qflx_tran_veg_indiv*dtime)
+                !             root water uptake in each layer is proportional to each layer's total 
+                !             root length density and soil matric potential
+                !             root hydraulic redistribution emerges within this sequence when a 
+                !             layers have transporting-to-absorbing root water potential gradients of opposite sign
+                ! -----------------------------------------------------------------------------------
                 
-                     
-             enddo !soil layer
+                call OrderLayersForSolve1D(site_hydr,cohort_hydr,ordered)
+                
+                call ImTaylorSolve1D(site_hydr,bc_in(s),ccohort,ccohort_hydr, &
+                                     dtime,qflx_tran_veg_indiv,ordered, & 
+                                     sapflow,rootuptake,wb_error,nsteps)
+                
+             end if
 
              ! ---------------------------------------------------------
              ! Update water potential and frac total conductivity
@@ -2617,7 +2472,6 @@ contains
              ! ---------------------------------------------------------
              
              call UpdateTreePsiFTCFromTheta(ccohort,site_hydr)
-
 
 
              ccohort => ccohort%shorter
@@ -2832,10 +2686,6 @@ contains
     ! Get the cross-section of the plant's sapwood area [m2]
     call bsap_allom(ccohort%dbh,pft,ccohort%canopy_trim,a_sapwood,c_sap_dummy)
 
-
-
-
-
     ! Leaf Maximum Hydraulic Conductance
     ! The starting hypothesis is that there is no resistance inside the
     ! leaf, between the petiole and the center of storage.  To override
@@ -3007,8 +2857,6 @@ contains
 
        ccohort_hydr%kmax_aroot_radial_out(j) = hydr_kmax_rsurf2 * surfarea_aroot_layer
 
-       
-
     end do
 
     !write(fates_log(),*) 'ksu:',ccohort_hydr%kmax_stem_upper(:)
@@ -3024,8 +2872,109 @@ contains
 
   ! ===================================================================================
 
+  subroutine OrderLayersForSolve1D(site_hydr,cohort_hydr,ordered )
+    
+    ! Arguments (IN)
+    type(ed_site_hydr_type), intent(in),target   :: site_hydr
+    type(ed_cohort_hydr_type),intent(in),target  :: cohort_hydr
+
+
+    ! Arguments (INOUT)
+    integer, intent(inout)                       :: ordered(:)
+    
+    ! Locals
+    
+    real(r8) :: kbg_layer(nlevsoi_hyd_max) ! total absorbing root & rhizosphere conductance (over all shells) by soil layer   [MPa]
+    real(r8) :: kbg_tot                    ! total absorbing root & rhizosphere conductance (over all shells and soil layers  [MPa]
+    real(r8) :: psi_inner_shell            ! matric potential of the inner shell, used for calculating
+                                           ! which kmax to use when forecasting uptake layer ordering [MPa]
+    real(r8) :: psi_aroot                  ! matric potential of absorbing root [MPa]
+    real(r8) :: kmax_aroot                 ! max conductance of the absorbing root [kg s-1 Mpa-1]
+    real(r8) :: r_bg                       ! total estimated resistance in below ground compartments
+                                           ! for each soil layer [s Mpa kg-1] (used to predict order in 1d solve)
+    real(r8) :: aroot_frac_plant           ! This is the fraction of absorbing root from one plant
+    real(r8) :: kmax_lo                    ! maximum conductance of lower (away from atm) half of path [kg s-1 Mpa-1]
+    real(r8) :: kmax_up                    ! maximum conductance of upper (close to atm)  half of path [kg s-1 MPa-1]
+    real(r8) :: psi_shell                  ! matric potential of a given shell [-]
+    real(r8) :: ftc_shell                  ! fraction of total cond. of a given rhiz shell [-]
+    integer  :: tmp                        ! temporarily holds a soil layer index
+    integer  :: j,jj,k                     ! layer and shell indices
+
+    
+    kbg_tot = 0._r8
+    do j=1,site_hydr%nlevsoi_hyd
+       
+       ! Path is between the absorbing root
+       ! and the first rhizosphere shell nodes
+       ! Special case. Maximum conductance depends on the 
+       ! potential gradient (same elevation, no geopotential
+       ! required.
+       
+       psi_inner_shell = site_hydr%wrf_soil(j)%p%psi_from_th(site_hydr%h2osoi_liqvol_shell(j,1)) 
+
+       ! Note, since their is no elevation difference between
+       ! the absorbing root and its layer, no need to calc
+       ! diff in total, just matric is fine [MPa]
+       if(ccohort_hydr%psi_aroot(j) < psi_inner_shell) then
+          kmax_aroot = ccohort_hydr%kmax_aroot_radial_in(j)
+       else
+          kmax_aroot = ccohort_hydr%kmax_aroot_radial_out(j)
+       end if
+       
+       ! Get matric potential [Mpa] of the absorbing root
+       psi_aroot = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j))
+       
+       ! Get Fraction of Total Conductivity [-] of the absorbing root
+       ftc_aroot = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
+       
+       ! Calculate total effective conductance over path  [kg s-1 MPa-1]
+       ! from absorbing root node to 1st rhizosphere shell
+       r_bg = 1._r8/(kmax_aroot*ftc_aroot)
+       
+       ! Path is across the upper an lower rhizosphere comparment
+       ! on each side of the nodes. Since there is no flow across the outer
+       ! node to the edge, we ignore that last half compartment
+       aroot_frac_plant = ccohort_hydr%l_aroot_layer(j)/site_hydr%l_aroot_layer(j)
+       
+       do k = 1,nshell
+          
+          kmax_up = site_hydr%kmax_upper_shell(j,k)*aroot_frac_plant
+          kmax_lo = site_hydr%kmax_lower_shell(j,k)*aroot_frac_plant
+          
+          psi_shell = site_hydr%wrf_soil(j)%p%psi_from_th(site_hydr%h2osoi_liqvol_shell(j,k))
+          
+          ftc_shell = site_hydr%wkf_soil(j)%p%ftc_from_psi(psi_shell)
+          
+          r_bg = r_bg + 1._r8/(kmax_up*ftc_shell)
+          if(k<nshell) r_bg = r_bg + 1._r8/(kmax_lo*ftc_shell )
+       end do
+       
+       !! upper bound limited to size()-1 b/c of zero-flux outer boundary condition
+       kbg_layer(j)        = 1._r8/r_bg
+       kbg_tot             = kbg_tot + kbg_layer(j)
+       
+    enddo !soil layer
+
+    ! order soil layers in terms of decreasing volumetric water content
+    ! algorithm same as that used in histFileMod.F90 to alphabetize history tape contents
+    do j = site_hydr%nlevsoi_hyd-1,1,-1
+       do jj = 1,j
+          if (kbg_layer(ordered(jj)) <= kbg_layer(ordered(jj+1))) then
+             tmp           = ordered(jj)
+             ordered(jj)   = ordered(jj+1)
+             ordered(jj+1) = tmp
+          end if
+       enddo
+    enddo
+
+    
+    return
+  end subroutine OrderLayersForSolve1D
+  
+  ! =================================================================================
+  
   subroutine ImTaylorSolve1D(cohort,cohort_hydr,site_hydr,bc_in,ilayer,dt_step,q_top, &
-       dth_node,sapflow,rootuptake,wb_err,iter,nsteps)
+       dth_node,sapflow,rootuptake,wb_err,nsteps)
 
     ! -------------------------------------------------------------------------------
     ! Calculate the hydraulic conductances across a list of paths.  The list is a 1D vector, and
@@ -3123,6 +3072,30 @@ contains
     logical, parameter :: no_ftc_radialk = .false.
     logical, parameter :: do_scale_allkmax_rootfr = .true.
 
+
+
+    ! to go through soil layers in order of decreasing total root-soil conductance
+             do jj=1,site_hydr%nlevsoi_hyd
+
+                j = ordered(jj)
+
+                if(do_parallel_stem) then
+                   ! If we do "parallel" stem
+                   ! conduits, we integrate
+                   ! each layer over the whole time, but
+                   ! reduce the conductance cross section
+                   ! according to what fraction of root is active
+                   dt_step = dtime
+                else
+                   if(weight_serial_dt)then
+                      dt_step = dtime*kbg_layer(j)/kbg_tot
+                   else
+                      dt_step = dtime/real(site_hydr%nlevsoi_hyd,r8)
+                   end if
+                end if
+                   
+
+    
     ! -------------------------------------------------------------------------------
     ! Part 1.  Calculate node quantities:
     !          matric potential: psi_node
@@ -3637,6 +3610,73 @@ contains
 
 
 
+                ! Record the layer with the most iterations, but only
+                ! if it greater than 1. It will default to zero
+                ! if no layers took extra iterations.
+                if( (real(iter)>ccohort_hydr%iterh1) .and. (iter>1) )then
+                   ccohort_hydr%iterlayer = real(j)
+                end if
+
+                ! Save the number of times we refined our sub-step counts (iterh1)
+                ccohort_hydr%iterh1 = max(ccohort_hydr%iterh1,real(iter))
+                ! Save the number of sub-steps we ultimately used
+                ccohort_hydr%iterh2 = max(ccohort_hydr%iterh2,real(nsteps))
+
+                ! Update water contents in the relevant plant compartments [m3/m3]
+
+                ! Leaf and above-ground stems
+                ccohort_hydr%th_ag(1:n_hypool_ag) = ccohort_hydr%th_ag(1:n_hypool_ag) + dth_node(1:n_hypool_ag)
+                ! Transporting root
+                ccohort_hydr%th_troot = ccohort_hydr%th_troot + dth_node(n_hypool_ag+1)
+                ! Absorbing root
+                ccohort_hydr%th_aroot(j)  = ccohort_hydr%th_aroot(j) + dth_node(n_hypool_ag+2)
+
+
+                ! Change in water per plant [kg/plant]
+                dwat_veg_coh                          = &
+                     (sum(dth_node(1:n_hypool_ag)*ccohort_hydr%v_ag(1:n_hypool_ag)) + &
+                          dth_node(n_hypool_ag+1)*ccohort_hydr%v_troot + & 
+                          dth_node(n_hypool_ag+2)*ccohort_hydr%v_aroot_layer(j))*denh2o
+
+                ! Accumulate site level diagnosti of plant water change
+                site_hydr%dwat_veg   = site_hydr%dwat_veg + dwat_veg_coh*ccohort%n*AREA_INV
+
+                ! Update total site-level stored plant water
+                site_hydr%h2oveg     = site_hydr%h2oveg + dwat_veg_coh*ccohort%n*AREA_INV
+                
+                ! Remember the error for the cohort
+                ccohort_hydr%errh2o  = ccohort_hydr%errh2o + wb_error
+
+                ! Update total error in [kg/m2 ground]
+                ! (RGK: should this be  + wb_error*ccohort%n/ccohort%c_area ???
+                site_hydr%errh2o_hyd = site_hydr%errh2o_hyd + wb_error*ccohort%c_area*AREA_INV
+
+
+                ccohort_hydr%sapflow       = ccohort_hydr%sapflow + sapflow
+                ccohort_hydr%rootuptake(j) = ccohort_hydr%rootuptake(j) + rootuptake
+
+                ! Save the change in water mass in the rhizosphere. Note that we did
+                ! not immediately update the state variables upon completing each
+                ! plant-layer solve. We accumulate the difference, and apply them
+                ! after all cohort-layers are complete. This allows each cohort
+                ! to experience the same water conditions (for good or bad).
+
+                if(site_hydr%l_aroot_layer(j)<nearzero)then
+                    write(fates_log(),*) 'no site level root?'
+                    write(fates_log(),*) j,site_hydr%l_aroot_layer(j)
+                    write(fates_log(),*) ccohort_hydr%l_aroot_layer(j)
+                end if
+
+                dth_layershell_col(j,:) = dth_layershell_col(j,:) + &
+                     dth_node((n_hypool_tot-nshell+1):n_hypool_tot) * & 
+                     ccohort_hydr%l_aroot_layer(j) * &
+                     ccohort%n / site_hydr%l_aroot_layer(j)
+
+                
+                     
+             enddo !soil layer
+
+    
     return
   end subroutine ImTaylorSolve1D
 
