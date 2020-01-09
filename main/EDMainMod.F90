@@ -442,7 +442,7 @@ contains
           end if
 
           ! if we are in age-dependent mortality mode
-          if (ED_val_cohort_age_fusion_tol > 0.0_r8) then
+          if (ED_val_cohort_age_fusion_tol < 10000.0_r8) then
           ! update cohort age
           currentCohort%coage = currentCohort%coage + hlm_freq_day
           if(currentCohort%coage < 0.0_r8)then

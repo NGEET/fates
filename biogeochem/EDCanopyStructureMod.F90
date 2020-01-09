@@ -1325,7 +1325,7 @@ contains
              call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                   currentCohort%size_class,currentCohort%size_by_pft_class)
 
-             if (ED_val_cohort_age_fusion_tol > 0.0_r8) then
+             if (ED_val_cohort_age_fusion_tol < 10000.0_r8) then
              call coagetype_class_index(currentCohort%coage,currentCohort%pft, &
                   currentCohort%coage_class,currentCohort%coage_by_pft_class)
           end if

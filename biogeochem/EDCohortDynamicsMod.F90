@@ -1082,7 +1082,7 @@ contains
                                                       (nextc%coage * (nextc%n/(currentCohort%n + nextc%n)))
 
                                 ! update the cohort age again
-                                if (ED_val_cohort_age_fusion_tol > 0.0_r8) then 
+                                if (ED_val_cohort_age_fusion_tol < 10000.0_r8) then 
                                    call coagetype_class_index(currentCohort%coage, currentCohort%pft, &
                                         currentCohort%coage_class, currentCohort%coage_by_pft_class)
                                 end if

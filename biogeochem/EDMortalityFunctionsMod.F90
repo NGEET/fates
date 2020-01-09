@@ -51,7 +51,7 @@ contains
     ! ============================================================================
     
     use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
-   
+    use FatesInterfaceMod        , only : hlm_hio_ignore_val   
 
     type (ed_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
@@ -88,8 +88,7 @@ contains
     mort_r_size_senescence = EDPftvarcon_inst%mort_r_size_senescence(cohort_in%pft)
     mort_ip_size_senescence = EDPftvarcon_inst%mort_ip_size_senescence(cohort_in%pft)
 
-    ! if the user has set the inflection point to be a huge number then
-    ! we zero smort (even though it would essentially be zero anyway)
+       ! if param values have been set then calculate smort
     if (mort_ip_size_senescence < 10000 ) then 
        smort = 1.0_r8 / ( 1.0_r8 + exp( -1.0_r8 * mort_r_size_senescence * &
             (cohort_in%dbh - mort_ip_size_senescence) ) ) 
@@ -97,9 +96,9 @@ contains
        smort = 0.0_r8
     end if
 
-    ! if user has set cohort age fusion param > 0 we calculate age
+    ! if user has set cohort age fusion param to not be _ we calculate age
     ! dependent mortality
-    if (ED_val_cohort_age_fusion_tol > 0.0_r8) then
+    if (ED_val_cohort_age_fusion_tol < 10000.0_r8) then
        ! Age Dependent Senescence
        ! rate and inflection point define the change in mortality with age
        mort_r_age_senescence = EDPftvarcon_inst%mort_r_age_senescence(cohort_in%pft)
