@@ -374,6 +374,101 @@ module FatesHydraulicsMemMod
        return
     end subroutine InitHydrSite
 
+! =====================================================================================
+   subroutine SetPhsOrganConnection(this)
+!
+     ! ARGUMENTS:
+     ! -----------------------------------------------------------------------------------
+     integer :: k  ! local indexing
+     integer :: num_cnxs
+     integer :: num_nds
+     integer :: nt_ab
+     integer :: s, c, pi, p_t
+     class(ed_cohort_hydr_type),intent(inout) :: this
+    !----------------------------------------------------------------------
+             
+     associate( &
+          conn_up => this%conn_up, &
+          conn_dn => this%conn_dn, &
+          pm_type => this%pm_type & 
+          )
+!
+          pm_type(:) = 0
+          num_nds = 0
+          num_cnxs = 0
+          do k = 1, n_hypool_leaf
+             pm_type(k) = k
+             num_nds = num_nds + 1
+             num_cnxs = num_cnxs + 1
+             conn_dn(num_cnxs) = k           !leaf is the dn, origin, bottom
+             conn_up(num_cnxs) = k + 1
+          enddo
+          do k = n_hypool_leaf+1, n_hypool_ag
+             pm_type(k) = k
+             num_nds = num_nds + 1
+             num_cnxs = num_cnxs + 1
+             conn_dn(num_cnxs) = k
+             conn_up(num_cnxs) = k+1
+          enddo
+          do k=n_hypool_ag+1, n_hypool_ag+n_hypool_troot
+             pm_type(k) = k
+             num_nds = num_nds + 1
+          enddo
+     end associate
+!
+   end subroutine SetPhsOrganConnection
+  ! =====================================================================================
+   subroutine SetPhsSoilConnection(this)
+!
+     ! ARGUMENTS:
+     ! -----------------------------------------------------------------------------------
+     integer :: j,k  ! local indexing
+     integer :: num_cnxs
+     integer :: num_cnx
+     integer :: num_nds
+     integer :: nt_ab
+     integer :: node_tr_end
+     class(ed_cohort_hydr_type),intent(inout) :: this
+     ! lower - towards the soil (k relate to _dn), upper - towards the atmosphere
+     ! (k+1 to  _up)
+     !
+    !----------------------------------------------------------------------
+     associate( &
+       conn_up => this%conn_up, &
+       conn_dn => this%conn_dn, &
+       pm_type => this%pm_type, & 
+       nlevsoil_hyd => this%nlevsoi_hyd &
+       )
+       num_nds = n_hypool_ag+n_hypool_troot
+       node_tr_end = num_nds
+       nt_ab = n_hypool_ag+n_hypool_troot+n_hypool_aroot
+       num_cnxs = n_hypool_ag
+       do j = 1,nlevsoil_hyd
+         do k = 1, n_hypool_aroot + nshell
+           num_nds = num_nds + 1
+           if(k <=n_hypool_aroot) then
+             pm_type(num_nds) = n_hypool_ag+n_hypool_troot+k
+           else
+             pm_type(num_nds) = nt_ab+j
+           endif
+           num_cnxs = num_cnxs + 1
+           if( k == 1 ) then !troot-aroot
+             !junction node
+             conn_dn(num_cnxs) = node_tr_end !absorbing root
+             conn_up(num_cnxs) = num_nds
+           else
+             conn_dn(num_cnxs) = num_nds - 1
+             conn_up(num_cnxs) = num_nds
+           endif
+         enddo
+!
+       enddo ! end soil layer
+     end associate
+   end subroutine SetPhsSoilConnection
+    
+    ! ===================================================================================
+
+    
 
 
     
