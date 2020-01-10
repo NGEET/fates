@@ -1,0 +1,15 @@
+# Set the default end of line behavior (i.e. normalization to `lf` upon commit) for all git users for this repo 
+* text=auto
+
+# Explicitly declare to git which files should be normalized
+*.cdl
+*.F90
+*.F90_in
+*.mod
+*.py
+*.sh
+*.txt
+*.xml
+
+# Declare to git which file types are binary files and should not have end of line modified
+*.mod binary
