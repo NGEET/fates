@@ -136,9 +136,20 @@ module FatesHydraulicsMemMod
      class(wrf_arr_type), pointer :: wrf_soil(:)       ! Water retention function for soil layers
      class(wkf_arr_type), pointer :: wkf_soil(:)       ! Water conductivity (K) function for soil
 
+     ! For the matrix version of the solver we need to define the connection
+     ! and type map for the whole system of compartments, from the soil to leaf
+     ! as one vector
+     
+     integer, parameter, public              :: num_connections   
+     integer, allocatable, public, protected :: conn_up(:)
+     integer, allocatable, public, protected :: conn_dn(:)
+     integer, allocatable, public, protected :: pm_type(:)
+
+     
   contains
      
-     procedure :: InitHydrSite
+    procedure :: InitHydrSite
+    procedure :: SetConnections
      
   end type ed_site_hydr_type
 
@@ -368,12 +379,67 @@ module FatesHydraulicsMemMod
          allocate(this%wrf_soil(1:nlevsoil_hyd))
          allocate(this%wkf_soil(1:nlevsoil_hyd))
 
+         if(use_2d_hydrosolve) then
+            
+            this%num_connections =  n_hypool_leaf + n_hypool_stem + n_hypool_troot - 1  &
+                                 + (n_hypool_aroot + nshell) * nlevsoil_hyd
+
+
+            allocate(this%conn_up(this%num_connections))
+            allocate(this%conn_dn(this%num_connections))
+            
+         end if
+         
          
        end associate
 
        return
     end subroutine InitHydrSite
 
+    subroutine SetConnections(this)
+      
+     class(ed_site_hydr_type),intent(inout) :: this
+      
+     integer :: k, j
+     integer :: num_cnxs
+     integer :: num_nds
+     integer :: nt_ab
+     
+     num_cnxs = 0
+     do k = 1, n_hypool_leaf
+        num_cnxs = num_cnxs + 1
+        conn_dn(num_cnxs) = k           !leaf is the dn, origin, bottom
+        conn_up(num_cnxs) = k + 1
+     enddo
+     do k = n_hypool_leaf+1, n_hypool_ag
+        num_cnxs = num_cnxs + 1
+        conn_dn(num_cnxs) = k
+        conn_up(num_cnxs) = k+1
+     enddo
+     
+     num_nds     = n_hypool_ag+n_hypool_troot
+     node_tr_end = num_nds
+     nt_ab       = n_hypool_ag+n_hypool_troot+n_hypool_aroot
+     num_cnxs    = n_hypool_ag
+     
+     do j = 1,this%nlevsoil_hyd
+        do k = 1, n_hypool_aroot + nshell
+           num_nds  = num_nds + 1
+           num_cnxs = num_cnxs + 1
+           if( k == 1 ) then !troot-aroot
+             !junction node
+             conn_dn(num_cnxs) = node_tr_end !absorbing root
+             conn_up(num_cnxs) = num_nds
+           else
+             conn_dn(num_cnxs) = num_nds - 1
+             conn_up(num_cnxs) = num_nds
+           endif
+         enddo
+      end do
+      
+    end subroutine SetConnections
+
+    
 ! =====================================================================================
    subroutine SetPhsOrganConnection(this)
 !
