@@ -9,7 +9,7 @@ module FatesHydraulicsMemMod
    implicit none
    private
 
-   logical, parameter, public :: use_2d_hydrosolve = .true.
+   logical, parameter, public :: use_2d_hydrosolve = .false.
    
    
    ! Number of soil layers for indexing cohort fine root quanitities
@@ -103,7 +103,7 @@ module FatesHydraulicsMemMod
                                                     ! defined at the end of the hydraulics sequence
                                                     ! after root water has been extracted.  This should
                                                     ! be equal to the sum of the water over the rhizosphere shells
-     
+                                                    ! [kg/m2]
      
      real(r8),allocatable :: recruit_w_uptake(:)    ! recruitment water uptake (kg H2o/m2/s)
 
