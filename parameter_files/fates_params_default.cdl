@@ -7,7 +7,7 @@ dimensions:
 	fates_history_coage_bins = 1 ;
 	fates_hydr_organs = 4 ;
 	fates_leafage_class = 1 ;
-	fates_litterclass = 6 ;
+	fates_litterclass = 6 ;%
 	fates_pft = 12 ;
 	fates_prt_organs = 6 ;
 	fates_string_length = 60 ;
@@ -51,13 +51,13 @@ variables:
 		fates_allom_agb_frac:long_name = "Fraction of woody biomass that is above ground" ;
 	double fates_allom_amode(fates_pft) ;
 		fates_allom_amode:units = "index" ;
-		fates_allom_amode:long_name = "AGB allometry function index" ;
+		fates_allom_amode:long_name = "AGB allometry function index. Possible values: 1: Saldarriaga 1998; 2: 2 parameter power law; 3: Chave 2014" ;
 	double fates_allom_blca_expnt_diff(fates_pft) ;
 		fates_allom_blca_expnt_diff:units = "unitless" ;
 		fates_allom_blca_expnt_diff:long_name = "difference between allometric DBH:bleaf and DBH:crown area exponents" ;
 	double fates_allom_cmode(fates_pft) ;
 		fates_allom_cmode:units = "index" ;
-		fates_allom_cmode:long_name = "coarse root biomass allometry function index" ;
+		fates_allom_cmode:long_name = "coarse root biomass allometry function index. Accepted Values: 1: Constant fraction on AGB" ;
 	double fates_allom_d2bl1(fates_pft) ;
 		fates_allom_d2bl1:units = "variable" ;
 		fates_allom_d2bl1:long_name = "Parameter 1 for d2bl allometry" ;
@@ -87,13 +87,13 @@ variables:
 		fates_allom_dbh_maxheight:long_name = "the diameter (if any) corresponding to maximum height, diameters may increase beyond this" ;
 	double fates_allom_fmode(fates_pft) ;
 		fates_allom_fmode:units = "index" ;
-		fates_allom_fmode:long_name = "fine root biomass allometry function index" ;
+		fates_allom_fmode:long_name = "fine root biomass allometry function index. Accepted Values: 1: constant fraction of trimmed bleaf; 2: constant fraction of untrimmed bleaf." ;
 	double fates_allom_frbstor_repro(fates_pft) ;
 		fates_allom_frbstor_repro:units = "fraction" ;
 		fates_allom_frbstor_repro:long_name = "fraction of bstore goes to reproduction after plant dies" ;
 	double fates_allom_hmode(fates_pft) ;
 		fates_allom_hmode:units = "index" ;
-		fates_allom_hmode:long_name = "height allometry function index" ;
+		fates_allom_hmode:long_name = "height allometry function index. Accepted Values: 1: O'Brien 1995; 2: Poorter 2006; 3: 2 parameter power law; 4: Chave 2014; 5: Martinez-Cano 2019." ;
 	double fates_allom_l2fr(fates_pft) ;
 		fates_allom_l2fr:units = "gC/gC" ;
 		fates_allom_l2fr:long_name = "Allocation parameter: fine root C per leaf C" ;
@@ -105,16 +105,16 @@ variables:
 		fates_allom_la_per_sa_slp:long_name = "Leaf area per sapwood area rate of change with height, slope (optional)" ;
 	double fates_allom_lmode(fates_pft) ;
 		fates_allom_lmode:units = "index" ;
-		fates_allom_lmode:long_name = "leaf biomass allometry function index" ;
+		fates_allom_lmode:long_name = "leaf biomass allometry function index. Accepted Values: 1: Saldarriaga 1998 (capped-dbh power law); 2: generic power law; 3: generic capped-dbh power law." ;
 	double fates_allom_sai_scaler(fates_pft) ;
 		fates_allom_sai_scaler:units = "m2/m2" ;
 		fates_allom_sai_scaler:long_name = "allometric ratio of SAI per LAI" ;
 	double fates_allom_smode(fates_pft) ;
 		fates_allom_smode:units = "index" ;
-		fates_allom_smode:long_name = "sapwood allometry function index" ;
+		fates_allom_smode:long_name = "sapwood allometry function index. Accepted Values: 1: sapwood area proportional to leaf area based on target leaf biomass" ;
 	double fates_allom_stmode(fates_pft) ;
 		fates_allom_stmode:units = "index" ;
-		fates_allom_stmode:long_name = "storage allometry function index" ;
+		fates_allom_stmode:long_name = "storage allometry function index. Accepted Values: 1: target storage proportional to trimmed maximum leaf biomass." ;
 	double fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
@@ -477,7 +477,7 @@ variables:
 		fates_turnover_phos_retrans:long_name = "retranslocation fraction of phosphorous in turnover, parameter 1" ;
 	double fates_turnover_retrans_mode(fates_pft) ;
 		fates_turnover_retrans_mode:units = "index" ;
-		fates_turnover_retrans_mode:long_name = "retranslocation method for leaf/fineroot turnover" ;
+		fates_turnover_retrans_mode:long_name = "retranslocation method for leaf/fineroot turnover. Accepted Values: 1: constant fraction." ;
 	double fates_wood_density(fates_pft) ;
 		fates_wood_density:units = "g/cm3" ;
 		fates_wood_density:long_name = "mean density of woody tissue in plant" ;
@@ -537,7 +537,7 @@ variables:
 		fates_cohort_size_fusion_tol:long_name = "minimum fraction in difference in dbh between cohorts" ;
 	double fates_comp_excln ;
 		fates_comp_excln:units = "none" ;
-		fates_comp_excln:long_name = "weighting factor (exponent on dbh) for canopy layer exclusion and promotion" ;
+		fates_comp_excln:long_name = "IF POSITIVE: weighting factor (exponent on dbh) for canopy layer exclusion and promotion, IF NEGATIVE: switch to use deterministic height sorting" ;
 	double fates_cwd_fcel ;
 		fates_cwd_fcel:units = "unitless" ;
 		fates_cwd_fcel:long_name = "Cellulose fraction for CWD" ;
