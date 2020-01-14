@@ -7,7 +7,7 @@ dimensions:
 	fates_history_coage_bins = 1 ;
 	fates_hydr_organs = 4 ;
 	fates_leafage_class = 1 ;
-	fates_litterclass = 6 ;%
+	fates_litterclass = 6 ;
 	fates_pft = 12 ;
 	fates_prt_organs = 6 ;
 	fates_string_length = 60 ;
