@@ -141,7 +141,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_TFC_ROS_pa
   integer :: ih_fire_intensity_pa
   integer :: ih_fire_area_pa
- ! integer :: ih_scorch_height_pa
   integer :: ih_fire_fuel_bulkd_pa
   integer :: ih_fire_fuel_eff_moist_pa
   integer :: ih_fire_fuel_sav_pa
@@ -207,6 +206,8 @@ module FatesHistoryInterfaceMod
   ! Indices to site by patch age by pft variables
   integer :: ih_biomass_si_agepft
   integer :: ih_npp_si_agepft
+  integer :: ih_nplant_si_agepft
+  integer :: ih_scorch_height_si_agepft
 
   ! Indices to (site) variables
 
@@ -1631,7 +1632,6 @@ end subroutine flush_hvars
                hio_effect_wspeed_pa    => this%hvars(ih_effect_wspeed_pa)%r81d, &
                hio_fire_intensity_pa   => this%hvars(ih_fire_intensity_pa)%r81d, &
                hio_fire_area_pa        => this%hvars(ih_fire_area_pa)%r81d, &
-              ! hio_scorch_height_pa    => this%hvars(ih_scorch_height_pa)%r81d, &
                hio_fire_fuel_bulkd_pa  => this%hvars(ih_fire_fuel_bulkd_pa)%r81d, &
                hio_fire_fuel_eff_moist_pa => this%hvars(ih_fire_fuel_eff_moist_pa)%r81d, &
                hio_fire_fuel_sav_pa    => this%hvars(ih_fire_fuel_sav_pa)%r81d, &
@@ -1775,6 +1775,8 @@ end subroutine flush_hvars
                hio_nplant_si_scagpft                => this%hvars(ih_nplant_si_scagpft)%r82d, &
                hio_npp_si_agepft                    => this%hvars(ih_npp_si_agepft)%r82d, &
                hio_biomass_si_agepft                => this%hvars(ih_biomass_si_agepft)%r82d, &
+               hio_nplant_si_agepft                 => this%hvars(ih_nplant_si_agepft)%r82d, &
+               hio_scorch_height_si_agepft          => this%hvars(ih_scorch_height_si_agepft)%r82d, &
                hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
                hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
@@ -2206,6 +2208,14 @@ end subroutine flush_hvars
                     hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
                           total_c * ccohort%n * AREA_INV
 
+                    hio_nplant_si_agepft(io_si,iagepft) = hio_nplant_si_agepft(io_si,iagepft) + &
+                          ccohort%n
+
+                    !!! Scorch Height.  Should be identical for all cohorts of a given PFT in a given patch.  
+                    !!! in the event that there is more than one patch in this age bin, weight the answer by 
+                    !!! the number of individuals in the respective patches.
+                    hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
+                          ccohort%Scorch_ht * ccohort%n
              
 
                     ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
@@ -2438,7 +2448,6 @@ end subroutine flush_hvars
             hio_tfc_ros_pa(io_pa)              = cpatch%TFC_ROS
             hio_fire_intensity_pa(io_pa)       = cpatch%FI
             hio_fire_area_pa(io_pa)            = cpatch%frac_burnt
-            !hio_scorch_height_pa(io_pa)        = cpatch%SH
             hio_fire_fuel_bulkd_pa(io_pa)      = cpatch%fuel_bulkd
             hio_fire_fuel_eff_moist_pa(io_pa)  = cpatch%fuel_eff_moist
             hio_fire_fuel_sav_pa(io_pa)        = cpatch%fuel_sav
@@ -2482,6 +2491,14 @@ end subroutine flush_hvars
             else
                hio_lai_si_age(io_si, ipa2) = 0._r8
                hio_ncl_si_age(io_si, ipa2) = 0._r8
+            endif
+         end do
+
+         ! calculate mean rather than summed scorch height values
+         do ipa2 = 1,nlevage*npft
+            if (hio_nplant_si_agepft(io_si, ipa2) .gt. tiny) then
+               hio_scorch_height_si_agepft(io_si, ipa2) = hio_scorch_height_si_agepft(io_si, ipa2) / &
+                    hio_nplant_si_agepft(io_si, ipa2)
             endif
          end do
 
@@ -3906,11 +3923,6 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_pa )
 
-    !call this%set_history_var(vname='SCORCH_HEIGHT', units='m',                &
-     !    long='spitfire flame height:m', use_default='active',                    &
-     !    avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-     !    ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_pa )
-
     call this%set_history_var(vname='fire_fuel_mef', units='m',                &
          long='spitfire fuel moisture',  use_default='active',                  &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
@@ -4403,6 +4415,17 @@ end subroutine flush_hvars
           long='biomass per PFT in each age bin', use_default='inactive',   &
           avgflag='A', vtype=site_agepft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_agepft )
+
+    call this%set_history_var(vname='NPLANT_AGEPFT',units = 'n',               &
+          long='number of plants in each age bin', use_default='inactive',   &
+          avgflag='A', vtype=site_agepft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_si_agepft )
+
+    call this%set_history_var(vname='SCORCH_HEIGHT',units = 'm',               &
+          long='SPITFIRE Flame Height (calculated per PFT in each patch age bin)', &
+          use_default='active',   &
+          avgflag='A', vtype=site_agepft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_si_agepft )
 
 
     ! Carbon Flux (grid dimension x scpf) (THESE ARE DEFAULT INACTIVE!!!
