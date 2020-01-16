@@ -14,10 +14,12 @@ module EDCanopyStructureMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
-  use EDCohortDynamicsMod   , only : InitPRTCohort
+  use EDCohortDynamicsMod   , only : InitPRTObject
+  use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
+  use EDCohortDynamicsMod   , only : SendCohortToLitter
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
-  use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
+  use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
   use EDtypesMod            , only : AREA
@@ -117,7 +119,6 @@ contains
       ! !USES:
 
       use EDParamsMod, only : ED_val_comp_excln
-      use EDtypesMod , only : ncwd
       use EDTypesMod , only : min_patch_area
       use FatesInterfaceMod, only : bc_in_type
       !
@@ -192,7 +193,7 @@ contains
             
             ! Its possible that before we even enter this scheme
             ! some cohort numbers are very low.  Terminate them.
-            call terminate_cohorts(currentSite, currentPatch, 1)
+            call terminate_cohorts(currentSite, currentPatch, 1, 12)
 
             ! Calculate how many layers we have in this canopy
             ! This also checks the understory to see if its crown 
@@ -205,12 +206,12 @@ contains
             
             ! After demotions, we may then again have cohorts that are very very
             ! very sparse, remove them
-            call terminate_cohorts(currentSite, currentPatch, 1)
+            call terminate_cohorts(currentSite, currentPatch, 1,13)
             
             call fuse_cohorts(currentSite, currentPatch, bc_in)
             
             ! Remove cohorts for various other reasons
-            call terminate_cohorts(currentSite, currentPatch, 2)
+            call terminate_cohorts(currentSite, currentPatch, 2,13)
 
             
             ! ---------------------------------------------------------------------------------------
@@ -229,12 +230,12 @@ contains
                end do
                
                ! Remove cohorts that are incredibly sparse
-               call terminate_cohorts(currentSite, currentPatch, 1)
+               call terminate_cohorts(currentSite, currentPatch, 1,14)
                
                call fuse_cohorts(currentSite, currentPatch, bc_in)
                
                ! Remove cohorts for various other reasons
-               call terminate_cohorts(currentSite, currentPatch, 2)
+               call terminate_cohorts(currentSite, currentPatch, 2,14)
                
             end if
             
@@ -330,7 +331,6 @@ contains
    subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr)
 
       use EDParamsMod, only : ED_val_comp_excln
-      use EDtypesMod , only : ncwd
       use SFParamsMod, only : SF_val_CWD_frac
 
       ! !ARGUMENTS
@@ -657,11 +657,17 @@ contains
                   
                   allocate(copyc)
 
-                  call InitPRTCohort(copyc)
+                  ! Initialize the PARTEH object and point to the
+                  ! correct boundary condition fields
+                  copyc%prt => null()
+                  call InitPRTObject(copyc%prt)
+                  call InitPRTBoundaryConditions(copyc)
+
                   if( hlm_use_planthydro.eq.itrue ) then
                      call InitHydrCohort(currentSite,copyc)
                   endif
-		  call copy_cohort(currentCohort, copyc)
+
+                  call copy_cohort(currentCohort, copyc)
 
                   newarea = currentCohort%c_area - cc_loss
                   copyc%n = currentCohort%n*newarea/currentCohort%c_area 
@@ -707,50 +713,10 @@ contains
 
                if(currentCohort%canopy_layer>nclmax )then 
                   
-                  ! put the litter from the terminated cohorts into the fragmenting pools
-                  do i_cwd=1,ncwd
-                     
-                     currentPatch%CWD_AG(i_cwd)  = currentPatch%CWD_AG(i_cwd) + &
-                          (struct_c + sapw_c ) * &
-                          EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                          SF_val_CWD_frac(i_cwd)*currentCohort%n/currentPatch%area  
-                     
-                     currentPatch%CWD_BG(i_cwd)  = currentPatch%CWD_BG(i_cwd) + &
-                          (struct_c + sapw_c) * & 
-                          (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
-                          SF_val_CWD_frac(i_cwd)*currentCohort%n/currentPatch%area !litter flux per m2.
-                     
-                  enddo
-                  
-                  currentPatch%leaf_litter(currentCohort%pft)  = &
-                       currentPatch%leaf_litter(currentCohort%pft) + &
-                       leaf_c * currentCohort%n/currentPatch%area ! leaf litter flux per m2.
-                  
-                  currentPatch%root_litter(currentCohort%pft)  = &
-                       currentPatch%root_litter(currentCohort%pft) + &
-                       (fnrt_c + store_c) * currentCohort%n/currentPatch%area
-                  
-                  ! keep track of the above fluxes at the site level as a 
-                  ! CWD/litter input flux (in kg / site-m2 / yr)
-                  do i_cwd=1,ncwd
-                     currentSite%CWD_AG_diagnostic_input_carbonflux(i_cwd) = &
-                          currentSite%CWD_AG_diagnostic_input_carbonflux(i_cwd) &
-                          + currentCohort%n * (struct_c + sapw_c) * & 
-                          SF_val_CWD_frac(i_cwd) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) &
-                          * hlm_days_per_year / AREA
-                     currentSite%CWD_BG_diagnostic_input_carbonflux(i_cwd) = &
-                          currentSite%CWD_BG_diagnostic_input_carbonflux(i_cwd) &
-                          + currentCohort%n * (struct_c + sapw_c) * & 
-                          SF_val_CWD_frac(i_cwd) * (1.0_r8 -  &
-                          EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * hlm_days_per_year / AREA
-                  enddo
-                  
-                  currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
-                       currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
-                       currentCohort%n * leaf_c * hlm_days_per_year  / AREA
-                  currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
-                       currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
-                       currentCohort%n * (fnrt_c  + store_c) * hlm_days_per_year  / AREA
+                  ! put the litter from the terminated cohorts 
+                  ! straight into the fragmenting pools
+                  call SendCohortToLitter(currentSite,currentPatch, &
+                       currentCohort,currentCohort%n)
                   
                   currentCohort%n            = 0.0_r8
                   currentCohort%c_area       = 0.0_r8
@@ -1144,7 +1110,12 @@ contains
                      
                      allocate(copyc)
 
-                     call InitPRTCohort(copyc)
+                     ! Initialize the PARTEH object and point to the
+                     ! correct boundary condition fields
+                     copyc%prt => null()
+                     call InitPRTObject(copyc%prt)
+                     call InitPRTBoundaryConditions(copyc)
+
                      if( hlm_use_planthydro.eq.itrue ) then
                         call InitHydrCohort(CurrentSite,copyc)
                      endif
@@ -1286,8 +1257,6 @@ contains
 
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
-    use FatesAllometryMod    , only : set_root_fraction
-    use FatesAllometryMod    , only : i_hydro_rootprof_context
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use EDtypesMod           , only : area
     use EDPftvarcon          , only : EDPftvarcon_inst
@@ -1328,18 +1297,6 @@ contains
        currentPatch => sites(s)%oldest_patch
 
        do while(associated(currentPatch))
-          
-          ! Calculate rooting depth fractions for the patch x pft
-          ! Note that we are calling for the root fractions in the hydrologic context.
-          ! See explanation in FatesAllometryMod.  In other locations, this
-          ! function is called to return the profile of biomass as used for litter
-
-          do ft = 1, numpft
-             call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
-                  bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
-                  icontext=i_hydro_rootprof_context)
-          end do
-          
           
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8

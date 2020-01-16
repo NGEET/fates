@@ -209,6 +209,8 @@ contains
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
 
+    real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
+
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
     !
@@ -258,7 +260,21 @@ contains
          ! Multi-layer parameters scaled by leaf nitrogen profile.
          ! Loop through each canopy layer to calculate nitrogen profile using
          ! cumulative lai at the midpoint of the layer
-         
+ 
+
+
+         ! Pre-process some variables that are PFT dependent
+         ! but not environmentally dependent
+         ! ------------------------------------------------------------------------
+
+         allocate(rootfr_ft(numpft, bc_in(s)%nlevsoil))
+
+         do ft = 1,numpft
+             call set_root_fraction(rootfr_ft(ft,:), ft, &
+                   bc_in(s)%zi_sisl,icontext = i_hydro_rootprof_context)
+         end do
+          
+
          ifp = 0
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))  
@@ -313,27 +329,8 @@ contains
                                            gb_mol,                   & ! out
                                            ceair)                      ! out
 
-               ! Part V.  Pre-process some variables that are PFT dependent
-               ! but not environmentally dependent
-               ! ------------------------------------------------------------------------
-
-               do ft = 1,numpft
-
-                  
-                  
-
-                  ! This is probably unnecessary and already calculated
-                  ! ALSO, THIS ROOTING PROFILE IS USED TO CALCULATE RESPIRATION
-                  ! YET IT USES THE PROFILE THAT IS CONSISTENT WITH WATER UPTAKE
-                  ! AND NOT THE PROFILE WE USE FOR DECOMPOSITION
-                  ! SEEMS LIKE THE LATTER WOULD BE MORE APPROPRIATE, RIGHT? (RGK 05-2018)
-                  call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
-                       bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
-                       icontext = i_hydro_rootprof_context)
-                  
-               end do !ft 
-
                
+
 
                ! ------------------------------------------------------------------------
                ! Part VI: Loop over all leaf layers.
@@ -532,7 +529,7 @@ contains
                                                         currentPatch%psn_z(cl,ft,iv),       &  ! out
                                                         rs_z(iv,ft,cl),                     &  ! out
                                                         anet_av_z(iv,ft,cl),                &  ! out
-							c13disc_z(cl,ft,iv))                   ! out
+                                                        c13disc_z(cl,ft,iv))                   ! out
 
                               rate_mask_z(iv,ft,cl) = .true.
                            end if
@@ -545,7 +542,7 @@ contains
                         currentCohort%rdark      = 0.0_r8
                         currentCohort%resp_m     = 0.0_r8
                         currentCohort%ts_net_uptake = 0.0_r8
-			currentCohort%c13disc_clm = 0.0_r8 
+                        currentCohort%c13disc_clm = 0.0_r8 
 
                         ! ---------------------------------------------------------------
                         ! Part VII: Transfer leaf flux rates (like maintenance respiration,
@@ -560,7 +557,7 @@ contains
                                                         lmr_z(1:nv,ft,cl),                     & !in
                                                         rs_z(1:nv,ft,cl),                      & !in
                                                         currentPatch%elai_profile(cl,ft,1:nv), & !in
-							c13disc_z(cl, ft, 1:nv),               & !in 
+                                                        c13disc_z(cl, ft, 1:nv),               & !in 
                                                         currentCohort%c_area,                  & !in
                                                         currentCohort%n,                       & !in
                                                         bc_in(s)%rb_pa(ifp),                   & !in
@@ -568,7 +565,7 @@ contains
                                                         currentCohort%g_sb_laweight,           & !out
                                                         currentCohort%gpp_tstep,               & !out
                                                         currentCohort%rdark,                   & !out
-							currentCohort%c13disc_clm,             & !out
+                                                        currentCohort%c13disc_clm,             & !out
                                                         cohort_eleaf_area)                       !out
                         
                         ! Net Uptake does not need to be scaled, just transfer directly
@@ -655,7 +652,7 @@ contains
                      do j = 1,bc_in(s)%nlevsoil
                         tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
-                              fnrt_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
+                              fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
                      enddo
                      
                      ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
@@ -667,7 +664,7 @@ contains
                            tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
                                  live_croot_n * ED_val_base_mr_20 * tcsoi * &
-                                 currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
+                                 rootfr_ft(ft,j) * maintresp_reduction_factor
                         enddo
                      else
                         currentCohort%livecroot_mr = 0._r8    
@@ -797,9 +794,11 @@ contains
             
             currentPatch => currentPatch%younger
             
-         end do
-         
-      end do !site loop
+        end do
+        
+        deallocate(rootfr_ft)
+ 
+     end do !site loop
       
     end associate
   end subroutine FatesPlantRespPhotosynthDrive

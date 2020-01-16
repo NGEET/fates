@@ -21,6 +21,10 @@ Those who wish to contribute code to FATES must have those changes integrated th
 * It is best to create an issue to describe the work you are undertaking prior to starting.  This helps the community sync with your efforts, prevents duplication of efforts, and science is not done in a vaccuum!
 * Expect peers to interact, help, discuss and eventually approve your submission (pull-request)
 
+## Joining Discussions and Meetings
+
+In addition to the github discussions, we hold a roughly biweekly call, which covers both scientific and technical issues related to FATES. We use a google group to organize, schedule, and discuss these calls.  Emails to the list are moderated and we try to be pretty ruthless about preventing anything other than this topic from appearing on it.  To join, apply to the group here: https://groups.google.com/forum/#!forum/fates_model
+
 ## Things to Remember
 
 * Make commits in logical units (i.e. group changes)

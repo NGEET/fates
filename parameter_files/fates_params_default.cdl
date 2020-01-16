@@ -508,8 +508,8 @@ variables:
 		fates_fire_miner_total:units = "fraction" ;
 		fates_fire_miner_total:long_name = "spitfire parameter, total mineral content, Table A1 Thonicke et al 2010" ;
 	double fates_fire_nignitions ;
-		fates_fire_nignitions:units = "ignitions per day" ;
-		fates_fire_nignitions:long_name = "number of daily ignitions" ;
+		fates_fire_nignitions:units = "ignitions per year per km2" ;
+		fates_fire_nignitions:long_name = "number of annual ignitions per square km" ;
 	double fates_fire_part_dens ;
 		fates_fire_part_dens:units = "kg/m2" ;
 		fates_fire_part_dens:long_name = "spitfire parameter, oven dry particle density, Table A1 Thonicke et al 2010" ;
@@ -1114,7 +1114,7 @@ data:
 
  fates_cwd_flig = 0.24 ;
 
- fates_fire_drying_ratio = 13000 ;
+ fates_fire_drying_ratio = 66000 ;
 
  fates_fire_durat_slope = -11.06 ;
 
@@ -1182,7 +1182,7 @@ data:
 
  fates_phen_drought_threshold = 0.15 ;
 
- fates_phen_mindayson = 30 ;
+ fates_phen_mindayson = 90 ;
 
  fates_phen_ncolddayslim = 5 ;
 
