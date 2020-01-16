@@ -2495,7 +2495,7 @@ end subroutine flush_hvars
          end do
 
          ! calculate mean rather than summed scorch height values
-         do ipa2 = 1,nlevage*npft
+         do ipa2 = 1,nlevage * numpft
             if (hio_nplant_si_agepft(io_si, ipa2) .gt. tiny) then
                hio_scorch_height_si_agepft(io_si, ipa2) = hio_scorch_height_si_agepft(io_si, ipa2) / &
                     hio_nplant_si_agepft(io_si, ipa2)
