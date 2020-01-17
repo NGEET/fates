@@ -2713,18 +2713,6 @@ end subroutine flush_hvars
             end do
          end do
          !
-
-        ! do i_pft = 1, numpft
-         !   do i_cacls = 1, nlevcoage
-!               i_capf = (i_pft -1)*nlevcoage + i_cacls
-! fix this! 
-        !       i_capf = 1
-       !        hio_ageflux_fusion_si_capf(io_si,i_capf) = hio_ageflux_fusion_si_capf(io_si,i_capf) + &
-      !              sites(s)%ageflux_fusion(i_capf, i_pft) * days_per_year
-     !       end do
-    !     end do
-         
-         
          
          ! treat carbon flux from imort the same way
          hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &

@@ -1028,7 +1028,7 @@ contains
                     ! and hence the age fusion criterion is met    
                    if (currentCohort%coage .eq. nextc%coage) then
                       coage_diff = 0.0_r8
-                      else
+                   else
                     coage_diff = abs((currentCohort%coage - nextc%coage)/ &
                          (0.5*(currentCohort%coage + nextc%coage)))
                    end if

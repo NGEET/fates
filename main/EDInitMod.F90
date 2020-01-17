@@ -202,7 +202,6 @@ contains
 
     ! fusoin-induced growth flux of individuals
     site_in%growthflux_fusion(:,:) = 0._r8
-!    site_in%ageflux_fusion(:,:) = 0._r8
 
     ! demotion/promotion info
     site_in%demotion_rate(:) = 0._r8

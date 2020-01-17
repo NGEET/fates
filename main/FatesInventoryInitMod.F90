@@ -1053,71 +1053,71 @@ contains
          
          prt_obj => null()
          call InitPRTObject(prt_obj)
-         
+
          do el = 1,num_elements
-             
-             element_id = element_list(el)
-             
-             ! If this is carbon12, then the initialization is straight forward
-             ! otherwise, we use stoichiometric ratios
-             select case(element_id)
-             case(carbon12_element)
-                 
-                 m_struct = b_struct
-                 m_leaf   = b_leaf
-                 m_fnrt   = b_fnrt
-                 m_sapw   = b_sapw
-                 m_store  = b_store
-                 m_repro  = 0._r8
-                 
-             case(nitrogen_element)
-                 
-                 m_struct = b_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,struct_organ)
-                 m_leaf   = b_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,leaf_organ)
-                 m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,fnrt_organ)
-                 m_sapw   = b_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,sapw_organ)
-                 m_store  = b_store*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,store_organ)
-                 m_repro  = 0._r8
-                 
-             case(phosphorus_element)
-                 
-                 m_struct = b_struct*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,struct_organ)
-                 m_leaf   = b_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,leaf_organ)
-                 m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,fnrt_organ)
-                 m_sapw   = b_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,sapw_organ)
-                 m_store  = b_store*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,store_organ)
-                 m_repro  = 0._r8
-             end select
-             
-             select case(hlm_parteh_mode)
-             case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
-                 
-                 ! Equally distribute leaf mass into available age-bins
-                 do iage = 1,nleafage
-                     call SetState(prt_obj,leaf_organ, element_id,m_leaf/real(nleafage,r8),iage)
-                 end do
-                 
-                 call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
-                 call SetState(prt_obj,sapw_organ, element_id, m_sapw)
-                 call SetState(prt_obj,store_organ, element_id, m_store)
-                 call SetState(prt_obj,struct_organ, element_id, m_struct)
-                 call SetState(prt_obj,repro_organ, element_id, m_repro)
-                 
-             case default
-                 write(fates_log(),*) 'Unspecified PARTEH module during inventory intitialization'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-             end select
-             
+
+            element_id = element_list(el)
+
+            ! If this is carbon12, then the initialization is straight forward
+            ! otherwise, we use stoichiometric ratios
+            select case(element_id)
+            case(carbon12_element)
+
+               m_struct = b_struct
+               m_leaf   = b_leaf
+               m_fnrt   = b_fnrt
+               m_sapw   = b_sapw
+               m_store  = b_store
+               m_repro  = 0._r8
+
+            case(nitrogen_element)
+
+               m_struct = b_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,struct_organ)
+               m_leaf   = b_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,leaf_organ)
+               m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,fnrt_organ)
+               m_sapw   = b_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,sapw_organ)
+               m_store  = b_store*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,store_organ)
+               m_repro  = 0._r8
+
+            case(phosphorus_element)
+
+               m_struct = b_struct*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,struct_organ)
+               m_leaf   = b_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,leaf_organ)
+               m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,fnrt_organ)
+               m_sapw   = b_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,sapw_organ)
+               m_store  = b_store*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,store_organ)
+               m_repro  = 0._r8
+            end select
+
+            select case(hlm_parteh_mode)
+            case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+
+               ! Equally distribute leaf mass into available age-bins
+               do iage = 1,nleafage
+                  call SetState(prt_obj,leaf_organ, element_id,m_leaf/real(nleafage,r8),iage)
+               end do
+
+               call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
+               call SetState(prt_obj,sapw_organ, element_id, m_sapw)
+               call SetState(prt_obj,store_organ, element_id, m_store)
+               call SetState(prt_obj,struct_organ, element_id, m_struct)
+               call SetState(prt_obj,repro_organ, element_id, m_repro)
+
+            case default
+               write(fates_log(),*) 'Unspecified PARTEH module during inventory intitialization'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end select
+
          end do
 
          call prt_obj%CheckInitialConditions()
 
 
          ! Since spread is a canopy level calculation, we need to provide an initial guess here.
-call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
-                   temp_cohort%coage, temp_cohort%dbh, &
-               prt_obj, temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
-               1, csite%spread, bc_in)
+         call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
+              temp_cohort%coage, temp_cohort%dbh, &
+              prt_obj, temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
+              1, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort
 

@@ -1851,15 +1851,6 @@ contains
                 
              io_idx_si_sc = io_idx_si_sc + 1
           end do
-
-          
-!          do i_cacls = 1, nlevcoage
- !            do i_pft = 1, numpft
-  !              rio_ageflx_fusion_sicapf(io_idx_si_capf) = sites(s)%ageflux_fusion(i_cacls, i_pft)
-   !             io_idx_si_capf = io_idx_si_capf + 1
-    !         end do
-     !        io_idx_si_cacls = io_idx_si_cacls + 1
-      !    end do
           
           rio_termcflux_cano_si(io_idx_si)  = sites(s)%term_carbonflux_canopy
           rio_termcflux_usto_si(io_idx_si)  = sites(s)%term_carbonflux_ustory
@@ -2623,15 +2614,7 @@ contains
              io_idx_si_sc = io_idx_si_sc + 1
           end do
 
-       !   do i_cacls = i,nlevcoage
-        !     do i_pft = 1, numpft
-         !       sites(s)%ageflux_fusion(i_cacls, i_pft) = rio_ageflx_fusion_sicapf(io_idx_si_capf)
-          !      io_idx_si_capf = io_idx_si_capf + 1
-          !   end do
-          !   io_idx_si_cacls = io_idx_si_cacls + 1
-         ! end do
-          
-         
+                   
           sites(s)%term_carbonflux_canopy   = rio_termcflux_cano_si(io_idx_si)
           sites(s)%term_carbonflux_ustory   = rio_termcflux_usto_si(io_idx_si)
           sites(s)%demotion_carbonflux      = rio_democflux_si(io_idx_si)

@@ -756,7 +756,6 @@ module EDTypesMod
 
      real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin
      ! due to fusion in a given day. on size x pft array 
-!     real(r8), allocatable :: ageflux_fusion(:,:)                ! rate of individuals movign into a given age class bin due to fusion- age x pft
 
 
 
