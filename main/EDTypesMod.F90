@@ -342,7 +342,6 @@ module EDTypesMod
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
 
      ! FIRE
-     real(r8) ::  scorch_ht                              ! scorch height: m 
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
                                                          ! (conditional on the tree being subjected to the fire)
@@ -522,6 +521,7 @@ module EDTypesMod
      real(r8) ::  fd                                               ! fire duration: mins
 
      ! FIRE EFFECTS     
+     real(r8) ::  scorch_ht(maxpft)                                ! scorch height: m 
      real(r8) ::  frac_burnt                                       ! fraction burnt: frac gridcell/day  
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-

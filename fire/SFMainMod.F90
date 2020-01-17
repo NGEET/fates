@@ -40,7 +40,7 @@
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
-
+  use FatesInterfaceMod     , only : numpft
 
   implicit none
   private
@@ -801,8 +801,8 @@ contains
   subroutine  crown_scorching ( currentSite ) 
   !*****************************************************************
 
-    !currentPatch%FI   average fire intensity of flaming front during day.  kW/m.
-    !currentCohort%SH  scorch height for the cohort(m)
+    !currentPatch%FI       average fire intensity of flaming front during day.  kW/m.
+    !currentPatch%SH(pft)  scorch height for all cohorts of a given PFT on a given patch (m)
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -814,39 +814,44 @@ contains
     real(r8) ::  sapw_c          ! sapwood carbon   [kg]
     real(r8) ::  struct_c        ! structure carbon [kg]
 
+    integer  ::  i_pft
+
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch)) 
-
+       
        tree_ag_biomass = 0.0_r8
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
-
+                
                 leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                 sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
                 struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-
+                
                 tree_ag_biomass = tree_ag_biomass + &
-                      currentCohort%n * (leaf_c + & 
-                      EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
+                     currentCohort%n * (leaf_c + & 
+                     EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
  
-
-             currentCohort%Scorch_ht = 0.0_r8
-                if (tree_ag_biomass > 0.0_r8) then 
-
-                !Equation 16 in Thonicke et al. 2010 !Van Wagner 1973 EQ8 !2/3 Byram (1959)
-                currentCohort%Scorch_ht = EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8)
-             
-                  if(write_SF == itrue)then
-                     if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentCohort%SH',currentCohort%Scorch_ht
-                  endif
-                endif ! tree biomass
-
              endif !trees only
              currentCohort=>currentCohort%shorter;
           enddo !end cohort loop
+
+          do i_pft=1,numpft
+             if (tree_ag_biomass > 0.0_r8  .and. EDPftvarcon_inst%woody(i_pft) == 1) then 
+                
+                !Equation 16 in Thonicke et al. 2010 !Van Wagner 1973 EQ8 !2/3 Byram (1959)
+                currentPatch%Scorch_ht(i_pft) = EDPftvarcon_inst%fire_alpha_SH(i_pft) * (currentPatch%FI**0.667_r8)
+                
+                if(write_SF == itrue)then
+                   if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%Scorch_ht(i_pft)
+                endif
+             else
+                currentPatch%Scorch_ht(i_pft) = 0.0_r8
+             endif ! tree biomass
+          end do
+
        endif !fire
 
        currentPatch => currentPatch%younger;  
@@ -878,17 +883,18 @@ contains
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
-                if (currentCohort%Scorch_ht < &
+                if (currentPatch%Scorch_ht(currentCohort%pft) < &
                      (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft))) then 
                    currentCohort%fraction_crown_burned = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy but not over top.
-                   if ((currentCohort%hite > 0.0_r8).and.(currentCohort%Scorch_ht >=  &
+                   if ((currentCohort%hite > 0.0_r8).and.(currentPatch%Scorch_ht(currentCohort%pft) >=  &
                         (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)))) then 
 
-                        currentCohort%fraction_crown_burned = (currentCohort%Scorch_ht-currentCohort%hite*(1.0_r8- &
+                        currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
+                                currentCohort%hite*(1.0_r8 - &
                                 EDPftvarcon_inst%crown(currentCohort%pft)))/(currentCohort%hite* &
                                 EDPftvarcon_inst%crown(currentCohort%pft)) 
 
