@@ -801,8 +801,8 @@ contains
   subroutine  crown_scorching ( currentSite ) 
   !*****************************************************************
 
-    !currentPatch%FI   average fire intensity of flaming front during day.  kW/m.
-    !currentCohort%SH  scorch height for the cohort(m)
+    !currentPatch%FI       average fire intensity of flaming front during day.  kW/m.
+    !currentPatch%SH(pft)  scorch height for all cohorts of a given PFT on a given patch (m)
 
     type(ed_site_type), intent(in), target :: currentSite
 
