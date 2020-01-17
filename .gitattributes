@@ -19,7 +19,6 @@
 *.cdl text
 *.F90 text
 *.F90_in text
-*.mod text
 *.py text
 *.sh text
 *.txt text
