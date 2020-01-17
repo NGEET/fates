@@ -1944,6 +1944,7 @@ end subroutine flush_hvars
             do i_pft = 1,numpft
                ! for scorch height, weight the value by patch area within any given age calss (in the event that there is
                ! more than one patch per age class.
+               iagepft = cpatch%age_class + (i_pft-1) * nlevage
                hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
                     cpatch%Scorch_ht(i_pft) * cpatch%area
 
@@ -2485,9 +2486,9 @@ end subroutine flush_hvars
                hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
                hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
                do i_pft = 1, numpft
-                  age_by_pft_class = ipa2 + (i_pft-1) * nlevage
-                  hio_scorch_height_si_agepft(io_si, age_by_pft_class) = &
-                       hio_scorch_height_si_agepft(io_si, age_by_pft_class) / (hio_area_si_age(io_si, ipa2)*AREA)
+                  iagepft = ipa2 + (i_pft-1) * nlevage
+                  hio_scorch_height_si_agepft(io_si, iagepft) = &
+                       hio_scorch_height_si_agepft(io_si, iagepft) / (hio_area_si_age(io_si, ipa2)*AREA)
                enddo
             else
                hio_lai_si_age(io_si, ipa2) = 0._r8

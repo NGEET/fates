@@ -839,17 +839,18 @@ contains
           enddo !end cohort loop
 
           do i_pft=1,numpft
-          if (tree_ag_biomass > 0.0_r8  .and. EDPftvarcon_inst%woody(i_pft) == 1) then 
-             
-             !Equation 16 in Thonicke et al. 2010 !Van Wagner 1973 EQ8 !2/3 Byram (1959)
-             currentPatch%Scorch_ht(i_pft) = EDPftvarcon_inst%fire_alpha_SH(i_pft) * (currentPatch%FI**0.667_r8)
-             
-             if(write_SF == itrue)then
-                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentCohort%SH',currentCohort%Scorch_ht
-             endif
-          else
-             currentPatch%Scorch_ht(i_pft) = 0.0_r8
-          endif ! tree biomass
+             if (tree_ag_biomass > 0.0_r8  .and. EDPftvarcon_inst%woody(i_pft) == 1) then 
+                
+                !Equation 16 in Thonicke et al. 2010 !Van Wagner 1973 EQ8 !2/3 Byram (1959)
+                currentPatch%Scorch_ht(i_pft) = EDPftvarcon_inst%fire_alpha_SH(i_pft) * (currentPatch%FI**0.667_r8)
+                
+                if(write_SF == itrue)then
+                   if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%Scorch_ht(i_pft)
+                endif
+             else
+                currentPatch%Scorch_ht(i_pft) = 0.0_r8
+             endif ! tree biomass
+          end do
 
        endif !fire
 
