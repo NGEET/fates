@@ -54,7 +54,6 @@ module FATESPlantRespPhotosynthMod
    implicit none
    private
 
-   public  :: FATESReadNML                 !subroutine to read in the FATES namelist added by LIQIANYU
    public :: FatesPlantRespPhotosynthDrive ! Called by the HLM-Fates interface
    
    
@@ -67,69 +66,11 @@ module FATESPlantRespPhotosynthMod
    
    logical   ::  debug = .false.
 
-  integer, parameter, private :: stomatalcond_mtd_bb1987     = 1   ! Ball-Berry 1987 method for photosynthesis_LIQIANYU
-  integer, parameter, private :: stomatalcond_mtd_medlyn2011 = 2   ! Medlyn 2011 method for photosynthesis_LIQIANYU         
-  integer, private :: stomatalcond_mtd                  ! Stomatal conduction method type_LIQIANYU
   
 contains
   
   !--------------------------------------------------------------------------------------
-   subroutine FATESReadNML(NLFilename)          ! Add ReadNML_LIQIANYU
-    !
-    ! !DESCRIPTION:
-    ! Read the namelist for Photosynthesis
-    !
-    ! !USES:
-    use fileutils      , only : getavu, relavu, opnfil
-    use shr_nl_mod     , only : shr_nl_find_group_name
-    use spmdMod        , only : masterproc, mpicom
-    use shr_mpi_mod    , only : shr_mpi_bcast
-    
-    !
-    ! !ARGUMENTS:
-    
-    character(len=*), intent(IN) :: NLFilename ! Namelist filename 
-    ! !LOCAL VARIABLES:
-    integer :: ierr                 ! error code
-    integer :: unitn                ! unit for namelist file
-
-    character(len=*), parameter :: subname = 'Photosyn::ReadNML'
-    character(len=*), parameter :: nmlname = 'photosyns_inparm'
-    character(len=50) :: stomatalcond_method = 'Medlyn2011' ! gs method string
-
-    namelist /photosyns_inparm/ stomatalcond_method
-    if (masterproc) then
-        unitn = getavu()
-        write(fates_log(),*) 'Read in '//nmlname//'  namelist'
-        call opnfil (NLFilename, unitn, 'F')
-        call shr_nl_find_group_name(unitn, nmlname, status=ierr)
-        if (ierr == 0) then
-           read(unitn, nml=photosyns_inparm, iostat=ierr)
-           if (ierr /= 0) then
-              call endrun(msg="ERROR reading "//nmlname//" namelist"//errmsg(sourcefile, __LINE__))
-           end if
-        else
-           call endrun(msg="ERROR could NOT find "//nmlname//" namelist"//errmsg(sourcefile, __LINE__))
-        end if
-        call relavu( unitn )
-        if (      trim(stomatalcond_method) == 'Ball-Berry1987' ) then
-            stomatalcond_mtd = stomatalcond_mtd_bb1987
-         else if ( trim(stomatalcond_method) == 'Medlyn2011'     ) then
-            stomatalcond_mtd = stomatalcond_mtd_medlyn2011
-         else
-            call endrun(msg="ERROR bad value for stomtalcond_method in "//nmlname//"namelist"//errmsg(sourcefile, __LINE__))
-         end if
-      end if
-      write(fates_log(),*) 'stomatalcond_mtd ', stomatalcond_mtd
-      call shr_mpi_bcast (stomatalcond_mtd, mpicom)
-      if (masterproc) then
-        write(fates_log(),*) ' '
-        write(fates_log(),*) nmlname//' settings:'
-        write(fates_log(),nml=photosyns_inparm)
-        write(fates_log(),*) ' '
-     end if
- 
-   end subroutine FATESReadNML
+  
    
   subroutine FatesPlantRespPhotosynthDrive (nsites, sites,bc_in,bc_out,dtime) 
 
@@ -285,7 +226,7 @@ contains
     integer  :: nv                  ! number of leaf layers
     integer  :: NCL_p               ! number of canopy layers in patch
     integer  :: iage                ! loop counter for leaf age classes
-    integer  :: stomatalcond_mtd    ! Stomatal conduction method type_LIQIANYU
+    
     ! Parameters
     ! -----------------------------------------------------------------------
     ! Base maintenance respiration rate for plant tissues base_mr_20
@@ -589,7 +530,6 @@ contains
                                                         mm_ko2,                             &  ! in
                                                         co2_cpoint,                         &  ! in
                                                         lmr_z(iv,ft,cl),                    &  ! in
-                                                        stomatalcond_mtd,                   &  ! in added by LIQIANYU
                                                         currentPatch%psn_z(cl,ft,iv),       &  ! out
                                                         rs_z(iv,ft,cl),                     &  ! out
                                                         anet_av_z(iv,ft,cl),                &  ! out
@@ -895,7 +835,6 @@ contains
                                      mm_ko2,            &  ! in
                                      co2_cpoint,        &  ! in
                                      lmr,               &  ! in
-                                     stomatalcond_mtd,  &  ! in added by LIQIANYU
                                      psn_out,           &  ! out
                                      rstoma_out,        &  ! out
                                      anet_av_out,       &  ! out
@@ -953,7 +892,6 @@ contains
    real(r8), intent(in) :: mm_ko2          ! Michaelis-Menten constant for O2 (Pa)
    real(r8), intent(in) :: co2_cpoint      ! CO2 compensation point (Pa)
    real(r8), intent(in) :: lmr             ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
-   integer,  intent(in) :: stomatalcond_mtd  ! Stomatal conductance method type_LIQIANYU
    real(r8), intent(out) :: psn_out        ! carbon assimilated in this leaf layer umolC/m2/s
    real(r8), intent(out) :: rstoma_out     ! stomatal resistance (1/gs_lsl) (s/m)
    real(r8), intent(out) :: anet_av_out    ! net leaf photosynthesis (umol CO2/m**2/s) 
@@ -990,7 +928,7 @@ contains
 
    real(r8), dimension(0:1) :: bbbopt ! Cuticular conductance at full water potential (umol H2O /m2/s)
    real(r8) :: term                 ! intermediate in Medlyn stomatal model added by LIQIANYU
-
+  
 
    ! Parameters
    ! ------------------------------------------------------------------------
@@ -1019,7 +957,8 @@ contains
 
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
-   
+   integer, parameter :: stomatalcond_mtd = 2  !added by LIQIANYU, 1 for Ball-Berry, 2 for Medlyn 
+ 
    associate( bb_slope  => EDPftvarcon_inst%BB_slope      , & ! slope of BB relationship
       medlynslope=> EDPftvarcon_inst%medlynslope          , & ! Slope for Medlyn stomatal conductance model method added by LIQIANYU
       medlynintercept=> EDPftvarcon_inst%medlynintercept  ) !Intercept for Medlyn stomatal conductance model method added by LIQIANYU
@@ -1167,7 +1106,7 @@ contains
                  ! With an <= 0, then gs_mol = bbb
                  leaf_co2_ppress = can_co2_ppress- 1.4_r8/gb_mol * anet * can_press 
                  leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
-                if ( stomatalcond_mtd == stomatalcond_mtd_medlyn2011 )then                   !added by LIQIANYU
+                if ( stomatalcond_mtd == 2 ) then                   !added by LIQIANYU
                   term = 1.6_r8 * anet / (leaf_co2_ppress / can_press * 1.e06_r8)
                   aquad = 1.0_r8
                   bquad = -(2.0 * (medlynintercept(ft)*1.e-06_r8 + term) + (medlynslope(ft) * term)**2 / &
@@ -1178,7 +1117,7 @@ contains
            
                   call quadratic_f (aquad, bquad, cquad, r1, r2)
                   gs_mol = max(r1,r2) * 1.e06_r8
-                else if ( stomatalcond_mtd == stomatalcond_mtd_bb1987 )then
+                else if ( stomatalcond_mtd ==1 ) then
                     aquad = leaf_co2_ppress
                     bquad = leaf_co2_ppress*(gb_mol - bbb) - bb_slope(ft) * anet * can_press
                     cquad = -gb_mol*(leaf_co2_ppress*bbb + &
@@ -1204,9 +1143,9 @@ contains
               
               ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol = bbb
               if (anet < 0._r8) then
-               if ( stomatalcond_mtd == stomatalcond_mtd_medlyn2011 )then                 !added by LIQIANYU
+               if ( stomatalcond_mtd == 2 ) then                 !added by LIQIANYU
                   gs_mol = medlynintercept(ft)
-               else if ( stomatalcond_mtd == stomatalcond_mtd_bb1987 )then
+               else if ( stomatalcond_mtd == 1) then
                  gs_mol = bbb
                end if
               end if
@@ -1256,7 +1195,7 @@ contains
               hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
               gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + bbb
               
-              if (abs(gs_mol-gs_mol_err) > 1.e-01_r8 .and.  (stomatalcond_mtd == stomatalcond_mtd_bb1987)) then
+              if (abs(gs_mol-gs_mol_err) > 1.e-01_r8 .and.  (stomatalcond_mtd == 1)) then
                  write (fates_log(),*) 'CF: Ball-Berry error check - stomatal conductance error:'
                  write (fates_log(),*) gs_mol, gs_mol_err
               end if
