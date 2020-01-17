@@ -2441,7 +2441,8 @@ contains
 
   !              call MatSolve2D(site_hydr,bc_in(s),cohort,cohort_hydr, &
   !                              dtime,qflx_tran_veg_indiv, &
-  !                              sapflow,rootuptake,wb_error_site,iter,nsteps)
+                !                              sapflow,rootuptake,wb_error_site,nsteps, &
+                ! dth_layershell_col,site_runoff)
                 
              else
 
@@ -4391,22 +4392,38 @@ contains
 
   ! =====================================================================================
 
-  subroutine Hydraulics_alt_1DSolve(dtime, s, cohort,ft, qtop, site_hydr,ccohort_hydr, &
-       bc_in,dth_layershell,sapflow)
+  subroutine MatSolve2D(site_hydr,bc_in,cohort,cohort_hydr, &
+                        dtime,qtop, &
+                        sapflow,rootuptake,wb_error_site, nsteps, &
+                        dth_layershell_site, runoff_site)
 
     use EDTypesMod     , only : AREA
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
     type(ed_site_hydr_type), intent(inout),target :: site_hydr        ! ED site_hydr structure
-    type(ed_cohort_hydr_type), target :: ccohort_hydr
-    type(ed_cohort_type) , intent(inout), target  :: cohort
-    type(bc_in_type),intent(in)             :: bc_in
+    type(ed_cohort_hydr_type), target            :: ccohort_hydr
+    type(ed_cohort_type) , intent(inout), target :: cohort
+    type(bc_in_type),intent(in)                  :: bc_in
+    real(r8),intent(in)                          :: dtime
+    real(r8),intent(in)                          :: qtop
+    real(r8),intent(out)                         :: sapwflow 
+    real(r8),intent(out)                         :: rootuptake
+    integer,intent(out)                          :: nsteps
+    real(r8),intent(inout)                       :: wb_error_site
+    real(r8),intent(inout)                       :: dth_layershell_site
+    real(r8),intent(inout)                       :: runoff_site
+
+    
     integer :: k,ft, nt_ab,nr,nc,ic(2),ir(2),icol
     integer :: j, icnx, pmx,inewt
     integer :: id_dn, id_up
     real(r8) :: psisat,B,thsat,psi_pt,tmp
     real(r8) :: values(4)
+
+
+    ! Move these to site-level scratch space
+    !
     real(r8) :: residual(num_nodes)
     real(r8) :: ajac(num_nodes,num_nodes)
     real(r8) :: dth_node(num_nodes)
@@ -4416,13 +4433,16 @@ contains
     real(r8) :: psi_node(num_nodes)
     real(r8) :: k_bound(num_connections)
     real(r8) :: hdiff_bound(num_connections)
-    real(r8) :: hdiffx, k_boundx, dkdpsix
     real(r8) :: dhdpsi(num_connections,2)
     real(r8) :: dkdpsi(num_connections,2)
+    real(r8) :: q_flux(num_connections)
+    
+    real(r8) :: hdiffx, k_boundx, dkdpsix
+    
     real(r8) :: dt_time
     real(r8) :: dnr, thx, thx_pt
     real(r8) :: qflx
-    real(r8) :: q_flux(num_connections)
+    
     real(r8) :: qtop, dqflx_dn, dqflx_up !qtop - flux from canopy, kgh2o indiv-1 s-1
     real(r8) :: dflcgsdpsi  ! fractional loss of conductivity  [-]
     real(r8) :: dflcgsdth                     ! derivative of stomatal vuln curve wrt to leaf water content     [m-3 m3]
@@ -4436,7 +4456,6 @@ contains
     real(r8) :: blux(num_nodes)
     integer :: indices(num_nodes)
     real(r8) :: th_node_1l(   n_hypool_tot)      ! volumetric water in water storage compartments (single-layer soln) [m3 m-3]
-    real(r8) :: flc_min_node( n_hypool_tot-nshell) ! minimum attained fractional loss of conductivity (for xylem refilling dynamics)[-]
     real(r8) :: dpsidth_node( n_hypool_tot)      ! derivative of water potential wrt to theta                      [MPa]
     real(r8) :: flc_node(     num_nodes)      ! fractional loss of conductivity at water storage nodes          [-]
     real(r8) :: dflcdpsi_node(num_nodes)      ! derivative of fractional loss of conductivity wrt psi           [MPa-1]
@@ -4478,43 +4497,86 @@ contains
     nstep = get_nstep()
 
     
-    associate( &
-         z_lower_ag => ccohort_hydr%z_lower_ag, & 
-         z_upper_ag => ccohort_hydr%z_upper_ag, & 
-         z_node_ag => ccohort_hydr%z_node_ag, & 
-         z_node => ccohort_hydr%z_node, & 
-         v_node => ccohort_hydr%v_node, &
-         conn_up => ccohort_hydr%conn_up, &
-         conn_dn => ccohort_hydr%conn_dn, &
-         cond_up => ccohort_hydr%cond_up, &
-         cond_dn => ccohort_hydr%cond_dn, &
-         conductance => ccohort_hydr%conductance, &
-         th_node_init => ccohort_hydr%th_node_init, &
-         th_node => ccohort_hydr%th_node, &
-         psi_node_init => ccohort_hydr%psi_node_init, &
-         psi_node => ccohort_hydr%psi_node, &
-         pm_type => ccohort_hydr%pm_type &
-         )
+!    associate( &
+!         z_lower_ag => ccohort_hydr%z_lower_ag, & 
+!         z_upper_ag => ccohort_hydr%z_upper_ag, & 
+!         z_node_ag => ccohort_hydr%z_node_ag, & 
+!         z_node => ccohort_hydr%z_node, & 
+!         v_node => ccohort_hydr%v_node, &
+!         conn_up => ccohort_hydr%conn_up, &
+!         conn_dn => ccohort_hydr%conn_dn, &
+!         cond_up => ccohort_hydr%cond_up, &
+!         cond_dn => ccohort_hydr%cond_dn, &
+!         conductance => ccohort_hydr%conductance, &
+!         th_node_init => ccohort_hydr%th_node_init, &
+!         th_node => ccohort_hydr%th_node, &
+!         psi_node_init => ccohort_hydr%psi_node_init, &
+!         psi_node => ccohort_hydr%psi_node, &
+!         pm_type => ccohort_hydr%pm_type &
+!         )
+
+    associate(conn_up => site_hydr%conn_up, &
+         conn_dn => site_hydr%conn_dn )
+
+      ! Transfer node heights, volumes and initial water contents for
+      ! the transporting root and above ground compartments to the
+      ! complete node vector
+
+      do i = 1,n_hypool_ag+n_hypool_troot
+         if (i<=n_hypool_ag) then
+            z_node(i)  = cohort_hydr%z_node_ag(i)
+            v_node(i)  = cohort_hydr%v_ag(i)
+            th_node_init(i) = cohort_hydr%th_ag(i)
+         elseif (i>n_hypool_ag) then
+            z_node(i)  = cohort_hydr%z_node_troot
+            v_node(i)  = cohort_hydr%v_troot
+            th_node_init(i) = cohort_hydr%th_troot
+         end if
+      end do
       
+      ! Transfer node-heights, volumes and intiial water contents
+      ! for below-ground components,
+      ! from the cohort structures, into the complete node vector
+      inode = n_hypool_ag + n_hypool_troot
+      
+      do j = 1,site_hydr%nlevsoi_hyd
+
+         ! Calculate the fraction of the soil layer
+         ! folume that this plant's rhizosphere accounts forPath is across the upper an lower rhizosphere comparment
+         ! on each side of the nodes. Since there is no flow across the outer
+         ! node to the edge, we ignore that last half compartment
+         aroot_frac_plant = ccohort_hydr%l_aroot_layer(j)/site_hydr%l_aroot_layer(j)
+         
+         do k = (n_hypool_ag+n_hypool_troot+1), n_hypool_tot
+            inode = inode + 1
+            if (k<n_hypool_tot-nshell+1) then
+               z_node(inode)  = -bc_in%z_sisl(j)
+               v_node(inode)  = cohort_hydr%v_aroot_layer(j)
+               th_node_init(inode) = cohort_hydr%th_aroot(j)
+            else
+               ishell  = k-(n_hypool_tot-nshell)
+               z_node(inode)  = -bc_in%z_sisl(j)
+               ! The volume of the Rhizosphere for a single plant
+               v_node(inode)  = site_hydr%v_shell(j,ishell)*aroot_frac_plant
+               th_node_init(inode) = site_hydr%h2osoi_liqvol_shell(j,ishell)
+            end if
+         enddo
+
+      enddo
+
+
+
+      
+                
       ! assign variables
       th_node(               1 : n_hypool_ag          ) =ccohort_hydr%th_ag(:)
       th_node(     (n_hypool_ag+1):(n_hypool_ag+n_hypool_troot)) =ccohort_hydr%th_troot(:)
-      flc_min_node(          1 : n_hypool_ag          ) =ccohort_hydr%flc_min_ag(:)
-      flc_min_node((n_hypool_ag+1):(n_hypool_ag+n_hypool_troot)) =ccohort_hydr%flc_min_troot(:)
-
 
       do k = 1, n_hypool_ag+n_hypool_troot
          call psi_from_th(ft, porous_media(k), th_node(k), psi_node(k),site_hydr, bc_in)
          call dpsidth_from_th(ft, porous_media(k), th_node(k),dpsidth_node(k), site_hydr, bc_in)
          call flc_from_psi(ft, porous_media(k), psi_node(k), flc_node(k),site_hydr, bc_in)
          call dflcdpsi_from_psi(ft, porous_media(k), psi_node(k),dflcdpsi_node(k), site_hydr, bc_in)
-
-         if(do_dyn_xylemrefill .and. porous_media(k) <= 4) then
-            if(flc_node(k) > flc_min_node(k)) then
-               dflcdpsi_node(k) = 0._r8
-               flc_node(k)      = flc_min_node(k)
-            end if
-         end if
       enddo
 
       num_nds = n_hypool_ag + n_hypool_troot
@@ -4530,12 +4592,6 @@ contains
             call dflcdpsi_from_psi(ft, pm_type(num_nds),psi_node_1l(k), dflcdpsi_node_1l(k), site_hydr, bc_in)
 
             if(k == n_hypool_ag + n_hypool_troot + 1) then
-               if(do_dyn_xylemrefill .and. porous_media(k) <= 4) then
-                  if(flc_node_1l(k) > ccohort_hydr%flc_min_aroot(j)) then
-                     dflcdpsi_node_1l(num_nds) = 0._r8
-                     flc_node_1l(num_nds)      = ccohort_hydr%flc_min_aroot(j)
-                  end if
-               end if
                flc_node(num_nds) = flc_node_1l(k)
                dflcdpsi_node(num_nds) = dflcdpsi_node_1l(k)            
             else

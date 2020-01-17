@@ -143,7 +143,13 @@ module FatesHydraulicsMemMod
      integer, parameter, public              :: num_connections   
      integer, allocatable, public, protected :: conn_up(:)
      integer, allocatable, public, protected :: conn_dn(:)
-     integer, allocatable, public, protected :: pm_type(:)
+
+     
+
+     
+
+     
+!     integer, allocatable, public, protected :: pm_type(:)
 
      
   contains
