@@ -206,7 +206,6 @@ module FatesHistoryInterfaceMod
   ! Indices to site by patch age by pft variables
   integer :: ih_biomass_si_agepft
   integer :: ih_npp_si_agepft
-  integer :: ih_nplant_si_agepft
   integer :: ih_scorch_height_si_agepft
 
   ! Indices to (site) variables
@@ -1775,7 +1774,6 @@ end subroutine flush_hvars
                hio_nplant_si_scagpft                => this%hvars(ih_nplant_si_scagpft)%r82d, &
                hio_npp_si_agepft                    => this%hvars(ih_npp_si_agepft)%r82d, &
                hio_biomass_si_agepft                => this%hvars(ih_biomass_si_agepft)%r82d, &
-               hio_nplant_si_agepft                 => this%hvars(ih_nplant_si_agepft)%r82d, &
                hio_scorch_height_si_agepft          => this%hvars(ih_scorch_height_si_agepft)%r82d, &
                hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
                hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
@@ -1943,6 +1941,14 @@ end subroutine flush_hvars
                     + cpatch%area * AREA_INV
             endif
             
+            do i_pft = 1,numpft
+               ! for scorch height, weight the value by patch area within any given age calss (in the event that there is
+               ! more than one patch per age class.
+               hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
+                    cpatch%Scorch_ht(i_pft) * cpatch%area
+
+            end do
+             
             ccohort => cpatch%shortest
             do while(associated(ccohort))
                
@@ -2207,16 +2213,6 @@ end subroutine flush_hvars
 
                     hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
                           total_c * ccohort%n * AREA_INV
-
-                    hio_nplant_si_agepft(io_si,iagepft) = hio_nplant_si_agepft(io_si,iagepft) + &
-                          ccohort%n
-
-                    !!! Scorch Height.  Should be identical for all cohorts of a given PFT in a given patch.  
-                    !!! in the event that there is more than one patch in this age bin, weight the answer by 
-                    !!! the number of individuals in the respective patches.
-                    hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
-                          ccohort%Scorch_ht * ccohort%n
-             
 
                     ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
                     if (ccohort%canopy_layer .eq. 1) then
@@ -2488,17 +2484,14 @@ end subroutine flush_hvars
             if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
                hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
                hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
+               do i_pft = 1, numpft
+                  age_by_pft_class = ipa2 + (i_pft-1) * nlevage
+                  hio_scorch_height_si_agepft(io_si, age_by_pft_class) = &
+                       hio_scorch_height_si_agepft(io_si, age_by_pft_class) / (hio_area_si_age(io_si, ipa2)*AREA)
+               enddo
             else
                hio_lai_si_age(io_si, ipa2) = 0._r8
                hio_ncl_si_age(io_si, ipa2) = 0._r8
-            endif
-         end do
-
-         ! calculate mean rather than summed scorch height values
-         do ipa2 = 1,nlevage * numpft
-            if (hio_nplant_si_agepft(io_si, ipa2) .gt. tiny) then
-               hio_scorch_height_si_agepft(io_si, ipa2) = hio_scorch_height_si_agepft(io_si, ipa2) / &
-                    hio_nplant_si_agepft(io_si, ipa2)
             endif
          end do
 
@@ -4415,11 +4408,6 @@ end subroutine flush_hvars
           long='biomass per PFT in each age bin', use_default='inactive',   &
           avgflag='A', vtype=site_agepft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_agepft )
-
-    call this%set_history_var(vname='NPLANT_AGEPFT',units = 'n',               &
-          long='number of plants in each age bin', use_default='inactive',   &
-          avgflag='A', vtype=site_agepft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_si_agepft )
 
     call this%set_history_var(vname='SCORCH_HEIGHT',units = 'm',               &
           long='SPITFIRE Flame Height (calculated per PFT in each patch age bin)', &
