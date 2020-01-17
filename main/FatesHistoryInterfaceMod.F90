@@ -4411,7 +4411,7 @@ end subroutine flush_hvars
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_agepft )
 
     call this%set_history_var(vname='SCORCH_HEIGHT',units = 'm',               &
-          long='SPITFIRE Flame Height (calculated per PFT in each patch age bin)', &
+          long='SPITFIRE Flame Scorch Height (calculated per PFT in each patch age bin)', &
           use_default='active',   &
           avgflag='A', vtype=site_agepft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_si_agepft )
