@@ -2079,7 +2079,7 @@ contains
      ! cannot have a structural biomass allometry intercept of 0, and a non-woody
      ! plant (grass) can't have a non-zero intercept...
      ! -----------------------------------------------------------------------------------
-
+     use EDParamsMod    , only : cohort_age_tracking
 
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
@@ -2154,7 +2154,71 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
            
         end if
+        
+        ! Check to see if cohort tracking is on if age-senescence is on
+        !----------------------------------------------------------------------------------
+        
+        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < 100000.0_r8 .and. &
+             cohort_age_tracking .neqv. .TRUE. ) ) then
 
+           write(fates_log(),*) 'Age-dependent mortality cannot be on'
+           write(fates_log(),*) 'if cohort age tracking is off'
+           write(fates_log(),*) 'Set cohort_age_tracking to 1'
+           write(fates_log(),*) 'To turn on cohort age tracking or '
+           write(fates_log(),*) 'Set mort_ip_age_senescence to _ '
+           write(fates_log(),*) 'to turn off age-dependent mortality '
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+
+        ! Check that parameter ranges for age-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < 100000.0_r8 .and. &
+             EDPftvarcon_inst%mort_r_age_senescence(ipft) > 100000.0_r8 ) ) then
+
+           write(fates_log(),*) 'Age-dependent mortality is on'
+           write(fates_log(),*) 'Please also set mort_r_age_senescence'
+           write(fates_log(),*) 'Sensible values are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        ! Check that parameter ranges for age-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < 0.0_r8 ) ) then
+
+           write(fates_log(),*) 'Negative mort_ip_age_senescence means'
+           write(fates_log(),*) 'trees will die at a negative age.'
+           write(fates_log(),*) 'Sensible values are between 10 and 2000?'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        ! Check that parameter ranges for size-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < 100000.0_r8 .and. &
+             EDPftvarcon_inst%mort_r_size_senescence(ipft) > 100000.0_r8 ) ) then
+
+           write(fates_log(),*) 'Size-dependent mortality is on'
+           write(fates_log(),*) 'Please also set mort_r_size_senescence'
+           write(fates_log(),*) 'Sensible values are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        ! Check that parameter ranges for size-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < 0.0_r8 ) ) then
+
+           write(fates_log(),*) 'Negative mort_ip_size_senescence means'
+           write(fates_log(),*) 'trees will die at a negative dbh.'
+           write(fates_log(),*) 'Sensible values are between 1 and 300?'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+              
+        
 
         ! Check to see if mature and base seed allocation is greater than 1
         ! ----------------------------------------------------------------------------------
