@@ -37,6 +37,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : site_fluxdiags_type
   use EDTypesMod            , only : num_elements
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
+  use EDParamsMod            , only : cohort_age_tracking
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
@@ -940,6 +941,8 @@ contains
      ! !USES:
      use EDParamsMod , only :  ED_val_cohort_size_fusion_tol
      use EDParamsMod , only :  ED_val_cohort_age_fusion_tol
+     use EDParamsMod , only :  cohort_age_tracking
+     use FatesConstantsMod , only : itrue
      use FatesConstantsMod, only : days_per_year
      
      !
@@ -1026,12 +1029,12 @@ contains
                     ! if they are the same age we make diff 0- to avoid errors divding by zero
                     !NB if cohort age tracking is off then the age of both should be 0
                     ! and hence the age fusion criterion is met    
-                   if (currentCohort%coage .eq. nextc%coage) then
-                      coage_diff = 0.0_r8
-                   else
-                    coage_diff = abs((currentCohort%coage - nextc%coage)/ &
-                         (0.5*(currentCohort%coage + nextc%coage)))
-                   end if
+                    if (abs(currentCohort%coage - nextc%coage)<nearzero ) then
+                       coage_diff = 0.0_r8
+                    else
+                       coage_diff = abs((currentCohort%coage - nextc%coage)/ &
+                            (0.5*(currentCohort%coage + nextc%coage)))
+                    end if
 
                     if (coage_diff <= dynamic_age_fusion_tolerance ) then 
 
@@ -1082,7 +1085,7 @@ contains
                                                       (nextc%coage * (nextc%n/(currentCohort%n + nextc%n)))
 
                                 ! update the cohort age again
-                                if (ED_val_cohort_age_fusion_tol < 10000.0_r8) then 
+                                if (cohort_age_tracking) then 
                                    call coagetype_class_index(currentCohort%coage, currentCohort%pft, &
                                         currentCohort%coage_class, currentCohort%coage_by_pft_class)
                                 end if

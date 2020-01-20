@@ -29,7 +29,7 @@ module EDCanopyStructureMod
   use FatesInterfaceMod     , only : numpft
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
-  use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
+  use EDParamsMod           , only : cohort_age_tracking
   
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
@@ -1262,7 +1262,8 @@ contains
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod           , only : area
     use EDPftvarcon          , only : EDPftvarcon_inst
-    use EDParamsMod          , only : ED_val_cohort_age_fusion_tol
+    use EDParamsMod          , only : cohort_age_tracking
+    use FatesConstantsMod    , only : itrue
     
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
@@ -1325,7 +1326,7 @@ contains
              call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                   currentCohort%size_class,currentCohort%size_by_pft_class)
 
-             if (ED_val_cohort_age_fusion_tol < 10000.0_r8) then
+             if (cohort_age_tracking) then
              call coagetype_class_index(currentCohort%coage,currentCohort%pft, &
                   currentCohort%coage_class,currentCohort%coage_by_pft_class)
           end if

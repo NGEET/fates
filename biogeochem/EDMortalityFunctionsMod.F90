@@ -19,7 +19,6 @@ module EDMortalityFunctionsMod
    use FatesInterfaceMod     , only : hlm_use_planthydro
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
-   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
    use FatesInterfaceMod     , only : bc_in_type
 
    use PRTGenericMod,          only : all_carbon_elements
@@ -98,7 +97,7 @@ contains
 
     ! if user has set cohort age fusion param to not be _ we calculate age
     ! dependent mortality
-    if (ED_val_cohort_age_fusion_tol < 10000.0_r8) then
+    if (mort_ip_age_senescence < 10000.0_r8) then
        ! Age Dependent Senescence
        ! rate and inflection point define the change in mortality with age
        mort_r_age_senescence = EDPftvarcon_inst%mort_r_age_senescence(cohort_in%pft)
@@ -253,8 +252,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
        ! this  caps bmort so that daily mortality cannot exceed 0.995
        if ((cmort+hmort+bmort+frmort+smort+asmort + dndt_logging)*hlm_freq_day &
-            > 0.995_r8)then
-          bmort = (0.995_r8 - ((cmort+hmort+asmort+frmort+smort+dndt_logging)*hlm_freq_day)) &
+            > 1.0_r8)then
+          bmort = (1.0_r8 - ((cmort+hmort+asmort+frmort+smort+dndt_logging)*hlm_freq_day)) &
                /hlm_freq_day
        endif
        
@@ -266,8 +265,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
         ! cap on bmort for canopy layers - bmort is adjusted so that total mortality
        ! including disturbance fraction does not exceed 0.995
        if(((cmort+hmort+bmort+frmort+smort+asmort)*hlm_freq_day) > &
-            0.995_r8 - fates_mortality_disturbance_fraction)then
-          bmort = (0.995_r8 - fates_mortality_disturbance_fraction - &
+            1.0_r8 - fates_mortality_disturbance_fraction)then
+          bmort = (1.0_r8 - fates_mortality_disturbance_fraction - &
                ((cmort+hmort+asmort+frmort+smort)*hlm_freq_day))/hlm_freq_day
        endif
       

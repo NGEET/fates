@@ -55,6 +55,7 @@ module EDMainMod
   use EDTypesMod               , only : element_pos
   use EDTypesMod               , only : phen_dstat_moiston
   use EDTypesMod               , only : phen_dstat_timeon
+  use EDParamsMod              , only : cohort_age_tracking
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesConstantsMod        , only : nearzero
@@ -283,7 +284,8 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
-    use EDParamsMod,     only : ED_val_cohort_age_fusion_tol
+    use EDParamsMod,     only : cohort_age_tracking
+    use FatesConstantsMod, only : itrue
     ! !ARGUMENTS:
     
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -442,18 +444,20 @@ contains
           end if
 
           ! if we are in age-dependent mortality mode
-          if (ED_val_cohort_age_fusion_tol < 10000.0_r8) then
-          ! update cohort age
-          currentCohort%coage = currentCohort%coage + hlm_freq_day
-          if(currentCohort%coage < 0.0_r8)then
-             write(fates_log(),*) 'negative cohort age?',currentCohort%coage
-             end if 
+          write(fates_log(),*) 'cohort_age_tracking',cohort_age_tracking
+          if (cohort_age_tracking) then
+             ! update cohort age
+             currentCohort%coage = currentCohort%coage + hlm_freq_day
+             write(fates_log(),*) 'cohort age: ',currentCohort%coage
+             if(currentCohort%coage < 0.0_r8)then
+                write(fates_log(),*) 'negative cohort age?',currentCohort%coage
+             end if
 
-          ! update cohort age class and age x pft class
+             ! update cohort age class and age x pft class
              call coagetype_class_index(currentCohort%coage, currentCohort%pft, &
-               currentCohort%coage_class,currentCohort%coage_by_pft_class)
+                  currentCohort%coage_class,currentCohort%coage_by_pft_class)
           end if
-          
+
 
           currentCohort => currentCohort%taller
       end do
