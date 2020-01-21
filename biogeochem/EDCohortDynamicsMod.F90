@@ -944,6 +944,7 @@ contains
      use EDParamsMod , only :  cohort_age_tracking
      use FatesConstantsMod , only : itrue
      use FatesConstantsMod, only : days_per_year
+     use EDTypesMod  , only : maxCohortsPerPatch
      
      !
      ! !ARGUMENTS   
@@ -971,7 +972,8 @@ contains
      real(r8) :: leaf_c_curr   ! Leaf carbon * plant density of next (for weighting)
      real(r8) :: leaf_c_target 
      real(r8) :: dynamic_size_fusion_tolerance
-     real(r8) :: dynamic_age_fusion_tolerance 
+     real(r8) :: dynamic_age_fusion_tolerance
+     integer  :: maxCohortsPerPatch_age_tracking
      real(r8) :: dbh
      real(r8) :: leaf_c             ! leaf carbon [kg]
 
@@ -990,6 +992,12 @@ contains
      ! set the cohort age fusion tolerance (this is in days - remains constant)
      dynamic_age_fusion_tolerance = ED_val_cohort_age_fusion_tol
 
+     if ( cohort_age_tracking ) then
+        maxCohortsPerPatch_age_tracking = 300
+     end if
+     
+     
+     
      !This needs to be a function of the canopy layer, because otherwise, at canopy closure
      !the number of cohorts doubles and very dissimilar cohorts are fused together
      !because c_area and biomass are non-linear with dbh, this causes several mass inconsistancies
@@ -999,6 +1007,7 @@ contains
      iterate = 1
      fusion_took_place = 0   
 
+     
      !---------------------------------------------------------------------!
      !  Keep doing this until nocohorts <= maxcohorts                         !
      !---------------------------------------------------------------------!
@@ -1404,20 +1413,39 @@ contains
               currentCohort => currentCohort%shorter
            enddo
 
-           if (nocohorts > maxCohortsPerPatch) then
-              iterate = 1
-              !---------------------------------------------------------------------!
-              ! Making profile tolerance larger means that more fusion will happen  !
-              !---------------------------------------------------------------------!        
-              dynamic_size_fusion_tolerance = dynamic_size_fusion_tolerance * 1.1_r8
-              dynamic_age_fusion_tolerance = dynamic_age_fusion_tolerance * 1.1_r8
-              !write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
-           else
+           if ( cohort_age_tracking ) then
+              if ( nocohorts > maxCohortsPerPatch_age_tracking ) then
+                 iterate = 1
+                 !---------------------------------------------------------------------!
+                 ! Making profile tolerance larger means that more fusion will happen  !
+                 !---------------------------------------------------------------------!        
+                 dynamic_size_fusion_tolerance = dynamic_size_fusion_tolerance * 1.1_r8
+                 dynamic_age_fusion_tolerance = dynamic_age_fusion_tolerance * 1.1_r8
+                 !write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
-              iterate = 0
-        endif
+              else
 
+                 iterate = 0
+              endif
+
+           else 
+
+              if (nocohorts > maxCohortsPerPatch) then
+                 iterate = 1
+                 !---------------------------------------------------------------------!
+                 ! Making profile tolerance larger means that more fusion will happen  !
+                 !---------------------------------------------------------------------!        
+                 dynamic_size_fusion_tolerance = dynamic_size_fusion_tolerance * 1.1_r8
+                 !write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
+
+              else
+
+                 iterate = 0
+              endif
+           end if
+
+           
         if ( dynamic_size_fusion_tolerance .gt. 100._r8) then
               ! something has gone terribly wrong and we need to report what
               write(fates_log(),*) 'exceeded reasonable expectation of cohort fusion.'
