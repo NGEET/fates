@@ -4416,11 +4416,16 @@ contains
 
     
     integer :: k,ft, nt_ab,nr,nc,ic(2),ir(2),icol
-    integer :: j, icnx, pmx,inewt
+    integer :: j, icnx, pmx
     integer :: id_dn, id_up
     real(r8) :: psisat,B,thsat,psi_pt,tmp
     real(r8) :: values(4)
 
+    real(r8) :: wb_step_err   ! water balance error over substep [kg]
+    real(r8) :: w_tot_beg     ! total plant water prior to solve [kg]
+    real(r8) :: w_tot_end     ! total plant water at end of solve [kg]
+    real(r8) :: dt_substep    ! timestep length of substeps [s]
+    
 
     ! Move these to site-level scratch space
     !
@@ -4453,7 +4458,6 @@ contains
     integer :: s
     integer :: num_nds
     real(r8) :: blu(num_nodes)
-    real(r8) :: blux(num_nodes)
     integer :: indices(num_nodes)
     real(r8) :: th_node_1l(   n_hypool_tot)      ! volumetric water in water storage compartments (single-layer soln) [m3 m-3]
     real(r8) :: dpsidth_node( n_hypool_tot)      ! derivative of water potential wrt to theta                      [MPa]
@@ -4464,22 +4468,39 @@ contains
     real(r8) :: dflcdpsi_node_1l(n_hypool_tot)   ! derivative of flc_node_1l wrt psi                               [MPa-1]
 
     real(r8) :: hdiff_bound_1l( nshell+1)     !
-    real(r8) :: dth_layershell(nlevsoi_hyd_max,nshell) ! accumulated water content change over a cohort in a column   [m3 m-3]
-    integer :: icnv
+
+
+    
+    integer :: icnv ! Convergence flag for each solve
+                    ! icnv = 1 convergence failure, B vector may have NANs
+                    ! icnv = 2 solution is not yet in-balance, keep trying
+                    ! icnv = 3 acceptable solution
+                    ! icnv = 4 too many failures, not converging
+    
+
     real(r8) :: thsatx
     real(r8) :: slx
     real(r8) :: plx
     real(r8) :: dplx
-    real(r8) :: rsd, rsdx, rlfx, rlfx1, rsdp
+    real(r8) :: residual_amax  ! maximum absolute mass balance residual over all
+                               ! nodes,
+                               ! used for determining convergence. At the point
+    
+    real(r8) :: rsdx           ! Temporary residual while determining max value
+
+
+    real(r8) :: rlfx_soil ! Pressure update reduction factor for soil compartments
+    real(r8) :: rlfx_plnt ! Pressure update reduction factor for plant comparmtents
+
+
     real(r8) :: acp
     real(r8) :: dcomp
     real(r8) :: dtime, dtx, dtcf, tm, dto, dtimex, var, varx, tmx,dtime_o
     real(r8) :: dwat_veg_coh
-    integer :: nsd
+    integer :: nsd              ! node index in B vector with highest term
     integer :: niter
     integer :: ntsr
-    integer :: n_hypool_at
-    integer :: ksh
+    integer :: kshell           ! rhizosphere shell index, 1->nshell
     integer :: outer_nodes(10)
     integer :: bc_cnx(10)
     real(r8) :: smp, h2osoi_liqvol
@@ -4495,25 +4516,6 @@ contains
     !
     !for debug only
     nstep = get_nstep()
-
-    
-!    associate( &
-!         z_lower_ag => ccohort_hydr%z_lower_ag, & 
-!         z_upper_ag => ccohort_hydr%z_upper_ag, & 
-!         z_node_ag => ccohort_hydr%z_node_ag, & 
-!         z_node => ccohort_hydr%z_node, & 
-!         v_node => ccohort_hydr%v_node, &
-!         conn_up => ccohort_hydr%conn_up, &
-!         conn_dn => ccohort_hydr%conn_dn, &
-!         cond_up => ccohort_hydr%cond_up, &
-!         cond_dn => ccohort_hydr%cond_dn, &
-!         conductance => ccohort_hydr%conductance, &
-!         th_node_init => ccohort_hydr%th_node_init, &
-!         th_node => ccohort_hydr%th_node, &
-!         psi_node_init => ccohort_hydr%psi_node_init, &
-!         psi_node => ccohort_hydr%psi_node, &
-!         pm_type => ccohort_hydr%pm_type &
-!         )
 
     associate(conn_up => site_hydr%conn_up, &
          conn_dn => site_hydr%conn_dn )
@@ -4554,91 +4556,58 @@ contains
                v_node(inode)  = cohort_hydr%v_aroot_layer(j)
                th_node_init(inode) = cohort_hydr%th_aroot(j)
             else
-               ishell  = k-(n_hypool_tot-nshell)
+               kshell  = k-(n_hypool_tot-nshell)
                z_node(inode)  = -bc_in%z_sisl(j)
                ! The volume of the Rhizosphere for a single plant
-               v_node(inode)  = site_hydr%v_shell(j,ishell)*aroot_frac_plant
-               th_node_init(inode) = site_hydr%h2osoi_liqvol_shell(j,ishell)
+               v_node(inode)  = site_hydr%v_shell(j,kshell)*aroot_frac_plant
+               th_node_init(inode) = site_hydr%h2osoi_liqvol_shell(j,kshell)
             end if
          enddo
 
       enddo
-
-
-
-      
                 
-      ! assign variables
-      th_node(               1 : n_hypool_ag          ) =ccohort_hydr%th_ag(:)
-      th_node(     (n_hypool_ag+1):(n_hypool_ag+n_hypool_troot)) =ccohort_hydr%th_troot(:)
 
-      do k = 1, n_hypool_ag+n_hypool_troot
-         call psi_from_th(ft, porous_media(k), th_node(k), psi_node(k),site_hydr, bc_in)
-         call dpsidth_from_th(ft, porous_media(k), th_node(k),dpsidth_node(k), site_hydr, bc_in)
-         call flc_from_psi(ft, porous_media(k), psi_node(k), flc_node(k),site_hydr, bc_in)
-         call dflcdpsi_from_psi(ft, porous_media(k), psi_node(k),dflcdpsi_node(k), site_hydr, bc_in)
-      enddo
+      ! Initialize variables and flags that track
+      ! the progress of the solve
 
-      num_nds = n_hypool_ag + n_hypool_troot
-
-      do j = 1,site_hydr%nlevsoi_hyd
-         th_node_1l((n_hypool_ag+n_hypool_troot+1)) = ccohort_hydr%th_aroot(j)
-         th_node_1l((n_hypool_ag+n_hypool_troot+2):(n_hypool_tot)) = site_hydr%h2osoi_liqvol_shell(j,:)
-
-         do k = (n_hypool_ag+n_hypool_troot+1), n_hypool_tot
-            num_nds = num_nds + 1
-            call psi_from_th(ft, pm_type(num_nds), th_node_1l(k),psi_node_1l(k),site_hydr, bc_in)
-            call flc_from_psi(ft, pm_type(num_nds),psi_node_1l(k), flc_node_1l(k), site_hydr, bc_in)
-            call dflcdpsi_from_psi(ft, pm_type(num_nds),psi_node_1l(k), dflcdpsi_node_1l(k), site_hydr, bc_in)
-
-            if(k == n_hypool_ag + n_hypool_troot + 1) then
-               flc_node(num_nds) = flc_node_1l(k)
-               dflcdpsi_node(num_nds) = dflcdpsi_node_1l(k)            
-            else
-               flc_node(num_nds) = flc_node_1l(k)
-               dflcdpsi_node(num_nds) = dflcdpsi_node_1l(k)           
-               if(k==n_hypool_tot) outer_nodes(j) = num_nds 
-            endif
-            psi_node(num_nds) = psi_node_1l(k)
-            th_node(num_nds) = th_node_1l(k)
-         enddo
-
-      enddo
-      th_node_init(:) = th_node(:)
-      psi_node_init(:) = psi_node(:)
-      !
-      nt_ab = n_hypool_ag+n_hypool_troot+n_hypool_aroot
-      !
-      rlfx = 1._r8
-      rlfx1 = 0.15_r8
-      rsdp = 0._r8
-      inewt = 0
-      tmx = dtime
+      tmx     = dtime
       dtime_o = dtime
-      tm = 0
-      ntsr = 0
-      dth_layershell(:,:) = 0._r8
+      tm      = 0
+      ntsr    = 0
+
+
       do while(tm < tmx)
-         rlfx = 0.6_r8
-         !rlfx1 = 0.15_r8
-         rlfx1 = 0.1_r8
-         rsdp = 0._r8
-         inewt = 0
+
+         rlfx_plnt = 0.6_r8
+         rlfx_soil = 0.1_r8
+
+         ! Return here if there were NaN's or
+         ! problems reaching any iterator. It is
+         ! likely that the elapsed time through the step
+         ! was reset (tm) and the sub-step length (dtime)
+         ! was decreased.
 100      continue
+         
          tm = tm + dtime
          niter = 0
          itshk = 0
          e0(:) = 0
          e1(:) = 0
          e2(:) = 0
+
+
+         ! Return here if you are just continuing the
+         ! Newton search for a solution. No need to
+         ! update timing information, yet.
 200      continue
+
          niter = niter + 1
+
          !zero matrix and residual
-         if(inewt == 0) then
-            ajac(:,:) = 0._r8
-         endif
+         ajac(:,:)   = 0._r8
          residual(:) = 0._r8
-         blu(:) = 0._r8
+         blu(:)      = 0._r8
+
          !
          do k = 1, num_nodes
             call flc_from_psi(ft, pm_type(k),psi_node(k), flc_node(k), site_hydr, bc_in)
@@ -4663,14 +4632,14 @@ contains
             !             dnr = -0.005*abs(psi_node(k)) - 1e-12
             dnr = -1.e-8_r8            
             !            dnr = -max(1.e-6,0.05*abs(psi_node(k)))
-            if(pm_type(k) <= nt_ab) then
+            if(pm_type(k) <= n_hypool_plant) then
                call th_from_psi(ft, pm_type(k), psi_node(k), thx,site_hydr,bc_in)
                ! incremented psi
                psi_pt = psi_node(k) + dnr
                call th_from_psi(ft, pm_type(k), psi_pt, thx_pt,site_hydr,bc_in)
                values(1) = denh2o*v_node(k)/dtime*(thx_pt-thx)/dnr
             else
-               j = pm_type(k)-nt_ab
+               j = pm_type(k)-n_hypool_plant
                B = bc_in%bsw_sisl(j)
                psisat = bc_in%sucsat_sisl(j)*denh2o*grav*1.e-9_r8 !! mm * 1e-3 m/mm * 1e3 kg/m3 * 9.8 m/s2 * 1e-6 MPa/Pa = MPa
                thsat = bc_in%watsat_sisl(j)
@@ -4682,10 +4651,9 @@ contains
                endif
                values(1) = denh2o*v_node(k)/dtime*bc_in%watsat_sisl(j)*tmp
             endif
-            if(inewt == 0) then
-               !              call MatSetValues( fmat,nr,ir(1),nc,ic(1),values(1),ADD_VALUES,ierr )
-               ajac(ir(1),ic(1)) = ajac(ir(1),ic(1)) + values(1)
-            end if
+
+            ajac(ir(1),ic(1)) = ajac(ir(1),ic(1)) + values(1)
+            
          enddo
 
          ! calculate boundary fluxes     
@@ -4712,11 +4680,10 @@ contains
             values(2) = -dqflx_up
             values(3) = dqflx_dn 
             values(4) = dqflx_up
-            if(inewt == 0) then
-               !                call MatSetValues( fmat,nr,ir,nc,ic,values,ADD_VALUES,ierr )     
-               ajac(ir(1),ic(1:2)) = ajac(ir(1),ic(1:2)) + values(1:2)
-               ajac(ir(2),ic(1:2)) = ajac(ir(2),ic(1:2)) + values(3:4)
-            end if
+
+            ajac(ir(1),ic(1:2)) = ajac(ir(1),ic(1:2)) + values(1:2)
+            ajac(ir(2),ic(1:2)) = ajac(ir(2),ic(1:2)) + values(3:4)
+            
          enddo
          !
          residual(1) = residual(1) + qtop
@@ -4725,11 +4692,15 @@ contains
 
          icnv = 3
 
-         !         CALL DGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
-         
          ! check residual
-         !if(nstep==15764) print *,'ft,it,rsd-',ft,niter,rsd,'qtop',qtop,psi_node,'init-',psi_node_init,'resi-',residual, 'qflux-',q_flux,'v_n',v_node
-         rsd = 0._r8
+         ! if(nstep==15764) print *,'ft,it,residual_amax-',ft,niter,residual_amax,'qtop',qtop,psi_node,
+         ! 'init-',psi_node_init,'resi-',residual, 'qflux-',q_flux,'v_n',v_node
+
+         ! Residual at this point, is the RHS of the matrix equation. In this next
+         ! step we are simply identifying if these terms are finite and how
+         ! large the largest one is.
+         
+         residual_amax = 0._r8
          nsd = 0
          do k = 1, num_nodes
             rsdx = abs(residual(k))
@@ -4738,21 +4709,73 @@ contains
                icnv = 1
                exit
             endif
-            if( rsdx > rsd ) then
-               rsd = rsdx
+            if( rsdx > residual_amax ) then
+               residual_amax = rsdx
                nsd = k
             endif
          enddo
-         !  matrix no update if inewt = 1
-         !          if( niter > 100 .and. rsd < 1.e-1) inewt = 1
+
          if(icnv == 1) goto 199
-         rsdp = rsd
-         ! check convergence
-         if( rsd > 1.e-8_r8 ) then
+
+         
+         ! If the solution is balanced, none of the residuals
+         ! should be very large, and we can ignore another
+         ! solve attempt.
+
+         if( residual_amax > 1.e-8_r8 ) then
+
             icnv = 2
 
-            info = 0
-
+            ! ---------------------------------------------------------------------------
+            ! From Lapack documentation
+            !
+            ! subroutine dgesv(integer 	N,
+            !                  integer 	NRHS,
+            !                  real(r8), dimension( lda, * ) 	A,
+            !                  integer 	LDA,
+            !                  integer, dimension( * ) 	IPIV,
+            !                  real(r8), dimension( ldb, * ) 	B,
+            !                  integer 	LDB,
+            !                  integer 	INFO )
+            !
+            ! DGESV computes the solution to a real system of linear equations
+            ! A * X = B, where A is an N-by-N matrix and X and B are N-by-NRHS matrices.
+            ! The LU decomposition with partial pivoting and row interchanges is
+            ! used to factor A as   A = P * L * U,
+            ! where P is a permutation matrix, L is unit lower triangular, and U is
+            ! upper triangular.  The factored form of A is then used to solve the
+            ! system of equations A * X = B.
+            !
+            ! N is the number of linear equations, i.e., the order of the
+            ! matrix A.  N >= 0.
+            !
+            ! NRHS is the number of right hand sides, i.e., the number of columns
+            ! of the matrix B.  NRHS >= 0. 
+            !
+            ! A: 
+            ! On entry, the N-by-N coefficient matrix A.
+            ! On exit, the factors L and U from the factorization
+            ! A = P*L*U; the unit diagonal elements of L are not stored.
+            !
+            ! LDA is the leading dimension of the array A.  LDA >= max(1,N).
+            !
+            ! IPIV is the pivot indices that define the permutation matrix P;
+            ! row i of the matrix was interchanged with row IPIV(i).
+            !
+            ! B
+            ! On entry, the N-by-NRHS matrix of right hand side matrix B.
+            ! On exit, if INFO = 0, the N-by-NRHS solution matrix X.
+            !
+            ! LDB is the leading dimension of the array B.  LDB >= max(1,N).
+            !
+            ! INFO:
+            ! = 0:  successful exit
+            ! < 0:  if INFO = -i, the i-th argument had an illegal value
+            ! > 0:  if INFO = i, U(i,i) is exactly zero.  The factorization
+            !    has been completed, but the factor U is exactly
+            !    singular, so the solution could not be computed.
+            ! ---------------------------------------------------------------------------
+            
             call DGESV(num_nodes,1,ajac,num_nodes,ipiv,residual,num_nodes,info)
 
             if ( info == -1 ) then
@@ -4769,12 +4792,12 @@ contains
                   !if(abs(blu(k))> abs(psi_node(k))) then
                   !                psi_node(k) = psi_node(k) + blu(k)*rlfx1*0.5
                   !else
-                  psi_node(k) = psi_node(k) + blu(k)*rlfx1
+                  psi_node(k) = psi_node(k) + blu(k)*rlfx_soil
                   !endif
 
                else
                   !                psi_node(k) = psi_node(k) + sign(min(abs(0.1*psi_node(k)),abs(blu(k))),blu(k))*rlfx
-                  psi_node(k) = psi_node(k) + blu(k) * rlfx
+                  psi_node(k) = psi_node(k) + blu(k) * rlfx_plnt
                endif
 
             enddo
@@ -4783,14 +4806,16 @@ contains
             icnv = 1
          endif
          if(niter > 500) then
-            rlfx = 0.4_r8
-            rlfx1 = 0.1_r8
+            rlfx_plnt = 0.4_r8
+            rlfx_soil = 0.1_r8
          end if
+
 199      continue
+         
          if( icnv == 1 ) then
             write(*,'(10x,a)') '---  Convergence Failure  ---'
             write(*,'(4x,a,1pe11.4,2(a,i6),1pe11.4)') 'Equation Maximum Residual = ', &
-                 rsd,' Node = ',nsd, 'pft = ',ft, bc_in%qflx_transp_pa(ft)
+                 residual_amax,' Node = ',nsd, 'pft = ',ft, bc_in%qflx_transp_pa(ft)
             if( ntsr < 10 ) then
                tm = tm - dtime
                ntsr = ntsr + 1
@@ -4808,8 +4833,8 @@ contains
                   psi_node(k) = psi_node_init(k)
                   th_node(k) = th_node_init(k)
                enddo
-               rlfx = 0.6_r8
-               rlfx1 = 0.15_r8
+               rlfx_plnt = 0.6_r8
+               rlfx_soil = 0.15_r8
                !
                !---  Number of time step reductions failure: stop simulation  ---
                !
@@ -4834,6 +4859,12 @@ contains
          !     enddo
 201      continue
 
+
+         ! If we have reached this point, we have iterated to
+         ! a stable solution (where residual mass balance = 0)
+         ! It is possible that we have used a sub-step though,
+         ! and need to continue the iteration.
+         
          ccohort_hydr%th_ag(1:n_hypool_ag) = th_node(1:n_hypool_ag)
          ccohort_hydr%psi_ag(1:n_hypool_ag) = psi_node(1:n_hypool_ag)
          ccohort_hydr%flc_ag(1:n_hypool_ag) = flc_node(1:n_hypool_ag)
@@ -4842,21 +4873,30 @@ contains
          ccohort_hydr%flc_troot(1:n_hypool_troot) = flc_node(n_hypool_ag+1:n_hypool_ag+n_hypool_troot)
          dwat_veg_coh = sum(dth_node(1:n_hypool_ag+n_hypool_troot)*v_node(1:n_hypool_ag+n_hypool_troot))
          num_nds = n_hypool_ag+n_hypool_troot
-         n_hypool_at = n_hypool_ag + n_hypool_troot + 1
+
+         
          do j = 1,site_hydr%nlevsoi_hyd
             do k = (n_hypool_ag+n_hypool_troot+1), n_hypool_tot
                num_nds = num_nds + 1
-               if(k==n_hypool_at) then
+               if(k==n_hypool_plant) then
                   ccohort_hydr%th_aroot(j) = th_node(num_nds)
                   ccohort_hydr%psi_aroot(j) = psi_node(num_nds)
                   ccohort_hydr%flc_aroot(j) = flc_node(num_nds)
                   dwat_veg_coh = dwat_veg_coh + dth_node(num_nds) * v_node(num_nds)
                else
-                  ksh = k-n_hypool_at
-                  dth_layershell(j,ksh) = dth_layershell(j,ksh) + &
-                       (th_node(num_nds) - th_node_init(num_nds)) * &
-                       ccohort_hydr%l_aroot_layer(j) * &
-                       ccohort%n /site_hydr%l_aroot_layer(j) * dtime 
+!                  kshell = k-n_hypool_plant
+!                  dth_layershell(j,kshell) = dth_layershell(j,kshell) + &
+!                       (th_node(num_nds) - th_node_init(num_nds)) * &
+!                       ccohort_hydr%l_aroot_layer(j) * &
+!                       ccohort%n /site_hydr%l_aroot_layer(j) * dtime
+
+
+                  !dth_layershell_col(ilayer,:) = dth_layershell_col(ilayer,:) + &
+                  !     dth_node((n_hypool_tot-nshell+1):n_hypool_tot) * & 
+                  !     ccohort_hydr%l_aroot_layer(ilayer) * &
+                  !     ccohort%n / site_hydr%l_aroot_layer(ilayer)
+
+                  
                endif
             enddo
          enddo
@@ -4866,11 +4906,26 @@ contains
          th_node_init(:) = th_node(:)
          psi_node_init(:) = psi_node(:)
       enddo
-      dth_layershell(:,:) = dth_layershell(:,:) / dtime_o
+      
+
+      ! Assign the changes to the site level soil water
+      do j = 1,site_hydr%nlevsoi_hyd
+         do k = n_hypool_plant+1, n_hypool_tot
+            inode = inode + 1
+            kshell  = k-n_hypool_plant
+            
+            dth_layershell(j,kshell) = dth_layershell(j,kshell) + &
+                 (th_node(inode) - th_node_init(inode)) * &
+                 ccohort_hydr%l_aroot_layer(j) * &
+                 ccohort%n /site_hydr%l_aroot_layer(j)
+
+         end do
+      end do
+
     end associate
 
     return   
-  end subroutine hydraulics_alt_1DSolve
+  end subroutine MatSolve2D
 
  ! =====================================================================================
 
