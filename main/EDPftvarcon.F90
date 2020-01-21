@@ -2158,8 +2158,11 @@ contains
         ! Check to see if cohort tracking is on if age-senescence is on
         !----------------------------------------------------------------------------------
         
-        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < 100000.0_r8 .and. &
-             cohort_age_tracking .neqv. .TRUE. ) ) then
+        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < 10000.0_r8 ) .and. &
+             ( cohort_age_tracking .neqv. .TRUE. ) ) then
+
+           write(fates_log(),*) 'ip_age = ', EDPftvarcon_inst%mort_ip_age_senescence(ipft)
+           write(fates_log(),*) 'cohort_age_tracking = ', cohort_age_tracking
 
            write(fates_log(),*) 'Age-dependent mortality cannot be on'
            write(fates_log(),*) 'if cohort age tracking is off'
@@ -2174,8 +2177,8 @@ contains
 
         ! Check that parameter ranges for age-dependent mortality make sense   
         !-----------------------------------------------------------------------------------    
-        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < 100000.0_r8 .and. &
-             EDPftvarcon_inst%mort_r_age_senescence(ipft) > 100000.0_r8 ) ) then
+        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < 10000.0_r8 ) .and. &
+             (  EDPftvarcon_inst%mort_r_age_senescence(ipft) > 10000.0_r8 ) ) then
 
            write(fates_log(),*) 'Age-dependent mortality is on'
            write(fates_log(),*) 'Please also set mort_r_age_senescence'
@@ -2197,8 +2200,8 @@ contains
 
         ! Check that parameter ranges for size-dependent mortality make sense   
         !-----------------------------------------------------------------------------------    
-        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < 100000.0_r8 .and. &
-             EDPftvarcon_inst%mort_r_size_senescence(ipft) > 100000.0_r8 ) ) then
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < 10000.0_r8 ) .and. &
+             (  EDPftvarcon_inst%mort_r_size_senescence(ipft) > 10000.0_r8 ) ) then
 
            write(fates_log(),*) 'Size-dependent mortality is on'
            write(fates_log(),*) 'Please also set mort_r_size_senescence'
@@ -2217,13 +2220,13 @@ contains
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-              
-        
+
+
 
         ! Check to see if mature and base seed allocation is greater than 1
         ! ----------------------------------------------------------------------------------
         if ( ( EDPftvarcon_inst%seed_alloc(ipft) + &
-               EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0_r8 ) then
+             EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0_r8 ) then
 
            write(fates_log(),*) 'The sum of seed allocation from base and mature trees may'
            write(fates_log(),*) ' not exceed 1.'
@@ -2232,7 +2235,7 @@ contains
            write(fates_log(),*) ' seed_alloc_mature: ',EDPftvarcon_inst%seed_alloc_mature(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
-           
+
         end if
 
         ! Check if woody plants have a structural biomass (agb) intercept

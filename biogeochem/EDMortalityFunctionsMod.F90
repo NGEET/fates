@@ -86,7 +86,7 @@ contains
     ! rate (r) and inflection point (ip) define the increase in mortality rate with dbh
     mort_r_size_senescence = EDPftvarcon_inst%mort_r_size_senescence(cohort_in%pft)
     mort_ip_size_senescence = EDPftvarcon_inst%mort_ip_size_senescence(cohort_in%pft)
-
+    
     ! if param values have been set then calculate smort
     if (mort_ip_size_senescence < 10000.0_r8 ) then 
        smort = 1.0_r8 / ( 1.0_r8 + exp( -1.0_r8 * mort_r_size_senescence * &

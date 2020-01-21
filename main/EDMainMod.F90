@@ -444,11 +444,9 @@ contains
           end if
 
           ! if we are in age-dependent mortality mode
-          write(fates_log(),*) 'cohort_age_tracking',cohort_age_tracking
           if (cohort_age_tracking) then
              ! update cohort age
              currentCohort%coage = currentCohort%coage + hlm_freq_day
-             write(fates_log(),*) 'cohort age: ',currentCohort%coage
              if(currentCohort%coage < 0.0_r8)then
                 write(fates_log(),*) 'negative cohort age?',currentCohort%coage
              end if
