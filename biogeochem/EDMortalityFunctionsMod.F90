@@ -250,11 +250,9 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
             currentCohort%lmort_collateral + &
             currentCohort%lmort_infra)/hlm_freq_day
 
-       ! this  caps bmort so that daily mortality cannot exceed 0.995
-       if ((cmort+hmort+bmort+frmort+smort+asmort + dndt_logging)*hlm_freq_day &
-            > 1.0_r8)then
-          bmort = (1.0_r8 - ((cmort+hmort+asmort+frmort+smort+dndt_logging)*hlm_freq_day)) &
-               /hlm_freq_day
+       ! this  caps bmort so that daily mortality cannot exceed 1
+       if (( bmort + smort + asmort )  > 1.0_r8 ) then
+          bmort = (1.0_r8 - (asmort + smort ))
        endif
        
        currentCohort%dndt = -1.0_r8 * &
@@ -263,11 +261,9 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     else
 
         ! cap on bmort for canopy layers - bmort is adjusted so that total mortality
-       ! including disturbance fraction does not exceed 0.995
-       if(((cmort+hmort+bmort+frmort+smort+asmort)*hlm_freq_day) > &
-            1.0_r8 - fates_mortality_disturbance_fraction)then
-          bmort = (1.0_r8 - fates_mortality_disturbance_fraction - &
-               ((cmort+hmort+asmort+frmort+smort)*hlm_freq_day))/hlm_freq_day
+       ! including disturbance fraction does not exceed 1
+       if (( bmort + smort + asmort) > 1.0_r8 - fates_mortality_disturbance_fraction ) then
+          bmort = (1.0_r8 - fates_mortality_disturbance_fraction - ( asmort + smort) )
        endif
       
     
