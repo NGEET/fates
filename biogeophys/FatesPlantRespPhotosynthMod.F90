@@ -66,6 +66,13 @@ module FATESPlantRespPhotosynthMod
    
    logical   ::  debug = .false.
 
+   !-------------------------------------------------------------------------------------
+   
+   ! Ratio of H2O/CO2 gas diffusion in stomatal airspace (approximate)
+   real(r8),parameter :: h2o_co2_stoma_diffuse_ratio = 1.6_r8
+   
+   ! Ratio of H2O/CO2 gass diffusion in the leaf boundary layer (approximate) 
+   real(r8),parameter :: h2o_co2_bl_diffuse_ratio = 1.4_r8
   
 contains
   
@@ -851,7 +858,7 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use EDPftvarcon       , only : EDPftvarcon_inst
-
+    use FatesConstantsMod, only: umol_per_mol
     
     ! Arguments
     ! ------------------------------------------------------------------------------------
@@ -927,7 +934,7 @@ contains
    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
 
    real(r8), dimension(0:1) :: bbbopt ! Cuticular conductance at full water potential (umol H2O /m2/s)
-   real(r8) :: term                 ! intermediate in Medlyn stomatal model added by LIQIANYU
+   real(r8) :: term                 ! intermediate in Medlyn stomatal model
   
 
    ! Parameters
@@ -957,13 +964,12 @@ contains
 
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
-   integer, parameter :: stomatalcond_mtd = 2  !added by LIQIANYU, 1 for Ball-Berry, 2 for Medlyn 
+   integer, parameter :: stomatalcond_mtd = 1  !Flag for stomatal conductance model method, 1 for Ball-Berry, 2 for Medlyn 
  
    associate( bb_slope  => EDPftvarcon_inst%BB_slope      , & ! slope of BB relationship
-      medlynslope=> EDPftvarcon_inst%medlynslope          , & ! Slope for Medlyn stomatal conductance model method added by LIQIANYU
-      medlynintercept=> EDPftvarcon_inst%medlynintercept  ) !Intercept for Medlyn stomatal conductance model method added by LIQIANYU
+      medlynslope=> EDPftvarcon_inst%medlynslope          , & ! Slope for Medlyn stomatal conductance model method, the unit is umol H2O/umol CO2
+      medlynintercept=> EDPftvarcon_inst%medlynintercept  ) !Intercept for Medlyn stomatal conductance model method, the unit is umol H2O
 
-     write (fates_log(),*) 'stomatalcond_mtd_lqy', stomatalcond_mtd
      ! photosynthetic pathway: 0. = c4, 1. = c3
      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
      
@@ -1104,20 +1110,22 @@ contains
 
                  ! Quadratic gs_mol calculation with an known. Valid for an >= 0.
                  ! With an <= 0, then gs_mol = bbb
-                 leaf_co2_ppress = can_co2_ppress- 1.4_r8/gb_mol * anet * can_press 
+                 leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press 
                  leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
-                if ( stomatalcond_mtd == 2 ) then                   !added by LIQIANYU
-                  term = 1.6_r8 * anet / (leaf_co2_ppress / can_press * 1.e06_r8)
+                if ( stomatalcond_mtd == 2 ) then
+                  !stomatal conductance calculated from Belinda Medlyn et al. (2011), the numerical &
+                  !implementation was adapted from the equations in CLM5.0 by Qianyu Li, see the CLM5 Technical Note 2.9.6                 
+                  term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press * umol_per_mol)
                   aquad = 1.0_r8
-                  bquad = -(2.0 * (medlynintercept(ft)*1.e-06_r8 + term) + (medlynslope(ft) * term)**2 / &
-                          (gb_mol*1.e-06_r8 *( max((veg_esat - ceair), 50._r8) * 0.001_r8) ))
-                  cquad = medlynintercept(ft)*medlynintercept(ft)*1.e-12_r8 + &
-                          (2.0*medlynintercept(ft)*1.e-06_r8 + term * &
+                  bquad = -(2.0 * (medlynintercept(ft)/umol_per_mol+ term) + (medlynslope(ft) * term)**2 / &
+                          (gb_mol/umol_per_mol *( max((veg_esat - ceair), 50._r8) * 0.001_r8) ))
+                  cquad = medlynintercept(ft)*medlynintercept(ft)/(umol_per_mol*umol_per_mol) + &
+                          (2.0*medlynintercept(ft)/umol_per_mol + term * &
                           (1.0 - medlynslope(ft)* medlynslope(ft) / (max((veg_esat - ceair), 50._r8) * 0.001_r8))) * term
            
                   call quadratic_f (aquad, bquad, cquad, r1, r2)
-                  gs_mol = max(r1,r2) * 1.e06_r8
-                else if ( stomatalcond_mtd ==1 ) then
+                  gs_mol = max(r1,r2) * umol_per_mol ! change the unit to umol /m**2/s
+                else if ( stomatalcond_mtd ==1 ) then         !stomatal conductance calculated from Ball et al. (1987)
                     aquad = leaf_co2_ppress
                     bquad = leaf_co2_ppress*(gb_mol - bbb) - bb_slope(ft) * anet * can_press
                     cquad = -gb_mol*(leaf_co2_ppress*bbb + &
@@ -1128,7 +1136,7 @@ contains
                  end if 
                  ! Derive new estimate for co2_inter_c
                  co2_inter_c = can_co2_ppress - anet * can_press * &
-                       (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
+                       (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
 
                  ! Check for co2_inter_c convergence. Delta co2_inter_c/pair = mol/mol. 
                  ! Multiply by 10**6 to convert to umol/mol (ppm). Exit iteration if 
@@ -1141,9 +1149,10 @@ contains
                  end if
               end do !iteration loop
               
-              ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol = bbb
+              ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol =medlynintercept (for Medlyn's method),&
+              ! or gs_mol = bbb (for Ball-Berry's method) 
               if (anet < 0._r8) then
-               if ( stomatalcond_mtd == 2 ) then                 !added by LIQIANYU
+               if ( stomatalcond_mtd == 2 ) then                
                   gs_mol = medlynintercept(ft)
                else if ( stomatalcond_mtd == 1) then
                  gs_mol = bbb
@@ -1152,10 +1161,10 @@ contains
               
               ! Final estimates for leaf_co2_ppress and co2_inter_c 
               ! (needed for early exit of co2_inter_c iteration when an < 0)
-              leaf_co2_ppress = can_co2_ppress - 1.4_r8/gb_mol * anet * can_press
+              leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press
               leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
               co2_inter_c = can_co2_ppress - anet * can_press * &
-                            (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
+                            (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
               
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
