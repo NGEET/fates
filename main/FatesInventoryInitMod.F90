@@ -1045,22 +1045,22 @@ contains
          if( EDPftvarcon_inst%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
             temp_cohort%laimemory = b_leaf
-            temp_cohort%sapwmemory = b_sapwood * stem_drop_fraction
-            temp_cohort%structmemory = b_dead * stem_drop_fraction	    
+            temp_cohort%sapwmemory = b_sapw * stem_drop_fraction
+            temp_cohort%structmemory = b_struct * stem_drop_fraction	    
             b_leaf  = 0._r8
-	         b_sapwood = (1._r8 - stem_drop_fraction) * b_sapwood
-	         b_dead  = (1._r8 - stem_drop_fraction) * b_dead
+	         b_sapw = (1._r8 - stem_drop_fraction) * b_sapw
+	         b_struct  = (1._r8 - stem_drop_fraction) * b_struct
             cstatus = leaves_off
          endif
 
          if ( EDPftvarcon_inst%stress_decid(temp_cohort%pft) == itrue .and. &
               any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
             temp_cohort%laimemory = b_leaf
-            temp_cohort%sapwmemory = b_sapwood * stem_drop_fraction
-            temp_cohort%structmemory = b_dead * stem_drop_fraction	    
+            temp_cohort%sapwmemory = b_sapw * stem_drop_fraction
+            temp_cohort%structmemory = b_struct * stem_drop_fraction	    
             b_leaf  = 0._r8
-	         b_sapwood = (1._r8 - stem_drop_fraction) * b_sapwood
-	         b_dead  = (1._r8 - stem_drop_fraction) * b_dead	    
+	         b_sapw = (1._r8 - stem_drop_fraction) * b_sapw
+	         b_struct  = (1._r8 - stem_drop_fraction) * b_struct	    
             cstatus = leaves_off
          endif
          
