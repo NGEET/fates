@@ -1975,11 +1975,7 @@ contains
         write(fates_log(),fmt0) 'taul = ',EDPftvarcon_inst%taul 
         write(fates_log(),fmt0) 'taus = ',EDPftvarcon_inst%taus
         write(fates_log(),fmt0) 'phenflush_fraction',EDpftvarcon_inst%phenflush_fraction
-<<<<<<< HEAD
-	write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
-=======
         write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
->>>>>>> master
         write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'rootprof_beta = ',EDPftvarcon_inst%rootprof_beta
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
@@ -2200,11 +2196,6 @@ contains
            end if
            if ( ( EDPftvarcon_inst%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or. &
                 ( EDPFtvarcon_inst%phen_stem_drop_fraction(ipft) > 1 ) ) then
-<<<<<<< HEAD
-              
-=======
-
->>>>>>> master
               write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
               write(fates_log(),*) ' during the dedicous period.'
               write(fates_log(),*) ' PFT#: ',ipft
@@ -2212,11 +2203,7 @@ contains
               write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
-<<<<<<< HEAD
-           end if	   
-=======
            end if	
->>>>>>> master
         end if
 
  
