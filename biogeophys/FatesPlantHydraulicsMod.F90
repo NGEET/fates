@@ -3875,27 +3875,71 @@ contains
     ! themselves, but to the path between the nodes, defined as positive
     ! direction from "up"per (closer to atm) and "lo"wer (further from atm).
     ! -----------------------------------------------------------------------------
-
+    ! Arguments
     real(r8),intent(in)  :: kmax_lo, kmax_up               ! max conductance [kg s-1 Mpa-1]
-    real(r8)             :: ftc_lo, ftc_up                 ! frac total conductance [-]
+    real(r8),intent(in)  :: ftc_lo, ftc_up                 ! frac total conductance [-]
     real(r8),intent(in)  :: h_lo, h_up                     ! total potential [Mpa]
-    real(r8)             :: dftc_dtheta_lo, dftc_dtheta_up ! Derivative
+    real(r8),intent(in)  :: dftc_dtheta_lo, dftc_dtheta_up ! Derivative
                                                            ! of FTC wrt relative water content
     real(r8),intent(in)  :: dpsi_dtheta_lo, dpsi_dtheta_up ! Derivative of matric potential
                                                            ! wrt relative water content
-    real(r8),intent(out) :: k_eff                          ! effective conductance over path [kg s-1 Mpa-1]
+    real(r8),intent(in)  :: k_eff                          ! effective conductance over path [kg s-1 Mpa-1]
     real(r8),intent(out) :: a_term                         ! "A" term for path (See tech note)
     real(r8),intent(out) :: b_term                         ! "B" term for path (See tech note)
+
+    ! Locals
     real(r8)             :: h_diff                         ! Total potential difference [MPa]
 
-    logical, parameter :: do_upstream_k = .true.           ! the effective fraction of total 
-                                                           ! conductivity is either governed
-                                                           ! by the upstream node, or by both
-                                                           ! with a harmonic average
 
     ! Calculate difference in total potential over the path [MPa]
     h_diff  = h_lo - h_up
 
+    ! "A" term, which operates on the upper node (closer to atm)
+    a_term = k_eff**2.0_r8 * h_diff * kmax_up**(-1.0_r8) * ftc_up**(-2.0_r8) &
+         * dftc_dtheta_up - k_eff * dpsi_dtheta_up
+
+       
+    ! "B" term, which operates on the lower node (further from atm)
+    b_term = k_eff**2.0_r8 * h_diff * kmax_lo**(-1.0_r8) * ftc_lo**(-2.0_r8) & 
+         * dftc_dtheta_lo + k_eff * dpsi_dtheta_lo
+       
+    
+
+    return
+  end subroutine GetImTaylorKAB
+
+  ! =====================================================================================
+
+  subroutine GetEffKFTC(kmax_lo,kmax_up, &
+       h_lo,h_up, &
+       ftc_lo,ftc_up, &
+       dftc_dtheta_lo, dftc_dtheta_up, &
+       k_eff)
+
+    ! -----------------------------------------------------------------------------
+    ! This routine will return the effective conductance "K", as well
+    ! as two terms needed to calculate the implicit solution (using taylor
+    ! first order expansion).  The two terms are generically named A & B.
+    ! Thus the name "KAB".  These quantities are specific not to the nodes
+    ! themselves, but to the path between the nodes, defined as positive
+    ! direction from "up"per (closer to atm) and "lo"wer (further from atm).
+    ! -----------------------------------------------------------------------------
+
+    real(r8),intent(in)    :: kmax_lo, kmax_up               ! max conductance [kg s-1 Mpa-1]
+    real(r8),intent(in)    :: h_lo, h_up                     ! total potential [Mpa]
+    real(r8),intent(inout) :: ftc_lo, ftc_up                 ! frac total conductance [-]
+    real(r8),intent(inout) :: dftc_dtheta_lo, dftc_dtheta_up ! Derivative
+                                                             ! of FTC wrt relative water content
+    real(r8),intent(out)   :: k_eff                          ! effective conductance over path [kg s-1 Mpa-1]
+
+    ! Locals
+    real(r8)               :: h_diff                         ! Total potential difference [MPa]
+    logical, parameter     :: do_upstream_k = .true.             ! the effective fraction of total 
+                                                             ! conductivity is either governed
+                                                             ! by the upstream node, or by both
+                                                             ! with a harmonic average
+    ! Calculate difference in total potential over the path [MPa]
+    h_diff  = h_lo - h_up
 
     ! If we do enable "upstream K", then we are saying that 
     ! the fractional loss of conductivity is dictated
@@ -3918,21 +3962,10 @@ contains
     ! Calculate total effective conductance over path  [kg s-1 MPa-1]
     k_eff = 1._r8/(1._r8/(ftc_up*kmax_up)+1._r8/(ftc_lo*kmax_lo))
     
-    
-    ! "A" term, which operates on the upper node (closer to atm)
-    a_term = k_eff**2.0_r8 * h_diff * kmax_up**(-1.0_r8) * ftc_up**(-2.0_r8) &
-         * dftc_dtheta_up - k_eff * dpsi_dtheta_up
-
-       
-    ! "B" term, which operates on the lower node (further from atm)
-    b_term = k_eff**2.0_r8 * h_diff * kmax_lo**(-1.0_r8) * ftc_lo**(-2.0_r8) & 
-         * dftc_dtheta_lo + k_eff * dpsi_dtheta_lo
-       
-    
 
     return
-  end subroutine GetImTaylorKAB
-
+  end subroutine GetEffKFTC
+  
 
   subroutine AccumulateMortalityWaterStorage(csite,ccohort,delta_n)
 
@@ -4429,18 +4462,18 @@ contains
 
     ! Move these to site-level scratch space
     !
-    real(r8) :: residual(num_nodes)
-    real(r8) :: ajac(num_nodes,num_nodes)
-    real(r8) :: dth_node(num_nodes)
-    real(r8) :: th_node_init(num_nodes)
-    real(r8) :: psi_node_init(num_nodes)
-    real(r8) :: th_node(num_nodes)
-    real(r8) :: psi_node(num_nodes)
-    real(r8) :: k_bound(num_connections)
-    real(r8) :: hdiff_bound(num_connections)
-    real(r8) :: dhdpsi(num_connections,2)
-    real(r8) :: dkdpsi(num_connections,2)
-    real(r8) :: q_flux(num_connections)
+!    real(r8) :: residual(num_nodes)
+!    real(r8) :: ajac(num_nodes,num_nodes)
+!    real(r8) :: dth_node(num_nodes)
+!    real(r8) :: th_node_init(num_nodes)
+!    real(r8) :: psi_node_init(num_nodes)
+!    real(r8) :: th_node(num_nodes)
+!    real(r8) :: psi_node(num_nodes)
+!    real(r8) :: k_bound(num_connections)
+!    real(r8) :: hdiff_bound(num_connections)
+!    real(r8) :: dhdpsi(num_connections,2)
+!    real(r8) :: dkdpsi(num_connections,2)
+!    real(r8) :: q_flux(num_connections)
     
     real(r8) :: hdiffx, k_boundx, dkdpsix
     
@@ -4586,15 +4619,26 @@ contains
          ! likely that the elapsed time through the step
          ! was reset (tm) and the sub-step length (dtime)
          ! was decreased.
-100      continue
+
+
          
+100      continue
+
+         ! Set the current water content as the initial [m3/m3]
+         th_node(:) = th_node_init(:)
+         
+         do k=1,num_nodes
+            ! Get matric potential [Mpa]
+            psi_node(k) = wrf_plant(p_media_nodes(k),ft)%p%psi_from_th(th_node(k))
+         end do
+
+          
          tm = tm + dtime
          niter = 0
          itshk = 0
          e0(:) = 0
          e1(:) = 0
          e2(:) = 0
-
 
          ! Return here if you are just continuing the
          ! Newton search for a solution. No need to
@@ -4609,16 +4653,41 @@ contains
          blu(:)      = 0._r8
 
          !
-         do k = 1, num_nodes
-            call flc_from_psi(ft, pm_type(k),psi_node(k), flc_node(k), site_hydr, bc_in)
-            call dflcdpsi_from_psi(ft, pm_type(k),psi_node(k), dflcdpsi_node(k), site_hydr, bc_in)
-         enddo
+!         do k = 1, num_nodes
+!            call flc_from_psi(ft, pm_type(k),psi_node(k), flc_node(k), site_hydr, bc_in)
+!            call dflcdpsi_from_psi(ft, pm_type(k),psi_node(k), dflcdpsi_node(k), site_hydr, bc_in)
+!         enddo
 
-         call boundary_hdiff_and_k_alt(ccohort_hydr,psi_node(:),flc_node,dflcdpsi_node,hdiff_bound,k_bound,dhdpsi,dkdpsi)
+!         call boundary_hdiff_and_k_alt(ccohort_hydr,psi_node(:),flc_node,dflcdpsi_node,hdiff_bound,k_bound,dhdpsi,dkdpsi)
 
          do k=1,num_nodes
+
             !
             residual(k) = residual(k) + (th_node(k) - th_node_init(k))/dtime*denh2o*v_node(k)
+
+            ! Get total potential [Mpa]
+            h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
+            
+            ! Get Fraction of Total Conductivity [-]
+            ftc_node(k) = wkf_plant(p_media_nodes(k),ft)%p%ftc_from_psi(psi_node(k))
+         
+            ! deriv psi wrt theta
+            dpsi_dtheta_node(k) = wrf_plant(p_media_nodes(k),ft)%p%dpsidth_from_th(th_node(k))
+            
+            ! deriv ftc wrt psi
+            
+            dftc_dpsi = wkf_plant(p_media_nodes(k),ft)%p%dftcdpsi_from_psi(psi_node(k))
+            
+            dftc_dtheta_node(k) = dftc_dpsi * dpsi_dtheta_node(k) 
+
+            ! This will get the effective K, and may modify FTC depending
+            ! on the flow direction
+            
+            call GetEffKFTC(kmax_lo,kmax_up,h_lo,h_up,ftc_lo,ftc_up, &
+                 dftc_dtheta_lo, dftc_dtheta_up, k_eff)
+            
+
+            
             ! matrix 
             ic(:) = 0
             ir(:) = 0
@@ -4652,6 +4721,10 @@ contains
                values(1) = denh2o*v_node(k)/dtime*bc_in%watsat_sisl(j)*tmp
             endif
 
+
+            values(1) = 
+
+            
             ajac(ir(1),ic(1)) = ajac(ir(1),ic(1)) + values(1)
             
          enddo
