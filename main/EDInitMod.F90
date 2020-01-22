@@ -590,9 +590,9 @@ contains
        call prt_obj%CheckInitialConditions()
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-             temp_cohort%dbh, prt_obj, temp_cohort%laimemory, cstatus, rstatus, &
-             temp_cohort%sapwmemory,temp_cohort%structmemory, temp_cohort%canopy_trim, 1, & 
-             site_in%spread, bc_in)
+            temp_cohort%dbh, prt_obj, temp_cohort%laimemory, temp_cohort%sapwmemory, &
+            temp_cohort%structmemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, &
+            site_in%spread, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 
