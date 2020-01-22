@@ -386,16 +386,49 @@ module FatesHydraulicsMemMod
          allocate(this%wkf_soil(1:nlevsoil_hyd))
 
          if(use_2d_hydrosolve) then
-            
-            this%num_connections =  n_hypool_leaf + n_hypool_stem + n_hypool_troot - 1  &
-                                 + (n_hypool_aroot + nshell) * nlevsoil_hyd
+             
+             this%num_connections =  n_hypool_leaf + n_hypool_stem + n_hypool_troot - 1  &
+                   + (n_hypool_aroot + nshell) * nlevsoil_hyd
+
+             this%num_nodes = n_hypool_leaf + n_hypool_stem + n_hypool_troot  &
+                   + (n_hypool_aroot + nshell) * nlevsoil_hyd
+
+             ! These are only in the newton-matrix solve
+             allocate(this%conn_up(this%num_connections))
+             allocate(this%conn_dn(this%num_connections))
+             allocate(this%residual(this%num_nodes))
+             allocate(this%ajac(this%num_nodes,this%num_nodes))
+             allocate(this%dth_node(this%num_nodes))
+             allocate(this%th_node_init(this%num_nodes))
+             allocate(this%psi_node_init(this%num_nodes))
+             allocate(this%th_node(this%num_nodes))
+             allocate(this%psi_node(this%num_nodes))
+             allocate(this%blu(this%num_nodes))
+             allocate(this%indices(this%num_nodes))
+             allocate(this%k_bound(this%num_connections))
+             allocate(this%hdiff_bound(this%num_connections))
+             allocate(this%dhdpsi(this%num_connections,2))
+             allocate(this%dkdpsi(this%num_connections,2))
+             allocate(this%q_flux(this%num_connections))
+             
+         else
+             
+             this%num_connections =  n_hypool_leaf + n_hypool_stem + & 
+                   n_hypool_troot + n_hypool_aroot + nshell -1 
+             
+             this%num_nodes = n_hypool_leaf + n_hypool_stem + & 
+                   n_hypool_troot + n_hypool_aroot + nshell
 
 
-            allocate(this%conn_up(this%num_connections))
-            allocate(this%conn_dn(this%num_connections))
-            
+
+
+
          end if
          
+         allocate(this%p_media_node(this%num_nodes))
+         
+
+
          
        end associate
 

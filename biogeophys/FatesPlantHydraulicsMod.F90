@@ -4468,7 +4468,9 @@ contains
 !    real(r8) :: th_node_init(num_nodes)
 !    real(r8) :: psi_node_init(num_nodes)
 !    real(r8) :: th_node(num_nodes)
-!    real(r8) :: psi_node(num_nodes)
+!    real(r8) :: psi_node(num_nodes) 
+!    real(r8) :: blu(num_nodes)
+!    integer  :: indices(num_nodes)
 !    real(r8) :: k_bound(num_connections)
 !    real(r8) :: hdiff_bound(num_connections)
 !    real(r8) :: dhdpsi(num_connections,2)
@@ -4490,8 +4492,9 @@ contains
     real(r8) :: qscale
     integer :: s
     integer :: num_nds
-    real(r8) :: blu(num_nodes)
-    integer :: indices(num_nodes)
+
+
+    ! Probably will remove these
     real(r8) :: th_node_1l(   n_hypool_tot)      ! volumetric water in water storage compartments (single-layer soln) [m3 m-3]
     real(r8) :: dpsidth_node( n_hypool_tot)      ! derivative of water potential wrt to theta                      [MPa]
     real(r8) :: flc_node(     num_nodes)      ! fractional loss of conductivity at water storage nodes          [-]
@@ -4499,7 +4502,6 @@ contains
     real(r8) :: psi_node_1l(  n_hypool_tot)      ! water potential in water storage compartments (single-layer soln) [MPa]
     real(r8) :: flc_node_1l(  n_hypool_tot)      ! fractional loss of conductivity (single-layer soln)             [-]
     real(r8) :: dflcdpsi_node_1l(n_hypool_tot)   ! derivative of flc_node_1l wrt psi                               [MPa-1]
-
     real(r8) :: hdiff_bound_1l( nshell+1)     !
 
 
@@ -4938,10 +4940,10 @@ contains
          ! It is possible that we have used a sub-step though,
          ! and need to continue the iteration.
          
-         ccohort_hydr%th_ag(1:n_hypool_ag) = th_node(1:n_hypool_ag)
-         ccohort_hydr%psi_ag(1:n_hypool_ag) = psi_node(1:n_hypool_ag)
-         ccohort_hydr%flc_ag(1:n_hypool_ag) = flc_node(1:n_hypool_ag)
-         ccohort_hydr%th_troot(1:n_hypool_troot) = th_node(n_hypool_ag+1:n_hypool_ag+n_hypool_troot)
+         ccohort_hydr%th_ag(1:n_hypool_ag)        = th_node(1:n_hypool_ag)
+         ccohort_hydr%psi_ag(1:n_hypool_ag)       = psi_node(1:n_hypool_ag)
+         ccohort_hydr%flc_ag(1:n_hypool_ag)       = flc_node(1:n_hypool_ag)
+         ccohort_hydr%th_troot(1:n_hypool_troot)  = th_node(n_hypool_ag+1:n_hypool_ag+n_hypool_troot)
          ccohort_hydr%psi_troot(1:n_hypool_troot) = psi_node(n_hypool_ag+1:n_hypool_ag+n_hypool_troot)
          ccohort_hydr%flc_troot(1:n_hypool_troot) = flc_node(n_hypool_ag+1:n_hypool_ag+n_hypool_troot)
          dwat_veg_coh = sum(dth_node(1:n_hypool_ag+n_hypool_troot)*v_node(1:n_hypool_ag+n_hypool_troot))
