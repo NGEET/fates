@@ -510,14 +510,18 @@ contains
          temp_cohort%structmemory = c_struct * stem_drop_fraction
          c_leaf = 0._r8
          c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
-	      c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
-	      cstatus = leaves_off
+         c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
+         cstatus = leaves_off
        endif
 
        if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. &
             any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
           temp_cohort%laimemory = c_leaf
+          temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
+          temp_cohort%structmemory = c_struct * stem_drop_fraction
           c_leaf = 0._r8
+          c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+          c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
           cstatus = leaves_off
        endif
 
