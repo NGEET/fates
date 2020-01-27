@@ -987,26 +987,27 @@ contains
 
                    ! This call will request that storage carbon will be transferred to 
                    ! leaf tissues. It is specified as a fraction of the available storage
-		   if(EDPftvarcon_inst%woody(ipft) == itrue) then
-                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, store_c_transfer_frac)
-                      currentCohort%laimemory = 0.0_r8		   
-		   else
-		   
+                  if(EDPftvarcon_inst%woody(ipft) == itrue) then
+
+                     call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, store_c_transfer_frac)
+                     currentCohort%laimemory = 0.0_r8		   
+
+                  else
+                  
                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-		               store_c_transfer_frac*currentCohort%laimemory/totalmemory)		   
+                     store_c_transfer_frac*currentCohort%laimemory/totalmemory)		   
 
                      call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
-		               store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
+                     store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
 
                      call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, & 
-		              store_c_transfer_frac*currentCohort%structmemory/totalmemory)
-			      
+                     store_c_transfer_frac*currentCohort%structmemory/totalmemory)
+               
                      currentCohort%laimemory = 0.0_r8
-		     currentCohort%structmemory = 0.0_r8
-		     currentCohort%sapwmemory = 0.0_r8
-		     
-		   endif		   
-
+                     currentCohort%structmemory = 0.0_r8
+                     currentCohort%sapwmemory = 0.0_r8
+                  
+                  endif		   
                 endif !pft phenology
              endif ! growing season 
 
@@ -1015,41 +1016,43 @@ contains
                  currentSite%cstatus == phen_cstat_iscold) then ! past leaf drop day? Leaves still on tree?  
 
                 if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
-		   ! leaf off occur on individuals bigger than specific size for grass
-                   if (currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) &
-		       .or. EDPftvarcon_inst%woody(ipft)==itrue) then 
-                      ! This sets the cohort to the "leaves off" flag
-                      currentCohort%status_coh  = leaves_off
 
-                      ! Remember what the lai was (leaf mass actually) was for next year
-                      ! the same amount back on in the spring...
+		            ! leaf off occur on individuals bigger than specific size for grass
+                  if (currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) &
+                  .or. EDPftvarcon_inst%woody(ipft)==itrue) then 
+                     
+                     ! This sets the cohort to the "leaves off" flag
+                     currentCohort%status_coh  = leaves_off
 
-                      currentCohort%laimemory   = leaf_c
+                     ! Remember what the lai was (leaf mass actually) was for next year
+                     ! the same amount back on in the spring...
 
-                      ! Drop Leaves (this routine will update the leaf state variables,
-                      ! for carbon and any other element that are prognostic. It will
-                      ! also track the turnover masses that will be sent to litter later on)
+                     currentCohort%laimemory   = leaf_c
 
-                      call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                           leaf_organ, leaf_drop_fraction)
-			 
-	              if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
-			 
-                         currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
-		   
-		         currentCohort%structmemory   = struct_c * stem_drop_fraction			 
+                     ! Drop Leaves (this routine will update the leaf state variables,
+                     ! for carbon and any other element that are prognostic. It will
+                     ! also track the turnover masses that will be sent to litter later on)
 
-                         call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                     call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                        leaf_organ, leaf_drop_fraction)
+         
+                     if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+               
+                           currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
+               
+                           currentCohort%structmemory   = struct_c * stem_drop_fraction			 
+
+                           call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                               sapw_organ, stem_drop_fraction)
 
-                         call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                           call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                               struct_organ, stem_drop_fraction)
-	              endif	
-                    endif ! individual dbh size check
 
-                endif !leaf status
-             endif !currentSite status
-          endif  !season_decid
+                     endif	
+                  endif ! individual dbh size check
+               endif !leaf status
+            endif !currentSite status
+         endif  !season_decid
 
           ! DROUGHT LEAF ON
           ! Site level flag indicates it is no longer in drought condition
@@ -1057,98 +1060,101 @@ contains
 
           if (EDPftvarcon_inst%stress_decid(ipft) == itrue )then
              
-             if (currentSite%dstatus == phen_dstat_moiston .or. &
+            if (currentSite%dstatus == phen_dstat_moiston .or. &
                  currentSite%dstatus == phen_dstat_timeon )then 
 
-                ! we have just moved to leaves being on . 
-                if (currentCohort%status_coh == leaves_off)then    
+               ! we have just moved to leaves being on . 
+               if (currentCohort%status_coh == leaves_off)then    
 
                    !is it the leaf-on day? Are the leaves currently off?    
 
-                   currentCohort%status_coh = leaves_on    ! Leaves are on, so change status to 
+                  currentCohort%status_coh = leaves_on    ! Leaves are on, so change status to 
                                                            ! stop flow of carbon out of bstore. 
 
-                   if(store_c>nearzero) then
-                      store_c_transfer_frac = &
+                  if(store_c>nearzero) then
+
+                     store_c_transfer_frac = &
                             min(EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory, store_c)/store_c
-	              if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
-		         totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
-		         store_c_transfer_frac = min(EDPftvarcon_inst%phenflush_fraction(ipft)* &
-		                                 totalmemory, store_c)/store_c
-		      endif			    
-                   else
-                      store_c_transfer_frac = 0.0_r8
-                   end if
+
+                     if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+                     
+                     totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
+                     store_c_transfer_frac = min(EDPftvarcon_inst%phenflush_fraction(ipft)* &
+                                             totalmemory, store_c)/store_c
+
+                     endif
+
+                  else
+                     store_c_transfer_frac = 0.0_r8
+                  endif
                    
                    ! This call will request that storage carbon will be transferred to 
                    ! leaf tissues. It is specified as a fraction of the available storage
-		   if(EDPftvarcon_inst%woody(ipft) == itrue) then
-		   
-                      call PRTPhenologyFlush(currentCohort%prt, ipft, &
-                         leaf_organ, store_c_transfer_frac)
+                  if(EDPftvarcon_inst%woody(ipft) == itrue) then
+                  
+                     call PRTPhenologyFlush(currentCohort%prt, ipft, &
+                        leaf_organ, store_c_transfer_frac)
 
-                       currentCohort%laimemory = 0.0_r8
-	   
-		   else
-		   
+                     currentCohort%laimemory = 0.0_r8
+               
+                  else
+                  
                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-		               store_c_transfer_frac*currentCohort%laimemory/totalmemory)		   
+                     store_c_transfer_frac*currentCohort%laimemory/totalmemory)		   
 
                      call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
-		               store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
+                     store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
 
                      call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, & 
-		              store_c_transfer_frac*currentCohort%structmemory/totalmemory)
-			      
-		     currentCohort%laimemory = 0.0_r8
-		     currentCohort%structmemory = 0.0_r8
-		     currentCohort%sapwmemory = 0.0_r8
+                     store_c_transfer_frac*currentCohort%structmemory/totalmemory)
+                        
+                     currentCohort%laimemory = 0.0_r8
+                     currentCohort%structmemory = 0.0_r8
+                     currentCohort%sapwmemory = 0.0_r8
 		     
-		   endif
+		            endif
+               endif !currentCohort status again?
+            endif   !currentSite status
 
-                endif !currentCohort status again?
-             endif   !currentSite status
+            !DROUGHT LEAF OFF
+            if (currentSite%dstatus == phen_dstat_moistoff .or. &
+               currentSite%dstatus == phen_dstat_timeoff) then        
 
-             !DROUGHT LEAF OFF
-             if (currentSite%dstatus == phen_dstat_moistoff .or. &
-                 currentSite%dstatus == phen_dstat_timeoff) then        
+               if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
 
-                if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
-
-                   ! This sets the cohort to the "leaves off" flag
-                   currentCohort%status_coh      = leaves_off
-                   
-                   ! Remember what the lai (leaf mass actually) was for next year
-                   currentCohort%laimemory   = leaf_c
-		   
-                   call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                         leaf_organ, leaf_drop_fraction)
+                  ! This sets the cohort to the "leaves off" flag
+                  currentCohort%status_coh      = leaves_off
+                  
+                  ! Remember what the lai (leaf mass actually) was for next year
+                  currentCohort%laimemory   = leaf_c
+      
+                  call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                        leaf_organ, leaf_drop_fraction)
 			 
-	           if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
-			 
-                      currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
-		   
-		      currentCohort%structmemory   = struct_c * stem_drop_fraction			 
+                  if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+            
+                     currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
+                     currentCohort%structmemory   = struct_c * stem_drop_fraction			 
 
-                      call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                         sapw_organ, stem_drop_fraction)
+                     call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                        sapw_organ, stem_drop_fraction)
 
-                      call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                         struct_organ, stem_drop_fraction)
-	           endif			 			 
+                     call PRTDeciduousTurnover(currentCohort%prt,ipft, &
+                        struct_organ, stem_drop_fraction)
+                  endif			 			 
 
-                endif
-             endif !status
-          endif !drought dec.
+               endif
+            endif !status
+         endif !drought dec.
 
-          if(debug) call currentCohort%prt%CheckMassConservation(ipft,1)
+         if(debug) call currentCohort%prt%CheckMassConservation(ipft,1)
 
-          currentCohort => currentCohort%shorter
-       enddo !currentCohort
+            currentCohort => currentCohort%shorter
+      enddo !currentCohort
 
-       currentPatch => currentPatch%younger
+      currentPatch => currentPatch%younger
 
-    enddo !currentPatch
+   enddo !currentPatch
 
   end subroutine phenology_leafonoff
 
