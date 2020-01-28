@@ -4631,45 +4631,172 @@ contains
       enddo
 
 
-      
-      do icnx=1,num_connections
-         
-         id_dn = conn_dn(icnx)
-         id_up = conn_up(icnx)
+      subroutine SetMaxCondConnections(site_hydr)
 
-         
-         kmax_up_dn(icnx)
-
-         if(k <= n_hypool_leaf) then
-            
-            kmax_up_node(k) = fates_unset_r8
-            kmax_lo_node(k) = cohort_hydr%kmax_petiole_to_leaf
-            
-         elseif(k <= n_hypool_ag) then
-            
-            j = k - n_pool_leaf
-            kmax_up_node(k) = cohort_hydr%kmax_stem_upper(j)
-            kmax_lo_node(k) = cohort_hydr%kmax_stem_lower(j)
-            
-         elseif(k <= (n_hpool_ag+n_hypool_troot) ) then
-            
-            kmax_up = cohort_hydr%kmax_troot_upper
-            kmax_lo = cohort_hydr%kmax_troot_lower(ilayer)
-            
-            kmax_lo = cohort_hydr%kmax_aroot_upper(ilayer)
-            
-
-            
-         elseif(k <= (n_hpool_plant) then
-            
-         end if
-         
-         
-         
-         
-      end do
+          ! This subroutine sets the maximum conductances
+          ! on the downstream (towards atm) and upstream (towards
+          ! soil) side of each connection.
 
 
+
+          associate(kmax_dn => site_hydr%kmax_dn_scr, &
+                    kmax_up => site_hydr%kmax_up_scr)
+
+
+          ! Initialize counters
+          num_nds  = 0
+          num_cnxs = 0
+
+          ! Set leaf to stem connections (only 1 leaf layer
+          ! this will break if we have multiple, as there would
+          ! need to be assumptions about which compartment
+          ! to connect the leaves to.
+          icnx  = 1
+          cond_dn(icnx) = cohort_hydr%kmax_petiole_to_leaf
+          cond_up(icnx) = cohort_hydr%kmax_stem_upper(1)
+
+          ! Stem to stem connections
+          do k = 2, n_hypool_ag-1
+              icnx = icnx + 1
+              cond_dn(icnx) = cohort_hydr%kmax_stem_lower(k-1)
+              cond_up(icnx) = cohort_hydr%kmax_stem_upper(k)
+          enddo
+          
+          ! Path is between lowest stem and transporting root
+                
+          j = n_hypool_ag
+          i_up  = j
+          i_lo  = j+1
+          kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_lower(n_hypool_stem)
+          kmax_lo  = rootfr_scaler*cohort_hydr%kmax_troot_upper
+
+                
+                ! Path is between stem nodes
+                ! -------------------------------------------------------------------------------
+                
+                do j=2,n_hypool_ag-1
+
+                    i_up = j
+                    i_lo = j+1
+
+
+                    ! "Up" compartment is the "upper" node, but uses
+                    ! the "lower" side of its compartment for the calculation.
+                    ! Ultimately, it is more "upper" than its counterpart
+                    ! This compartment is the "lower" node, but uses
+                    ! the "higher" side of its compartment.
+
+                    kmax_up    = rootfr_scaler*cohort_hydr%kmax_stem_lower(i_up-n_hypool_leaf)
+                    kmax_lo    = rootfr_scaler*cohort_hydr%kmax_stem_upper(i_lo-n_hypool_leaf)
+
+                    call GetImTaylorKAB(kmax_lo,kmax_up,       &
+                          ftc_node(i_lo),ftc_node(i_up),        & 
+                          h_node(i_lo),h_node(i_up),            & 
+                          dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
+                          dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                          k_eff(j),                         &
+                          A_term(j),                        & 
+                          B_term(j))
+
+                end do
+
+                
+                ! Path is between lowest stem and transporting root
+                
+                j = n_hypool_ag
+                i_up  = j
+                i_lo  = j+1
+                kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_lower(n_hypool_stem)
+                kmax_lo  = rootfr_scaler*cohort_hydr%kmax_troot_upper
+
+                call GetImTaylorKAB(kmax_lo,kmax_up,       &
+                      ftc_node(i_lo),ftc_node(i_up),        & 
+                      h_node(i_lo),h_node(i_up),            & 
+                      dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
+                      dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                      k_eff(j),                         &
+                      A_term(j),                        & 
+                      B_term(j))
+
+
+                ! Path is between the transporting root 
+                ! and the absorbing root for this layer
+                ! NOTE: No need to scale by root fraction
+                ! even if in parallel mode, already parallel!
+                
+                j       = n_hypool_ag+1
+                i_up    = j
+                i_lo    = j+1
+                kmax_up = cohort_hydr%kmax_troot_lower(ilayer) 
+                kmax_lo = cohort_hydr%kmax_aroot_upper(ilayer)
+
+                call GetImTaylorKAB(kmax_lo,kmax_up,       &
+                      ftc_node(i_lo),ftc_node(i_up),        & 
+                      h_node(i_lo),h_node(i_up),            & 
+                      dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
+                      dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                      k_eff(j),                         &
+                      A_term(j),                        & 
+                      B_term(j))
+
+
+                ! Path is between the absorbing root
+                ! and the first rhizosphere shell nodes
+                
+                j = n_hypool_ag+2
+                i_up  = j
+                i_lo  = j+1
+
+                ! Special case. Maximum conductance depends on the 
+                ! potential gradient.
+                if(h_node(i_up) < h_node(i_lo) ) then
+                    kmax_up = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
+                          1._r8/cohort_hydr%kmax_aroot_radial_in(ilayer))
+                else
+                    kmax_up = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
+                          1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer))
+                end if
+
+                kmax_lo = site_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant
+
+                call GetImTaylorKAB(kmax_lo,kmax_up,       &
+                      ftc_node(i_lo),ftc_node(i_up),        & 
+                      h_node(i_lo),h_node(i_up),            & 
+                      dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
+                      dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                      k_eff(j),                         &
+                      A_term(j),                        & 
+                      B_term(j))
+
+
+                ! Path is between rhizosphere shells
+
+                print*,"THESE SHOULD BE THE SAME: ",(n_hypool_ag+2)-(n_hypool_tot-nshell)
+                stop
+
+                do j = n_hypool_ag+3,n_hypool_tot-1
+
+                    i_up = j
+                    i_lo = j+1
+                    ishell_up = i_up - (n_hypool_tot-nshell)
+                    ishell_lo = i_lo - (n_hypool_tot-nshell)
+
+                    kmax_up = site_hydr%kmax_lower_shell(ilayer,ishell_up)*aroot_frac_plant
+                    kmax_lo = site_hydr%kmax_upper_shell(ilayer,ishell_lo)*aroot_frac_plant
+
+                    call GetImTaylorKAB(kmax_lo,kmax_up,       &
+                          ftc_node(i_lo),ftc_node(i_up),        & 
+                          h_node(i_lo),h_node(i_up),            & 
+                          dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
+                          dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                          k_eff(j),                         &
+                          A_term(j),                        & 
+                          B_term(j))
+
+
+                end do
+              end associate
+          end subroutine SetMaxCondConnections
       
 
       ! Initialize variables and flags that track
