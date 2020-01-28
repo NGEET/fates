@@ -4430,8 +4430,37 @@ contains
                         sapflow,rootuptake,wb_error_site, nsteps, &
                         dth_layershell_site, runoff_site)
 
-    use EDTypesMod     , only : AREA
 
+    ! ---------------------------------------------------------------------------------
+    ! This solution to the plant water flux equations casts all the fluxes through a
+    ! cohort, and the rhizosphere shells in ALL layers as a single system of equations.
+    ! If thinking of the plant's above ground components as one dimension, and the soil
+    ! layers as another, this is a somewhat 2D system (hence "Matrix" in the name).
+    ! To improve the quality of the solution and reduce solver error, this also
+    ! uses a Newton iteration.  See technical documentation for a full derivation
+    ! of the mathematics.  However, in brief, we can describe the flux balance through
+    ! any node, considering flux paths labeled j, through that node in set J.
+    ! This is an implicit solve, so we balance the change in water mass (defined by
+    ! volume V, density rho, and water content theta) with the flux (q) esitmated
+    ! at the next time-step q^(t+1).  Note that we continue to solve this equation, using
+    ! updated values of water content and pressure (psi), by balancing our fluxes with
+    ! the total of previous (theta_p) and remaining (theta_r) water contents.
+    !
+    !  rho V                 rho V
+    !  -----  Del theta_p +  ----- Del theta_r  =  Sum ( q^(t+1) )
+    !  Del t                 Del t                  J
+    !
+    ! The flux at t+1, is simply the current flux (q) and a first order Taylor
+    ! expanion (i.e. forward-euler) estimate with the current derivative based
+    ! on the current value of theta and psi.
+    ! Note also, that the solution is in terms of the matric potential, psi.  This
+    ! conversion from theta to psi, requires this derivative (Jacobian) to also
+    ! contain not just the rate of change of flux wrt psi, but the change in theta
+    ! wrt psi (self term, no cross node terms).
+    !
+    ! -----------------------------------------------------------------------------------
+
+    
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
     type(ed_site_hydr_type), intent(inout),target :: site_hydr        ! ED site_hydr structure
@@ -4553,7 +4582,7 @@ contains
     nstep = get_nstep()
 
     associate(conn_up => site_hydr%conn_up, &
-         conn_dn => site_hydr%conn_dn )
+              conn_dn => site_hydr%conn_dn )
 
       ! Transfer node heights, volumes and initial water contents for
       ! the transporting root and above ground compartments to the
@@ -4600,7 +4629,48 @@ contains
          enddo
 
       enddo
-                
+
+
+      
+      do icnx=1,num_connections
+         
+         id_dn = conn_dn(icnx)
+         id_up = conn_up(icnx)
+
+         
+         kmax_up_dn(icnx)
+
+         if(k <= n_hypool_leaf) then
+            
+            kmax_up_node(k) = fates_unset_r8
+            kmax_lo_node(k) = cohort_hydr%kmax_petiole_to_leaf
+            
+         elseif(k <= n_hypool_ag) then
+            
+            j = k - n_pool_leaf
+            kmax_up_node(k) = cohort_hydr%kmax_stem_upper(j)
+            kmax_lo_node(k) = cohort_hydr%kmax_stem_lower(j)
+            
+         elseif(k <= (n_hpool_ag+n_hypool_troot) ) then
+            
+            kmax_up = cohort_hydr%kmax_troot_upper
+            kmax_lo = cohort_hydr%kmax_troot_lower(ilayer)
+            
+            kmax_lo = cohort_hydr%kmax_aroot_upper(ilayer)
+            
+
+            
+         elseif(k <= (n_hpool_plant) then
+            
+         end if
+         
+         
+         
+         
+      end do
+
+
+      
 
       ! Initialize variables and flags that track
       ! the progress of the solve
@@ -4629,10 +4699,10 @@ contains
          ! Set the current water content as the initial [m3/m3]
          th_node(:) = th_node_init(:)
          
-         do k=1,num_nodes
-            ! Get matric potential [Mpa]
-            psi_node(k) = wrf_plant(p_media_nodes(k),ft)%p%psi_from_th(th_node(k))
-         end do
+!         do k=1,num_nodes
+!            ! Get matric potential [Mpa]
+!            psi_node(k) = wrf_plant(p_media_nodes(k),ft)%p%psi_from_th(th_node(k))
+!         end do
 
           
          tm = tm + dtime
@@ -4654,80 +4724,89 @@ contains
          residual(:) = 0._r8
          blu(:)      = 0._r8
 
-         !
-!         do k = 1, num_nodes
-!            call flc_from_psi(ft, pm_type(k),psi_node(k), flc_node(k), site_hydr, bc_in)
-!            call dflcdpsi_from_psi(ft, pm_type(k),psi_node(k), dflcdpsi_node(k), site_hydr, bc_in)
-!         enddo
 
-!         call boundary_hdiff_and_k_alt(ccohort_hydr,psi_node(:),flc_node,dflcdpsi_node,hdiff_bound,k_bound,dhdpsi,dkdpsi)
-
+        
+         
          do k=1,num_nodes
 
             !
             residual(k) = residual(k) + (th_node(k) - th_node_init(k))/dtime*denh2o*v_node(k)
 
-            ! Get total potential [Mpa]
-            h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
-            
-            ! Get Fraction of Total Conductivity [-]
-            ftc_node(k) = wkf_plant(p_media_nodes(k),ft)%p%ftc_from_psi(psi_node(k))
-         
-            ! deriv psi wrt theta
-            dpsi_dtheta_node(k) = wrf_plant(p_media_nodes(k),ft)%p%dpsidth_from_th(th_node(k))
-            
-            ! deriv ftc wrt psi
-            
-            dftc_dpsi = wkf_plant(p_media_nodes(k),ft)%p%dftcdpsi_from_psi(psi_node(k))
-            
-            dftc_dtheta_node(k) = dftc_dpsi * dpsi_dtheta_node(k) 
-
-            ! This will get the effective K, and may modify FTC depending
-            ! on the flow direction
-            
-            call GetEffKFTC(kmax_lo,kmax_up,h_lo,h_up,ftc_lo,ftc_up, &
-                 dftc_dtheta_lo, dftc_dtheta_up, k_eff)
             
 
             
-            ! matrix 
-            ic(:) = 0
-            ir(:) = 0
-            values(:) = 0._r8
-            nc = 1
-            nr = 1
-            icol = k
-            ic(1) = icol
-            ir(1) = icol
+            if(k <= n_hypool_plant) then
+               psi_node(k) = wrf_plant(p_media_nodes(k),ft)%p%psi_from_th(th_node(k))
+               ! Get total potential [Mpa]
+               h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
+               ! Get Fraction of Total Conductivity [-]
+               ftc_node(k) = wkf_plant(p_media_nodes(k),ft)%p%ftc_from_psi(psi_node(k))
+               ! deriv psi wrt theta
+               dtheta_dpsi_node(k) = 1._r8/wrf_plant(p_media_nodes(k),ft)%p%dpsidth_from_th(th_node(k))
+               ! deriv ftc wrt psi
+               dftc_dpsi_node(k)   = wkf_plant(p_media_nodes(k),ft)%p%dftcdpsi_from_psi(psi_node(k))
+
+ 
+                  
+               
+            else
+
+               j = node_layer(k)
+               psi_node(k) = wrf_soil(j)%p%psi_from_th(th_node(k))
+               ! Get total potential [Mpa]
+               h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
+               ! Get Fraction of Total Conductivity [-]
+               ftc_node(k) = wkf_soil(j)%p%ftc_from_psi(psi_node(k))
+               ! deriv psi wrt theta
+               dtheta_dpsi_node(k) = 1._r8/wrf_soil(j)%p%dpsidth_from_th(th_node(k))
+               ! deriv ftc wrt psi
+               dftc_dpsi_node(k)   = wkf_soil(j)%p%dftcdpsi_from_psi(psi_node(k))
+               
+            end if
+               
+            
+            
             !            dnr = -1.e-6_r8
             !             dnr = -0.005*abs(psi_node(k)) - 1e-12
-            dnr = -1.e-8_r8            
+!!            dnr = -1.e-8_r8            
             !            dnr = -max(1.e-6,0.05*abs(psi_node(k)))
+
+            ! Fill the self-term on the Jacobian's diagonal with the
+            ! the change in storage wrt change in psi.
+            
             if(pm_type(k) <= n_hypool_plant) then
-               call th_from_psi(ft, pm_type(k), psi_node(k), thx,site_hydr,bc_in)
-               ! incremented psi
-               psi_pt = psi_node(k) + dnr
-               call th_from_psi(ft, pm_type(k), psi_pt, thx_pt,site_hydr,bc_in)
-               values(1) = denh2o*v_node(k)/dtime*(thx_pt-thx)/dnr
+
+               ! THIS IS AN EXPLICIT DERIVATIVE
+
+!               call th_from_psi(ft, pm_type(k), psi_node(k), thx,site_hydr,bc_in)
+!               ! incremented psi
+!               psi_pt = psi_node(k) + dnr
+!               call th_from_psi(ft, pm_type(k), psi_pt, thx_pt,site_hydr,bc_in)
+!               values(1) = denh2o*v_node(k)/dtime*(thx_pt-thx)/dnr
+
+               ajac(k,k) = denh2o*v_node(k)/ &
+                    (wrf_plant(p_media_nodes(k),ft)%p%dpsidth_from_th(th_node(k))*dtime)
+
+               
             else
-               j = pm_type(k)-n_hypool_plant
-               B = bc_in%bsw_sisl(j)
-               psisat = bc_in%sucsat_sisl(j)*denh2o*grav*1.e-9_r8 !! mm * 1e-3 m/mm * 1e3 kg/m3 * 9.8 m/s2 * 1e-6 MPa/Pa = MPa
-               thsat = bc_in%watsat_sisl(j)
-               psi_pt = psi_node(k)
-               if( psi_pt >= -psisat ) then
-                  tmp = 0._r8
-               else
-                  tmp = 1._r8/B*(-psi_pt/psisat)**(-1._r8-1._r8/B)/psisat
-               endif
-               values(1) = denh2o*v_node(k)/dtime*bc_in%watsat_sisl(j)*tmp
+!               j = pm_type(k)-n_hypool_plant
+!               B = bc_in%bsw_sisl(j)
+!               psisat = bc_in%sucsat_sisl(j)*denh2o*grav*1.e-9_r8 !! mm * 1e-3 m/mm * 1e3 kg/m3 * 9.8 m/s2 * 1e-6 MPa/Pa = MPa
+!               thsat = bc_in%watsat_sisl(j)
+!               psi_pt = psi_node(k)
+!               if( psi_pt >= -psisat ) then
+!                  tmp = 0._r8
+!               else
+!                  tmp = 1._r8/B*(-psi_pt/psisat)**(-1._r8-1._r8/B) / psisat
+!               endif
+!               values(1) = denh2o*v_node(k)/dtime*bc_in%watsat_sisl(j)*tmp
+               
+               ajac(k,k) = denh2o*v_node(k)/ &
+                    (wrf_soil(j)%p%dpsidth_from_th(th_node(k))*dtime)
+               
             endif
 
-
-            values(1) = 
-
-            
-            ajac(ir(1),ic(1)) = ajac(ir(1),ic(1)) + values(1)
+!            ajac(ir(1),ic(1)) = ajac(ir(1),ic(1)) + values(1)
             
          enddo
 
@@ -4739,12 +4818,23 @@ contains
             id_up = conn_up(icnx)
             ir(:) = 0
             ic(:) = 0
-            values(:) = 0._r8
-            qflx = -1._r8 * k_bound(icnx) * hdiff_bound(icnx)
-            if(icnx==2) sapflow =qflx
-            q_flux(icnx) = qflx
-            residual(id_dn) = residual(id_dn) - qflx
-            residual(id_up) = residual(id_up) + qflx
+
+            qflx = 1._r8 * k_bound(icnx) * hdiff_bound(icnx)
+            
+!            if(icnx==2) sapflow =qflx
+
+            ! This will get the effective K, and may modify FTC depending
+            ! on the flow direction
+            
+            call GetEffKFTC(kmax_lo,kmax_up,h_lo,h_up,ftc_lo,ftc_up, &
+                                 dftc_dtheta_lo, dftc_dtheta_up, k_eff)
+
+
+            
+!            q_flux(icnx) = -qflx
+            residual(id_dn) = residual(id_dn) + qflx
+            residual(id_up) = residual(id_up) - qflx
+            
             dqflx_dn = -1._r8 * (hdiff_bound(icnx) * dkdpsi(icnx,1) + k_bound(icnx)*dhdpsi(icnx,1))
             dqflx_up = -1._r8 * (hdiff_bound(icnx) * dkdpsi(icnx,2) + k_bound(icnx)*dhdpsi(icnx,2))
             ir(1) = id_dn
