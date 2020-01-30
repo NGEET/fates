@@ -140,17 +140,11 @@ module FatesHydraulicsMemMod
      ! and type map for the whole system of compartments, from the soil to leaf
      ! as one vector
      
-     integer, parameter, public              :: num_connections   
-     integer, allocatable, public, protected :: conn_up(:)
-     integer, allocatable, public, protected :: conn_dn(:)
-
+     integer, protected              :: num_connections   
+     integer, allocatable, protected :: conn_up(:)
+     integer, allocatable, protected :: conn_dn(:)
+     integer, allocatable, protected :: pm_type(:)
      
-
-     
-
-     
-!     integer, allocatable, public, protected :: pm_type(:)
-
      
   contains
      
@@ -398,19 +392,12 @@ module FatesHydraulicsMemMod
              allocate(this%conn_dn(this%num_connections))
              allocate(this%residual(this%num_nodes))
              allocate(this%ajac(this%num_nodes,this%num_nodes))
-             allocate(this%dth_node(this%num_nodes))
              allocate(this%th_node_init(this%num_nodes))
              allocate(this%psi_node_init(this%num_nodes))
              allocate(this%th_node(this%num_nodes))
              allocate(this%psi_node(this%num_nodes))
-             allocate(this%blu(this%num_nodes))
-             allocate(this%indices(this%num_nodes))
-             allocate(this%k_bound(this%num_connections))
-             allocate(this%hdiff_bound(this%num_connections))
-             allocate(this%dhdpsi(this%num_connections,2))
-             allocate(this%dkdpsi(this%num_connections,2))
              allocate(this%q_flux(this%num_connections))
-             
+             allocate(this%pm_node(this%num_nodes))
          else
              
              this%num_connections =  n_hypool_leaf + n_hypool_stem + & 
@@ -419,22 +406,20 @@ module FatesHydraulicsMemMod
              this%num_nodes = n_hypool_leaf + n_hypool_stem + & 
                    n_hypool_troot + n_hypool_aroot + nshell
 
-
-
-
-
+             allocate(this%conn_up(this%num_connections))
+             allocate(this%conn_dn(this%num_connections))
+             allocate(this%pm_node(this%num_nodes))
+             
+             
          end if
-         
-         allocate(this%p_media_node(this%num_nodes))
-         
-
-
          
        end associate
 
        return
     end subroutine InitHydrSite
 
+    ! ===================================================================================
+    
     subroutine SetConnections(this)
       
      class(ed_site_hydr_type),intent(inout) :: this
@@ -445,137 +430,56 @@ module FatesHydraulicsMemMod
      integer :: nt_ab
      
      num_cnxs = 0
+     num_nds = 0
      do k = 1, n_hypool_leaf
         num_cnxs = num_cnxs + 1
-        conn_dn(num_cnxs) = k           !leaf is the dn, origin, bottom
-        conn_up(num_cnxs) = k + 1
+        num_nds  = num_nds + 1
+        this%conn_dn(num_cnxs) = k           !leaf is the dn, origin, bottom
+        this%conn_up(num_cnxs) = k + 1
+        this%pm_type(num_nds)  = leaf_p_media
      enddo
      do k = n_hypool_leaf+1, n_hypool_ag
         num_cnxs = num_cnxs + 1
-        conn_dn(num_cnxs) = k
-        conn_up(num_cnxs) = k+1
+        num_nds  = num_nds + 1
+        this%conn_dn(num_cnxs) = k
+        this%conn_up(num_cnxs) = k+1
+        this%pm_type(num_nds) = stem_p_media
      enddo
+
+     if(use_2d_hydrosolve) then
      
-     num_nds     = n_hypool_ag+n_hypool_troot
-     node_tr_end = num_nds
-     nt_ab       = n_hypool_ag+n_hypool_troot+n_hypool_aroot
-     num_cnxs    = n_hypool_ag
+        num_nds     = n_hypool_ag+n_hypool_troot
+        node_tr_end = num_nds
+        nt_ab       = n_hypool_ag+n_hypool_troot+n_hypool_aroot
+        num_cnxs    = n_hypool_ag
+
+        this%pm_type(num_nds) = troot_p_media
+        
+        do j = 1,this%nlevsoil_hyd
+           do k = 1, n_hypool_aroot + nshell
+              num_nds  = num_nds + 1
+              num_cnxs = num_cnxs + 1
+              if( k == 1 ) then !troot-aroot
+                 !junction node
+                 this%conn_dn(num_cnxs) = node_tr_end !absorbing root
+                 this%conn_up(num_cnxs) = num_nds
+                 this%pm_type(num_nds)  = aroot_p_media
+              else
+                 this%conn_dn(num_cnxs) = num_nds - 1
+                 this%conn_up(num_cnxs) = num_nds
+                 this%pm_type(num_nds)  = rhiz_p_media
+              endif
+           enddo
+        end do
+     else
+
+        this%pm_type(num_hypool_ag+1) = troot_p_media
+        this%pm_type(num_hypool_ag+2) = aroot_p_media
+        this%pm_type(num_hypool_ag+3:num_hypool_ag+2+nshell) = rhiz_p_media
+        
+     end if
      
-     do j = 1,this%nlevsoil_hyd
-        do k = 1, n_hypool_aroot + nshell
-           num_nds  = num_nds + 1
-           num_cnxs = num_cnxs + 1
-           if( k == 1 ) then !troot-aroot
-             !junction node
-             conn_dn(num_cnxs) = node_tr_end !absorbing root
-             conn_up(num_cnxs) = num_nds
-           else
-             conn_dn(num_cnxs) = num_nds - 1
-             conn_up(num_cnxs) = num_nds
-           endif
-         enddo
-      end do
-      
-    end subroutine SetConnections
-
-    
-! =====================================================================================
-   subroutine SetPhsOrganConnection(this)
-!
-     ! ARGUMENTS:
-     ! -----------------------------------------------------------------------------------
-     integer :: k  ! local indexing
-     integer :: num_cnxs
-     integer :: num_nds
-     integer :: nt_ab
-     integer :: s, c, pi, p_t
-     class(ed_cohort_hydr_type),intent(inout) :: this
-    !----------------------------------------------------------------------
-             
-     associate( &
-          conn_up => this%conn_up, &
-          conn_dn => this%conn_dn, &
-          pm_type => this%pm_type & 
-          )
-!
-          pm_type(:) = 0
-          num_nds = 0
-          num_cnxs = 0
-          do k = 1, n_hypool_leaf
-             pm_type(k) = k
-             num_nds = num_nds + 1
-             num_cnxs = num_cnxs + 1
-             conn_dn(num_cnxs) = k           !leaf is the dn, origin, bottom
-             conn_up(num_cnxs) = k + 1
-          enddo
-          do k = n_hypool_leaf+1, n_hypool_ag
-             pm_type(k) = k
-             num_nds = num_nds + 1
-             num_cnxs = num_cnxs + 1
-             conn_dn(num_cnxs) = k
-             conn_up(num_cnxs) = k+1
-          enddo
-          do k=n_hypool_ag+1, n_hypool_ag+n_hypool_troot
-             pm_type(k) = k
-             num_nds = num_nds + 1
-          enddo
-     end associate
-!
-   end subroutine SetPhsOrganConnection
-  ! =====================================================================================
-   subroutine SetPhsSoilConnection(this)
-!
-     ! ARGUMENTS:
-     ! -----------------------------------------------------------------------------------
-     integer :: j,k  ! local indexing
-     integer :: num_cnxs
-     integer :: num_cnx
-     integer :: num_nds
-     integer :: nt_ab
-     integer :: node_tr_end
-     class(ed_cohort_hydr_type),intent(inout) :: this
-     ! lower - towards the soil (k relate to _dn), upper - towards the atmosphere
-     ! (k+1 to  _up)
-     !
-    !----------------------------------------------------------------------
-     associate( &
-       conn_up => this%conn_up, &
-       conn_dn => this%conn_dn, &
-       pm_type => this%pm_type, & 
-       nlevsoil_hyd => this%nlevsoi_hyd &
-       )
-       num_nds = n_hypool_ag+n_hypool_troot
-       node_tr_end = num_nds
-       nt_ab = n_hypool_ag+n_hypool_troot+n_hypool_aroot
-       num_cnxs = n_hypool_ag
-       do j = 1,nlevsoil_hyd
-         do k = 1, n_hypool_aroot + nshell
-           num_nds = num_nds + 1
-           if(k <=n_hypool_aroot) then
-             pm_type(num_nds) = n_hypool_ag+n_hypool_troot+k
-           else
-             pm_type(num_nds) = nt_ab+j
-           endif
-           num_cnxs = num_cnxs + 1
-           if( k == 1 ) then !troot-aroot
-             !junction node
-             conn_dn(num_cnxs) = node_tr_end !absorbing root
-             conn_up(num_cnxs) = num_nds
-           else
-             conn_dn(num_cnxs) = num_nds - 1
-             conn_up(num_cnxs) = num_nds
-           endif
-         enddo
-!
-       enddo ! end soil layer
-     end associate
-   end subroutine SetPhsSoilConnection
-    
-    ! ===================================================================================
-
-    
-
-
+   end subroutine SetConnections
     
 
 end module FatesHydraulicsMemMod
