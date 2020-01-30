@@ -51,7 +51,8 @@ contains
     
     use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
     use FatesInterfaceMod        , only : hlm_hio_ignore_val   
-
+    use PRTGenericMod      , only : check_initialized 
+    
     type (ed_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
@@ -88,7 +89,7 @@ contains
     mort_ip_size_senescence = EDPftvarcon_inst%mort_ip_size_senescence(cohort_in%pft)
     
     ! if param values have been set then calculate smort
-    if (mort_ip_size_senescence < 10000.0_r8 ) then 
+    if ( mort_ip_size_senescence < check_initialized ) then 
        smort = 1.0_r8 / ( 1.0_r8 + exp( -1.0_r8 * mort_r_size_senescence * &
             (cohort_in%dbh - mort_ip_size_senescence) ) ) 
     else
@@ -97,7 +98,7 @@ contains
 
     ! if user has set cohort age fusion param to not be _ we calculate age
     ! dependent mortality
-    if (mort_ip_age_senescence < 10000.0_r8) then
+    if ( mort_ip_age_senescence < check_initialized ) then
        ! Age Dependent Senescence
        ! rate and inflection point define the change in mortality with age
        mort_r_age_senescence = EDPftvarcon_inst%mort_r_age_senescence(cohort_in%pft)

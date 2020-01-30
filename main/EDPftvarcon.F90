@@ -2079,7 +2079,8 @@ contains
      ! cannot have a structural biomass allometry intercept of 0, and a non-woody
      ! plant (grass) can't have a non-zero intercept...
      ! -----------------------------------------------------------------------------------
-     use EDParamsMod    , only : cohort_age_tracking
+    use EDParamsMod    , only : cohort_age_tracking
+    use PRTGenericMod  , only : check_initialized
 
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
@@ -2158,7 +2159,7 @@ contains
         ! Check to see if cohort tracking is on if age-senescence is on
         !----------------------------------------------------------------------------------
         
-        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < 10000.0_r8 ) .and. &
+        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < check_initialized ) .and. &
              ( cohort_age_tracking .neqv. .TRUE. ) ) then
 
            write(fates_log(),*) 'ip_age = ', EDPftvarcon_inst%mort_ip_age_senescence(ipft)
@@ -2177,8 +2178,8 @@ contains
 
         ! Check that parameter ranges for age-dependent mortality make sense   
         !-----------------------------------------------------------------------------------    
-        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < 10000.0_r8 ) .and. &
-             (  EDPftvarcon_inst%mort_r_age_senescence(ipft) > 10000.0_r8 ) ) then
+        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < check_initialized ) .and. &
+             (  EDPftvarcon_inst%mort_r_age_senescence(ipft) > check_initialized ) ) then
 
            write(fates_log(),*) 'Age-dependent mortality is on'
            write(fates_log(),*) 'Please also set mort_r_age_senescence'
@@ -2202,8 +2203,8 @@ contains
 
         ! Check that parameter ranges for size-dependent mortality make sense   
         !-----------------------------------------------------------------------------------    
-        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < 10000.0_r8 ) .and. &
-             (  EDPftvarcon_inst%mort_r_size_senescence(ipft) > 10000.0_r8 ) ) then
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < check_initialized ) .and. &
+             (  EDPftvarcon_inst%mort_r_size_senescence(ipft) > check_initialized ) ) then
 
            write(fates_log(),*) 'Size-dependent mortality is on'
            write(fates_log(),*) 'Please also set mort_r_size_senescence'
