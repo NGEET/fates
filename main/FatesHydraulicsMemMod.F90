@@ -1,6 +1,7 @@
 module FatesHydraulicsMemMod
 
    use FatesConstantsMod, only : r8 => fates_r8
+   use FatesConstantsMod, only : fates_unset_r8
    use shr_infnan_mod,    only : nan => shr_infnan_nan, assignment(=)
    use FatesConstantsMod, only : itrue,ifalse
    use FatesHydroWTFMod,  only : wrf_arr_type
@@ -150,7 +151,7 @@ module FatesHydraulicsMemMod
      
     procedure :: InitHydrSite
     procedure :: SetConnections
-     
+    procedure :: FlushSiteScratch
   end type ed_site_hydr_type
 
 
@@ -393,11 +394,13 @@ module FatesHydraulicsMemMod
              allocate(this%residual(this%num_nodes))
              allocate(this%ajac(this%num_nodes,this%num_nodes))
              allocate(this%th_node_init(this%num_nodes))
-             allocate(this%psi_node_init(this%num_nodes))
              allocate(this%th_node(this%num_nodes))
+             allocate(this%v_node(this%num_nodes))
+             allocate(this%z_node(this%num_nodes))
              allocate(this%psi_node(this%num_nodes))
              allocate(this%q_flux(this%num_connections))
              allocate(this%pm_node(this%num_nodes))
+
          else
              
              this%num_connections =  n_hypool_leaf + n_hypool_stem + & 
@@ -420,6 +423,24 @@ module FatesHydraulicsMemMod
 
     ! ===================================================================================
     
+    subroutine FlushSiteScratch(this)
+        class(ed_site_hydr_type),intent(inout) :: this
+
+        if(use_2d_hydrosolve) then
+            residual(:)     = fates_unset_r8
+            ajac(:,:)       = fates_unset_r8
+            th_node_init(:) = fates_unset_r8
+            th_node(:)      = fates_unset_r8
+            v_node(:)       = fates_unset_r8
+            z_node(:)       = fates_unset_r8
+            psi_node(:)     = fates_unset_r8
+        end if
+            
+
+    end subroutine FlushSiteScratch
+
+    ! ===================================================================================
+
     subroutine SetConnections(this)
       
      class(ed_site_hydr_type),intent(inout) :: this
