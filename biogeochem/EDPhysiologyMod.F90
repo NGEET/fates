@@ -1009,7 +1009,7 @@ contains
                      else 
 
                         call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                        store_c_transfer_frac*totalmemory)                        
+                        store_c_transfer_frac)                        
 
                      end if
                
@@ -1124,7 +1124,7 @@ contains
                      else
 
                         call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                        store_c_transfer_frac*totalmemory)	
+                        store_c_transfer_frac)	
 
                      end if
                         
