@@ -994,14 +994,24 @@ contains
 
                   else
                   
-                     call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                     store_c_transfer_frac*currentCohort%laimemory/totalmemory)		   
+                     ! Check that the stem drop fraction is set to non-zero amount otherwise flush all carbon store to leaves
+                     if (stem_drop_fraction .gt. 0.0_r8) then
 
-                     call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
-                     store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
+                        call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+                        store_c_transfer_frac*currentCohort%laimemory/totalmemory)		   
 
-                     call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, & 
-                     store_c_transfer_frac*currentCohort%structmemory/totalmemory)
+                        call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
+                        store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
+
+                        call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, & 
+                        store_c_transfer_frac*currentCohort%structmemory/totalmemory)
+
+                     else 
+
+                        call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+                        store_c_transfer_frac*totalmemory)                        
+
+                     end if
                
                      currentCohort%laimemory = 0.0_r8
                      currentCohort%structmemory = 0.0_r8
@@ -1048,7 +1058,7 @@ contains
                            call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                               struct_organ, stem_drop_fraction)
 
-                     endif	
+                     endif	! woody plant check
                   endif ! individual dbh size check
                endif !leaf status
             endif !currentSite status
@@ -1078,9 +1088,9 @@ contains
 
                      if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
                      
-                     totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
-                     store_c_transfer_frac = min(EDPftvarcon_inst%phenflush_fraction(ipft)* &
-                                             totalmemory, store_c)/store_c
+                        totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
+                        store_c_transfer_frac = min(EDPftvarcon_inst%phenflush_fraction(ipft)* &
+                                                totalmemory, store_c)/store_c
 
                      endif
 
@@ -1098,21 +1108,31 @@ contains
                      currentCohort%laimemory = 0.0_r8
                
                   else
-                  
-                     call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                     store_c_transfer_frac*currentCohort%laimemory/totalmemory)		   
 
-                     call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
-                     store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
+                     ! Check that the stem drop fraction is set to non-zero amount otherwise flush all carbon store to leaves
+                     if (stem_drop_fraction .gt. 0.0_r8) then
 
-                     call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, & 
-                     store_c_transfer_frac*currentCohort%structmemory/totalmemory)
+                        call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+                        store_c_transfer_frac*currentCohort%laimemory/totalmemory)		   
+
+                        call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
+                        store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
+
+                        call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, & 
+                        store_c_transfer_frac*currentCohort%structmemory/totalmemory)
+
+                     else
+
+                        call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+                        store_c_transfer_frac*totalmemory)	
+
+                     end if
                         
                      currentCohort%laimemory = 0.0_r8
                      currentCohort%structmemory = 0.0_r8
                      currentCohort%sapwmemory = 0.0_r8
 		     
-		            endif
+		            endif ! woody plant check
                endif !currentCohort status again?
             endif   !currentSite status
 
