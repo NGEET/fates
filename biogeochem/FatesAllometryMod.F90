@@ -309,7 +309,7 @@ contains
                 allom_hmode => EDPftvarcon_inst%allom_hmode(ipft))
 
       select case(int(allom_hmode))
-      case (1) ! Obrien et al. 199X BCI
+      case (1) ! O'Brien et al 1995, BCI
          call h2d_obrien(h,p1,p2,d,dddh)
       case (2)  ! poorter 2006
          call h2d_poorter2006(h,p1,p2,p3,d,dddh)
@@ -805,9 +805,7 @@ contains
 
     select case(int(EDPftvarcon_inst%allom_smode(ipft)))
        ! ---------------------------------------------------------------------
-       ! Currently both sapwood area proportionality methods use the same
-       ! machinery.  The only differences are related to the parameter
-       ! checking at the beginning.  For constant proportionality, the slope
+       ! Currently only one sapwood allometry model. the slope
        ! of the la:sa to diameter line is zero.
        ! ---------------------------------------------------------------------
     case(1) ! linearly related to leaf area based on target leaf biomass
