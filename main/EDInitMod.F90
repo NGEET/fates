@@ -451,6 +451,7 @@ contains
     real(r8) :: m_sapw     ! Generic mass for sapwood [kg]
     real(r8) :: m_store    ! Generic mass for storage [kg]
     real(r8) :: m_repro    ! Generic mass for reproductive tissues [kg]
+    real(r8) :: stem_drop_fraction
 
     integer, parameter :: rstatus = 0
 
@@ -496,19 +497,31 @@ contains
        call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
 
        temp_cohort%laimemory = 0._r8
+       temp_cohort%sapwmemory = 0._r8
+       temp_cohort%structmemory = 0._r8
        cstatus = leaves_on
+       
+       stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
        
        if( EDPftvarcon_inst%season_decid(pft) == itrue .and. &
             any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-          temp_cohort%laimemory = c_leaf
-          c_leaf = 0._r8
-          cstatus = leaves_off
+         temp_cohort%laimemory = c_leaf
+         temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
+         temp_cohort%structmemory = c_struct * stem_drop_fraction
+         c_leaf = 0._r8
+         c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+         c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
+         cstatus = leaves_off
        endif
 
        if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. &
             any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
           temp_cohort%laimemory = c_leaf
+          temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
+          temp_cohort%structmemory = c_struct * stem_drop_fraction
           c_leaf = 0._r8
+          c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+          c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
           cstatus = leaves_off
        endif
 
@@ -581,8 +594,9 @@ contains
        call prt_obj%CheckInitialConditions()
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-             temp_cohort%dbh, prt_obj, temp_cohort%laimemory, cstatus, rstatus,        &
-             temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
+            temp_cohort%dbh, prt_obj, temp_cohort%laimemory, temp_cohort%sapwmemory, &
+            temp_cohort%structmemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, &
+            site_in%spread, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 

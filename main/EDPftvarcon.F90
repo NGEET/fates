@@ -244,7 +244,6 @@ module EDPftvarcon
 
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
-
      real(r8), allocatable :: phen_cold_size_threshold(:) ! stem/leaf drop occurs on DBH size of decidious non-woody 
                                                           ! (coastal grass) plants larger than the threshold value 							  
      real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Fraction of stem dropped/senescened for decidious 
@@ -708,7 +707,7 @@ contains
     name = 'fates_mort_bmort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
+	  
     name = 'fates_mort_scalar_coldstress'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -804,7 +803,7 @@ contains
     name = 'fates_phenflush_fraction'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
+	  
     name = 'fates_phen_cold_size_threshold'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -1208,7 +1207,7 @@ contains
     name = 'fates_mort_bmort'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bmort)
-
+	 	 
     name = 'fates_mort_scalar_coldstress'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_scalar_coldstress)
@@ -1304,6 +1303,15 @@ contains
     name = 'fates_phenflush_fraction'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
+	  	 
+    name = 'fates_phen_cold_size_threshold'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%phen_cold_size_threshold)
+	 
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%phen_stem_drop_fraction)	 
+	 
 
     name = 'fates_phen_cold_size_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1938,7 +1946,7 @@ contains
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc
         write(fates_log(),fmt0) 'c2b = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'bmort = ',EDPftvarcon_inst%bmort
-        write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
+	write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
         write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
         write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
@@ -2183,7 +2191,6 @@ contains
            end if
            if ( ( EDPftvarcon_inst%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or. &
                 ( EDPFtvarcon_inst%phen_stem_drop_fraction(ipft) > 1 ) ) then
-
               write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
               write(fates_log(),*) ' during the dedicous period.'
               write(fates_log(),*) ' PFT#: ',ipft
