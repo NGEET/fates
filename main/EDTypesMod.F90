@@ -521,9 +521,9 @@ module EDTypesMod
      real(r8) ::  fi                                               ! average fire intensity of flaming front:  kj/m/s or kw/m
      integer  ::  fire                                             ! Is there a fire? 1=yes 0=no
      real(r8) ::  fd                                               ! fire duration: mins
-     real(r8) ::  sh                                               ! average scorch height: m 
 
      ! FIRE EFFECTS     
+     real(r8) ::  scorch_ht(maxpft)                                ! scorch height: m 
      real(r8) ::  frac_burnt                                       ! fraction burnt: frac gridcell/day  
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
@@ -689,7 +689,8 @@ module EDTypesMod
      real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
-     real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.
+     real(r8) ::  NF                                           ! daily ignitions in km2
+     real(r8) ::  frac_burnt                                   ! fraction of area burnt in this day.
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
