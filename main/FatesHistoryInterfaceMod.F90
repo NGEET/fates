@@ -3353,16 +3353,16 @@ end subroutine flush_hvars
                   hio_tran_scpf(io_si,iscpf) = hio_tran_scpf(io_si,iscpf) + &
                         (ccohort_hydr%qtop) * number_fraction_rate ! [kg/indiv/s]
                   
-                  hio_rootuptake_scpf(io_si,iscpf) = hio_rootuptake_scpf(io_si,iscpf) + &
-                        sum(ccohort_hydr%rootuptake) * number_fraction_rate       ! [kg/indiv/s]
+!                  hio_rootuptake_scpf(io_si,iscpf) = hio_rootuptake_scpf(io_si,iscpf) + &
+!                        sum(ccohort_hydr%rootuptake) * number_fraction_rate       ! [kg/indiv/s]
                   
-                  do j=1,sites(s)%si_hydr%nlevsoi_hyd
-                      hio_rootuptake_sl(io_si,j) = hio_rootuptake_sl(io_si,j) + &
-                            ccohort_hydr%rootuptake(j) * number_fraction_rate       ! [kg/indiv/s]
-                  end do
+!                  do j=1,sites(s)%si_hydr%nlevsoi_hyd
+!                      hio_rootuptake_sl(io_si,j) = hio_rootuptake_sl(io_si,j) + &
+!                            ccohort_hydr%rootuptake(j) * number_fraction_rate       ! [kg/indiv/s]
+!                  end do
                   
-                  hio_sapflow_scpf(io_si,iscpf)         = hio_sapflow_scpf(io_si,iscpf)  + &
-                        ccohort_hydr%sapflow * number_fraction_rate             ! [kg/indiv/s]
+!                  hio_sapflow_scpf(io_si,iscpf)         = hio_sapflow_scpf(io_si,iscpf)  + &
+!                        ccohort_hydr%sapflow * number_fraction_rate             ! [kg/indiv/s]
                   
                   hio_iterh1_scpf(io_si,iscpf)          = hio_iterh1_scpf(io_si,iscpf) + &
                         ccohort_hydr%iterh1  * number_fraction             ! [-]
@@ -5003,25 +5003,25 @@ end subroutine flush_hvars
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_tran_scpf )
 
-       call this%set_history_var(vname='FATES_ROOTUPTAKE_SCPF', units='kg/indiv/s', &
-             long='mean individual root uptake rate', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake_scpf )
+!       call this%set_history_var(vname='FATES_ROOTUPTAKE_SCPF', units='kg/indiv/s', &
+!             long='mean individual root uptake rate', use_default='inactive', &
+!             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+!             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake_scpf )
 
-       call this%set_history_var(vname='FATES_ROOTUPTAKE_SL', units='kg/indiv/s', &
-             long='mean individual root uptake rate per layer', use_default='inactive', &
-             avgflag='A', vtype=site_ground_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake_sl )
+!       call this%set_history_var(vname='FATES_ROOTUPTAKE_SL', units='kg/indiv/s', &
+!             long='mean individual root uptake rate per layer', use_default='inactive', &
+!             avgflag='A', vtype=site_ground_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+!             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake_sl )
        
        call this%set_history_var(vname='FATES_H2OSOI_COL_SHSL', units='m3/m3', &
              long='volumetric soil moisture by layer and shell', use_default='inactive', &
              avgflag='A', vtype=site_scagpft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_h2osoi_si_scagpft )
        
-       call this%set_history_var(vname='FATES_SAPFLOW_COL_SCPF', units='kg/indiv/s', &
-             long='individual sap flow rate', use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_sapflow_scpf )
+!       call this%set_history_var(vname='FATES_SAPFLOW_COL_SCPF', units='kg/indiv/s', &
+!             long='individual sap flow rate', use_default='inactive', &
+!             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+!             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_sapflow_scpf )
        
        call this%set_history_var(vname='FATES_ITERH1_COL_SCPF', units='count/indiv/step', &
              long='number of outer iterations required to achieve tolerable water balance error', &

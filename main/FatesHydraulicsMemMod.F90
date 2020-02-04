@@ -133,6 +133,17 @@ module FatesHydraulicsMemMod
                                                     !  insufficient plant water available to 
                                                     !  support transpiration
 
+
+     ! Useful diagnostics
+     ! ----------------------------------------------------------------------------------
+
+!!     real(r8),allocatable ::  sapflow(:,:)        ! flow at base of tree (+ upward)      [kg/cohort/s]
+!!     real(r8),allocatable ::  rootuptake(:)       ! net flow into roots (+ into roots)   [kg/cohort/s]
+
+
+     
+
+     
      
      class(wrf_arr_type), pointer :: wrf_soil(:)       ! Water retention function for soil layers
      class(wkf_arr_type), pointer :: wkf_soil(:)       ! Water conductivity (K) function for soil
@@ -141,10 +152,30 @@ module FatesHydraulicsMemMod
      ! and type map for the whole system of compartments, from the soil to leaf
      ! as one vector
      
-     integer, protected              :: num_connections   
-     integer, allocatable, protected :: conn_up(:)
-     integer, allocatable, protected :: conn_dn(:)
-     integer, allocatable, protected :: pm_type(:)
+     integer :: num_connections
+     integer :: num_nodes
+     integer, allocatable :: conn_up(:)
+     integer, allocatable :: conn_dn(:)
+     integer, allocatable :: pm_node(:)
+     integer, allocatable :: node_layer(:)
+     integer, allocatable :: ipiv(:)       ! unused, returned from DSEGV
+     
+     real(r8), allocatable :: residual(:)
+     real(r8), allocatable :: ajac(:,:)
+     real(r8), allocatable :: th_node_init(:)
+     real(r8), allocatable :: th_node(:)
+     real(r8), allocatable :: dth_node(:)
+     real(r8), allocatable :: h_node(:)
+     real(r8), allocatable :: v_node(:)
+     real(r8), allocatable :: z_node(:)
+     real(r8), allocatable :: psi_node(:)
+     real(r8), allocatable :: q_flux(:)
+     real(r8), allocatable :: dftc_dpsi_node(:)
+     real(r8), allocatable :: ftc_node(:)
+     
+
+     real(r8), allocatable :: kmax_up(:)
+     real(r8), allocatable :: kmax_dn(:)
      
      
   contains
@@ -232,6 +263,9 @@ module FatesHydraulicsMemMod
      real(r8) ::  btran                           ! leaf water potential limitation on gs                             [0-1]
 
      
+     real(r8) ::  qtop                            ! mean transpiration flux rate         [kg/cohort/s]
+     
+     
      ! Variables used for error tracking and flagging
      ! ----------------------------------------------------------------------------------
      
@@ -261,12 +295,7 @@ module FatesHydraulicsMemMod
 
 
      
-     ! Useful diagnostics
-     ! ----------------------------------------------------------------------------------
 
-     real(r8) ::  sapflow                         ! flow at base of tree (+ upward)      [kg/indiv/timestep]
-     real(r8),allocatable ::  rootuptake(:)       ! net flow into roots (+ into roots)   [kg/indiv/timestep]
-     real(r8) ::  qtop                            ! mean transpiration flux rate         [kg/indiv/timestep]
     
      ! Other
      ! ----------------------------------------------------------------------------------
@@ -315,7 +344,7 @@ module FatesHydraulicsMemMod
        allocate(this%th_aroot(1:nlevsoil_hydr))
        allocate(this%psi_aroot(1:nlevsoil_hydr))
        allocate(this%ftc_aroot(1:nlevsoil_hydr))
-       allocate(this%rootuptake(1:nlevsoil_hydr))
+!       allocate(this%rootuptake(1:nlevsoil_hydr))
 
        return
     end subroutine AllocateHydrCohortArrays
@@ -337,7 +366,7 @@ module FatesHydraulicsMemMod
        deallocate(this%th_aroot)
        deallocate(this%psi_aroot)
        deallocate(this%ftc_aroot)
-       deallocate(this%rootuptake)
+!       deallocate(this%rootuptake)
 
        return
     end subroutine DeallocateHydrCohortArrays
@@ -349,22 +378,22 @@ module FatesHydraulicsMemMod
        ! Arguments
        class(ed_site_hydr_type),intent(inout) :: this
 
-       associate( nlevsoil_hyd => this%nlevsoi_hyd )
+       associate( nlevsoil_hydr => this%nlevsoi_hyd )
          
-         allocate(this%v_shell(1:nlevsoil_hyd,1:nshell))         ; this%v_shell = nan
-         allocate(this%v_shell_init(1:nlevsoil_hyd,1:nshell))    ; this%v_shell_init = nan
-         allocate(this%r_node_shell(1:nlevsoil_hyd,1:nshell))    ; this%r_node_shell = nan
-         allocate(this%r_node_shell_init(1:nlevsoil_hyd,1:nshell)); this%r_node_shell_init = nan
-         allocate(this%r_out_shell(1:nlevsoil_hyd,1:nshell))     ; this%r_out_shell = nan
-         allocate(this%l_aroot_layer(1:nlevsoil_hyd))            ; this%l_aroot_layer = nan
-         allocate(this%l_aroot_layer_init(1:nlevsoil_hyd))       ; this%l_aroot_layer_init = nan
-         allocate(this%kmax_upper_shell(1:nlevsoil_hyd,1:nshell)); this%kmax_upper_shell = nan
-         allocate(this%kmax_lower_shell(1:nlevsoil_hyd,1:nshell)); this%kmax_lower_shell = nan
-         allocate(this%supsub_flag(1:nlevsoil_hyd))                ; this%supsub_flag = -999
-         allocate(this%h2osoi_liqvol_shell(1:nlevsoil_hyd,1:nshell)) ; this%h2osoi_liqvol_shell = nan
-         allocate(this%h2osoi_liq_prev(1:nlevsoil_hyd))          ; this%h2osoi_liq_prev = nan
-         allocate(this%rs1(1:nlevsoil_hyd)); this%rs1(:) = fine_root_radius_const
-         allocate(this%recruit_w_uptake(1:nlevsoil_hyd)); this%recruit_w_uptake = nan
+         allocate(this%v_shell(1:nlevsoil_hydr,1:nshell))         ; this%v_shell = nan
+         allocate(this%v_shell_init(1:nlevsoil_hydr,1:nshell))    ; this%v_shell_init = nan
+         allocate(this%r_node_shell(1:nlevsoil_hydr,1:nshell))    ; this%r_node_shell = nan
+         allocate(this%r_node_shell_init(1:nlevsoil_hydr,1:nshell)); this%r_node_shell_init = nan
+         allocate(this%r_out_shell(1:nlevsoil_hydr,1:nshell))     ; this%r_out_shell = nan
+         allocate(this%l_aroot_layer(1:nlevsoil_hydr))            ; this%l_aroot_layer = nan
+         allocate(this%l_aroot_layer_init(1:nlevsoil_hydr))       ; this%l_aroot_layer_init = nan
+         allocate(this%kmax_upper_shell(1:nlevsoil_hydr,1:nshell)); this%kmax_upper_shell = nan
+         allocate(this%kmax_lower_shell(1:nlevsoil_hydr,1:nshell)); this%kmax_lower_shell = nan
+         allocate(this%supsub_flag(1:nlevsoil_hydr))                ; this%supsub_flag = -999
+         allocate(this%h2osoi_liqvol_shell(1:nlevsoil_hydr,1:nshell)) ; this%h2osoi_liqvol_shell = nan
+         allocate(this%h2osoi_liq_prev(1:nlevsoil_hydr))          ; this%h2osoi_liq_prev = nan
+         allocate(this%rs1(1:nlevsoil_hydr)); this%rs1(:) = fine_root_radius_const
+         allocate(this%recruit_w_uptake(1:nlevsoil_hydr)); this%recruit_w_uptake = nan
 
          this%errh2o_hyd     = nan
          this%dwat_veg       = nan
@@ -377,16 +406,16 @@ module FatesHydraulicsMemMod
 
          ! We have separate water transfer functions and parameters
          ! for each soil layer, and each plant compartment type
-         allocate(this%wrf_soil(1:nlevsoil_hyd))
-         allocate(this%wkf_soil(1:nlevsoil_hyd))
+         allocate(this%wrf_soil(1:nlevsoil_hydr))
+         allocate(this%wkf_soil(1:nlevsoil_hydr))
 
          if(use_2d_hydrosolve) then
              
              this%num_connections =  n_hypool_leaf + n_hypool_stem + n_hypool_troot - 1  &
-                   + (n_hypool_aroot + nshell) * nlevsoil_hyd
+                   + (n_hypool_aroot + nshell) * nlevsoil_hydr
 
              this%num_nodes = n_hypool_leaf + n_hypool_stem + n_hypool_troot  &
-                   + (n_hypool_aroot + nshell) * nlevsoil_hyd
+                   + (n_hypool_aroot + nshell) * nlevsoil_hydr
 
              ! These are only in the newton-matrix solve
              allocate(this%conn_up(this%num_connections))
@@ -395,13 +424,21 @@ module FatesHydraulicsMemMod
              allocate(this%ajac(this%num_nodes,this%num_nodes))
              allocate(this%th_node_init(this%num_nodes))
              allocate(this%th_node(this%num_nodes))
+             allocate(this%dth_node(this%num_nodes))
              allocate(this%v_node(this%num_nodes))
              allocate(this%z_node(this%num_nodes))
              allocate(this%psi_node(this%num_nodes))
              allocate(this%q_flux(this%num_connections))
+             allocate(this%dftc_dpsi_node(this%num_nodes))
+             allocate(this%ftc_node(this%num_nodes))
              allocate(this%pm_node(this%num_nodes))
+             allocate(this%ipiv(this%num_nodes))
+             allocate(this%node_layer(this%num_nodes))
 
-         else
+             allocate(this%kmax_up(this%num_connections))
+             allocate(this%kmax_dn(this%num_connections))
+             
+          else
              
              this%num_connections =  n_hypool_leaf + n_hypool_stem + & 
                    n_hypool_troot + n_hypool_aroot + nshell -1 
@@ -414,28 +451,34 @@ module FatesHydraulicsMemMod
              allocate(this%pm_node(this%num_nodes))
              
              
-         end if
+          end if
          
        end associate
-
+       
        return
-    end subroutine InitHydrSite
-
+     end subroutine InitHydrSite
+     
     ! ===================================================================================
     
     subroutine FlushSiteScratch(this)
         class(ed_site_hydr_type),intent(inout) :: this
 
         if(use_2d_hydrosolve) then
-            residual(:)     = fates_unset_r8
-            ajac(:,:)       = fates_unset_r8
-            th_node_init(:) = fates_unset_r8
-            th_node(:)      = fates_unset_r8
-            v_node(:)       = fates_unset_r8
-            z_node(:)       = fates_unset_r8
-            psi_node(:)     = fates_unset_r8
+            this%residual(:)       = fates_unset_r8
+            this%ajac(:,:)         = fates_unset_r8
+            this%th_node_init(:)   = fates_unset_r8
+            this%th_node(:)        = fates_unset_r8
+            this%dth_node(:)       = fates_unset_r8
+            this%h_node(:)         = fates_unset_r8
+            this%v_node(:)         = fates_unset_r8
+            this%z_node(:)         = fates_unset_r8
+            this%psi_node(:)       = fates_unset_r8
+            this%ftc_node(:)       = fates_unset_r8
+            this%dftc_dpsi_node(:) = fates_unset_r8
+!            this%kmax_up(:)        = fates_unset_r8
+!            this%kmax_dn(:)        = fates_unset_r8
+            this%q_flux(:)         = fates_unset_r8
         end if
-            
 
     end subroutine FlushSiteScratch
 
@@ -449,6 +492,7 @@ module FatesHydraulicsMemMod
      integer :: num_cnxs
      integer :: num_nds
      integer :: nt_ab
+     integer :: node_tr_end
      
      num_cnxs = 0
      num_nds = 0
@@ -457,14 +501,14 @@ module FatesHydraulicsMemMod
         num_nds  = num_nds + 1
         this%conn_dn(num_cnxs) = k           !leaf is the dn, origin, bottom
         this%conn_up(num_cnxs) = k + 1
-        this%pm_type(num_nds)  = leaf_p_media
+        this%pm_node(num_nds)  = leaf_p_media
      enddo
      do k = n_hypool_leaf+1, n_hypool_ag
         num_cnxs = num_cnxs + 1
         num_nds  = num_nds + 1
         this%conn_dn(num_cnxs) = k
         this%conn_up(num_cnxs) = k+1
-        this%pm_type(num_nds) = stem_p_media
+        this%pm_node(num_nds) = stem_p_media
      enddo
 
      if(use_2d_hydrosolve) then
@@ -474,29 +518,32 @@ module FatesHydraulicsMemMod
         nt_ab       = n_hypool_ag+n_hypool_troot+n_hypool_aroot
         num_cnxs    = n_hypool_ag
 
-        this%pm_type(num_nds) = troot_p_media
+        this%pm_node(num_nds) = troot_p_media
+        this%node_layer(1:n_hypool_ag) = 0
+        this%node_layer(num_nds) = 1
         
-        do j = 1,this%nlevsoil_hyd
+        do j = 1,this%nlevsoi_hyd
            do k = 1, n_hypool_aroot + nshell
               num_nds  = num_nds + 1
               num_cnxs = num_cnxs + 1
+              this%node_layer(num_nds) = j
               if( k == 1 ) then !troot-aroot
                  !junction node
                  this%conn_dn(num_cnxs) = node_tr_end !absorbing root
                  this%conn_up(num_cnxs) = num_nds
-                 this%pm_type(num_nds)  = aroot_p_media
+                 this%pm_node(num_nds)  = aroot_p_media
               else
                  this%conn_dn(num_cnxs) = num_nds - 1
                  this%conn_up(num_cnxs) = num_nds
-                 this%pm_type(num_nds)  = rhiz_p_media
+                 this%pm_node(num_nds)  = rhiz_p_media
               endif
            enddo
         end do
      else
-
-        this%pm_type(num_hypool_ag+1) = troot_p_media
-        this%pm_type(num_hypool_ag+2) = aroot_p_media
-        this%pm_type(num_hypool_ag+3:num_hypool_ag+2+nshell) = rhiz_p_media
+        
+        this%pm_node(n_hypool_ag+1) = troot_p_media
+        this%pm_node(n_hypool_ag+2) = aroot_p_media
+        this%pm_node(n_hypool_ag+3:n_hypool_ag+2+nshell) = rhiz_p_media
         
      end if
      
