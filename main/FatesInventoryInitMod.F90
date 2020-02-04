@@ -104,11 +104,13 @@ contains
       ! !USES:
       use shr_file_mod, only        : shr_file_getUnit
       use shr_file_mod, only        : shr_file_freeUnit
+      use FatesConstantsMod, only   : nearzero
       use EDPatchDynamicsMod, only  : create_patch
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
       use EDCohortDynamicsMod, only : sort_cohorts
       use EDcohortDynamicsMod, only : count_cohorts
+      use EDPatchDynamicsMod, only  : patch_pft_size_profile
 
       ! Arguments
       integer,            intent(in)               :: nsites
@@ -121,6 +123,8 @@ contains
       type(ed_cohort_type), pointer                :: currentcohort
       type(ed_patch_type), pointer                 :: newpatch
       type(ed_patch_type), pointer                 :: olderpatch
+      type(ed_patch_type), pointer                 :: head_of_unsorted_patch_list
+      type(ed_patch_type), pointer                 :: next_in_unsorted_patch_list
       integer                                      :: sitelist_file_unit   ! fortran file unit for site list
       integer                                      :: pss_file_unit        ! fortran file unit for the pss file
       integer                                      :: css_file_unit        ! fortran file unit for the css file
@@ -380,6 +384,84 @@ contains
 
          deallocate(patch_pointer_vec,patch_name_vec)
 
+         ! now that we've read in the patch and cohort info, check to see if there is any real age info
+         if ( abs(sites(s)%youngest_patch%age - sites(s)%oldest_patch%age) <= nearzero .and. &
+              associated(sites(s)%youngest_patch%older) ) then
+
+            ! so there are at least two patches and the oldest and youngest are the same age.
+            ! this means that sorting by age wasn't very useful.  try sorting by total biomass instead
+
+            ! first calculate the biomass in each patch.  simplest way is to use the patch fusion criteria
+            currentpatch => sites(s)%youngest_patch
+            do while(associated(currentpatch))
+               call patch_pft_size_profile(currentPatch)
+               currentPatch => currentpatch%older
+            enddo
+
+            ! now we need to sort them.
+            ! first generate a new head of the linked list.
+            head_of_unsorted_patch_list => sites(s)%youngest_patch%older
+
+            ! reset the site-level patch linked list, keeping only the youngest patch.
+            sites(s)%youngest_patch%older => null()
+            sites(s)%youngest_patch%younger => null()
+            sites(s)%oldest_patch   => sites(s)%youngest_patch
+
+            ! loop through each patch in the unsorted LL, peel it off,
+            ! and insert it into the new, sorted LL
+            do while(associated(head_of_unsorted_patch_list))
+
+               ! first keep track of the next patch in the old (unsorted) linked list
+               next_in_unsorted_patch_list => head_of_unsorted_patch_list%older
+               
+               ! check the two end-cases
+
+               ! Youngest Patch
+               if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) <= &
+                    sum(sites(s)%youngest_patch%pft_agb_profile(:,:)))then
+                  head_of_unsorted_patch_list%older                  => sites(s)%youngest_patch
+                  head_of_unsorted_patch_list%younger                => null()
+                  sites(s)%youngest_patch%younger => head_of_unsorted_patch_list
+                  sites(s)%youngest_patch         => head_of_unsorted_patch_list
+
+                  ! Oldest Patch
+               else if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) > &
+                    sum(sites(s)%oldest_patch%pft_agb_profile(:,:)))then
+                  head_of_unsorted_patch_list%older              => null()
+                  head_of_unsorted_patch_list%younger            => sites(s)%oldest_patch
+                  sites(s)%oldest_patch%older => head_of_unsorted_patch_list
+                  sites(s)%oldest_patch       => head_of_unsorted_patch_list
+
+                  ! Somewhere in the middle
+               else
+                  currentpatch => sites(s)%youngest_patch
+                  do while(associated(currentpatch))
+                     olderpatch => currentpatch%older
+                     if(associated(currentpatch%older)) then
+                        if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) >= &
+                             sum(currentpatch%pft_agb_profile(:,:)) .and. &
+                             sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) < &
+                             sum(olderpatch%pft_agb_profile(:,:))) then
+                           ! Set the new patches pointers
+                           head_of_unsorted_patch_list%older   => currentpatch%older
+                           head_of_unsorted_patch_list%younger => currentpatch
+                           ! Fix the patch's older pointer
+                           currentpatch%older => head_of_unsorted_patch_list
+                           ! Fix the older patch's younger pointer
+                           olderpatch%younger => head_of_unsorted_patch_list
+                           ! Exit the loop once head sorted to avoid later re-sort
+                           exit
+                        end if
+                     end if
+                     currentPatch => olderpatch
+                  enddo
+               end if
+
+               ! now work through to the next element in the unsorted linked list
+               head_of_unsorted_patch_list => next_in_unsorted_patch_list
+            end do
+         endif
+         
          ! Report Basal Area (as a check on if things were read in)
          ! ------------------------------------------------------------------------------
          basal_area_pref = 0.0_r8
@@ -829,6 +911,7 @@ contains
       real(r8) :: m_sapw   ! Generic mass for sapwood [kg]
       real(r8) :: m_store  ! Generic mass for storage [kg]
       real(r8) :: m_repro  ! Generic mass for reproductive tissues [kg]
+      real(r8) :: stem_drop_fraction
       integer  :: i_pft, ncohorts_to_create
 
       character(len=128),parameter    :: wr_fmt = &
@@ -953,20 +1036,32 @@ contains
          call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%canopy_trim, b_store)
       
          temp_cohort%laimemory = 0._r8
+         temp_cohort%sapwmemory = 0._r8
+         temp_cohort%structmemory = 0._r8	 
          cstatus = leaves_on
+         
+	 stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( EDPftvarcon_inst%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-             temp_cohort%laimemory = b_leaf
-             b_leaf  = 0._r8
-             cstatus = leaves_off
+            temp_cohort%laimemory = b_leaf
+            temp_cohort%sapwmemory = b_sapw * stem_drop_fraction
+            temp_cohort%structmemory = b_struct * stem_drop_fraction	    
+            b_leaf  = 0._r8
+	         b_sapw = (1._r8 - stem_drop_fraction) * b_sapw
+	         b_struct  = (1._r8 - stem_drop_fraction) * b_struct
+            cstatus = leaves_off
          endif
 
          if ( EDPftvarcon_inst%stress_decid(temp_cohort%pft) == itrue .and. &
               any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-             temp_cohort%laimemory = b_leaf
-             b_leaf  = 0._r8
-             cstatus = leaves_off
+            temp_cohort%laimemory = b_leaf
+            temp_cohort%sapwmemory = b_sapw * stem_drop_fraction
+            temp_cohort%structmemory = b_struct * stem_drop_fraction	    
+            b_leaf  = 0._r8
+	         b_sapw = (1._r8 - stem_drop_fraction) * b_sapw
+	         b_struct  = (1._r8 - stem_drop_fraction) * b_struct	    
+            cstatus = leaves_off
          endif
          
          prt_obj => null()
@@ -1032,8 +1127,8 @@ contains
 
          ! Since spread is a canopy level calculation, we need to provide an initial guess here.
          call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-               prt_obj, temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
-               1, csite%spread, bc_in)
+               prt_obj, temp_cohort%laimemory, temp_cohort%sapwmemory, temp_cohort%structmemory, &
+               cstatus, rstatus, temp_cohort%canopy_trim, 1, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort
 
