@@ -52,6 +52,8 @@ module EDPftvarcon
      real(r8), allocatable :: initd(:)               ! initial seedling density 
      real(r8), allocatable :: seed_suppl(:)           ! seeds that come from outside the gridbox.
      real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
+     real(r8), allocatable :: medlynslope(:)         ! Medlyn slope parameter KPa^0.5
+     real(r8), allocatable :: medlynintercept(:)     ! Medlyn intercept parameter umol/m**2/s
      
      real(r8), allocatable :: seed_alloc_mature(:)   ! fraction of carbon balance allocated to 
                                                      ! clonal reproduction.
@@ -439,6 +441,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_leaf_medlynslope'   !Medlyn's slpoe
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+          
+    name = 'fates_leaf_medlynintercept'   !Medlyn's intercept
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+     
     name = 'fates_senleaf_long_fdrought'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -940,6 +950,14 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%BB_slope)
 
+    name = 'fates_leaf_medlynslope'    !Medlyn's slope
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%medlynslope)
+          
+    name = 'fates_leaf_medlynintercept'   !Medlyn's intercept
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%medlynintercept)
+     
     name = 'fates_senleaf_long_fdrought'
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%senleaf_long_fdrought)
@@ -1918,6 +1936,8 @@ contains
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
+        write(fates_log(),fmt0) 'medlynslope = ',EDPftvarcon_inst%medlynslope         
+        write(fates_log(),fmt0) 'medlynintercept = ',EDPftvarcon_inst%medlynintercept
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
         write(fates_log(),fmt0) 'senleaf_long_fdrought = ',EDPftvarcon_inst%senleaf_long_fdrought
         write(fates_log(),fmt0) 'seed_alloc_mature = ',EDPftvarcon_inst%seed_alloc_mature
