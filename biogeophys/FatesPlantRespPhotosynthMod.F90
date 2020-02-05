@@ -1111,8 +1111,8 @@ contains
                  if ( stomatalcond_mtd == 2 ) then
                   !stomatal conductance calculated from Belinda Medlyn et al. (2011), the numerical &
                   !implementation was adapted from the equations in CLM5.0 by Qianyu Li, see the CLM5 Technical Note 2.9.6 
-                  vpd =  max((veg_esat - ceair), 50._r8) * 0.001_r8          !addapted from CLM5. Put some constraint on RH in the &
-                  !canopy when Medlyn stomatal conductance is being used, the unit is KPa. Ignoring the constraint will cause errors when model runs.          
+                  vpd =  max((veg_esat - ceair), 50._r8) * 0.001_r8          !addapted from CLM5. Put some constraint on VPD
+                  !when Medlyn stomatal conductance is being used, the unit is KPa. Ignoring the constraint will cause errors when model runs.          
                   term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press * umol_per_mol)
                   aquad = 1.0_r8
                   bquad = -(2.0 * (medlynintercept(ft)/umol_per_mol+ term) + (medlynslope(ft) * term)**2 / &
