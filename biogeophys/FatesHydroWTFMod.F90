@@ -268,6 +268,8 @@ contains
     ! 
 
     satfrac = (1._r8 + (-this%alpha*psi)**this%psd)**(-1._r8+1._r8/this%psd)
+
+!    print*,'satfrac: ',satfrac
     
     ! convert to volumetric water content
     th = satfrac*(this%th_sat-this%th_res) + this%th_res
@@ -299,31 +301,39 @@ contains
 
     m   = 1._r8/this%psd
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
+    
+!!    if(satfrac>max_rwc_interp) then
 
-    if(satfrac>max_rwc_interp) then
+!!       th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
+!!       dpsidth_interp = this%dpsidth_from_th(th_interp)
+!!       psi_interp = -(1._r8/this%alpha)*(max_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m
+!!       psi = psi_interp + dpsidth_interp*(th-th_interp)
 
-       th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
-       dpsidth_interp = this%dpsidth_from_th(th_interp)
-       psi_interp = -(1._r8/this%alpha)*(max_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m 
-       psi = psi_interp + dpsidth_interp*(th-th_interp)
-
-    elseif(satfrac<min_rwc_interp) then
+!!    elseif(satfrac<min_rwc_interp .or. .false.) then
        
-       th_interp = min_rwc_interp * (this%th_sat-this%th_res) + this%th_res
-       dpsidth_interp = this%dpsidth_from_th(th_interp)
-       psi_interp = -(1._r8/this%alpha)*(min_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m 
-       psi = psi_interp + dpsidth_interp*(th-th_interp)
+ !!      th_interp = min_rwc_interp * (this%th_sat-this%th_res) + this%th_res
+ !!      dpsidth_interp = this%dpsidth_from_th(th_interp)
+!!       psi_interp = -(1._r8/this%alpha)*(min_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m 
+!!       psi = psi_interp + dpsidth_interp*(th-th_interp)
 
-    else
+!!    else
 
        ! One may set the max and min rwc high and low enough to disable them
        ! in that case, we will just cap theta between residual and saturation
        ! otherwise the result is a nan
 
-       satfrac = max(min(satfrac,1._r8),0._r8)
+    !!       satfrac = max(min(satfrac,1._r8),0._r8)
+
+
+    !! (1/alpha)*(satfrac**(1/(m-1))-1)**(1/n) = psi
+
+    
        psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
 
-    end if
+!!       print*,th,this%th_res,this%th_sat,satfrac,this%alpha,this%psd,psi
+
+       
+!!    end if
 
   end function psi_from_th_vg
 
@@ -346,8 +356,9 @@ contains
 
     ! Since we apply linear interpolation beyond the max and min saturated fractions
     ! we just cap satfrac at those values and calculate the derivative there
-    satfrac = max(min(max_rwc_interp,(th-this%th_res)/(this%th_sat-this%th_res)),min_rwc_interp)
+!!    satfrac = max(min(max_rwc_interp,(th-this%th_res)/(this%th_sat-this%th_res)),min_rwc_interp)
 
+    satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
     dsatfrac_dth = 1._r8/(this%th_sat-this%th_res)
 
     ! psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
@@ -488,7 +499,7 @@ contains
     real(r8)             :: satfrac
 
     satfrac = (psi/this%psi_sat)**(-1.0_r8/this%beta)
-
+    
     th = satfrac*this%th_sat
 
   end function th_from_psi_cch

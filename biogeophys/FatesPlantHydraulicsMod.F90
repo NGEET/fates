@@ -164,7 +164,8 @@ module FatesPlantHydraulicsMod
   
   integer, parameter :: plant_wrf_type = van_genuchten_type
   integer, parameter :: plant_wkf_type = tfs_type
-  integer, parameter :: soil_wrf_type  = campbell_type
+  !  integer, parameter :: soil_wrf_type  = campbell_type
+  integer, parameter :: soil_wrf_type = van_genuchten_type
   integer, parameter :: soil_wkf_type  = campbell_type
   
   
@@ -427,7 +428,8 @@ contains
     integer  :: j,k,ft                     ! indices
     real(r8) :: dz
     real(r8) :: smp
-
+    real(r8) :: psi_rev
+    
     cCohort                    => cc_p
     ccohort_hydr               => cCohort%co_hydr
     csite                      => site_p 
@@ -446,10 +448,12 @@ contains
 
        ccohort_hydr%th_aroot(j) = wrf_plant(aroot_p_media,ft)%p%th_from_psi(ccohort_hydr%psi_aroot(j))
 
+       psi_rev = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j))
+
        ccohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
 
     end do
-
+    
     !initialize plant water potentials at hydrostatic equilibrium (dh/dz = 0)
     !the assumption is made here that initial conditions for soil water will 
     !be in (or at least close to) hydrostatic equilibrium as well, so that
@@ -1315,7 +1319,7 @@ contains
           write(fates_log(),*) 'TFS water retention curves not available for soil'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
-       
+
        ! -----------------------------------------------------------------------------------
        ! Initialize the Water Conductance (K) Functions
        ! -----------------------------------------------------------------------------------
@@ -3161,6 +3165,7 @@ contains
     sapflow        = 0._r8
     rootuptake     = 0._r8
     
+    ft = cohort%pft
     
     ! -----------------------------------------------------------------------------------
     ! As mentioned when calling this routine, we calculate a solution to the flux
@@ -3206,7 +3211,7 @@ contains
         
         wb_err_layer = 0._r8
         
-        ft = cohort%pft
+        
 
         ! If in "spatially parallel" mode, scale down cross section
         ! of flux through top by the root fraction of this layer
@@ -3471,9 +3476,6 @@ contains
 
 
                 ! Path is between rhizosphere shells
-
-                print*,"THESE SHOULD BE THE SAME: ",(n_hypool_ag+2)-(n_hypool_tot-nshell)
-                stop
 
                 do j = n_hypool_ag+3,n_hypool_tot-1
 
@@ -4612,6 +4614,8 @@ contains
          enddo
 
       enddo
+
+     
       
       ! Total water mass in the plant at the beginning of this solve [kg h2o]
       w_tot_beg = sum(th_node_init(:)*v_node(:))*denh2o
@@ -4629,7 +4633,7 @@ contains
          ! or, we just completed a solve but did not fully integrate
          ! the time.  Lets update the time-step to be the remainder
          ! of the step.
-         dtime = tmx-tm
+         dtime = min(tmx*0.01,tmx-tm)
           
          ! Relaxation factors are reset to starting point.
          rlfx_plnt = rlfx_plnt0
@@ -4671,6 +4675,16 @@ contains
 
                j = node_layer(k)
                psi_node(k) = site_hydr%wrf_soil(j)%p%psi_from_th(th_node(k))
+!!               if ( abs(th_node(k)-site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))) > nearzero) then
+!!                  print*,'non-reversible WRTs?'
+!!                  print*,psi_node(k)
+!!                  print*,th_node(k)
+!!                  print*,site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
+!!                  stop
+!!               end if
+
+
+               
                ! Get total potential [Mpa]
                h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
                ! Get Fraction of Total Conductivity [-]
@@ -4702,6 +4716,12 @@ contains
             endif
             
          enddo
+
+!         do i=1,site_hydr%num_nodes
+!            print*,i,node_layer(i),pm_node(i),z_node(i),v_node(i),th_node_init(i),psi_node(i),h_node(i)
+!         end do
+!         stop
+         
 
          ! Calculations of maximum conductance for upstream and downstream sides
          ! of each connection.  This IS dependant on total potential h_node
@@ -4910,8 +4930,10 @@ contains
                if(pm_node(k) == rhiz_p_media) then
                   psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
                   j = node_layer(k)
+                  print*,'psi:',psi_node(k),k,j
                   th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
                else
+                  print*,'psi:',psi_node(k),k
                   psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
                   th_node(k) = wrf_plant(pm_node(k),ft)%p%th_from_psi(psi_node(k))
                endif
@@ -5138,8 +5160,8 @@ contains
              kmax_up(icnx) = site_hydr%kmax_upper_shell(j,1)*aroot_frac_plant
 
           else                 ! soil - soil
-             kmax_dn(icnx) = site_hydr%kmax_lower_shell(j,k-1)*aroot_frac_plant
-             kmax_up(icnx) = site_hydr%kmax_upper_shell(j,k)*aroot_frac_plant
+             kmax_dn(icnx) = site_hydr%kmax_lower_shell(j,k-2)*aroot_frac_plant
+             kmax_up(icnx) = site_hydr%kmax_upper_shell(j,k-1)*aroot_frac_plant
           endif
        enddo
 

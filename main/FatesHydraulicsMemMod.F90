@@ -10,7 +10,7 @@ module FatesHydraulicsMemMod
    implicit none
    private
 
-   logical, parameter, public :: use_2d_hydrosolve = .false.
+   logical, parameter, public :: use_2d_hydrosolve = .true.
    
    
    ! Number of soil layers for indexing cohort fine root quanitities
@@ -425,6 +425,7 @@ module FatesHydraulicsMemMod
              allocate(this%th_node_init(this%num_nodes))
              allocate(this%th_node(this%num_nodes))
              allocate(this%dth_node(this%num_nodes))
+             allocate(this%h_node(this%num_nodes))
              allocate(this%v_node(this%num_nodes))
              allocate(this%z_node(this%num_nodes))
              allocate(this%psi_node(this%num_nodes))
@@ -452,7 +453,10 @@ module FatesHydraulicsMemMod
              
              
           end if
-         
+
+          call this%SetConnections()
+
+          
        end associate
        
        return

@@ -977,9 +977,12 @@ contains
 
       if (hlm_use_planthydro.eq.itrue) then
          this%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
+         
       end if
       this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
       this%bc_out(s)%qflx_ro_si = 0.0_r8
+
+      print*,"ZEROING BCOUT"
 
       return
    end subroutine zero_bcs

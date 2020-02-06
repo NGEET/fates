@@ -424,10 +424,10 @@ module FatesHistoryInterfaceMod
   
   integer :: ih_errh2o_scpf
   integer :: ih_tran_scpf
-  integer :: ih_rootuptake_scpf
-  integer :: ih_rootuptake_sl
+!  integer :: ih_rootuptake_scpf
+!  integer :: ih_rootuptake_sl
   integer :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
-  integer :: ih_sapflow_scpf
+!  integer :: ih_sapflow_scpf
   integer :: ih_iterh1_scpf          
   integer :: ih_iterh2_scpf           
   integer :: ih_supsub_scpf              
@@ -3272,10 +3272,10 @@ end subroutine flush_hvars
 
     associate( hio_errh2o_scpf  => this%hvars(ih_errh2o_scpf)%r82d, &
           hio_tran_scpf         => this%hvars(ih_tran_scpf)%r82d, &
-          hio_rootuptake_scpf   => this%hvars(ih_rootuptake_scpf)%r82d, &
-          hio_rootuptake_sl     => this%hvars(ih_rootuptake_sl)%r82d, &
+!          hio_rootuptake_scpf   => this%hvars(ih_rootuptake_scpf)%r82d, &
+!          hio_rootuptake_sl     => this%hvars(ih_rootuptake_sl)%r82d, &
           hio_h2osoi_shsl       => this%hvars(ih_h2osoi_si_scagpft)%r82d, &
-          hio_sapflow_scpf      => this%hvars(ih_sapflow_scpf)%r82d, &
+!          hio_sapflow_scpf      => this%hvars(ih_sapflow_scpf)%r82d, &
           hio_iterh1_scpf       => this%hvars(ih_iterh1_scpf)%r82d, &          
           hio_iterh2_scpf       => this%hvars(ih_iterh2_scpf)%r82d, &           
           hio_ath_scpf          => this%hvars(ih_ath_scpf)%r82d, &               
