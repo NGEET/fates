@@ -34,24 +34,11 @@ sed -i "/private /i public :: fates_int" f90_src/FatesConstantsMod.F90
 sed -i "/$old_fates_r8_str/d" f90_src/FatesConstantsMod.F90
 sed -i "/$old_fates_int_str/d" f90_src/FatesConstantsMod.F90
 
-
-# This re-writes the wrapper so that it uses all the correct parameters
-# in FatesAllometryMod.F90
-python AutoGenVarCon.py
-
-
-# Procedure for auto-generating AllomUnitWrap
-# 1) scan FatesAllometry and create list of EDPftVarcon_inst variables
-# 2) scan EDpftVarcon and get the name of the in-file parameter names associated
-#    with these variables
-
-
-
 # Build the new file with constants
 
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/FatesConstantsMod.o  f90_src/FatesConstantsMod.F90
 
-${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/EDParamsHydroMod.o  f90_src/EDParamsHydroMod.F90
+#${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/EDParamsHydroMod.o  f90_src/EDParamsHydroMod.F90
 
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/UnitWrapMod.o f90_src/UnitWrapMod.F90
 
@@ -59,7 +46,6 @@ ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/FatesHydroWTFMod.o ../../biogeop
 
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/HydroUnitWrapMod.o f90_src/HydroUnitWrapMod.F90
 
-#${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/FatesHydroUnitFunctionsMod.o ../../biogeophys/FatesHydroUnitFunctionsMod.F90
 
 
 

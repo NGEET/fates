@@ -37,9 +37,8 @@ from PyF90Utils import c8, ci, cchar, c8_arr, ci_arr
 
 # Load the fortran objects via CTYPES
 
-f90_edparams_obj = ctypes.CDLL('bld/EDParamsHydroMod.o',mode=ctypes.RTLD_GLOBAL)
-f90_constants_obj = ctypes.CDLL('bld/FatesConstantsMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_unitwrap_obj = ctypes.CDLL('bld/UnitWrapMod.o',mode=ctypes.RTLD_GLOBAL)
+f90_constants_obj = ctypes.CDLL('bld/FatesConstantsMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_wftfuncs_obj = ctypes.CDLL('bld/FatesHydroWTFMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_hydrounitwrap_obj = ctypes.CDLL('bld/HydroUnitWrapMod.o',mode=ctypes.RTLD_GLOBAL)
 
@@ -69,6 +68,11 @@ pm_stem = 2
 pm_troot = 3
 pm_aroot = 4
 pm_rhiz = 5
+
+# These parameters are matched with the indices in FATES-HYDRO
+vg_type = 1
+camp_type = 2
+tfs_type = 3
 
 isoil1 = 0  # Top soil layer parameters (@BCI)
 isoil2 = 1  # Bottom soil layer parameters
@@ -111,99 +115,26 @@ def main(argv):
     args = parser.parse_args()
 
 
-
-    # -------------------------------------------------------------------------------------
-    # Check through the fortran Code we are coupling with, determine the list of parameters
-    # that we need.
-    # The procedure GetSymbolUsage() returns a list of strings (non-unique)
-    # -------------------------------------------------------------------------------------
-
-    check_str = 'pft_p%'
-    var_list0 = GetSymbolUsage('../../biogeophys/FatesHydroUnitFunctionsMod.F90',check_str)
-
-    # This is the unique list of PFT parameters found in the salient Fortran code
-
-    var_list = MakeListUnique(var_list0)
-
-    # Now look through EDPftvarcon.F90 to determine the variable name in file
-    # that is associated with the variable pointer
-
-    var_list = GetPFTParmFileSymbols(var_list,'../../main/EDPftvarcon.F90')
-
-    # -------------------------------------------------------------
-    # We can now cross reference our list of parameters against
-    # the parameter file. This will create a new list of parameters
-    # however in the form of a dictionary. This dictionary of
-    # entries is accessible by its symbol name, and will also
-    # read in and store the actual parameter values from the file.
-    # -------------------------------------------------------------
-
-    dims = CDLParseDims(args.cdlfile)
-    pftparms = {}
-    for elem in var_list:
-        pftparms[elem.var_sym] = CDLParseParam(args.cdlfile,cdl_param_type(elem.var_name),dims)
-    print('Finished loading PFT parameters')
-
-    num_pfts   = dims['fates_pft']
-
-    scalarparms = {}
-    scalarparms['hydr_psi0'] = CDLParseParam(args.cdlfile,cdl_param_type('fates_hydr_psi0'),dims)
-    scalarparms['hydr_psicap'] = CDLParseParam(args.cdlfile,cdl_param_type('fates_hydr_psicap'),dims)
-
-
-
-
-    # Allocate PFT arrays in the fortran objects
-    iret=f90_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(ci(dims['fates_string_length']), \
-                                                             ci(dims['fates_history_size_bins']), \
-                                                             ci(dims['fates_NCWD']), \
-                                                             ci(dims['fates_prt_organs']), \
-                                                             ci(dims['fates_litterclass']), \
-                                                             ci(dims['fates_history_height_bins']), \
-                                                             ci(dims['fates_history_age_bins']), \
-                                                             ci(dims['fates_hydr_organs']), \
-                                                             ci(dims['fates_pft']), \
-                                                             ci(dims['fates_variants']), \
-                                                             ci(dims['fates_leafage_class']))
-
-
-
-    # Set the PFT arrays
-    for pft_key,pft_obj in pftparms.iteritems():
-        for idim in range(np.int(np.prod(pft_obj.dim_sizelist))):
-            if(pft_obj.ndims==1):
-                idim1 = idim
-                idim2 = 0
-                rdata = pft_obj.data[idim]
-                idata = np.int(pft_obj.data[idim])
-            else:
-                idim2 = np.mod(idim,num_pfts)
-                idim1 = np.int(idim/num_pfts)
-                rdata = pft_obj.data[idim1,idim2]
-                idata = np.int(pft_obj.data[idim1,idim2])
-            iret = f90_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(c8(rdata), \
-                                                                       ci(idata), \
-                                                                       ci(idim2+1), \
-                                                                       ci(idim1+1), \
-                                                                       c_char_p(pft_obj.symbol.strip()), \
-                                                                       c_long(len(pft_obj.symbol.strip())))
-
     # Set number of analysis points
     npts = 1000
 
 
     #    min_theta = np.full(shape=(2),dtype=np.float64,fill_value=np.nan)
 
-    th_ress = [0.10, 0.20, 0.30, 0.40]
+    wrf_type = [vg_type, vg_type, vg_type, vg_type]
+    wkf_type = [vg_type, tfs_type, tfs_type, tfs_type]
+    th_ress = [0.10, 0.10, 0.20, 0.20]
     th_sats = [0.65, 0.65, 0.65, 0.65]
     alphas  = [1.0, 1.0, 1.0, 1.0]
     psds    = [2.7, 2.7, 2.7, 2.7]
     tort    = [0.5, 0.5, 0.5, 0.5]
+
     avuln   = [2.0, 2.0, 2.5, 2.5]
     p50     = [-1.5, -1.5, -2.25, -2.25]
 
     ncomp= 4
-
+    # th_sat at BCI over depth:
+    #0.56664478523835027       0.54903922349686018       0.52782093380496897       0.50773092378032358       0.49398759255861308       0.49059926489050931       0.47927357530747811       0.47244878323265993       0.47244878323265993       0.44112000000000001       0.44112000000000001       0.44112000000000001       0.44363999999999998       0.44363999999999998       0.44363999999999998       0.44363999999999998       0.44363999999999998       0.44363999999999998       0.44363999999999998       0.44363999999999998
 
     # Allocate memory to our objective classes
     iret = initalloc_wtfs(ci(ncomp),ci(ncomp))
@@ -213,16 +144,16 @@ def main(argv):
     # -------------------------------------------------------------------------
     # Generic VGs
     init_wrf_args  = [alphas[0],psds[0],th_sats[0],th_ress[0]] # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(1),ci(1),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
+    iret = setwrf(ci(1),ci(wrf_type[0]),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
 
     init_wrf_args  = [alphas[1],psds[1],th_sats[1],th_ress[1]] # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(2),ci(1),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
+    iret = setwrf(ci(2),ci(wrf_type[1]),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
 
     init_wrf_args  = [alphas[2],psds[2],th_sats[2],th_ress[2]] # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(3),ci(1),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
+    iret = setwrf(ci(3),ci(wrf_type[2]),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
 
     init_wrf_args  = [alphas[3],psds[3],th_sats[3],th_ress[3]] # alpha, psd, th_sat, th_res
-    iret = setwrf(ci(4),ci(1),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
+    iret = setwrf(ci(4),ci(wrf_type[3]),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
 
 
     print('initialized WRF')
@@ -238,20 +169,24 @@ def main(argv):
             psi[ic,i] = psi_from_th(ci(ic+1),c8(th))
 
 
+    # Theta vs psi plots
+
     fig0, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
         ax1.plot(theta,psi[ic,:])
 
-    ax1.set_ylim((-10,5))
+    ax1.set_ylim((-30,5))
     ax1.set_ylabel('Matric Potential [MPa]')
     ax1.set_xlabel('VWC [m3/m3]')
-
+    ax1.legend(loc='lower right')
 
     for ic in range(ncomp):
         for i in range(1,len(theta)-1):
             dpsidth[ic,i]  = dpsidth_from_th(ci(ic+1),c8(theta[i]))
             cdpsidth[ic,i] = (psi[ic,i+1]-psi[ic,i-1])/(theta[i+1]-theta[i-1])
 
+
+    # Theta vs dpsi_dth (also checks deriv versus explicit)
 
     fig1, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
@@ -270,16 +205,16 @@ def main(argv):
     # -------------------------------------------------------------------------
     # Generic VGs
     init_wkf_args  = [alphas[0],psds[0],th_sats[0],th_ress[0],tort[0]] # alpha, psd, th_sat, th_res
-    iret = setwkf(ci(1),ci(1),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
+    iret = setwkf(ci(1),ci(wkf_type[0]),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
 
-    init_wkf_args = [th_sats[0],p50[0],avuln[0]]
-    iret = setwkf(ci(2),ci(3),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
+    init_wkf_args = [p50[1],avuln[1]]
+    iret = setwkf(ci(2),ci(wkf_type[1]),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
 
-    init_wkf_args = [th_sats[1],p50[1],avuln[1]]
-    iret = setwkf(ci(3),ci(3),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
+    init_wkf_args = [p50[2],avuln[2]]
+    iret = setwkf(ci(3),ci(wkf_type[2]),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
 
-    init_wkf_args = [th_sats[2],p50[2],avuln[2]]
-    iret = setwkf(ci(4),ci(3),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
+    init_wkf_args = [p50[3],avuln[3]]
+    iret = setwkf(ci(4),ci(wkf_type[3]),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
 
     ftc   = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
     dftcdpsi = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
@@ -296,6 +231,7 @@ def main(argv):
             cdftcdpsi[ic,i] = (ftc[ic,i+1]-ftc[ic,i-1])/(psi[ic,i+1]-psi[ic,i-1])
 
 
+    # FTC versus Psi
 
     fig2, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
@@ -303,7 +239,7 @@ def main(argv):
 
     ax1.set_ylabel('FTC')
     ax1.set_xlabel('Psi [MPa]')
-    ax1.set_xlim([-10,3])
+    ax1.set_xlim([-10,0])
     ax1.legend(loc='upper right')
 
 

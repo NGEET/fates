@@ -1300,6 +1300,9 @@ contains
        ! Initialize the Water Retention Functions
        ! -----------------------------------------------------------------------------------
 
+       print*,bc_in(s)%watsat_sisl(:)
+       stop
+
        select case(soil_wrf_type)
        case(van_genuchten_type)
           do j=1,sites(s)%si_hydr%nlevsoi_hyd
