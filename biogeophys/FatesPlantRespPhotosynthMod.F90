@@ -852,7 +852,6 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use EDPftvarcon       , only : EDPftvarcon_inst
-    use FatesConstantsMod, only: umol_per_mol
 
     
     ! Arguments
@@ -959,7 +958,9 @@ contains
 
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
-   integer, parameter :: stomatalcond_mtd = 2  !Flag for stomatal conductance model method, 1 for Ball-Berry, 2 for Medlyn 
+
+   !Flag for stomatal conductance model method, 1 for Ball-Berry, 2 for Medlyn
+   integer, parameter :: stomatalcond_mtd = 2
    
    associate( bb_slope  => EDPftvarcon_inst%BB_slope      ,& ! slope of BB relationship, unitless
       medlynslope=> EDPftvarcon_inst%medlynslope          , & ! Slope for Medlyn stomatal conductance model method, the unit is KPa^0.5
@@ -1109,20 +1110,20 @@ contains
                  leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press 
                  leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
                  if ( stomatalcond_mtd == 2 ) then
-                  !stomatal conductance calculated from Belinda Medlyn et al. (2011), the numerical &
-                  !implementation was adapted from the equations in CLM5.0 by Qianyu Li, see the CLM5 Technical Note 2.9.6 
+                  !stomatal conductance calculated from Medlyn et al. (2011), the numerical &
+                  !implementation was adapted from the equations in CLM5.0 
                   vpd =  max((veg_esat - ceair), 50._r8) * 0.001_r8          !addapted from CLM5. Put some constraint on VPD
                   !when Medlyn stomatal conductance is being used, the unit is KPa. Ignoring the constraint will cause errors when model runs.          
-                  term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press * umol_per_mol)
+                  term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
                   aquad = 1.0_r8
-                  bquad = -(2.0 * (medlynintercept(ft)/umol_per_mol+ term) + (medlynslope(ft) * term)**2 / &
-                          (gb_mol/umol_per_mol * vpd ))
-                  cquad = medlynintercept(ft)*medlynintercept(ft)/(umol_per_mol*umol_per_mol) + &
-                          (2.0*medlynintercept(ft)/umol_per_mol + term * &
+                  bquad = -(2.0 * (medlynintercept(ft)+ term) + (medlynslope(ft) * term)**2 / &
+                          (gb_mol * vpd ))
+                  cquad = medlynintercept(ft)*medlynintercept(ft) + &
+                          (2.0*medlynintercept(ft) + term * &
                           (1.0 - medlynslope(ft)* medlynslope(ft) / vpd)) * term
            
                   call quadratic_f (aquad, bquad, cquad, r1, r2)
-                  gs_mol = max(r1,r2) * umol_per_mol ! change the unit to umol /m**2/s
+                  gs_mol = max(r1,r2)
 
                 else if ( stomatalcond_mtd ==1 ) then         !stomatal conductance calculated from Ball et al. (1987)
                     aquad = leaf_co2_ppress
