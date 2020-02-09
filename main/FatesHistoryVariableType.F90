@@ -1,14 +1,29 @@
 module FatesHistoryVariableType
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesGlobals, only : fates_log
+  use FatesGlobals, only : fates_log 
+  use FatesIODimensionsMod, only   : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
+  use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+  use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+  use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
+  use FatesIOVariableKindMod, only : site_height_r8, patch_int
+  use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
+  use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
+  use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8 
+  use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
+  use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
+  use FatesIOVariableKindMod, only : iotype_index
 
   implicit none
+  private        ! By default everything is private
+
+  ! Make public necessary subroutines and functions
+
 
   ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
 
-  type fates_history_variable_type
+  type, public :: fates_history_variable_type
      character(len=32)    :: vname
      character(len=24)    :: units
      character(len=128)   :: long
@@ -31,8 +46,8 @@ module FatesHistoryVariableType
      integer,  pointer     :: int2d(:,:)
      integer,  pointer     :: int3d(:,:,:)
    contains
-     procedure, public :: Init
-     procedure, public :: Flush
+     procedure          :: Init
+     procedure          :: Flush
      procedure, private :: GetBounds
   end type fates_history_variable_type
 
@@ -41,16 +56,7 @@ contains
   subroutine Init(this, vname, units, long, use_default, &
        vtype, avgflag, flushval, upfreq, num_dim_kinds, dim_kinds, dim_bounds)
 
-    use FatesIODimensionsMod, only : fates_io_dimension_type
 
-    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
-    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
-    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
-    use FatesIOVariableKindMod, only : site_height_r8
-    use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
-    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
-    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
-    use FatesIOVariableKindMod, only : iotype_index
 
     implicit none
 
@@ -171,6 +177,22 @@ contains
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
+   case(site_elem_r8)
+       allocate(this%r82d(lb1:ub1, lb2:ub2))
+       this%r82d(:,:) = flushval
+
+   case(site_elpft_r8)
+       allocate(this%r82d(lb1:ub1, lb2:ub2))
+       this%r82d(:,:) = flushval
+   
+   case(site_elcwd_r8)
+       allocate(this%r82d(lb1:ub1, lb2:ub2))
+       this%r82d(:,:) = flushval
+
+   case(site_elage_r8)
+       allocate(this%r82d(lb1:ub1, lb2:ub2))
+       this%r82d(:,:) = flushval
+
     case default
        write(fates_log(),*) 'Incompatible vtype passed to set_history_var'
        write(fates_log(),*) 'vtype = ',trim(vtype),' ?'
@@ -235,15 +257,7 @@ contains
    end subroutine GetBounds
 
    subroutine Flush(this, thread, dim_bounds, dim_kinds)
-
-    use FatesIODimensionsMod, only : fates_io_dimension_type
-    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
-    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8, patch_int
-    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
-    use FatesIOVariableKindMod, only : site_height_r8
-    use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
-    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
-    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
+   
 
     implicit none
 
@@ -295,6 +309,14 @@ contains
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(patch_int)
        this%int1d(lb1:ub1) = nint(this%flushval)
+    case(site_elem_r8)
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+    case(site_elpft_r8)
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+    case(site_elcwd_r8)
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+    case(site_elage_r8)
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case default
        write(fates_log(),*) 'fates history variable type undefined while flushing history variables'
        stop

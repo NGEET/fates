@@ -13,7 +13,7 @@ module EDPftvarcon
   use FatesConstantsMod, only : years_per_day
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
-
+  use FatesLitterMod, only : ilabile,icellulose,ilignin
   use PRTGenericMod,  only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,  only : prt_carbon_allom_hyp
   use PRTGenericMod,  only : num_organ_types
@@ -35,7 +35,6 @@ module EDPftvarcon
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
 
-     real(r8), allocatable :: pft_used(:)            ! Switch to turn on and off PFTs
      real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
      real(r8), allocatable :: wood_density(:)        ! wood density  g cm^-3  ...
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
@@ -51,7 +50,7 @@ module EDPftvarcon
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model. 
      real(r8), allocatable :: initd(:)               ! initial seedling density 
-     real(r8), allocatable :: seed_rain(:)           ! seeds that come from outside the gridbox.
+     real(r8), allocatable :: seed_suppl(:)           ! seeds that come from outside the gridbox.
      real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
      
      real(r8), allocatable :: seed_alloc_mature(:)   ! fraction of carbon balance allocated to 
@@ -109,8 +108,9 @@ module EDPftvarcon
      real(r8), allocatable :: vcmaxse(:)
      real(r8), allocatable :: jmaxse(:)
      real(r8), allocatable :: tpuse(:)
-     real(r8), allocatable :: germination_timescale(:)
-     real(r8), allocatable :: seed_decay_turnover(:)
+     real(r8), allocatable :: germination_rate(:)        ! Fraction of seed mass germinating per year (yr-1)
+     real(r8), allocatable :: seed_decay_rate(:)         ! Fraction of seed mass (both germinated and 
+                                                         ! ungerminated), decaying per year    (yr-1)
      
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
@@ -195,14 +195,59 @@ module EDPftvarcon
 
      real(r8), allocatable :: prt_nitr_stoich_p1(:,:)   ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
      real(r8), allocatable :: prt_nitr_stoich_p2(:,:)   ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
-     real(r8), allocatable :: prt_phos_stoich_p1(:,:)   ! Parameter 1 for phosphorous stoichiometry (pft x organ) 
-     real(r8), allocatable :: prt_phos_stoich_p2(:,:)   ! Parameter 2 for phosphorous stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_phos_stoich_p1(:,:)   ! Parameter 1 for phosphorus stoichiometry (pft x organ) 
+     real(r8), allocatable :: prt_phos_stoich_p2(:,:)   ! Parameter 2 for phosphorus stoichiometry (pft x organ) 
      real(r8), allocatable :: prt_alloc_priority(:,:)   ! Allocation priority for each organ (pft x organ) [integer 0-6]
+
+     ! Nutrient Aquisition parameters
+
+     real(r8), allocatable :: prescribed_nuptake(:)     ! Nitrogen uptake flux per unit crown area 
+                                                        ! (negative implies fraction of NPP) kgN/m2/yr
+
+     real(r8), allocatable :: prescribed_puptake(:)     ! Phosphorus uptake flux per unit crown area 
+                                                        ! (negative implies fraction of NPP) kgP/m2/yr
+
+     ! (NONE OF THESE ARE ACTIVE YET - PLACEHOLDERS ONLY!!!!!)
+
+     ! Nutrient Aquisition (ECA & RD)
+!     real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
+                                                        ! on root surface
+
+     ! ECA Parameters: See Zhu et al. Multiple soil nutrient competition between plants,
+     !                     microbes, and mineral surfaces: model development, parameterization,
+     !                     and example applications in several tropical forests.  Biogeosciences,
+     !                     13, pp.341-363, 2016.
+     ! KM: Michaeles-Menten half-saturation constants for ECA (plant–enzyme affinity)
+     ! VMAX: Product of the reaction-rate and enzyme abundance for each PFT in ECA
+     ! Note*: units of [gC] is grams carbon of fine-root
+
+     real(r8), allocatable :: eca_km_nh4(:)       ! half-saturation constant for plant nh4 uptake  [gN/m3]
+     real(r8), allocatable :: eca_vmax_nh4(:)     ! maximum production rate for plant nh4 uptake   [gN/gC/s] 
+     real(r8), allocatable :: eca_km_no3(:)       ! half-saturation constant for plant no3 uptake  [gN/m3]
+     real(r8), allocatable :: eca_vmax_no3(:)     ! maximum production rate for plant no3 uptake   [gN/gC/s]
+     real(r8), allocatable :: eca_km_p(:)         ! half-saturation constant for plant p uptake    [gP/m3]
+     real(r8), allocatable :: eca_vmax_p(:)       ! maximum production rate for plant p uptake     [gP/gC/s]
+     real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production [gP/m3]
+     real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod        [gP/m2/s]
+     real(r8), allocatable :: eca_alpha_ptase(:)  ! Fraction of min P generated from ptase activity
+                                                  ! that is immediately sent to the plant [/]
+     real(r8), allocatable :: eca_lambda_ptase(:) ! critical value for Ptase that incurs 
+                                                  ! biochemical production, fraction based how much
+                                                  ! more in need a plant is for P versus N [/]
+
+     
+     real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1 (in file, but not used yet)
+     real(r8), allocatable :: nfix2(:)   ! nitrogen fixation parameter 2 (in file, but not used yet)
+
 
      ! Turnover related things
 
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
+     real(r8), allocatable :: phen_cold_size_threshold(:) ! stem/leaf drop occurs on DBH size of decidious non-woody 
+                                                          ! (coastal grass) plants larger than the threshold value 							  
+     real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Fraction of stem dropped/senescened for decidious 
+                                                          ! non-woody (grass) plants		
 
      real(r8), allocatable :: senleaf_long_fdrought(:)    ! Multiplication factor for leaf longevity of senescent 
                                                           ! leaves during drought( 1.0 indicates no change)
@@ -213,7 +258,7 @@ module EDPftvarcon
 
      real(r8), allocatable :: turnover_carb_retrans(:,:)  ! carbon re-translocation fraction (pft x organ)
      real(r8), allocatable :: turnover_nitr_retrans(:,:)  ! nitrogen re-translocation fraction (pft x organ)
-     real(r8), allocatable :: turnover_phos_retrans(:,:)  ! phosphorous re-translocation fraction (pft x organ)
+     real(r8), allocatable :: turnover_phos_retrans(:,:)  ! phosphorus re-translocation fraction (pft x organ)
 
      ! Parameters dimensioned by PFT and leaf age
      real(r8), allocatable :: leaf_long(:,:)              ! Leaf turnover time (longevity) (pft x age-class)
@@ -271,6 +316,7 @@ module EDPftvarcon
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: FatesReportPFTParams
   public :: FatesCheckParams
+  public :: GetDecompyFrac
   !-----------------------------------------------------------------------
 
 contains
@@ -345,10 +391,6 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
     !X!         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_pft_used'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_seed_dbh_repro_threshold'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -389,7 +431,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_rain'
+    name = 'fates_seed_suppl'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -665,7 +707,7 @@ contains
     name = 'fates_mort_bmort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
+	  
     name = 'fates_mort_scalar_coldstress'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -722,11 +764,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_germination_timescale'
+    name = 'fates_seed_germination_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_decay_turnover'
+    name = 'fates_seed_decay_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -761,8 +803,77 @@ contains
     name = 'fates_phenflush_fraction'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
+	  
+    name = 'fates_phen_cold_size_threshold'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    ! Nutrient competition parameters
+
+!    name = 'fates_eca_decompmicc'
+!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+!          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_eca_km_nh4'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_nh4'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_km_no3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_no3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_km_p'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_p'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_km_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_alpha_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_lambda_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_nfix1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_nfix2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_prescribed_nuptake'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prescribed_puptake'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)    
+  
   end subroutine Register_PFT
 
   !-----------------------------------------------------------------------
@@ -780,10 +891,6 @@ contains
     !X!    name = ''
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
-
-    name = 'fates_pft_used'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%pft_used)
 
     name = 'fates_seed_dbh_repro_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -825,9 +932,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%initd)
 
-    name = 'fates_seed_rain'
+    name = 'fates_seed_suppl'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%seed_rain)
+         data=this%seed_suppl)
 
     name = 'fates_leaf_BB_slope'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1100,7 +1207,7 @@ contains
     name = 'fates_mort_bmort'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bmort)
-
+	 	 
     name = 'fates_mort_scalar_coldstress'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_scalar_coldstress)
@@ -1157,13 +1264,13 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%tpuse)
 
-    name = 'fates_seed_germination_timescale'
+    name = 'fates_seed_germination_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%germination_timescale)
+         data=this%germination_rate)
 
-    name = 'fates_seed_decay_turnover'
+    name = 'fates_seed_decay_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%seed_decay_turnover)
+         data=this%seed_decay_rate)
 
     name = 'fates_branch_turnover'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1196,7 +1303,85 @@ contains
     name = 'fates_phenflush_fraction'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
+	  	 
+    name = 'fates_phen_cold_size_threshold'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%phen_cold_size_threshold)
+	 
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%phen_stem_drop_fraction)	 
+	 
 
+    name = 'fates_phen_cold_size_threshold'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%phen_cold_size_threshold)
+    
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%phen_stem_drop_fraction)
+
+!    name = 'fates_eca_decompmicc'
+!    call fates_params%RetreiveParameterAllocate(name=name, &
+!         data=this%eca_decompmicc)
+
+    name = 'fates_eca_km_nh4'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_nh4)
+
+    name = 'fates_eca_vmax_nh4'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_nh4)
+
+    name = 'fates_eca_km_no3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_no3)
+
+    name = 'fates_eca_vmax_no3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_no3)
+
+    name = 'fates_eca_km_p'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_p)
+
+    name = 'fates_eca_vmax_p'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_p)
+
+    name = 'fates_eca_km_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_ptase)
+
+    name = 'fates_eca_vmax_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_ptase)
+
+    name = 'fates_eca_alpha_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_alpha_ptase)
+
+    name = 'fates_eca_lambda_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_lambda_ptase)
+
+    name = 'fates_nfix1'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%nfix1)
+
+    name = 'fates_nfix2'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%nfix2)
+
+    name = 'fates_prescribed_nuptake'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_nuptake)
+    
+    name = 'fates_prescribed_puptake'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_puptake)
+    
+    
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------
@@ -1705,7 +1890,7 @@ contains
 
      integer :: npft,ipft
      
-     npft = size(EDPftvarcon_inst%pft_used,1)
+     npft = size(EDPftvarcon_inst%evergreen,1)
      
      if(debug_report .and. is_master) then
         
@@ -1717,7 +1902,6 @@ contains
         end if
 
         write(fates_log(),*) '-----------  FATES PFT Parameters -----------------'
-        write(fates_log(),fmt0) 'pft_used = ',EDPftvarcon_inst%pft_used
         write(fates_log(),fmt0) 'dbh max height = ',EDPftvarcon_inst%allom_dbh_maxheight
         write(fates_log(),fmt0) 'dbh mature = ',EDPftvarcon_inst%dbh_repro_threshold
         write(fates_log(),fmt0) 'freezetol = ',EDPftvarcon_inst%freezetol
@@ -1732,7 +1916,7 @@ contains
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
-        write(fates_log(),fmt0) 'seed_rain = ',EDPftvarcon_inst%seed_rain
+        write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
         write(fates_log(),fmt0) 'senleaf_long_fdrought = ',EDPftvarcon_inst%senleaf_long_fdrought
@@ -1762,7 +1946,7 @@ contains
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc
         write(fates_log(),fmt0) 'c2b = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'bmort = ',EDPftvarcon_inst%bmort
-        write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
+	write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
         write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
         write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
@@ -1776,8 +1960,8 @@ contains
         write(fates_log(),fmt0) 'vcmaxse = ',EDPftvarcon_inst%vcmaxse
         write(fates_log(),fmt0) 'jmaxse = ',EDPftvarcon_inst%jmaxse
         write(fates_log(),fmt0) 'tpuse = ',EDPftvarcon_inst%tpuse
-        write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_timescale
-        write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_turnover
+        write(fates_log(),fmt0) 'germination_rate = ',EDPftvarcon_inst%germination_rate
+        write(fates_log(),fmt0) 'seed_decay_rate = ',EDPftvarcon_inst%seed_decay_rate
         write(fates_log(),fmt0) 'branch_turnover = ',EDPftvarcon_inst%branch_turnover
         write(fates_log(),fmt0) 'trim_limit = ',EDPftvarcon_inst%trim_limit
         write(fates_log(),fmt0) 'trim_inc = ',EDPftvarcon_inst%trim_inc
@@ -1786,6 +1970,8 @@ contains
         write(fates_log(),fmt0) 'taul = ',EDPftvarcon_inst%taul 
         write(fates_log(),fmt0) 'taus = ',EDPftvarcon_inst%taus
         write(fates_log(),fmt0) 'phenflush_fraction',EDpftvarcon_inst%phenflush_fraction
+        write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
+        write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'rootprof_beta = ',EDPftvarcon_inst%rootprof_beta
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
         write(fates_log(),fmt0) 'allom_hmode = ',EDPftvarcon_inst%allom_hmode
@@ -1875,7 +2061,7 @@ contains
      integer :: iage     ! leaf age class index
      integer :: norgans  ! size of the plant organ dimension
 
-     npft = size(EDPftvarcon_inst%pft_used,1)
+     npft = size(EDPftvarcon_inst%evergreen,1)
 
      ! Prior to performing checks copy grperc to the 
      ! organ dimensioned version
@@ -1915,6 +2101,7 @@ contains
         write(fates_log(),*) 'Exiting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
+
 
      
      do ipft = 1,npft
@@ -2002,6 +2189,16 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
+           if ( ( EDPftvarcon_inst%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or. &
+                ( EDPFtvarcon_inst%phen_stem_drop_fraction(ipft) > 1 ) ) then
+              write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
+              write(fates_log(),*) ' during the deciduous period.'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(EDPftvarcon_inst%evergreen(ipft))
+              write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if	
         end if
 
  
@@ -2409,7 +2606,52 @@ contains
      return
   end subroutine FatesCheckParams
 
+  ! =====================================================================================
 
+  function GetDecompyFrac(pft,organ_id,dcmpy) result(decompy_frac)
+  
+
+      ! This simple routine matches the correct decomposibility pool's
+      ! material fraction with the pft parameter data.
+
+      integer, intent(in) :: pft
+      integer, intent(in) :: organ_id
+      integer, intent(in) :: dcmpy
+      real(r8) :: decompy_frac        
+      
+      ! Decomposability for leaves
+      if(organ_id == leaf_organ)then
+         select case(dcmpy)
+         case(ilabile)
+            decompy_frac=EDPftvarcon_inst%lf_flab(pft)
+         case(icellulose)
+            decompy_frac=EDPftvarcon_inst%lf_fcel(pft)
+         case(ilignin)
+            decompy_frac=EDPftvarcon_inst%lf_flig(pft)
+         case default
+            write(fates_log(),*) 'Unknown decompositiblity pool index: ',dcmpy
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end select
+      ! Decomposability for fine-roots
+      elseif(organ_id == fnrt_organ) then
+         select case(dcmpy)
+         case(ilabile)
+            decompy_frac=EDPftvarcon_inst%fr_flab(pft)
+         case(icellulose)
+            decompy_frac=EDPftvarcon_inst%fr_fcel(pft)
+         case(ilignin)
+            decompy_frac=EDPftvarcon_inst%fr_flig(pft)
+         case default
+            write(fates_log(),*) 'Unknown decompositiblity pool index: ',dcmpy
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end select
+      else
+         write(fates_log(),*) 'Unknown parteh organ index: ',organ_id
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      return
+  end function GetDecompyFrac
 
 
 end module EDPftvarcon

@@ -309,7 +309,7 @@ contains
                 allom_hmode => EDPftvarcon_inst%allom_hmode(ipft))
 
       select case(int(allom_hmode))
-      case (1) ! Obrien et al. 199X BCI
+      case (1) ! O'Brien et al 1995, BCI
          call h2d_obrien(h,p1,p2,d,dddh)
       case (2)  ! poorter 2006
          call h2d_poorter2006(h,p1,p2,p3,d,dddh)
@@ -805,9 +805,7 @@ contains
 
     select case(int(EDPftvarcon_inst%allom_smode(ipft)))
        ! ---------------------------------------------------------------------
-       ! Currently both sapwood area proportionality methods use the same
-       ! machinery.  The only differences are related to the parameter
-       ! checking at the beginning.  For constant proportionality, the slope
+       ! Currently only one sapwood allometry model. the slope
        ! of the la:sa to diameter line is zero.
        ! ---------------------------------------------------------------------
     case(1) ! linearly related to leaf area based on target leaf biomass
@@ -1979,7 +1977,7 @@ contains
   
   ! =========================================================================
 
-  subroutine set_root_fraction(root_fraction, ft, zi, lowerb, icontext )
+  subroutine set_root_fraction(root_fraction, ft, zi, icontext )
     !
     ! !DESCRIPTION:
     !  Calculates the fractions of the root biomass in each layer for each pft. 
@@ -1991,10 +1989,9 @@ contains
 
     !
     ! !ARGUMENTS
-    real(r8),intent(inout) :: root_fraction(:)
-    integer, intent(in)    :: ft
-    integer,intent(in)     :: lowerb
-    real(r8),intent(in)    :: zi(lowerb:)
+    real(r8),intent(inout) :: root_fraction(:) ! Normalized profile
+    integer, intent(in)    :: ft               ! functional typpe
+    real(r8),intent(in)    :: zi(0:)            ! Center of depth [m]
     integer,intent(in)     :: icontext
 
     ! Parameters
@@ -2017,13 +2014,16 @@ contains
     integer, parameter :: exponential_2p_profile_type = 3
 
     integer :: root_profile_type
+    integer :: corr_id(1)        ! This is the bin with largest fraction
+                                 ! add/subtract any corrections there
+    real(r8) :: correction       ! This correction ensures that root fractions
+                                 ! sum to 1.0
 
     !----------------------------------------------------------------------
     
-    if(lbound(zi,1).ne.0) then
-       write(fates_log(),*) 'lbound:',lbound(zi)
-       write(fates_log(),*) 'ubound:',ubound(zi)
-       write(fates_log(),*) 'layer interface levels should have 0 index'
+    if(size(zi) .ne. (size(root_fraction)+1)) then
+       write(fates_log(),*) 'layer interface array should be 1 larger than'
+       write(fates_log(),*) 'root fraction array'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
@@ -2055,6 +2055,18 @@ contains
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
+
+!    if( abs(sum(root_fraction)-1.0_r8) > 1.e-9_r8 ) then
+!        write(fates_log(),*) 'Root fractions should add up to 1'
+!        write(fates_log(),*) root_fraction
+!        call endrun(msg=errMsg(sourcefile, __LINE__))
+!    end if
+
+    correction = 1._r8 - sum(root_fraction)
+    corr_id = maxloc(root_fraction)
+    root_fraction(corr_id(1)) = root_fraction(corr_id(1)) + correction
+
+
 
     return
   end subroutine set_root_fraction

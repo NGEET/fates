@@ -59,6 +59,7 @@ contains
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
     real(r8),intent(out) :: frmort ! freezing stress mortality
 
+
     real(r8) :: frac  ! relativised stored carbohydrate
     real(r8) :: leaf_c_target      ! target leaf biomass kgC
     real(r8) :: store_c
@@ -125,8 +126,7 @@ contains
        write(fates_log(),*) 'dbh problem in mortality_rates', &
             cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
     endif
-
-
+    !-------------------------------------------------------------------------------- 
     !    Mortality due to cold and freezing stress (frmort), based on ED2 and:           
     !      Albani, M.; D. Medvigy; G. C. Hurtt; P. R. Moorcroft, 2006: The contributions 
     !           of land-use change, CO2 fertilization, and climate variability to the    
@@ -200,15 +200,18 @@ contains
                                currentCohort%lmort_infra,                        &
                                currentCohort%l_degrad)
 
+    
+    
+
     if (currentCohort%canopy_layer > 1)then 
-       
        ! Include understory logging mortality rates not associated with disturbance
        dndt_logging = (currentCohort%lmort_direct     + &
                        currentCohort%lmort_collateral + &
                        currentCohort%lmort_infra)/hlm_freq_day
-
        currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+frmort+dndt_logging) * currentCohort%n
     else
+       ! Mortality from logging in the canopy is ONLY disturbance generating, don't
+       ! update number densities via non-disturbance inducing death
        currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
             * (cmort+hmort+bmort+frmort) * currentCohort%n
     endif

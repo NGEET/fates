@@ -1,29 +1,43 @@
 module FatesSynchronizedParamsMod
 
+  ! NOTE: We currently do NOT use any "shared" or syncronized parameters
+  !       between FATES and its hosts.  We previously shared q10 values.
+  !       I will leave these values commented out instead of deleted
+  !       to serve as a template for the possibility of future parameters.
+  !       RGK 05-2019
+
+
   !-----------------------------------------------------------------------
   !
   ! !USES:
   use FatesConstantsMod, only : r8 => fates_r8
+  
   implicit none
+  private ! Modules are private by default
 
   ! FatesSynchronizedParamsInst.  PGI wants the type decl. public but the instance
   ! is indeed protected.  A generic private statement at the start of the module
   ! overrides the protected functionality with PGI
 
   type, public  :: FatesSynchronizedParamsType
-      real(r8) :: Q10      ! temperature dependence
-      real(r8) :: froz_q10 ! separate q10 for frozen soil respiration rates
+!      real(r8) :: Q10      ! temperature dependence
+!      real(r8) :: froz_q10 ! separate q10 for frozen soil respiration rates
     contains
-      procedure, public :: RegisterParams
-      procedure, public :: ReceiveParams
+
+      ! Public member functions
+      procedure :: RegisterParams
+      procedure :: ReceiveParams
+
+      ! Private member functions
       procedure, private :: Init
       procedure, private :: RegisterParamsScalar
       procedure, private :: ReceiveParamsScalar
+
   end type FatesSynchronizedParamsType
 
   type(FatesSynchronizedParamsType), public :: FatesSynchronizedParamsInst
   
-  character(len=*), parameter, private :: sourcefile = &
+  character(len=*), parameter :: sourcefile = &
        __FILE__
 
   !-----------------------------------------------------------------------
@@ -40,8 +54,8 @@ contains
 
     class(FatesSynchronizedParamsType), intent(inout) :: this
 
-    this%Q10 = nan
-    this%froz_q10 = nan
+!    this%Q10 = nan
+!    this%froz_q10 = nan
     
   end subroutine Init
 
@@ -96,13 +110,6 @@ contains
 
     call this%Init()
 
-    name = 'q10_mr'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, sync_with_host=.true.)
-
-    name = 'froz_q10'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, sync_with_host=.true.)
 
   end subroutine RegisterParamsScalar
 
@@ -118,13 +125,13 @@ contains
 
     character(len=param_string_length) :: name
 
-    name = 'q10_mr'
-    call fates_params%RetreiveParameter(name=name, &
-         data=this%Q10)
+!    name = 'q10_mr'
+!    call fates_params%RetreiveParameter(name=name, &
+!         data=this%Q10)
 
-    name = 'froz_q10'
-    call fates_params%RetreiveParameter(name=name, &
-         data=this%froz_q10)
+!    name = 'froz_q10'
+!    call fates_params%RetreiveParameter(name=name, &
+!         data=this%froz_q10)
 
   end subroutine ReceiveParamsScalar
 

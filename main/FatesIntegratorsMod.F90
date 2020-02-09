@@ -3,8 +3,11 @@ module FatesIntegratorsMod
    use FatesConstantsMod, only    : r8 => fates_r8
 
    implicit none
-   integer, parameter :: max_states = 20
+   private
+
+   integer, parameter, public :: max_states = 20
    
+   ! Make public necessary subroutines and functions
    public :: RKF45
    public :: Euler
 

@@ -18,6 +18,8 @@ module FatesBstressMod
    use FatesInterfaceMod , only : hlm_use_planthydro
    use FatesGlobals      , only : fates_log
    use EDBtranMod        , only : check_layer_water
+   use FatesAllometryMod , only : set_root_fraction
+   use FatesAllometryMod , only : i_hydro_rootprof_context
 
    implicit none
    private
@@ -54,6 +56,7 @@ contains
       integer  :: ft                ! plant functional type index
       real(r8) :: salinity_node     ! salinity in the soil water [ppt]
       real(r8) :: rresis            ! salinity limitation to transpiration independent
+
       !------------------------------------------------------------------------------
         
         do s = 1,nsites
@@ -65,6 +68,10 @@ contains
               
               do ft = 1,numpft
                  cpatch%bstress_sal_ft(ft) = 0.0_r8
+
+                 call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
+                       icontext = i_hydro_rootprof_context)
+
                  do j = 1,bc_in(s)%nlevsoil
                     
                     ! Calculations are only relevant where liquid water exists
@@ -76,8 +83,7 @@ contains
                        
                        rresis  = min( 1.244_r8/(1+exp((0.186_r8-salinity_node)/(-0.132_r8))), 1._r8)
                        
-                       cpatch%bstress_sal_ft(ft) = cpatch%bstress_sal_ft(ft)+ &
-		                                     cpatch%rootfr_ft(ft,j)*rresis
+                       cpatch%bstress_sal_ft(ft) = cpatch%bstress_sal_ft(ft)+sites(s)%rootfrac_scr(j)*rresis
 
                     end if
                     
@@ -88,10 +94,10 @@ contains
               cpatch => cpatch%younger
 	      
            end do
-        
+          
         end do
            
-        
+        return
     end subroutine btran_sal_stress_fates
           
   ! ====================================================================================
