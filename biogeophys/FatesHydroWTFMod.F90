@@ -28,10 +28,10 @@ module FatesHydroWTFMod
        __FILE__
 
 
-  real(r8), parameter :: min_ftc = 0.005_r8
+  real(r8), parameter :: min_ftc = 0.0005_r8
 
   real(r8), parameter :: min_rwc_interp = 0.02
-  real(r8), parameter :: max_rwc_interp = 0.98
+  real(r8), parameter :: max_rwc_interp = 0.95
 
   ! Generic class that can be extended to describe
   ! specific water retention functions
@@ -59,7 +59,9 @@ module FatesHydroWTFMod
   ! we require these holders
 
   type, public :: wrf_arr_type
-      class(wrf_type), pointer :: p
+     class(wrf_type), pointer :: p
+     real(r8) :: th_sat
+     real(r8) :: psi_sat
   end type wrf_arr_type
   
   type, public :: wkf_arr_type
@@ -148,13 +150,6 @@ contains
   ! Functional definitions follow here
   ! Start off by writing the base types, which ultimately should never be pointed to.
   ! =====================================================================================
-!  procedure :: th_from_psi     => th_from_psi
-!  procedure :: psi_from_th     => psi_from_th
-!  procedure :: dpsidth_from_th => dpsidth_from_th
-!  procedure :: set_wrf_param   => set_wrf_param
-! 
-!  procedure :: set_wkf_param     => set_wkf_param
-
 
   subroutine set_wrf_param_base(this,params_in)
     class(wrf_type)     :: this
@@ -231,7 +226,7 @@ contains
     this%psd    = params_in(2)
     this%th_sat = params_in(3)
     this%th_res = params_in(4)
-
+    
     return
   end subroutine set_wrf_param_vg
 
@@ -263,16 +258,34 @@ contains
     real(r8)             :: satfrac       ! Saturated fraction [-]
     real(r8)             :: th            ! Volumetric Water Cont [m3/m3]
 
-    !satfrac = (1._r8/(1._r8 + (alpha*abs(psi))**n))**m
-    ! Saturation fraction
-    ! 
+    real(r8)             :: psi_interp    ! psi where we start lin interp
+    real(r8)             :: th_interp     ! th where we start lin interp
+    real(r8)             :: dpsidth_interp
+    real(r8)             :: m
 
-    satfrac = (1._r8 + (-this%alpha*psi)**this%psd)**(-1._r8+1._r8/this%psd)
-
-!    print*,'satfrac: ',satfrac
+    m   = 1._r8/this%psd
     
-    ! convert to volumetric water content
-    th = satfrac*(this%th_sat-this%th_res) + this%th_res
+    ! pressure above which we use a linear function
+    psi_interp = -(1._r8/this%alpha)*(max_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m
+
+    !    psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
+
+    
+    if(psi<psi_interp) then
+       
+       ! Saturation fraction
+       satfrac = (1._r8 + (-this%alpha*psi)**this%psd)**(-1._r8+1._r8/this%psd)
+       
+       ! convert to volumetric water content
+       th = satfrac*(this%th_sat-this%th_res) + this%th_res
+
+    else
+       th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
+       dpsidth_interp = this%dpsidth_from_th(th_interp)
+
+       th = th_interp + (psi-psi_interp)/dpsidth_interp
+       
+    end if
 
   end function th_from_psi_vg
 
@@ -302,12 +315,12 @@ contains
     m   = 1._r8/this%psd
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
     
-!!    if(satfrac>max_rwc_interp) then
+    if(satfrac>=max_rwc_interp) then
 
-!!       th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
-!!       dpsidth_interp = this%dpsidth_from_th(th_interp)
-!!       psi_interp = -(1._r8/this%alpha)*(max_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m
-!!       psi = psi_interp + dpsidth_interp*(th-th_interp)
+       th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
+       dpsidth_interp = this%dpsidth_from_th(th_interp)
+       psi_interp = -(1._r8/this%alpha)*(max_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m
+       psi = psi_interp + dpsidth_interp*(th-th_interp)
 
 !!    elseif(satfrac<min_rwc_interp .or. .false.) then
        
@@ -316,24 +329,13 @@ contains
 !!       psi_interp = -(1._r8/this%alpha)*(min_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m 
 !!       psi = psi_interp + dpsidth_interp*(th-th_interp)
 
-!!    else
-
-       ! One may set the max and min rwc high and low enough to disable them
-       ! in that case, we will just cap theta between residual and saturation
-       ! otherwise the result is a nan
-
-    !!       satfrac = max(min(satfrac,1._r8),0._r8)
-
-
-    !! (1/alpha)*(satfrac**(1/(m-1))-1)**(1/n) = psi
+    else
 
     
        psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
 
-!!       print*,th,this%th_res,this%th_sat,satfrac,this%alpha,this%psd,psi
-
        
-!!    end if
+    end if
 
   end function psi_from_th_vg
 
@@ -349,16 +351,24 @@ contains
     real(r8)            :: satfrac      ! saturation fraction
     real(r8)            :: dsatfrac_dth ! deriv satfrac wrt theta
     real(r8)            :: dpsidth      ! change in matric potential WRT VWC
-
+    real(r8)            :: th_interp    ! vwc where we start interpolation range
+    
     a1 = 1._r8/this%alpha
     m1 = 1._r8/this%psd
     m2 = 1._r8/(m1-1._r8)
 
+    th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
+    
     ! Since we apply linear interpolation beyond the max and min saturated fractions
     ! we just cap satfrac at those values and calculate the derivative there
-!!    satfrac = max(min(max_rwc_interp,(th-this%th_res)/(this%th_sat-this%th_res)),min_rwc_interp)
+    !!    satfrac = max(min(max_rwc_interp,(th-this%th_res)/(this%th_sat-this%th_res)),min_rwc_interp)
 
-    satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
+    if(th>th_interp) then
+       satfrac = max_rwc_interp
+    else
+       satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
+    end if
+    
     dsatfrac_dth = 1._r8/(this%th_sat-this%th_res)
 
     ! psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m 
@@ -498,9 +508,7 @@ contains
     real(r8)             :: th
     real(r8)             :: satfrac
 
-    satfrac = (psi/this%psi_sat)**(-1.0_r8/this%beta)
-    
-    th = satfrac*this%th_sat
+    th = this%th_sat*(psi/this%psi_sat)**(-1.0_r8/this%beta)
 
   end function th_from_psi_cch
 
@@ -541,10 +549,11 @@ contains
     real(r8)            :: psi_eff
     real(r8)            :: ftc
     
-    ! th = this%th_sat*(psi/this%psi_sat)**(-1.0_r8/this%beta)
-    ! ftc = ((psi/this%psi_sat)**(-1.0_r8/this%beta))**(2._r8*this%beta+3._r8)
-    ! 
-    ! Prevent super-saturation from generating unreasonable FTCs
+    ! ftc = (th/th_sat)**(2*b+3)
+    !     = (th_sat*(psi/psi_sat)**(-1/b)/th_sat)**(2*b+3)
+    !     = ((psi/psi_sat)**(-1/b))**(2*b+3)
+    !     = (psi/psi_sat)**(-2-3/b)
+    
 
     psi_eff = min(psi,this%psi_sat)
     

@@ -982,8 +982,6 @@ contains
       this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
       this%bc_out(s)%qflx_ro_si = 0.0_r8
 
-      print*,"ZEROING BCOUT"
-
       return
    end subroutine zero_bcs
    

@@ -165,7 +165,7 @@ module FatesPlantHydraulicsMod
   integer, parameter :: plant_wrf_type = van_genuchten_type
   integer, parameter :: plant_wkf_type = tfs_type
   !  integer, parameter :: soil_wrf_type  = campbell_type
-  integer, parameter :: soil_wrf_type = van_genuchten_type
+  integer, parameter :: soil_wrf_type  = campbell_type
   integer, parameter :: soil_wkf_type  = campbell_type
   
   
@@ -178,10 +178,6 @@ module FatesPlantHydraulicsMod
   ! for plants of each different porous media type, and plant functional type
   
   class(wkf_arr_type), pointer :: wkf_plant(:,:)
-  
-  
-
-  
   
   real(r8), parameter :: alpha_vg  = 0.001_r8
   real(r8), parameter :: th_sat_vg = 0.65_r8
@@ -339,12 +335,14 @@ contains
        ! Initialize the Water Retention Functions
        ! -----------------------------------------------------------------------------------
 
+
+       
        select case(soil_wrf_type)
        case(van_genuchten_type)
           do j=1,sites(s)%si_hydr%nlevsoi_hyd
              allocate(wrf_vg)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_vg
-             call wrf_vg%set_wrf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg])
+             call wrf_vg%set_wrf_param([alpha_vg, psd_vg, bc_in(s)%watsat_sisl(j), th_res_vg])
           end do
        case(campbell_type)
           do j=1,sites(s)%si_hydr%nlevsoi_hyd
@@ -404,7 +402,7 @@ contains
 
   ! ====================================================================================
 
-  subroutine initTreeHydStates(site_p, cc_p, bc_in)
+  subroutine initTreeHydStates(site, cohort, bc_in)
 
     ! REQUIRED INPUTS:
     !
@@ -417,94 +415,129 @@ contains
     ! !USES:
 
     ! !ARGUMENTS:
-    type(ed_site_type), intent(inout), target   :: site_p ! current cohort pointer
-    type(ed_cohort_type), intent(inout), target :: cc_p ! current cohort pointer
-    type(bc_in_type)    , intent(in)            :: bc_in 
+    type(ed_site_type), intent(inout), target   :: site   ! current site pointer
+    type(ed_cohort_type), intent(inout), target :: cohort ! current cohort pointer
+    type(bc_in_type)    , intent(in)            :: bc_in  ! input boundary condition
     !
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer :: cCohort
-    type(ed_site_type), pointer   :: csite
-    type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+    type(ed_site_hydr_type), pointer   :: site_hydr
+    type(ed_cohort_hydr_type), pointer :: cohort_hydr
     integer  :: j,k,ft                     ! indices
+    real(r8) :: psi_rhiz1
     real(r8) :: dz
     real(r8) :: smp
-    real(r8) :: psi_rev
+    real(r8) :: h_aroot_mean  ! minimum total potential of absorbing roots
+
+    real(r8), parameter :: psi_aroot_init = -0.2_r8   ! Initialize aroots with -0.2 MPa
+    real(r8), parameter :: dh_dz = 0.2_r8           ! amount to decrease downstream
+                                                      ! compartment total potentials [MPa/meter]
     
-    cCohort                    => cc_p
-    ccohort_hydr               => cCohort%co_hydr
-    csite                      => site_p 
-    ft                         =  cCohort%pft
-
-    !convert soil water contents to water potential in each soil layer and
-    !assign it to the absorbing root (assume absorbing root water potential
-    !in equlibrium w/ surrounding soil)
-    do j=1, site_p%si_hydr%nlevsoi_hyd
-
-       !call swcVG_psi_from_th(waterstate_inst%h2osoi_liqvol_shell(c,j,1), &
-       !   watsat(c,j), watres(c,j), alpha_VG(c,j), n_VG(c,j), m_VG(c,j), l_VG(c,j), &
-       !   smp)
-       !ccohort_hydr%psi_aroot(j) = smp
-       ccohort_hydr%psi_aroot(j) = -0.2_r8 !do not assume the equilibrium between soil and root
-
-       ccohort_hydr%th_aroot(j) = wrf_plant(aroot_p_media,ft)%p%th_from_psi(ccohort_hydr%psi_aroot(j))
-
-       psi_rev = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j))
-
-       ccohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
-
-    end do
+    ! In init mode = 1, set absorbing roots to -0.2 MPa
+    !              = 2, use soil as starting point, match total potentials
+    !                   and then reduce plant compartment total potential by 1KPa
+    !                   for transporting root node, match the lowest total potential
+    !                   in absorbing roots
+    integer, parameter :: init_mode = 2
     
-    !initialize plant water potentials at hydrostatic equilibrium (dh/dz = 0)
-    !the assumption is made here that initial conditions for soil water will 
-    !be in (or at least close to) hydrostatic equilibrium as well, so that
-    !it doesn't matter which absorbing root layer the transporting root water
-    !potential is referenced to.  
+    
+    site_hydr   => site%si_hydr
+    cohort_hydr => cohort%co_hydr
+    ft          =  cohort%pft
 
-    !(positive means troot is higher than aroot)
-    ! h_troot = h_aroot
-    ! psi_troot + z_troot = psi_aroot + z_aroot
-    ! psi_troot = psi_aroot - (z_troot - z_aroot)
+    ! Set abosrbing root
 
-    dz = ccohort_hydr%z_node_troot - (-bc_in%z_sisl(1))
+    if(init_mode == 2) then
+       
+       h_aroot_mean = 0._r8
 
-    ccohort_hydr%psi_troot = ccohort_hydr%psi_aroot(1) - mpa_per_pa*denh2o*grav_earth*dz 
-    if (ccohort_hydr%psi_troot>0.0_r8) ccohort_hydr%psi_troot = -0.01_r8
+       do j=1, site_hydr%nlevsoi_hyd
+          
+          ! Match the potential of the absorbing root to the inner rhizosphere shell
+          cohort_hydr%psi_aroot(j) = site_hydr%wrf_soil(j)%p%psi_from_th(site_hydr%h2osoi_liqvol_shell(j,1))
 
-    ccohort_hydr%th_troot = wrf_plant(troot_p_media,ft)%p%th_from_psi(ccohort_hydr%psi_troot)
+          ! Calculate the mean total potential (include height) of absorbing roots
+          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-bc_in%z_sisl(j))
+          
+          cohort_hydr%th_aroot(j) = wrf_plant(aroot_p_media,ft)%p%th_from_psi(cohort_hydr%psi_aroot(j))
+          cohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
+       end do
+       
+    else
+       
+       do j=1, site_hydr%nlevsoi_hyd
+          cohort_hydr%psi_aroot(j) = psi_aroot_init
+          ! Calculate the mean total potential (include height) of absorbing roots
+          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-bc_in%z_sisl(j))
+          cohort_hydr%th_aroot(j) = wrf_plant(aroot_p_media,ft)%p%th_from_psi(cohort_hydr%psi_aroot(j))
+          cohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
+       end do
+    end if
+    
+    h_aroot_mean = h_aroot_mean/real(site_hydr%nlevsoi_hyd,r8)
+    
+    ! initialize plant water potentials with slight potential gradient (or zero) (dh/dz = C)
+    ! the assumption is made here that initial conditions for soil water will 
+    ! be in (or at least close to) hydrostatic equilibrium as well, so that
+    ! it doesn't matter which absorbing root layer the transporting root water
 
-    ccohort_hydr%ftc_troot = wkf_plant(troot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_troot)
+
+    ! Set the transporting root to be in equilibrium with mean potential
+    ! of the absorbing roots, minus any gradient we add
+
+    cohort_hydr%psi_troot = h_aroot_mean - &
+         mpa_per_pa*denh2o*grav_earth*cohort_hydr%z_node_troot - dh_dz
+
+    cohort_hydr%th_troot = wrf_plant(troot_p_media,ft)%p%th_from_psi(cohort_hydr%psi_troot)
+    cohort_hydr%ftc_troot = wkf_plant(troot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_troot)
 
 
-    !working our way up a tree, assigning water potentials that are in
-    !hydrostatic equilibrium with the water potential immediately below
-    dz = ccohort_hydr%z_node_ag(n_hypool_ag) - ccohort_hydr%z_node_troot
-    ccohort_hydr%psi_ag(n_hypool_ag) = ccohort_hydr%psi_troot -  mpa_per_pa*denh2o*grav_earth*dz
-    if (ccohort_hydr%psi_ag(n_hypool_ag)>0.0_r8) ccohort_hydr%psi_ag(n_hypool_ag) = -0.01_r8
+    ! working our way up a tree, assigning water potentials that are in
+    ! hydrostatic equilibrium (minus dh_dz offset) with the water potential immediately below
+    dz = cohort_hydr%z_node_ag(n_hypool_ag) - cohort_hydr%z_node_troot
 
-    ccohort_hydr%th_ag(n_hypool_ag) = wrf_plant(stem_p_media,ft)%p%th_from_psi(ccohort_hydr%psi_ag(n_hypool_ag))
-    ccohort_hydr%ftc_ag(n_hypool_ag) = wkf_plant(stem_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(n_hypool_ag))
+    cohort_hydr%psi_ag(n_hypool_ag) = cohort_hydr%psi_troot - &
+         mpa_per_pa*denh2o*grav_earth*dz - dh_dz
 
+
+    cohort_hydr%th_ag(n_hypool_ag) = wrf_plant(stem_p_media,ft)%p%th_from_psi(cohort_hydr%psi_ag(n_hypool_ag))
+    cohort_hydr%ftc_ag(n_hypool_ag) = wkf_plant(stem_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_ag(n_hypool_ag))
+
+    
     do k=n_hypool_ag-1, 1, -1
-       dz = ccohort_hydr%z_node_ag(k) - ccohort_hydr%z_node_ag(k+1)
-       ccohort_hydr%psi_ag(k) = ccohort_hydr%psi_ag(k+1) - mpa_per_pa*denh2o*grav_earth*dz
-       if(ccohort_hydr%psi_ag(k)>0.0_r8) ccohort_hydr%psi_ag(k)= -0.01_r8
-       ccohort_hydr%th_ag(k) = wrf_plant(stem_p_media,ft)%p%th_from_psi(ccohort_hydr%psi_ag(k))
-       ccohort_hydr%ftc_ag(k) = wkf_plant(stem_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(k))
+       dz = cohort_hydr%z_node_ag(k) - cohort_hydr%z_node_ag(k+1)
+       cohort_hydr%psi_ag(k) = cohort_hydr%psi_ag(k+1) - &
+            mpa_per_pa*denh2o*grav_earth*dz - &
+            dh_dz
+
+       cohort_hydr%th_ag(k) = wrf_plant(site_hydr%pm_node(k),ft)%p%th_from_psi(cohort_hydr%psi_ag(k))
+       cohort_hydr%ftc_ag(k) = wkf_plant(site_hydr%pm_node(k),ft)%p%ftc_from_psi(cohort_hydr%psi_ag(k))
     end do
 
-    ccohort_hydr%errh2o_growturn_ag(:)    = 0.0_r8
-    ccohort_hydr%errh2o_growturn_troot    = 0.0_r8
-    ccohort_hydr%errh2o_growturn_aroot    = 0.0_r8
-    ccohort_hydr%errh2o_pheno_ag(:)       = 0.0_r8
-    ccohort_hydr%errh2o_pheno_troot       = 0.0_r8
-    ccohort_hydr%errh2o_pheno_aroot       = 0.0_r8
+    cohort_hydr%errh2o_growturn_ag(:)    = 0.0_r8
+    cohort_hydr%errh2o_growturn_troot    = 0.0_r8
+    cohort_hydr%errh2o_growturn_aroot    = 0.0_r8
+    cohort_hydr%errh2o_pheno_ag(:)       = 0.0_r8
+    cohort_hydr%errh2o_pheno_troot       = 0.0_r8
+    cohort_hydr%errh2o_pheno_aroot       = 0.0_r8
 
     !initialize cohort-level btran
 
-    ccohort_hydr%btran = wkf_plant(leaf_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
+    cohort_hydr%btran = wkf_plant(leaf_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_ag(1))
 
 
-    !flc_gs_from_psi(ccohort_hydr%psi_ag(1),ccohort%pft)
+    !flc_gs_from_psi(cohort_hydr%psi_ag(1),cohort%pft)
+    
+    ! Check plant pressures, make sure they are not positive
+    if ( (cohort_hydr%psi_troot>0.0_r8) .or. &
+         any(cohort_hydr%psi_ag(:)>0._r8) .or. &
+         any(cohort_hydr%psi_aroot(:)>0._r8) ) then
+       write(fates_log(),*) 'Initialized plant compartments with positive pressure?'
+       write(fates_log(),*) 'psi troot: ',cohort_hydr%psi_troot
+       write(fates_log(),*) 'psi ag(:): ',cohort_hydr%psi_ag(:)
+       write(fates_log(),*) 'psi_aroot(:): ',cohort_hydr%psi_aroot(:)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
     
 
   end subroutine initTreeHydStates
@@ -1299,9 +1332,6 @@ contains
        ! --------------------------------------------------------------------------------
        ! Initialize the Water Retention Functions
        ! -----------------------------------------------------------------------------------
-
-       print*,bc_in(s)%watsat_sisl(:)
-       stop
 
        select case(soil_wrf_type)
        case(van_genuchten_type)
@@ -2482,10 +2512,6 @@ contains
              ! Update total site-level stored plant water [kg/m2]
              ! (this is not zerod, but incremented)
              site_hydr%h2oveg     = site_hydr%h2oveg + dwat_plant*ccohort%n*AREA_INV
-
-
-           
-
              
              
              ! ---------------------------------------------------------
@@ -2534,6 +2560,10 @@ contains
                  -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:))*denh2o*AREA_INV/dtime) + &
                  site_hydr%recruit_w_uptake(j)
 
+           print*,'qflx_soil2root_sisl(j):',j,bc_out(s)%qflx_soil2root_sisl(j)
+
+           
+           
           ! Save the amount of liquid soil water known to the model after root uptake
           ! This calculation also assumes that 1mm of water is 1kg
           site_hydr%h2osoi_liq_prev(j) = bc_in(s)%h2o_liq_sisl(j) - &
@@ -2558,8 +2588,13 @@ contains
                      site_hydr%v_shell(j,i)*AREA_INV*denh2o
                 
                 site_hydr%h2osoi_liqvol_shell(j,i) = bc_in(s)%watsat_sisl(j)-thsat_buff
+                print*,'runoff: ', (site_hydr%h2osoi_liqvol_shell(j,i)-(bc_in(s)%watsat_sisl(j)-thsat_buff)) * &
+                     site_hydr%v_shell(j,i)*AREA_INV*denh2o
              end if
           end do
+
+
+          print*,'th: ',site_hydr%h2osoi_liqvol_shell(j,:)
           
           
        enddo
@@ -3233,7 +3268,7 @@ contains
                 print*,"REALLY SMALL ROOTFR?",rootfr_scaler
                 stop
             end if
-        else
+         else
             rootfr_scaler = 1.0_r8
         end if
 
@@ -3264,7 +3299,6 @@ contains
                 v_node(i)  = site_hydr%v_shell(ilayer,ishell)*aroot_frac_plant
                 th_node_init(i) = site_hydr%h2osoi_liqvol_shell(ilayer,ishell)
             end if
-            
         end do
         
         ! Outer iteration loop
@@ -3274,9 +3308,6 @@ contains
         solution_found = .false.
         iter = 0
         do while( .not.solution_found ) 
-
-
-
 
             ! Gracefully quit if too many iterations have been used
             if(iter>max_iter)then
@@ -3342,7 +3373,7 @@ contains
                         end if
                     end if
 
-                end do
+                 end do
 
                 ! Same updates as loop above, but for rhizosphere shells
                 
@@ -3355,6 +3386,14 @@ contains
                     dftc_dtheta_node(i) = dftc_dpsi * dpsi_dtheta_node(i) 
                 end do
 
+!                print*,'init'
+!                print*,'psi:',psi_node(:)
+!                print*,'ftc:',ftc_node(:)
+!                print*,'h:',h_node(:)
+!                print*,'relsat:',th_sat_vg-th_node(1:n_hypool_plant)
+!                print*,'dpsidth:',dpsi_dtheta_node(:)
+!                print*,'dftcdth:',dftc_dtheta_node(:)
+!                stop
 
                 !--------------------------------------------------------------------------------
                 ! Part 2.  Effective conductances over the path-length and Flux terms
@@ -3548,7 +3587,7 @@ contains
                 
                 wb_step_err = (q_top_eff*dt_substep) - (w_tot_beg-w_tot_end)
                 
-                if(abs(wb_step_err)>max_wb_step_err)then
+                if(abs(wb_step_err)>max_wb_step_err .or. any(dth_node(:).ne.dth_node(:)) )then
                     solution_found = .false.
                     error_code = 1
                     error_arr(:) = 0._r8
@@ -3640,13 +3679,20 @@ contains
                               k_eff(j)*(h_node(j+1)-h_node(j)) + & 
                               A_term(j)*dth_node(j)+ B_term(j)*dth_node(j+1))
                     end do
-                end if
+                 end if
+
+                 print*,'Substep completing'
                 
             end do  ! do istep = 1,nsteps  (substep loop)
 
+            if(.not.solution_found)then
+               print*,'FAILING SOLVE'
+               print*,dth_node(:)
+            end if
+            
             iter=iter+1
             
-        end do
+         end do
     
         ! -----------------------------------------------------------
         ! Do a final check on water balance error sumed over sub-steps
@@ -3725,12 +3771,19 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
+
+        if( any(dth_node(:).ne.dth_node(:)) ) then
+           print*,"Broken solve"
+           print*,"dth_node:",dth_node(:)
+           stop
+        end if
+        
         dth_layershell_col(ilayer,:) = dth_layershell_col(ilayer,:) + &
               dth_node((n_hypool_tot-nshell+1):n_hypool_tot) * & 
               cohort_hydr%l_aroot_layer(ilayer) * &
               cohort%n / site_hydr%l_aroot_layer(ilayer)
                      
-    enddo !soil layer (jj -> ilayer)
+     enddo !soil layer (jj -> ilayer)
 
     end associate
     return
@@ -4937,11 +4990,14 @@ contains
                   th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
                else
                   print*,'psi:',psi_node(k),k
+                  print*,'residual:',residual(k)
                   psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
                   th_node(k) = wrf_plant(pm_node(k),ft)%p%th_from_psi(psi_node(k))
                endif
                
             enddo
+
+            stop
             
          endif
          
@@ -5191,6 +5247,7 @@ contains
     ! Define
     class(wrf_type_vg), pointer :: wrf_vg
     class(wkf_type_vg), pointer :: wkf_vg
+    class(wrf_type_cch), pointer :: wrf_cch
     class(wkf_type_tfs), pointer :: wkf_tfs
 
     integer :: ft            ! PFT index
@@ -5218,10 +5275,17 @@ contains
                 call wrf_vg%set_wrf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg])
             end do
         end do
-    case(campbell_type)
-        write(fates_log(),*) 'campbell/clapp-hornberger retention curves '
-        write(fates_log(),*) 'are not used in plants'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+     case(campbell_type)
+        do ft = 1,numpft
+           do pm = 1,n_plant_media
+              allocate(wrf_cch)
+              wrf_plant(pm,ft)%p => wrf_cch
+              call wrf_cch%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm),EDPftvarcon_inst%hydr_pinot_node(ft,pm),9._r8])
+!              this%th_sat  = params_in(1)
+!              this%psi_sat = params_in(2)
+!              this%beta    = params_in(3)
+           end do
+        end do
     case(tfs_type)
         write(fates_log(),*) 'TFS water retention curves not yet added to plants'
         call endrun(msg=errMsg(sourcefile, __LINE__))
