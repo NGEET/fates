@@ -128,8 +128,24 @@ module FatesHydroWTFMod
   end type wkf_type_cch
 
   ! =====================================================================================
-  ! Plant-only fractional loss of conductivity from Chrisoffersen et al. (tfs model)
+  ! TFS functions
   ! =====================================================================================
+
+  ! Water Retention Function from TFS
+  type, public, extends(wrf_type) :: wrf_type_tfs
+     real(r8) :: th_sat   ! Saturation volumetric water content         [m3/m3]
+     real(r8) :: th_res   ! Residual volumentric water content          [m3/m3]
+     real(r8) :: pinot    ! osmotic potential at full turger            [MPa]
+     real(r8) :: epsil    ! bulk elastic modulus                        [MPa]
+
+     real(r8), parameter :: beta2 = 0.99_r8  ! Smoothing factor
+
+   contains
+     procedure :: th_from_psi     => th_from_psi_tfs
+     procedure :: psi_from_th     => psi_from_th_tfs
+     procedure :: dpsidth_from_th => dpsidth_from_th_tfs
+     procedure :: set_wrf_param   => set_wrf_param_tfs
+  end type wrf_type_tfs
 
   ! Water Conductivity Function
   type, public, extends(wkf_type) :: wkf_type_tfs
@@ -586,7 +602,7 @@ contains
 
 
   ! =====================================================================================
-  ! Fractional loss of conductivity via TFS style functions
+  ! TFS style functions
   ! =====================================================================================
 
   subroutine set_wkf_param_tfs(this,params_in)
@@ -600,6 +616,122 @@ contains
     return
   end subroutine set_wkf_param_tfs
 
+  subroutine set_wrf_param_tfs(this,params_in)
+    
+    class(wrf_type_tfs)  :: this
+    real(r8), intent(in) :: params_in(:)
+    
+    this%th_sat  = params_in(1)
+    this%th_res  = params_in(2)
+    this%pinot   = params_in(3)
+    this%epsil   = params_in(4)
+
+    return
+  end subroutine set_wrf_param_tfs
+
+  ! =====================================================================================
+
+  function th_from_psi_tfs(this,psi) result(th)
+    
+    class(wrf_type_tfs)  :: this
+    real(r8), intent(in) :: psi
+    real(r8)             :: th
+
+
+
+  end function th_from_psi_tfs
+
+  ! =====================================================================================
+
+  function psi_from_th_tfs(this,th) result(psi)
+    
+    class(wrf_type_tfs)  :: this
+    real(r8),intent(in)  :: th
+    real(r8)             :: psi
+
+    x = th_node*cap_corr(pm)
+    ! 
+    call bq2(x, y_bq2)
+    call cq2(x, y_cq2)
+    
+    psi = (-y_bq2 + sqrt(y_bq2*y_bq2 - 4._r8*beta2*y_cq2))/(2._r8*this%beta2)
+
+
+    return
+  end function psi_from_th_tfs
+  
+  ! expanded form of psi from th tfs
+
+  function psi_from_th_tfs(this,th) result(psi)
+    
+    class(wrf_type_tfs)  :: this
+    real(r8),intent(in)  :: th
+    real(r8)             :: psi
+
+    ! locals
+    real(r8) :: th_corr        ! corrected vol wc [m3/m3]
+    real(r8) :: psi_elastic    ! press from elastic
+    real(r8) :: psi_capillary  ! press from capillary
+    real(r8) :: psi_capelast   ! press from smoothed capillary/elastic
+    real(r8) :: psi_cavitation ! press from cavitation
+    real(r8) :: b,c            ! quadratic smoothing terms
+
+    th_corr = th * this%cap_corr
+
+    ! Perform two rounds of quadratic smoothing, 1st smooth
+    ! the elastic and capilary, and then smooth their
+    ! combined with the caviation
+
+    call elasticPV(th_corr, psi_elastic)
+    
+    if(this%pmedia == 1) then            ! leaves have no capillary region in their PV curves
+        
+        psi_capelast = psi_elastic
+
+    else if(pm <= 4) then       ! sapwood has a capillary region
+        
+        call capillaryPV(th_corr, psi_capillary)
+        
+        b = -1._r8*(psi_capillary + psi_elastic)
+        c = psi_capillary*psi_elastic
+        psi_cap_elas = (-b - sqrt(b*b - 4._r8*this%beta*c))/(2._r8*this%beta)
+
+    else
+        write(fates_log(),*) 'TFS WRF was called for an inelligable porous media'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+
+    end if !porous media
+
+    ! Now lets smooth the result of capilary elastic with cavitation
+
+    ! call cavitationPV(th_corr, psi_cavitation)
+    ! this is caviation PV:
+    call solutepsi(th_corr,this%rwcft,this%th_sat,this%th_res,this%pinot,psi_cavitation)
+
+    b = -1._r8*(psi_cap_elas + psi_cavitation)
+    c = psi_cap_elas*psi_cavitation
+
+    psi = (-b + sqrt(b*b - 4._r8*this%beta*c))/(2._r8*this%beta)
+
+
+    return
+  end function psi_from_th_tfs
+
+  
+
+
+  ! =====================================================================================
+
+  function dpsidth_from_th_tfs(this,th) result(dpsidth)
+
+    class(wrf_type_tfs) :: this
+    real(r8),intent(in) :: th
+    real(r8)            :: dpsidth
+
+
+    
+  end function dpsidth_from_th_tfs
+  
   ! =====================================================================================
 
   function ftc_from_psi_tfs(this,psi) result(ftc)
@@ -644,6 +776,560 @@ contains
 
   end function dftcdpsi_from_psi_tfs
   
+  ! =====================================================================================
+  ! The following routines are for calculating water retention functions
+  ! and their derivatives in the TFS model
+  ! =====================================================================================
 
+  subroutine bq2(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: component smoothing function for elastic-to-cavitation region
+    ! of the plant PV curve where a discontinuity exists
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content     [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! water potential   [MPa]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: y_tq1                  ! returned y (psi) value from tq1()
+    real(r8) :: y_cavitation           ! returned y (psi) value from cavitationPV()
+    !----------------------------------------------------------------------
+  
+    call tq1(ft, pm, x, y_tq1)
+    call cavitationPV(ft, pm, x, y_cavitation)
+    y = -1._r8*(y_tq1 + y_cavitation)
+	     
+  end subroutine bq2
+  
+  !-------------------------------------------------------------------------------!
+  subroutine dbq2dth(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: component smoothing function for elastic-to-cavitation region
+    ! of the plant PV curve where a discontinuity exists
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content                            [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: dydth_tq1              ! returned derivative from dtq1dth()
+    real(r8) :: dcavdth                ! returned derivative from dcavitationdth()
+    !----------------------------------------------------------------------
+  
+    call dtq1dth(ft, pm, x, dydth_tq1)
+    call dcavitationPVdth(ft, pm, x, dcavdth)
+    y = -1._r8*(dydth_tq1 + dcavdth)
+
+  end subroutine dbq2dth
+  
+  !-------------------------------------------------------------------------------!
+  subroutine cq2(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: component smoothing function for elastic-to-cavitation region
+    ! of the plant PV curve where a discontinuity exists
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content     [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! water potential   [MPa]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: y_tq1                  ! returned y (psi) value from tq1()
+    real(r8) :: y_cavitation           ! returned y (psi) value from cavitationPV()
+    !----------------------------------------------------------------------
+  
+    call tq1(ft, pm, x, y_tq1)
+    call cavitationPV(ft, pm, x, y_cavitation)
+    y = y_tq1*y_cavitation
+	     
+  end subroutine cq2
+  
+  !-------------------------------------------------------------------------------!
+  subroutine dcq2dth(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: returns derivative of cq2() wrt theta
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content                            [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: y_tq1                  ! returned y (psi) value from tq1()
+    real(r8) :: y_cavitation           ! returned y (psi) value from cavitationPV()
+    real(r8) :: dydth_tq1              ! returned derivative from dtq1dth()
+    real(r8) :: dcavdth                ! returned derivative from dcavitationdth()
+    !----------------------------------------------------------------------
+  
+    call tq1(ft, pm, x, y_tq1)
+    call cavitationPV(ft, pm, x, y_cavitation)
+    call dtq1dth(ft, pm, x, dydth_tq1)
+    call dcavitationPVdth(ft, pm, x, dcavdth)
+    y = y_tq1*dcavdth + dydth_tq1*y_cavitation
+	     
+  end subroutine dcq2dth
+  
+  !-------------------------------------------------------------------------------!
+  subroutine tq1(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: either calls the elastic region of the PV curve (leaves) or
+    ! does a smoothing function for capillary-to-elastic region of the plant PV
+    ! curve where a discontinuity exists
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content     [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! water potential   [MPa]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: y_bq1                  ! returned y (psi) value from bq1()
+    real(r8) :: y_cq1                  ! returned y (psi) value from cq1()
+    real(r8) :: y_elastic              ! returned y (psi) value from elasticPV()
+    real(r8) :: beta1=0.80_r8          ! smoothing factor
+    !----------------------------------------------------------------------
+  
+    if(pm == 1) then            ! leaves have no capillary region in their PV curves
+       call elasticPV(ft, pm, x, y_elastic)
+       y = y_elastic
+    else if(pm <= 4) then       ! sapwood has a capillary region
+
+        ! bq1
+        call capillaryPV(ft, pm, x, y_capillary)
+        call elasticPV(ft, pm, x, y_elastic)
+       
+        b = -1._r8*(y_capillary + y_elastic)
+ 
+        ! cq1
+!        call capillaryPV(ft, pm, x, y_capillary)
+!        call elasticPV(ft, pm, x, y_elastic)
+        c = y_capillary*y_elastic
+
+
+!       call bq1(ft, pm, x, y_bq1)
+!       call cq1(ft, pm, x, y_cq1)
+       y = (-b - sqrt(b*b - 4._r8*beta1*c))/(2*b)
+
+    end if !porous media
+
+  end subroutine tq1
+  
+
+
+
+
+  !-------------------------------------------------------------------------------!
+  subroutine dtq1dth(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: returns derivative of tq1() wrt theta
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content                            [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: y_bq1                  ! returned y (psi) value from bq1()
+    real(r8) :: y_cq1                  ! returned y (psi) value from cq1()
+    real(r8) :: dydth_bq1              ! returned derivative from dbq1dth()
+    real(r8) :: dydth_cq1              ! returned derivative from dcq1dth()
+    real(r8) :: delasticdth            ! returned derivative from delasticPVdth()
+    real(r8) :: beta1=0.80_r8          ! smoothing factor
+    !----------------------------------------------------------------------
+  
+    if(pm == 1) then            ! leaves have no capillary region in their PV curves
+       call delasticPVdth(ft, pm, x, delasticdth)
+       y = delasticdth
+    else if(pm <= 4) then       ! sapwood has a capillary region
+       call bq1(ft, pm, x, y_bq1)
+       call cq1(ft, pm, x, y_cq1)
+       call dbq1dth(ft, pm, x, dydth_bq1)
+       call dcq1dth(ft, pm, x, dydth_cq1)
+       y = 1._r8/(2._r8*beta1)*(-dydth_bq1 - 0.5_r8*((y_bq1*y_bq1 - 4._r8*beta1*y_cq1)**(-0.5_r8)) * &
+                                                    (2._r8*y_bq1*dydth_bq1 - 4._r8*beta1*dydth_cq1))
+    end if
+
+  end subroutine dtq1dth
+  
+  !-------------------------------------------------------------------------------!
+
+  !-------------------------------------------------------------------------------!
+  subroutine dbq1dth(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: returns derivative of bq1() wrt theta
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content                            [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: dcapdth               ! returned derivative from dcapillaryPVdth()
+    real(r8) :: delasticdth           ! returned derivative from delasticPVdth()
+    !----------------------------------------------------------------------
+  
+    call dcapillaryPVdth(ft, pm, x, dcapdth)
+    call delasticPVdth(ft, pm, x, delasticdth)
+    y = -1._r8*(delasticdth + dcapdth)
+	     
+  end subroutine dbq1dth
+
+  ! ------------------------------------------------------------------------------
+
+  subroutine bq1(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: component smoothing function for capillary-to-elastic region
+    ! of the plant PV curve where a discontinuity exists
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content     [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! water potential   [MPa]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: y_capillary           ! returned y (psi) value from capillaryPV()
+    real(r8) :: y_elastic             ! returned y (psi) value from elasticPV()
+    !----------------------------------------------------------------------
+  
+    call capillaryPV(ft, pm, x, y_capillary)
+    call elasticPV(ft, pm, x, y_elastic)
+    y = -1._r8*(y_capillary + y_elastic)
+	     
+  end subroutine bq1
+  
+  !-------------------------------------------------------------------------------!
+  subroutine cq1(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: component smoothing function for capillary-to-elastic region
+    ! of the plant PV curve where a discontinuity exists
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content     [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! water potential   [MPa]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: y_capillary           ! returned y (psi) value from capillaryPV()
+    real(r8) :: y_elastic             ! returned y (psi) value from elasticPV()
+    !----------------------------------------------------------------------
+  
+    call capillaryPV(ft, pm, x, y_capillary)
+    call elasticPV(ft, pm, x, y_elastic)
+    y = y_capillary*y_elastic
+	     
+  end subroutine cq1
+  
+  !-------------------------------------------------------------------------------!
+  subroutine dcq1dth(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: returns derivative of cq1() wrt theta
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content                            [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: y_capillary           ! returned y (psi) value from capillaryPV()
+    real(r8) :: y_elastic             ! returned y (psi) value from elasticPV()
+    real(r8) :: dcapdth               ! returned derivative from dcapillaryPVdth()
+    real(r8) :: delasticdth           ! returned derivative from delasticPVdth()
+    !----------------------------------------------------------------------
+  
+    call capillaryPV(ft, pm, x, y_capillary)
+    call elasticPV(ft, pm, x, y_elastic)
+    call dcapillaryPVdth(ft, pm, x, dcapdth)
+    call delasticPVdth(ft, pm, x, delasticdth)
+    y = y_elastic*dcapdth + delasticdth*y_capillary
+	     
+  end subroutine dcq1dth
+  
+  !-------------------------------------------------------------------------------!
+  subroutine cavitationPV(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: computes water potential in the elastic region of the plant PV
+    ! curve as the sum of both solute and elastic components.
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content     [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! water potential   [MPa]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: y_solute           ! returned y (psi) value from solutepsi()
+    !----------------------------------------------------------------------
+ 
+!    call solutepsi(th,rwcft,th_sat,th_res,pinot,psi)
+!    call solutepsi(ft, pm, x, y_solute)
+    y = y_solute
+	     
+  end subroutine cavitationPV
+  
+  !-------------------------------------------------------------------------------!
+  subroutine dcavitationPVdth(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: returns derivative of cavitationPV() wrt theta
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content                            [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: dsoldth           ! returned derivative from dsolutepsidth()
+    !----------------------------------------------------------------------
+  
+    call dsolutepsidth(ft, pm, x, dsoldth)
+    y = dsoldth
+	     
+  end subroutine dcavitationPVdth
+  
+  !-------------------------------------------------------------------------------!
+  subroutine elasticPV(th,rwcft,th_sat,th_res,pinot,psi)
+    ! 
+    ! !DESCRIPTION: computes water potential in the elastic region of the plant PV
+    ! curve as the sum of both solute and elastic components.
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    real(r8)      , intent(in)  :: th
+    real(r8)      , intent(in)  :: rwcft
+    real(r8)      , intent(in)  :: th_sat
+    real(r8)      , intent(in)  :: th_res
+    real(r8)      , intent(in)  :: pinot
+    real(r8)      , intent(out) :: psi           ! water potential   [MPa]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: y_solute           ! returned y (psi) value from solutepsi()
+    real(r8) :: y_pressure         ! returned y (psi) value from pressurepsi()
+    !----------------------------------------------------------------------
+
+    call solutepsi(th,rwcft,th_sat,th_res,pinot,y_solute)
+
+    call pressurepsi(th,rwcft,th_sat,th_res,pinot,epsil,y_pressure)
+
+    psi = y_solute + y_pressure
+	     
+  end subroutine elasticPV
+  
+  !-------------------------------------------------------------------------------!
+  subroutine delasticPVdth(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: returns derivative of elasticPV() wrt theta
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content                            [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: dsoldth           ! returned derivative from dsolutepsidth()
+    real(r8) :: dpressdth         ! returned derivative from dpressurepsidth()
+    !----------------------------------------------------------------------
+  
+    call dsolutepsidth(ft, pm, x, dsoldth)
+    call dpressurepsidth(ft, pm, x, dpressdth)
+    y = dsoldth + dpressdth
+	     
+  end subroutine delasticPVdth
+  
+  !-------------------------------------------------------------------------------!
+  subroutine solutepsi(th,rwcft,th_sat,th_res,pinot,psi)
+    ! 
+    ! !DESCRIPTION: computes solute water potential (negative) as a function of
+    !  water content for the plant PV curve.
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+
+    real(r8)      , intent(in)     :: th          ! vol wc       [m3 m-3]
+    real(r8)      , intent(in)     :: rwcft       ! rel wc       [-]
+    real(r8)      , intent(in)     :: th_sat
+    real(r8)      , intent(in)     :: th_res
+    real(r8)      , intent(in)     :: pinot 
+    real(r8)      , intent(out)    :: psi         ! water potential   [MPa]
+
+    psi = pinot*th_sat*(rwcft - th_res) / (th - th_sat*th_res)
+	     
+    end associate
+
+  end subroutine solutepsi
+  
+  !-------------------------------------------------------------------------------!
+  subroutine dsolutepsidth(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: returns derivative of solutepsi() wrt theta
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content                            [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
+    !
+    ! !LOCAL VARIABLES:
+    !----------------------------------------------------------------------
+  
+    associate(& 
+         pinot   => EDPftvarcon_inst%hydr_pinot_node     , & ! Input: [real(r8) (:,:) ] P-V curve: osmotic potential at full turgor              [MPa]
+         thetas  => EDPftvarcon_inst%hydr_thetas_node    , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
+	 resid   => EDPftvarcon_inst%hydr_resid_node       & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
+         )
+    
+      y = -1._r8*thetas(ft,pm)*pinot(ft,pm)*(rwcft(pm) - resid(ft,pm)) / &
+            ((x - thetas(ft,pm)*resid(ft,pm))**2._r8)
+	     
+    end associate
+
+  end subroutine dsolutepsidth
+  
+  !-------------------------------------------------------------------------------!
+  subroutine pressurepsi(th,rwcft,th_sat,th_res,pinot,epsil,psi)
+    ! 
+    ! !DESCRIPTION: computes pressure water potential (positive) as a function of
+    !  water content for the plant PV curve.
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    real(r8) , intent(in)  :: th
+    real(r8) , intent(in)  :: rwcft       ! rel wc       [-]
+    real(r8) , intent(in)  :: th_sat
+    real(r8) , intent(in)  :: th_res
+    real(r8) , intent(in)  :: pinot 
+    real(r8) , intent(in)  :: epsil       
+    real(r8) , intent(out) :: psi         ! water potential   [MPa]
+
+
+    psi = epsil * (th - th_sat*rwcft) / &
+            (th_sat*(rwcft-th_res)) - pinot
+	     
+    end associate
+
+  end subroutine pressurepsi
+  
+  !-------------------------------------------------------------------------------!
+  subroutine dpressurepsidth(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: returns derivative of pressurepsi() wrt theta
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content                            [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
+    !
+    ! !LOCAL VARIABLES:
+    !----------------------------------------------------------------------
+  
+    associate(& 
+         thetas  => EDPftvarcon_inst%hydr_thetas_node, & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
+	 resid   => EDPftvarcon_inst%hydr_resid_node , & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
+         epsil   => EDPftvarcon_inst%hydr_epsil_node   & ! Input: [real(r8) (:,:) ] P-V curve: bulk elastic modulus                          [MPa]
+         )
+      
+      y = epsil(ft,pm)/(thetas(ft,pm)*(rwcft(pm) - resid(ft,pm)))
+	     
+    end associate
+
+  end subroutine dpressurepsidth
+  
+  !-------------------------------------------------------------------------------!
+  subroutine capillaryPV(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: computes water potential in the capillary region of the plant
+    !  PV curve (sapwood only)
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content     [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! water potential   [MPa]
+    !
+    ! !LOCAL VARIABLES:
+    !----------------------------------------------------------------------
+
+    associate(& 
+         thetas    => EDPftvarcon_inst%hydr_thetas_node     & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
+         )
+   
+      y = cap_int(pm) + cap_slp(pm)/thetas(ft,pm)*x
+	     
+    end associate
+
+  end subroutine capillaryPV
+  
+  !-------------------------------------------------------------------------------!
+  subroutine dcapillaryPVdth(ft, pm, x, y)
+    ! 
+    ! !DESCRIPTION: returns derivative of capillaryPV() wrt theta
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS
+    integer       , intent(in)     :: ft          ! PFT index
+    integer       , intent(in)     :: pm          ! porous media index
+    real(r8)      , intent(in)     :: x           ! water content                            [m3 m-3]
+    real(r8)      , intent(out)    :: y           ! derivative of water potential wrt theta  [MPa m3 m-3]
+    !
+    ! !LOCAL VARIABLES:
+    !----------------------------------------------------------------------
+
+    associate(& 
+         thetas    => EDPftvarcon_inst%hydr_thetas_node    & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
+         )
+   
+    y = cap_slp(pm)/thetas(ft,pm)
+	     
+    end associate
+
+  end subroutine dcapillaryPVdth
   
 end module FatesHydroWTFMod
