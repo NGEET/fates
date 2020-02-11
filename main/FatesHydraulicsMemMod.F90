@@ -10,7 +10,7 @@ module FatesHydraulicsMemMod
    implicit none
    private
 
-   logical, parameter, public :: use_2d_hydrosolve = .false.
+   logical, parameter, public :: use_2d_hydrosolve = .true.
    
    
    ! Number of soil layers for indexing cohort fine root quanitities
@@ -49,9 +49,9 @@ module FatesHydraulicsMemMod
    integer, parameter, public :: rhiz_p_media  = 5
 
    ! P-V curve: total RWC @ which elastic drainage begins (tfs)     [-]        
-   real(r8), parameter, public, dimension(n_porous_media) :: rwcft   = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
+   real(r8), parameter, public, dimension(n_plant_media) :: rwcft   = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
    ! P-V curve: total RWC @ which capillary reserves exhausted (tfs)
-   real(r8), parameter, public, dimension(n_porous_media) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
+   real(r8), parameter, public, dimension(n_plant_media) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
    
 
    ! mirror of nlevcan, hard-set for simplicity, remove nlevcan_hyd on a rainy day

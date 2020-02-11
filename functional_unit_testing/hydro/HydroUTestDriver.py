@@ -128,7 +128,7 @@ class cch_wkf:
         iret = setwkf(ci(index),ci(cch_type),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
 
 
-class tfs_wrf:        
+class tfs_wrf:
     def __init__(self,index,th_sat,th_res,pinot,epsil,rwc_fd,cap_corr,cap_int,cap_slp,pmedia):
         self.th_sat = th_sat
         self.th_res = th_res
@@ -141,14 +141,14 @@ class tfs_wrf:
         self.pmedia   = pmedia
         init_wrf_args = [self.th_sat,self.th_res,self.pinot,self.epsil,self.rwc_fd,self.cap_corr,self.cap_int,self.cap_slp,self.pmedia]
         iret = setwrf(ci(index),ci(tfs_type),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
-        
-class tfs_wkf:        
+
+class tfs_wkf:
     def __init__(self,index,p50,avuln):
         self.avuln = avuln
-        self.p50   = p50 
+        self.p50   = p50
         init_wkf_args = [self.p50,self.avuln]
-        iret = setwkf(ci(index),ci(tfs_type),ci(len(init_wkf_args)),c8_arr(init_wkf_args))   
-        
+        iret = setwkf(ci(index),ci(tfs_type),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
+
 
 def main(argv):
 
@@ -208,10 +208,10 @@ def main(argv):
             cap_corr.append(1.0)
         else:
             cap_slp.append((hydr_psi0 - hydr_psicap )/(1.0 - rwccap[pm]))
-            cap_int.append(-cap_slp[pm] + hydr_psi0)    
+            cap_int.append(-cap_slp[pm] + hydr_psi0)
             cap_corr.append(-cap_int[pm]/cap_slp[pm])
-        
-    
+
+
     # Allocate memory to our objective classes
     iret = initalloc_wtfs(ci(ncomp),ci(ncomp))
     print('Allocated')
@@ -231,10 +231,10 @@ def main(argv):
     tfs_wrf(4,th_sat=0.65,th_res=0.25,pinot=-1.47, \
             epsil=12,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
             cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1)
-    tfs_wkf(3,p50=-2.25, avuln=2.0)
+    tfs_wkf(4,p50=-2.25, avuln=2.0)
 
 
-    
+
     print('initialized WRF')
 
     theta = np.linspace(0.10, 0.7, num=npts)
@@ -314,8 +314,8 @@ def main(argv):
 
     ax1.set_ylabel('FTC')
     ax1.set_xlabel('Theta [m3/m3]')
-    ax1.legend(loc='lower right')   
-    
+    ax1.legend(loc='lower right')
+
     # dFTC/dPSI
 
     fig3,ax1 = plt.subplots(1,1,figsize=(9,6))

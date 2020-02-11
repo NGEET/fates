@@ -96,7 +96,7 @@ module FatesPlantHydraulicsMod
 
   use FatesHydroWTFMod, only : wrf_arr_type
   use FatesHydroWTFMod, only : wkf_arr_type
-  use FatesHydroWTFMod, only : wrf_type, wrf_type_vg, wrf_type_cch, wrt_type_tfs
+  use FatesHydroWTFMod, only : wrf_type, wrf_type_vg, wrf_type_cch, wrf_type_tfs
   use FatesHydroWTFMod, only : wkf_type, wkf_type_vg, wkf_type_cch, wkf_type_tfs
 
 
@@ -135,6 +135,10 @@ module FatesPlantHydraulicsMod
                                                           ! updated every day when trees grow or 
                                                           ! when recruitment happens?
 
+  ! If this is set to true, then the conductance over a path between nodes, is defined
+  ! by the side of the path with higher potential only. 
+  logical, parameter     :: do_upstream_k = .true.
+
 
   logical :: do_parallel_stem = .true. ! If this mode is active, we treat the conduit through
                                        ! the plant (in 1D solves) as closed from root layer
@@ -165,7 +169,7 @@ module FatesPlantHydraulicsMod
   integer, public, parameter :: campbell_type           = 2
   integer, public, parameter :: tfs_type                = 3
   
-  integer, parameter :: plant_wrf_type = van_genuchten_type
+  integer, parameter :: plant_wrf_type = tfs_type
   integer, parameter :: plant_wkf_type = tfs_type
   !  integer, parameter :: soil_wrf_type  = campbell_type
   integer, parameter :: soil_wrf_type  = campbell_type
@@ -432,7 +436,7 @@ contains
     real(r8) :: h_aroot_mean  ! minimum total potential of absorbing roots
 
     real(r8), parameter :: psi_aroot_init = -0.2_r8   ! Initialize aroots with -0.2 MPa
-    real(r8), parameter :: dh_dz = 0.2_r8           ! amount to decrease downstream
+    real(r8), parameter :: dh_dz = 0.02_r8           ! amount to decrease downstream
                                                       ! compartment total potentials [MPa/meter]
     
     ! In init mode = 1, set absorbing roots to -0.2 MPa
@@ -2303,7 +2307,6 @@ contains
     real(r8) :: prev_h2osoil                  ! soil water storage at start of timestep (kg/m2)
     logical  :: recruitflag                   ! flag to check if there is newly recruited cohorts
     integer  :: iter                          ! number of solver iterations used for each cohort x layer
-    integer  :: nsteps                        ! number of substeps used for the final iteration on linear solve
     real(r8) :: root_flux
     real(r8) :: transp_flux
     real(r8) :: delta_plant_storage
@@ -2471,7 +2474,7 @@ contains
 
                  call MatSolve2D(site_hydr,bc_in(s),ccohort,ccohort_hydr, &
                        dtime,qflx_tran_veg_indiv, &
-                       sapflow,rootuptake,wb_err_plant,dwat_plant,nsteps, &
+                       sapflow,rootuptake,wb_err_plant,dwat_plant, &
                        dth_layershell_col)
                 
              else
@@ -2497,8 +2500,10 @@ contains
                 call ImTaylorSolve1D(site_hydr,bc_in(s),ccohort,ccohort_hydr, &
                                      dtime,qflx_tran_veg_indiv,ordered, kbg_layer, & 
                                      sapflow,rootuptake, & 
-                                     wb_err_plant,dwat_plant, nsteps, &
+                                     wb_err_plant,dwat_plant, &
                                      dth_layershell_col)
+
+                
 
              end if
 
@@ -2563,7 +2568,7 @@ contains
                  -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:))*denh2o*AREA_INV/dtime) + &
                  site_hydr%recruit_w_uptake(j)
 
-           print*,'qflx_soil2root_sisl(j):',j,bc_out(s)%qflx_soil2root_sisl(j)
+!           print*,'qflx_soil2root_sisl(j):',j,bc_out(s)%qflx_soil2root_sisl(j)
 
            
            
@@ -2595,11 +2600,6 @@ contains
                      site_hydr%v_shell(j,i)*AREA_INV*denh2o
              end if
           end do
-
-
-          print*,'th: ',site_hydr%h2osoi_liqvol_shell(j,:)
-          
-          
        enddo
       
       ! Note that the cohort-level solvers are expected to update
@@ -3070,9 +3070,10 @@ contains
   
   ! =================================================================================
 
+
   subroutine ImTaylorSolve1D(site_hydr,bc_in,cohort,cohort_hydr,dtime,q_top, &
        ordered,kbg_layer, sapflow,rootuptake,&
-       wb_err_plant,dwat_plant,nsteps,dth_layershell_col)
+       wb_err_plant,dwat_plant,dth_layershell_col)
 
     ! -------------------------------------------------------------------------------
     ! Calculate the hydraulic conductances across a list of paths.  The list is a 1D vector, and
@@ -3108,28 +3109,29 @@ contains
     
     real(r8),intent(out) :: dwat_plant                ! Change in plant stored water [kg]
  
-    integer,intent(out)  :: nsteps                    ! number of sub-steps in any given iteration loop, starts at 1 and grows
+    
     real(r8),intent(inout) :: dth_layershell_col(:,:) ! accumulated water content change over all cohorts in a column   [m3 m-3])
 
     ! Locals
     integer :: i              ! node index "i"
     integer :: j              ! path index "j"
     integer :: jj
+    integer :: nsteps         ! number of sub-steps in any given iteration loop, starts at 1 and grows
     integer :: ilayer         ! soil layer index of interest
     integer :: itest          ! node index used for testing and reporting errors
     integer :: ishell         ! rhizosphere shell index of the node
-    integer :: ishell_up      ! rhizosphere shell index on the upper side of flow path
-    integer :: ishell_lo      ! rhizosphere shell index on the lower side of flow path
-    integer :: i_up           ! node index on the upper (closer to atm) side of current flow-path
-    integer :: i_lo           ! node index on the lower (away from atm) side of current flow-path
+    integer :: ishell_up      ! rhizosphere shell index on the upstream side of flow path (towards soil)
+    integer :: ishell_dn      ! rhizosphere shell index on the downstream side of flow path (towards atm)
+    integer :: i_up           ! node index on the upstream side of flow path (towards soil)
+    integer :: i_dn           ! node index on the downstream side of flow path (towards atm)
     integer :: istep          ! sub-step count index
     logical :: solution_found ! logical set to true if a solution was found within error tolerance
     real(r8) :: dt_step       ! time [seconds] over-which to calculate solution
     real(r8) :: q_top_eff     ! effective water flux through stomata [kg s-1 plant-1]
     real(r8) :: rootfr_scaler ! Factor to scale down cross-section areas based on what
                               ! fraction of root is in current layer [-]
-    real(r8) :: kmax_lo       ! maximum conductance of lower (away from atm) half of path [kg s-1 Mpa-1]
-    real(r8) :: kmax_up       ! maximum conductance of upper (close to atm)  half of path [kg s-1 MPa-1]
+    real(r8) :: kmax_dn       ! maximum conductance of downstream half of path [kg s-1 Mpa-1]
+    real(r8) :: kmax_up       ! maximum conductance of upstream half of path [kg s-1 MPa-1]
     real(r8) :: wb_step_err   ! water balance error over substep [kg]
     real(r8) :: w_tot_beg     ! total plant water prior to solve [kg]
     real(r8) :: w_tot_end     ! total plant water at end of solve [kg]
@@ -3191,7 +3193,7 @@ contains
     ! This is the maximum number of iterations needed for this cohort
     ! (each soil layer has a different number, this saves the max)
     cohort_hydr%iterh1 = 0
-
+    cohort_hydr%iterh2 = 0
     ! Initialize plant water error (integrated flux-storage)
     wb_err_plant = 0._r8 
 
@@ -3252,7 +3254,6 @@ contains
         
         wb_err_layer = 0._r8
         
-        
 
         ! If in "spatially parallel" mode, scale down cross section
         ! of flux through top by the root fraction of this layer
@@ -3277,7 +3278,7 @@ contains
 
 
         q_top_eff = q_top * rootfr_scaler
-        
+
         ! For all nodes leaf through rhizosphere
         ! Send node heights and compartment volumes to a node-based array
         
@@ -3378,6 +3379,7 @@ contains
 
                  end do
 
+
                 ! Same updates as loop above, but for rhizosphere shells
                 
                 do i = n_hypool_plant+1,n_hypool_tot
@@ -3389,15 +3391,6 @@ contains
                     dftc_dtheta_node(i) = dftc_dpsi * dpsi_dtheta_node(i) 
                 end do
 
-!                print*,'init'
-!                print*,'psi:',psi_node(:)
-!                print*,'ftc:',ftc_node(:)
-!                print*,'h:',h_node(:)
-!                print*,'relsat:',th_sat_vg-th_node(1:n_hypool_plant)
-!                print*,'dpsidth:',dpsi_dtheta_node(:)
-!                print*,'dftcdth:',dftc_dtheta_node(:)
-!                stop
-
                 !--------------------------------------------------------------------------------
                 ! Part 2.  Effective conductances over the path-length and Flux terms
                 !          over the node-to-node paths
@@ -3406,17 +3399,17 @@ contains
                 ! Path is between the leaf node and first stem node
                 ! -------------------------------------------------------------------------------
                 
-                j    = 1
-                i_up     = 1
-                i_lo     = 2
-                kmax_up  = rootfr_scaler*cohort_hydr%kmax_petiole_to_leaf
-                kmax_lo  = rootfr_scaler*cohort_hydr%kmax_stem_upper(1)
+                j        = 1
+                i_up     = 2   ! upstream node index
+                i_dn     = 1   ! downstream node index
+                kmax_dn  = rootfr_scaler*cohort_hydr%kmax_petiole_to_leaf
+                kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(1)
 
-                call GetImTaylorKAB(kmax_lo,kmax_up,        &
-                      ftc_node(i_lo),ftc_node(i_up),        & 
-                      h_node(i_lo),h_node(i_up),            & 
-                      dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
-                      dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                call GetImTaylorKAB(kmax_up,kmax_dn,        &
+                      ftc_node(i_up),ftc_node(i_dn),        & 
+                      h_node(i_up),h_node(i_dn),            & 
+                      dftc_dtheta_node(i_up), dftc_dtheta_node(i_dn), &
+                      dpsi_dtheta_node(i_up), dpsi_dtheta_node(i_dn), &
                       k_eff(j),                         &
                       A_term(j),                        & 
                       B_term(j))
@@ -3427,24 +3420,24 @@ contains
                 
                 do j=2,n_hypool_ag-1
 
-                    i_up = j
-                    i_lo = j+1
+                    i_up = j+1
+                    i_dn = j
 
-
-                    ! "Up" compartment is the "upper" node, but uses
-                    ! the "lower" side of its compartment for the calculation.
-                    ! Ultimately, it is more "upper" than its counterpart
+                    ! "Up" is the "upstream" node, which also uses
+                    ! the "upper" side of its compartment for the calculation.
+                    ! "dn" is the "downstream" node, which uses the lower
+                    ! side of its compartment
                     ! This compartment is the "lower" node, but uses
                     ! the "higher" side of its compartment.
 
-                    kmax_up    = rootfr_scaler*cohort_hydr%kmax_stem_lower(i_up-n_hypool_leaf)
-                    kmax_lo    = rootfr_scaler*cohort_hydr%kmax_stem_upper(i_lo-n_hypool_leaf)
+                    kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(i_dn-n_hypool_leaf)
+                    kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(i_up-n_hypool_leaf)
 
-                    call GetImTaylorKAB(kmax_lo,kmax_up,       &
-                          ftc_node(i_lo),ftc_node(i_up),        & 
-                          h_node(i_lo),h_node(i_up),            & 
-                          dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
-                          dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                    call GetImTaylorKAB(kmax_up,kmax_dn,        &
+                          ftc_node(i_up),ftc_node(i_dn),        & 
+                          h_node(i_up),h_node(i_dn),            & 
+                          dftc_dtheta_node(i_up), dftc_dtheta_node(i_dn), &
+                          dpsi_dtheta_node(i_up), dpsi_dtheta_node(i_dn), &
                           k_eff(j),                         &
                           A_term(j),                        & 
                           B_term(j))
@@ -3454,21 +3447,20 @@ contains
                 
                 ! Path is between lowest stem and transporting root
                 
-                j = n_hypool_ag
-                i_up  = j
-                i_lo  = j+1
-                kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_lower(n_hypool_stem)
-                kmax_lo  = rootfr_scaler*cohort_hydr%kmax_troot_upper
+                j     = n_hypool_ag
+                i_up  = j+1
+                i_dn  = j
+                kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(n_hypool_stem)
+                kmax_up  = rootfr_scaler*cohort_hydr%kmax_troot_upper
 
-                call GetImTaylorKAB(kmax_lo,kmax_up,       &
-                      ftc_node(i_lo),ftc_node(i_up),        & 
-                      h_node(i_lo),h_node(i_up),            & 
-                      dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
-                      dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                call GetImTaylorKAB(kmax_up,kmax_dn,        &
+                      ftc_node(i_up),ftc_node(i_dn),        & 
+                      h_node(i_up),h_node(i_dn),            & 
+                      dftc_dtheta_node(i_up), dftc_dtheta_node(i_dn), &
+                      dpsi_dtheta_node(i_up), dpsi_dtheta_node(i_dn), &
                       k_eff(j),                         &
                       A_term(j),                        & 
                       B_term(j))
-
 
                 ! Path is between the transporting root 
                 ! and the absorbing root for this layer
@@ -3476,71 +3468,68 @@ contains
                 ! even if in parallel mode, already parallel!
                 
                 j       = n_hypool_ag+1
-                i_up    = j
-                i_lo    = j+1
-                kmax_up = cohort_hydr%kmax_troot_lower(ilayer) 
-                kmax_lo = cohort_hydr%kmax_aroot_upper(ilayer)
+                i_up    = j+1
+                i_dn    = j
+                kmax_dn = cohort_hydr%kmax_troot_lower(ilayer) 
+                kmax_up = cohort_hydr%kmax_aroot_upper(ilayer)
 
-                call GetImTaylorKAB(kmax_lo,kmax_up,       &
-                      ftc_node(i_lo),ftc_node(i_up),        & 
-                      h_node(i_lo),h_node(i_up),            & 
-                      dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
-                      dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                call GetImTaylorKAB(kmax_up,kmax_dn,        &
+                      ftc_node(i_up),ftc_node(i_dn),        & 
+                      h_node(i_up),h_node(i_dn),            & 
+                      dftc_dtheta_node(i_up), dftc_dtheta_node(i_dn), &
+                      dpsi_dtheta_node(i_up), dpsi_dtheta_node(i_dn), &
                       k_eff(j),                         &
                       A_term(j),                        & 
                       B_term(j))
-
 
                 ! Path is between the absorbing root
                 ! and the first rhizosphere shell nodes
                 
-                j = n_hypool_ag+2
-                i_up  = j
-                i_lo  = j+1
+                j     = n_hypool_ag+2
+                i_up  = j+1
+                i_dn  = j
 
                 ! Special case. Maximum conductance depends on the 
                 ! potential gradient.
-                if(h_node(i_up) < h_node(i_lo) ) then
-                    kmax_up = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
-                          1._r8/cohort_hydr%kmax_aroot_radial_in(ilayer))
+                if(h_node(i_up) > h_node(i_dn) ) then
+                    kmax_dn = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
+                              1._r8/cohort_hydr%kmax_aroot_radial_in(ilayer))
                 else
-                    kmax_up = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
-                          1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer))
+                    kmax_dn = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
+                              1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer))
                 end if
 
-                kmax_lo = site_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant
+                kmax_up = site_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant
 
-                call GetImTaylorKAB(kmax_lo,kmax_up,       &
-                      ftc_node(i_lo),ftc_node(i_up),        & 
-                      h_node(i_lo),h_node(i_up),            & 
-                      dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
-                      dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                call GetImTaylorKAB(kmax_up,kmax_dn,        &
+                      ftc_node(i_up),ftc_node(i_dn),        & 
+                      h_node(i_up),h_node(i_dn),            & 
+                      dftc_dtheta_node(i_up), dftc_dtheta_node(i_dn), &
+                      dpsi_dtheta_node(i_up), dpsi_dtheta_node(i_dn), &
                       k_eff(j),                         &
                       A_term(j),                        & 
                       B_term(j))
-
 
                 ! Path is between rhizosphere shells
 
                 do j = n_hypool_ag+3,n_hypool_tot-1
 
-                    i_up = j
-                    i_lo = j+1
+                    i_up = j+1
+                    i_dn = j
                     ishell_up = i_up - (n_hypool_tot-nshell)
-                    ishell_lo = i_lo - (n_hypool_tot-nshell)
+                    ishell_dn = i_dn - (n_hypool_tot-nshell)
 
-                    kmax_up = site_hydr%kmax_lower_shell(ilayer,ishell_up)*aroot_frac_plant
-                    kmax_lo = site_hydr%kmax_upper_shell(ilayer,ishell_lo)*aroot_frac_plant
+                    kmax_dn = site_hydr%kmax_lower_shell(ilayer,ishell_dn)*aroot_frac_plant
+                    kmax_up = site_hydr%kmax_upper_shell(ilayer,ishell_up)*aroot_frac_plant
 
-                    call GetImTaylorKAB(kmax_lo,kmax_up,       &
-                          ftc_node(i_lo),ftc_node(i_up),        & 
-                          h_node(i_lo),h_node(i_up),            & 
-                          dftc_dtheta_node(i_lo), dftc_dtheta_node(i_up), &
-                          dpsi_dtheta_node(i_lo), dpsi_dtheta_node(i_up), &
+                    call GetImTaylorKAB(kmax_up,kmax_dn,        &
+                          ftc_node(i_up),ftc_node(i_dn),        & 
+                          h_node(i_up),h_node(i_dn),            & 
+                          dftc_dtheta_node(i_up), dftc_dtheta_node(i_dn), &
+                          dpsi_dtheta_node(i_up), dpsi_dtheta_node(i_dn), &
                           k_eff(j),                         &
                           A_term(j),                        & 
                           B_term(j))
-
 
                 end do
 
@@ -3683,19 +3672,12 @@ contains
                               A_term(j)*dth_node(j)+ B_term(j)*dth_node(j+1))
                     end do
                  end if
-
-                 print*,'Substep completing'
                 
             end do  ! do istep = 1,nsteps  (substep loop)
 
-            if(.not.solution_found)then
-               print*,'FAILING SOLVE'
-               print*,dth_node(:)
-            end if
-            
             iter=iter+1
             
-         end do
+        end do
     
         ! -----------------------------------------------------------
         ! Do a final check on water balance error sumed over sub-steps
@@ -3930,11 +3912,11 @@ contains
 
   ! =================================================================================
 
-  subroutine GetImTaylorKAB(kmax_lo,kmax_up, &
-       ftc_lo,ftc_up, &
-       h_lo,h_up, &
-       dftc_dtheta_lo, dftc_dtheta_up, &
-       dpsi_dtheta_lo, dpsi_dtheta_up, &
+  subroutine GetImTaylorKAB(kmax_up,kmax_dn, &
+       ftc_up,ftc_dn, &
+       h_up,h_dn, &
+       dftc_dtheta_up, dftc_dtheta_dn, &
+       dpsi_dtheta_up, dpsi_dtheta_dn, &
        k_eff,   &
        a_term,  & 
        b_term)
@@ -3945,35 +3927,57 @@ contains
     ! first order expansion).  The two terms are generically named A & B.
     ! Thus the name "KAB".  These quantities are specific not to the nodes
     ! themselves, but to the path between the nodes, defined as positive
-    ! direction from "up"per (closer to atm) and "lo"wer (further from atm).
+    ! direction towards atmosphere, from "up"stream side (closer to soil)
+    ! and the "d"ow"n" stream side (closer to air)
     ! -----------------------------------------------------------------------------
     ! Arguments
-    real(r8),intent(in)  :: kmax_lo, kmax_up               ! max conductance [kg s-1 Mpa-1]
-    real(r8),intent(in)  :: ftc_lo, ftc_up                 ! frac total conductance [-]
-    real(r8),intent(in)  :: h_lo, h_up                     ! total potential [Mpa]
-    real(r8),intent(in)  :: dftc_dtheta_lo, dftc_dtheta_up ! Derivative
-                                                           ! of FTC wrt relative water content
-    real(r8),intent(in)  :: dpsi_dtheta_lo, dpsi_dtheta_up ! Derivative of matric potential
-                                                           ! wrt relative water content
-    real(r8),intent(in)  :: k_eff                          ! effective conductance over path [kg s-1 Mpa-1]
-    real(r8),intent(out) :: a_term                         ! "A" term for path (See tech note)
-    real(r8),intent(out) :: b_term                         ! "B" term for path (See tech note)
+    real(r8),intent(in)    :: kmax_dn, kmax_up               ! max conductance [kg s-1 Mpa-1]
+    real(r8),intent(inout) :: ftc_dn, ftc_up                 ! frac total conductance [-]
+    real(r8),intent(in)    :: h_dn, h_up                     ! total potential [Mpa]
+    real(r8),intent(inout) :: dftc_dtheta_dn, dftc_dtheta_up ! Derivative
+                                                             ! of FTC wrt relative water content
+    real(r8),intent(in)    :: dpsi_dtheta_dn, dpsi_dtheta_up ! Derivative of matric potential
+                                                             ! wrt relative water content
+    real(r8),intent(out)   :: k_eff                          ! effective conductance over path [kg s-1 Mpa-1]
+    real(r8),intent(out)   :: a_term                         ! "A" term for path (See tech note)
+    real(r8),intent(out)   :: b_term                         ! "B" term for path (See tech note)
 
-    ! Locals
-    real(r8)             :: h_diff                         ! Total potential difference [MPa]
+                                                             ! Locals
+    real(r8)               :: h_diff                         ! Total potential difference [MPa]
 
 
     ! Calculate difference in total potential over the path [MPa]
-    h_diff  = h_lo - h_up
+    h_diff  = h_up - h_dn
 
-    ! "A" term, which operates on the upper node (closer to atm)
-    a_term = k_eff**2.0_r8 * h_diff * kmax_up**(-1.0_r8) * ftc_up**(-2.0_r8) &
-         * dftc_dtheta_up - k_eff * dpsi_dtheta_up
+    ! If we do enable "upstream K", then we are saying that 
+    ! the fractional loss of conductivity is dictated
+    ! by the upstream side of the flow.  In this case,
+    ! the change in ftc is only non-zero on that side, and is
+    ! zero'd otherwise.
+
+    if(do_upstream_k) then
+
+       if (h_diff>0._r8) then
+          ftc_dn       = ftc_up
+          dftc_dtheta_dn = 0._r8
+       else
+          ftc_up         = ftc_dn
+          dftc_dtheta_up = 0._r8
+       end if
+
+    end if
+
+    ! Calculate total effective conductance over path  [kg s-1 MPa-1]
+    k_eff = 1._r8/(1._r8/(ftc_up*kmax_up)+1._r8/(ftc_dn*kmax_dn))
+
+    ! "A" term, which operates on the downstream node (closer to atm)
+    a_term = k_eff**2.0_r8 * h_diff * kmax_dn**(-1.0_r8) * ftc_dn**(-2.0_r8) &
+         * dftc_dtheta_dn - k_eff * dpsi_dtheta_dn
 
        
-    ! "B" term, which operates on the lower node (further from atm)
-    b_term = k_eff**2.0_r8 * h_diff * kmax_lo**(-1.0_r8) * ftc_lo**(-2.0_r8) & 
-         * dftc_dtheta_lo + k_eff * dpsi_dtheta_lo
+    ! "B" term, which operates on the upstream node (further from atm)
+    b_term = k_eff**2.0_r8 * h_diff * kmax_up**(-1.0_r8) * ftc_up**(-2.0_r8) & 
+         * dftc_dtheta_up + k_eff * dpsi_dtheta_up
        
     
 
@@ -4018,7 +4022,7 @@ contains
 
     ! Locals
     real(r8)               :: h_diff                         ! Total potential difference [MPa]
-    logical, parameter     :: do_upstream_k = .true.             ! the effective fraction of total 
+                 ! the effective fraction of total 
                                                              ! conductivity is either governed
                                                              ! by the upstream node, or by both
                                                              ! with a harmonic average
@@ -4443,7 +4447,7 @@ contains
 
   subroutine MatSolve2D(site_hydr,bc_in,cohort,cohort_hydr, &
                         tmx,qtop, &
-                        sapflow,rootuptake,wb_err_plant , dwat_plant,nsteps, &
+                        sapflow,rootuptake,wb_err_plant , dwat_plant, & 
                         dth_layershell_site)
 
 
@@ -4488,13 +4492,13 @@ contains
     real(r8),intent(out) :: sapflow                   ! time integrated mass flux between transp-root and stem [kg]
     real(r8),intent(out) :: rootuptake                ! time integrated mass flux between rhizosphere and aroot [kg]
    
-    integer,intent(out)                          :: nsteps       ! Number of rounds of attempts we have made
+    
     real(r8),intent(out)                         :: wb_err_plant ! total error over plant, transpiration 
     ! should match change in storage [kg/m2]
     real(r8),intent(out)                         :: dwat_plant   ! total change in water mass for the plant [kg]
     real(r8),intent(inout)                       :: dth_layershell_site(:,:)
 
-
+    integer :: nsteps       ! Number of rounds of attempts we have made
     integer :: i                 ! generic index (sometimes node index)
     integer :: inode             ! node index
     integer :: k                 ! generic node index
@@ -4616,6 +4620,10 @@ contains
       ! This NaN's the scratch arrays
       call site_hydr%FlushSiteScratch()
 
+      ! This is the maximum number of iterations needed for this cohort
+      ! (each soil layer has a different number, this saves the max)
+      cohort_hydr%iterh1 = 0
+      cohort_hydr%iterh2 = 0
 
       ! These are output fluxes from the subroutine, total integrated
       ! mass fluxes [kg] over the time-step. sapflow is the integrated
@@ -4989,18 +4997,17 @@ contains
                if(pm_node(k) == rhiz_p_media) then
                   psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
                   j = node_layer(k)
-                  print*,'psi:',psi_node(k),k,j
+             !     print*,'psi:',psi_node(k),residual(k),k,j
                   th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
                else
-                  print*,'psi:',psi_node(k),k
-                  print*,'residual:',residual(k)
+           !       print*,'psi:',psi_node(k),residual(k),k
                   psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
                   th_node(k) = wrf_plant(pm_node(k),ft)%p%th_from_psi(psi_node(k))
                endif
                
             enddo
 
-            stop
+!            stop
             
          endif
          
@@ -5081,6 +5088,15 @@ contains
 
 201      continue
 
+         ! Save the number of substeps needed
+         cohort_hydr%iterh1 = cohort_hydr%iterh1 + 1
+
+         ! Save the  max number of Newton iterations needed
+         cohort_hydr%iterh2 = max(cohort_hydr%iterh2,real(nwtn_iter))
+
+         print*,'Completed a newton solve'
+         print*,psi_node(:)
+         stop
 
          ! Save flux diagnostics
          ! ------------------------------------------------------
@@ -5100,6 +5116,7 @@ contains
          
       end do outerloop
 
+     
 
       ! If we have made it here, we have successfully integrated
       ! the water content. Transfer this from scratch space
@@ -5257,7 +5274,9 @@ contains
     integer :: ft            ! PFT index
     integer :: pm            ! plant media index
     integer :: inode         ! compartment node index
-
+    real(r8) :: cap_corr     ! correction for nonzero psi0x (TFS)
+    real(r8) :: cap_slp      ! slope of capillary region of curve
+    real(r8) :: cap_int      ! intercept of capillary region of curve
 
     if(hlm_use_planthydro.eq.ifalse) return
     
@@ -5312,14 +5331,10 @@ contains
                                           rwcft(pm), & 
                                           cap_corr, &
                                           cap_int, &
-                                          cap_slp])
+                                          cap_slp,real(pm,r8)])
            end do
         end do
 
-
-        
-        write(fates_log(),*) 'TFS water retention curves not yet added to plants'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
 
     ! -----------------------------------------------------------------------------------
