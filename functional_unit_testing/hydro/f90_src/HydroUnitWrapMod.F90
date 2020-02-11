@@ -13,7 +13,7 @@ module HydroUnitWrapMod
    
    use FatesHydroWTFMod, only : wrf_type,wrf_type_vg,wrf_type_cch
    use FatesHydroWTFMod, only : wkf_type,wkf_type_vg,wkf_type_cch,wkf_type_tfs
-   use FatesHydroWTFMod, only : wrf_arr_type,wkf_arr_type
+   use FatesHydroWTFMod, only : wrf_arr_type,wkf_arr_type,wrf_type_tfs
 
    implicit none
    public
@@ -57,6 +57,7 @@ contains
 
       class(wrf_type_vg), pointer :: wrf_vg
       class(wrf_type_cch), pointer :: wrf_cch
+      class(wrf_type_tfs), pointer :: wrf_tfs
 
       print*,"ALLOCATING WRF",index,itype
       print*,pvals
@@ -70,8 +71,9 @@ contains
           wrfs(index)%p => wrf_cch
           call wrf_cch%set_wrf_param(pvals)  !th_sat,psi_sat,beta
       else
-          print*,"UNKNOWN WRF"
-          stop
+         allocate(wrf_tfs)
+         wrfs(index)%p => wrf_tfs
+         call wrf_tfs%set_wrf_param(pvals)
       end if
 
       return

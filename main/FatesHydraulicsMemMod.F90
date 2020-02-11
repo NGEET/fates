@@ -48,6 +48,11 @@ module FatesHydraulicsMemMod
    integer, parameter, public :: aroot_p_media = 4
    integer, parameter, public :: rhiz_p_media  = 5
 
+   ! P-V curve: total RWC @ which elastic drainage begins (tfs)     [-]        
+   real(r8), parameter, public, dimension(n_porous_media) :: rwcft   = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
+   ! P-V curve: total RWC @ which capillary reserves exhausted (tfs)
+   real(r8), parameter, public, dimension(n_porous_media) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
+   
 
    ! mirror of nlevcan, hard-set for simplicity, remove nlevcan_hyd on a rainy day
    ! Note (RGK): uscing nclmax causes annoying circular dependency (this needs EDTypes, EDTypes needs this)

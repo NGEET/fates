@@ -45,7 +45,9 @@ module FatesPlantHydraulicsMod
 
   use EDParamsMod       , only : hydr_kmax_rsurf1
   use EDParamsMod       , only : hydr_kmax_rsurf2
-
+  use EDParamsMod       , only : hydr_psi0
+  use EDParamsMod       , only : hydr_psicap
+  
   use EDTypesMod        , only : ed_site_type
   use EDTypesMod        , only : ed_patch_type
   use EDTypesMod        , only : ed_cohort_type
@@ -83,7 +85,8 @@ module FatesPlantHydraulicsMod
   use FatesHydraulicsMemMod, only: nlevsoi_hyd_max
   use FatesHydraulicsMemMod, only: cohort_recruit_water_layer
   use FatesHydraulicsMemMod, only: recruit_water_avail_layer  
-
+  use FatesHydraulicsMemMod, only: rwccap, rwcft
+  
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
@@ -93,7 +96,7 @@ module FatesPlantHydraulicsMod
 
   use FatesHydroWTFMod, only : wrf_arr_type
   use FatesHydroWTFMod, only : wkf_arr_type
-  use FatesHydroWTFMod, only : wrf_type, wrf_type_vg, wrf_type_cch
+  use FatesHydroWTFMod, only : wrf_type, wrf_type_vg, wrf_type_cch, wrt_type_tfs
   use FatesHydroWTFMod, only : wkf_type, wkf_type_vg, wkf_type_cch, wkf_type_tfs
 
 
@@ -5249,6 +5252,7 @@ contains
     class(wkf_type_vg), pointer :: wkf_vg
     class(wrf_type_cch), pointer :: wrf_cch
     class(wkf_type_tfs), pointer :: wkf_tfs
+    class(wrf_type_tfs), pointer :: wrf_tfs
 
     integer :: ft            ! PFT index
     integer :: pm            ! plant media index
@@ -5280,13 +5284,40 @@ contains
            do pm = 1,n_plant_media
               allocate(wrf_cch)
               wrf_plant(pm,ft)%p => wrf_cch
-              call wrf_cch%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm),EDPftvarcon_inst%hydr_pinot_node(ft,pm),9._r8])
-!              this%th_sat  = params_in(1)
-!              this%psi_sat = params_in(2)
-!              this%beta    = params_in(3)
+              call wrf_cch%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
+                                          EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
+                                          9._r8])
            end do
         end do
-    case(tfs_type)
+     case(tfs_type)
+        do ft = 1,numpft
+           do pm = 1,n_plant_media
+              allocate(wrf_tfs)
+              wrf_plant(pm,ft)%p => wrf_tfs
+
+              if (pm.eq.leaf_p_media) then   ! Leaf tissue
+                 cap_slp    = 0.0_r8
+                 cap_int    = 0.0_r8
+                 cap_corr   = 1.0_r8
+              else               ! Non leaf tissues
+                 cap_slp    = (hydr_psi0 - hydr_psicap )/(1.0_r8 - rwccap(pm))  
+                 cap_int    = -cap_slp + hydr_psi0    
+                 cap_corr   = -cap_int/cap_slp
+              end if
+              
+              call wrf_tfs%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
+                                          EDPftvarcon_inst%hydr_resid_node(ft,pm), &
+                                          EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
+                                          EDPftvarcon_inst%hydr_epsil_node(ft,pm), &
+                                          rwcft(pm), & 
+                                          cap_corr, &
+                                          cap_int, &
+                                          cap_slp])
+           end do
+        end do
+
+
+        
         write(fates_log(),*) 'TFS water retention curves not yet added to plants'
         call endrun(msg=errMsg(sourcefile, __LINE__))
     end select

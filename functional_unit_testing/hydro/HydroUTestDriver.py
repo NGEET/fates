@@ -128,6 +128,20 @@ class cch_wkf:
         iret = setwkf(ci(index),ci(cch_type),ci(len(init_wkf_args)),c8_arr(init_wkf_args))
 
 
+class tfs_wrf:        
+    def __init__(self,index,th_sat,th_res,pinot,epsil,rwc_fd,cap_corr,cap_int,cap_slp,pmedia):
+        self.th_sat = th_sat
+        self.th_res = th_res
+        self.pinot  = pinot
+        self.epsil  = epsil
+        self.rwc_fd = rwc_fd
+        self.cap_corr = cap_corr
+        self.cap_int  = cap_int
+        self.cap_slp  = cap_slp
+        self.pmedia   = pmedia
+        init_wrf_args = [self.th_sat,self.th_res,self.pinot,self.epsil,self.rwc_fd,self.cap_corr,self.cap_int,self.cap_slp,self.pmedia]
+        iret = setwrf(ci(index),ci(tfs_type),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
+        
 class tfs_wkf:        
     def __init__(self,index,p50,avuln):
         self.avuln = avuln
@@ -177,8 +191,25 @@ def main(argv):
 #    avuln   = [2.0, 2.0, 2.5, 2.5]
 #    p50     = [-1.5, -1.5, -2.25, -2.25]
 
-    ncomp= 3
+    ncomp= 4
 
+    rwc_fd   = [1.0,0.958,0.958,0.958]
+    rwccap  = [1.0,0.947,0.947,0.947]
+    cap_slp = []
+    cap_int = []
+    cap_corr= []
+    hydr_psi0 = 0.0
+    hydr_psicap = -0.6
+
+    for pm in range(4):
+        if (pm == 0):
+            cap_slp.append(0.0)
+            cap_int.append(0.0)
+            cap_corr.append(1.0)
+        else:
+            cap_slp.append((hydr_psi0 - hydr_psicap )/(1.0 - rwccap[pm]))
+            cap_int.append(-cap_slp[pm] + hydr_psi0)    
+            cap_corr.append(-cap_int[pm]/cap_slp[pm])
         
     
     # Allocate memory to our objective classes
@@ -194,7 +225,15 @@ def main(argv):
     cch_wkf(2,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
 
     cch_wrf(3,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
-    tfs_wkf(3,p50=-1.5, avuln=2.0)
+    tfs_wkf(3,p50=-2.25, avuln=2.0)
+
+    # Leaf
+    tfs_wrf(4,th_sat=0.65,th_res=0.25,pinot=-1.47, \
+            epsil=12,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
+            cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1)
+    tfs_wkf(3,p50=-2.25, avuln=2.0)
+
+
     
     print('initialized WRF')
 
