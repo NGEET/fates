@@ -191,9 +191,9 @@ def main(argv):
 #    avuln   = [2.0, 2.0, 2.5, 2.5]
 #    p50     = [-1.5, -1.5, -2.25, -2.25]
 
-    ncomp= 4
+    ncomp= 2
 
-    rwc_fd   = [1.0,0.958,0.958,0.958]
+    rwc_fd  = [1.0,0.958,0.958,0.958]
     rwccap  = [1.0,0.947,0.947,0.947]
     cap_slp = []
     cap_int = []
@@ -218,20 +218,20 @@ def main(argv):
 
 
     # Define the funcions and their parameters
-    vg_wrf(1,alpha=1.0,psd=2.7,th_sat=0.55,th_res=0.1)
-    vg_wkf(1,alpha=1.0,psd=2.7,th_sat=0.55,th_res=0.1,tort=0.5)
+#    vg_wrf(1,alpha=1.0,psd=2.7,th_sat=0.55,th_res=0.1)
+#    vg_wkf(1,alpha=1.0,psd=2.7,th_sat=0.55,th_res=0.1,tort=0.5)
 
-    cch_wrf(2,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
-    cch_wkf(2,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
+    cch_wrf(1,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
+    cch_wkf(1,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
 
-    cch_wrf(3,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
-    tfs_wkf(3,p50=-2.25, avuln=2.0)
+#    cch_wrf(3,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
+#    tfs_wkf(3,p50=-2.25, avuln=2.0)
 
     # Leaf
-    tfs_wrf(4,th_sat=0.65,th_res=0.25,pinot=-1.47, \
+    tfs_wrf(2,th_sat=0.65,th_res=0.25,pinot=-1.47, \
             epsil=12,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
             cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1)
-    tfs_wkf(4,p50=-2.25, avuln=2.0)
+    tfs_wkf(2,p50=-2.25, avuln=2.0)
 
 
 
