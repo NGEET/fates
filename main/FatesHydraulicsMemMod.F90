@@ -142,7 +142,8 @@ module FatesHydraulicsMemMod
      ! Useful diagnostics
      ! ----------------------------------------------------------------------------------
 
-!!     real(r8),allocatable ::  sapflow(:,:)        ! flow at base of tree (+ upward)      [kg/cohort/s]
+     real(r8),allocatable ::  sapflow(:,:)        ! flow at base of tree (+ upward)      [kg/indiv/s]
+                                                  ! discretized by size x pft
 !!     real(r8),allocatable ::  rootuptake(:)       ! net flow into roots (+ into roots)   [kg/cohort/s]
 
 
@@ -378,11 +379,12 @@ module FatesHydraulicsMemMod
 
     ! ===================================================================================
 
-    subroutine InitHydrSite(this)
+    subroutine InitHydrSite(this,numpft,numlevsclass)
        
        ! Arguments
        class(ed_site_hydr_type),intent(inout) :: this
-
+       integer,intent(in) :: numpft
+       integer,intent(in) :: numlevsclass
        associate( nlevsoil_hydr => this%nlevsoi_hyd )
          
          allocate(this%v_shell(1:nlevsoil_hydr,1:nshell))         ; this%v_shell = nan
@@ -399,7 +401,8 @@ module FatesHydraulicsMemMod
          allocate(this%h2osoi_liq_prev(1:nlevsoil_hydr))          ; this%h2osoi_liq_prev = nan
          allocate(this%rs1(1:nlevsoil_hydr)); this%rs1(:) = fine_root_radius_const
          allocate(this%recruit_w_uptake(1:nlevsoil_hydr)); this%recruit_w_uptake = nan
-
+         allocate(this%sapflow(1:numlevsclass,1:numpft)); this%sapflow = nan
+         
          this%errh2o_hyd     = nan
          this%dwat_veg       = nan
          this%h2oveg         = 0.0_r8

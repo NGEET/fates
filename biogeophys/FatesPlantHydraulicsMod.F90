@@ -59,6 +59,7 @@ module FatesPlantHydraulicsMod
   use FatesInterfaceMod  , only : hlm_use_planthydro
   use FatesInterfaceMod  , only : hlm_ipedof
   use FatesInterfaceMod  , only : numpft
+  use FatesInterfaceMod  , only : nlevsclass
 
   use FatesAllometryMod, only    : bsap_allom
   use FatesAllometryMod, only    : CrownDepth
@@ -1256,12 +1257,11 @@ contains
 
   ! =====================================================================================
 
-  subroutine InitHydrSites(sites,bc_in,numpft)
+  subroutine InitHydrSites(sites,bc_in)
 
     ! Arguments
     type(ed_site_type),intent(inout),target :: sites(:)
     type(bc_in_type),intent(in)             :: bc_in(:)
-    integer,intent(in)                      :: numpft
 
     ! Locals
     integer :: nsites
@@ -1288,7 +1288,7 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
        sites(s)%si_hydr%nlevsoi_hyd = bc_in(s)%nlevsoil
-       call sites(s)%si_hydr%InitHydrSite()
+       call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass)
 
 
        
@@ -2285,6 +2285,7 @@ contains
 !    real(r8) :: supsub_error                  ! Amount of mass created or destroyed to prevent super-saturation
 !                                              ! or sub-residual water contents from occuring in the soil [kg/m2]
 
+    integer,allocatable :: ncohorts_scpf(:,:)!nlevsclass,numpft)
     
     ! hydraulics other
     integer  :: ordered(nlevsoi_hyd_max) = (/(j,j=1,nlevsoi_hyd_max,1)/) ! array of soil layer indices which have been ordered
@@ -2323,7 +2324,7 @@ contains
     real(r8) :: delta_plant_storage
     real(r8) :: delta_soil_storage
     real(r8) :: mean_theta                   ! mean water content per soil layer (testing) [m3/m3]
-
+    integer  :: sc                           ! size class index
     type(ed_site_hydr_type), pointer :: site_hydr
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     integer  :: err_code = 0
@@ -2353,6 +2354,9 @@ contains
     !update water storage in veg after incorporating newly recuited cohorts
     if(recruitflag) call UpdateH2OVeg(nsites,sites,bc_out)
 
+    ! This helps with diagnostics
+    allocate(ncohorts_scpf(nlevsclass,numpft))
+    
     do s = 1, nsites
 
        site_hydr => sites(s)%si_hydr
@@ -2361,11 +2365,13 @@ contains
        dth_layershell_col(:,:)  = 0._r8
        site_hydr%dwat_veg       = 0._r8
        site_hydr%errh2o_hyd     = 0._r8
+       ncohorts_scpf(:,:)       = 0
        prev_h2oveg    = site_hydr%h2oveg
        prev_h2osoil   = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
                         site_hydr%v_shell(:,:)) * denh2o * AREA_INV
 
        bc_out(s)%qflx_ro_sisl(:) = 0._r8
+       site_hydr%sapflow(:,:) = 0._r8
        
        ! Initialize water mass balancing terms [kg h2o / m2]
        ! --------------------------------------------------------------------------------
@@ -2432,9 +2438,7 @@ contains
              ccohort_hydr => ccohort%co_hydr
              ft       = ccohort%pft
 
-!             ccohort_hydr%sapflow         = 0._r8
 !             ccohort_hydr%rootuptake      = 0._r8
-             
 
              ! Relative transpiration of this cohort from the whole patch
              ! Note that g_sb_laweight / gscan_patch is the weighting that gives cohort contribution per area
@@ -2533,6 +2537,12 @@ contains
              ! Update total site-level stored plant water [kg/m2]
              ! (this is not zerod, but incremented)
              site_hydr%h2oveg     = site_hydr%h2oveg + dwat_plant*ccohort%n*AREA_INV
+
+             ! Sapflow diagnostic [kg/indiv/s]
+             ncohorts_scpf(ccohort%size_class,ft) = &
+                  ncohorts_scpf(ccohort%size_class,ft) + 1
+             site_hydr%sapflow(ccohort%size_class,ft) = &
+                  site_hydr%sapflow(ccohort%size_class,ft) + sapflow/dtime
              
              
              ! ---------------------------------------------------------
@@ -2705,7 +2715,6 @@ contains
        ! [kg/m2] -> [mm/s]
        !
 !       if(bc_out(s)%qflx_ro_si>nearzero) print*,'sum runoff: ',site_runoff,bc_out(s)%qflx_ro_si
-       
        !write(fates_log(),*) 'hydro wb terms: --------------------------'
        !write(fates_log(),*) site_hydr%h2oveg
        !write(fates_log(),*) site_hydr%h2oveg_dead
@@ -2713,9 +2722,19 @@ contains
        !write(fates_log(),*) site_hydr%h2oveg_pheno_err
        !write(fates_log(),*) site_hydr%h2oveg_hydro_err
 
-
+       do ft = 1, numpft
+          do sc = 1,nlevsclass
+             if(ncohorts_scpf(sc,ft)>0)then
+                site_hydr%sapflow(sc,ft) = &
+                     site_hydr%sapflow(sc,ft) / real(ncohorts_scpf(sc,ft),r8)
+             end if
+          end do
+       end do
+       
     enddo !site
-
+    
+    deallocate(ncohorts_scpf)
+    
   end subroutine Hydraulics_BC
 
   ! =====================================================================================

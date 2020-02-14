@@ -427,7 +427,7 @@ module FatesHistoryInterfaceMod
 !  integer :: ih_rootuptake_scpf
 !  integer :: ih_rootuptake_sl
   integer :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
-!  integer :: ih_sapflow_scpf
+  integer :: ih_sapflow_scpf
   integer :: ih_iterh1_scpf          
   integer :: ih_iterh2_scpf           
   integer :: ih_supsub_scpf              
@@ -2085,7 +2085,7 @@ end subroutine flush_hvars
                   struct_c_turnover = ccohort%prt%GetTurnover(struct_organ, all_carbon_elements) * days_per_year
                   
                   ! Net change from allocation and transport [kgC/day] * [day/yr] = [kgC/yr]
-                  sapw_c_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, all_carbon_elements) * days_per_year
+                 sapw_c_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, all_carbon_elements) * days_per_year
                   store_c_net_alloc  = ccohort%prt%GetNetAlloc(store_organ, all_carbon_elements) * days_per_year
                   leaf_c_net_alloc   = ccohort%prt%GetNetAlloc(leaf_organ, all_carbon_elements) * days_per_year
                   fnrt_c_net_alloc   = ccohort%prt%GetNetAlloc(fnrt_organ, all_carbon_elements) * days_per_year
@@ -3255,8 +3255,11 @@ end subroutine flush_hvars
                                                    ! should be "hio_nplant_si_scpf"
     real(r8) :: number_fraction
     real(r8) :: number_fraction_rate
+    real(r8) :: mean_aroot
     integer  :: ipa2     ! patch incrementer
     integer  :: iscpf    ! index of the scpf group
+    integer  :: ipft     ! index of the pft loop
+    integer  :: iscls    ! index of the size-class loop
     integer  :: j        ! soil layer index
     integer  :: k        ! rhizosphere shell index
 
@@ -3275,7 +3278,7 @@ end subroutine flush_hvars
 !          hio_rootuptake_scpf   => this%hvars(ih_rootuptake_scpf)%r82d, &
 !          hio_rootuptake_sl     => this%hvars(ih_rootuptake_sl)%r82d, &
           hio_h2osoi_shsl       => this%hvars(ih_h2osoi_si_scagpft)%r82d, &
-!          hio_sapflow_scpf      => this%hvars(ih_sapflow_scpf)%r82d, &
+          hio_sapflow_scpf      => this%hvars(ih_sapflow_scpf)%r82d, &
           hio_iterh1_scpf       => this%hvars(ih_iterh1_scpf)%r82d, &          
           hio_iterh2_scpf       => this%hvars(ih_iterh2_scpf)%r82d, &           
           hio_ath_scpf          => this%hvars(ih_ath_scpf)%r82d, &               
@@ -3325,7 +3328,15 @@ end subroutine flush_hvars
             enddo ! cohort loop
             cpatch => cpatch%younger
          end do !patch loop
+
          
+         do ipft = 1, numpft
+            do iscls = 1,nlevsclass
+               iscpf = (ipft-1)*nlevsclass + iscls
+               hio_sapflow_scpf(io_si,iscpf) = hio_sapflow_scpf(io_si,iscpf)  + &
+                    sites(s)%si_hydr%sapflow(iscls, ipft)             ! [kg/indiv/s]
+            end do
+         end do
 
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -3372,17 +3383,19 @@ end subroutine flush_hvars
 !                            ccohort_hydr%rootuptake(j) * number_fraction_rate       ! [kg/indiv/s]
 !                  end do
                   
-!                  hio_sapflow_scpf(io_si,iscpf)         = hio_sapflow_scpf(io_si,iscpf)  + &
-!                        ccohort_hydr%sapflow * number_fraction_rate             ! [kg/indiv/s]
+
                   
                   hio_iterh1_scpf(io_si,iscpf)          = hio_iterh1_scpf(io_si,iscpf) + &
                         ccohort_hydr%iterh1  * number_fraction             ! [-]
                   
                   hio_iterh2_scpf(io_si,iscpf)          = hio_iterh2_scpf(io_si,iscpf) + &
                         ccohort_hydr%iterh2 * number_fraction             ! [-]
+
+                  mean_aroot = sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)) / &
+                       sum(ccohort_hydr%v_aroot_layer(:))
                   
                   hio_ath_scpf(io_si,iscpf)             = hio_ath_scpf(io_si,iscpf) + &
-                        ccohort_hydr%th_aroot(1)   * number_fraction      ! [m3 m-3]
+                       mean_aroot * number_fraction      ! [m3 m-3]
                   
                   hio_tth_scpf(io_si,iscpf)             = hio_tth_scpf(io_si,iscpf) + &
                         ccohort_hydr%th_troot  * number_fraction         ! [m3 m-3]
@@ -3392,9 +3405,12 @@ end subroutine flush_hvars
                   
                   hio_lth_scpf(io_si,iscpf)             =  hio_lth_scpf(io_si,iscpf) + &
                         ccohort_hydr%th_ag(1)  * number_fraction        ! [m3 m-3]
+
+                  mean_aroot = sum(ccohort_hydr%psi_aroot(:)*ccohort_hydr%v_aroot_layer(:)) / &
+                       sum(ccohort_hydr%v_aroot_layer(:))
                   
                   hio_awp_scpf(io_si,iscpf)             = hio_awp_scpf(io_si,iscpf) + &
-                        ccohort_hydr%psi_aroot(1)   * number_fraction     ! [MPa]
+                       mean_aroot * number_fraction     ! [MPa]
                   
                   hio_twp_scpf(io_si,iscpf)             = hio_twp_scpf(io_si,iscpf) + &
                         ccohort_hydr%psi_troot  * number_fraction       ! [MPa]
@@ -3403,10 +3419,12 @@ end subroutine flush_hvars
                         ccohort_hydr%psi_ag(2)  * number_fraction       ! [MPa]
                   
                   hio_lwp_scpf(io_si,iscpf)             = hio_lwp_scpf(io_si,iscpf) + &
-                        ccohort_hydr%psi_ag(1)  * number_fraction       ! [MPa]
-			
+                       ccohort_hydr%psi_ag(1)  * number_fraction       ! [MPa]
+
+                  mean_aroot = sum(ccohort_hydr%ftc_aroot(:)*ccohort_hydr%v_aroot_layer(:)) / &
+                       sum(ccohort_hydr%v_aroot_layer(:))
                   hio_aflc_scpf(io_si,iscpf)             = hio_aflc_scpf(io_si,iscpf) + &
-                        ccohort_hydr%ftc_aroot(1)   * number_fraction     
+                        mean_aroot   * number_fraction     
                   
                   hio_tflc_scpf(io_si,iscpf)             = hio_tflc_scpf(io_si,iscpf) + &
                         ccohort_hydr%ftc_troot  * number_fraction     
@@ -3874,8 +3892,6 @@ end subroutine flush_hvars
          long='Seed mass decay', use_default='active',                          &
          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_seed_decay_elem )
-
-
     
     call this%set_history_var(vname='ED_bstore', units='gC m-2',                  &
          long='Storage biomass', use_default='active',                          &
@@ -5030,10 +5046,10 @@ end subroutine flush_hvars
              avgflag='A', vtype=site_scagpft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_h2osoi_si_scagpft )
        
-!       call this%set_history_var(vname='FATES_SAPFLOW_COL_SCPF', units='kg/indiv/s', &
-!             long='individual sap flow rate', use_default='inactive', &
-!             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-!             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_sapflow_scpf )
+       call this%set_history_var(vname='FATES_SAPFLOW_COL_SCPF', units='kg/indiv/s', &
+             long='individual sap flow rate', use_default='inactive', &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_sapflow_scpf )
        
        call this%set_history_var(vname='FATES_ITERH1_COL_SCPF', units='count/indiv/step', &
              long='number of outer iterations required to achieve tolerable water balance error', &
@@ -5111,6 +5127,12 @@ end subroutine flush_hvars
              long='mean individual level btran', use_default='inactive', &
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_btran_scpf )
+
+!       call this%set_history_var(vname='FATES_SMATPOT_SISL', units='MPa', &
+!             long='mean soil water matric potenial by layer', use_default='inactive', &
+!             avgflag='A', vtype=site_layer_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+!             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_btran_scpf )
+
        
 !       call this%set_history_var(vname='FATES_LAROOT_COL_SCPF', units='kg/indiv/s', &
 !             long='Needs Description', use_default='active', &

@@ -191,7 +191,7 @@ def main(argv):
 #    avuln   = [2.0, 2.0, 2.5, 2.5]
 #    p50     = [-1.5, -1.5, -2.25, -2.25]
 
-    ncomp= 2
+    ncomp= 3
 
     rwc_fd  = [1.0,0.958,0.958,0.958]
     rwccap  = [1.0,0.947,0.947,0.947]
@@ -227,13 +227,19 @@ def main(argv):
 #    cch_wrf(3,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
 #    tfs_wkf(3,p50=-2.25, avuln=2.0)
 
-    # Leaf
-    tfs_wrf(2,th_sat=0.65,th_res=0.25,pinot=-1.47, \
-            epsil=12,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
-            cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1)
+    names=['Soil','ARoot','Leaf']
+
+    # Absorving root
+    tfs_wrf(2,th_sat=0.75,th_res=0.15,pinot=-1.043478, \
+            epsil=8,rwc_fd=rwc_fd[3],cap_corr=cap_corr[3], \
+            cap_int=cap_int[3],cap_slp=cap_slp[3],pmedia=4)
     tfs_wkf(2,p50=-2.25, avuln=2.0)
 
-
+    # Leaf
+    tfs_wrf(3,th_sat=0.65,th_res=0.25,pinot=-1.47, \
+            epsil=12,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
+            cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1)
+    tfs_wkf(3,p50=-2.25, avuln=2.0)
 
     print('initialized WRF')
 
@@ -251,7 +257,7 @@ def main(argv):
 
     fig0, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
-        ax1.plot(theta,psi[ic,:],label='{}'.format(ic+1))
+        ax1.plot(theta,psi[ic,:],label='{}'.format(names[ic]))
 
     ax1.set_ylim((-30,5))
     ax1.set_ylabel('Matric Potential [MPa]')
@@ -298,7 +304,7 @@ def main(argv):
 
     fig2, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
-        ax1.plot(psi[ic,:],ftc[ic,:],label='{}'.format(ic+1))
+        ax1.plot(psi[ic,:],ftc[ic,:],label='{}'.format(names[ic]))
 
     ax1.set_ylabel('FTC')
     ax1.set_xlabel('Psi [MPa]')
@@ -310,7 +316,7 @@ def main(argv):
 
     fig4, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
-        ax1.plot(theta,ftc[ic,:],label='{}'.format(ic+1))
+        ax1.plot(theta,ftc[ic,:],label='{}'.format(names[ic]))
 
     ax1.set_ylabel('FTC')
     ax1.set_xlabel('Theta [m3/m3]')
