@@ -41,7 +41,7 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
   use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
-  use FatesPlantHydraulicsMod, only : initTreeHydStates
+  use FatesPlantHydraulicsMod, only : InitTreeHydStates
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
@@ -182,7 +182,7 @@ contains
     integer  :: iage                           ! loop counter for leaf age classes 
     real(r8) :: leaf_c                         ! total leaf carbon
     integer  :: tnull,snull                    ! are the tallest and shortest cohorts allocate
-    integer  :: nlevsoi_hyd                    ! number of hydraulically active soil layers 
+    integer  :: nlevrhiz                       ! number of rhizosphere layers
 
     !----------------------------------------------------------------------
 
@@ -287,20 +287,20 @@ contains
 
     if( hlm_use_planthydro.eq.itrue ) then
 
-       nlevsoi_hyd = currentSite%si_hydr%nlevsoi_hyd
+       nlevrhiz = currentSite%si_hydr%nlevrhiz
 
        ! This allocates array spaces
        call InitHydrCohort(currentSite,new_cohort)
 
        ! This calculates node heights
        call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
-                                new_cohort%hite,nlevsoi_hyd,bc_in)
+                                new_cohort%hite,currentSite%si_hydr)
 
        ! This calculates volumes and lengths
-       call UpdateTreeHydrLenVol(new_cohort,nlevsoi_hyd,bc_in)
+       call UpdateTreeHydrLenVol(new_cohort,currentSite%si_hydr)
        
        ! This updates the Kmax's of the plant's compartments
-       call UpdatePlantKmax(new_cohort%co_hydr,new_cohort,currentSite%si_hydr,bc_in)
+       call UpdatePlantKmax(new_cohort%co_hydr,new_cohort,currentSite%si_hydr)
 
        ! Since this is a newly initialized plant, we set the previous compartment-size
        ! equal to the ones we just calculated.
@@ -308,7 +308,7 @@ contains
        
        ! This comes up with starter suctions and then water contents
        ! based on the soil values
-       call initTreeHydStates(currentSite,new_cohort, bc_in)
+       call InitTreeHydStates(currentSite,new_cohort)
 
        if(recruitstatus==1)then
 

@@ -61,8 +61,11 @@ module FatesHydraulicsMemMod
                        
    ! Mean fine root radius expected in the bulk soil                
    real(r8), parameter, public                         :: fine_root_radius_const = 0.0001_r8
-   
 
+   ! Should we ignore the first soil layer and have root layers start on the second?
+   logical, parameter, public :: ignore_layer1=.true.
+   
+   
    ! Derived parameters
    ! ----------------------------------------------------------------------------------------------
    
@@ -74,12 +77,11 @@ module FatesHydraulicsMemMod
    type, public :: ed_site_hydr_type
 
       ! Plant Hydraulics
-     
-     integer              :: nlevsoi_hyd            ! The number of soil hydraulic layers
-                                                    ! the host model may offer different number of
-                                                    ! layers for every site, and hydraulics
-                                                    ! may or may not cross that with a simple or
-                                                    ! non-simple layering
+     integer :: i_rhiz_t                            ! Soil layer index of top rhizosphere
+     integer :: i_rhiz_b                            ! Soil layer index of bottom rhizospher layer
+     integer               :: nlevrhiz              ! Number of rhizosphere levels (vertical layers)
+     real(r8), allocatable :: zi_rhiz(:)            ! Depth of the bottom edge of each rhizosphere level [m]
+     real(r8), allocatable :: dz_rhiz(:)            ! Width of each rhizosphere level [m]
 
      real(r8),allocatable :: v_shell(:,:)           ! Volume of rhizosphere compartment (m3) over the
                                                     ! entire site (ha), absolute quantity
@@ -333,24 +335,23 @@ module FatesHydraulicsMemMod
    
  contains
     
-    subroutine AllocateHydrCohortArrays(this,nlevsoil_hydr)
+    subroutine AllocateHydrCohortArrays(this,nlevrhiz)
        
        ! Arguments
        class(ed_cohort_hydr_type),intent(inout) :: this
-       integer, intent(in)                      :: nlevsoil_hydr
+       integer, intent(in)                      :: nlevrhiz
 
-       allocate(this%kmax_troot_lower(1:nlevsoil_hydr))
-       allocate(this%kmax_aroot_upper(1:nlevsoil_hydr))
-       allocate(this%kmax_aroot_lower(1:nlevsoil_hydr))
-       allocate(this%kmax_aroot_radial_in(1:nlevsoil_hydr))
-       allocate(this%kmax_aroot_radial_out(1:nlevsoil_hydr))
-       allocate(this%v_aroot_layer_init(1:nlevsoil_hydr))
-       allocate(this%v_aroot_layer(1:nlevsoil_hydr))
-       allocate(this%l_aroot_layer(1:nlevsoil_hydr))
-       allocate(this%th_aroot(1:nlevsoil_hydr))
-       allocate(this%psi_aroot(1:nlevsoil_hydr))
-       allocate(this%ftc_aroot(1:nlevsoil_hydr))
-!       allocate(this%rootuptake(1:nlevsoil_hydr))
+       allocate(this%kmax_troot_lower(1:nlevrhiz))
+       allocate(this%kmax_aroot_upper(1:nlevrhiz))
+       allocate(this%kmax_aroot_lower(1:nlevrhiz))
+       allocate(this%kmax_aroot_radial_in(1:nlevrhiz))
+       allocate(this%kmax_aroot_radial_out(1:nlevrhiz))
+       allocate(this%v_aroot_layer_init(1:nlevrhiz))
+       allocate(this%v_aroot_layer(1:nlevrhiz))
+       allocate(this%l_aroot_layer(1:nlevrhiz))
+       allocate(this%th_aroot(1:nlevrhiz))
+       allocate(this%psi_aroot(1:nlevrhiz))
+       allocate(this%ftc_aroot(1:nlevrhiz))
 
        return
     end subroutine AllocateHydrCohortArrays
@@ -372,7 +373,6 @@ module FatesHydraulicsMemMod
        deallocate(this%th_aroot)
        deallocate(this%psi_aroot)
        deallocate(this%ftc_aroot)
-!       deallocate(this%rootuptake)
 
        return
     end subroutine DeallocateHydrCohortArrays
@@ -385,22 +385,25 @@ module FatesHydraulicsMemMod
        class(ed_site_hydr_type),intent(inout) :: this
        integer,intent(in) :: numpft
        integer,intent(in) :: numlevsclass
-       associate( nlevsoil_hydr => this%nlevsoi_hyd )
-         
-         allocate(this%v_shell(1:nlevsoil_hydr,1:nshell))         ; this%v_shell = nan
-         allocate(this%v_shell_init(1:nlevsoil_hydr,1:nshell))    ; this%v_shell_init = nan
-         allocate(this%r_node_shell(1:nlevsoil_hydr,1:nshell))    ; this%r_node_shell = nan
-         allocate(this%r_node_shell_init(1:nlevsoil_hydr,1:nshell)); this%r_node_shell_init = nan
-         allocate(this%r_out_shell(1:nlevsoil_hydr,1:nshell))     ; this%r_out_shell = nan
-         allocate(this%l_aroot_layer(1:nlevsoil_hydr))            ; this%l_aroot_layer = nan
-         allocate(this%l_aroot_layer_init(1:nlevsoil_hydr))       ; this%l_aroot_layer_init = nan
-         allocate(this%kmax_upper_shell(1:nlevsoil_hydr,1:nshell)); this%kmax_upper_shell = nan
-         allocate(this%kmax_lower_shell(1:nlevsoil_hydr,1:nshell)); this%kmax_lower_shell = nan
-         allocate(this%supsub_flag(1:nlevsoil_hydr))                ; this%supsub_flag = -999
-         allocate(this%h2osoi_liqvol_shell(1:nlevsoil_hydr,1:nshell)) ; this%h2osoi_liqvol_shell = nan
-         allocate(this%h2osoi_liq_prev(1:nlevsoil_hydr))          ; this%h2osoi_liq_prev = nan
-         allocate(this%rs1(1:nlevsoil_hydr)); this%rs1(:) = fine_root_radius_const
-         allocate(this%recruit_w_uptake(1:nlevsoil_hydr)); this%recruit_w_uptake = nan
+
+       associate(nlevrhiz => this%nlevrhiz)
+
+         allocate(this%zi_rhiz(1:nlevrhiz));  this%zi_rhiz(:)  = nan
+         allocate(this%dz_rhiz(1:nlevrhiz)); this%dz_rhiz(:) = nan
+         allocate(this%v_shell(1:nlevrhiz,1:nshell))         ; this%v_shell = nan
+         allocate(this%v_shell_init(1:nlevrhiz,1:nshell))    ; this%v_shell_init = nan
+         allocate(this%r_node_shell(1:nlevrhiz,1:nshell))    ; this%r_node_shell = nan
+         allocate(this%r_node_shell_init(1:nlevrhiz,1:nshell)); this%r_node_shell_init = nan
+         allocate(this%r_out_shell(1:nlevrhiz,1:nshell))     ; this%r_out_shell = nan
+         allocate(this%l_aroot_layer(1:nlevrhiz))            ; this%l_aroot_layer = nan
+         allocate(this%l_aroot_layer_init(1:nlevrhiz))       ; this%l_aroot_layer_init = nan
+         allocate(this%kmax_upper_shell(1:nlevrhiz,1:nshell)); this%kmax_upper_shell = nan
+         allocate(this%kmax_lower_shell(1:nlevrhiz,1:nshell)); this%kmax_lower_shell = nan
+         allocate(this%supsub_flag(1:nlevrhiz))                ; this%supsub_flag = -999
+         allocate(this%h2osoi_liqvol_shell(1:nlevrhiz,1:nshell)) ; this%h2osoi_liqvol_shell = nan
+         allocate(this%h2osoi_liq_prev(1:nlevrhiz))          ; this%h2osoi_liq_prev = nan
+         allocate(this%rs1(1:nlevrhiz)); this%rs1(:) = fine_root_radius_const
+         allocate(this%recruit_w_uptake(1:nlevrhiz)); this%recruit_w_uptake = nan
          allocate(this%sapflow(1:numlevsclass,1:numpft)); this%sapflow = nan
          
          this%errh2o_hyd     = nan
@@ -411,64 +414,64 @@ module FatesHydraulicsMemMod
          this%h2oveg_growturn_err = 0.0_r8
          this%h2oveg_pheno_err    = 0.0_r8
          this%h2oveg_hydro_err    = 0.0_r8
-
+         
          ! We have separate water transfer functions and parameters
          ! for each soil layer, and each plant compartment type
-         allocate(this%wrf_soil(1:nlevsoil_hydr))
-         allocate(this%wkf_soil(1:nlevsoil_hydr))
-
+         allocate(this%wrf_soil(1:nlevrhiz))
+         allocate(this%wkf_soil(1:nlevrhiz))
+         
          if(use_2d_hydrosolve) then
-             
-             this%num_connections =  n_hypool_leaf + n_hypool_stem + n_hypool_troot - 1  &
-                   + (n_hypool_aroot + nshell) * nlevsoil_hydr
-
-             this%num_nodes = n_hypool_leaf + n_hypool_stem + n_hypool_troot  &
-                   + (n_hypool_aroot + nshell) * nlevsoil_hydr
-
-             ! These are only in the newton-matrix solve
-             allocate(this%conn_up(this%num_connections))
-             allocate(this%conn_dn(this%num_connections))
-             allocate(this%residual(this%num_nodes))
-             allocate(this%ajac(this%num_nodes,this%num_nodes))
-             allocate(this%th_node_init(this%num_nodes))
-             allocate(this%th_node(this%num_nodes))
-             allocate(this%dth_node(this%num_nodes))
-             allocate(this%h_node(this%num_nodes))
-             allocate(this%v_node(this%num_nodes))
-             allocate(this%z_node(this%num_nodes))
-             allocate(this%psi_node(this%num_nodes))
-             allocate(this%q_flux(this%num_connections))
-             allocate(this%dftc_dpsi_node(this%num_nodes))
-             allocate(this%ftc_node(this%num_nodes))
-             allocate(this%pm_node(this%num_nodes))
-             allocate(this%ipiv(this%num_nodes))
-             allocate(this%node_layer(this%num_nodes))
-
-             allocate(this%kmax_up(this%num_connections))
-             allocate(this%kmax_dn(this%num_connections))
-             
-          else
-             
-             this%num_connections =  n_hypool_leaf + n_hypool_stem + & 
-                   n_hypool_troot + n_hypool_aroot + nshell -1 
-             
-             this%num_nodes = n_hypool_leaf + n_hypool_stem + & 
+            
+            this%num_connections =  n_hypool_leaf + n_hypool_stem + n_hypool_troot - 1  &
+                 + (n_hypool_aroot + nshell) * nlevrhiz
+            
+            this%num_nodes = n_hypool_leaf + n_hypool_stem + n_hypool_troot  &
+                 + (n_hypool_aroot + nshell) * nlevrhiz
+            
+            ! These are only in the newton-matrix solve
+            allocate(this%conn_up(this%num_connections))
+            allocate(this%conn_dn(this%num_connections))
+            allocate(this%residual(this%num_nodes))
+            allocate(this%ajac(this%num_nodes,this%num_nodes))
+            allocate(this%th_node_init(this%num_nodes))
+            allocate(this%th_node(this%num_nodes))
+            allocate(this%dth_node(this%num_nodes))
+            allocate(this%h_node(this%num_nodes))
+            allocate(this%v_node(this%num_nodes))
+            allocate(this%z_node(this%num_nodes))
+            allocate(this%psi_node(this%num_nodes))
+            allocate(this%q_flux(this%num_connections))
+            allocate(this%dftc_dpsi_node(this%num_nodes))
+            allocate(this%ftc_node(this%num_nodes))
+            allocate(this%pm_node(this%num_nodes))
+            allocate(this%ipiv(this%num_nodes))
+            allocate(this%node_layer(this%num_nodes))
+            
+            allocate(this%kmax_up(this%num_connections))
+            allocate(this%kmax_dn(this%num_connections))
+            
+         else
+            
+            this%num_connections =  n_hypool_leaf + n_hypool_stem + & 
+                 n_hypool_troot + n_hypool_aroot + nshell -1 
+            
+            this%num_nodes = n_hypool_leaf + n_hypool_stem + & 
                    n_hypool_troot + n_hypool_aroot + nshell
-
-             allocate(this%conn_up(this%num_connections))
-             allocate(this%conn_dn(this%num_connections))
-             allocate(this%pm_node(this%num_nodes))
-             
-             
-          end if
-
-          call this%SetConnections()
-
+            
+            allocate(this%conn_up(this%num_connections))
+            allocate(this%conn_dn(this%num_connections))
+            allocate(this%pm_node(this%num_nodes))
+            
+            
+         end if
+         
+         call this%SetConnections()
+         
           
        end associate
        
        return
-     end subroutine InitHydrSite
+    end subroutine InitHydrSite
      
     ! ===================================================================================
     
@@ -534,7 +537,7 @@ module FatesHydraulicsMemMod
         this%node_layer(1:n_hypool_ag) = 0
         this%node_layer(num_nds) = 1
         
-        do j = 1,this%nlevsoi_hyd
+        do j = 1,this%nlevrhiz
            do k = 1, n_hypool_aroot + nshell
               num_nds  = num_nds + 1
               num_cnxs = num_cnxs + 1

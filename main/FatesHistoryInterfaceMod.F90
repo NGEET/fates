@@ -426,7 +426,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_tran_scpf
 !  integer :: ih_rootuptake_scpf
 !  integer :: ih_rootuptake_sl
-  integer :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
+!  integer :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
   integer :: ih_sapflow_scpf
   integer :: ih_iterh1_scpf          
   integer :: ih_iterh2_scpf           
@@ -3247,7 +3247,7 @@ end subroutine flush_hvars
     integer  :: io_pa1   ! The first patch index in the IO array for each site
     integer  :: ft               ! functional type index
     integer  :: scpf
-    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
+!    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
@@ -3277,7 +3277,7 @@ end subroutine flush_hvars
           hio_tran_scpf         => this%hvars(ih_tran_scpf)%r82d, &
 !          hio_rootuptake_scpf   => this%hvars(ih_rootuptake_scpf)%r82d, &
 !          hio_rootuptake_sl     => this%hvars(ih_rootuptake_sl)%r82d, &
-          hio_h2osoi_shsl       => this%hvars(ih_h2osoi_si_scagpft)%r82d, &
+!          hio_h2osoi_shsl       => this%hvars(ih_h2osoi_si_scagpft)%r82d, &
           hio_sapflow_scpf      => this%hvars(ih_sapflow_scpf)%r82d, &
           hio_iterh1_scpf       => this%hvars(ih_iterh1_scpf)%r82d, &          
           hio_iterh2_scpf       => this%hvars(ih_iterh2_scpf)%r82d, &           
@@ -3446,13 +3446,15 @@ end subroutine flush_hvars
             cpatch => cpatch%younger
          end do !patch loop
 
-         io_shsl = 0
-         do j=1,sites(s)%si_hydr%nlevsoi_hyd
-           do k=1, nshell
-             io_shsl = io_shsl + 1
-             hio_h2osoi_shsl(io_si,io_shsl) = sites(s)%si_hydr%h2osoi_liqvol_shell(j,k)
-           end do
-	 end do
+         ! THE "SHSL" ARRAY CAN VERY EASILY BE LARGER THAN THE SCAGPFT ARRAY
+         ! WHICH IT WAS USING AS A SURROGATE, DISABLING (RGK 02-2020)
+!         io_shsl = 0
+!         do j=1,sites(s)%si_hydr%nlevrhiz
+!           do k=1, nshell
+!             io_shsl = io_shsl + 1
+!             hio_h2osoi_shsl(io_si,io_shsl) = sites(s)%si_hydr%h2osoi_liqvol_shell(j,k)
+!           end do
+!	 end do
                   
          if(hlm_use_ed_st3.eq.ifalse) then
             do scpf=1,nlevsclass*numpft
@@ -5041,10 +5043,10 @@ end subroutine flush_hvars
 !             avgflag='A', vtype=site_ground_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
 !             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake_sl )
        
-       call this%set_history_var(vname='FATES_H2OSOI_COL_SHSL', units='m3/m3', &
-             long='volumetric soil moisture by layer and shell', use_default='inactive', &
-             avgflag='A', vtype=site_scagpft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_h2osoi_si_scagpft )
+!       call this%set_history_var(vname='FATES_H2OSOI_COL_SHSL', units='m3/m3', &
+!             long='volumetric soil moisture by layer and shell', use_default='inactive', &
+!             avgflag='A', vtype=site_scagpft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+!             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_h2osoi_si_scagpft )
        
        call this%set_history_var(vname='FATES_SAPFLOW_COL_SCPF', units='kg/indiv/s', &
              long='individual sap flow rate', use_default='inactive', &

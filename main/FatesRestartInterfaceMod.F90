@@ -1652,7 +1652,7 @@ contains
                    ! Load the water contents
                    call this%SetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
                                                  ir_hydro_th_ag_covec,io_idx_co)
-                   call this%SetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevsoi_hyd, &
+                   call this%SetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevrhiz, &
                                                  ir_hydro_th_aroot_covec,io_idx_co)
 
                    this%rvars(ir_hydro_th_troot)%r81d(io_idx_co) = ccohort%co_hydr%th_troot
@@ -1894,7 +1894,7 @@ contains
              this%rvars(ir_hydro_hydro_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_hydro_err
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
-             do i = 1, sites(s)%si_hydr%nlevsoi_hyd
+             do i = 1, sites(s)%si_hydr%nlevrhiz
                 ! Loop shells
                 do k = 1, nshell
                    this%rvars(ir_hydro_liqvol_shell_si)%r81d(io_idx_si_lyr_shell) = &
@@ -2407,7 +2407,7 @@ contains
                    ! Load the water contents
                    call this%GetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
                                                  ir_hydro_th_ag_covec,io_idx_co)
-                   call this%GetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevsoi_hyd, &
+                   call this%GetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevrhiz, &
                                                  ir_hydro_th_aroot_covec,io_idx_co)
                    
                    ccohort%co_hydr%th_troot = this%rvars(ir_hydro_th_troot)%r81d(io_idx_co)
@@ -2562,7 +2562,7 @@ contains
              sites(s)%si_hydr%h2oveg_hydro_err    = this%rvars(ir_hydro_hydro_err_si)%r81d(io_idx_si)
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
-             do i = 1, sites(s)%si_hydr%nlevsoi_hyd
+             do i = 1, sites(s)%si_hydr%nlevrhiz
                 ! Loop shells
                 do k = 1, nshell
                    sites(s)%si_hydr%h2osoi_liqvol_shell(i,k) = &

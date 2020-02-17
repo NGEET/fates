@@ -439,9 +439,11 @@ module FatesInterfaceMod
       ! Site level filter for uptake response functions
       logical               :: filter_btran
 
+
+      ! ALL HYDRO DATA STRUCTURES SHOULD NOW BE ALLOCATED ON RHIZOSPHERE LEVELS
+      
       ! Plant-Hydro
       ! ---------------------------------------------------------------------------------
-
       
       real(r8),allocatable :: qflx_transp_pa(:)    ! Transpiration flux as dictated by the HLM's
                                                    ! canopy solver. [mm H2O/s] [+ into root]
@@ -557,6 +559,8 @@ module FatesInterfaceMod
 
       ! FATES Hydraulics
 
+
+      
       real(r8) :: plant_stored_h2o_si         ! stored water in LIVE+DEAD vegetation (kg/m2 H2O)
                                               ! Assuming density of 1Mg/m3 ~= mm/m2 H2O
                                               ! This must be set and transfered prior to clm_drv()
@@ -669,7 +673,6 @@ contains
       type(bc_in_type), intent(inout) :: bc_in
       integer,intent(in)              :: nlevsoil_in
       integer,intent(in)              :: nlevdecomp_in
-      
       ! Allocate input boundaries
 
 
@@ -770,10 +773,11 @@ contains
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
-      
+
          allocate(bc_in%qflx_transp_pa(maxPatchesPerSite))
          allocate(bc_in%swrad_net_pa(maxPatchesPerSite))
          allocate(bc_in%lwrad_net_pa(maxPatchesPerSite))
+         
          allocate(bc_in%watsat_sisl(nlevsoil_in))
          allocate(bc_in%watres_sisl(nlevsoil_in))
          allocate(bc_in%sucsat_sisl(nlevsoil_in))

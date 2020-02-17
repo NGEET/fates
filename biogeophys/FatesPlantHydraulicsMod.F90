@@ -87,6 +87,7 @@ module FatesPlantHydraulicsMod
   use FatesHydraulicsMemMod, only: cohort_recruit_water_layer
   use FatesHydraulicsMemMod, only: recruit_water_avail_layer  
   use FatesHydraulicsMemMod, only: rwccap, rwcft
+  use FatesHydraulicsMemMod, only: ignore_layer1
   
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
@@ -159,8 +160,6 @@ module FatesPlantHydraulicsMod
   real(r8), parameter :: thsat_buff = 0.001_r8 ! Ensure that this amount of buffer
                                                ! is left between soil moisture and saturation [m3/m3]
                                              
-  logical, parameter :: ignore_layer1 = .true. ! Ignore water uptake in first soil layer?
-
   logical,parameter :: debug = .true.                   !flag to report warning in hydro
 
 
@@ -215,7 +214,7 @@ module FatesPlantHydraulicsMod
   public :: updateSizeDepTreeHydProps
   public :: updateSizeDepTreeHydStates
   public :: UpdateTreePsiFTCFromTheta
-  public :: initTreeHydStates
+  public :: InitTreeHydStates
   public :: updateSizeDepRhizHydProps
   public :: updateSizeDepRhizHydStates
   public :: RestartHydrStates
@@ -232,11 +231,7 @@ module FatesPlantHydraulicsMod
   ! 02/xx/17: Refactoring by Ryan Knox and Brad Christoffersen
   !------------------------------------------------------------------------------
 
-contains 
-
-
-  
-
+contains
 
   !------------------------------------------------------------------------------
   subroutine hydraulics_drive( nsites, sites, bc_in,bc_out,dtime )
@@ -298,15 +293,18 @@ contains
     type(ed_patch_type),pointer       :: cpatch      ! current patch
     type(ed_cohort_type),pointer      :: ccohort     ! current cohort
     type(ed_cohort_hydr_type),pointer :: ccohort_hydr
+    type(ed_site_hydr_type),pointer   :: csite_hydr   
     integer                           :: s           ! site loop counter
     integer                           :: j
+    integer                           :: j_bc ! soil layer index of boundary condition
     class(wrf_type_vg), pointer :: wrf_vg
     class(wkf_type_vg), pointer :: wkf_vg
     class(wrf_type_cch), pointer :: wrf_cch
     class(wkf_type_cch), pointer :: wkf_cch
 
     do s = 1,nsites
-
+       csite_hydr=>sites(s)%si_hydr
+       
        cpatch => sites(s)%oldest_patch
        do while(associated(cpatch))
 
@@ -317,13 +315,13 @@ contains
 
              ! This calculates node heights
              call UpdateTreeHydrNodes(ccohort_hydr,ccohort%pft,ccohort%hite, &
-                  sites(s)%si_hydr%nlevsoi_hyd,bc_in(s))
+                  sites(s)%si_hydr)
 
              ! This calculates volumes and lengths
-             call UpdateTreeHydrLenVol(ccohort,sites(s)%si_hydr%nlevsoi_hyd,bc_in(s))
+             call UpdateTreeHydrLenVol(ccohort,csite_hydr)
 
              ! This updates the Kmax's of the plant's compartments
-             call UpdatePlantKmax(ccohort_hydr,ccohort,sites(s)%si_hydr,bc_in(s))
+             call UpdatePlantKmax(ccohort_hydr,ccohort,sites(s)%si_hydr)
 
              ! Since this is a newly initialized plant, we set the previous compartment-size
              ! equal to the ones we just calculated.
@@ -352,18 +350,20 @@ contains
        
        select case(soil_wrf_type)
        case(van_genuchten_type)
-          do j=1,sites(s)%si_hydr%nlevsoi_hyd
+          do j=1,sites(s)%si_hydr%nlevrhiz
+             j_bc = j+csite_hydr%i_rhiz_t-1
              allocate(wrf_vg)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_vg
-             call wrf_vg%set_wrf_param([alpha_vg, psd_vg, bc_in(s)%watsat_sisl(j), th_res_vg])
+             call wrf_vg%set_wrf_param([alpha_vg, psd_vg, bc_in(s)%watsat_sisl(j_bc), th_res_vg])
           end do
        case(campbell_type)
-          do j=1,sites(s)%si_hydr%nlevsoi_hyd
+          do j=1,sites(s)%si_hydr%nlevrhiz
+             j_bc = j+csite_hydr%i_rhiz_t-1
              allocate(wrf_cch)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_cch
-             call wrf_cch%set_wrf_param([bc_in(s)%watsat_sisl(j), &  
-                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
-                                      bc_in(s)%bsw_sisl(j)])
+             call wrf_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
+                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                                      bc_in(s)%bsw_sisl(j_bc)])
           end do
        case(tfs_type)
           write(fates_log(),*) 'TFS water retention curves not available for soil'
@@ -376,18 +376,20 @@ contains
        
        select case(soil_wkf_type)
        case(van_genuchten_type)
-          do j=1,sites(s)%si_hydr%nlevsoi_hyd
+          do j=1,sites(s)%si_hydr%nlevrhiz
+             j_bc = j+csite_hydr%i_rhiz_t-1
              allocate(wkf_vg)
              sites(s)%si_hydr%wkf_soil(j)%p => wkf_vg
              call wkf_vg%set_wkf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg, tort_vg])
           end do
        case(campbell_type)
-          do j=1,sites(s)%si_hydr%nlevsoi_hyd
+          do j=1,sites(s)%si_hydr%nlevrhiz
+             j_bc = j+csite_hydr%i_rhiz_t-1
              allocate(wkf_cch)
              sites(s)%si_hydr%wkf_soil(j)%p => wkf_cch
-             call wkf_cch%set_wkf_param([bc_in(s)%watsat_sisl(j), &
-                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
-                  bc_in(s)%bsw_sisl(j)])
+             call wkf_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
+                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                  bc_in(s)%bsw_sisl(j_bc)])
           end do
        case(tfs_type)
           write(fates_log(),*) 'TFS conductance not used in soil'
@@ -404,7 +406,7 @@ contains
        ! the previous call to make sure that the conductances are updated
        ! Now we set the prevous to the current so that the water states
        ! are not perturbed
-       call SavePreviousRhizVolumes(sites(s), bc_in(s))
+       call SavePreviousRhizVolumes(sites(s))
 
     end do
 
@@ -415,7 +417,7 @@ contains
 
   ! ====================================================================================
 
-  subroutine initTreeHydStates(site, cohort, bc_in)
+  subroutine InitTreeHydStates(site, cohort)
 
     ! REQUIRED INPUTS:
     !
@@ -430,7 +432,6 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target   :: site   ! current site pointer
     type(ed_cohort_type), intent(inout), target :: cohort ! current cohort pointer
-    type(bc_in_type)    , intent(in)            :: bc_in  ! input boundary condition
     !
     ! !LOCAL VARIABLES:
     type(ed_site_hydr_type), pointer   :: site_hydr
@@ -463,13 +464,13 @@ contains
        
        h_aroot_mean = 0._r8
 
-       do j=1, site_hydr%nlevsoi_hyd
+       do j=1, site_hydr%nlevrhiz
           
           ! Match the potential of the absorbing root to the inner rhizosphere shell
           cohort_hydr%psi_aroot(j) = site_hydr%wrf_soil(j)%p%psi_from_th(site_hydr%h2osoi_liqvol_shell(j,1))
 
           ! Calculate the mean total potential (include height) of absorbing roots
-          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-bc_in%z_sisl(j))
+          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(j))
           
           cohort_hydr%th_aroot(j) = wrf_plant(aroot_p_media,ft)%p%th_from_psi(cohort_hydr%psi_aroot(j))
           cohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
@@ -477,16 +478,16 @@ contains
        
     else
        
-       do j=1, site_hydr%nlevsoi_hyd
+       do j=1, site_hydr%nlevrhiz
           cohort_hydr%psi_aroot(j) = psi_aroot_init
           ! Calculate the mean total potential (include height) of absorbing roots
-          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-bc_in%z_sisl(j))
+          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(j))
           cohort_hydr%th_aroot(j) = wrf_plant(aroot_p_media,ft)%p%th_from_psi(cohort_hydr%psi_aroot(j))
           cohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
        end do
     end if
     
-    h_aroot_mean = h_aroot_mean/real(site_hydr%nlevsoi_hyd,r8)
+    h_aroot_mean = h_aroot_mean/real(site_hydr%nlevrhiz,r8)
     
     ! initialize plant water potentials with slight potential gradient (or zero) (dh/dz = C)
     ! the assumption is made here that initial conditions for soil water will 
@@ -553,7 +554,7 @@ contains
 
     
 
-  end subroutine initTreeHydStates
+  end subroutine InitTreeHydStates
   
   ! =====================================================================================
 
@@ -594,7 +595,7 @@ contains
     ccohort_hydr%ftc_troot = wkf_plant(troot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_troot)
 
     ! Update the Psi and FTC for the absorbing roots
-    do j = 1, csite_hydr%nlevsoi_hyd
+    do j = 1, csite_hydr%nlevrhiz
        ccohort_hydr%psi_aroot(j) = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j)) 
        ccohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
     end do
@@ -606,7 +607,7 @@ contains
   ! =====================================================================================
 
 
-  subroutine UpdateTreeHydrNodes(ccohort_hydr,ft,plant_height,nlevsoi_hyd,bc_in)
+  subroutine UpdateTreeHydrNodes(ccohort_hydr,ft,plant_height,csite_hydr)
 
     ! --------------------------------------------------------------------------------
     ! This subroutine calculates the nodal heights critical to hydraulics in the plant
@@ -626,12 +627,11 @@ contains
     type(ed_cohort_hydr_type), intent(inout) :: ccohort_hydr 
     integer,intent(in)                       :: ft            ! plant functional type index
     real(r8), intent(in)                     :: plant_height  ! [m]
-    integer,intent(in)                       :: nlevsoi_hyd   ! number of soil hydro layers
-    type(bc_in_type)       , intent(in)      :: bc_in         ! Boundary Conditions
+    type(ed_site_hydr_type), intent(in)      :: csite_hydr
 
 
     ! Locals
-
+    integer  :: nlevrhiz      ! number of rhizosphere layers
     real(r8) :: roota         ! root profile parameter a zeng2001_crootfr
     real(r8) :: rootb         ! root profile parameter b zeng2001_crootfr
     real(r8) :: crown_depth   ! crown depth for the plant [m]
@@ -647,9 +647,9 @@ contains
     ! in special case where n_hypool_leaf = 1, the node height of the canopy
     ! water pool is 1/2 the distance from the bottom of the canopy to the top of the tree
 
-    roota                      =  EDPftvarcon_inst%roota_par(ft)
-    rootb                      =  EDPftvarcon_inst%rootb_par(ft)
-
+    roota                      = EDPftvarcon_inst%roota_par(ft)
+    rootb                      = EDPftvarcon_inst%rootb_par(ft)
+    nlevrhiz                   = csite_hydr%nlevrhiz
     call CrownDepth(plant_height,crown_depth)
 
     dz_canopy                  = crown_depth / real(n_hypool_leaf,r8)
@@ -675,16 +675,9 @@ contains
 
     call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
          0.001_r8, 0.001_r8, 0.5_r8, z_cumul_rf)
-    z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
+    z_cumul_rf =  min(z_cumul_rf, abs(csite_hydr%zi_rhiz(nlevrhiz)))
     ccohort_hydr%z_node_troot = -z_cumul_rf
-
-    !write(fates_log(),*)'h: ',plant_height
-    !write(fates_log(),*)'z upper: ', ccohort_hydr%z_upper_ag
-    !write(fates_log(),*)'z nodes: ', ccohort_hydr%z_node_ag
-    !write(fates_log(),*)'z lower: ', ccohort_hydr%z_lower_ag
-    !write(fates_log(),*)'z troot: ', ccohort_hydr%z_node_troot
-
-
+    
     return
   end subroutine UpdateTreeHydrNodes
 
@@ -724,11 +717,11 @@ contains
     type(bc_in_type)       , intent(in)             :: bc_in       ! Boundary Conditions
 
     ! Locals
-    integer                            :: nlevsoi_hyd             ! Number of total soil layers
+    integer                            :: nlevrhiz             ! Number of total soil layers
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     integer                            :: ft
 
-    nlevsoi_hyd                =  currentSite%si_hydr%nlevsoi_hyd
+    nlevrhiz                =  currentSite%si_hydr%nlevrhiz
     ccohort_hydr               => ccohort%co_hydr
     ft                         =  ccohort%pft
 
@@ -738,23 +731,23 @@ contains
     call SavePreviousCompartmentVolumes(ccohort_hydr)
 
     ! This updates all of the z_node positions
-    call UpdateTreeHydrNodes(ccohort_hydr,ft,ccohort%hite,nlevsoi_hyd,bc_in)
+    call UpdateTreeHydrNodes(ccohort_hydr,ft,ccohort%hite,currentSite%si_hydr)
 
     ! This updates plant compartment volumes, lengths and 
     ! maximum conductances. Make sure for already
     ! initialized vegetation, that SavePreviousCompartment
     ! volumes, and UpdateTreeHydrNodes is called prior to this.
-    call UpdateTreeHydrLenVol(ccohort,nlevsoi_hyd,bc_in)
+    call UpdateTreeHydrLenVol(ccohort,currentSite%si_hydr)
 
     ! This updates the Kmax's of the plant's compartments
-    call UpdatePlantKmax(ccohort_hydr,ccohort,currentsite%si_hydr,bc_in)
+    call UpdatePlantKmax(ccohort_hydr,ccohort,currentsite%si_hydr)
 
 
   end subroutine updateSizeDepTreeHydProps
 
   ! =====================================================================================
 
-  subroutine UpdateTreeHydrLenVol(ccohort,nlevsoi_hyd,bc_in)
+  subroutine UpdateTreeHydrLenVol(ccohort,site_hydr)
 
     ! -----------------------------------------------------------------------------------
     ! This subroutine calculates two attributes of a plant:
@@ -770,12 +763,10 @@ contains
 
     ! Arguments
     type(ed_cohort_type),intent(inout)  :: ccohort
-    integer,intent(in)                  :: nlevsoi_hyd   ! number of soil hydro layers
-    type(bc_in_type)       , intent(in) :: bc_in       ! Boundary Conditions
-
+    type(ed_site_hydr_type),intent(in)  :: site_hydr 
+    
     type(ed_cohort_hydr_type),pointer :: ccohort_hydr     ! Plant hydraulics structure
     integer  :: j,k
-    integer  :: j1                           ! If we ignore the top soil layer, this is 2
     integer  :: ft                           ! Plant functional type index 
     real(r8) :: roota                        ! root profile parameter a zeng2001_crootfr
     real(r8) :: rootb                        ! root profile parameter b zeng2001_crootfr
@@ -807,11 +798,11 @@ contains
     real(r8) :: rootfr                       ! mass fraction of roots in each layer                                  [kg/kg]
     real(r8) :: crown_depth                  ! Depth of the plant's crown [m]
     real(r8) :: norm                         ! total root fraction used <1
-
+    integer  :: nlevrhiz                     ! number of rhizosphere levels
 
     ccohort_hydr => ccohort%co_hydr
     ft           = ccohort%pft
-
+    nlevrhiz = site_hydr%nlevrhiz
     leaf_c   = ccohort%prt%GetState(leaf_organ, all_carbon_elements)
     sapw_c   = ccohort%prt%GetState(sapw_organ, all_carbon_elements)
     fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
@@ -910,47 +901,19 @@ contains
        ! We have a condition, where we may ignore the first layer
        ! ------------------------------------------------------------------------------
 
-       if(ignore_layer1) then
-          j1 = 2
-          ccohort_hydr%l_aroot_layer(1) = 0._r8
-          ccohort_hydr%v_aroot_layer(1) = 0._r8
-          norm = 1._r8-zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(1), bc_in%zi_sisl(nlevsoi_hyd))
-       else
-          norm = 1._r8
-          j1 = 1
-       end if
+       norm = 1._r8 - &
+            zeng2001_crootfr(roota, rootb,site_hydr%zi_rhiz(1)-site_hydr%dz_rhiz(1), site_hydr%zi_rhiz(nlevrhiz))
        
-       do j=j1,nlevsoi_hyd
-          if(j == 1) then
-             rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j), bc_in%zi_sisl(nlevsoi_hyd))
-          else
-             rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j), bc_in%zi_sisl(nlevsoi_hyd)) - &
-                     zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1), bc_in%zi_sisl(nlevsoi_hyd))
-          end if
+       do j=1,nlevrhiz
           
-          ccohort_hydr%l_aroot_layer(j) = rootfr*l_aroot_tot*norm
+          rootfr = norm*(zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j),site_hydr%zi_rhiz(nlevrhiz)) - &
+                         zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j)-site_hydr%dz_rhiz(j),site_hydr%zi_rhiz(nlevrhiz)))
+          
+          ccohort_hydr%l_aroot_layer(j) = rootfr*l_aroot_tot
 
           ! This is a hybrid absorbing root and transporting root volume
           ccohort_hydr%v_aroot_layer(j) = rootfr*(0.65*v_root)
        end do
-
-       if(debug) then
-          if(abs(1._r8-zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(nlevsoi_hyd), &
-                                        bc_in%zi_sisl(nlevsoi_hyd)))>rsnbl_math_prec) then
-             write(fates_log(),*) 'The Zeng 2001 root layering scheme should'
-             write(fates_log(),*) 'have an integrated root fraction at the lowest soil layer'
-             write(fates_log(),*) 'crootfr: ',zeng2001_crootfr(roota, rootb, &
-                   bc_in%zi_sisl(nlevsoi_hyd), bc_in%zi_sisl(nlevsoi_hyd))
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-       end if
-
-       !write(fates_log(),*)'vols: ', ccohort_hydr%v_ag,ccohort_hydr%v_troot
-       !write(fates_log(),*)'v_aroot: ', ccohort_hydr%v_aroot_layer(:)
-       !write(fates_log(),*)'l_aroot: ', ccohort_hydr%l_aroot_layer(:)
-
-       
-
 
     end if !check for bleaf
 
@@ -976,7 +939,7 @@ contains
     integer  :: err_code = 0
     real(r8) :: th_ag_uncorr(      n_hypool_ag) ! uncorrected aboveground water content[m3 m-3]
     real(r8) :: th_troot_uncorr                 ! uncorrected transporting root water content[m3 m-3]
-    real(r8) :: th_aroot_uncorr(currentSite%si_hydr%nlevsoi_hyd)    ! uncorrected absorbing root water content[m3 m-3] 
+    real(r8) :: th_aroot_uncorr(currentSite%si_hydr%nlevrhiz)    ! uncorrected absorbing root water content[m3 m-3] 
     real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
 
     integer :: nstep !number of time steps
@@ -1003,7 +966,7 @@ contains
 
 
     ccohort_hydr%errh2o_growturn_aroot = 0._r8
-    do j=1,currentSite%si_hydr%nlevsoi_hyd
+    do j=1,currentSite%si_hydr%nlevrhiz
        th_aroot_uncorr(j) = ccohort_hydr%th_aroot(j) * &
             ccohort_hydr%v_aroot_layer_init(j)/ccohort_hydr%v_aroot_layer(j)
        ccohort_hydr%th_aroot(j) = constrain_water_contents(th_aroot_uncorr(j), small_theta_num, ft, pm_node(4))
@@ -1185,7 +1148,7 @@ contains
     ccohort_hydr%psi_troot = wrf_plant(troot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_troot) 
     ccohort_hydr%ftc_troot = wkf_plant(troot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_troot)
 
-    do j=1,site_hydr%nlevsoi_hyd
+    do j=1,site_hydr%nlevrhiz
        ccohort_hydr%psi_aroot(j) = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j)) 
        ccohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
     end do
@@ -1233,7 +1196,7 @@ contains
     if ( hlm_use_planthydro.eq.ifalse ) return
     allocate(ccohort_hydr)
     currentCohort%co_hydr => ccohort_hydr
-    call ccohort_hydr%AllocateHydrCohortArrays(currentSite%si_hydr%nlevsoi_hyd)
+    call ccohort_hydr%AllocateHydrCohortArrays(currentSite%si_hydr%nlevrhiz)
 
     ccohort_hydr%is_newly_recruited = .false. 
 
@@ -1266,7 +1229,8 @@ contains
     ! Locals
     integer :: nsites
     integer :: s
-    integer :: j  
+    integer :: j
+    integer :: jj
     type(ed_site_hydr_type),pointer :: csite_hydr
 
 
@@ -1287,10 +1251,26 @@ contains
           write(fates_log(),*) 'see main/FatesHydraulicsMemMod.F90'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
-       sites(s)%si_hydr%nlevsoi_hyd = bc_in(s)%nlevsoil
+
+       ! Calculate the number of rhizosphere
+       ! layers used
+       if(ignore_layer1) then
+          csite_hydr%i_rhiz_t = 2
+          csite_hydr%i_rhiz_b = bc_in(s)%nlevsoil
+       else
+          csite_hydr%i_rhiz_t = 1
+          csite_hydr%i_rhiz_b = bc_in(s)%nlevsoil
+       end if
+       
+       csite_hydr%nlevrhiz = csite_hydr%i_rhiz_b-csite_hydr%i_rhiz_t+1
        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass)
 
-
+       jj=1
+       do j=csite_hydr%i_rhiz_t,csite_hydr%i_rhiz_b
+          csite_hydr%zi_rhiz(jj)  = bc_in(s)%zi_sisl(j)
+          csite_hydr%dz_rhiz(jj) = bc_in(s)%dz_sisl(j) 
+          jj=jj+1
+       end do
        
    end do
 
@@ -1309,10 +1289,9 @@ contains
     real(r8) :: smp  ! matric potential temp
     real(r8) :: h2osoi_liqvol ! liquid water content (m3/m3)
     integer :: s
-    integer :: j
+    integer :: j,j_bc
     integer :: nsites
-    integer :: nlevsoil         ! Number of soil layers
-    integer :: nlevsoil_hyd     ! Number of hydraulically relevant soil layers
+    integer :: nlevrhiz
     class(wrf_type_vg), pointer :: wrf_vg
     class(wkf_type_vg), pointer :: wkf_vg
     class(wrf_type_cch), pointer :: wrf_cch
@@ -1322,29 +1301,21 @@ contains
     nsites = ubound(sites,1)
 
     do s = 1,nsites
+
        site_hydr => sites(s)%si_hydr
+       nlevrhiz  =  site_hydr%nlevrhiz
+       
+       do j = 1,nlevrhiz
+          j_bc=j+site_hydr%i_rhiz_t-1
+          h2osoi_liqvol = min(bc_in(s)%eff_porosity_sl(j_bc), &
+               bc_in(s)%h2o_liq_sisl(j_bc)/(site_hydr%dz_rhiz(j)*denh2o))
+          
+          site_hydr%h2osoi_liqvol_shell(j,1:nshell) = h2osoi_liqvol
+          site_hydr%h2osoi_liq_prev(j)              = bc_in(s)%h2o_liq_sisl(j_bc)
+       end do
+    
 
-       nlevsoil     = bc_in(s)%nlevsoil
-       nlevsoil_hyd = site_hydr%nlevsoi_hyd
-
-       if ( nlevsoil_hyd == 1) then
-
-          h2osoi_liqvol = min(bc_in(s)%eff_porosity_sl(nlevsoil), &
-               bc_in(s)%h2o_liq_sisl(nlevsoil)/(bc_in(s)%dz_sisl(nlevsoil)*denh2o))
-
-          site_hydr%h2osoi_liqvol_shell(nlevsoil_hyd,1:nshell) = h2osoi_liqvol
-          site_hydr%h2osoi_liq_prev(nlevsoil_hyd)              = bc_in(s)%h2o_liq_sisl(nlevsoil)
-       else
-          do j = 1,nlevsoil_hyd
-             h2osoi_liqvol = min(bc_in(s)%eff_porosity_sl(j), &
-                  bc_in(s)%h2o_liq_sisl(j)/(bc_in(s)%dz_sisl(j)*denh2o))
-
-             site_hydr%h2osoi_liqvol_shell(j,1:nshell) = h2osoi_liqvol
-             site_hydr%h2osoi_liq_prev(j)              = bc_in(s)%h2o_liq_sisl(j)
-          end do
-       end if
-
-       site_hydr%l_aroot_layer(1:site_hydr%nlevsoi_hyd) = 0.0_r8
+       site_hydr%l_aroot_layer(1:site_hydr%nlevrhiz) = 0.0_r8
 
 
        ! --------------------------------------------------------------------------------
@@ -1358,18 +1329,20 @@ contains
 
        select case(soil_wrf_type)
        case(van_genuchten_type)
-          do j=1,sites(s)%si_hydr%nlevsoi_hyd
+          do j=1,sites(s)%si_hydr%nlevrhiz
+             j_bc=j+site_hydr%i_rhiz_t-1
              allocate(wrf_vg)
              site_hydr%wrf_soil(j)%p => wrf_vg
              call wrf_vg%set_wrf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg])
           end do
        case(campbell_type)
-          do j=1,sites(s)%si_hydr%nlevsoi_hyd
+          do j=1,site_hydr%nlevrhiz
+             j_bc=j+site_hydr%i_rhiz_t-1
              allocate(wrf_cch)
              site_hydr%wrf_soil(j)%p => wrf_cch
-             call wrf_cch%set_wrf_param([bc_in(s)%watsat_sisl(j), &  
-                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
-                  bc_in(s)%bsw_sisl(j)])
+             call wrf_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
+                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                  bc_in(s)%bsw_sisl(j_bc)])
           end do
        case(tfs_type)
           write(fates_log(),*) 'TFS water retention curves not available for soil'
@@ -1382,26 +1355,24 @@ contains
        
        select case(soil_wkf_type)
        case(van_genuchten_type)
-           do j=1,sites(s)%si_hydr%nlevsoi_hyd
+           do j=1,sites(s)%si_hydr%nlevrhiz
                allocate(wkf_vg)
                site_hydr%wkf_soil(j)%p => wkf_vg
                call wkf_vg%set_wkf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg, tort_vg])
            end do
-       case(campbell_type)
-           do j=1,sites(s)%si_hydr%nlevsoi_hyd
-               allocate(wkf_cch)
-               site_hydr%wkf_soil(j)%p => wkf_cch
-               call wkf_cch%set_wkf_param([bc_in(s)%watsat_sisl(j), &
-                                     (-1.0_r8)*bc_in(s)%sucsat_sisl(j)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
-                                     bc_in(s)%bsw_sisl(j)])
+        case(campbell_type)
+           do j=1,sites(s)%si_hydr%nlevrhiz
+              j_bc=j+site_hydr%i_rhiz_t-1
+              allocate(wkf_cch)
+              site_hydr%wkf_soil(j)%p => wkf_cch
+              call wkf_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
+                   (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                   bc_in(s)%bsw_sisl(j_bc)])
            end do
        case(tfs_type)
            write(fates_log(),*) 'TFS conductance not used in soil'
            call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
-
-
-
 
     end do
 
@@ -1564,7 +1535,7 @@ contains
                              denh2o*currentCohort%n*AREA_INV/dtime
                 recruitw_total = recruitw_total + recruitw
                 sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
-                do j=1,csite_hydr%nlevsoi_hyd
+                do j=1,csite_hydr%nlevrhiz
                    rootfr = ccohort_hydr%l_aroot_layer(j)/sum_l_aroot
                    csite_hydr%recruit_w_uptake(j) = csite_hydr%recruit_w_uptake(j) + &
                         recruitw*rootfr
@@ -1579,7 +1550,7 @@ contains
        sumrw_uptake = sum(csite_hydr%recruit_w_uptake)
        err = recruitw_total - sumrw_uptake 
        if(abs(err)>1.0e-10_r8)then
-          do j=1,csite_hydr%nlevsoi_hyd
+          do j=1,csite_hydr%nlevrhiz
              csite_hydr%recruit_w_uptake(j) = csite_hydr%recruit_w_uptake(j) + &
                   err*csite_hydr%recruit_w_uptake(j)/sumrw_uptake
           enddo
@@ -1632,12 +1603,11 @@ contains
          sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
          denh2o
     sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
-    do j=1,csite_hydr%nlevsoi_hyd
+    do j=1,csite_hydr%nlevrhiz
        cohort_recruit_water_layer(j) = recruitw*ccohort_hydr%l_aroot_layer(j)/sum_l_aroot
     end do
 
-    do j=1,csite_hydr%nlevsoi_hyd
-   
+    do j=1,csite_hydr%nlevrhiz
        watres_local = csite_hydr%wrf_soil(j)%p%th_from_psi(bc_in%smpmin_si*denh2o*grav_earth*m_per_mm*mpa_per_pa)
 
        total_water = sum(csite_hydr%v_shell(j,:)*csite_hydr%h2osoi_liqvol_shell(j,:))
@@ -1649,7 +1619,7 @@ contains
     end do
 
     nmin  = 1.0e+36 
-    do j=1,csite_hydr%nlevsoi_hyd
+    do j=1,csite_hydr%nlevrhiz
        if(cohort_recruit_water_layer(j)>0.0_r8) then
           n = recruit_water_avail_layer(j)/cohort_recruit_water_layer(j)
           nmin = min(n, nmin) 
@@ -1662,17 +1632,13 @@ contains
 
   ! =====================================================================================
 
-  subroutine SavePreviousRhizVolumes(currentSite, bc_in)
+  subroutine SavePreviousRhizVolumes(currentSite)
 
     ! !ARGUMENTS:
     type(ed_site_type)     , intent(inout), target :: currentSite
-    type(bc_in_type)       , intent(in) :: bc_in
     type(ed_site_hydr_type), pointer    :: csite_hydr
-    integer                             :: nlevsoi_hyd
 
     csite_hydr => currentSite%si_hydr
-    nlevsoi_hyd = csite_hydr%nlevsoi_hyd
-
     csite_hydr%l_aroot_layer_init(:)  = csite_hydr%l_aroot_layer(:)
     csite_hydr%r_node_shell_init(:,:) = csite_hydr%r_node_shell(:,:)
     csite_hydr%v_shell_init(:,:)      = csite_hydr%v_shell(:,:)
@@ -1706,16 +1672,17 @@ contains
     real(r8)                       :: hksat_s                      ! hksat converted to units of 10^6sec 
                                                                    ! which is equiv to       [kg m-1 s-1 MPa-1]
     integer                        :: j,k                          ! gridcell, soil layer, rhizosphere shell indices
+    integer                        :: j_bc                         ! soil layer index of boundary condition
     real(r8)                       :: large_kmax_bound = 1.e4_r8   ! for replacing kmax_bound_shell wherever the 
     ! innermost shell radius is less than the assumed 
     ! absorbing root radius rs1
     ! 1.e-5_r8 from Rudinger et al 1994             	
-    integer                        :: nlevsoi_hyd
+    integer                        :: nlevrhiz
     integer, parameter :: k_inner = 1   ! innermost rhizosphere shell
     !-----------------------------------------------------------------------
 
     csite_hydr => currentSite%si_hydr
-    nlevsoi_hyd = csite_hydr%nlevsoi_hyd
+    nlevrhiz = csite_hydr%nlevrhiz
 
     ! update cohort-level root length density and accumulate it across cohorts and patches to the column level
     csite_hydr%l_aroot_layer(:)  = 0._r8
@@ -1731,16 +1698,17 @@ contains
     enddo !patch
 
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
-    do j = 1,nlevsoi_hyd
+    do j = 1,nlevrhiz
        ! proceed only if l_aroot_coh has changed
-!       if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
-          call shellGeom( csite_hydr%l_aroot_layer(j), csite_hydr%rs1(j), AREA, bc_in%dz_sisl(j), &
+       !       if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
+          call shellGeom( csite_hydr%l_aroot_layer(j), csite_hydr%rs1(j), AREA, csite_hydr%dz_rhiz(j), &
                csite_hydr%r_out_shell(j,:), csite_hydr%r_node_shell(j,:),csite_hydr%v_shell(j,:))
 !       end if !has l_aroot_layer changed?
     enddo
 
 
-    do j = 1,csite_hydr%nlevsoi_hyd
+    do j = 1,nlevrhiz
+       j_bc = j+csite_hydr%i_rhiz_t-1
 
        ! bc_in%hksat_sisl(j): hydraulic conductivity at saturation (mm H2O /s)
        !
@@ -1754,8 +1722,8 @@ contains
        !          * 1e6 [Pa MPa-1]
        !                           = [kg s-1 m-1 MPa-1]
 
-       hksat_s = bc_in%hksat_sisl(j) * m_per_mm * 1._r8/grav_earth * pa_per_mpa
-
+       hksat_s = bc_in%hksat_sisl(j_bc) * m_per_mm * 1._r8/grav_earth * pa_per_mpa
+       
        ! proceed only if the total absorbing root length (site-level) has changed in this layer
        if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
 
@@ -1811,7 +1779,7 @@ contains
     ! Save current volumes, lenghts and nodes to an "initial"
     ! used to calculate effects in states later on.
 
-    call SavePreviousRhizVolumes(currentSite, bc_in)
+    call SavePreviousRhizVolumes(currentSite)
 
     ! Update the properties of the vegetation-soil hydraulic environment
     ! these are independent on the water state
@@ -1853,6 +1821,7 @@ contains
     real(r8) :: delta_s(nlevsoi_hyd_max)                 ! change in saturation fraction needed to ensure water bal    [0-1]
     real(r8) :: errh2o(nlevsoi_hyd_max)                  ! water budget error after updating                           [kg/m2]
     integer  :: j,k                                      ! gridcell, column, soil layer, rhizosphere shell indicies
+    integer  :: j_bc                                     ! level index for boundary conditions
     integer  :: indexc,indexj                            ! column and layer indices where there is a water balance error
     logical  :: found                                    ! flag in search loop
     type(ed_site_hydr_type), pointer :: csite_hydr
@@ -1867,7 +1836,7 @@ contains
 
     if(.false.) then
 
-       do j = 1, csite_hydr%nlevsoi_hyd
+       do j = 1, csite_hydr%nlevrhiz
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
 
@@ -1880,7 +1849,7 @@ contains
 
        ! interpolate initial psi values by layer and shell
        ! BOC...To-Do: need to constrain psi to be within realistic limits (i.e., < 0)
-       do j = 1,csite_hydr%nlevsoi_hyd
+       do j = 1,csite_hydr%nlevrhiz
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
 
@@ -1930,18 +1899,21 @@ contains
        enddo
 
        ! 1st guess at new s based on interpolated psi
-       do j = 1,csite_hydr%nlevsoi_hyd
+       do j = 1,csite_hydr%nlevrhiz
+          j_bc = j+csite_hydr%i_rhiz_t-1
+                 
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
              
-             s_shell_interp(j,k) = ( csite_hydr%wrf_soil(j)%p%th_from_psi(psi_shell_interp(j,k)) - bc_in%watres_sisl(j)) / & 
-                  (bc_in%watres_sisl(j)+bc_in%watres_sisl(j))
+             s_shell_interp(j,k) = ( csite_hydr%wrf_soil(j)%p%th_from_psi(psi_shell_interp(j,k)) - bc_in%watres_sisl(j_bc)) / & 
+                  (bc_in%watres_sisl(j_bc)+bc_in%watres_sisl(j_bc))
 
           end if !has l_aroot_coh changed?
        enddo
 
        ! accumlate water across shells for each layer (initial and interpolated)
-       do j = 1,csite_hydr%nlevsoi_hyd
+       do j = 1,csite_hydr%nlevrhiz
+          j_bc = j+csite_hydr%i_rhiz_t-1
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
              w_layer_init(j)      = 0._r8
@@ -1952,7 +1924,7 @@ contains
                      (csite_hydr%v_shell_init(j,k)*csite_hydr%h2osoi_liqvol_shell(j,k) )
                 w_layer_interp(j) = w_layer_interp(j) + denh2o * & 
                      (csite_hydr%v_shell(j,k) * &
-                     (s_shell_interp(j,k)*(bc_in%watsat_sisl(j)-bc_in%watres_sisl(j))+bc_in%watres_sisl(j)) )
+                     (s_shell_interp(j,k)*(bc_in%watsat_sisl(j_bc)-bc_in%watres_sisl(j_bc))+bc_in%watres_sisl(j_bc)) )
                 v_rhiz(j)         = v_rhiz(j) + csite_hydr%v_shell(j,k)
              enddo
           end if !has l_aroot_coh changed?
@@ -1960,23 +1932,25 @@ contains
 
        ! estimate delta_s across all shells needed to ensure total water in each layer doesn't change
        ! BOC...FIX: need to handle special cases where delta_s causes s_shell to go above or below 1 or 0, respectively.
-       do j = 1,csite_hydr%nlevsoi_hyd
+       do j = 1,csite_hydr%nlevrhiz
+          j_bc = j+csite_hydr%i_rhiz_t-1
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
-             delta_s(j) = (( w_layer_init(j) - w_layer_interp(j) )/( v_rhiz(j) * denh2o ) - bc_in%watres_sisl(j)) / &
-                  (bc_in%watsat_sisl(j)-bc_in%watres_sisl(j))
+             delta_s(j) = (( w_layer_init(j) - w_layer_interp(j) )/( v_rhiz(j) * denh2o ) - bc_in%watres_sisl(j_bc)) / &
+                  (bc_in%watsat_sisl(j_bc)-bc_in%watres_sisl(j_bc))
           end if !has l_aroot_coh changed?
        enddo
 
        ! update h2osoi_liqvol_shell and h2osoi_liq_shell
-       do j = 1,csite_hydr%nlevsoi_hyd
+       do j = 1,csite_hydr%nlevrhiz
+          j_bc = j+csite_hydr%i_rhiz_t-1
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
              w_layer_new(j)                = 0._r8
              do k = 1,nshell
                 s_shell_interp(j,k)        = s_shell_interp(j,k) + delta_s(j)
                 csite_hydr%h2osoi_liqvol_shell(j,k) = s_shell_interp(j,k) * &
-                     ( bc_in%watsat_sisl(j)-bc_in%watres_sisl(j) ) + bc_in%watres_sisl(j)
+                     ( bc_in%watsat_sisl(j_bc)-bc_in%watres_sisl(j_bc) ) + bc_in%watres_sisl(j_bc)
                 w_shell_new                = csite_hydr%h2osoi_liqvol_shell(j,k) * &
                      csite_hydr%v_shell(j,k)
                 w_layer_new(j)             = w_layer_new(j) + w_shell_new
@@ -1986,8 +1960,9 @@ contains
        enddo
 
        ! balance check
-       do j = 1,csite_hydr%nlevsoi_hyd
-          errh2o(j) = h2osoi_liq_col_new(j) - bc_in%h2o_liq_sisl(j)
+       do j = 1,csite_hydr%nlevrhiz
+          j_bc = j+csite_hydr%i_rhiz_t-1
+          errh2o(j) = h2osoi_liq_col_new(j) - bc_in%h2o_liq_sisl(j_bc)
           if (abs(errh2o(j)) > 1.e-4_r8) then
              write(fates_log(),*)'WARNING:  water balance error ',&
                   ' updating rhizosphere shells: ',j,errh2o(j)
@@ -2085,6 +2060,7 @@ contains
     type(ed_site_hydr_type), pointer :: csite_hydr
     integer  :: s,j,k                                  ! site, soil layer, rhizosphere shell indicies
     integer  :: i,f,ff,kk                              ! indicies
+    integer  :: j_bc                                   ! layer index for matching boundary condition soil layers
     integer  :: indexj                          ! column and layer indices where there is a water balance error
     integer  :: ordered(nshell) = (/(i,i=1,nshell,1)/) ! array of rhizosphere indices which have been ordered
     real(r8) :: area_col                               ! column area                                                    [m2]
@@ -2112,90 +2088,79 @@ contains
 
        csite_hydr => sites(s)%si_hydr
 
-       do j = 1,csite_hydr%nlevsoi_hyd
+       do j = 1,csite_hydr%nlevrhiz
+          j_bc = j+csite_hydr%i_rhiz_t-1
 
-          v_cum  = sum(csite_hydr%v_shell(j,1:nshell))
-
-          if(v_cum < nearzero) then
-
-             ! If we have no roots, and thus no rhizosphere, then
-             ! we just set the "shells" to all equal the same water content
-             ! m3/m3                               kg/m2  * m3/kg * 1/m
-             csite_hydr%h2osoi_liqvol_shell(j,:) = bc_in(s)%h2o_liq_sisl(j)/(denh2o*bc_in(s)%dz_sisl(j))
-
-          else
+          cumShellH2O=sum(csite_hydr%h2osoi_liqvol_shell(j,:) *csite_hydr%v_shell(j,:)) * denh2o*AREA_INV
+          
+          dwat_kgm2 = bc_in(s)%h2o_liq_sisl(j_bc) - cumShellH2O
              
-             cumShellH2O=sum(csite_hydr%h2osoi_liqvol_shell(j,:) *csite_hydr%v_shell(j,:)) * denh2o*AREA_INV
-             
-             dwat_kgm2 = bc_in(s)%h2o_liq_sisl(j) - cumShellH2O
-             
-             dwat_kg = dwat_kgm2 * AREA
-
-             ! order shells in terms of increasing or decreasing volumetric water content
-             ! algorithm same as that used in histFileMod.F90 to alphabetize history tape contents
-             if(nshell > 1) then
-                do k = nshell-1,1,-1
-                   do kk = 1,k
-                      if (csite_hydr%h2osoi_liqvol_shell(j,ordered(kk)) > &
-                           csite_hydr%h2osoi_liqvol_shell(j,ordered(kk+1))) then
-                         if (dwat_kg > 0._r8) then  !order increasing
-                            tmp           = ordered(kk)
-                            ordered(kk)   = ordered(kk+1)
-                            ordered(kk+1) = tmp
-                         end if
-                      else
-                         if (dwat_kg < 0._r8) then  !order decreasing
-                            tmp           = ordered(kk)
-                            ordered(kk)   = ordered(kk+1)
-                            ordered(kk+1) = tmp
-                         end if
+          dwat_kg = dwat_kgm2 * AREA
+          
+          ! order shells in terms of increasing or decreasing volumetric water content
+          ! algorithm same as that used in histFileMod.F90 to alphabetize history tape contents
+          if(nshell > 1) then
+             do k = nshell-1,1,-1
+                do kk = 1,k
+                   if (csite_hydr%h2osoi_liqvol_shell(j,ordered(kk)) > &
+                        csite_hydr%h2osoi_liqvol_shell(j,ordered(kk+1))) then
+                      if (dwat_kg > 0._r8) then  !order increasing
+                         tmp           = ordered(kk)
+                         ordered(kk)   = ordered(kk+1)
+                         ordered(kk+1) = tmp
                       end if
-                   enddo
+                   else
+                      if (dwat_kg < 0._r8) then  !order decreasing
+                         tmp           = ordered(kk)
+                         ordered(kk)   = ordered(kk+1)
+                         ordered(kk+1) = tmp
+                      end if
+                   end if
                 enddo
-             end if
-             
-             ! fill shells with water up to the water content of the next-wettest shell, 
-             ! in order from driest to wettest (dwat_kg > 0)
-             ! ------ OR ------
-             ! drain shells' water down to the water content of the next-driest shell, 
-             ! in order from wettest to driest (dwat_kg < 0)
-             k = 1
-             do while ( (dwat_kg /= 0._r8) .and. (k < nshell) )
-                thdiff = csite_hydr%h2osoi_liqvol_shell(j,ordered(k+1)) - &
-                     csite_hydr%h2osoi_liqvol_shell(j,ordered(k))
-                v_cum  = sum(csite_hydr%v_shell(j,ordered(1:k)))
-                wdiff  = thdiff * v_cum * denh2o        ! change in h2o [kg / ha] for shells ordered(1:k)
-                if(abs(dwat_kg) >= abs(wdiff)) then
-                   csite_hydr%h2osoi_liqvol_shell(j,ordered(1:k)) = csite_hydr%h2osoi_liqvol_shell(j,ordered(k+1))
-                   dwat_kg  = dwat_kg - wdiff
-                else
-                   csite_hydr%h2osoi_liqvol_shell(j,ordered(1:k)) = &
-                     csite_hydr%h2osoi_liqvol_shell(j,ordered(1:k)) + dwat_kg/denh2o/v_cum
-                   dwat_kg  = 0._r8
-                end if
-                k = k + 1
              enddo
-             
-             if (dwat_kg /= 0._r8) then
-                v_cum  = sum(csite_hydr%v_shell(j,ordered(1:nshell)))
-                thdiff = dwat_kg / v_cum / denh2o
-                do k = nshell, 1, -1
-                   csite_hydr%h2osoi_liqvol_shell(j,k) = csite_hydr%h2osoi_liqvol_shell(j,k) + thdiff
-                end do
+          end if
+          
+          ! fill shells with water up to the water content of the next-wettest shell, 
+          ! in order from driest to wettest (dwat_kg > 0)
+          ! ------ OR ------
+          ! drain shells' water down to the water content of the next-driest shell, 
+          ! in order from wettest to driest (dwat_kg < 0)
+          k = 1
+          do while ( (dwat_kg /= 0._r8) .and. (k < nshell) )
+             thdiff = csite_hydr%h2osoi_liqvol_shell(j,ordered(k+1)) - &
+                  csite_hydr%h2osoi_liqvol_shell(j,ordered(k))
+             v_cum  = sum(csite_hydr%v_shell(j,ordered(1:k)))
+             wdiff  = thdiff * v_cum * denh2o        ! change in h2o [kg / ha] for shells ordered(1:k)
+             if(abs(dwat_kg) >= abs(wdiff)) then
+                csite_hydr%h2osoi_liqvol_shell(j,ordered(1:k)) = csite_hydr%h2osoi_liqvol_shell(j,ordered(k+1))
+                dwat_kg  = dwat_kg - wdiff
+             else
+                csite_hydr%h2osoi_liqvol_shell(j,ordered(1:k)) = &
+                     csite_hydr%h2osoi_liqvol_shell(j,ordered(1:k)) + dwat_kg/denh2o/v_cum
+                dwat_kg  = 0._r8
              end if
-             
-             ! m3/m3 * Total volume m3 * kg/m3 = kg
-             h2osoi_liq_shell(j,:) = csite_hydr%h2osoi_liqvol_shell(j,:) * &
-                  csite_hydr%v_shell(j,:) * denh2o
-             
-             
-             errh2o(j) = sum(h2osoi_liq_shell(j,:))*AREA_INV - bc_in(s)%h2o_liq_sisl(j)
-             
-             if (abs(errh2o(j)) > 1.e-9_r8) then
-                write(fates_log(),*)'WARNING:  water balance error in FillDrainRhizShells'
-                write(fates_log(),*)'errh2o= ',errh2o(j), ' [kg/m2]'
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             end if
+             k = k + 1
+          enddo
+          
+          if (dwat_kg /= 0._r8) then
+             v_cum  = sum(csite_hydr%v_shell(j,ordered(1:nshell)))
+             thdiff = dwat_kg / v_cum / denh2o
+             do k = nshell, 1, -1
+                csite_hydr%h2osoi_liqvol_shell(j,k) = csite_hydr%h2osoi_liqvol_shell(j,k) + thdiff
+             end do
+          end if
+          
+          ! m3/m3 * Total volume m3 * kg/m3 = kg
+          h2osoi_liq_shell(j,:) = csite_hydr%h2osoi_liqvol_shell(j,:) * &
+               csite_hydr%v_shell(j,:) * denh2o
+          
+          
+          errh2o(j) = sum(h2osoi_liq_shell(j,:))*AREA_INV - bc_in(s)%h2o_liq_sisl(j_bc)
+          
+          if (abs(errh2o(j)) > 1.e-9_r8) then
+             write(fates_log(),*)'WARNING:  water balance error in FillDrainRhizShells'
+             write(fates_log(),*)'errh2o= ',errh2o(j), ' [kg/m2]'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
        end do
 
@@ -2205,7 +2170,7 @@ contains
 
   ! ====================================================================================
 
-  subroutine hydraulics_bc ( nsites, sites,bc_in,bc_out,dtime )
+  subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
     ! ----------------------------------------------------------------------------------
     ! added by Brad Christoffersen Jan 2016 for use in ED hydraulics
@@ -2240,6 +2205,7 @@ contains
     integer :: s   ! index of FATES site
     integer :: i   ! shell index
     integer :: j,jj! soil layer
+    integer :: j_bc! soil layer index for boundary conditions
     integer :: k   ! 1D plant-soil continuum array
     integer :: ft  ! plant functional type index
     integer :: t   ! previous timesteps (for lwp stability calculation)
@@ -2311,6 +2277,8 @@ contains
     
     real(r8) :: smp                           ! temporary for matric potential (MPa)
     integer  :: tmp
+    integer  :: jtop, jbot                    ! indices of the top and bottom rhizosphere layer
+                                              ! relative to the boundary condition array
     real(r8) :: tmp1
     real(r8) :: watres_local
     real(r8) :: roota, rootb                  ! parameters for root distribution                                      [m-1]
@@ -2489,7 +2457,7 @@ contains
 
              if(use_2d_hydrosolve) then
 
-                 call MatSolve2D(site_hydr,bc_in(s),ccohort,ccohort_hydr, &
+                 call MatSolve2D(site_hydr,ccohort,ccohort_hydr, &
                        dtime,qflx_tran_veg_indiv, &
                        sapflow,rootuptake,wb_err_plant,dwat_plant, &
                        dth_layershell_col)
@@ -2514,7 +2482,7 @@ contains
                 
                 call OrderLayersForSolve1D(site_hydr, ccohort, ccohort_hydr, ordered, kbg_layer)
                 
-                call ImTaylorSolve1D(site_hydr,bc_in(s),ccohort,ccohort_hydr, &
+                call ImTaylorSolve1D(site_hydr,ccohort,ccohort_hydr, &
                                      dtime,qflx_tran_veg_indiv,ordered, kbg_layer, & 
                                      sapflow,rootuptake, & 
                                      wb_err_plant,dwat_plant, &
@@ -2572,35 +2540,27 @@ contains
        ! water contents.  But the pre-adjusted value is the actual amount of root flux.
        ! [kg/m2]
 
-       root_flux = -sum(dth_layershell_col(1:site_hydr%nlevsoi_hyd,:)*site_hydr%v_shell(:,:))*denh2o*AREA_INV
+       root_flux = -sum(dth_layershell_col(1:site_hydr%nlevrhiz,:)*site_hydr%v_shell(:,:))*denh2o*AREA_INV
 
        
-       do j=1,site_hydr%nlevsoi_hyd
-
+       do j=1,site_hydr%nlevrhiz
+           j_bc = j+site_hydr%i_rhiz_t-1
+          
            ! Update the site-level state variable 
            ! rhizosphere shell water content [m3/m3]
            site_hydr%h2osoi_liqvol_shell(j,:) =  site_hydr%h2osoi_liqvol_shell(j,:) + &
                  dth_layershell_col(j,:)
 
 
-           if(site_hydr%recruit_w_uptake(j) > nearzero) then
-               write(fates_log(),*) 'turn off recruitment for now'
-               write(fates_log(),*) 'can turn on again after results stabilize'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-
-           bc_out(s)%qflx_soil2root_sisl(j) = &
+           bc_out(s)%qflx_soil2root_sisl(j_bc) = &
                  -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:))*denh2o*AREA_INV/dtime) + &
                  site_hydr%recruit_w_uptake(j)
-
-!           print*,'qflx_soil2root_sisl(j):',j,bc_out(s)%qflx_soil2root_sisl(j)
-
            
            
           ! Save the amount of liquid soil water known to the model after root uptake
           ! This calculation also assumes that 1mm of water is 1kg
-          site_hydr%h2osoi_liq_prev(j) = bc_in(s)%h2o_liq_sisl(j) - &
-               dtime*bc_out(s)%qflx_soil2root_sisl(j)
+          site_hydr%h2osoi_liq_prev(j) = bc_in(s)%h2o_liq_sisl(j_bc) - &
+               dtime*bc_out(s)%qflx_soil2root_sisl(j_bc)
 
 
           ! We accept that it is possible for gravity to push
@@ -2615,22 +2575,19 @@ contains
           site_runoff          = 0._r8
           if(purge_supersaturation) then
              do i = 1,nshell
-                if(site_hydr%h2osoi_liqvol_shell(j,i)>(bc_in(s)%watsat_sisl(j)-thsat_buff)) then
+                if(site_hydr%h2osoi_liqvol_shell(j,i)>(bc_in(s)%watsat_sisl(j_bc)-thsat_buff)) then
                    
                    ! [m3/m3] * [kg/m3] * [m3/site] * [site/m2] => [kg/m2]
                    site_runoff = site_runoff + & 
-                        (site_hydr%h2osoi_liqvol_shell(j,i)-(bc_in(s)%watsat_sisl(j)-thsat_buff)) * &
+                        (site_hydr%h2osoi_liqvol_shell(j,i)-(bc_in(s)%watsat_sisl(j_bc)-thsat_buff)) * &
                         site_hydr%v_shell(j,i)*AREA_INV*denh2o
                    
-                   print*,'runoff [kg/m2]: ', (site_hydr%h2osoi_liqvol_shell(j,i)-(bc_in(s)%watsat_sisl(j)-thsat_buff)) * &
-                        site_hydr%v_shell(j,i)*AREA_INV*denh2o
-                   
-                   site_hydr%h2osoi_liqvol_shell(j,i) = bc_in(s)%watsat_sisl(j)-thsat_buff
+                   site_hydr%h2osoi_liqvol_shell(j,i) = bc_in(s)%watsat_sisl(j_bc)-thsat_buff
                    
                 end if
              end do
              
-             bc_out(s)%qflx_ro_sisl(j) = site_runoff/dtime
+             bc_out(s)%qflx_ro_sisl(j_bc) = site_runoff/dtime
           end if
       enddo
 
@@ -2673,7 +2630,9 @@ contains
 
        !remove the recruitment water uptake as it has been added to prev_h2oveg 
 
-       totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:) - &
+       jtop = site_hydr%i_rhiz_t
+       jbot = site_hydr%i_rhiz_b
+       totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(jtop:jbot) - &
             site_hydr%recruit_w_uptake(:))*dtime
 
 
@@ -2712,16 +2671,6 @@ contains
             site_hydr%h2oveg_pheno_err-&
             site_hydr%h2oveg_hydro_err
 
-       ! [kg/m2] -> [mm/s]
-       !
-!       if(bc_out(s)%qflx_ro_si>nearzero) print*,'sum runoff: ',site_runoff,bc_out(s)%qflx_ro_si
-       !write(fates_log(),*) 'hydro wb terms: --------------------------'
-       !write(fates_log(),*) site_hydr%h2oveg
-       !write(fates_log(),*) site_hydr%h2oveg_dead
-       !write(fates_log(),*) site_hydr%h2oveg_growturn_err
-       !write(fates_log(),*) site_hydr%h2oveg_pheno_err
-       !write(fates_log(),*) site_hydr%h2oveg_hydro_err
-
        do ft = 1, numpft
           do sc = 1,nlevsclass
              if(ncohorts_scpf(sc,ft)>0)then
@@ -2741,7 +2690,7 @@ contains
 
 
 
-  subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr,bc_in)
+  subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
 
     ! ---------------------------------------------------------------------------------
     !
@@ -2771,9 +2720,6 @@ contains
     type(ed_cohort_hydr_type),intent(inout),target :: ccohort_hydr
     type(ed_cohort_type),intent(in),target         :: ccohort
     type(ed_site_hydr_type),intent(in),target      :: csite_hydr
-    type(bc_in_type),intent(in)                    :: bc_in
-
-
 
     ! Locals
     integer :: k    ! Compartment (node) index
@@ -2940,7 +2886,7 @@ contains
     ! The max conductance of each layer is in parallel, therefore
     ! the kmax terms of each layer, should sum to kmax_bg
     sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
-    do j=1,csite_hydr%nlevsoi_hyd
+    do j=1,csite_hydr%nlevrhiz
 
        kmax_layer = kmax_bg*ccohort_hydr%l_aroot_layer(j)/sum_l_aroot
 
@@ -2970,7 +2916,7 @@ contains
     ! or in-to the root).  So we calculate the kmax's for both cases,
     ! and save them for the final conductance calculation.
 
-    do j=1,csite_hydr%nlevsoi_hyd
+    do j=1,csite_hydr%nlevrhiz
 
        ! Surface area of the absorbing roots for a single plant in this layer [m2]
        surfarea_aroot_layer = 2._r8 * pi_const * & 
@@ -2982,14 +2928,6 @@ contains
        ccohort_hydr%kmax_aroot_radial_out(j) = hydr_kmax_rsurf2 * surfarea_aroot_layer
 
     end do
-
-    !write(fates_log(),*) 'ksu:',ccohort_hydr%kmax_stem_upper(:)
-    !write(fates_log(),*) 'ksl:',ccohort_hydr%kmax_stem_lower(:)
-    !write(fates_log(),*) 'ktu: ',ccohort_hydr%kmax_troot_upper
-    !write(fates_log(),*) 'ktl:',ccohort_hydr%kmax_troot_lower(:)
-    !write(fates_log(),*) 'kau',ccohort_hydr%kmax_aroot_upper(:)
-    !write(fates_log(),*) 'kri:',ccohort_hydr%kmax_aroot_radial_in(:)
-    !write(fates_log(),*) 'kro:',ccohort_hydr%kmax_aroot_radial_out(:)
 
     return
   end subroutine UpdatePlantKmax
@@ -3010,7 +2948,6 @@ contains
     
     ! Locals
     
-!    real(r8) :: kbg_layer(nlevsoi_hyd_max) ! total absorbing root & rhizosphere conductance (over all shells) by soil layer   [MPa]
     real(r8) :: kbg_tot                    ! total absorbing root & rhizosphere conductance (over all shells and soil layers  [MPa]
     real(r8) :: psi_inner_shell            ! matric potential of the inner shell, used for calculating
                                            ! which kmax to use when forecasting uptake layer ordering [MPa]
@@ -3034,14 +2971,8 @@ contains
 
     ft = cohort%pft
     
-    do j=1,site_hydr%nlevsoi_hyd
+    do j=1,site_hydr%nlevrhiz
 
-       if(site_hydr%l_aroot_layer(j)<nearzero)then
-
-          kbg_layer(j) = nearzero
-          
-       else
-          
        ! Path is between the absorbing root
        ! and the first rhizosphere shell nodes
        ! Special case. Maximum conductance depends on the 
@@ -3091,7 +3022,6 @@ contains
        kbg_layer(j)        = 1._r8/r_bg
        kbg_tot             = kbg_tot + kbg_layer(j)
 
-       end if
     enddo !soil layer
 
     
@@ -3099,7 +3029,7 @@ contains
 
     ! order soil layers in terms of decreasing volumetric water content
     ! algorithm same as that used in histFileMod.F90 to alphabetize history tape contents
-    do j = site_hydr%nlevsoi_hyd-1,1,-1
+    do j = site_hydr%nlevrhiz-1,1,-1
        do jj = 1,j
           if (kbg_layer(ordered(jj)) <= kbg_layer(ordered(jj+1))) then
              tmp           = ordered(jj)
@@ -3116,7 +3046,7 @@ contains
   ! =================================================================================
 
 
-  subroutine ImTaylorSolve1D(site_hydr,bc_in,cohort,cohort_hydr,dtime,q_top, &
+  subroutine ImTaylorSolve1D(site_hydr,cohort,cohort_hydr,dtime,q_top, &
        ordered,kbg_layer, sapflow,rootuptake,&
        wb_err_plant,dwat_plant,dth_layershell_col)
 
@@ -3139,7 +3069,6 @@ contains
     type(ed_cohort_type),intent(in),target       :: cohort
     type(ed_cohort_hydr_type),intent(inout),target  :: cohort_hydr
     type(ed_site_hydr_type), intent(in),target   :: site_hydr
-    type(bc_in_type), intent(in)                 :: bc_in        ! FATES boundary conditions
     real(r8), intent(in)                         :: dtime
     real(r8), intent(in)                         :: q_top        ! transpiration flux rate at upper boundary [kg -s]
     integer,intent(in)                           :: ordered(:)   ! Layer solution order
@@ -3147,12 +3076,12 @@ contains
 
     ! Arguments (OUT)
 
-    real(r8),intent(out) :: sapflow                   ! time integrated mass flux between transp-root and stem [kg]
-    real(r8),intent(out) :: rootuptake                ! time integrated mass flux between rhizosphere and aroot [kg]
-    real(r8),intent(out) :: wb_err_plant            ! total error from the plant, transpiration
-    ! should match change in storage [kg]
+    real(r8),intent(out) :: sapflow         ! time integrated mass flux between transp-root and stem [kg]
+    real(r8),intent(out) :: rootuptake      ! time integrated mass flux between rhizosphere and aroot [kg]
+    real(r8),intent(out) :: wb_err_plant    ! total error from the plant, transpiration
+                                            ! should match change in storage [kg]
     
-    real(r8),intent(out) :: dwat_plant                ! Change in plant stored water [kg]
+    real(r8),intent(out) :: dwat_plant      ! Change in plant stored water [kg]
  
     
     real(r8),intent(inout) :: dth_layershell_col(:,:) ! accumulated water content change over all cohorts in a column   [m3 m-3])
@@ -3264,19 +3193,10 @@ contains
     ! Go through soil layers in order of decreasing total root-soil conductance
     ! -----------------------------------------------------------------------------------
 
-    do jj=1,site_hydr%nlevsoi_hyd
+    do jj=1,site_hydr%nlevrhiz
         
         ilayer = ordered(jj)
 
-        ! If we are ignoring layer 1, then exit this loop
-        ! and goto the next
-        if(ignore_layer1 .and. ilayer==1) exit
-           
-        if(j==1) then
-           print*,'did not exit'
-           stop
-        end if
-        
         if(do_parallel_stem) then
             ! If we do "parallel" stem
             ! conduits, we integrate
@@ -3288,7 +3208,7 @@ contains
             if(weight_serial_dt)then
                 dt_step = dtime*kbg_layer(ilayer)
             else
-                dt_step = dtime/real(site_hydr%nlevsoi_hyd,r8)
+                dt_step = dtime/real(site_hydr%nlevrhiz,r8)
             end if
         end if
         
@@ -3336,12 +3256,12 @@ contains
                 v_node(i)  = cohort_hydr%v_troot
                 th_node_init(i) = cohort_hydr%th_troot
             elseif (i==n_hypool_ag+2) then
-                z_node(i)  = -bc_in%z_sisl(ilayer)
+                z_node(i)  = -site_hydr%zi_rhiz(ilayer)
                 v_node(i)  = cohort_hydr%v_aroot_layer(ilayer)
                 th_node_init(i) = cohort_hydr%th_aroot(ilayer)
             else
                 ishell  = i-(n_hypool_ag+2)
-                z_node(i)  = -bc_in%z_sisl(ilayer)
+                z_node(i)  = -site_hydr%zi_rhiz(ilayer)
                 ! The volume of the Rhizosphere for a single plant
                 v_node(i)  = site_hydr%v_shell(ilayer,ishell)*aroot_frac_plant
                 th_node_init(i) = site_hydr%h2osoi_liqvol_shell(ilayer,ishell)
@@ -3358,7 +3278,7 @@ contains
 
             ! Gracefully quit if too many iterations have been used
             if(iter>max_iter)then
-                call Report1DError(cohort,site_hydr,bc_in,ilayer,z_node,v_node, & 
+                call Report1DError(cohort,site_hydr,ilayer,z_node,v_node, & 
                       th_node_init,q_top_eff,dt_step,w_tot_beg,w_tot_end,& 
                       rootfr_scaler,aroot_frac_plant,error_code,error_arr)
 
@@ -3652,31 +3572,6 @@ contains
                     psi_node(i) = site_hydr%wrf_soil(ilayer)%p%psi_from_th(th_node(i))
                 end do
 
-                ! We currently allow super-saturation, but draw the line
-                ! at 100% of volume...
-!!                if( any(th_node(:)>1.0_r8) ) then
-!!                    solution_found = .false.
-!!                    error_code = 2
-!!                    error_arr(:) = th_node(:)
-!!                    exit
-!!                end if
-
-
-                !if( any(th_node(n_hypool_ag+3:n_hypool_tot)>bc_in%watsat_sisl(ilayer)) ) then
-                !    solution_found = .false.
-                !    error_code = 4
-                !    error_arr(:) = th_node(:)
-                !    exit
-                !end if
-
-                ! Check if any psi values are > 0
-                !if(any(psi_node(:) > nearzero)) then
-                !   solution_found = .false.
-                !   error_code = 4
-                !   error_arr(:) = psi_node(:)
-                !   exit
-                !end if
-          
                 ! Accumulate the water balance error of the layer over the sub-steps
                 ! for diagnostic purposes
                 ! [kg/m2]
@@ -3811,11 +3706,6 @@ contains
               dth_node((n_hypool_tot-nshell+1):n_hypool_tot) * & 
               cohort_hydr%l_aroot_layer(ilayer) * &
               cohort%n / site_hydr%l_aroot_layer(ilayer)
-
-         if(j==1) then
-            print*,'did not exit 2'
-            stop
-        end if
         
      enddo !soil layer (jj -> ilayer)
 
@@ -3825,7 +3715,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine Report1DError(cohort, site_hydr, bc_in, ilayer, z_node, v_node, & 
+  subroutine Report1DError(cohort, site_hydr, ilayer, z_node, v_node, & 
                            th_node, q_top_eff, dt_step, w_tot_beg, w_tot_end, &
                            rootfr_scaler, aroot_frac_plant, err_code, err_arr)
 
@@ -3835,7 +3725,6 @@ contains
                                                                     ! Arguments (IN)
     type(ed_cohort_type),intent(in),target      :: cohort
     type(ed_site_hydr_type),intent(in), target  :: site_hydr
-    type(bc_in_type), intent(in)                :: bc_in            ! FATES boundary conditions
     integer, intent(in)                         :: ilayer           ! soil layer index of interest
     real(r8), intent(in)                        :: z_node(:)        ! elevation of nodes
     real(r8), intent(in)                        :: v_node(:)        ! volume of nodes
@@ -4326,41 +4215,36 @@ contains
     integer                        :: nshells      ! We don't use the global because of unit testing
     !-----------------------------------------------------------------------
 
-    if(l_aroot<nearzero) then
-       r_out_shell(:)  = 1._r8 ! nominal, unused
-       r_node_shell(:) = 1._r8 ! nominal, unused
-       v_shell(:)      = 0._r8
-    else
        
-       nshells = size(r_out_shell,dim=1)
-       
-       ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
-       r_out_shell(nshells) = (pi_const*l_aroot/(area_site*dz))**(-0.5_r8)                  ! eqn(8) S98
-       if(nshells > 1) then
-          do k = 1,nshells-1
-             r_out_shell(k)   = rs1*(r_out_shell(nshells)/rs1)**((real(k,r8))/real(nshells,r8))  ! eqn(7) S98
-          enddo
-       end if
-       
-       ! set nodal (midpoint) radii of these shells
-       ! BOC...not doing this as it requires PFT-specific fine root thickness, but this is at column level
-       r_node_shell(1) = 0.5_r8*(rs1 + r_out_shell(1))
-       !r_node_shell(1) = 0.5_r8*(r_out_shell(1))
-       
-       do k = 2,nshells
-          r_node_shell(k) = 0.5_r8*(r_out_shell(k-1) + r_out_shell(k))
-       enddo
-       
-       ! update volumes
-       do k = 1,nshells
-          if(k == 1) then
-             v_shell(k) = pi_const*l_aroot*(r_out_shell(k)**2._r8 - rs1**2._r8)
-          else
-             v_shell(k) = pi_const*l_aroot*(r_out_shell(k)**2._r8 - r_out_shell(k-1)**2._r8)
-          end if
+    nshells = size(r_out_shell,dim=1)
+    
+    ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
+    r_out_shell(nshells) = (pi_const*l_aroot/(area_site*dz))**(-0.5_r8)                  ! eqn(8) S98
+    if(nshells > 1) then
+       do k = 1,nshells-1
+          r_out_shell(k)   = rs1*(r_out_shell(nshells)/rs1)**((real(k,r8))/real(nshells,r8))  ! eqn(7) S98
        enddo
     end if
+       
+    ! set nodal (midpoint) radii of these shells
+    ! BOC...not doing this as it requires PFT-specific fine root thickness, but this is at column level
+    r_node_shell(1) = 0.5_r8*(rs1 + r_out_shell(1))
+    !r_node_shell(1) = 0.5_r8*(r_out_shell(1))
+    
+    do k = 2,nshells
+       r_node_shell(k) = 0.5_r8*(r_out_shell(k-1) + r_out_shell(k))
+    enddo
+    
+    ! update volumes
+    do k = 1,nshells
+       if(k == 1) then
+          v_shell(k) = pi_const*l_aroot*(r_out_shell(k)**2._r8 - rs1**2._r8)
+       else
+          v_shell(k) = pi_const*l_aroot*(r_out_shell(k)**2._r8 - r_out_shell(k-1)**2._r8)
+       end if
+    enddo
 
+    return
   end subroutine shellGeom
 
   ! =====================================================================================
@@ -4500,7 +4384,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine MatSolve2D(site_hydr,bc_in,cohort,cohort_hydr, &
+  subroutine MatSolve2D(site_hydr,cohort,cohort_hydr, &
                         tmx,qtop, &
                         sapflow,rootuptake,wb_err_plant , dwat_plant, & 
                         dth_layershell_site)
@@ -4541,7 +4425,6 @@ contains
     type(ed_site_hydr_type), intent(inout),target :: site_hydr        ! ED site_hydr structure
     type(ed_cohort_hydr_type), target            :: cohort_hydr
     type(ed_cohort_type) , intent(inout), target :: cohort
-    type(bc_in_type),intent(in)                  :: bc_in
     real(r8),intent(in)                          :: tmx ! time interval to integrate over [s]
     real(r8),intent(in)                          :: qtop
     real(r8),intent(out) :: sapflow                   ! time integrated mass flux between transp-root and stem [kg]
@@ -4712,7 +4595,7 @@ contains
       ! from the cohort structures, into the complete node vector
       i = n_hypool_ag + n_hypool_troot
       
-      do j = 1,site_hydr%nlevsoi_hyd
+      do j = 1,site_hydr%nlevrhiz
 
          ! Calculate the fraction of the soil layer
          ! folume that this plant's rhizosphere accounts forPath is across the upper an lower rhizosphere comparment
@@ -4723,12 +4606,12 @@ contains
          do k = 1, n_hypool_aroot + nshell
             i = i + 1
             if (k==1) then
-               z_node(i)  = -bc_in%z_sisl(j)
+               z_node(i)  = -site_hydr%zi_rhiz(j)
                v_node(i)  = cohort_hydr%v_aroot_layer(j)
                th_node_init(i) = cohort_hydr%th_aroot(j)
             else
                kshell  = k-1
-               z_node(i)  = -bc_in%z_sisl(j)
+               z_node(i)  = -site_hydr%zi_rhiz(j)
                ! The volume of the Rhizosphere for a single plant
                v_node(i)  = site_hydr%v_shell(j,kshell)*aroot_frac_plant
                th_node_init(i) = site_hydr%h2osoi_liqvol_shell(j,kshell)
@@ -5158,7 +5041,7 @@ contains
 
          sapflow = sapflow + q_flux(n_hypool_ag)*dtime
 
-         do j = 1,site_hydr%nlevsoi_hyd
+         do j = 1,site_hydr%nlevrhiz
             ! Connection betwen the 1st rhizosphere and absorbing roots
             icnx_ar = n_hypool_ag + (j-1)*(nshell+1)+2
             rootuptake = rootuptake + q_flux(icnx_ar)*dtime
@@ -5187,7 +5070,7 @@ contains
       dwat_plant = sum(dth_node(1:n_hypool_ag+n_hypool_troot)*v_node(1:n_hypool_ag+n_hypool_troot))*denh2o
 
       inode = n_hypool_ag+n_hypool_troot
-      do j = 1,site_hydr%nlevsoi_hyd
+      do j = 1,site_hydr%nlevrhiz
          do k = 1, nshell+1
             inode = inode + 1
             if(k==1) then
@@ -5268,7 +5151,7 @@ contains
 
     ! Path is between the transporting root and the absorbing roots
     inode = n_hypool_ag
-    do j = 1,site_hydr%nlevsoi_hyd
+    do j = 1,site_hydr%nlevrhiz
 
        aroot_frac_plant = cohort_hydr%l_aroot_layer(j)/site_hydr%l_aroot_layer(j)
        
@@ -5464,7 +5347,7 @@ contains
   !!          (ccohort_hydr%flc_troot(k) - ccohort_hydr%flc_min_troot(k))*exp(-refill_rate*dtime)
   !!end if
   !!end do
-  !!do j=1,site_hydr%nlevsoi_hyd
+  !!do j=1,site_hydr%nlevrhiz
   !!ccohort_hydr%flc_min_aroot(j) = min(ccohort_hydr%flc_min_aroot(j), ccohort_hydr%flc_aroot(j))
   !!if(ccohort_hydr%psi_aroot(j) >= ccohort_hydr%refill_thresh .and. &
   !!      ccohort_hydr%flc_aroot(j) > ccohort_hydr%flc_min_aroot(j)) then   ! then refilling
