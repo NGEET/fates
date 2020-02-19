@@ -118,34 +118,36 @@ module FatesPlantHydraulicsMod
   ! 1 => use BC hydraulics; 
   ! 2 => use CX hydraulics
 
-
   ! The following options are temporarily unavailable (RGK 09-06-19)
   ! ----------------------------------------------------------------------------------
 
-  !  logical, public :: do_dqtopdth_leaf          = .false.  ! should a nonzero dqtopdth_leaf
+  ! logical, public :: do_dqtopdth_leaf          = .false.  ! should a nonzero dqtopdth_leaf
   ! term be applied to the plant 
   ! hydraulics numerical solution?
-  !logical, public :: do_dyn_xylemrefill        = .false.  ! should the dynamics of xylem refilling 
+  ! logical, public :: do_dyn_xylemrefill        = .false.  ! should the dynamics of xylem refilling 
   ! (i.e., non-instantaneous) be considered 
   ! within plant hydraulics?
-  !logical, public :: do_kbound_upstream        = .true.  ! should the hydraulic conductance at the 
+  ! logical, public :: do_kbound_upstream        = .true.  ! should the hydraulic conductance at the 
   ! boundary between nodes be taken to be a
   ! function of the upstream loss of 
   ! conductivity (flc)?
+  ! logical :: purge_supersaturation = .false. ! If for some reason the roots force water
+  !                                            ! into a saturated soil layer, or push it slightly
+  !                                            ! past saturation, should we attempt to help
+  !                                            ! fix the situation by assigning some
+  !                                            ! of the water to a runoff term?
+  
 
   logical, public :: do_growthrecruiteffects   = .true. ! should size- or root length-dependent 
-                                                          ! hydraulic properties and states be 
-                                                          ! updated every day when trees grow or 
-                                                          ! when recruitment happens?
+                                                        ! hydraulic properties and states be 
+                                                        ! updated every day when trees grow or 
+                                                        ! when recruitment happens?
 
   ! If this is set to true, then the conductance over a path between nodes, is defined
   ! by the side of the path with higher potential only. 
   logical, parameter     :: do_upstream_k = .true.
 
-  logical :: purge_supersaturation = .false. ! If for some reason the roots force water
-  ! into a saturated soil layer, or push it slightly
-  ! past saturation, should we attempt to help fix the situation by assigning some
-  ! of the water to a runoff term?
+
   
   logical :: do_parallel_stem = .true. ! If this mode is active, we treat the conduit through
                                        ! the plant (in 1D solves) as closed from root layer
@@ -159,24 +161,21 @@ module FatesPlantHydraulicsMod
 
   real(r8), parameter :: thsat_buff = 0.001_r8 ! Ensure that this amount of buffer
                                                ! is left between soil moisture and saturation [m3/m3]
+                                               ! (if we are going to help purge super-saturation)
                                              
-  logical,parameter :: debug = .true.                   !flag to report warning in hydro
+  logical,parameter :: debug = .true.          ! flag to report warning in hydro
 
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
 
-  ! We use this parameter as the value for which we set un-initialized values
-  real(r8), parameter :: un_initialized = -9.9e32_r8
-  
   integer, public, parameter :: van_genuchten_type      = 1
   integer, public, parameter :: campbell_type           = 2
   integer, public, parameter :: tfs_type                = 3
   
   integer, parameter :: plant_wrf_type = tfs_type
   integer, parameter :: plant_wkf_type = tfs_type
-  !  integer, parameter :: soil_wrf_type  = campbell_type
   integer, parameter :: soil_wrf_type  = campbell_type
   integer, parameter :: soil_wkf_type  = campbell_type
   
@@ -190,7 +189,11 @@ module FatesPlantHydraulicsMod
   ! for plants of each different porous media type, and plant functional type
   
   class(wkf_arr_type), pointer :: wkf_plant(:,:)
-  
+
+  ! Testing parameters for Van Genuchten soil WRTs
+  ! unused unless van_genuchten_type is selected, also
+  ! it would be much better to use the native parameters passed in
+  ! from the HLM's soil model
   real(r8), parameter :: alpha_vg  = 0.001_r8
   real(r8), parameter :: th_sat_vg = 0.65_r8
   real(r8), parameter :: th_res_vg = 0.15_r8
@@ -290,17 +293,17 @@ contains
     ! locals
     ! ----------------------------------------------------------------------------------
     ! LL pointers
-    type(ed_patch_type),pointer       :: cpatch      ! current patch
-    type(ed_cohort_type),pointer      :: ccohort     ! current cohort
-    type(ed_cohort_hydr_type),pointer :: ccohort_hydr
-    type(ed_site_hydr_type),pointer   :: csite_hydr   
-    integer                           :: s           ! site loop counter
-    integer                           :: j
-    integer                           :: j_bc ! soil layer index of boundary condition
-    class(wrf_type_vg), pointer :: wrf_vg
-    class(wkf_type_vg), pointer :: wkf_vg
-    class(wrf_type_cch), pointer :: wrf_cch
-    class(wkf_type_cch), pointer :: wkf_cch
+    type(ed_patch_type),pointer                         :: cpatch      ! current patch
+    type(ed_cohort_type),pointer                        :: ccohort     ! current cohort
+    type(ed_cohort_hydr_type),pointer                   :: ccohort_hydr
+    type(ed_site_hydr_type),pointer                     :: csite_hydr   
+    integer                                             :: s           ! site loop counter
+    integer                                             :: j           ! soil layer index
+    integer                                             :: j_bc        ! soil layer index of boundary condition
+    class(wrf_type_vg), pointer                         :: wrf_vg
+    class(wkf_type_vg), pointer                         :: wkf_vg
+    class(wrf_type_cch), pointer                        :: wrf_cch
+    class(wkf_type_cch), pointer                        :: wkf_cch
 
     do s = 1,nsites
        csite_hydr=>sites(s)%si_hydr
@@ -333,9 +336,9 @@ contains
           cpatch => cpatch%younger
        end do
 
-       sites(s)%si_hydr%l_aroot_layer_init(:)  = un_initialized
-       sites(s)%si_hydr%r_node_shell_init(:,:) = un_initialized
-       sites(s)%si_hydr%v_shell_init(:,:)      = un_initialized
+       sites(s)%si_hydr%l_aroot_layer_init(:)  = fates_unset_r8
+       sites(s)%si_hydr%r_node_shell_init(:,:) = fates_unset_r8
+       sites(s)%si_hydr%v_shell_init(:,:)      = fates_unset_r8
 
        ! --------------------------------------------------------------------------------
        ! Initialize water transfer functions
@@ -345,8 +348,6 @@ contains
        ! --------------------------------------------------------------------------------
        ! Initialize the Water Retention Functions
        ! -----------------------------------------------------------------------------------
-
-
        
        select case(soil_wrf_type)
        case(van_genuchten_type)
@@ -436,15 +437,14 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_site_hydr_type), pointer   :: site_hydr
     type(ed_cohort_hydr_type), pointer :: cohort_hydr
-    integer  :: j,k,ft                     ! indices
-    real(r8) :: psi_rhiz1
-    real(r8) :: dz
-    real(r8) :: smp
-    real(r8) :: h_aroot_mean  ! minimum total potential of absorbing roots
-
-    real(r8), parameter :: psi_aroot_init = -0.2_r8   ! Initialize aroots with -0.2 MPa
-    real(r8), parameter :: dh_dz = 0.02_r8           ! amount to decrease downstream
-                                                      ! compartment total potentials [MPa/meter]
+    integer  :: j,k                                 ! layer and node indices
+    integer  :: ft                                  ! functional type index
+    real(r8) :: psi_rhiz1                           ! pressure in first rhizosphere shell [MPa]
+    real(r8) :: dz                                  ! depth of the current layer [m]
+    real(r8) :: h_aroot_mean                        ! minimum total potential of absorbing roots
+    real(r8), parameter :: psi_aroot_init = -0.2_r8 ! Initialize aroots with -0.2 MPa
+    real(r8), parameter :: dh_dz = 0.02_r8          ! amount to decrease downstream
+                                                    ! compartment total potentials [MPa/meter]
     
     ! In init mode = 1, set absorbing roots to -0.2 MPa
     !              = 2, use soil as starting point, match total potentials
@@ -1087,9 +1087,6 @@ contains
     ncohort_hydr%errh2o_pheno_aroot    = ocohort_hydr%errh2o_pheno_aroot
 
     ! BC PLANT HYDRAULICS - flux terms
-
-!    ncohort_hydr%sapflow               = ocohort_hydr%sapflow
-!    ncohort_hydr%rootuptake            = ocohort_hydr%rootuptake
     ncohort_hydr%qtop                  = ocohort_hydr%qtop
 
     ncohort_hydr%is_newly_recruited    = ocohort_hydr%is_newly_recruited
@@ -2056,23 +2053,23 @@ contains
     type(bc_out_type), intent(inout)          :: bc_out(nsites)
 
     ! Locals
-    real(r8) :: dwat_kgm2                                            ! change in layer water content              [kg/m2]
-    type(ed_site_hydr_type), pointer :: csite_hydr
-    integer  :: s,j,k                                  ! site, soil layer, rhizosphere shell indicies
-    integer  :: i,f,ff,kk                              ! indicies
-    integer  :: j_bc                                   ! layer index for matching boundary condition soil layers
-    integer  :: indexj                          ! column and layer indices where there is a water balance error
-    integer  :: ordered(nshell) = (/(i,i=1,nshell,1)/) ! array of rhizosphere indices which have been ordered
-    real(r8) :: area_col                               ! column area                                                    [m2]
-    real(r8) :: v_cum                                  ! cumulative shell volume from driest/wettest shell to kth shell [m3]
-    real(r8) :: dwat_kg                                ! water remaining to be distributed across shells                [kg]
-    real(r8) :: thdiff                                 ! water content difference between ordered adjacent rhiz shells  [m3 m-3]
-    real(r8) :: wdiff                                  ! mass of water represented by thdiff over previous k shells     [kg]
-    real(r8) :: errh2o(nlevsoi_hyd_max)                ! water budget error after updating                              [kg/m2]
-    real(r8) :: cumShellH2O                            ! sum of water in all the shells of a specific layer             [kg/m2]
-    real(r8) :: h2osoi_liq_shell(nlevsoi_hyd_max,nshell) !water in the rhizosphere shells                               [kg]
-    integer  :: tmp                                    ! temporary
-    logical  :: found                                  ! flag in search loop
+    type(ed_site_hydr_type), pointer :: csite_hydr       ! pointer to site hydraulics object
+    real(r8) :: dwat_kgm2                                ! change in layer water content              [kg/m2]
+    integer  :: s,j,k                                    ! site, soil layer, rhizosphere shell indicies
+    integer  :: i,f,ff,kk                                ! indicies
+    integer  :: j_bc                                     ! layer index for matching boundary condition soil layers
+    integer  :: indexj                                   ! column and layer indices where there is a water balance error
+    integer  :: ordered(nshell) = (/(i,i=1,nshell,1)/)   ! array of rhizosphere indices which have been ordered
+    real(r8) :: area_col                                 ! column area                                                    [m2]
+    real(r8) :: v_cum                                    ! cumulative shell volume from driest/wettest shell to kth shell [m3]
+    real(r8) :: dwat_kg                                  ! water remaining to be distributed across shells                [kg]
+    real(r8) :: thdiff                                   ! water content difference between ordered adjacent rhiz shells  [m3 m-3]
+    real(r8) :: wdiff                                    ! mass of water represented by thdiff over previous k shells     [kg]
+    real(r8) :: errh2o(nlevsoi_hyd_max)                  ! water budget error after updating                              [kg/m2]
+    real(r8) :: cumShellH2O                              ! sum of water in all the shells of a specific layer             [kg/m2]
+    real(r8) :: h2osoi_liq_shell(nlevsoi_hyd_max,nshell) ! water in the rhizosphere shells                               [kg]
+    integer  :: tmp                                      ! temporary
+    logical  :: found                                    ! flag in search loop
     !-----------------------------------------------------------------------
 
     do s = 1,nsites
@@ -2199,109 +2196,63 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    character(len=*), parameter :: sub = 'clm::Hydraulics_bc'
-    integer :: iv  ! leaf layer
-    integer :: ifp ! index of FATES patch
-    integer :: s   ! index of FATES site
-    integer :: i   ! shell index
-    integer :: j,jj! soil layer
-    integer :: j_bc! soil layer index for boundary conditions
-    integer :: k   ! 1D plant-soil continuum array
-    integer :: ft  ! plant functional type index
-    integer :: t   ! previous timesteps (for lwp stability calculation)
+    integer :: iv    ! leaf layer
+    integer :: ifp   ! index of FATES patch
+    integer :: s     ! index of FATES site
+    integer :: i     ! shell index
+    integer :: j,jj  ! soil layer
+    integer :: j_bc  ! soil layer index for boundary conditions
+    integer :: k     ! 1D plant-soil continuum array
+    integer :: ft    ! plant functional type index
+    integer :: t     ! previous timesteps (for lwp stability calculation)
     integer :: nstep !number of time steps
 
     !----------------------------------------------------------------------
 
-    type (ed_patch_type),  pointer :: cpatch
-    type (ed_cohort_type), pointer :: ccohort
+    type (ed_patch_type),  pointer     :: cpatch       ! current patch pointer
+    type (ed_cohort_type), pointer     :: ccohort      ! current cohort pointer
+    type(ed_site_hydr_type), pointer   :: site_hydr    ! site hydraulics pointer
+    type(ed_cohort_hydr_type), pointer :: ccohort_hydr ! cohort hydraulics pointer
 
-    ! hydraulics global constants
+    ! Local arrays
 
-    real(r8), parameter :: small_theta_num = 1.e-5_r8   ! avoids theta values equalling thr or ths [m3 m-3]
+    ! accumulated water content change over all cohorts in a column   [m3 m-3]
+    real(r8)            :: dth_layershell_col(nlevsoi_hyd_max,nshell)
 
-    ! hydraulics timestep adjustments for acceptable water balance error
+    ! array of soil layer indices which have been ordered
+    integer             :: ordered(nlevsoi_hyd_max) = (/(j,j=1,nlevsoi_hyd_max,1)/) 
 
-    real(r8) :: we_area_outer                 ! 1D plant-soil continuum water error                             [kgh2o m-2 individual-1]
+    ! number of cohorts in this size-class/pft bin (nlevsclass,numpft) for averaging
+    integer,allocatable :: ncohorts_scpf(:,:)
 
-    ! column-specific arrays to hold rhizosphere geometric & state variables
-    real(r8) :: h2osoi_liqvol
-    real(r8) :: site_runoff            ! If plants are pushing water into saturated soils, we create
-                                       ! runoff. This is either banked, or sent to the correct flux pool [kg/m2]
-    real(r8) :: dth_layershell_col(nlevsoi_hyd_max,nshell) ! accumulated water content change over all cohorts in a column   [m3 m-3]
+    ! total absorbing root & rhizosphere conductance (over all shells) by soil layer   [MPa]
+    real(r8) :: kbg_layer(nlevsoi_hyd_max)   
 
-    real(r8) :: aroot_frac_plant  ! The fraction of the total lenght of absorbing roots contained in one soil layer
-                                  ! that are devoted to a single plant
-
-    real(r8) :: kbg_layer(nlevsoi_hyd_max)   ! total absorbing root & rhizosphere conductance (over all shells) by soil layer   [MPa]
-    real(r8) :: psi_aroot                     ! matric potential in absorbing root [MPa]
-    real(r8) :: ftc_aroot                     ! fraction of total conductance in absorbing root [-]
-    real(r8) :: psi_shell                     ! matric potential of a given shell [-]
-    real(r8) :: ftc_shell                     ! fraction of total cond. of a given rhiz shell [-]
-    real(r8) :: kmax_up                       ! Kmax of upper rhizosphere compartments [kg s-1 Mpa-1]
-    real(r8) :: kmax_lo                       ! Kamx of lower rhizosphere compartments [kg s-1 Mpa-1]
-
-    real(r8) :: wb_err_plant                  ! Solve error for a single plant [kg]
-    real(r8) :: wb_check_site                 ! the water balance error we get from summing fluxes
-                                              ! and changes in storage
-                                              ! and is just a double check on our error accounting). [kg/m2]
-
-    real(r8) :: dwat_plant                    ! change in water mass in the whole plant [kg]
-
-!    real(r8) :: supsub_error                  ! Amount of mass created or destroyed to prevent super-saturation
-!                                              ! or sub-residual water contents from occuring in the soil [kg/m2]
-
-    integer,allocatable :: ncohorts_scpf(:,:)!nlevsclass,numpft)
     
-    ! hydraulics other
-    integer  :: ordered(nlevsoi_hyd_max) = (/(j,j=1,nlevsoi_hyd_max,1)/) ! array of soil layer indices which have been ordered
-    real(r8) :: qflx_tran_veg_indiv           ! individiual transpiration rate                                  [kgh2o indiv-1 s-1]
-    real(r8) :: gscan_patch                   ! sum of ccohort%gscan across all cohorts within a patch          
-    real(r8) :: qtop_dt
-    real(r8) :: dqtopdth_dthdt
-    real(r8) :: sapflow
-    real(r8) :: rootuptake
-    real(r8) :: totalrootuptake               !total root uptake per unit area (kg h2o m-2 time step -1) 
-    real(r8) :: transp_col                    ! Column mean transpiration rate [mm H2O/m2]
-    ! as defined by the input boundary condition
-    real(r8) :: transp_col_check              ! Column mean transpiration rate [mm H2O/m2] as defined
-    ! by the sum of water fluxes through the cohorts
+    real(r8) :: site_runoff         ! If plants are pushing water into saturated soils, we create
+                                    ! runoff. This is either banked, or sent to the correct flux pool [kg/m2]
+    real(r8) :: aroot_frac_plant    ! The fraction of the total length of absorbing roots contained in one soil layer
+                                    ! that are devoted to a single plant
+    real(r8) :: wb_err_plant        ! Solve error for a single plant [kg]
+    real(r8) :: wb_check_site       ! the water balance error we get from summing fluxes
+                                    ! and changes in storage
+                                    ! and is just a double check on our error accounting). [kg/m2]
+    real(r8) :: dwat_plant          ! change in water mass in the whole plant [kg]
+    real(r8) :: qflx_tran_veg_indiv ! individiual transpiration rate [kgh2o indiv-1 s-1]
+    real(r8) :: gscan_patch         ! sum of ccohort%gscan across all cohorts within a patch          
+    real(r8) :: sapflow             ! mass-flux for the cohort between transporting root and stem   [kg/indiv/step]
+    real(r8) :: rootuptake          ! mass-flux from 1st rhizosphere to absorbing roots             [kg/indiv/step]
+    real(r8) :: prev_h2oveg         ! plant water storage at start of timestep (kg/m2)
+    real(r8) :: prev_h2osoil        ! soil water storage at start of timestep (kg/m2)
+    logical  :: recruitflag         ! flag to check if there is newly recruited cohorts
+    real(r8) :: root_flux           ! total water flux into roots [kg/m2]
+    real(r8) :: transp_flux         ! total transpiration flux from plants [kg/m2]
+    real(r8) :: delta_plant_storage ! change in plant water storage over the step [kg/m2]
+    real(r8) :: delta_soil_storage  ! change in soil water storage over the step [kg/m2]
+    integer  :: sc                  ! size class index
+
+
     
-
-    real(r8) :: patch_wgt                     ! fraction of current patch relative to the whole site
-    ! note that this is almost but not quite cpatch%area/AREA
-    ! as it regards the fraction of canopy area as the relevant
-    ! area, and assumes that the HLM has it's own patch
-    ! that is not tracked by FATES which accounts for all
-    ! non-canopy areas across all patches					       
-    
-    real(r8) :: smp                           ! temporary for matric potential (MPa)
-    integer  :: tmp
-    integer  :: jtop, jbot                    ! indices of the top and bottom rhizosphere layer
-                                              ! relative to the boundary condition array
-    real(r8) :: tmp1
-    real(r8) :: watres_local
-    real(r8) :: roota, rootb                  ! parameters for root distribution                                      [m-1]
-    real(r8) :: rootfr                        ! root fraction at different soil layers
-    real(r8) :: prev_h2oveg                   ! plant water storage at start of timestep (kg/m2)
-    real(r8) :: prev_h2osoil                  ! soil water storage at start of timestep (kg/m2)
-    logical  :: recruitflag                   ! flag to check if there is newly recruited cohorts
-    integer  :: iter                          ! number of solver iterations used for each cohort x layer
-    real(r8) :: root_flux
-    real(r8) :: transp_flux
-    real(r8) :: delta_plant_storage
-    real(r8) :: delta_soil_storage
-    real(r8) :: mean_theta                   ! mean water content per soil layer (testing) [m3/m3]
-    integer  :: sc                           ! size class index
-    type(ed_site_hydr_type), pointer :: site_hydr
-    type(ed_cohort_hydr_type), pointer :: ccohort_hydr
-    integer  :: err_code = 0
-
-    logical, parameter :: weight_serial_dt = .false.  ! For serial solver (1D), should
-    ! the fractional time each layer
-    ! gets, be weighted by conductance?
-
-
     ! ----------------------------------------------------------------------------------
     ! Important note: We are interested in calculating the total fluxes in and out of the
     ! site/column.  Usually, when we do things like this, we acknowledge that FATES
@@ -2309,12 +2260,6 @@ contains
     ! calculates "column level" fluxes, we have to factor in that patch-level fluxes
     ! are only accounting for a portion of the area.
     ! ----------------------------------------------------------------------------------
-
-    ! DEPRECATED: waterstate_inst%psisoi_liq_shell 
-    ! Input:  [real(r8) (:,:,:)] soil matric potential (MPa) by layer and rhizosphere shell
-
-    !for debug only
-    !nstep = get_nstep()
 
     !For newly recruited cohorts, add the water uptake demand to csite_hydr%recruit_w_uptake
     call RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
@@ -2345,7 +2290,6 @@ contains
        ! --------------------------------------------------------------------------------
        transp_flux          = 0._r8
        root_flux            = 0._r8
-      
        
        ! Initialize the delta in soil water and plant water storage
        ! with the initial condition.
@@ -2360,11 +2304,9 @@ contains
        ! -------------------------------------------------
        ifp = 0
        cpatch => sites(s)%oldest_patch
-       transp_col = 0.0_r8
        do while (associated(cpatch))
           ifp = ifp + 1
           patch_wgt = min(1.0_r8,cpatch%total_canopy_area/cpatch%area) * (cpatch%area*AREA_INV)
-          transp_col = transp_col +  bc_in(s)%qflx_transp_pa(ifp)*patch_wgt
           cpatch => cpatch%younger
        end do
 
@@ -2405,8 +2347,6 @@ contains
 
              ccohort_hydr => ccohort%co_hydr
              ft       = ccohort%pft
-
-!             ccohort_hydr%rootuptake      = 0._r8
 
              ! Relative transpiration of this cohort from the whole patch
              ! Note that g_sb_laweight / gscan_patch is the weighting that gives cohort contribution per area
@@ -2487,8 +2427,6 @@ contains
                                      sapflow,rootuptake, & 
                                      wb_err_plant,dwat_plant, &
                                      dth_layershell_col)
-
-                
 
              end if
 
@@ -2628,13 +2566,6 @@ contains
        ! mass balance check and pass the total stored vegetation water to HLM
        ! in order for it to fill its balance checks
 
-       !remove the recruitment water uptake as it has been added to prev_h2oveg 
-
-       jtop = site_hydr%i_rhiz_t
-       jbot = site_hydr%i_rhiz_b
-       totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(jtop:jbot) - &
-            site_hydr%recruit_w_uptake(:))*dtime
-
 
        ! Compare the integrated error to the site mass balance
        ! error sign is positive towards transpiration overestimation
@@ -2722,36 +2653,33 @@ contains
     type(ed_site_hydr_type),intent(in),target      :: csite_hydr
 
     ! Locals
-    integer :: k    ! Compartment (node) index
-    integer :: j    ! Soil layer index
-    integer :: k_ag ! Compartment index for above-ground indexed array
-    integer  :: pft          ! Plant Functional Type index
-    real(r8) :: c_sap_dummy  ! Dummy variable (unused) with sapwood carbon [kg]
-    real(r8) :: z_lower      ! distance between lower edge and mean petiole height [m]
-    real(r8) :: z_upper      ! distance between upper edge and mean petiole height [m]
-    real(r8) :: z_node       ! distance between compartment center and mph [m]
-    real(r8) :: kmax_lower   ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
-    real(r8) :: kmax_node    ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
-    real(r8) :: kmax_upper   ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
-    real(r8) :: a_sapwood    ! Mean cross section area of sapwood   [m2]
-    real(r8) :: rmin_ag      ! Minimum total resistance of all above ground pathways
-    ! [kg-1 s MPa]
-    real(r8) :: kmax_bg      ! Total maximum conductance of all below-ground pathways 
-    real(r8) :: kmax_bg_alt
-    ! from the absorbing roots center nodes to the 
-    ! transporting root center node
-    real(r8) :: rootfr       ! fraction of absorbing root in each soil layer
-    ! assumes propotion of absorbing root is equal
-    ! to proportion of total root
-    real(r8) :: kmax_layer   ! max conductance between transporting root node
-    ! and absorbing root node in each layer [kg s-1 MPa-1]
+    integer :: k                     ! Compartment (node) index
+    integer :: j                     ! Soil layer index
+    integer :: k_ag                  ! Compartment index for above-ground indexed array
+    integer  :: pft                  ! Plant Functional Type index
+    real(r8) :: c_sap_dummy          ! Dummy variable (unused) with sapwood carbon [kg]
+    real(r8) :: z_lower              ! distance between lower edge and mean petiole height [m]
+    real(r8) :: z_upper              ! distance between upper edge and mean petiole height [m]
+    real(r8) :: z_node               ! distance between compartment center and mph [m]
+    real(r8) :: kmax_lower           ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
+    real(r8) :: kmax_node            ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
+    real(r8) :: kmax_upper           ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
+    real(r8) :: a_sapwood            ! Mean cross section area of sapwood   [m2]
+    real(r8) :: rmin_ag              ! Minimum total resistance of all above ground pathways
+                                     ! [kg-1 s MPa]
+    real(r8) :: kmax_bg              ! Total maximum conductance of all below-ground pathways 
+                                     ! from the absorbing roots center nodes to the 
+                                     ! transporting root center node
+    real(r8) :: rootfr               ! fraction of absorbing root in each soil layer
+                                     ! assumes propotion of absorbing root is equal
+                                     ! to proportion of total root
+    real(r8) :: kmax_layer           ! max conductance between transporting root node
+                                     ! and absorbing root node in each layer [kg s-1 MPa-1]
     real(r8) :: surfarea_aroot_layer ! Surface area of absorbing roots in each
-    ! soil layer [m2]
-    real(r8) :: roota         ! root profile parameter a zeng2001_crootfr
-    real(r8) :: rootb         ! root profile parameter b zeng2001_crootfr
-    real(r8) :: sum_l_aroot   ! sum of plant's total root length
-    
-
+                                     ! soil layer [m2]
+    real(r8) :: roota                ! root profile parameter a zeng2001_crootfr
+    real(r8) :: rootb                ! root profile parameter b zeng2001_crootfr
+    real(r8) :: sum_l_aroot          ! sum of plant's total root length
     real(r8),parameter :: taper_exponent = 1._r8/3._r8 ! Savage et al. (2010) xylem taper exponent [-]
     real(r8),parameter :: min_pet_stem_dz = 0.00001_r8  ! Force at least a small difference
                                                        ! in the top of stem and petiole
@@ -3045,7 +2973,6 @@ contains
   
   ! =================================================================================
 
-
   subroutine ImTaylorSolve1D(site_hydr,cohort,cohort_hydr,dtime,q_top, &
        ordered,kbg_layer, sapflow,rootuptake,&
        wb_err_plant,dwat_plant,dth_layershell_col)
@@ -3076,20 +3003,17 @@ contains
 
     ! Arguments (OUT)
 
-    real(r8),intent(out) :: sapflow         ! time integrated mass flux between transp-root and stem [kg]
-    real(r8),intent(out) :: rootuptake      ! time integrated mass flux between rhizosphere and aroot [kg]
-    real(r8),intent(out) :: wb_err_plant    ! total error from the plant, transpiration
-                                            ! should match change in storage [kg]
-    
-    real(r8),intent(out) :: dwat_plant      ! Change in plant stored water [kg]
- 
-    
+    real(r8),intent(out) :: sapflow                   ! time integrated mass flux between transp-root and stem [kg]
+    real(r8),intent(out) :: rootuptake                ! time integrated mass flux between rhizosphere and aroot [kg]
+    real(r8),intent(out) :: wb_err_plant              ! total error from the plant, transpiration
+                                                      ! should match change in storage [kg]
+    real(r8),intent(out) :: dwat_plant                ! Change in plant stored water [kg]
     real(r8),intent(inout) :: dth_layershell_col(:,:) ! accumulated water content change over all cohorts in a column   [m3 m-3])
 
     ! Locals
     integer :: i              ! node index "i"
     integer :: j              ! path index "j"
-    integer :: jj
+    integer :: jj             ! alt path index
     integer :: nsteps         ! number of sub-steps in any given iteration loop, starts at 1 and grows
     integer :: ilayer         ! soil layer index of interest
     integer :: itest          ! node index used for testing and reporting errors
@@ -3159,8 +3083,9 @@ contains
 
 
     logical, parameter :: no_ftc_radialk = .false.
-    logical, parameter :: do_scale_allkmax_rootfr = .true.
-    logical, parameter :: weight_serial_dt = .true.
+    logical, parameter :: weight_serial_dt = .true. ! if this is true, and we are not doing spatial parallelism
+                                                    ! then we give the fraction of time as a function of how
+                                                    ! much conductance the layer has
 
     associate(pm_node => site_hydr%pm_node)
 
@@ -3168,6 +3093,7 @@ contains
     ! (each soil layer has a different number, this saves the max)
     cohort_hydr%iterh1 = 0
     cohort_hydr%iterh2 = 0
+    
     ! Initialize plant water error (integrated flux-storage)
     wb_err_plant = 0._r8 
 
@@ -3693,13 +3619,6 @@ contains
             write(fates_log(),*) ilayer,site_hydr%l_aroot_layer(ilayer)
             write(fates_log(),*) cohort_hydr%l_aroot_layer(ilayer)
             call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-
-
-        if( any(dth_node(:).ne.dth_node(:)) ) then
-           print*,"Broken solve"
-           print*,"dth_node:",dth_node(:)
-           stop
         end if
         
         dth_layershell_col(ilayer,:) = dth_layershell_col(ilayer,:) + &

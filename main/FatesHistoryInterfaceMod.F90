@@ -3333,8 +3333,7 @@ end subroutine flush_hvars
          do ipft = 1, numpft
             do iscls = 1,nlevsclass
                iscpf = (ipft-1)*nlevsclass + iscls
-               hio_sapflow_scpf(io_si,iscpf) = hio_sapflow_scpf(io_si,iscpf)  + &
-                    sites(s)%si_hydr%sapflow(iscls, ipft)             ! [kg/indiv/s]
+               hio_sapflow_scpf(io_si,iscpf) = sites(s)%si_hydr%sapflow(iscls, ipft)  ! [kg/indiv/s]
             end do
          end do
 

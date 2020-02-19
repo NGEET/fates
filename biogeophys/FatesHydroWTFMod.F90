@@ -28,10 +28,11 @@ module FatesHydroWTFMod
        __FILE__
 
 
-  real(r8), parameter :: min_ftc = 0.0005_r8
+  real(r8), parameter :: min_ftc = 0.0005_r8   ! Minimum allowed fraction of total conductance
+                                               
 
-  real(r8), parameter :: min_rwc_interp = 0.02
-  real(r8), parameter :: max_rwc_interp = 0.95
+  real(r8), parameter :: min_sf_interp = 0.02 ! Linear interpolation above this saturated frac
+  real(r8), parameter :: max_sf_interp = 0.95 ! Linear interpolation below this saturated frac
 
   real(r8), parameter :: quad_a1 = 0.80_r8  ! smoothing factor "A" term
                                             ! in the capillary-elastic region
@@ -116,7 +117,7 @@ module FatesHydroWTFMod
      real(r8) :: th_sat   ! Saturation volumetric water content         [m3/m3]
      real(r8) :: psi_sat  ! Bubbling pressure (potential at saturation) [Mpa]
      real(r8) :: beta     ! Clapp-Hornberger "beta" parameter           [-]
-     real(r8) :: psi_max     ! psi where rwc = rwc_max_interp, and use linear
+     real(r8) :: psi_max     ! psi where satfrac = max_sf_interp, and use linear
      real(r8) :: dpsidth_max ! deriv wrt theta for psi_max
    contains
      procedure :: th_from_psi     => th_from_psi_cch
@@ -153,9 +154,9 @@ module FatesHydroWTFMod
      real(r8) :: cap_slp  ! slope of capillary region of curve
      integer  :: pmedia   ! self describing porous media index
 
-     real(r8) :: psi_max     ! psi matching max_rwc_interp where we start linear interp
+     real(r8) :: psi_max     ! psi matching max_sf_interp where we start linear interp
      real(r8) :: dpsidth_max ! dpsi_dth where we start linear interp
-     real(r8) :: psi_min     ! psi matching min_rwc_interp
+     real(r8) :: psi_min     ! psi matching min_sf_interp
      real(r8) :: dpsidth_min ! dpsi_dth where we start min interp
 
    contains
@@ -293,18 +294,15 @@ contains
     real(r8)             :: satfrac       ! Saturated fraction [-]
     real(r8)             :: th            ! Volumetric Water Cont [m3/m3]
 
-    real(r8)             :: psi_interp    ! psi where we start lin interp
-    real(r8)             :: th_interp     ! th where we start lin interp
-    real(r8)             :: dpsidth_interp
-    real(r8)             :: m
+    real(r8)             :: psi_interp      ! psi where we start lin interp
+    real(r8)             :: th_interp       ! th where we start lin interp
+    real(r8)             :: dpsidth_interp@ ! change in psi during lin interp (slope)
+    real(r8)             :: m               ! pore size distribution param (1/n)
 
     m   = 1._r8/this%psd
 
     ! pressure above which we use a linear function
-    psi_interp = -(1._r8/this%alpha)*(max_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m
-
-    !    psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m
-
+    psi_interp = -(1._r8/this%alpha)*(max_sf_interp**(1._r8/(m-1._r8)) - 1._r8 )**m
 
     if(psi<psi_interp) then
 
@@ -315,7 +313,7 @@ contains
        th = satfrac*(this%th_sat-this%th_res) + this%th_res
 
     else
-       th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
+       th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
        dpsidth_interp = this%dpsidth_from_th(th_interp)
 
        th = th_interp + (psi-psi_interp)/dpsidth_interp
@@ -350,23 +348,15 @@ contains
     m   = 1._r8/this%psd
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
 
-    if(satfrac>=max_rwc_interp) then
+    if(satfrac>=max_sf_interp) then
 
-       th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
+       th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
        dpsidth_interp = this%dpsidth_from_th(th_interp)
-       psi_interp = -(1._r8/this%alpha)*(max_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m
+       psi_interp = -(1._r8/this%alpha)*(max_sf_interp**(1._r8/(m-1._r8)) - 1._r8 )**m
        psi = psi_interp + dpsidth_interp*(th-th_interp)
 
-!!    elseif(satfrac<min_rwc_interp .or. .false.) then
-
- !!      th_interp = min_rwc_interp * (this%th_sat-this%th_res) + this%th_res
- !!      dpsidth_interp = this%dpsidth_from_th(th_interp)
-!!       psi_interp = -(1._r8/this%alpha)*(min_rwc_interp**(1._r8/(m-1._r8)) - 1._r8 )**m
-!!       psi = psi_interp + dpsidth_interp*(th-th_interp)
-
     else
-
-
+       
        psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m
 
 
@@ -379,7 +369,7 @@ contains
   function dpsidth_from_th_vg(this,th) result(dpsidth)
 
     class(wrf_type_vg)  :: this
-    real(r8),intent(in) :: th
+    real(r8),intent(in) :: th           ! water content
     real(r8)            :: a1           ! parameter intermediary
     real(r8)            :: m1           ! parameter intermediary
     real(r8)            :: m2           ! parameter intermediary
@@ -392,14 +382,14 @@ contains
     m1 = 1._r8/this%psd
     m2 = 1._r8/(m1-1._r8)
 
-    th_interp = max_rwc_interp * (this%th_sat-this%th_res) + this%th_res
+    th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
 
     ! Since we apply linear interpolation beyond the max and min saturated fractions
     ! we just cap satfrac at those values and calculate the derivative there
-    !!    satfrac = max(min(max_rwc_interp,(th-this%th_res)/(this%th_sat-this%th_res)),min_rwc_interp)
+    !!    satfrac = max(min(max_sf_interp,(th-this%th_res)/(this%th_sat-this%th_res)),min_sf_interp)
 
     if(th>th_interp) then
-       satfrac = max_rwc_interp
+       satfrac = max_sf_interp
     else
        satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
     end if
@@ -519,7 +509,7 @@ contains
 
     ! Set DERIVED constants
     ! used for interpolating in extreme ranges
-    th_max           = max_rwc_interp*this%th_sat-1.e-9_r8
+    th_max           = max_sf_interp*this%th_sat-1.e-9_r8
     this%psi_max     = this%psi_from_th(th_max)
     this%dpsidth_max = this%dpsidth_from_th(th_max)
 
@@ -550,7 +540,7 @@ contains
 
     if(psi>this%psi_max) then
         ! Linear range for extreme values
-        th = max_rwc_interp*this%th_sat + (psi-this%psi_max)/this%dpsidth_max
+        th = max_sf_interp*this%th_sat + (psi-this%psi_max)/this%dpsidth_max
     else
         th = this%th_sat*(psi/this%psi_sat)**(-1.0_r8/this%beta)
     end if
@@ -564,11 +554,11 @@ contains
     class(wrf_type_cch)  :: this
     real(r8),intent(in)  :: th
     real(r8)             :: psi
-    real(r8)             :: rwc
+    real(r8)             :: satfrac
 
-    rwc = th/this%th_sat
-    if(rwc>max_rwc_interp) then
-        psi = this%psi_max + this%dpsidth_max*(th-max_rwc_interp*this%th_sat)
+    satfrac = th/this%th_sat
+    if(satfrac>max_sf_interp) then
+        psi = this%psi_max + this%dpsidth_max*(th-max_sf_interp*this%th_sat)
     else
         psi = this%psi_sat*(th/this%th_sat)**(-this%beta)
     end if
@@ -670,8 +660,8 @@ contains
 
     ! Set DERIVED constants
     ! used for interpolating in extreme ranges
-    th_max=max_rwc_interp*(this%th_sat-this%th_res)+this%th_res-1.e-9_r8
-    th_min=min_rwc_interp*(this%th_sat-this%th_res)+this%th_res+1.e-9_r8
+    th_max=max_sf_interp*(this%th_sat-this%th_res)+this%th_res-1.e-9_r8
+    th_min=min_sf_interp*(this%th_sat-this%th_res)+this%th_res+1.e-9_r8
     this%psi_max     = this%psi_from_th(th_max)
     this%dpsidth_max = this%dpsidth_from_th(th_max)
     this%psi_min     = this%psi_from_th(th_min)
@@ -702,21 +692,21 @@ contains
     if(psi>this%psi_max) then
 
         ! Linear range for extreme values
-        th = this%th_res+max_rwc_interp*(this%th_sat-this%th_res) + &
+        th = this%th_res+max_sf_interp*(this%th_sat-this%th_res) + &
               (psi-this%psi_max)/this%dpsidth_max
 
     elseif(psi<this%psi_min) then
 
         ! Linear range for extreme values
-        th = this%th_res+min_rwc_interp*(this%th_sat-this%th_res) + &
+        th = this%th_res+min_sf_interp*(this%th_sat-this%th_res) + &
               (psi-this%psi_min)/this%dpsidth_min
 
     else
 
        ! The bisection scheme performs a search via method of bisection,
        ! we need to define bounds with which to start
-       lower  = this%th_res+min_rwc_interp*(this%th_sat-this%th_res)-1.e-9_r8
-       upper  = this%th_res+max_rwc_interp*(this%th_sat-this%th_res)+1.e-9_r8
+       lower  = this%th_res+min_sf_interp*(this%th_sat-this%th_res)-1.e-9_r8
+       upper  = this%th_res+max_sf_interp*(this%th_sat-this%th_res)+1.e-9_r8
 
        call this%bisect_pv(lower, upper, psi, th)
        psi_check = this%psi_from_th(th)
@@ -739,69 +729,67 @@ contains
 
     ! locals
     real(r8) :: th_corr        ! corrected vol wc [m3/m3]
-    real(r8) :: psi_sol
-    real(r8) :: psi_press
+    real(r8) :: psi_sol        ! pressure from solute term
+    real(r8) :: psi_press      ! pressure from "pressure term"
     real(r8) :: psi_elastic    ! press from elastic
     real(r8) :: psi_capillary  ! press from capillary
     real(r8) :: psi_capelast   ! press from smoothed capillary/elastic
     real(r8) :: psi_cavitation ! press from cavitation
     real(r8) :: b,c            ! quadratic smoothing terms
-    real(r8) :: rwc            ! relative water content (between res and sat)
+    real(r8) :: satfrac        ! saturated fraction (between res and sat)
 
-    rwc = (th-this%th_res)/(this%th_sat-this%th_res)
+    satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
 
-    if(rwc>max_rwc_interp) then
+    if(satfrac>max_sf_interp) then
 
-        psi = this%psi_max + this%dpsidth_max * &
-              (th-(max_rwc_interp*(this%th_sat-this%th_res)+this%th_res))
-
-    elseif(rwc<min_rwc_interp) then
-
-        psi = this%psi_min + this%dpsidth_min * &
-              (th-(min_rwc_interp*(this%th_sat-this%th_res)+this%th_res))
-
+       psi = this%psi_max + this%dpsidth_max * &
+            (th-(max_sf_interp*(this%th_sat-this%th_res)+this%th_res))
+       
+    elseif(satfrac<min_sf_interp) then
+       
+       psi = this%psi_min + this%dpsidth_min * &
+              (th-(min_sf_interp*(this%th_sat-this%th_res)+this%th_res))
+       
     else
-
-
-
-    th_corr = th * this%cap_corr
-
-    ! Perform two rounds of quadratic smoothing, 1st smooth
-    ! the elastic and capilary, and then smooth their
-    ! combined with the caviation
-
-    call solutepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,psi_sol)
-    call pressurepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
-
-    psi_elastic = psi_sol + psi_press
-
-    if(this%pmedia == 1) then            ! leaves have no capillary region in their PV curves
-
-       psi_capelast = psi_elastic
-
-    else if(this%pmedia <= 4) then       ! sapwood has a capillary region
-
-       call capillarypsi(th_corr,this%th_sat,this%cap_int,this%cap_slp,psi_capillary)
-
-       b = -1._r8*(psi_capillary + psi_elastic)
-       c = psi_capillary*psi_elastic
-       psi_capelast = (-b - sqrt(b*b - 4._r8*quad_a1*c))/(2._r8*quad_a1)
-
-    else
-       write(fates_log(),*) 'TFS WRF was called for an inelligable porous media'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-
-    end if !porous media
-
-    ! Now lets smooth the result of capilary elastic with cavitation
-
-    psi_cavitation = psi_sol
-    b = -1._r8*(psi_capelast + psi_cavitation)
-    c = psi_capelast*psi_cavitation
-
-    psi = (-b + sqrt(b*b - 4._r8*quad_a2*c))/(2._r8*quad_a2)
-end if
-
+       
+       th_corr = th * this%cap_corr
+       
+       ! Perform two rounds of quadratic smoothing, 1st smooth
+       ! the elastic and capilary, and then smooth their
+       ! combined with the caviation
+       
+       call solutepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,psi_sol)
+       call pressurepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
+       
+       psi_elastic = psi_sol + psi_press
+       
+       if(this%pmedia == 1) then            ! leaves have no capillary region in their PV curves
+          
+          psi_capelast = psi_elastic
+          
+       else if(this%pmedia <= 4) then       ! sapwood has a capillary region
+          
+          call capillarypsi(th_corr,this%th_sat,this%cap_int,this%cap_slp,psi_capillary)
+          
+          b = -1._r8*(psi_capillary + psi_elastic)
+          c = psi_capillary*psi_elastic
+          psi_capelast = (-b - sqrt(b*b - 4._r8*quad_a1*c))/(2._r8*quad_a1)
+          
+       else
+          write(fates_log(),*) 'TFS WRF was called for an inelligable porous media'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+          
+       end if !porous media
+       
+       ! Now lets smooth the result of capilary elastic with cavitation
+       
+       psi_cavitation = psi_sol
+       b = -1._r8*(psi_capelast + psi_cavitation)
+       c = psi_capelast*psi_cavitation
+       
+       psi = (-b + sqrt(b*b - 4._r8*quad_a2*c))/(2._r8*quad_a2)
+    end if
+ 
     return
   end function psi_from_th_tfs
 
@@ -816,7 +804,7 @@ end if
 
     ! locals
     real(r8) :: th_corr        ! corrected vol wc [m3/m3]
-    real(r8) :: rwc            ! relative water content (between res and sat)
+    real(r8) :: satfrac        ! saturated fraction (between res and sat)
     real(r8) :: psi_sol
     real(r8) :: psi_press
     real(r8) :: psi_elastic    ! press from elastic
@@ -832,78 +820,78 @@ end if
     real(r8) :: dcapelast_dth
     real(r8) :: dcav_dth
 
-    rwc = (th-this%th_res)/(this%th_sat-this%th_res)
-    if(rwc>max_rwc_interp) then
+    satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
+    if(satfrac>max_sf_interp) then
 
         dpsidth = this%dpsidth_max
 
-    elseif(rwc<min_rwc_interp) then
+    elseif(satfrac<min_sf_interp) then
 
         dpsidth = this%dpsidth_min
 
     else
-    th_corr = th*this%cap_corr
+       th_corr = th*this%cap_corr
+       
+       ! Perform two rounds of quadratic smoothing, 1st smooth
+       ! the elastic and capilary, and then smooth their
+       ! combined with the caviation
+       
+       call solutepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,psi_sol)
+       call pressurepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
+       
+       call dsolutepsidth(th,this%th_sat,this%th_res,this%rwc_fd,this%pinot,dsol_dth)
+       call dpressurepsidth(this%th_sat,this%th_res,this%rwc_fd,this%epsil,dpress_dth)
+       
+       delast_dth = dsol_dth + dpress_dth
+       psi_elastic = psi_sol + psi_press
+       
+       
+       if(this%pmedia == 1) then         ! leaves have no capillary region in their PV curves
+          
+          psi_capelast = psi_elastic
+          dcapelast_dth = delast_dth
+          
+       else if(this%pmedia <= 4) then    ! sapwood has a capillary region
+          
+          call capillarypsi(th,this%th_sat,this%cap_int,this%cap_slp,psi_capillary)
+          
+          b = -1._r8*(psi_capillary + psi_elastic)
+          c = psi_capillary*psi_elastic
+          psi_capelast = (-b - sqrt(b*b - 4._r8*quad_a1*c))/(2._r8*quad_a1)
+          
+          call dcapillarypsidth(this%cap_slp,this%th_sat,dcap_dth)
+          
+          dbdth = -1._r8*(delast_dth + dcap_dth)
+          dcdth = psi_elastic*dcap_dth + delast_dth*psi_capillary
+          
+          
+          dcapelast_dth = 1._r8/(2._r8*quad_a1) * &
+               (-dbdth - 0.5_r8*((b*b - 4._r8*quad_a1*c)**(-0.5_r8)) * &
+               (2._r8*b*dbdth - 4._r8*quad_a1*dcdth))
+          
+       else
+          write(fates_log(),*) 'TFS WRF was called for an ineligible porous media'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+          
+       end if !porous media
+       
+       ! Now lets smooth the result of capilary elastic with cavitation
+       
+       psi_cavitation = psi_sol
+       
+       b = -1._r8*(psi_capelast + psi_cavitation)
+       c = psi_capelast*psi_cavitation
+       
+       dcav_dth = dsol_dth
+       
+       dbdth = -1._r8*(dcapelast_dth + dcav_dth)
+       dcdth = psi_capelast*dcav_dth + dcapelast_dth*psi_cavitation
+       
+       dpsidth = 1._r8/(2._r8*quad_a2)*(-dbdth + 0.5_r8*((b*b - 4._r8*quad_a2*c)**(-0.5_r8)) * &
+            (2._r8*b*dbdth - 4._r8*quad_a2*dcdth))
+    end if
 
-    ! Perform two rounds of quadratic smoothing, 1st smooth
-    ! the elastic and capilary, and then smooth their
-    ! combined with the caviation
-
-    call solutepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,psi_sol)
-    call pressurepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
-
-    call dsolutepsidth(th,this%th_sat,this%th_res,this%rwc_fd,this%pinot,dsol_dth)
-    call dpressurepsidth(this%th_sat,this%th_res,this%rwc_fd,this%epsil,dpress_dth)
-
-    delast_dth = dsol_dth + dpress_dth
-    psi_elastic = psi_sol + psi_press
-
-
-    if(this%pmedia == 1) then         ! leaves have no capillary region in their PV curves
-
-        psi_capelast = psi_elastic
-        dcapelast_dth = delast_dth
-
-    else if(this%pmedia <= 4) then    ! sapwood has a capillary region
-
-        call capillarypsi(th,this%th_sat,this%cap_int,this%cap_slp,psi_capillary)
-
-        b = -1._r8*(psi_capillary + psi_elastic)
-        c = psi_capillary*psi_elastic
-        psi_capelast = (-b - sqrt(b*b - 4._r8*quad_a1*c))/(2._r8*quad_a1)
-
-        call dcapillarypsidth(this%cap_slp,this%th_sat,dcap_dth)
-
-        dbdth = -1._r8*(delast_dth + dcap_dth)
-        dcdth = psi_elastic*dcap_dth + delast_dth*psi_capillary
-
-
-        dcapelast_dth = 1._r8/(2._r8*quad_a1) * &
-             (-dbdth - 0.5_r8*((b*b - 4._r8*quad_a1*c)**(-0.5_r8)) * &
-             (2._r8*b*dbdth - 4._r8*quad_a1*dcdth))
-
-    else
-        write(fates_log(),*) 'TFS WRF was called for an ineligible porous media'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-
-    end if !porous media
-
-    ! Now lets smooth the result of capilary elastic with cavitation
-
-    psi_cavitation = psi_sol
-
-    b = -1._r8*(psi_capelast + psi_cavitation)
-    c = psi_capelast*psi_cavitation
-
-    dcav_dth = dsol_dth
-
-    dbdth = -1._r8*(dcapelast_dth + dcav_dth)
-    dcdth = psi_capelast*dcav_dth + dcapelast_dth*psi_cavitation
-
-    dpsidth = 1._r8/(2._r8*quad_a2)*(-dbdth + 0.5_r8*((b*b - 4._r8*quad_a2*c)**(-0.5_r8)) * &
-                                                 (2._r8*b*dbdth - 4._r8*quad_a2*dcdth))
-end if
-
-
+    return
   end function dpsidth_from_th_tfs
 
   ! =====================================================================================
@@ -1014,8 +1002,7 @@ end if
     real(r8) , intent(out) :: psi         ! water potential   [MPa]
 
 
-    psi = epsil * (th - th_sat*rwc_fd) / &
-            (th_sat*(rwc_fd-th_res)) - pinot
+    psi = epsil * (th - th_sat*rwc_fd) / (th_sat*(rwc_fd-th_res)) - pinot
 
     return
   end subroutine pressurepsi
