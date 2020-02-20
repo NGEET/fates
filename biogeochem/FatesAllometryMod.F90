@@ -381,6 +381,7 @@ contains
     real(r8),intent(out),optional :: dbagwdd  ! change in agbw per diameter [kgC/cm]
 
     real(r8)               :: h       ! height
+    real(r8)               :: d1      ! constrained plant diameter [cm]
     real(r8)               :: dhdd    ! change in height wrt d
 
     associate( p1           => EDPftvarcon_inst%allom_agb1(ipft), &
@@ -390,24 +391,31 @@ contains
                wood_density => EDPftvarcon_inst%wood_density(ipft), &
                c2b          => EDPftvarcon_inst%c2b(ipft), &
                agb_frac     => EDPftvarcon_inst%allom_agb_frac(ipft), &
+	       dbh_maxh     => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
+	       woody        => EDPftvarcon_inst%woody(ipft), &
                allom_amode  => EDPftvarcon_inst%allom_amode(ipft))
-      
+      !for grasses, no growth of structural wood after maximum height
+      if(d >= dbh_maxh .and. woody .ne. itrue)d1 = dbh_maxh 
       select case(int(allom_amode))
       case (1) !"salda")
          call h_allom(d,ipft,h,dhdd)
-         call dh2bagw_salda(d,h,dhdd,p1,p2,p3,p4,wood_density,c2b,agb_frac,bagw,dbagwdd) 
+         call dh2bagw_salda(d1,h,dhdd,p1,p2,p3,p4,wood_density,c2b,agb_frac,bagw,dbagwdd) 
       case (2) !"2par_pwr")
          ! Switch for woodland dbh->drc
-         call d2bagw_2pwr(d,p1,p2,c2b,bagw,dbagwdd)
+         call d2bagw_2pwr(d1,p1,p2,c2b,bagw,dbagwdd)
       case (3) !"chave14") 
          call h_allom(d,ipft,h,dhdd)
-         call dh2bagw_chave2014(d,h,dhdd,p1,p2,wood_density,c2b,bagw,dbagwdd)
+         call dh2bagw_chave2014(d1,h,dhdd,p1,p2,wood_density,c2b,bagw,dbagwdd)
       case DEFAULT
          write(fates_log(),*) 'An undefined AGB allometry was specified: ',allom_amode
          write(fates_log(),*) 'Aborting'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end select
-      
+      !----------------------------------------------------------------
+      !for grasses, no growth of structural wood after maximum height
+      if(d >= dbh_maxh .and. woody .ne. itrue .and. present(dbagwdd)) then
+        dbagwdd = 0.0_r8  
+      endif
     end associate
     return
   end subroutine bagw_allom
@@ -921,6 +929,7 @@ contains
   end subroutine bfineroot
 
 
+
   ! ============================================================================
   ! Storage biomass interface
   ! ============================================================================
@@ -935,12 +944,25 @@ contains
      
      real(r8) :: bl          ! Allometric target leaf biomass
      real(r8) :: dbldd       ! Allometric target change in leaf biomass per cm
-    
+     real(r8) :: bagw    ! biomass above ground woody tissues
+     real(r8) :: dbagwdd  ! change in agbw per diameter [kgC/cm]  
+     real(r8) :: h       ! height
+     real(r8) :: dhdd    ! change in height wrt d  
      
      ! TODO: allom_stmode needs to be added to the parameter file
      
      associate( allom_stmode => EDPftvarcon_inst%allom_stmode(ipft), &
-                cushion      => EDPftvarcon_inst%cushion(ipft) )
+		allom_amode  => EDPftvarcon_inst%allom_amode(ipft), &
+                p1           => EDPftvarcon_inst%allom_agb1(ipft), &
+                p2           => EDPftvarcon_inst%allom_agb2(ipft), &
+                p3           => EDPftvarcon_inst%allom_agb3(ipft), &
+                p4           => EDPftvarcon_inst%allom_agb4(ipft), &
+                wood_density => EDPftvarcon_inst%wood_density(ipft), &
+                c2b          => EDPftvarcon_inst%c2b(ipft), &
+                agb_frac     => EDPftvarcon_inst%allom_agb_frac(ipft), &		
+                cushion      => EDPftvarcon_inst%cushion(ipft),&
+		woody        => EDPftvarcon_inst%woody(ipft), &
+		dbh_maxh     => EDPftvarcon_inst%allom_dbh_maxheight(ipft))
 
        select case(int(allom_stmode))
        case(1) ! Storage is constant proportionality of trimmed maximum leaf
@@ -955,6 +977,27 @@ contains
           write(fates_log(),*) 'Aborting'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
+       !-------------------------------------------------------------
+       !for grasses, when plant reaches maximum height, 
+       !carbon goes to storage instead of structural carbon
+       if(d >= dbh_maxh.and.woody.ne.itrue.and.present(dbstoredd)) then
+         select case(int(allom_amode))
+         case (1) !"salda")
+           call h_allom(d,ipft,h,dhdd)
+           call dh2bagw_salda(d,h,dhdd,p1,p2,p3,p4,wood_density,c2b,agb_frac,bagw,dbagwdd) 
+         case (2) !"2par_pwr")
+          ! Switch for woodland dbh->drc
+           call d2bagw_2pwr(d,p1,p2,c2b,bagw,dbagwdd)
+         case (3) !"chave14") 
+           call h_allom(d,ipft,h,dhdd)
+           call dh2bagw_chave2014(d,h,dhdd,p1,p2,wood_density,c2b,bagw,dbagwdd)
+         case DEFAULT
+           write(fates_log(),*) 'An undefined AGB allometry was specified: ',allom_amode
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+         end select   
+	 dbstoredd = dbstoredd + dbagwdd   
+       endif
        
      end associate
      return
