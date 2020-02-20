@@ -131,11 +131,14 @@ module FatesPlantHydraulicsMod
   ! boundary between nodes be taken to be a
   ! function of the upstream loss of 
   ! conductivity (flc)?
-  ! logical :: purge_supersaturation = .false. ! If for some reason the roots force water
-  !                                            ! into a saturated soil layer, or push it slightly
-  !                                            ! past saturation, should we attempt to help
-  !                                            ! fix the situation by assigning some
-  !                                            ! of the water to a runoff term?
+
+  ! DO NOT TURN THIS ON. LEAVING THIS ONLY IF THE HLMS START HAVING
+  ! TROUBLE RESPONDING TO SUPERSATURATION
+  logical :: purge_supersaturation = .false. ! If for some reason the roots force water
+                                             ! into a saturated soil layer, or push it slightly
+                                             ! past saturation, should we attempt to help
+                                             ! fix the situation by assigning some
+                                             ! of the water to a runoff term?
   
 
   logical, public :: do_growthrecruiteffects   = .true. ! should size- or root length-dependent 
@@ -2297,20 +2300,6 @@ contains
        !err_soil = delta_soil_storage - root_flux
        !err_plot = delta_plant_storage - (root_flux - transp_flux)
 
-
-       ! Calculate the mean site level transpiration flux
-       ! This is usefull to check on mass conservation
-       ! of cohort level fluxes
-       ! -------------------------------------------------
-       ifp = 0
-       cpatch => sites(s)%oldest_patch
-       do while (associated(cpatch))
-          ifp = ifp + 1
-          patch_wgt = min(1.0_r8,cpatch%total_canopy_area/cpatch%area) * (cpatch%area*AREA_INV)
-          cpatch => cpatch%younger
-       end do
-
-
        ifp = 0
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))
@@ -3037,7 +3026,8 @@ contains
     real(r8) :: leaf_water    ! kg of water in the leaf
     real(r8) :: stem_water    ! kg of water in the stem
     real(r8) :: root_water    ! kg of water in the transp and absorbing roots
-
+    real(r8) :: sapflow_lyr   ! sapflow flux [kg] per layer per timestep
+    real(r8) :: rootuptake_lyr! rootuptake flux [kg] per layer per timestep 
     real(r8) :: wb_err_layer                ! balance error for the layer [kg/cohort]
     
 
@@ -3104,9 +3094,8 @@ contains
     ! in this routine (uses differentials and actual fluxes)
     ! So we need to zero them, as they are incremented
     ! over the sub-steps
-    
-    sapflow        = 0._r8
-    rootuptake     = 0._r8
+    sapflow = 0._r8
+    rootuptake = 0._r8
     
     ft = cohort%pft
 
@@ -3218,6 +3207,9 @@ contains
                 flux_diag = 0._r8
             end if
 
+            sapflow_lyr    = 0._r8
+            rootuptake_lyr = 0._r8
+            
             ! For each attempt, we want to reset theta with the initial value
             th_node(:) = th_node_init(:)
             
@@ -3513,7 +3505,7 @@ contains
                 ! [kg] = [kg/s] * [s]
                 
                 i = n_hypool_ag
-                sapflow = sapflow + dt_substep * & 
+                sapflow_lyr = sapflow_lyr + dt_substep * & 
                       (k_eff(i)*(h_node(i+1)-h_node(i)) + &  ! flux at (t) 
                       A_term(i)*dth_node(i)                 + &  ! dq at node i
                       B_term(i)*dth_node(i+1))                   ! dq at node i+1
@@ -3522,7 +3514,7 @@ contains
                 ! shell and the absorbing root
                 
                 i = n_hypool_ag+2
-                rootuptake = rootuptake + dt_substep * & 
+                rootuptake_lyr = rootuptake_lyr + dt_substep * & 
                       (k_eff(i)*(h_node(i+1)-h_node(i)) + &  ! flux at (t) 
                       A_term(i)*dth_node(i)                 + &  ! dq at node i
                       B_term(i)*dth_node(i+1))                   ! dq at node i+1
@@ -3530,13 +3522,13 @@ contains
                 ! If debug mode is on, lets also track the mass fluxes across each
                 ! path, and keep a running average of the effective conductances
                 if(debug)then
-                    do j=1,n_hypool_tot-1
-                        k_diag(j) = k_diag(j) + k_eff(j)*dt_substep/dt_step
-                        flux_diag(j) = flux_diag(j) + dt_substep * ( &
-                              k_eff(j)*(h_node(j+1)-h_node(j)) + & 
-                              A_term(j)*dth_node(j)+ B_term(j)*dth_node(j+1))
-                    end do
-                 end if
+                   do j=1,n_hypool_tot-1
+                      k_diag(j) = k_diag(j) + k_eff(j)*dt_substep/dt_step
+                      flux_diag(j) = flux_diag(j) + dt_substep * ( &
+                           k_eff(j)*(h_node(j+1)-h_node(j)) + & 
+                           A_term(j)*dth_node(j)+ B_term(j)*dth_node(j+1))
+                   end do
+                end if
                 
             end do  ! do istep = 1,nsteps  (substep loop)
 
@@ -3576,6 +3568,12 @@ contains
         
         dth_node(:) = th_node(:)-th_node_init(:)
 
+
+        ! Add the current soil layer's contribution to total
+        ! sap and root flux [kg]
+        sapflow = sapflow + sapflow_lyr
+        rootuptake = rootuptake + rootuptake_lyr
+        
         
         ! Record the layer with the most iterations, but only
         ! if it greater than 1. It will default to zero

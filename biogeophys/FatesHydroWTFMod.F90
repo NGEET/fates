@@ -296,7 +296,7 @@ contains
 
     real(r8)             :: psi_interp      ! psi where we start lin interp
     real(r8)             :: th_interp       ! th where we start lin interp
-    real(r8)             :: dpsidth_interp@ ! change in psi during lin interp (slope)
+    real(r8)             :: dpsidth_interp  ! change in psi during lin interp (slope)
     real(r8)             :: m               ! pore size distribution param (1/n)
 
     m   = 1._r8/this%psd
