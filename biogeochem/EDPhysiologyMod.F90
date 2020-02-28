@@ -2412,6 +2412,8 @@ contains
     real(r8) :: leaf_c                             ! leaf carbon [kg]
     real(r8) :: leaf_p                             ! leaf phosphorus [kg]
     real(r8) :: leaf_n                             ! leaf nitrogen [kg]
+    real(r8) :: leaf_store_n
+    real(r8) :: leaf_store_p
     real(r8) :: veg_rootc                          ! fine root carbon in each layer [g/m3]
     real(r8) :: dbh                                ! dbh (cm)
     real(r8) :: nc_leaf_ideal                      ! ideal leaf C:N ratio [kg/kg]
@@ -2572,15 +2574,15 @@ contains
                    icomp = pft
                 end if
                 
-                leaf_c = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, all_carbon_elements) + &
-                     ccohort%prt%GetState(store_organ, all_carbon_elements))
+!                leaf_c = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, all_carbon_elements) + &
+!                                             ccohort%prt%GetState(store_organ, all_carbon_elements))
 
                 ! Target leaf biomass according to allometry and trimming
                 call bleaf(ccohort%dbh,pft,ccohort%canopy_trim,target_leaf_c)
                 call bstore_allom(ccohort%dbh,pft,ccohort%canopy_trim,target_store_c)
                 
-                leaf_n = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, nitrogen_element) + & 
-                     ccohort%prt%GetState(store_organ, nitrogen_element))
+                leaf_store_n = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, nitrogen_element) + & 
+                                                   ccohort%prt%GetState(store_organ, nitrogen_element))
                 
                 ! Calculate the ideal CN ratio for leaves and storage organs
                 nc_ideal = ((target_leaf_c*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,leaf_organ)) + &
@@ -2590,7 +2592,7 @@ contains
                      (target_store_c*EDPftvarcon_inst%prt_nitr_stoich_p1(pft,store_organ))) / & 
                      (target_leaf_c+target_store_c)
                 
-                nc_actual = max(leaf_n/leaf_c,rsnbl_math_prec)
+                nc_actual = max(leaf_store_n/(target_leaf_c+target_store_c),rsnbl_math_prec)
                 
                 if(cnp_scalar_method.eq.cnp_scalar_method1)then
                    
@@ -2607,6 +2609,7 @@ contains
                         min(1._r8,max(0._r8, & 
                         (nc_ideal - nc_actual + cn_stoich_var*nc_min) / & 
                         (nc_ideal - nc_min + cn_stoich_var*nc_min)))
+
                 else
                    cn_ideal = 1._r8/nc_ideal
                    cn_actual = 1._r8/nc_actual
@@ -2649,15 +2652,13 @@ contains
                    icomp = pft
                 end if
 
-                leaf_c = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, all_carbon_elements) + &
-                     ccohort%prt%GetState(store_organ, all_carbon_elements))
-                
                 ! Target leaf biomass according to allometry and trimming
                 call bleaf(ccohort%dbh,pft,ccohort%canopy_trim,target_leaf_c)
                 call bstore_allom(ccohort%dbh,pft,ccohort%canopy_trim,target_store_c)
                 
-                leaf_p = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, phosphorus_element) + & 
-                     ccohort%prt%GetState(store_organ, phosphorus_element))
+                leaf_store_p = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, phosphorus_element) + & 
+                                                   ccohort%prt%GetState(store_organ, phosphorus_element))
+
                 
                 ! Calculate the ideal CN ratio for leaves and storage organs
                 pc_ideal = ((target_leaf_c*EDPftvarcon_inst%prt_phos_stoich_p2(pft,leaf_organ)) + &
@@ -2667,7 +2668,7 @@ contains
                      (target_store_c*EDPftvarcon_inst%prt_phos_stoich_p1(pft,store_organ))) / & 
                      (target_leaf_c+target_store_c)
                 
-                pc_actual = max(leaf_c/leaf_p,rsnbl_math_prec)
+                pc_actual = max(leaf_store_p/(target_leaf_c+target_store_c),rsnbl_math_prec)
                 
                 if(cnp_scalar_method.eq.cnp_scalar_method1)then
                    bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp) + & 

@@ -1258,15 +1258,15 @@ contains
 
     ! ===================================================================================
     
-    subroutine set_fates_global_elements(use_fates,parteh_mode)
+    subroutine set_fates_global_elements(use_fates)
 
        ! --------------------------------------------------------------------------------
        !
-       ! This subroutine is called directly from the HLM, and is the first FATES routine
-       ! that is called.
+       ! This is the first FATES routine that is called.
        !
        ! This subroutine MUST BE CALLED AFTER the FATES PFT parameter file has been read in,
        ! and the EDPftvarcon_inst structure has been made.
+       ! This subroutine MUST BE CALLED AFTER NL VARIABLES ARE READ (ie hlm_parteh_mode,etc)
        ! This subroutine must ALSO BE CALLED BEFORE the history file dimensions
        ! are set.
        ! 
@@ -1282,7 +1282,6 @@ contains
       implicit none
       
       logical,intent(in) :: use_fates    ! Is fates turned on?
-      integer,intent(in) :: parteh_mode  ! The type of parteh mode effects allocations
       
       integer :: i
       
@@ -1342,7 +1341,7 @@ contains
          ! Note: since BGC code may be active even when no nutrients
          ! present, we still need to allocate things when no nutrients
 
-         if (parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
+         if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
             if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
                max_comp_per_site = fates_maxElementsPerSite
             elseif(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
