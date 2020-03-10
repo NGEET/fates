@@ -245,7 +245,7 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
-     ! These mappings help define and classify the different variables in the global sense
+
 
      call prt_global_acnp%RegisterVarInGlobal(leaf_c_id,'Leaf Carbon','leaf_c',leaf_organ,carbon12_element,nleafage)
      call prt_global_acnp%RegisterVarInGlobal(fnrt_c_id,'Fine Root Carbon','fnrt_c',fnrt_organ,carbon12_element,icd)

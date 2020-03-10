@@ -2083,11 +2083,11 @@ contains
     dbh = ccohort%dbh
     
     ! Total plant carbon [kg]
-    plant_c = ccohort%prt%GetState(leaf_organ,element_id) + & 
-              ccohort%prt%GetState(store_organ, element_id) + &
-              ccohort%prt%GetState(fnrt_organ, element_id) + &
-              ccohort%prt%GetState(struct_organ, element_id) + &
-              ccohort%prt%GetState(sapw_organ, element_id)
+    plant_c = ccohort%prt%GetState(leaf_organ,carbon12_element) + & 
+              ccohort%prt%GetState(store_organ, carbon12_element) + &
+              ccohort%prt%GetState(fnrt_organ, carbon12_element) + &
+              ccohort%prt%GetState(struct_organ, carbon12_element) + &
+              ccohort%prt%GetState(sapw_organ, carbon12_element)
     
     ! Calculate the total plant nitrogen content [kg]
     ! Exclude seeds since that pool is ephemeral
