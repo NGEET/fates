@@ -1428,8 +1428,8 @@ contains
       !
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
-      use EDParamsMod       , only : ED_val_cohort_age_fusion_tol
-    
+      use EDParamsMod       , only : cohort_age_tracking
+      
       ! Arguments
       integer, optional, intent(in)         :: ival
       real(r8), optional, intent(in)        :: rval
@@ -1541,7 +1541,7 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if ( hlm_use_inventory_init.eq.1  .and. cohort_age_tracking .eqv. 1) then
+         if ( hlm_use_inventory_init.eq.1  .and. cohort_age_tracking .eqv. .TRUE.) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'Fates inventory init cannot be used with age dependent mortality'
                write(fates_log(), *) 'Set cohort_age_tracking to 0 or turn off inventory init'
