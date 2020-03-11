@@ -96,8 +96,7 @@ contains
        smort = 0.0_r8
     end if
 
-    ! if user has set cohort age fusion param to not be _ we calculate age
-    ! dependent mortality
+    ! if param values have been set then calculate asmort
     if ( mort_ip_age_senescence < check_initialized ) then
        ! Age Dependent Senescence
        ! rate and inflection point define the change in mortality with age

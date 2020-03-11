@@ -163,7 +163,7 @@ contains
     real(r8), intent(in)      :: nn               ! number of individuals in cohort 
                                                   ! per 'area' (10000m2 default)
     real(r8), intent(in)      :: hite             ! height: meters
-    real(r8), intent(in)      :: coage            ! cohort age in days
+    real(r8), intent(in)      :: coage            ! cohort age in years
     real(r8), intent(in)      :: dbh              ! dbh: cm
     class(prt_vartypes),target :: prt             ! The allocated PARTEH
                                                   ! object
@@ -490,7 +490,7 @@ contains
 
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm
-    currentCohort%coage              = nan ! age of the cohort in days
+    currentCohort%coage              = nan ! age of the cohort in years
     currentCohort%hite               = nan ! height: meters                   
     currentCohort%laimemory          = nan ! target leaf biomass- set from previous year: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2      
@@ -989,7 +989,7 @@ contains
 
      !set initial fusion tolerance (in cm)
      dynamic_size_fusion_tolerance = ED_val_cohort_size_fusion_tol
-     ! set the cohort age fusion tolerance (in days)
+     ! set the cohort age fusion tolerance (in fraction of years)
      dynamic_age_fusion_tolerance = ED_val_cohort_age_fusion_tol
 
      if ( cohort_age_tracking ) then
