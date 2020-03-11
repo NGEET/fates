@@ -490,7 +490,7 @@ contains
 
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm
-    currentCohort%coage              = nan ! age of the cohort in years
+    currentCohort%coage              = nan ! age of the cohort in days
     currentCohort%hite               = nan ! height: meters                   
     currentCohort%laimemory          = nan ! target leaf biomass- set from previous year: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2      
@@ -987,9 +987,9 @@ contains
 
      !----------------------------------------------------------------------
 
-     !set initial fusion tolerance
+     !set initial fusion tolerance (in cm)
      dynamic_size_fusion_tolerance = ED_val_cohort_size_fusion_tol
-     ! set the cohort age fusion tolerance (this is in days - remains constant)
+     ! set the cohort age fusion tolerance (in days)
      dynamic_age_fusion_tolerance = ED_val_cohort_age_fusion_tol
 
      if ( cohort_age_tracking ) then
@@ -1028,7 +1028,7 @@ contains
 
               do while (associated(nextc))
                  nextnextc => nextc%shorter
-                 diff = abs((currentCohort%dbh - nextc%dbh)/(0.5*(currentCohort%dbh + nextc%dbh)))  
+                 diff = abs((currentCohort%dbh - nextc%dbh)/(0.5_r8*(currentCohort%dbh + nextc%dbh)))  
 
                  !Criteria used to divide up the height continuum into different cohorts.
 
@@ -1042,7 +1042,7 @@ contains
                        coage_diff = 0.0_r8
                     else
                        coage_diff = abs((currentCohort%coage - nextc%coage)/ &
-                            (0.5*(currentCohort%coage + nextc%coage)))
+                            (0.5_r8*(currentCohort%coage + nextc%coage)))
                     end if
 
                     if (coage_diff <= dynamic_age_fusion_tolerance ) then 

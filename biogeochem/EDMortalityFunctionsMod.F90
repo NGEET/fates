@@ -46,7 +46,7 @@ contains
 
     ! ============================================================================
     !  Calculate mortality rates from carbon storage, hydraulic cavitation, 
-    !  background and freezing and size dependent senescence
+    !  background and freezing and size and age dependent senescence
     ! ============================================================================
     
     use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
