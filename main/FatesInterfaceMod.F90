@@ -1522,6 +1522,8 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         
+
          if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'The FATES namelist stand structure flag must be 0 or 1, exiting'
@@ -1655,6 +1657,14 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_cohort_age_tracking .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for cohort_age_tracking  unset: hlm_use_cohort_age_tracking, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
          end if
@@ -1737,6 +1747,13 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
                end if
 
+            case('use_cohort_age_tracking')
+               hlm_use_cohort_age_tracking = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
+               end if
+
+               
             case('use_logging')
                hlm_use_logging = ival
                if (fates_global_verbose()) then
