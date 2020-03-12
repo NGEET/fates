@@ -15,6 +15,7 @@ module EDMainMod
   use FatesInterfaceMod        , only : hlm_current_month
   use FatesInterfaceMod        , only : hlm_current_day 
   use FatesInterfaceMod        , only : hlm_use_planthydro 
+  use FatesInterfaceMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceMod        , only : hlm_reference_date
   use FatesInterfaceMod        , only : hlm_use_ed_prescribed_phys
   use FatesInterfaceMod        , only : hlm_use_ed_st3 
@@ -55,7 +56,6 @@ module EDMainMod
   use EDTypesMod               , only : element_pos
   use EDTypesMod               , only : phen_dstat_moiston
   use EDTypesMod               , only : phen_dstat_timeon
-  use EDParamsMod              , only : cohort_age_tracking
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesConstantsMod        , only : nearzero
@@ -284,7 +284,7 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
-    use EDParamsMod,     only : cohort_age_tracking
+    use FatesInterfaceMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
     ! !ARGUMENTS:
     
@@ -444,7 +444,7 @@ contains
           end if
 
           ! if we are in age-dependent mortality mode
-          if (cohort_age_tracking) then
+          if (hlm_use_cohort_age_tracking .eq. itrue) then
              ! update cohort age
              currentCohort%coage = currentCohort%coage + hlm_freq_day
              if(currentCohort%coage < 0.0_r8)then

@@ -9,6 +9,7 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : hlm_freq_day
   use FatesInterfaceMod     , only : bc_in_type
   use FatesInterfaceMod     , only : hlm_use_planthydro
+  use FatesInterfaceMod     , only : hlm_use_cohort_age_tracking
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
@@ -37,7 +38,6 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : site_fluxdiags_type
   use EDTypesMod            , only : num_elements
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
-  use EDParamsMod            , only : cohort_age_tracking
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
@@ -941,7 +941,7 @@ contains
      ! !USES:
      use EDParamsMod , only :  ED_val_cohort_size_fusion_tol
      use EDParamsMod , only :  ED_val_cohort_age_fusion_tol
-     use EDParamsMod , only :  cohort_age_tracking
+     use FatesInterfaceMod , only :  hlm_use_cohort_age_tracking
      use FatesConstantsMod , only : itrue
      use FatesConstantsMod, only : days_per_year
      use EDTypesMod  , only : maxCohortsPerPatch
@@ -992,7 +992,7 @@ contains
      ! set the cohort age fusion tolerance (in fraction of years)
      dynamic_age_fusion_tolerance = ED_val_cohort_age_fusion_tol
 
-     if ( cohort_age_tracking ) then
+     if ( hlm_use_cohort_age_tracking .eq. itrue) then
         maxCohortsPerPatch_age_tracking = 300
      end if
      
@@ -1094,7 +1094,7 @@ contains
                                                       (nextc%coage * (nextc%n/(currentCohort%n + nextc%n)))
 
                                 ! update the cohort age again
-                                if (cohort_age_tracking) then 
+                                if (hlm_use_cohort_age_tracking .eq.itrue) then 
                                    call coagetype_class_index(currentCohort%coage, currentCohort%pft, &
                                         currentCohort%coage_class, currentCohort%coage_by_pft_class)
                                 end if
@@ -1414,7 +1414,7 @@ contains
            enddo
 
 
-           if ( cohort_age_tracking ) then
+           if ( hlm_use_cohort_age_tracking .eq.itrue) then
               if ( nocohorts > maxCohortsPerPatch_age_tracking ) then
                  iterate = 1
                  !---------------------------------------------------------------------!

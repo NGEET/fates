@@ -21,6 +21,9 @@ module FatesConstantsMod
   ! Used to initialize and test unset r8s
   real(fates_r8), parameter, public :: fates_unset_r8 = -1.e36_fates_r8
 
+  ! Used to check if a parameter was specified in the parameter file (or left as _)
+  real(fates_r8), parameter, public :: fates_check_param_set = 9.9e32_fates_r8
+  
   ! Integer equivalent of true  (in case some compilers dont auto convert)
   integer, parameter, public :: itrue = 1
 

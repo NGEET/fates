@@ -49,9 +49,6 @@ module EDParamsMod
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
 
-   logical,protected, public :: cohort_age_tracking        ! flag, 1=track cohort age 0=no cohort age tracking
-   character(len=param_string_length),parameter :: fates_name_cohort_age_tracking = "fates_cohort_age_tracking"
-
    real(r8), protected, public :: cg_strikes             ! fraction of cloud to ground lightning strikes (0-1)
    character(len=param_string_length),parameter :: fates_name_cg_strikes="fates_fire_cg_strikes"
    
@@ -361,9 +358,6 @@ contains
 
     call fates_params%RegisterParameter(name=fates_name_active_crown_fire, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=fates_name_cohort_age_tracking, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=fates_name_cg_strikes, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -385,7 +379,6 @@ contains
     class(fates_parameters_type), intent(inout) :: fates_params
 
     real(r8) :: active_crown_fire_real !Local temp to transfer real data in file
-    real(r8) :: cohort_age_tracking_real ! Local temp to transfer real data in file
 
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
@@ -505,10 +498,6 @@ contains
           data=active_crown_fire_real)
     active_crown_fire = (abs(active_crown_fire_real-1.0_r8)<nearzero)
 
-     call fates_params%RetreiveParameter(name=fates_name_cohort_age_tracking, & 
-          data=cohort_age_tracking_real)
-    cohort_age_tracking = (abs(cohort_age_tracking_real-1.0_r8)<nearzero)
-
     call fates_params%RetreiveParameter(name=fates_name_cg_strikes, &
           data=cg_strikes)
 
@@ -579,7 +568,6 @@ contains
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
         write(fates_log(),fmt0) 'cg_strikes = ',cg_strikes
         write(fates_log(),'(a,L)') 'active_crown_fire = ',active_crown_fire
-        write(fates_log(),'(a,L)') 'cohort_age_tracking = ',cohort_age_tracking
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

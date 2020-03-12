@@ -138,6 +138,9 @@ module FatesInterfaceMod
                                                        ! 1 = TRUE, 0 = FALSE
                                                        ! THIS IS CURRENTLY NOT SUPPORTED 
 
+   integer, public, protected :: hlm_use_cohort_age_tracking ! This flag signals whether or not to use
+                                                             ! cohort age tracking. 1 = TRUE, 0 = FALSE
+
    integer, public, protected :: hlm_use_ed_st3        ! This flag signals whether or not to use
                                                        ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                        ! Essentially, this gives us the ability
@@ -1428,7 +1431,6 @@ contains
       !
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
-      use EDParamsMod       , only : cohort_age_tracking
       
       ! Arguments
       integer, optional, intent(in)         :: ival
@@ -1462,6 +1464,7 @@ contains
          hlm_parteh_mode   = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
+         hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1541,10 +1544,10 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if ( hlm_use_inventory_init.eq.1  .and. cohort_age_tracking .eqv. .TRUE.) then
+         if ( hlm_use_inventory_init.eq.1  .and. hlm_use_cohort_age_tracking .eq.1) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'Fates inventory init cannot be used with age dependent mortality'
-               write(fates_log(), *) 'Set cohort_age_tracking to 0 or turn off inventory init'
+               write(fates_log(), *) 'Set hlm_use_cohort_age_tracking to 0 or turn off inventory init'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if

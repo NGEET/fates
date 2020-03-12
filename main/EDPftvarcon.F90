@@ -169,15 +169,15 @@ module EDPftvarcon
      real(r8), allocatable :: allom_frbstor_repro(:) ! fraction of bstrore for reproduction after mortality
 
      ! Prescribed Physiology Mode Parameters
-     real(r8), allocatable :: prescribed_npp_canopy(:)           ! this is only for the special 
+     real(r8), allocatable :: prescribed_npp_canopy(:)           ! this is only for the  
                                                                  ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_npp_understory(:)       ! this is only for the special
+     real(r8), allocatable :: prescribed_npp_understory(:)       ! this is only for the 
                                                                  ! prescribed physiology mode
-     real(r8), allocatable :: prescribed_mortality_canopy(:)     ! this is only for the special
+     real(r8), allocatable :: prescribed_mortality_canopy(:)     ! this is only for the 
                                                                  ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_mortality_understory(:) ! this is only for the special 
+     real(r8), allocatable :: prescribed_mortality_understory(:) ! this is only for the  
                                                                  ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the special 
+     real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the 
                                                                  ! prescribed_physiology_mode
 
      
@@ -2079,9 +2079,9 @@ contains
      ! cannot have a structural biomass allometry intercept of 0, and a non-woody
      ! plant (grass) can't have a non-zero intercept...
      ! -----------------------------------------------------------------------------------
-    use EDParamsMod    , only : cohort_age_tracking
-    use PRTGenericMod  , only : check_initialized
-
+    use FatesConstantsMod  , only : fates_check_param_set
+    use FatesConstantsMod  , only : itrue, ifalse
+    
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
      integer, intent(in) :: parteh_mode  ! argument for nl flag hlm_parteh_mode
@@ -2156,30 +2156,12 @@ contains
            
         end if
         
-        ! Check to see if cohort tracking is on if age-senescence is on
-        !----------------------------------------------------------------------------------
-        
-        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < check_initialized ) .and. &
-             ( cohort_age_tracking .neqv. .TRUE. ) ) then
-
-           write(fates_log(),*) 'ip_age = ', EDPftvarcon_inst%mort_ip_age_senescence(ipft)
-           write(fates_log(),*) 'cohort_age_tracking = ', cohort_age_tracking
-
-           write(fates_log(),*) 'Age-dependent mortality cannot be on'
-           write(fates_log(),*) 'if cohort age tracking is off'
-           write(fates_log(),*) 'Set cohort_age_tracking to 1'
-           write(fates_log(),*) 'To turn on cohort age tracking or '
-           write(fates_log(),*) 'Set mort_ip_age_senescence to _ '
-           write(fates_log(),*) 'to turn off age-dependent mortality '
-           write(fates_log(),*) 'Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-
+     
 
         ! Check that parameter ranges for age-dependent mortality make sense   
         !-----------------------------------------------------------------------------------    
-        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < check_initialized ) .and. &
-             (  EDPftvarcon_inst%mort_r_age_senescence(ipft) > check_initialized ) ) then
+        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < fates_check_param_set ) .and. &
+             (  EDPftvarcon_inst%mort_r_age_senescence(ipft) > fates_check_param_set ) ) then
 
            write(fates_log(),*) 'Age-dependent mortality is on'
            write(fates_log(),*) 'Please also set mort_r_age_senescence'
@@ -2203,8 +2185,8 @@ contains
 
         ! Check that parameter ranges for size-dependent mortality make sense   
         !-----------------------------------------------------------------------------------    
-        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < check_initialized ) .and. &
-             (  EDPftvarcon_inst%mort_r_size_senescence(ipft) > check_initialized ) ) then
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < fates_check_param_set ) .and. &
+             (  EDPftvarcon_inst%mort_r_size_senescence(ipft) > fates_check_param_set ) ) then
 
            write(fates_log(),*) 'Size-dependent mortality is on'
            write(fates_log(),*) 'Please also set mort_r_size_senescence'

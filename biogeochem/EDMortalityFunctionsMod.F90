@@ -51,7 +51,7 @@ contains
     
     use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
     use FatesInterfaceMod        , only : hlm_hio_ignore_val   
-    use PRTGenericMod      , only : check_initialized 
+    use FatesConstantsMod,  only : fates_check_param_set
     
     type (ed_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
@@ -89,7 +89,7 @@ contains
     mort_ip_size_senescence = EDPftvarcon_inst%mort_ip_size_senescence(cohort_in%pft)
     
     ! if param values have been set then calculate smort
-    if ( mort_ip_size_senescence < check_initialized ) then 
+    if ( mort_ip_size_senescence < fates_check_param_set ) then 
        smort = 1.0_r8 / ( 1.0_r8 + exp( -1.0_r8 * mort_r_size_senescence * &
             (cohort_in%dbh - mort_ip_size_senescence) ) ) 
     else
@@ -97,7 +97,7 @@ contains
     end if
 
     ! if param values have been set then calculate asmort
-    if ( mort_ip_age_senescence < check_initialized ) then
+    if ( mort_ip_age_senescence < fates_check_param_set ) then
        ! Age Dependent Senescence
        ! rate and inflection point define the change in mortality with age
        mort_r_age_senescence = EDPftvarcon_inst%mort_r_age_senescence(cohort_in%pft)
