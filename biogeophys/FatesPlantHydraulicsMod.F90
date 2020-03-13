@@ -203,6 +203,9 @@ module FatesPlantHydraulicsMod
   real(r8), parameter :: psd_vg    = 2.7_r8
   real(r8), parameter :: tort_vg   = 0.5_r8
 
+  ! The maximum allowable water balance error over a plant-soil continuum
+  ! for a given step [kgs] (0.1 mg)
+  real(r8), parameter :: max_wb_step_err = 1.e-7_r8 
 
   !
   ! !PUBLIC MEMBER FUNCTIONS:
@@ -465,7 +468,7 @@ contains
 
     if(init_mode == 2) then
        
-       h_aroot_mean = 0._r8
+!       h_aroot_mean = 0._r8
 
        do j=1, site_hydr%nlevrhiz
           
@@ -473,7 +476,7 @@ contains
           cohort_hydr%psi_aroot(j) = site_hydr%wrf_soil(j)%p%psi_from_th(site_hydr%h2osoi_liqvol_shell(j,1))
 
           ! Calculate the mean total potential (include height) of absorbing roots
-          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(j))
+!          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(j))
           
           cohort_hydr%th_aroot(j) = wrf_plant(aroot_p_media,ft)%p%th_from_psi(cohort_hydr%psi_aroot(j))
           cohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
@@ -484,14 +487,15 @@ contains
        do j=1, site_hydr%nlevrhiz
           cohort_hydr%psi_aroot(j) = psi_aroot_init
           ! Calculate the mean total potential (include height) of absorbing roots
-          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(j))
+!          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(j))
           cohort_hydr%th_aroot(j) = wrf_plant(aroot_p_media,ft)%p%th_from_psi(cohort_hydr%psi_aroot(j))
           cohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
        end do
     end if
     
-    h_aroot_mean = h_aroot_mean/real(site_hydr%nlevrhiz,r8)
-    
+    !h_aroot_mean = h_aroot_mean/real(site_hydr%nlevrhiz,r8)
+    h_aroot_mean = min(cohort_hydr%psi_aroot(:) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(:))
+
     ! initialize plant water potentials with slight potential gradient (or zero) (dh/dz = C)
     ! the assumption is made here that initial conditions for soil water will 
     ! be in (or at least close to) hydrostatic equilibrium as well, so that
@@ -544,9 +548,10 @@ contains
 
     !flc_gs_from_psi(cohort_hydr%psi_ag(1),cohort%pft)
     
-    ! Check plant pressures, make sure they are not positive
+    ! We do allow for positive pressures.
+    ! But starting off with positive pressures is something we try to avoid
     if ( (cohort_hydr%psi_troot>0.0_r8) .or. &
-         any(cohort_hydr%psi_ag(:)>0._r8) .or. &
+          any(cohort_hydr%psi_ag(:)>0._r8) .or. &
          any(cohort_hydr%psi_aroot(:)>0._r8) ) then
        write(fates_log(),*) 'Initialized plant compartments with positive pressure?'
        write(fates_log(),*) 'psi troot: ',cohort_hydr%psi_troot
@@ -777,18 +782,9 @@ contains
     real(r8) :: fnrt_c                       ! Current amount of fine-root carbon in the plant                       [kg]
     real(r8) :: sapw_c                       ! Current amount of sapwood carbon in the plant                         [kg]
     real(r8) :: struct_c                     ! Current amount of structural carbon in the plant                      [kg]
-    real(r8) :: b_canopy_carb                ! total leaf (canopy) biomass in carbon units                           [kgC/indiv]
-    real(r8) :: b_canopy_biom                ! total leaf (canopy) biomass in dry wt units                           [kg/indiv]
-    real(r8) :: b_woody_carb                 ! total woody biomass in carbon units                                   [kgC/indiv]
-    real(r8) :: b_woody_bg_carb              ! belowground woody biomass in carbon units                             [kgC/indiv]
-    real(r8) :: b_stem_carb                  ! aboveground stem biomass in carbon units                              [kgC/indiv]
-    real(r8) :: b_stem_biom                  ! aboveground stem biomass in dry wt units                              [kg/indiv]
-    real(r8) :: b_bg_carb                    ! belowground biomass (coarse + fine roots) in carbon units             [kgC/indiv]
-    real(r8) :: b_tot_carb                   ! total individual biomass in carbon units                              [kgC/indiv]
-    real(r8) :: v_stem                       ! aboveground stem volume                                               [m3/indiv]
+    real(r8) :: woody_bg_carb                ! belowground woody biomass in carbon units                             [kgC/indiv]
     real(r8) :: z_stem                       ! the height of the plants stem below crown [m]
     real(r8) :: sla                          ! specific leaf area                                                    [cm2/g]
-    real(r8) :: v_canopy                     ! total leaf (canopy) volume                                            [m3/indiv]
     real(r8) :: v_aroot_tot                  ! total compartment volume of all absorbing roots for cohort            [m3]
     real(r8) :: l_aroot_tot                  ! total length of absorbing roots for cohrot                            [m]
     real(r8) :: denleaf                      ! leaf dry mass per unit fresh leaf volume                              [kg/m3]     
@@ -814,112 +810,97 @@ contains
     roota    =  EDPftvarcon_inst%roota_par(ft)
     rootb    =  EDPftvarcon_inst%rootb_par(ft)
 
-    !roota                      =  4.372_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
-    !rootb                      =  0.978_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
-    !roota                      =  8.992_r8                          ! TESTING: shallow (see Zeng 2001 Table 1)
-    !rootb                      =  8.992_r8                          ! TESTING: shallow (see Zeng 2001 Table 1)
+    ! Leaf Volumes
+    ! -----------------------------------------------------------------------------------
 
-    if(leaf_c > 0._r8) then
+    ! NOTE: SLATOP currently does not use any vertical scaling functions
+    ! but that may not be so forever. ie sla = slatop (RGK-082017)
+    ! m2/gC * cm2/m2 -> cm2/gC
+    
+    sla                        = EDPftvarcon_inst%slatop(ft) * cm2_per_m2 
+    
+    ! empirical regression data from leaves at Caxiuana (~ 8 spp)
+    denleaf                    = -2.3231_r8*sla/EDPftvarcon_inst%c2b(ft) + 781.899_r8    
+ 
+    ! Leaf volumes
+    ! [kgC] * [kg/kgC] / [kg/m3] -> [m3]
+    ccohort_hydr%v_ag(1:n_hypool_leaf) = leaf_c * EDPftvarcon_inst%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
+    
 
+    ! Step sapwood volume
+    ! -----------------------------------------------------------------------------------
 
-       ! ------------------------------------------------------------------------------
-       ! Part 1.  Set the volumes of the leaf, stem and root compartments
-       !          and lenghts of the roots
-       ! ------------------------------------------------------------------------------
+    !BOC...may be needed for testing/comparison w/ v_sapwood 
+    !    kg  / ( g cm-3 * cm3/m3 * kg/g ) -> m3    
+    ! v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(ft) * kg_per_g * cm3_per_m3 ) 
 
-       b_woody_carb               = sapw_c + struct_c
-       b_woody_bg_carb            = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(ft)) * b_woody_carb
-       b_tot_carb                 = sapw_c + struct_c + leaf_c + fnrt_c
-       b_canopy_carb              = leaf_c
-       b_bg_carb                  = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(ft)) * b_tot_carb
-       b_canopy_biom              = b_canopy_carb * EDPftvarcon_inst%c2b(ft)
+    ! calculate the sapwood cross-sectional area
+    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,bsw_target)
+    a_sapwood = a_sapwood_target
 
-       ! NOTE: SLATOP currently does not use any vertical scaling functions
-       ! but that may not be so forever. ie sla = slatop (RGK-082017)
-       ! m2/gC * cm2/m2 -> cm2/gC
-       sla                        = EDPftvarcon_inst%slatop(ft) * cm2_per_m2 
+    ! Alternative ways to calculate sapwood cross section
+    ! or ....
+    ! a_sapwood = a_sapwood_target * ccohort%bsw / bsw_target
+    !  a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(ft)*1.e-4_r8 
+    !  m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
+    ! or ...
+    ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%hite ) * 1.e-4_r8
 
-       ! empirical regression data from leaves at Caxiuana (~ 8 spp)
-       denleaf                    = -2.3231_r8*sla/EDPftvarcon_inst%c2b(ft) + 781.899_r8    
-       v_canopy                   = b_canopy_biom / denleaf
-
-       ccohort_hydr%v_ag(1:n_hypool_leaf) = v_canopy / real(n_hypool_leaf,r8)
-
-
-       b_stem_carb  = b_tot_carb - b_bg_carb - b_canopy_carb
-       b_stem_biom  = b_stem_carb * EDPftvarcon_inst%c2b(ft)
-
-       !BOC...may be needed for testing/comparison w/ v_sapwood 
-       !    kg  / ( g cm-3 * cm3/m3 * kg/g ) -> m3    
-       v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(ft)*1.e3_r8  ) 
-
-       ! calculate the sapwood cross-sectional area
-       call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,bsw_target)
-       a_sapwood = a_sapwood_target
-
-       ! Alternative ways to calculate sapwood cross section
-       ! or ....
-       ! a_sapwood = a_sapwood_target * ccohort%bsw / bsw_target
-
-       !     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(ft)*1.e-4_r8 
-       !      m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
-       ! or ...
-       !a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%hite ) * 1.e-4_r8
-
-       call CrownDepth(ccohort%hite,crown_depth)
-       z_stem       = ccohort%hite - crown_depth
-       v_sapwood    = a_sapwood * z_stem
-       ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
+    call CrownDepth(ccohort%hite,crown_depth)
+    z_stem       = ccohort%hite - crown_depth
+    v_sapwood    = a_sapwood * z_stem
+    ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
 
-       ! Determine belowground biomass as a function of total (sapwood, heartwood, 
-       ! leaf, fine root) biomass then subtract out the fine root biomass to get 
-       ! coarse (transporting) root biomass
+    ! Determine belowground biomass as a function of total (sapwood, heartwood, 
+    ! leaf, fine root) biomass then subtract out the fine root biomass to get 
+    ! coarse (transporting) root biomass
 
-       v_troot                    = b_woody_bg_carb * EDPftvarcon_inst%c2b(ft) / & 
-            (EDPftvarcon_inst%wood_density(ft)*kg_per_g*cm3_per_m3)
+    woody_bg_carb = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(ft)) * (sapw_c + struct_c)
+    
+    v_troot                    = b_woody_bg_carb * EDPftvarcon_inst%c2b(ft) / & 
+          (EDPftvarcon_inst%wood_density(ft)*kg_per_g*cm3_per_m3)
+    
+    
+    ! Estimate absorbing root total length (all layers)
+    ! SRL is in m/g
+    ! [m] = [kgC]*1000[g/kg]*[kg/kgC]*[m/g]
+    ! ------------------------------------------------------------------------------
+    l_aroot_tot        = fnrt_c*g_per_kg*EDPftvarcon_inst%c2b(ft)*EDPftvarcon_inst%hydr_srl(ft)
+    
+    
+    ! Estimate absorbing root volume (all layers)
+    ! ------------------------------------------------------------------------------
+    v_aroot_tot        = pi_const * (EDPftvarcon_inst%hydr_rs2(ft)**2._r8) * l_aroot_tot
 
+    ! Total amount of root volume
+    v_root = v_aroot_tot + v_troot
+    
+    ! The transporting root donates some of its volume
+    ! to the layer-by-layer absorbing root (which is now a hybrid compartment)
+    
+    ccohort_hydr%v_troot = 0.35 * v_root
+    
+    ! Partition the total absorbing root lengths and volumes into the active soil layers
+    ! We have a condition, where we may ignore the first layer
+    ! ------------------------------------------------------------------------------
+    
+    norm = 1._r8 - &
+          zeng2001_crootfr(roota, rootb,site_hydr%zi_rhiz(1)-site_hydr%dz_rhiz(1), site_hydr%zi_rhiz(nlevrhiz))
+    
+    do j=1,nlevrhiz
+        
+        rootfr = norm*(zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j),site_hydr%zi_rhiz(nlevrhiz)) - &
+              zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j)-site_hydr%dz_rhiz(j),site_hydr%zi_rhiz(nlevrhiz)))
+        
+        ccohort_hydr%l_aroot_layer(j) = rootfr*l_aroot_tot
+        
+        ! This is a hybrid absorbing root and transporting root volume
+        ccohort_hydr%v_aroot_layer(j) = rootfr*(0.65*v_root)
 
-       ! Estimate absorbing root total length (all layers)
-       ! SRL is in m/g
-       ! [m] = [kgC]*1000[g/kg]*[kg/kgC]*[m/g]
-       ! ------------------------------------------------------------------------------
-       l_aroot_tot        = fnrt_c*g_per_kg*EDPftvarcon_inst%c2b(ft)*EDPftvarcon_inst%hydr_srl(ft)
-
-
-       ! Estimate absorbing root volume (all layers)
-       ! ------------------------------------------------------------------------------
-       v_aroot_tot        = pi_const * (EDPftvarcon_inst%hydr_rs2(ft)**2._r8) * &
-                            l_aroot_tot
-
-       ! Total amount of root volume
-       v_root = v_aroot_tot + v_troot
-
-       ! The transporting root donates some of its volume
-       ! to the layer-by-layer absorbing root (which is now a hybrid compartment)
-
-       ccohort_hydr%v_troot = 0.35 * v_root
-
-       ! Partition the total absorbing root lengths and volumes into the active soil layers
-       ! We have a condition, where we may ignore the first layer
-       ! ------------------------------------------------------------------------------
-
-       norm = 1._r8 - &
-            zeng2001_crootfr(roota, rootb,site_hydr%zi_rhiz(1)-site_hydr%dz_rhiz(1), site_hydr%zi_rhiz(nlevrhiz))
+    end do
        
-       do j=1,nlevrhiz
-          
-          rootfr = norm*(zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j),site_hydr%zi_rhiz(nlevrhiz)) - &
-                         zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j)-site_hydr%dz_rhiz(j),site_hydr%zi_rhiz(nlevrhiz)))
-          
-          ccohort_hydr%l_aroot_layer(j) = rootfr*l_aroot_tot
-
-          ! This is a hybrid absorbing root and transporting root volume
-          ccohort_hydr%v_aroot_layer(j) = rootfr*(0.65*v_root)
-       end do
-
-    end if !check for bleaf
-
+    return
   end subroutine UpdateTreeHydrLenVol
 
   ! =====================================================================================
@@ -957,8 +938,20 @@ contains
     ! time this routine is called for a new cohort, then v_ag_init(k) will be a nan.
     ! It should be ok, but may be vulnerable if code is changed (RGK 02-2017)
 
-    ! UPDATE WATER CONTENTS (assume water for growth comes from within tissue itself -- apply water mass conservation)
-    do k=1,n_hypool_ag
+    ! UPDATE WATER CONTENTS (assume water for growth comes from within tissue itself
+    ! -- apply water mass conservation)
+
+    do k=1,n_hypool_leaf
+        if( ccohort_hydr%v_ag(k) > nearzero) then
+            th_ag_uncorr(k)    = ccohort_hydr%th_ag(k)   * &
+                  ccohort_hydr%v_ag_init(k) /ccohort_hydr%v_ag(k)
+            ccohort_hydr%th_ag(k) = constrain_water_contents(th_ag_uncorr(k), small_theta_num, ft, pm_node(k))
+        else
+            
+        end if
+    end do
+
+    do k=n_hypool_leaf+1,n_hypool_ag
        th_ag_uncorr(k)    = ccohort_hydr%th_ag(k)   * &
             ccohort_hydr%v_ag_init(k) /ccohort_hydr%v_ag(k)
        ccohort_hydr%th_ag(k) = constrain_water_contents(th_ag_uncorr(k), small_theta_num, ft, pm_node(k))
@@ -3012,6 +3005,7 @@ contains
     integer :: i_up           ! node index on the upstream side of flow path (towards soil)
     integer :: i_dn           ! node index on the downstream side of flow path (towards atm)
     integer :: istep          ! sub-step count index
+    integer :: tri_ierr       ! error flag for the tri-diagonal solver 0=passed, 1=failed
     logical :: solution_found ! logical set to true if a solution was found within error tolerance
     real(r8) :: dt_step       ! time [seconds] over-which to calculate solution
     real(r8) :: q_top_eff     ! effective water flux through stomata [kg s-1 plant-1]
@@ -3068,7 +3062,7 @@ contains
     integer, parameter  :: imult    = 3                ! With each iteration, increase the number of substeps
                                                        ! by this much
     integer, parameter  :: max_iter = 20               ! Maximum number of iterations with which we reduce timestep
-    real(r8), parameter :: max_wb_step_err = 1.e-7_r8 
+   
     real(r8), parameter :: max_wb_err      = 1.e-5_r8  ! threshold for water balance error (stop model)   [kg h2o]
 
 
@@ -3446,8 +3440,14 @@ contains
 
                 ! Calculate the change in theta
 
-                call Hydraulics_Tridiagonal(tris_a, tris_b, tris_c, tris_r, dth_node)
+                call Hydraulics_Tridiagonal(tris_a, tris_b, tris_c, tris_r, dth_node, tri_ierr)
 
+                if(tri_ierr == 1) then
+                    solution_found = .false.
+                    error_code = 2
+                    error_arr(:) = 0._r8
+                    exit
+                end if
 
                 ! If we have not broken from the substep loop,
                 ! that means this sub-step has been acceptable, and we may 
@@ -4221,7 +4221,7 @@ contains
   
   ! =====================================================================================
   
-  subroutine Hydraulics_Tridiagonal(a, b, c, r, u)
+  subroutine Hydraulics_Tridiagonal(a, b, c, r, u, ierr)
     !
     ! !DESCRIPTION: An abbreviated version of biogeophys/TridiagonalMod.F90
     !
@@ -4240,6 +4240,7 @@ contains
     real(r8), intent(in)    :: c(:)           ! "c" right off diagonal of tridiagonal matrix
     real(r8), intent(in)    :: r(:)           ! "r" forcing term of tridiagonal matrix
     real(r8), intent(out)   :: u(:)           ! solution
+    integer,  intent(out)   :: ierr           ! flag: 0=passed,  1=failed
     !
     ! !LOCAL VARIABLES:
     real(r8) :: bet                           ! temporary
@@ -4250,7 +4251,6 @@ contains
     real(r8) :: rel_err                       ! relative error, normalized by delta theta
     real(r8), parameter :: allowable_rel_err = 0.0001_r8
 
-    !    real(r8), parameter :: allowable_err = 1.e-6_r8
     !----------------------------------------------------------------------
     N=size(r,dim=1)
     bet = b(1)
@@ -4269,9 +4269,9 @@ contains
     enddo
 
     ! If debug mode, calculate error on the forward solution
+    ierr = 0
     if(debug)then
        do k=1,N
-
           if(k==1)then
              err = abs(r(k) - (b(k)*u(k)+c(k)*u(k+1)))
           elseif(k<N) then
@@ -4279,21 +4279,20 @@ contains
           else
              err = abs(r(k) - (a(k)*u(k-1)+b(k)*u(k)))
           end if
-
           if(abs(u(k))>nearzero)then
               rel_err = abs(err/u(k))
-              
-              if((rel_err > allowable_rel_err)) then !.and. (err > allowable_err) )then
+              if( ((rel_err > allowable_rel_err) .and. (err > max_wb_step_err)) .or.
+                  (err /= err) )then
                   write(fates_log(),*) 'Tri-diagonal solve produced solution with'
                   write(fates_log(),*) 'non-negligable error.'
                   write(fates_log(),*) 'Compartment: ',k
                   write(fates_log(),*) 'Error in forward solution: ',err
                   write(fates_log(),*) 'Estimated delta theta: ',u(k)
                   write(fates_log(),*) 'Rel Error: ',rel_err
-                  call endrun(msg=errMsg(sourcefile, __LINE__))
+                  write(fates_log(),*) 'Reducing time-step'
+                  ierr = 1
               end if
           end if
-
        end do
     end if
 
