@@ -49,3 +49,5 @@ Thumbs.db
 
 # Old Files
 *~
+# Editor specific setting files
+*.vscode

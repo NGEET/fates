@@ -141,7 +141,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_TFC_ROS_pa
   integer :: ih_fire_intensity_pa
   integer :: ih_fire_area_pa
-  integer :: ih_scorch_height_pa
   integer :: ih_fire_fuel_bulkd_pa
   integer :: ih_fire_fuel_eff_moist_pa
   integer :: ih_fire_fuel_sav_pa
@@ -207,6 +206,7 @@ module FatesHistoryInterfaceMod
   ! Indices to site by patch age by pft variables
   integer :: ih_biomass_si_agepft
   integer :: ih_npp_si_agepft
+  integer :: ih_scorch_height_si_agepft
 
   ! Indices to (site) variables
 
@@ -1631,7 +1631,6 @@ end subroutine flush_hvars
                hio_effect_wspeed_pa    => this%hvars(ih_effect_wspeed_pa)%r81d, &
                hio_fire_intensity_pa   => this%hvars(ih_fire_intensity_pa)%r81d, &
                hio_fire_area_pa        => this%hvars(ih_fire_area_pa)%r81d, &
-               hio_scorch_height_pa    => this%hvars(ih_scorch_height_pa)%r81d, &
                hio_fire_fuel_bulkd_pa  => this%hvars(ih_fire_fuel_bulkd_pa)%r81d, &
                hio_fire_fuel_eff_moist_pa => this%hvars(ih_fire_fuel_eff_moist_pa)%r81d, &
                hio_fire_fuel_sav_pa    => this%hvars(ih_fire_fuel_sav_pa)%r81d, &
@@ -1775,6 +1774,7 @@ end subroutine flush_hvars
                hio_nplant_si_scagpft                => this%hvars(ih_nplant_si_scagpft)%r82d, &
                hio_npp_si_agepft                    => this%hvars(ih_npp_si_agepft)%r82d, &
                hio_biomass_si_agepft                => this%hvars(ih_biomass_si_agepft)%r82d, &
+               hio_scorch_height_si_agepft          => this%hvars(ih_scorch_height_si_agepft)%r82d, &
                hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
                hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
@@ -1941,6 +1941,15 @@ end subroutine flush_hvars
                     + cpatch%area * AREA_INV
             endif
             
+            do i_pft = 1,numpft
+               ! for scorch height, weight the value by patch area within any given age calss (in the event that there is
+               ! more than one patch per age class.
+               iagepft = cpatch%age_class + (i_pft-1) * nlevage
+               hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
+                    cpatch%Scorch_ht(i_pft) * cpatch%area
+
+            end do
+             
             ccohort => cpatch%shortest
             do while(associated(ccohort))
                
@@ -2206,8 +2215,6 @@ end subroutine flush_hvars
                     hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
                           total_c * ccohort%n * AREA_INV
 
-             
-
                     ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
                     if (ccohort%canopy_layer .eq. 1) then
                        hio_nplant_canopy_si_scag(io_si,iscag) = hio_nplant_canopy_si_scag(io_si,iscag) + ccohort%n
@@ -2233,9 +2240,9 @@ end subroutine flush_hvars
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n
                        hio_lai_canopy_si_scls(io_si,scls) = hio_lai_canopy_si_scls(io_si,scls) + &
-		                                            ccohort%treelai*ccohort%c_area * AREA_INV
+                                                            ccohort%treelai*ccohort%c_area * AREA_INV
                        hio_sai_canopy_si_scls(io_si,scls) = hio_sai_canopy_si_scls(io_si,scls) + &
-		                                            ccohort%treesai*ccohort%c_area * AREA_INV
+                                                            ccohort%treesai*ccohort%c_area * AREA_INV
                        hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
                             ccohort%n * ccohort%canopy_trim
                        hio_crown_area_canopy_si_scls(io_si,scls) = hio_crown_area_canopy_si_scls(io_si,scls) + &
@@ -2252,7 +2259,7 @@ end subroutine flush_hvars
 
                        ! sum of all mortality
                        hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
-                             (ccohort%bmort + ccohort%hmort + ccohort%cmort  + ccohort%frmort ) * ccohort%n + &
+                             (ccohort%bmort + ccohort%hmort + ccohort%cmort  + ccohort%frmort) * ccohort%n + &
                              (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                              ccohort%n * sec_per_day * days_per_year
 
@@ -2319,9 +2326,9 @@ end subroutine flush_hvars
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n
                        hio_lai_understory_si_scls(io_si,scls) = hio_lai_understory_si_scls(io_si,scls) + &
-		                                                ccohort%treelai*ccohort%c_area  * AREA_INV
+                                                                ccohort%treelai*ccohort%c_area  * AREA_INV
                        hio_sai_understory_si_scls(io_si,scls) = hio_sai_understory_si_scls(io_si,scls) + &
-		                                                ccohort%treelai*ccohort%c_area  * AREA_INV
+                                                                ccohort%treelai*ccohort%c_area  * AREA_INV
                        hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
                             ccohort%n * ccohort%canopy_trim
                        hio_crown_area_understory_si_scls(io_si,scls) = hio_crown_area_understory_si_scls(io_si,scls) + &
@@ -2339,7 +2346,7 @@ end subroutine flush_hvars
 
                        ! sum of all mortality
                        hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
-                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort ) * ccohort%n + &
+                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort) * ccohort%n + &
                              (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                              ccohort%n * sec_per_day * days_per_year
                        
@@ -2438,7 +2445,6 @@ end subroutine flush_hvars
             hio_tfc_ros_pa(io_pa)              = cpatch%TFC_ROS
             hio_fire_intensity_pa(io_pa)       = cpatch%FI
             hio_fire_area_pa(io_pa)            = cpatch%frac_burnt
-            hio_scorch_height_pa(io_pa)        = cpatch%SH
             hio_fire_fuel_bulkd_pa(io_pa)      = cpatch%fuel_bulkd
             hio_fire_fuel_eff_moist_pa(io_pa)  = cpatch%fuel_eff_moist
             hio_fire_fuel_sav_pa(io_pa)        = cpatch%fuel_sav
@@ -2479,6 +2485,11 @@ end subroutine flush_hvars
             if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
                hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
                hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
+               do i_pft = 1, numpft
+                  iagepft = ipa2 + (i_pft-1) * nlevage
+                  hio_scorch_height_si_agepft(io_si, iagepft) = &
+                       hio_scorch_height_si_agepft(io_si, iagepft) / (hio_area_si_age(io_si, ipa2)*AREA)
+               enddo
             else
                hio_lai_si_age(io_si, ipa2) = 0._r8
                hio_ncl_si_age(io_si, ipa2) = 0._r8
@@ -3210,7 +3221,7 @@ end subroutine flush_hvars
             hio_c_stomata_si(io_si) = 0._r8
             hio_c_lblayer_si(io_si) = 0._r8
          end if
-	 
+ 
       enddo ! site loop
 
     end associate
@@ -3303,7 +3314,7 @@ end subroutine flush_hvars
           hio_twp_scpf          => this%hvars(ih_twp_scpf)%r82d, &  
           hio_swp_scpf          => this%hvars(ih_swp_scpf)%r82d, &                     
           hio_lwp_scpf          => this%hvars(ih_lwp_scpf)%r82d, &  
-	  hio_aflc_scpf          => this%hvars(ih_aflc_scpf)%r82d, &                     
+          hio_aflc_scpf          => this%hvars(ih_aflc_scpf)%r82d, &                     
           hio_tflc_scpf          => this%hvars(ih_tflc_scpf)%r82d, &  
           hio_sflc_scpf          => this%hvars(ih_sflc_scpf)%r82d, &                     
           hio_lflc_scpf          => this%hvars(ih_lflc_scpf)%r82d, &                   
@@ -3523,8 +3534,8 @@ end subroutine flush_hvars
                   
                   hio_lwp_scpf(io_si,iscpf)             = hio_lwp_scpf(io_si,iscpf) + &
                         ccohort_hydr%psi_ag(1)  * number_fraction       ! [MPa]
-			
-		  hio_aflc_scpf(io_si,iscpf)             = hio_aflc_scpf(io_si,iscpf) + &
+
+                  hio_aflc_scpf(io_si,iscpf)             = hio_aflc_scpf(io_si,iscpf) + &
                         ccohort_hydr%flc_aroot(1)   * number_fraction     
                   
                   hio_tflc_scpf(io_si,iscpf)             = hio_tflc_scpf(io_si,iscpf) + &
@@ -3553,7 +3564,7 @@ end subroutine flush_hvars
              io_shsl = io_shsl + 1
              hio_h2osoi_shsl(io_si,io_shsl) = sites(s)%si_hydr%h2osoi_liqvol_shell(j,k)
            end do
-	 end do
+         end do
                   
          if(hlm_use_ed_st3.eq.ifalse) then
             do scpf=1,nlevsclass*numpft
@@ -3906,11 +3917,6 @@ end subroutine flush_hvars
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_pa )
 
-    call this%set_history_var(vname='SCORCH_HEIGHT', units='m',                &
-         long='spitfire flame height:m', use_default='active',                    &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_pa )
-
     call this%set_history_var(vname='fire_fuel_mef', units='m',                &
          long='spitfire fuel moisture',  use_default='active',                  &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
@@ -3998,8 +4004,6 @@ end subroutine flush_hvars
          long='Seed mass decay', use_default='active',                          &
          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_seed_decay_elem )
-
-
     
     call this%set_history_var(vname='ED_bstore', units='gC m-2',                  &
          long='Storage biomass', use_default='active',                          &
@@ -4105,7 +4109,7 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_c_stomata_si_age )
 
     call this%set_history_var(vname='C_LBLAYER_BY_AGE', units='umol m-2 s-1',                   &
-         long='mean leaf boundary layer conductance - by page age', use_default='inactive', &
+         long='mean leaf boundary layer conductance - by patch age', use_default='inactive', &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_c_lblayer_si_age )
 
@@ -4404,6 +4408,12 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_agepft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_agepft )
 
+    call this%set_history_var(vname='SCORCH_HEIGHT',units = 'm',               &
+          long='SPITFIRE Flame Scorch Height (calculated per PFT in each patch age bin)', &
+          use_default='active',   &
+          avgflag='A', vtype=site_agepft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_si_agepft )
+
 
     ! Carbon Flux (grid dimension x scpf) (THESE ARE DEFAULT INACTIVE!!!
     !                                     (BECAUSE THEY TAKE UP SPACE!!!
@@ -4572,7 +4582,7 @@ end subroutine flush_hvars
     call this%set_history_var(vname='C13disc_SCPF', units = 'per mil',               &
          long='C13 discrimination by pft/size',use_default='inactive',           &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_c13disc_si_scpf )	  
+         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_c13disc_si_scpf ) 
 
     call this%set_history_var(vname='BSTOR_CANOPY_SCPF', units = 'kgC/ha',          &
           long='biomass carbon in storage pools of canopy plants by pft/size', use_default='inactive', &
@@ -5061,7 +5071,6 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_err_fates_si )
 
-
     call this%set_history_var(vname='LITTER_FINES_AG_ELEM', units='kg/m^2', &
           long='mass of above ground  litter in fines (leaves,nonviable seed)', use_default='active', &
           avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
@@ -5304,7 +5313,7 @@ end subroutine flush_hvars
              long='cumulative net borrowed (+) from plant_stored_h2o due to leaf emergence', use_default='inactive',   &
              avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_pheno_err_si )
-	     
+     
        call this%set_history_var(vname='H2OVEG_HYDRO_ERR', units = 'kg/m2',               &
              long='cumulative net borrowed (+) from plant_stored_h2o due to plant hydrodynamics', use_default='inactive',   &
              avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
