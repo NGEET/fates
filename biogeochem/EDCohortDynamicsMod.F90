@@ -131,10 +131,11 @@ contains
 
   !-------------------------------------------------------------------------------------!
 
+
     
   subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
-                           prt, laimemory, status, recruitstatus,ctrim, &
-                           clayer, spread, bc_in)
+                           prt, laimemory, sapwmemory, structmemory, &
+                           status, recruitstatus,ctrim, clayer, spread, bc_in)
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -169,6 +170,10 @@ contains
                                                   ! object
     real(r8), intent(in)      :: laimemory        ! target leaf biomass- set from 
                                                   ! previous year: kGC per indiv
+    real(r8), intent(in)   :: sapwmemory          ! target sapwood biomass- set from 
+                                                  ! previous year: kGC per indiv	
+    real(r8), intent(in)   :: structmemory        ! target structural biomass- set from 
+                                                  ! previous year: kGC per indiv							 
     real(r8), intent(in)      :: ctrim            ! What is the fraction of the maximum 
                                                   ! leaf biomass that we are targeting?
     real(r8), intent(in)      :: spread           ! The community assembly effects how 
@@ -219,7 +224,8 @@ contains
     new_cohort%canopy_layer = clayer
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
-
+    new_cohort%sapwmemory   = sapwmemory
+    new_cohort%structmemory = structmemory
 
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
@@ -493,6 +499,8 @@ contains
     currentCohort%coage              = nan ! age of the cohort in years
     currentCohort%hite               = nan ! height: meters                   
     currentCohort%laimemory          = nan ! target leaf biomass- set from previous year: kGC per indiv
+    currentCohort%sapwmemory         = nan ! target sapwood biomass- set from previous year: kGC per indiv
+    currentCohort%structmemory       = nan ! target structural biomass- set from previous year: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2      
     currentCohort%sai                = nan ! stem area index of cohort   m2/m2
     currentCohort%g_sb_laweight      = nan ! Total leaf conductance of cohort (stomata+blayer) weighted by leaf-area [m/s]*[m2]
@@ -1109,6 +1117,12 @@ contains
 
                                 currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                       + nextc%n*nextc%laimemory)/newn
+				      
+                                currentCohort%sapwmemory   = (currentCohort%n*currentCohort%sapwmemory   &
+                                      + nextc%n*nextc%sapwmemory)/newn
+				      
+                                currentCohort%structmemory   = (currentCohort%n*currentCohort%structmemory   &
+                                      + nextc%n*nextc%structmemory)/newn				      				      
 
                                 currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                       + nextc%n*nextc%canopy_trim)/newn
@@ -1661,6 +1675,8 @@ contains
     n%coage           = o%coage 
     n%hite            = o%hite
     n%laimemory       = o%laimemory
+    n%sapwmemory      = o%sapwmemory
+    n%structmemory    = o%structmemory
     n%lai             = o%lai                         
     n%sai             = o%sai  
     n%g_sb_laweight   = o%g_sb_laweight
@@ -1746,7 +1762,7 @@ contains
     n%dhdt            = o%dhdt
     n%ddbhdt          = o%ddbhdt
 
-    ! FIRE 
+    ! FIRE
     n%fraction_crown_burned = o%fraction_crown_burned
     n%fire_mort             = o%fire_mort
     n%crownfire_mort        = o%crownfire_mort
