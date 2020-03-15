@@ -38,8 +38,6 @@ sed -i "/$old_fates_int_str/d" f90_src/FatesConstantsMod.F90
 
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/FatesConstantsMod.o  f90_src/FatesConstantsMod.F90
 
-#${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/EDParamsHydroMod.o  f90_src/EDParamsHydroMod.F90
-
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/UnitWrapMod.o f90_src/UnitWrapMod.F90
 
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/FatesHydroWTFMod.o ../../biogeophys/FatesHydroWTFMod.F90

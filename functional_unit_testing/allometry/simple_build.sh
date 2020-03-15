@@ -20,6 +20,7 @@ sed -i "/implicit none/i $new_fates_int_str" f90src/FatesConstantsMod.F90
 sed -i "/$old_fates_r8_str/d" f90src/FatesConstantsMod.F90
 sed -i "/$old_fates_int_str/d" f90src/FatesConstantsMod.F90
 
+sed -i "/private/d" f90src/FatesConstantsMod.F90
 
 # This re-writes the wrapper so that it uses all the correct parameters
 # in FatesAllometryMod.F90
