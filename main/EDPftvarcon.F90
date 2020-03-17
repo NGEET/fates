@@ -2178,19 +2178,6 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
-        ! Check that parameter ranges for age-dependent mortality make sense   
-        !-----------------------------------------------------------------------------------    
-        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < 0.0_r8 ) .or. &
-           (EDPftvarcon_inst%mort_r_age_senescence(ipft) < 0.0_r8 ) ) then
-
-           write(fates_log(),*) 'Either mort_ip_age_senescence or mort_r_age_senescece'
-           write(fates_log(),*) 'is negative which makes no biological sense.'
-           write(fates_log(),*) 'Sensible values for ip are between 10 and 2000?'
-           write(fates_log(),*) 'Sensible values for r are between 0.03-0.06'
-           write(fates_log(),*) 'Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-
         ! Check that parameter ranges for size-dependent mortality make sense   
         !-----------------------------------------------------------------------------------    
         if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < fates_check_param_set ) .and. &
@@ -2216,6 +2203,19 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
+
+        ! Check that parameter ranges for size-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < 0.0_r8 ) .or. &
+           ( EDPftvarcon_inst%mort_r_size_senescence(ipft) < 0.0_r8 ) ) then
+
+           write(fates_log(),*) 'Either mort_ip_size_senescence or mort_r_size_senescence'
+           write(fates_log(),*) 'is negative which makes no biological sense.'
+           write(fates_log(),*) 'Sensible values for ip are between 1 and 300?'
+           write(fates_log(),*) 'Sensible values for r are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 
 
         ! Check to see if mature and base seed allocation is greater than 1
