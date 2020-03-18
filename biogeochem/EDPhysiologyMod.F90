@@ -456,8 +456,8 @@ contains
           sla_max = EDPftvarcon_inst%slamax(ipft)
 
           ! Initialize nnu_clai_a
-          nnu_clai_a(:) = 0._r8
-          nnu_clai_b(:) = 0._r8
+          nnu_clai_a(:,:) = 0._r8
+          nnu_clai_b(:,:) = 0._r8
           
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1, currentCohort%nv
@@ -563,7 +563,7 @@ contains
 
           ! Compute the optimal cumulative lai based on the cohort net-net uptake profile if at least 2 leaf layers
           if (nnu_clai_a(1,1) > 1) then
-            
+
             ! Compute the optimum size of the work array
             lwork = -1 ! Ask sgels to compute optimal number of entries for work
             call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
