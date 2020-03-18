@@ -393,6 +393,22 @@ contains
     real(r8) :: lai_current      ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai   ! the cumulative LAI, top down, to the leaf layer of interest
 
+    ! LAPACK least squares fit variables (A*X = B)
+    integer :: nll = 4                    ! Number of leaf layers to fit a regression to for calculating the optimum lai
+    character(1) :: trans = 'N'           ! Input matrix is not transposed
+    
+    integer, parameter :: m = 2, n = 2    ! Number of rows and columns, respectively, in matrix A
+    integer, parameter :: nrhs = 1        ! Number of columns in matrix B and X
+    integer, parameter :: workmax = 100   ! Maximum iterations to minimize work
+
+    integer :: lda = m, ldb = n           ! Leading dimension of A and B, respectively
+    integer :: lwork                      ! Dimension of work array
+    integer :: info                       ! Procedure diagnostic ouput
+    
+    real(r8) :: nnu_clai_a(m,n)           ! LHS of linear least squares fit
+    real(r8) :: nnu_clai_b(m,nrhs)        ! RHS of linear least squares fit
+    real(r8) :: work(workmax)             ! work array
+
     !----------------------------------------------------------------------
 
     currentPatch => currentSite%youngest_patch
@@ -439,6 +455,10 @@ contains
           ! PFT-level maximum SLA value, even if under a thick canopy (same units as slatop)
           sla_max = EDPftvarcon_inst%slamax(ipft)
 
+          ! Initialize nnu_clai_a
+          nnu_clai_a(:) = 0._r8
+          nnu_clai_b(:) = 0._r8
+          
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1, currentCohort%nv
 
@@ -453,8 +473,8 @@ contains
              lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
              cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current
              
-             if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer.
-             
+             !there was activity this year in this leaf layer.  This should only occur for bottom most leaf layer
+             if (currentCohort%year_net_uptake(z) /= 999._r8)then 
                    
                 ! Calculate sla_levleaf following the sla profile with overlying leaf area
                 ! Scale for leaf nitrogen profile
@@ -504,6 +524,15 @@ contains
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif
 
+                ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
+                nnu_clai_a(1,1) = nnu_clai_a(1,1) + 1 ! Increment for each layer used
+                nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(z) - currentCohort%leaf_cost
+                nnu_clai_a(2,1) = nnu_clai_a(1,2)
+                nnu_clai_a(2,2) = nnu_clai_a(2,2) + (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost)**2
+                nnu_clai_b(1,1) = nnu_clai_b(1,1) + cumulative_lai
+                nnu_clai_b(2,1) = nnu_clai_b(1,1) + (cumulative_lai * & 
+                                 (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost))
+
                 ! Check leaf cost against the yearly net uptake for that cohort leaf layer
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost) then
                    ! Make sure the cohort trim fraction is great than the pft trim limit
@@ -531,6 +560,33 @@ contains
                 endif ! net uptake check
              endif ! leaf activity check 
           enddo ! z, leaf layer loop
+
+          ! Compute the optimal cumulative lai based on the cohort net-net uptake profile if at least 2 leaf layers
+          if (nnu_clai_a(1,1) > 1) then
+            
+            ! Compute the optimum size of the work array
+            lwork = -1 ! Ask sgels to compute optimal number of entries for work
+            call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
+            lwork = int(work(1)) ! Pick the optimum.  TBD, can work(1) come back with greater than work size?
+
+            if (debug) then
+               write(fates_log(),*) 'LLSF lwork output (info, lwork):', info, lwork
+            endif
+
+            ! Compute the minimum of 2-norm of b-Ax
+            call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
+
+            if (info < 0) then
+               write(fates_log(),*) 'LLSF optimium LAI calculation returned illegal value'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            endif
+
+            if (debug) then
+               write(fates_log(),*) 'LLSF optimium LAI (intercept,slope):', nnu_clai_b
+               write(fates_log(),*) 'LLSF optimium LAI info:', info
+               write(fates_log(),*) 'LAI fraction (cumulative lai/nnu_clai_b):', cumulative_lai/nnu_clai_b(1,1)
+            endif
+         endif
 
           ! Reset activity for the cohort for the start of the next year
           currentCohort%year_net_uptake(:) = 999.0_r8
