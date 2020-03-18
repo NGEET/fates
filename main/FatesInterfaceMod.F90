@@ -1058,8 +1058,6 @@ contains
          ! first read the non-PFT parameters
          call FatesReadParameters()
 
-         write(fates_log(),*)'hlm_use_cohort_age_tracking = ', hlm_use_cohort_age_tracking
-         
          ! Identify the number of PFTs by evaluating a pft array
          ! Using wood density as that is not expected to be deprecated any time soon
 
@@ -1528,7 +1526,7 @@ contains
 
 
          if ( ( ANY(EDPftvarcon_inst%mort_ip_age_senescence < fates_check_param_set )) .and. &
-           (hlm_use_cohort_age_tracking .eq. ifalse ) ) then
+           (hlm_use_cohort_age_tracking .eq.0 ) ) then
 
            write(fates_log(),*) 'Age dependent mortality cannot be on if'
            write(fates_log(),*) 'cohort age tracking is off.'
