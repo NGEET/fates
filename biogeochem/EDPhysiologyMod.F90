@@ -503,8 +503,11 @@ contains
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif
-                if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
-                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft))then
+
+                ! Check leaf cost against the yearly net uptake for that cohort leaf layer
+                if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost) then
+                   ! Make sure the cohort trim fraction is great than the pft trim limit
+                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
 
                       if ( debug ) then
                          write(fates_log(),*) 'trimming leaves', &
@@ -512,21 +515,27 @@ contains
                       endif
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
-                      if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft))then
+                      if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft)) then
                          currentCohort%canopy_trim = currentCohort%canopy_trim - &
                                EDPftvarcon_inst%trim_inc(ipft)
-                         if (EDPftvarcon_inst%evergreen(ipft) /= 1)then
+
+                         if (EDPftvarcon_inst%evergreen(ipft) /= 1) then
                             currentCohort%laimemory = currentCohort%laimemory * &
                                   (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
-                         trimmed = .true.
-                      endif
-                   endif
-                endif
-             endif !leaf activity? 
-          enddo !z
 
+                         trimmed = .true.
+
+                      endif ! hite check
+                   endif ! trim limit check
+                endif ! net uptake check
+             endif ! leaf activity check 
+          enddo ! z, leaf layer loop
+
+          ! Reset activity for the cohort for the start of the next year
           currentCohort%year_net_uptake(:) = 999.0_r8
+
+          ! Add to trim fraction if cohort not trimmed at all 
           if ( (.not.trimmed) .and.currentCohort%canopy_trim < 1.0_r8)then
              currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)
           endif 
