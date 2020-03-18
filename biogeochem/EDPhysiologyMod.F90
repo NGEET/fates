@@ -525,13 +525,15 @@ contains
                 endif
 
                 ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
-                nnu_clai_a(1,1) = nnu_clai_a(1,1) + 1 ! Increment for each layer used
-                nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(z) - currentCohort%leaf_cost
-                nnu_clai_a(2,1) = nnu_clai_a(1,2)
-                nnu_clai_a(2,2) = nnu_clai_a(2,2) + (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost)**2
-                nnu_clai_b(1,1) = nnu_clai_b(1,1) + cumulative_lai
-                nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cumulative_lai * & 
-                                 (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost))
+                if (currentCohort%nv - z < nll) then  ! Only for nll layers
+                  nnu_clai_a(1,1) = nnu_clai_a(1,1) + 1 ! Increment for each layer used
+                  nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(z) - currentCohort%leaf_cost
+                  nnu_clai_a(2,1) = nnu_clai_a(1,2)
+                  nnu_clai_a(2,2) = nnu_clai_a(2,2) + (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost)**2
+                  nnu_clai_b(1,1) = nnu_clai_b(1,1) + cumulative_lai
+                  nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cumulative_lai * & 
+                                    (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost))
+                end if
 
                 ! Check leaf cost against the yearly net uptake for that cohort leaf layer
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost) then
