@@ -584,7 +584,7 @@ contains
             if (debug) then
                write(fates_log(),*) 'LLSF optimium LAI (intercept,slope):', nnu_clai_b
                write(fates_log(),*) 'LLSF optimium LAI info:', info
-               write(fates_log(),*) 'LAI fraction (cumulative lai/nnu_clai_b):', cumulative_lai/nnu_clai_b(1,1)
+               write(fates_log(),*) 'LAI fraction (cumulative lai/nnu_clai_b):', nnu_clai_b(1,1) / cumulative_lai
             endif
          endif
 
