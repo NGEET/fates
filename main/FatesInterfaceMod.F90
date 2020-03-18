@@ -1046,7 +1046,6 @@ contains
       use EDParamsMod, only : ED_val_history_sizeclass_bin_edges, ED_val_history_ageclass_bin_edges
       use EDParamsMod, only : ED_val_history_height_bin_edges
       use EDParamsMod, only : ED_val_history_coageclass_bin_edges
-      use FatesConstantsMod, only : fates_check_param_set
       use CLMFatesParamInterfaceMod         , only : FatesReadParameters
       implicit none
       
@@ -1059,6 +1058,8 @@ contains
          ! first read the non-PFT parameters
          call FatesReadParameters()
 
+         write(fates_log(),*)'hlm_use_cohort_age_tracking = ', hlm_use_cohort_age_tracking
+         
          ! Identify the number of PFTs by evaluating a pft array
          ! Using wood density as that is not expected to be deprecated any time soon
 
@@ -1090,22 +1091,6 @@ contains
             nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
          end if
          
-
-          ! Check that if age-dependent mortality is on, cohort age tracking is also on                
-        !-----------------------------------------------------------------------------------         
-        if ( ( ANY(EDPftvarcon_inst%mort_ip_age_senescence < fates_check_param_set )) .and. &
-           (hlm_use_cohort_age_tracking .eq. ifalse ) ) then
-
-           write(fates_log(),*) 'Age dependent mortality cannot be on if'
-           write(fates_log(),*) 'cohort age tracking is off.'
-           write(fates_log(),*) 'Set hlm_use_cohort_age_tracking = .true.'
-           write(fates_log(),*) 'in FATES namelist options'
-           write(fates_log(),*) 'Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-
-
-
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          
@@ -1448,7 +1433,9 @@ contains
       !
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
-      
+      use FatesConstantsMod, only : fates_check_param_set
+    
+    
       ! Arguments
       integer, optional, intent(in)         :: ival
       real(r8), optional, intent(in)        :: rval
@@ -1539,6 +1526,17 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+
+         if ( ( ANY(EDPftvarcon_inst%mort_ip_age_senescence < fates_check_param_set )) .and. &
+           (hlm_use_cohort_age_tracking .eq. ifalse ) ) then
+
+           write(fates_log(),*) 'Age dependent mortality cannot be on if'
+           write(fates_log(),*) 'cohort age tracking is off.'
+           write(fates_log(),*) 'Set hlm_use_cohort_age_tracking = .true.'
+           write(fates_log(),*) 'in FATES namelist options'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
          
 
          if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
