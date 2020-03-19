@@ -550,6 +550,7 @@ contains
                   write(fates_log(),*) 'cumulative lai:', cumulative_lai
                   write(fates_log(),*) 'leaf_cost:', currentCohort%leaf_cost
                   write(fates_log(),*) 'year_net_uptake:', currentCohort%year_net_uptake(z)   
+                  write(fates_log(),*) 'canopy trim:', currentCohort%canopy_trim   
                 endif
 
                 ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
@@ -568,10 +569,10 @@ contains
                    ! Make sure the cohort trim fraction is great than the pft trim limit
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
 
-                      if ( debug ) then
-                         write(fates_log(),*) 'trimming leaves', &
-                               currentCohort%canopy_trim!,currentCohort%leaf_cost
-                      endif
+                     !  if ( debug ) then
+                     !     write(fates_log(),*) 'trimming leaves', &
+                     !           currentCohort%canopy_trim,currentCohort%leaf_cost
+                     !  endif
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
                       if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft)) then
@@ -581,9 +582,6 @@ contains
                          if (EDPftvarcon_inst%evergreen(ipft) /= 1) then
                             currentCohort%laimemory = currentCohort%laimemory * &
                                   (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
-                            if ( debug ) then
-                              write(fates_log(),*) 'evergreen'
-                            endif      
                          endif
 
                          trimmed = .true.
@@ -631,7 +629,7 @@ contains
           endif 
 
           if ( debug ) then
-             write(fates_log(),*) 'trimming',currentCohort%canopy_trim
+             write(fates_log(),*) 'trimming:',currentCohort%canopy_trim
           endif
          
           ! currentCohort%canopy_trim = 1.0_r8 !FIX(RF,032414) this turns off ctrim for now. 
