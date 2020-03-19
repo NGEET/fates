@@ -413,6 +413,9 @@ contains
     real(r8) :: nnu_clai_b(m,nrhs)        ! RHS of linear least squares fit
     real(r8) :: work(workmax)             ! work array
 
+    real(r8) :: initial_trim              ! Initial trim
+    real(r8) :: optimum_trim              ! Optimum trim value 
+
     !----------------------------------------------------------------------
 
     ipatch = 1 ! Start counting patches
@@ -431,10 +434,13 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort)) 
 
+         ! Save off the incoming trim
+         initial_trim = currentCohort%canopy_trim
+
           ! Add debug diagnstic output to determine which cohort
           if (debug) then
             write(fates_log(),*) 'Current cohort:', icohort
-            write(fates_log(),*) 'Starting canopy trim:', currentCohort%canopy_trim
+            write(fates_log(),*) 'Starting canopy trim:', initial_trim
             write(fates_log(),*) 'Starting laimemory:', currentCohort%laimemory
           endif   
 
@@ -618,6 +624,16 @@ contains
                ! write(fates_log(),*) 'LLSF optimium LAI info:', info
                ! write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cumulative_lai
             endif
+
+            ! Calculate the optimum trim based on the initial canopy trim value
+            optimum_trim = (nnu_clai_b(1,1) / cumulative_lai) * initial_trim
+
+            ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
+            if (optimum_trim > 0. .and. optimum_trim < 1.) then
+               currentCohort%canopy_trim = optimum_trim
+               trimmed = .true.
+            endif
+
          endif
 
           ! Reset activity for the cohort for the start of the next year
