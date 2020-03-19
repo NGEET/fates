@@ -393,6 +393,10 @@ contains
     real(r8) :: lai_current      ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai   ! the cumulative LAI, top down, to the leaf layer of interest
 
+    ! Temporary diagnostic ouptut
+    integer :: ipatch
+    integer :: icohort
+
     ! LAPACK least squares fit variables (A*X = B)
     integer :: nll = 4                    ! Number of leaf layers to fit a regression to for calculating the optimum lai
     character(1) :: trans = 'N'           ! Input matrix is not transposed
@@ -411,11 +415,28 @@ contains
 
     !----------------------------------------------------------------------
 
+    ipatch = 1 ! Start counting patches
+
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
-       
+ 
+       ! Add debug diagnstic output to determine which patch
+       if (debug) then
+          write(fates_log(),*) 'Current patch:', ipatch
+          write(fates_log(),*) 'Current patch cohorts:', currentPatch%countcohorts
+       endif
+ 
+       icohort = 1
+        
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort)) 
+
+          ! Add debug diagnstic output to determine which cohort
+          if (debug) then
+            write(fates_log(),*) 'Current cohort:', icohort
+            write(fates_log(),*) 'Starting canopy trim:', currentCohort%canopy_trim
+            write(fates_log(),*) 'Starting laimemory:', currentCohort%laimemory
+          endif   
 
           trimmed = .false.
           ipft = currentCohort%pft
@@ -524,6 +545,13 @@ contains
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif
 
+                if (debug) then
+                  write(fates_log(),*) 'cl,nv,z:', cl,',', currentCohort%nv,',', z
+                  write(fates_log(),*) 'cumulative lai:', cumulative_lai
+                  write(fates_log(),*) 'leaf_cost:', currentCohort%leaf_cost
+                  write(fates_log(),*) 'year_net_uptake:', currentCohort%year_net_uptake(z)   
+                endif
+
                 ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
                 if (currentCohort%nv - z < nll) then  ! Only for nll layers
                   nnu_clai_a(1,1) = nnu_clai_a(1,1) + 1 ! Increment for each layer used
@@ -542,7 +570,7 @@ contains
 
                       if ( debug ) then
                          write(fates_log(),*) 'trimming leaves', &
-                               currentCohort%canopy_trim,currentCohort%leaf_cost
+                               currentCohort%canopy_trim!,currentCohort%leaf_cost
                       endif
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
@@ -553,6 +581,9 @@ contains
                          if (EDPftvarcon_inst%evergreen(ipft) /= 1) then
                             currentCohort%laimemory = currentCohort%laimemory * &
                                   (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
+                            if ( debug ) then
+                              write(fates_log(),*) 'evergreen'
+                            endif      
                          endif
 
                          trimmed = .true.
@@ -571,9 +602,9 @@ contains
             call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
             lwork = int(work(1)) ! Pick the optimum.  TBD, can work(1) come back with greater than work size?
 
-            if (debug) then
-               write(fates_log(),*) 'LLSF lwork output (info, lwork):', info, lwork
-            endif
+            ! if (debug) then
+            !    write(fates_log(),*) 'LLSF lwork output (info, lwork):', info, lwork
+            ! endif
 
             ! Compute the minimum of 2-norm of b-Ax
             call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
@@ -584,9 +615,10 @@ contains
             endif
 
             if (debug) then
-               write(fates_log(),*) 'LLSF optimium LAI (intercept,slope):', nnu_clai_b
-               write(fates_log(),*) 'LLSF optimium LAI info:', info
-               write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cumulative_lai
+               ! write(fates_log(),*) 'LLSF optimium LAI (intercept,slope):', nnu_clai_b
+               write(fates_log(),*) 'LLSF optimium LAI:', nnu_clai_b(1,1)
+               ! write(fates_log(),*) 'LLSF optimium LAI info:', info
+               ! write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cumulative_lai
             endif
          endif
 
@@ -604,8 +636,10 @@ contains
          
           ! currentCohort%canopy_trim = 1.0_r8 !FIX(RF,032414) this turns off ctrim for now. 
           currentCohort => currentCohort%shorter
+          icohort = icohort + 1
        enddo
        currentPatch => currentPatch%older
+       ipatch = ipatch + 1
     enddo
 
   end subroutine trim_canopy
