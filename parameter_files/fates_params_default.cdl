@@ -1234,7 +1234,7 @@ data:
 
  fates_canopy_closure_thresh = 0.8 ;
 
- fates_cohort_age_fusion_tol = _ ;
+ fates_cohort_age_fusion_tol = 0.08 ;
 
  fates_cohort_size_fusion_tol = 0.08 ;
 
