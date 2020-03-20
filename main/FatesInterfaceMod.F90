@@ -1124,10 +1124,6 @@ contains
             write(fates_log(), *) 'height class bins specified in parameter file must start at zero'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
-         if ( ED_val_history_coageclass_bin_edges(1) .ne. 0._r8 ) then 
-            write(fates_log(), *) 'cohort age class bines specified in parameter file must start at zero'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         endif
          do i = 2,nlevsclass
             if ( (ED_val_history_sizeclass_bin_edges(i) - ED_val_history_sizeclass_bin_edges(i-1)) .le. 0._r8) then
                write(fates_log(), *) 'size class bins specified in parameter file must be monotonically increasing'
