@@ -20,6 +20,7 @@ module EDCohortDynamicsMod
   use SFParamsMod           , only : SF_val_CWD_frac
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDPftvarcon           , only : GetDecompyFrac
+  use PRTParametersMod      , only : prt_params
   use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
@@ -873,25 +874,25 @@ contains
           ! above ground CWD
           litt%ag_cwd(c) = litt%ag_cwd(c) + plant_dens * &
                (struct_m+sapw_m)  * SF_val_CWD_frac(c) * &
-               EDPftvarcon_inst%allom_agb_frac(pft)
+               prt_params%allom_agb_frac(pft)
 
           ! below ground CWD
           do sl=1,csite%nlevsoil
              litt%bg_cwd(c,sl) = litt%bg_cwd(c,sl) + plant_dens * &
                   (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
-                  (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(pft)) * &
+                  (1.0_r8 - prt_params%allom_agb_frac(pft)) * &
                   csite%rootfrac_scr(sl)
           enddo
 
           ! above ground
           flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                 (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
-                EDPftvarcon_inst%allom_agb_frac(pft) * nplant
+                prt_params%allom_agb_frac(pft) * nplant
 
           ! below ground
           flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
                 (struct_m + sapw_m) * SF_val_CWD_frac(c) * &
-                (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(pft)) * nplant
+                (1.0_r8 - prt_params%allom_agb_frac(pft)) * nplant
 
        enddo
        
@@ -1139,7 +1140,7 @@ contains
                                       currentCohort%dbh = (currentCohort%n*currentCohort%dbh         &
                                            + nextc%n*nextc%dbh)/newn
 
-                                      if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
+                                      if( int(prt_params%woody(currentCohort%pft)) == itrue ) then
 
                                           call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
                                                currentCohort%dbh, currentCohort%hite, &
@@ -1177,7 +1178,7 @@ contains
                                    ! we then just let the carbon pools grow to fill out allometry)
                                    ! -----------------------------------------------------------------
                                    !
-                                   if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
+                                   if( int(prt_params%woody(currentCohort%pft)) == itrue ) then
                                       call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
                                            currentCohort%dbh, currentCohort%hite, &
                                            bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
@@ -1883,7 +1884,7 @@ contains
     delta_dbh   = 0._r8
     delta_hite  = 0._r8
     
-    if( EDPftvarcon_inst%woody(ipft) == itrue) then
+    if( int(prt_params%woody(currentCohort%pft)) == itrue) then
 
        struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
     

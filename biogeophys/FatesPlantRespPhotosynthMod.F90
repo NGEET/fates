@@ -36,6 +36,7 @@ module FATESPlantRespPhotosynthMod
    use EDTypesMod,        only : max_nleafage
    use EDTypesMod,        only : do_fates_salinity 
    use EDParamsMod,       only : q10_mr
+   use PRTParametersMod,  only : prt_params
    use PRTGenericMod,     only : prt_carbon_allom_hyp
    use PRTGenericMod,     only : prt_cnp_flex_allom_hyp 
    use PRTGenericMod,     only : all_carbon_elements
@@ -47,7 +48,8 @@ module FATESPlantRespPhotosynthMod
    use PRTGenericMod,     only : repro_organ
    use PRTGenericMod,     only : struct_organ
    use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
-
+   use PRTParametersMod, only  : prt_params
+   
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
 
@@ -247,9 +249,9 @@ contains
 
     associate(  &
          c3psn     => EDPftvarcon_inst%c3psn  , &
-         slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
+         slatop    => prt_params%slatop , & ! specific leaf area at top of canopy, 
                                                   ! projected area basis [m^2/gC]
-         woody     => EDPftvarcon_inst%woody)     ! Is vegetation woody or not? 
+         woody     => prt_params%woody)     ! Is vegetation woody or not? 
 
 
       bbbopt(0) = ED_val_bbopt_c4
@@ -448,18 +450,18 @@ contains
                               
                               ! Then scale this value at the top of the canopy for canopy depth
                               ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
-!!                              select case(hlm_parteh_mode)
-!!                              case (prt_carbon_allom_hyp)
+                              select case(hlm_parteh_mode)
+                              case (prt_carbon_allom_hyp)
 
-                                 lnc_top  = EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
                                  
-!!                              case (prt_cnp_flex_allom_hyp)
-!!
- !!                                leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
- !!                                leaf_n  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-!!                                 lnc_top = leaf_n / (slatop(ft) * leaf_c )
-!!
- !!                             end select
+                              case (prt_cnp_flex_allom_hyp)
+
+                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
+                                 lnc_top = leaf_n / (slatop(ft) * leaf_c )
+                                 
+                              end select
 
                               lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
                               lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
@@ -603,20 +605,20 @@ contains
                      select case(hlm_parteh_mode)
                      case (prt_carbon_allom_hyp)
 
-                        live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
+                        live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
+                              sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
                         
-                        live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
-                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
+                        live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
+                              sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
 
-                        fnrt_n = fnrt_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ)
+                        fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,fnrt_organ)
 
                      case(prt_cnp_flex_allom_hyp) 
                      
-                        live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                        live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
                              currentCohort%prt%GetState(sapw_organ, nitrogen_element)
 
-                        live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
+                        live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
                              currentCohort%prt%GetState(sapw_organ, nitrogen_element)
 
                         fnrt_n = currentCohort%prt%GetState(fnrt_organ, nitrogen_element)
@@ -637,7 +639,7 @@ contains
                      
                      ! Live stem MR (kgC/plant/s) (above ground sapwood)
                      ! ------------------------------------------------------------------
-                     if (woody(ft) == 1) then
+                     if ( int(woody(ft)) == itrue) then
                         tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
                         ! kgC/s = kgN * kgC/kgN/s
                         currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood * maintresp_reduction_factor
@@ -657,7 +659,7 @@ contains
                      
                      ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
                      ! ------------------------------------------------------------------
-                     if (woody(ft) == 1) then
+                     if ( int(woody(ft)) == itrue) then
                         currentCohort%livecroot_mr = 0._r8
                         do j = 1,bc_in(s)%nlevsoil
                            ! Soil temperature used to adjust base rate of MR
@@ -711,9 +713,11 @@ contains
                      ! different variable, resp_g_daily.
 
                      if( hlm_parteh_mode.eq.prt_carbon_allom_hyp ) then
-                        currentCohort%resp_g_tstep     = EDPftvarcon_inst%grperc(ft) * &
+                        currentCohort%resp_g_tstep     = prt_params%grperc(ft) * &
                              (max(0._r8,currentCohort%gpp_tstep - &
                              currentCohort%resp_m))
+                     else
+                        currentCohort%resp_g_tstep     = 0._r8
                      end if
 
                                                 

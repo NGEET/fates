@@ -362,6 +362,29 @@ contains
           !    Set the available carbon pool, identify allocation portions, and 
           !    decrement the available carbon pool to zero.
           ! -----------------------------------------------------------------------------
+     
+          
+          if (hlm_use_ed_prescribed_phys .eq. itrue) then
+             if (currentCohort%canopy_layer .eq. 1) then
+                currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_canopy(ft) &
+                     * currentCohort%c_area / currentCohort%n / hlm_days_per_year 
+             else
+                currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_understory(ft) &
+                     * currentCohort%c_area / currentCohort%n / hlm_days_per_year
+             endif
+             
+             ! We don't explicitly define a respiration rate for prescribe phys
+             ! but we do need to pass mass balance. So we say it is zero respiration
+             currentCohort%gpp_acc  = currentCohort%npp_acc
+             currentCohort%resp_acc = 0._r8
+
+          end if
+
+          ! -----------------------------------------------------------------------------
+          ! Save NPP/GPP/R in these "hold" style variables. These variables
+          ! persist after this routine is complete, and used in I/O diagnostics.
+          ! Whereas the _acc style variables are zero'd because they are key
+          ! accumulation state variables.
           !
           ! convert from kgC/indiv/day into kgC/indiv/year
           ! <x>_acc_hold is remembered until the next dynamics step (used for I/O)
@@ -369,33 +392,10 @@ contains
           !         photosynthesis step
           ! -----------------------------------------------------------------------------
           
-          if (hlm_use_ed_prescribed_phys .eq. itrue) then
-             if (currentCohort%canopy_layer .eq. 1) then
-                currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ft) &
-                     * currentCohort%c_area / currentCohort%n
-
-                currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year 
-
-                ! for mass balancing
-                currentCohort%gpp_acc  = currentCohort%npp_acc
-                currentCohort%resp_acc = 0._r8
-
-             else
-                currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ft) &
-                     * currentCohort%c_area / currentCohort%n
-                
-                currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year
-             
-                ! for mass balancing
-                currentCohort%gpp_acc  = currentCohort%npp_acc
-                currentCohort%resp_acc = 0._r8
-             endif
-          else
-             currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
-             currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
-             currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
-          endif
-
+          currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
+          currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
+          currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
+          
           ! Conduct Maintenance Turnover (parteh)
           if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
           if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
@@ -494,6 +494,12 @@ contains
              ! respiration, because we just updated growth respiration (along with allocation)
              currentCohort%resp_acc = currentCohort%resp_acc + currentCohort%resp_g_daily
 
+             ! Also update the "hold" diagnostics for history writing
+             currentCohort%npp_acc_hold  = currentCohort%npp_acc_hold - &
+                                           currentCohort%resp_g_daily*real(hlm_days_per_year,r8)
+             currentCohort%resp_acc_hold = currentCohort%resp_acc_hold +  &
+                                           currentCohort%resp_g_daily*real(hlm_days_per_year,r8)
+             
           end if
     
           ! And simultaneously add the input fluxes to mass balance accounting

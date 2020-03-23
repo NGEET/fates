@@ -56,6 +56,7 @@ module FatesInterfaceMod
    use PRTGenericMod,  only : num_organ_types
    use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
    use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
+   use PRTParametersMod, only : prt_params
    use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
 
@@ -1293,10 +1294,10 @@ contains
          ! Identify the number of PFTs by evaluating a pft array
          ! Using wood density as that is not expected to be deprecated any time soon
 
-         if(lbound(EDPftvarcon_inst%wood_density(:),dim=1) .eq. 0 ) then
-            numpft = size(EDPftvarcon_inst%wood_density,dim=1)-1
-         elseif(lbound(EDPftvarcon_inst%wood_density(:),dim=1) .eq. 1 ) then
-            numpft = size(EDPftvarcon_inst%wood_density,dim=1)
+         if(lbound(prt_params%wood_density(:),dim=1) .eq. 0 ) then
+            numpft = size(prt_params%wood_density,dim=1)-1
+         elseif(lbound(prt_params%wood_density(:),dim=1) .eq. 1 ) then
+            numpft = size(prt_params%wood_density,dim=1)
          else
             write(fates_log(), *) 'While assessing the number of FATES PFTs,'
             write(fates_log(), *) 'it was found that the lower bound was neither 0 or 1?'
@@ -1312,13 +1313,13 @@ contains
 
          ! Identify the number of leaf age-classes
          
-         if( (lbound(EDPftvarcon_inst%leaf_long(:,:),dim=2) .eq. 0) .or. &
-             (ubound(EDPftvarcon_inst%leaf_long(:,:),dim=2) .eq. 0) ) then
+         if( (lbound(prt_params%leaf_long(:,:),dim=2) .eq. 0) .or. &
+             (ubound(prt_params%leaf_long(:,:),dim=2) .eq. 0) ) then
             write(fates_log(), *) 'While assessing the number of FATES leaf age classes,'
             write(fates_log(), *) 'The second dimension of leaf_long was 0?'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          else
-            nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
+            nleafage = size(prt_params%leaf_long,dim=2)
          end if
          
          ! These values are used to define the restart file allocations and general structure
@@ -2174,16 +2175,16 @@ contains
           [leaf_organ, fnrt_organ, sapw_organ, store_organ, repro_organ, struct_organ]
 
      
-     npft = size(EDPftvarcon_inst%evergreen,1)
+     npft = size(prt_params%evergreen,1)
 
      ! Prior to performing checks copy grperc to the 
      ! organ dimensioned version
 
-     norgans = size(EDPftvarcon_inst%prt_nitr_stoich_p1,2)
+     norgans = size(prt_params%nitr_stoich_p1,2)
 
-!     allocate(EDPftvarcon_inst%prt_grperc_organ(npft,norgans))
+!     allocate(prt_params%grperc_organ(npft,norgans))
 !     do ipft = 1,npft
-!        EDPftvarcon_inst%prt_grperc_organ(ipft,1:norgans) = EDPftvarcon_inst%grperc(ipft)
+!        prt_params%grperc_organ(ipft,1:norgans) = prt_params%grperc(ipft)
 !     end do
 
      
@@ -2200,19 +2201,6 @@ contains
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-
-!        ! Check to make sure we have ST3 or prescribed phys off
-!        if(hlm_use_ed_st3.eq.itrue) then
-!           write(fates_log(),*) 'Fates with CNP cycling is not compatible with ST3 mode, yet'
-!           write(fates_log(),*) 'Aborting'
-!           call endrun(msg=errMsg(sourcefile, __LINE__))
-!        end if
-!
-!        if(hlm_use_ed_prescribed_phys.eq.itrue) then
-!           write(fates_log(),*) 'Fates with CNP cycling is not compatible with prescribed phys mode, yet'
-!           write(fates_log(),*) 'Aborting'
-!           call endrun(msg=errMsg(sourcefile, __LINE__))
-!        end if
 
         ! If nitrogen is turned on, check to make sure there are valid ammonium
         ! parameters
@@ -2265,15 +2253,15 @@ contains
         ! Check to see if evergreen, deciduous flags are mutually exclusive
         ! ----------------------------------------------------------------------------------
 
-        if ( int(EDPftvarcon_inst%evergreen(ipft) +    &
-                 EDPftvarcon_inst%season_decid(ipft) + &
-                 EDPftvarcon_inst%stress_decid(ipft)) .ne. 1 ) then
+        if ( int(prt_params%evergreen(ipft) +    &
+                 prt_params%season_decid(ipft) + &
+                 prt_params%stress_decid(ipft)) .ne. 1 ) then
            
            write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
            write(fates_log(),*) 'phenology habits, ie == 1'
-           write(fates_log(),*) 'stress_decid: ',EDPftvarcon_inst%stress_decid(ipft)
-           write(fates_log(),*) 'season_decid: ',EDPftvarcon_inst%season_decid(ipft)
-           write(fates_log(),*) 'evergreen: ',EDPftvarcon_inst%evergreen(ipft)
+           write(fates_log(),*) 'stress_decid: ',prt_params%stress_decid(ipft)
+           write(fates_log(),*) 'season_decid: ',prt_params%season_decid(ipft)
+           write(fates_log(),*) 'evergreen: ',prt_params%evergreen(ipft)
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
            
@@ -2282,14 +2270,14 @@ contains
 
         ! Check to see if mature and base seed allocation is greater than 1
         ! ----------------------------------------------------------------------------------
-        if ( ( EDPftvarcon_inst%seed_alloc(ipft) + &
-               EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0_r8 ) then
+        if ( ( prt_params%seed_alloc(ipft) + &
+               prt_params%seed_alloc_mature(ipft)) > 1.0_r8 ) then
 
            write(fates_log(),*) 'The sum of seed allocation from base and mature trees may'
            write(fates_log(),*) ' not exceed 1.'
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' seed_alloc: ',EDPftvarcon_inst%seed_alloc(ipft)
-           write(fates_log(),*) ' seed_alloc_mature: ',EDPftvarcon_inst%seed_alloc_mature(ipft)
+           write(fates_log(),*) ' seed_alloc: ',prt_params%seed_alloc(ipft)
+           write(fates_log(),*) ' seed_alloc_mature: ',prt_params%seed_alloc_mature(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
            
@@ -2297,14 +2285,14 @@ contains
 
         ! Check if woody plants have a structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
-        if ( ( EDPftvarcon_inst%allom_agb1(ipft) <= tiny(EDPftvarcon_inst%allom_agb1(ipft)) ) .and. &
-             ( int(EDPftvarcon_inst%woody(ipft)) .eq. 1 ) ) then
+        if ( ( prt_params%allom_agb1(ipft) <= tiny(prt_params%allom_agb1(ipft)) ) .and. &
+             ( int(prt_params%woody(ipft)) .eq. 1 ) ) then
 
            write(fates_log(),*) 'Woody plants are expected to have a non-zero intercept'
            write(fates_log(),*) ' in the diameter to AGB allometry equations'
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' allom_agb1: ',EDPftvarcon_inst%allom_agb1(ipft)
-           write(fates_log(),*) ' woody: ',int(EDPftvarcon_inst%woody(ipft))
+           write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
+           write(fates_log(),*) ' woody: ',int(prt_params%woody(ipft))
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
@@ -2312,8 +2300,8 @@ contains
 
         ! Check if non-woody plants have structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
-!        if ( ( EDPftvarcon_inst%allom_agb1(ipft) > tiny(EDPftvarcon_inst%allom_agb1(ipft)) ) .and. &
-!              ( int(EDPftvarcon_inst%woody(ipft)) .ne. 1 ) ) then
+!        if ( ( prt_params%allom_agb1(ipft) > tiny(prt_params%allom_agb1(ipft)) ) .and. &
+!              ( int(prt_params%woody(ipft)) .ne. 1 ) ) then
 !
 !           write(fates_log(),*) 'Non-woody plants are expected to have a zero intercept'
 !           write(fates_log(),*) ' in the diameter to AGB allometry equations'
@@ -2321,8 +2309,8 @@ contains
 !           write(fates_log(),*) ' is concerned, ignores leaf and fine-roots, and only contains'
 !           write(fates_log(),*) ' woody tissues (sap and structural dead wood).'
 !           write(fates_log(),*) ' PFT#: ',ipft
-!           write(fates_log(),*) ' allom_agb1: ',EDPftvarcon_inst%allom_agb1(ipft)
-!           write(fates_log(),*) ' woody: ',int(EDPftvarcon_inst%woody(ipft))
+!           write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
+!           write(fates_log(),*) ' woody: ',int(prt_params%woody(ipft))
 !           write(fates_log(),*) ' Aborting'
 !           call endrun(msg=errMsg(sourcefile, __LINE__))
 !
@@ -2332,7 +2320,7 @@ contains
         ! Check if the fraction of storage used for flushing deciduous trees
         ! is greater than zero, and less than or equal to 1.
 
-        if ( int(EDPftvarcon_inst%evergreen(ipft)) .ne. 1 ) then 
+        if ( int(prt_params%evergreen(ipft)) .ne. 1 ) then 
            if ( ( EDPftvarcon_inst%phenflush_fraction(ipft) < nearzero ) .or. &
                 ( EDPFtvarcon_inst%phenflush_fraction(ipft) > 1 ) ) then
               
@@ -2340,7 +2328,7 @@ contains
               write(fates_log(),*) ' on bud-burst. If phenflush_fraction is not greater than 0'
               write(fates_log(),*) ' it will not be able to put out any leaves. Plants need leaves.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(EDPftvarcon_inst%evergreen(ipft))
+              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(prt_params%evergreen(ipft))
               write(fates_log(),*) ' phenflush_fraction: ', EDPFtvarcon_inst%phenflush_fraction(ipft)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2368,14 +2356,14 @@ contains
         ! Check if leaf storage priority is between 0-1
         ! ----------------------------------------------------------------------------------
         
-        if ( ( EDPftvarcon_inst%leaf_stor_priority(ipft) < 0.0_r8 ) .or. &
-             ( EDPftvarcon_inst%leaf_stor_priority(ipft) > 1.0_r8 ) ) then
+        if ( ( prt_params%leaf_stor_priority(ipft) < 0.0_r8 ) .or. &
+             ( prt_params%leaf_stor_priority(ipft) > 1.0_r8 ) ) then
 
            write(fates_log(),*) 'Prioritization of carbon allocation to leaf'
            write(fates_log(),*) ' and root turnover replacement, must be between'
            write(fates_log(),*) ' 0 and 1'
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) 'leaf_stor_priority: ',EDPftvarcon_inst%leaf_stor_priority(ipft)
+           write(fates_log(),*) 'leaf_stor_priority: ',prt_params%leaf_stor_priority(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
@@ -2420,129 +2408,129 @@ contains
         ! Note to advanced users. Feel free to remove these checks...
         ! -------------------------------------------------------------------
         
-        if ( (EDPftvarcon_inst%turnover_carb_retrans(ipft,repro_organ) > nearzero) ) then
+        if ( (prt_params%turnover_carb_retrans(ipft,repro_organ) > nearzero) ) then
            write(fates_log(),*) ' Retranslocation of reproductive tissues should be zero.'
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans(ipft,repro_organ)
+           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,repro_organ)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
         if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((EDPftvarcon_inst%turnover_nitr_retrans(ipft,repro_organ) > nearzero) .or.  & 
-               (EDPftvarcon_inst%turnover_phos_retrans(ipft,repro_organ) > nearzero) ) then
+           if ((prt_params%turnover_nitr_retrans(ipft,repro_organ) > nearzero) .or.  & 
+               (prt_params%turnover_phos_retrans(ipft,repro_organ) > nearzero) ) then
               write(fates_log(),*) ' Retranslocation of reproductive tissues should be zero.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans(ipft,repro_organ)
-              write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans(ipft,repro_organ)
-              write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans(ipft,repro_organ)
+              write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,repro_organ)
+              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,repro_organ)
+              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,repro_organ)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
            
-        if ((EDPftvarcon_inst%turnover_carb_retrans(ipft,sapw_organ) > nearzero)) then
+        if ((prt_params%turnover_carb_retrans(ipft,sapw_organ) > nearzero)) then
            write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans(ipft,sapw_organ)
+           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,sapw_organ)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
         if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((EDPftvarcon_inst%turnover_nitr_retrans(ipft,sapw_organ) > nearzero) .or.  & 
-               (EDPftvarcon_inst%turnover_phos_retrans(ipft,sapw_organ) > nearzero) ) then
+           if ((prt_params%turnover_nitr_retrans(ipft,sapw_organ) > nearzero) .or.  & 
+               (prt_params%turnover_phos_retrans(ipft,sapw_organ) > nearzero) ) then
               write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans(ipft,sapw_organ)
-              write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans(ipft,sapw_organ)
-              write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans(ipft,sapw_organ)
+              write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,sapw_organ)
+              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,sapw_organ)
+              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,sapw_organ)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
 
-        if ((EDPftvarcon_inst%turnover_carb_retrans(ipft,struct_organ) > nearzero)) then
+        if ((prt_params%turnover_carb_retrans(ipft,struct_organ) > nearzero)) then
            write(fates_log(),*) ' Retranslocation of structural(dead) tissues should be zero.'
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans(ipft,struct_organ)
+           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,struct_organ)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
         if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((EDPftvarcon_inst%turnover_nitr_retrans(ipft,struct_organ) > nearzero) .or.  & 
-               (EDPftvarcon_inst%turnover_phos_retrans(ipft,struct_organ) > nearzero) ) then
+           if ((prt_params%turnover_nitr_retrans(ipft,struct_organ) > nearzero) .or.  & 
+               (prt_params%turnover_phos_retrans(ipft,struct_organ) > nearzero) ) then
               write(fates_log(),*) ' Retranslocation of structural(dead) tissues should be zero.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans(ipft,struct_organ)
-              write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans(ipft,struct_organ)
+              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,struct_organ)
+              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,struct_organ)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
         
         ! Leaf retranslocation should be between 0 and 1
-        if ( (EDPftvarcon_inst%turnover_carb_retrans(ipft,leaf_organ) > 1.0_r8) .or. & 
-             (EDPftvarcon_inst%turnover_carb_retrans(ipft,leaf_organ) < 0.0_r8) ) then
+        if ( (prt_params%turnover_carb_retrans(ipft,leaf_organ) > 1.0_r8) .or. & 
+             (prt_params%turnover_carb_retrans(ipft,leaf_organ) < 0.0_r8) ) then
            write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans(ipft,leaf_organ)
+           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,leaf_organ)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
         if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((EDPftvarcon_inst%turnover_nitr_retrans(ipft,leaf_organ) > 1.0_r8) .or.  & 
-               (EDPftvarcon_inst%turnover_phos_retrans(ipft,leaf_organ) > 1.0_r8) .or. &
-               (EDPftvarcon_inst%turnover_nitr_retrans(ipft,leaf_organ) < 0.0_r8) .or.  & 
-               (EDPftvarcon_inst%turnover_phos_retrans(ipft,leaf_organ) < 0.0_r8)) then
+           if ((prt_params%turnover_nitr_retrans(ipft,leaf_organ) > 1.0_r8) .or.  & 
+               (prt_params%turnover_phos_retrans(ipft,leaf_organ) > 1.0_r8) .or. &
+               (prt_params%turnover_nitr_retrans(ipft,leaf_organ) < 0.0_r8) .or.  & 
+               (prt_params%turnover_phos_retrans(ipft,leaf_organ) < 0.0_r8)) then
               write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans(ipft,leaf_organ)
-              write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans(ipft,leaf_organ)
+              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,leaf_organ)
+              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,leaf_organ)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
         
         ! Fineroot retranslocation should be between 0-1
-        if ((EDPftvarcon_inst%turnover_carb_retrans(ipft,fnrt_organ) > 1.0_r8) .or. & 
-            (EDPftvarcon_inst%turnover_carb_retrans(ipft,fnrt_organ) < 0.0_r8)) then
+        if ((prt_params%turnover_carb_retrans(ipft,fnrt_organ) > 1.0_r8) .or. & 
+            (prt_params%turnover_carb_retrans(ipft,fnrt_organ) < 0.0_r8)) then
            write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans(ipft,fnrt_organ)
+           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,fnrt_organ)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
         if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((EDPftvarcon_inst%turnover_nitr_retrans(ipft,fnrt_organ) > 1.0_r8) .or.  & 
-               (EDPftvarcon_inst%turnover_phos_retrans(ipft,fnrt_organ) > 1.0_r8) .or. &
-               (EDPftvarcon_inst%turnover_nitr_retrans(ipft,fnrt_organ) < 0.0_r8) .or.  & 
-               (EDPftvarcon_inst%turnover_phos_retrans(ipft,fnrt_organ) < 0.0_r8)) then
+           if ((prt_params%turnover_nitr_retrans(ipft,fnrt_organ) > 1.0_r8) .or.  & 
+               (prt_params%turnover_phos_retrans(ipft,fnrt_organ) > 1.0_r8) .or. &
+               (prt_params%turnover_nitr_retrans(ipft,fnrt_organ) < 0.0_r8) .or.  & 
+               (prt_params%turnover_phos_retrans(ipft,fnrt_organ) < 0.0_r8)) then
               write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans(ipft,fnrt_organ)
-              write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans(ipft,fnrt_organ)
+              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,fnrt_organ)
+              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,fnrt_organ)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
 
         ! Storage retranslocation should be between 0-1 (storage retrans seems weird, but who knows)
-        if ((EDPftvarcon_inst%turnover_carb_retrans(ipft,store_organ) > 1.0_r8) .or. & 
-            (EDPftvarcon_inst%turnover_carb_retrans(ipft,store_organ) < 0.0_r8)) then
+        if ((prt_params%turnover_carb_retrans(ipft,store_organ) > 1.0_r8) .or. & 
+            (prt_params%turnover_carb_retrans(ipft,store_organ) < 0.0_r8)) then
            write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',EDPftvarcon_inst%turnover_carb_retrans(ipft,store_organ)
+           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,store_organ)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
         if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((EDPftvarcon_inst%turnover_nitr_retrans(ipft,store_organ) > 1.0_r8) .or.  & 
-               (EDPftvarcon_inst%turnover_phos_retrans(ipft,store_organ) > 1.0_r8) .or. &
-               (EDPftvarcon_inst%turnover_nitr_retrans(ipft,store_organ) < 0.0_r8) .or.  & 
-               (EDPftvarcon_inst%turnover_phos_retrans(ipft,store_organ) < 0.0_r8)) then
+           if ((prt_params%turnover_nitr_retrans(ipft,store_organ) > 1.0_r8) .or.  & 
+               (prt_params%turnover_phos_retrans(ipft,store_organ) > 1.0_r8) .or. &
+               (prt_params%turnover_nitr_retrans(ipft,store_organ) < 0.0_r8) .or.  & 
+               (prt_params%turnover_phos_retrans(ipft,store_organ) < 0.0_r8)) then
               write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',EDPftvarcon_inst%turnover_nitr_retrans(ipft,store_organ)
-              write(fates_log(),*) ' phos: ',EDPftvarcon_inst%turnover_phos_retrans(ipft,store_organ)
+              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,store_organ)
+              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,store_organ)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
@@ -2550,18 +2538,18 @@ contains
 
         ! Growth respiration
         !        if (parteh_mode .eq. prt_carbon_allom_hyp) then
-        if ( ( EDPftvarcon_inst%grperc(ipft) < 0.0_r8) .or. &
-             ( EDPftvarcon_inst%grperc(ipft) > 1.0_r8 ) ) then
+        if ( ( prt_params%grperc(ipft) < 0.0_r8) .or. &
+             ( prt_params%grperc(ipft) > 1.0_r8 ) ) then
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',EDPftvarcon_inst%grperc(ipft)
+           write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',prt_params%grperc(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 !        elseif(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-!           if ( ( any(EDPftvarcon_inst%prt_grperc_organ(ipft,:) < 0.0_r8)) .or. &
-!                ( any(EDPftvarcon_inst%prt_grperc_organ(ipft,:) >= 1.0_r8)) ) then
+!           if ( ( any(prt_params%grperc_organ(ipft,:) < 0.0_r8)) .or. &
+!                ( any(prt_params%grperc_organ(ipft,:) >= 1.0_r8)) ) then
 !              write(fates_log(),*) ' PFT#: ',ipft
-!              write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',EDPftvarcon_inst%prt_grperc_organ(ipft,:)
+!              write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',prt_params%grperc_organ(ipft,:)
 !              write(fates_log(),*) ' Aborting'
 !              call endrun(msg=errMsg(sourcefile, __LINE__))
 !           end if
@@ -2569,11 +2557,11 @@ contains
 
 
         ! The first nitrogen stoichiometry is used in all cases
-        if ( (any(EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
-             (any(EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,:) >= 1.0_r8))) then
+        if ( (any(prt_params%nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
+             (any(prt_params%nitr_stoich_p1(ipft,:) >= 1.0_r8))) then
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' N per C stoichiometry must bet between 0-1'
-           write(fates_log(),*) EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,:)
+           write(fates_log(),*) prt_params%nitr_stoich_p1(ipft,:)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
@@ -2583,14 +2571,14 @@ contains
 
            do i = 1,size(cnpflex_organs,dim=1)
               io = cnpflex_organs(i)
-              if ( (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,io) < 0._r8) .or. &
-                   (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,io) < 0._r8) .or. &
-                   (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,io) < 0._r8) .or. &
-                   (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,io) < 0._r8) .or. & 
-                   (EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,io) > 1._r8) .or. &
-                   (EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,io) > 1._r8) .or. &
-                   (EDPftvarcon_inst%prt_phos_stoich_p1(ipft,io) > 1._r8) .or. &
-                   (EDPftvarcon_inst%prt_phos_stoich_p2(ipft,io) > 1._r8) ) then
+              if ( (prt_params%nitr_stoich_p1(ipft,io) < 0._r8) .or. &
+                   (prt_params%nitr_stoich_p2(ipft,io) < 0._r8) .or. &
+                   (prt_params%phos_stoich_p1(ipft,io) < 0._r8) .or. &
+                   (prt_params%phos_stoich_p2(ipft,io) < 0._r8) .or. & 
+                   (prt_params%nitr_stoich_p1(ipft,io) > 1._r8) .or. &
+                   (prt_params%nitr_stoich_p2(ipft,io) > 1._r8) .or. &
+                   (prt_params%phos_stoich_p1(ipft,io) > 1._r8) .or. &
+                   (prt_params%phos_stoich_p2(ipft,io) > 1._r8) ) then
                  write(fates_log(),*) 'When the C,N,P allocation hypothesis with flexible'
                  write(fates_log(),*) 'stoichiometry is turned on (prt_cnp_flex_allom_hyp),'
                  write(fates_log(),*) 'all stoichiometries must be greater than or equal to zero,'
@@ -2600,27 +2588,35 @@ contains
                  write(fates_log(),*) 'You specified an organ/pft less than zero.'
                  write(fates_log(),*) 'PFT: ',ipft
                  write(fates_log(),*) 'organ index (see head of PRTGenericMod): ',io
-                 write(fates_log(),*) 'nitr_stoich_p1: ',EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,io)
-                 write(fates_log(),*) 'nitr_stoich_p2: ',EDPftvarcon_inst%prt_phos_stoich_p1(ipft,io)
-                 write(fates_log(),*) 'phos_stoich_p1: ',EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,io)
-                 write(fates_log(),*) 'phos_stoich_p2: ',EDPftvarcon_inst%prt_phos_stoich_p2(ipft,io)
+                 write(fates_log(),*) 'nitr_stoich_p1: ',prt_params%nitr_stoich_p1(ipft,io)
+                 write(fates_log(),*) 'nitr_stoich_p2: ',prt_params%phos_stoich_p1(ipft,io)
+                 write(fates_log(),*) 'phos_stoich_p1: ',prt_params%nitr_stoich_p2(ipft,io)
+                 write(fates_log(),*) 'phos_stoich_p2: ',prt_params%phos_stoich_p2(ipft,io)
                  write(fates_log(),*) 'Aborting'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
            end do
 
-           if ( any(EDPftvarcon_inst%prt_alloc_priority(ipft,:) < 0) .or. &
-                any(EDPftvarcon_inst%prt_alloc_priority(ipft,:) > 6) ) then
+           if ( any(prt_params%alloc_priority(ipft,:) < 0) .or. &
+                any(prt_params%alloc_priority(ipft,:) > 6) ) then
               write(fates_log(),*) ' PFT#: ',ipft
               write(fates_log(),*) ' Allocation priorities should be 0-6 for CNP flex hypothesis'
-              write(fates_log(),*) EDPftvarcon_inst%prt_alloc_priority(ipft,:)
+              write(fates_log(),*) prt_params%alloc_priority(ipft,:)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
 
            ! If any PFTs are specified as either prescribed N or P uptake
            ! then they all must be !
-           if (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+
+           if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero )) then
+              write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
+              write(fates_log(),*) 'are not allowed.'
+              write(fates_log(),*) 'Set to zero or unset to turn off and use coupled nutrients.'
+              write(fates_log(),*) 'Typical values when active are between 0 and 1.2-ish'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
               if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
                  write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
                  write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
@@ -2634,8 +2630,17 @@ contains
            else
               n_uptake_mode = coupled_n_uptake
            end if
+
+           
            ! Same for phosphorus
-           if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
+           if (any(EDPftvarcon_inst%prescribed_puptake(:) < -nearzero )) then
+              write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_puptake(:)'
+              write(fates_log(),*) 'are not allowed.'
+              write(fates_log(),*) 'Set to zero or unset to turn off and use coupled nutrients.'
+              write(fates_log(),*) 'Typical values when active are between 0 and 1.2-ish'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           elseif (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
               if(.not.all(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
                  write(fates_log(),*) 'If any PFTs are specified as having prescribed P'
                  write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
@@ -2657,39 +2662,39 @@ contains
 
         ! Check turnover time-scales
         
-        nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
+        nleafage = size(prt_params%leaf_long,dim=2)
 
         do iage = 1, nleafage
 
-           if ( EDPftvarcon_inst%leaf_long(ipft,iage)>nearzero ) then
+           if ( prt_params%leaf_long(ipft,iage)>nearzero ) then
               
               ! Check that leaf turnover doesn't exeed 1 day
-              if ( (years_per_day / EDPftvarcon_inst%leaf_long(ipft,iage)) > 1._r8 ) then
+              if ( (years_per_day / prt_params%leaf_long(ipft,iage)) > 1._r8 ) then
                  write(fates_log(),*) 'Leaf turnover time-scale is greater than 1 day!'
                  write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
-                 write(fates_log(),*) 'leaf_long(ipft,iage): ',EDPftvarcon_inst%leaf_long(ipft,iage),' [years]'
+                 write(fates_log(),*) 'leaf_long(ipft,iage): ',prt_params%leaf_long(ipft,iage),' [years]'
                  write(fates_log(),*) 'Aborting'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
               
               ! Check to make sure that all other age-classes for this PFT also
               ! have non-zero entries, it wouldn't make sense otherwise
-              if ( any(EDPftvarcon_inst%leaf_long(ipft,:) <= nearzero) ) then
+              if ( any(prt_params%leaf_long(ipft,:) <= nearzero) ) then
                  write(fates_log(),*) 'You specified a leaf_long that is zero or'
                  write(fates_log(),*) 'invalid for a particular age class.'
                  write(fates_log(),*) 'Yet, other age classes for this PFT are non-zero.'
                  write(fates_log(),*) 'this doesnt make sense.'
                  write(fates_log(),*) 'ipft = ',ipft
-                 write(fates_log(),*) 'leaf_long(ipft,:) =  ',EDPftvarcon_inst%leaf_long(ipft,:)
+                 write(fates_log(),*) 'leaf_long(ipft,:) =  ',prt_params%leaf_long(ipft,:)
                  write(fates_log(),*) 'Aborting'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
 
            else
-              if (EDPftvarcon_inst%evergreen(ipft) .eq. itrue) then
+              if (prt_params%evergreen(ipft) .eq. itrue) then
                  write(fates_log(),*) 'You specified zero leaf turnover: '
                  write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
-                 write(fates_log(),*) 'leaf_long(ipft,iage): ',EDPftvarcon_inst%leaf_long(ipft,iage)
+                 write(fates_log(),*) 'leaf_long(ipft,iage): ',prt_params%leaf_long(ipft,iage)
                  write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
                  write(fates_log(),*) 'that an evergreen would have leaf maintenance turnover'
                  write(fates_log(),*) 'disable this error if you are ok with this'
@@ -2700,48 +2705,48 @@ contains
         end do
 
         ! Check the turnover rates on the senescing leaf pool
-        if ( EDPftvarcon_inst%leaf_long(ipft,nleafage)>nearzero ) then
+        if ( prt_params%leaf_long(ipft,nleafage)>nearzero ) then
            
            ! Check that leaf turnover doesn't exeed 1 day
            if ( (years_per_day / &
-                 (EDPftvarcon_inst%leaf_long(ipft,nleafage) * &
-                  EDPftvarcon_inst%senleaf_long_fdrought(ipft))) > 1._r8 ) then
+                 (prt_params%leaf_long(ipft,nleafage) * &
+                  prt_params%senleaf_long_fdrought(ipft))) > 1._r8 ) then
               write(fates_log(),*) 'Drought-senescent turnover time-scale is greater than 1 day!'
               write(fates_log(),*) 'ipft: ',ipft
               write(fates_log(),*) 'leaf_long(ipft,nleafage)*senleaf_long_fdrought: ', &
-                    EDPftvarcon_inst%leaf_long(ipft,nleafage)*EDPftvarcon_inst%senleaf_long_fdrought(ipft),' [years]'
+                    prt_params%leaf_long(ipft,nleafage)*prt_params%senleaf_long_fdrought(ipft),' [years]'
               write(fates_log(),*) 'Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
         
-        if ( EDPftvarcon_inst%senleaf_long_fdrought(ipft)<nearzero .or. &
-             EDPftvarcon_inst%senleaf_long_fdrought(ipft)>1._r8 ) then
+        if ( prt_params%senleaf_long_fdrought(ipft)<nearzero .or. &
+             prt_params%senleaf_long_fdrought(ipft)>1._r8 ) then
            write(fates_log(),*) 'senleaf_long_fdrought(ipft) must be greater than 0 '
            write(fates_log(),*) 'or less than or equal to 1.'
            write(fates_log(),*) 'Set this to 1 if you want no accelerated senescence turnover'
            write(fates_log(),*) 'ipft = ',ipft
-           write(fates_log(),*) 'senleaf_long_fdrought(ipft) = ',EDPftvarcon_inst%senleaf_long_fdrought(ipft)
+           write(fates_log(),*) 'senleaf_long_fdrought(ipft) = ',prt_params%senleaf_long_fdrought(ipft)
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
            
 
-        if ( EDPftvarcon_inst%root_long(ipft)>nearzero ) then
+        if ( prt_params%root_long(ipft)>nearzero ) then
            
            ! Check that root turnover doesn't exeed 1 day
-           if ( (years_per_day / EDPftvarcon_inst%root_long(ipft)) > 1._r8 ) then
+           if ( (years_per_day / prt_params%root_long(ipft)) > 1._r8 ) then
               write(fates_log(),*) 'Root turnover time-scale is greater than 1 day!'
               write(fates_log(),*) 'ipft: ',ipft
-              write(fates_log(),*) 'root_long(ipft): ',EDPftvarcon_inst%root_long(ipft),' [years]'
+              write(fates_log(),*) 'root_long(ipft): ',prt_params%root_long(ipft),' [years]'
               write(fates_log(),*) 'Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
            
         else
-           if (EDPftvarcon_inst%evergreen(ipft) .eq. itrue) then
+           if (prt_params%evergreen(ipft) .eq. itrue) then
               write(fates_log(),*) 'You specified zero root turnover: '
               write(fates_log(),*) 'ipft: ',ipft
-              write(fates_log(),*) 'root_long(ipft): ',EDPftvarcon_inst%root_long(ipft)
+              write(fates_log(),*) 'root_long(ipft): ',prt_params%root_long(ipft)
               write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
               write(fates_log(),*) 'that an evergreen would have root maintenance turnover'
               write(fates_log(),*) 'disable this error if you are ok with this'
@@ -2750,13 +2755,13 @@ contains
         end if
         
         ! Check Branch turnover doesn't exceed one day
-        if ( EDPftvarcon_inst%branch_turnover(ipft)>nearzero ) then
+        if ( prt_params%branch_long(ipft)>nearzero ) then
            
            ! Check that branch turnover doesn't exeed 1 day
-           if ( (years_per_day / EDPftvarcon_inst%branch_turnover(ipft)) > 1._r8 ) then
+           if ( (years_per_day / prt_params%branch_long(ipft)) > 1._r8 ) then
               write(fates_log(),*) 'Branch turnover time-scale is greater than 1 day!'
               write(fates_log(),*) 'ipft: ',ipft
-              write(fates_log(),*) 'branch_turnover(ipft): ',EDPftvarcon_inst%branch_turnover(ipft),' [years]'
+              write(fates_log(),*) 'branch_long(ipft): ',prt_params%branch_long(ipft),' [years]'
               write(fates_log(),*) 'Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if

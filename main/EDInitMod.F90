@@ -14,6 +14,7 @@ module EDInitMod
   use FatesGlobals              , only : fates_log
   use FatesInterfaceMod         , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
+  use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
   use EDPatchDynamicsMod        , only : create_patch
@@ -500,14 +501,14 @@ contains
        temp_cohort%laimemory = 0._r8
        cstatus = leaves_on
        
-       if( EDPftvarcon_inst%season_decid(pft) == itrue .and. &
+       if( prt_params%season_decid(pft) == itrue .and. &
             any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
           temp_cohort%laimemory = c_leaf
           c_leaf = 0._r8
           cstatus = leaves_off
        endif
 
-       if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. &
+       if ( prt_params%stress_decid(pft) == itrue .and. &
             any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
           temp_cohort%laimemory = c_leaf
           c_leaf = 0._r8
@@ -541,20 +542,20 @@ contains
              
           case(nitrogen_element)
              
-             m_struct = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,store_organ)
+             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,struct_organ)
+             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,leaf_organ)
+             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,fnrt_organ)
+             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,sapw_organ)
+             m_store  = c_store*prt_params%nitr_stoich_p2(pft,store_organ)
              m_repro  = 0._r8
              
           case(phosphorus_element)
 
-             m_struct = c_struct*EDPftvarcon_inst%prt_phos_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*EDPftvarcon_inst%prt_phos_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*EDPftvarcon_inst%prt_phos_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*EDPftvarcon_inst%prt_phos_stoich_p2(pft,store_organ)
+             m_struct = c_struct*prt_params%phos_stoich_p2(pft,struct_organ)
+             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,leaf_organ)
+             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,fnrt_organ)
+             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,sapw_organ)
+             m_store  = c_store*prt_params%phos_stoich_p2(pft,store_organ)
              m_repro  = 0._r8
           end select
 

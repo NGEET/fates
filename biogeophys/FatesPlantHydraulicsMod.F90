@@ -85,8 +85,9 @@ module FatesPlantHydraulicsMod
    
    use clm_time_manager  , only : get_step_size, get_nstep
 
+   use PRTParametersMod,   only : prt_params
    use EDPftvarcon, only : EDPftvarcon_inst
-
+   
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
    use shr_infnan_mod   , only : isnan => shr_infnan_isnan
@@ -433,8 +434,8 @@ contains
      ! in special case where n_hypool_leaf = 1, the node height of the canopy
      ! water pool is 1/2 the distance from the bottom of the canopy to the top of the tree
 
-     roota                      =  EDPftvarcon_inst%roota_par(ft)
-     rootb                      =  EDPftvarcon_inst%rootb_par(ft)
+     roota                      =  prt_params%fnrt_prof_a(ft)
+     rootb                      =  prt_params%fnrt_prof_b(ft)
 
      call CrownDepth(plant_height,crown_depth)
      
@@ -669,8 +670,8 @@ contains
       fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
       struct_c = ccohort%prt%GetState(struct_organ, all_carbon_elements)
 
-      roota    =  EDPftvarcon_inst%roota_par(ft)
-      rootb    =  EDPftvarcon_inst%rootb_par(ft)
+      roota    =  prt_params%fnrt_prof_a(ft)
+      rootb    =  prt_params%fnrt_prof_b(ft)
 
       !roota                      =  4.372_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
       !rootb                      =  0.978_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
@@ -686,16 +687,16 @@ contains
          ! ------------------------------------------------------------------------------
 
          b_woody_carb               = sapw_c + struct_c
-         b_woody_bg_carb            = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(ft)) * b_woody_carb
+         b_woody_bg_carb            = (1.0_r8-prt_params%allom_agb_frac(ft)) * b_woody_carb
          b_tot_carb                 = sapw_c + struct_c + leaf_c + fnrt_c
          b_canopy_carb              = leaf_c
-         b_bg_carb                  = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(ft)) * b_tot_carb
+         b_bg_carb                  = (1.0_r8-prt_params%allom_agb_frac(ft)) * b_tot_carb
          b_canopy_biom              = b_canopy_carb * C2B
          
          ! NOTE: SLATOP currently does not use any vertical scaling functions
          ! but that may not be so forever. ie sla = slatop (RGK-082017)
          ! m2/gC * cm2/m2 -> cm2/gC
-         sla                        = EDPftvarcon_inst%slatop(ft) * cm2_per_m2 
+         sla                        = prt_params%slatop(ft) * cm2_per_m2 
          
          ! empirical regression data from leaves at Caxiuana (~ 8 spp)
          denleaf                    = -2.3231_r8*sla/C2B + 781.899_r8    
@@ -709,7 +710,7 @@ contains
 
          !BOC...may be needed for testing/comparison w/ v_sapwood 
          !    kg  / ( g cm-3 * cm3/m3 * kg/g ) -> m3    
-         v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(ft)*1.e3_r8  ) 
+         v_stem       = b_stem_biom / (prt_params%wood_density(ft)*1.e3_r8  ) 
 
          ! calculate the sapwood cross-sectional area
          call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,bsw_target)
@@ -719,7 +720,7 @@ contains
          ! or ....
          ! a_sapwood = a_sapwood_target * ccohort%bsw / bsw_target
          
-         !     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(ft)*1.e-4_r8 
+         !     a_sapwood    = a_leaf_tot / prt_params%allom_latosa_int(ft)*1.e-4_r8 
          !      m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
          ! or ...
          !a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%hite ) * 1.e-4_r8
@@ -736,7 +737,7 @@ contains
          
          b_troot_carb               = b_woody_bg_carb   
          b_troot_biom               = b_troot_carb * C2B 
-         v_troot                    = b_troot_biom / (EDPftvarcon_inst%wood_density(ft)*1.e3_r8)
+         v_troot                    = b_troot_biom / (prt_params%wood_density(ft)*1.e3_r8)
 
          !! BOC not sure if/how we should multiply this by the sapwood fraction
          ccohort_hydr%v_troot(:)    = v_troot / n_hypool_troot    
@@ -1539,8 +1540,8 @@ contains
               ! recruitment water uptake
 	      if(ccohort_hydr%is_newly_recruited) then
 	        recruitflag = .true.
-	        roota    =  EDPftvarcon_inst%roota_par(ft)
-                rootb    =  EDPftvarcon_inst%rootb_par(ft)
+	        roota    =  prt_params%fnrt_prof_a(ft)
+                rootb    =  prt_params%fnrt_prof_b(ft)
 	        recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
                     sum(ccohort_hydr%th_troot(:)*ccohort_hydr%v_troot(:))             + &
                     sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
@@ -1608,9 +1609,8 @@ contains
      real(r8) :: n, nmin !number of individuals in cohorts  
      integer :: s, j, ft
 
-     roota                     =  EDPftvarcon_inst%roota_par(ccohort%pft)
-     rootb                     =  EDPftvarcon_inst%rootb_par(ccohort%pft)
-    
+     roota                      =  prt_params%fnrt_prof_a(ccohort%pft)
+     rootb                      =  prt_params%fnrt_prof_b(ccohort%pft)
      csite_hydr => csite%si_hydr
      ccohort_hydr =>ccohort%co_hydr
      recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &

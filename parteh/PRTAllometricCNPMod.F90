@@ -44,12 +44,13 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
-  use EDPftvarcon         , only : EDPftvarcon_inst
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
   use FatesConstantsMod   , only : years_per_day
-
+  use PRTParametersMod    , only : prt_params
+  
+  
   implicit none
   private
 
@@ -234,7 +235,7 @@ contains
      ! notably the size of the leaf-longevity parameter's second dimension.
      ! This is the same value in FatesInterfaceMod.F90
 
-     nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
+     nleafage = size(prt_params%leaf_long,dim=2)
 
      if(nleafage>max_nleafage) then
         write(fates_log(),*) 'The allometric carbon PARTEH hypothesis'
@@ -547,19 +548,19 @@ contains
     p_efflux        => this%bc_out(acnp_bc_out_id_pefflux)%rval;  p_efflux = 0._r8
 
 ! PLACEHOLDER IN CASE SOMEONE WANTS TO HAVE VARIABLE GROWTH RESP RATES PER ORGAN
-!    r_g(leaf_organ)                    = EDPftvarcon_inst%prt_grperc_organ(ipft,leaf_organ)
-!    r_g(fnrt_organ)                    = EDPftvarcon_inst%prt_grperc_organ(ipft,fnrt_organ)
-!    r_g(sapw_organ)                    = EDPftvarcon_inst%prt_grperc_organ(ipft,sapw_organ)
-!    r_g(store_organ)                   = EDPftvarcon_inst%prt_grperc_organ(ipft,store_organ)
-!    r_g(struct_organ)                  = EDPftvarcon_inst%prt_grperc_organ(ipft,struct_organ)
-!    r_g(repro_organ)                   = EDPftvarcon_inst%prt_grperc_organ(ipft,repro_organ)
+!    r_g(leaf_organ)                    = prt_params%grperc_organ(ipft,leaf_organ)
+!    r_g(fnrt_organ)                    = prt_params%grperc_organ(ipft,fnrt_organ)
+!    r_g(sapw_organ)                    = prt_params%grperc_organ(ipft,sapw_organ)
+!    r_g(store_organ)                   = prt_params%grperc_organ(ipft,store_organ)
+!    r_g(struct_organ)                  = prt_params%grperc_organ(ipft,struct_organ)
+!    r_g(repro_organ)                   = prt_params%grperc_organ(ipft,repro_organ)
 
-    r_g(leaf_organ)                    = EDPftvarcon_inst%grperc(ipft)
-    r_g(fnrt_organ)                    = EDPftvarcon_inst%grperc(ipft)
-    r_g(sapw_organ)                    = EDPftvarcon_inst%grperc(ipft)
-    r_g(store_organ)                   = EDPftvarcon_inst%grperc(ipft)
-    r_g(struct_organ)                  = EDPftvarcon_inst%grperc(ipft)
-    r_g(repro_organ)                   = EDPftvarcon_inst%grperc(ipft)
+    r_g(leaf_organ)                    = prt_params%grperc(ipft)
+    r_g(fnrt_organ)                    = prt_params%grperc(ipft)
+    r_g(sapw_organ)                    = prt_params%grperc(ipft)
+    r_g(store_organ)                   = prt_params%grperc(ipft)
+    r_g(struct_organ)                  = prt_params%grperc(ipft)
+    r_g(repro_organ)                   = prt_params%grperc(ipft)
 
     intgr_params(:)                    = -9.9e32_r8
     intgr_params(acnp_bc_in_id_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
@@ -616,9 +617,9 @@ contains
 
     if(nleafage>1) then
        do i_age = 1,nleafage-1
-          if (EDPftvarcon_inst%leaf_long(ipft,i_age)>nearzero) then
+          if (prt_params%leaf_long(ipft,i_age)>nearzero) then
 
-             leaf_age_flux_frac = years_per_day / EDPftvarcon_inst%leaf_long(ipft,i_age)
+             leaf_age_flux_frac = years_per_day / prt_params%leaf_long(ipft,i_age)
 
              leaf_c(i_age)    = leaf_c(i_age)   - leaf_c0(i_age) * leaf_age_flux_frac
              leaf_c(i_age+1)  = leaf_c(i_age+1) + leaf_c0(i_age) * leaf_age_flux_frac
@@ -700,7 +701,7 @@ contains
     do ii = 1, num_organs
 
        ! The priority code associated with this organ
-       priority_code = int(EDPftvarcon_inst%prt_alloc_priority(ipft, organ_list(ii)))
+       priority_code = int(prt_params%alloc_priority(ipft, organ_list(ii)))
 
        ! Don't allow allocation to leaves if they are in an "off" status.
        ! (this prevents accidental re-flushing on the day they drop)
@@ -758,7 +759,7 @@ contains
           ! the total needed
           mo_sum_c_frac   = mo_sum_c_flux / (sum_c_demand + maint_r_deficit)
 
-          p_m = EDPftvarcon_inst%leaf_stor_priority(ipft)
+          p_m = prt_params%leaf_stor_priority(ipft)
           if( p_m >= 0.5) then
              redist_c_flux  = min( (p_m - 0.5_r8)/0.5_r8 * mo_sum_c_frac * maint_r_deficit , &
                   (1.0_r8 - mo_sum_c_frac) * sum_c_demand )
@@ -858,13 +859,13 @@ contains
 
           ! Update the nitrogen demands (which are based off of carbon actual..)
           ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
-          v_target(i_nvar) = this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,i_gorgan)
+          v_target(i_nvar) = this%variables(i_cvar)%val(icd)*prt_params%nitr_stoich_p1(ipft,i_gorgan)
           v_demand(i_nvar) = max(0.0_r8, v_target(i_nvar) - this%variables(i_nvar)%val(icd))
 
 
           ! Update the phosphorus demands (which are based off of carbon actual..)
           ! Note that the phsophorus target is tied to the stoichiometry of thegrowing pool only (also)
-          v_target(i_pvar) = this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_phos_stoich_p1(ipft,i_gorgan)
+          v_target(i_pvar) = this%variables(i_cvar)%val(icd)*prt_params%phos_stoich_p1(ipft,i_gorgan)
           v_demand(i_pvar) = max(0.0_r8, v_target(i_pvar) - this%variables(i_pvar)%val(icd))
 
        end do
@@ -973,7 +974,7 @@ contains
        do ii = 1, num_organs
 
           ! The priority code associated with this organ
-          priority_code = int(EDPftvarcon_inst%prt_alloc_priority(ipft, organ_list(ii)))
+          priority_code = int(prt_params%alloc_priority(ipft, organ_list(ii)))
 
           ! Don't allow allocation to leaves if they are in an "off" status.
           ! (this prevents accidental re-flushing on the day they drop)
@@ -1033,13 +1034,13 @@ contains
           ! nitrogen demand (Note that nitrogen demand is only relevant in the growing pool)
 
           v_target(i_nvar) = this%variables(i_cvar)%val(icd) * &
-               EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,i_gorgan)
+               prt_params%nitr_stoich_p1(ipft,i_gorgan)
 
           v_demand(i_nvar) = max(0.0_r8,v_target(i_nvar) - this%variables(i_nvar)%val(icd))
 
           ! phosphorus demand (note that phosphorus demand is only relevant in the growing pool)
           v_target(i_pvar) = this%variables(i_cvar)%val(icd) * &
-               EDPftvarcon_inst%prt_phos_stoich_p1(ipft,i_gorgan)
+               prt_params%phos_stoich_p1(ipft,i_gorgan)
 
           v_demand(i_pvar) = max(0.0_r8,v_target(i_pvar) - this%variables(i_pvar)%val(icd))
 
@@ -1182,10 +1183,10 @@ contains
        ! so its mask is set differently.  We (inefficiently) just included
        ! reproduction in the previous loop, but oh well, we over-write now.
 
-       if (dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then
-          repro_c_frac = EDPftvarcon_inst%seed_alloc(ipft)
+       if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
+          repro_c_frac = prt_params%seed_alloc(ipft)
        else
-          repro_c_frac = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%seed_alloc_mature(ipft)
+          repro_c_frac = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
        end if
 
        if(repro_c_frac>nearzero)then
@@ -1279,9 +1280,9 @@ contains
        if (state_mask(intgr_repro_c_id)) then
           grow_c_from_c = grow_c_from_c + carbon_gain * repro_c_frac / (1.0_r8 + r_g(repro_organ))
           grow_c_from_n = grow_c_from_n + nitrogen_gain * repro_c_frac / &
-               max(nearzero,EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ))
+               max(nearzero,prt_params%nitr_stoich_p1(ipft,repro_organ))
           grow_c_from_p = grow_c_from_p + phosphorus_gain * repro_c_frac / &
-               max(nearzero,EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ))
+               max(nearzero,prt_params%phos_stoich_p1(ipft,repro_organ))
        end if
 
 
@@ -1439,7 +1440,7 @@ contains
                    ! Calculate this on the growing bin only
 
                    v_target(i_nvar) = &
-                        this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,i_gorgan)
+                        this%variables(i_cvar)%val(icd)*prt_params%nitr_stoich_p1(ipft,i_gorgan)
 
                    v_demand(i_nvar) = &
                         max(0.0_r8,v_target(i_nvar) - this%variables(i_nvar)%val(icd))
@@ -1448,7 +1449,7 @@ contains
                    ! Calculate this on the growing bin only
 
                    v_target(i_pvar) = &
-                        this%variables(i_cvar)%val(icd)*EDPftvarcon_inst%prt_phos_stoich_p1(ipft,i_gorgan)
+                        this%variables(i_cvar)%val(icd)*prt_params%phos_stoich_p1(ipft,i_gorgan)
 
                    v_demand(i_pvar) = &
                         max(0.0_r8,v_target(i_pvar) - this%variables(i_pvar)%val(icd))
@@ -1523,7 +1524,7 @@ contains
 
        ! This is the optimal nitrogen target and demand
        v_target(i_nvar) = this%variables(i_cvar)%val(icd) * &
-            EDPftvarcon_inst%prt_nitr_stoich_p2(ipft,i_gorgan)
+            prt_params%nitr_stoich_p2(ipft,i_gorgan)
 
        v_demand(i_nvar) = max(0.0_r8, v_target(i_nvar) - this%variables(i_nvar)%val(icd))
 
@@ -1532,7 +1533,7 @@ contains
 
        ! This is the optimal phosphorus target and demand
        v_target(i_pvar) = this%variables(i_cvar)%val(icd) * &
-            EDPftvarcon_inst%prt_phos_stoich_p2(ipft,i_gorgan)
+            prt_params%phos_stoich_p2(ipft,i_gorgan)
 
        v_demand(i_pvar) = max(0.0_r8, v_target(i_pvar) - this%variables(i_pvar)%val(icd))
 
@@ -1744,17 +1745,17 @@ contains
     ! Calculate gains from carbon
     ! -----------------------------------------------------------------------------------
     grow_c_from_c = grow_c_from_c + carbon_gain * alloc_frac / &
-         (1.0_r8 + EDPftvarcon_inst%grperc(ipft))
+         (1.0_r8 + prt_params%grperc(ipft))
     
     c_var_id = prt_global%sp_organ_map(organ_id,carbon12_element)
     
     ! Calculate gains from Nitrogen
     ! -----------------------------------------------------------------------------------
 
-    if(EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)>nearzero)then
+    if(prt_params%nitr_stoich_p1(ipft,organ_id)>nearzero)then
        
        grow_c_from_n = grow_c_from_n + nitrogen_gain * alloc_frac / &
-            EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
+            prt_params%nitr_stoich_p1(ipft,organ_id)
        
        ! It is possible that the nutrient pool of interest is already above the minimum 
        ! requirement. In this case, we add that into the amount that the equivalent 
@@ -1762,11 +1763,11 @@ contains
        
        n_var_id = prt_global%sp_organ_map(organ_id,nitrogen_element)
        n_target = sum(this%variables(c_var_id)%val(:)) * &
-            EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
+            prt_params%nitr_stoich_p1(ipft,organ_id)
 
        grow_c_from_n = grow_c_from_n + &
             max(0.0_r8, sum(this%variables(n_var_id)%val(:)) - n_target ) / &
-            EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
+            prt_params%nitr_stoich_p1(ipft,organ_id)
             
     else
        grow_c_from_n = 1.e8_r8  ! If the stoichiometry is zero, just give it an abundance
@@ -1775,10 +1776,10 @@ contains
     ! Calculate gains from phosphorus
     ! -----------------------------------------------------------------------------------
     
-    if(EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)>nearzero) then
+    if(prt_params%phos_stoich_p1(ipft,organ_id)>nearzero) then
        
        grow_c_from_p = grow_c_from_p + phosphorus_gain * alloc_frac / &
-            EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
+            prt_params%phos_stoich_p1(ipft,organ_id)
        
        ! It is possible that the nutrient pool of interest is already above the minimum 
        ! requirement. In this case, we add that into the amount that the equivalent 
@@ -1786,11 +1787,11 @@ contains
          
        p_var_id = prt_global%sp_organ_map(organ_id,phosphorus_element)
        p_target = sum(this%variables(c_var_id)%val(:)) * &
-            EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
+            prt_params%phos_stoich_p1(ipft,organ_id)
 
        grow_c_from_p = grow_c_from_p + &
             max(0.0_r8,sum(this%variables(p_var_id)%val(:)) - p_target ) / &
-            EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
+            prt_params%phos_stoich_p1(ipft,organ_id)
     else
        grow_c_from_p = 1.e8_r8  ! If the stoichiometry is zero, just give it an abundance
     end if
@@ -1887,25 +1888,25 @@ contains
         call bstore_allom(dbh,ipft,canopy_trim,store_c_target,store_dcdd_target)
 
         ! fraction of carbon going towards reproduction
-        if (dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then
-           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft)
+        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
+           repro_fraction = prt_params%seed_alloc(ipft)
         else
-           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%seed_alloc_mature(ipft)
+           repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
         end if
 
-        total_dcostdd = struct_dcdd_target * (1.0_r8 + EDPftvarcon_inst%grperc(ipft))
+        total_dcostdd = struct_dcdd_target * (1.0_r8 + prt_params%grperc(ipft))
 
         if (mask_leaf) then
-           total_dcostdd = total_dcostdd + leaf_dcdd_target * (1.0_r8 + EDPftvarcon_inst%grperc(ipft))
+           total_dcostdd = total_dcostdd + leaf_dcdd_target * (1.0_r8 + prt_params%grperc(ipft))
         end if
         if (mask_fnrt) then
-           total_dcostdd = total_dcostdd + fnrt_dcdd_target * (1.0_r8 + EDPftvarcon_inst%grperc(ipft))
+           total_dcostdd = total_dcostdd + fnrt_dcdd_target * (1.0_r8 + prt_params%grperc(ipft))
         end if
         if (mask_sapw) then
-           total_dcostdd = total_dcostdd + sapw_dcdd_target * (1.0_r8 + EDPftvarcon_inst%grperc(ipft))
+           total_dcostdd = total_dcostdd + sapw_dcdd_target * (1.0_r8 + prt_params%grperc(ipft))
         end if
         if (mask_store) then
-           total_dcostdd = total_dcostdd + store_dcdd_target * (1.0_r8 + EDPftvarcon_inst%grperc(ipft))
+           total_dcostdd = total_dcostdd + store_dcdd_target * (1.0_r8 + prt_params%grperc(ipft))
         end if
 
         dCdx(:) = 0.0_r8
@@ -1918,36 +1919,36 @@ contains
 
            dCdx(intgr_struct_c_id) = struct_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
            dCdx(intgr_struct_gr_id) = struct_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction) * &
-                EDPftvarcon_inst%grperc(ipft)
+                prt_params%grperc(ipft)
 
            if (mask_leaf) then
               dCdx(intgr_leaf_c_id)  = leaf_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
               dCdx(intgr_leaf_gr_id) = (leaf_dcdd_target/total_dcostdd) *  (1.0_r8 - repro_fraction) * &
-                   EDPftvarcon_inst%grperc(ipft)
+                   prt_params%grperc(ipft)
            end if
 
            if (mask_fnrt) then
               dCdx(intgr_fnrt_c_id)  = fnrt_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
               dCdx(intgr_fnrt_gr_id) = (fnrt_dcdd_target/total_dcostdd) * (1.0_r8 - repro_fraction) * &
-                   EDPftvarcon_inst%grperc(ipft)
+                   prt_params%grperc(ipft)
            end if
 
            if (mask_sapw) then
               dCdx(intgr_sapw_c_id)  = sapw_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
               dCdx(intgr_sapw_gr_id) = (sapw_dcdd_target/total_dcostdd) * (1.0_r8 - repro_fraction) * &
-                   EDPftvarcon_inst%grperc(ipft)
+                   prt_params%grperc(ipft)
            end if
 
            if (mask_store) then
               dCdx(intgr_store_c_id)  = store_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
               dCdx(intgr_store_gr_id) = (store_dcdd_target/total_dcostdd) * (1.0_r8 - repro_fraction) * &
-                   EDPftvarcon_inst%grperc(ipft)
+                   prt_params%grperc(ipft)
            end if
 
            if (mask_repro) then
-              dCdx(intgr_repro_c_id)  = repro_fraction / (1.0_r8 + EDPftvarcon_inst%grperc(ipft) )
-              dCdx(intgr_repro_gr_id) = repro_fraction * EDPftvarcon_inst%grperc(ipft) / &
-                   (1.0_r8 +  EDPftvarcon_inst%grperc(ipft))
+              dCdx(intgr_repro_c_id)  = repro_fraction / (1.0_r8 + prt_params%grperc(ipft) )
+              dCdx(intgr_repro_gr_id) = repro_fraction * prt_params%grperc(ipft) / &
+                   (1.0_r8 +  prt_params%grperc(ipft))
            end if
 
            dCdx(intgr_dbh_id)      = (1.0_r8/total_dcostdd)*(1.0_r8 - repro_fraction)

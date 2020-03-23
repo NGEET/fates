@@ -12,6 +12,7 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : rsnbl_math_prec
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
+  use PRTParametersMod      , only : prt_params
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
@@ -279,12 +280,12 @@ contains
                   write(fates_log(),*) 'coh n:',currentCohort%n
                   write(fates_log(),*) 'coh carea:',currentCohort%c_area
 		  ipft=currentCohort%pft
-		  write(fates_log(),*) 'maxh:',EDPftvarcon_inst%allom_dbh_maxheight(ipft)
-                  write(fates_log(),*) 'lmode: ',EDPftvarcon_inst%allom_lmode(ipft)
-		  write(fates_log(),*) 'd2bl2: ',EDPftvarcon_inst%allom_d2bl2(ipft)
-		  write(fates_log(),*) 'd2bl_ediff: ',EDPftvarcon_inst%allom_blca_expnt_diff(ipft)
-		  write(fates_log(),*) 'd2ca_min: ',EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft)
-		  write(fates_log(),*) 'd2ca_max: ',EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft)
+		  write(fates_log(),*) 'maxh:',prt_params%allom_dbh_maxheight(ipft)
+                  write(fates_log(),*) 'lmode: ',prt_params%allom_lmode(ipft)
+		  write(fates_log(),*) 'd2bl2: ',prt_params%allom_d2bl2(ipft)
+		  write(fates_log(),*) 'd2bl_ediff: ',prt_params%allom_blca_expnt_diff(ipft)
+		  write(fates_log(),*) 'd2ca_min: ',prt_params%allom_d2ca_coefficient_min(ipft)
+		  write(fates_log(),*) 'd2ca_max: ',prt_params%allom_d2ca_coefficient_max(ipft)
                   currentCohort => currentCohort%shorter
                enddo
                call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1222,7 +1223,7 @@ contains
        do while (associated(currentCohort))
           call carea_allom(currentCohort%dbh,currentCohort%n, &
                 currentSite%spread,currentCohort%pft,currentCohort%c_area)
-          if( (EDPftvarcon_inst%woody(currentCohort%pft) .eq. 1 ) .and. &
+          if( ( int(prt_params%woody(currentCohort%pft)) .eq. itrue ) .and. &
               (currentCohort%canopy_layer .eq. 1 ) ) then
              sitelevel_canopyarea = sitelevel_canopyarea + currentCohort%c_area
           endif
@@ -1259,7 +1260,6 @@ contains
     use EDPatchDynamicsMod   , only : set_patchno
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use EDtypesMod           , only : area
-    use EDPftvarcon          , only : EDPftvarcon_inst
 
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
@@ -1332,7 +1332,7 @@ contains
                   
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
-                if(EDPftvarcon_inst%woody(ft)==1)then
+                if( int(prt_params%woody(ft))==itrue)then
                    currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
                 endif
              endif
@@ -1865,7 +1865,6 @@ contains
      use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                     ed_site_type, AREA
      use FatesInterfaceMod , only : bc_out_type
-     use EDPftvarcon       , only : EDPftvarcon_inst
 
 
      !

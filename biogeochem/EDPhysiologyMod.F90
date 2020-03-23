@@ -29,6 +29,7 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : rsnbl_math_prec
   use FatesConstantsMod, only    : kg_per_g
   use EDPftvarcon      , only    : EDPftvarcon_inst
+  use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
@@ -445,7 +446,7 @@ contains
 
           call bleaf(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bl)
 
-          if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+          if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
              ! only query fine root biomass if using a fine root allometric model that takes leaf trim into account
              call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
              bfr_per_bleaf = tar_bfr/tar_bl
@@ -455,7 +456,7 @@ contains
           cl = currentCohort%canopy_layer
           
           ! PFT-level maximum SLA value, even if under a thick canopy (same units as slatop)
-          sla_max = EDPftvarcon_inst%slamax(ipft)
+          sla_max = prt_params%slamax(ipft)
 
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1, currentCohort%nv
@@ -480,7 +481,7 @@ contains
                 ! Nscaler value at leaf level z
                 nscaler_levleaf = exp(-kn * cumulative_lai)
                 ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
-                sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf
+                sla_levleaf = prt_params%slatop(ipft)/nscaler_levleaf
 
                 if(sla_levleaf > sla_max)then
                    sla_levleaf = sla_max
@@ -488,38 +489,38 @@ contains
                    
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
-                if (EDPftvarcon_inst%season_decid(ipft) ==  itrue .or. &
-                     EDPftvarcon_inst%stress_decid(ipft) == itrue )then 
+                if (prt_params%season_decid(ipft) ==  itrue .or. &
+                     prt_params%stress_decid(ipft) == itrue )then 
 
                    ! Leaf cost at leaf level z accounting for sla profile (kgC/m2)
                    currentCohort%leaf_cost =  1._r8/(sla_levleaf*1000.0_r8)
 
-                   if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+                   if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
                       currentCohort%leaf_cost = currentCohort%leaf_cost + &
                            1.0_r8/(sla_levleaf*1000.0_r8) * &
-                           bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                           bfr_per_bleaf / prt_params%root_long(ipft)
                    endif
 
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
-                         (EDPftvarcon_inst%grperc(ipft) + 1._r8)
+                         (prt_params%grperc(ipft) + 1._r8)
                 else !evergreen costs
 
                    ! Leaf cost at leaf level z accounting for sla profile
                    currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
-                        sum(EDPftvarcon_inst%leaf_long(ipft,:))*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
+                        sum(prt_params%leaf_long(ipft,:))*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    
                    
-                   if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+                   if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
                       currentCohort%leaf_cost = currentCohort%leaf_cost + &
                            1.0_r8/(sla_levleaf*1000.0_r8) * &
-                           bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                           bfr_per_bleaf / prt_params%root_long(ipft)
                    endif
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
-                         (EDPftvarcon_inst%grperc(ipft) + 1._r8)
+                         (prt_params%grperc(ipft) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft))then
@@ -533,7 +534,7 @@ contains
                       if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft))then
                          currentCohort%canopy_trim = currentCohort%canopy_trim - &
                                EDPftvarcon_inst%trim_inc(ipft)
-                         if (EDPftvarcon_inst%evergreen(ipft) /= 1)then
+                         if (prt_params%evergreen(ipft) /= 1)then
                             currentCohort%laimemory = currentCohort%laimemory * &
                                   (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
@@ -948,7 +949,7 @@ contains
           ! The site level flags signify that it is no-longer too cold
           ! for leaves. Time to signal flushing
 
-          if (EDPftvarcon_inst%season_decid(ipft) == itrue)then
+          if (prt_params%season_decid(ipft) == itrue)then
              if ( currentSite%cstatus == phen_cstat_notcold  )then                ! we have just moved to leaves being on . 
                 if (currentCohort%status_coh == leaves_off)then ! Are the leaves currently off?        
                    currentCohort%status_coh = leaves_on         ! Leaves are on, so change status to 
@@ -1001,7 +1002,7 @@ contains
           ! Site level flag indicates it is no longer in drought condition
           ! deciduous plants can flush
 
-          if (EDPftvarcon_inst%stress_decid(ipft) == itrue )then
+          if (prt_params%stress_decid(ipft) == itrue )then
              
              if (currentSite%dstatus == phen_dstat_moiston .or. &
                  currentSite%dstatus == phen_dstat_timeon )then 
@@ -1168,9 +1169,9 @@ contains
        case(carbon12_element)
           seed_stoich = 1._r8
        case(nitrogen_element)
-          seed_stoich = EDPftvarcon_inst%prt_nitr_stoich_p2(pft,repro_organ)
+          seed_stoich = prt_params%nitr_stoich_p2(pft,repro_organ)
        case(phosphorus_element)
-          seed_stoich = EDPftvarcon_inst%prt_phos_stoich_p2(pft,repro_organ)
+          seed_stoich = prt_params%phos_stoich_p2(pft,repro_organ)
        case default
           write(fates_log(), *) 'undefined element specified'
           write(fates_log(), *) 'while defining forced external seed mass flux'
@@ -1278,11 +1279,11 @@ contains
        
        !set the germination only under the growing season...c.xu
 
-       if ((EDPftvarcon_inst%season_decid(pft) == itrue ) .and. &
+       if ((prt_params%season_decid(pft) == itrue ) .and. &
              (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
            litt%seed_germ_in(pft) = 0.0_r8
        endif
-       if ((EDPftvarcon_inst%stress_decid(pft) == itrue ) .and. &
+       if ((prt_params%stress_decid(pft) == itrue ) .and. &
              (any(drought_stat == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
            litt%seed_germ_in(pft) = 0.0_r8
        end if
@@ -1371,7 +1372,7 @@ contains
        
        ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
        ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
-       if ((EDPftvarcon_inst%season_decid(ft) == itrue) .and. &
+       if ((prt_params%season_decid(ft) == itrue) .and. &
              (any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]))) then
            temp_cohort%laimemory = c_leaf
            c_leaf = 0.0_r8
@@ -1381,7 +1382,7 @@ contains
        ! Or.. if the plant is drought deciduous, and the site status is flagged as 
        ! "in a drought", then likewise, set the cohort's status to leaves_off, and remember leaf
        ! biomass
-       if ((EDPftvarcon_inst%stress_decid(ft) == itrue) .and. &
+       if ((prt_params%stress_decid(ft) == itrue) .and. &
              (any(currentSite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
            temp_cohort%laimemory = c_leaf
            c_leaf = 0.0_r8
@@ -1407,19 +1408,19 @@ contains
                
                case(nitrogen_element)
                
-                  mass_demand = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,struct_organ) + &
-                                 c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ) + &
-                                 c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ) + & 
-                                 c_store*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,store_organ)
+                  mass_demand = c_struct*prt_params%nitr_stoich_p1(ft,struct_organ) + &
+                                 c_leaf*prt_params%nitr_stoich_p1(ft,leaf_organ) + &
+                                 c_fnrt*prt_params%nitr_stoich_p1(ft,fnrt_organ) + & 
+                                 c_sapw*prt_params%nitr_stoich_p1(ft,sapw_organ) + & 
+                                 c_store*prt_params%nitr_stoich_p1(ft,store_organ)
                
                case(phosphorus_element)
                
-                  mass_demand = c_struct*EDPftvarcon_inst%prt_phos_stoich_p1(ft,struct_organ) + &
-                                 c_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(ft,leaf_organ) + &
-                                 c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(ft,sapw_organ)  + & 
-                                 c_store*EDPftvarcon_inst%prt_phos_stoich_p1(ft,store_organ)
+                  mass_demand = c_struct*prt_params%phos_stoich_p1(ft,struct_organ) + &
+                                 c_leaf*prt_params%phos_stoich_p1(ft,leaf_organ) + &
+                                 c_fnrt*prt_params%phos_stoich_p1(ft,fnrt_organ) + & 
+                                 c_sapw*prt_params%phos_stoich_p1(ft,sapw_organ)  + & 
+                                 c_store*prt_params%phos_stoich_p1(ft,store_organ)
                
                case default
                    write(fates_log(),*) 'Undefined element type in recruitment'
@@ -1474,20 +1475,20 @@ contains
 
               case(nitrogen_element)
 
-                 m_struct = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,struct_organ)
-                 m_leaf   = c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)
-                 m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ)
-                 m_sapw   = c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
-                 m_store  = c_store*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,store_organ)
+                 m_struct = c_struct*prt_params%nitr_stoich_p1(ft,struct_organ)
+                 m_leaf   = c_leaf*prt_params%nitr_stoich_p1(ft,leaf_organ)
+                 m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(ft,fnrt_organ)
+                 m_sapw   = c_sapw*prt_params%nitr_stoich_p1(ft,sapw_organ)
+                 m_store  = c_store*prt_params%nitr_stoich_p1(ft,store_organ)
                  m_repro  = 0._r8
 
               case(phosphorus_element)
 
-                 m_struct = c_struct*EDPftvarcon_inst%prt_phos_stoich_p1(ft,struct_organ)
-                 m_leaf   = c_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(ft,leaf_organ)
-                 m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(ft,fnrt_organ)
-                 m_sapw   = c_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(ft,sapw_organ)
-                 m_store  = c_store*EDPftvarcon_inst%prt_phos_stoich_p1(ft,store_organ)
+                 m_struct = c_struct*prt_params%phos_stoich_p1(ft,struct_organ)
+                 m_leaf   = c_leaf*prt_params%phos_stoich_p1(ft,leaf_organ)
+                 m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(ft,fnrt_organ)
+                 m_sapw   = c_sapw*prt_params%phos_stoich_p1(ft,sapw_organ)
+                 m_store  = c_store*prt_params%phos_stoich_p1(ft,store_organ)
                  m_repro  = 0._r8
 
               end select
@@ -1707,15 +1708,15 @@ contains
          litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
               (sapw_m_turnover + struct_m_turnover) * &
               SF_val_CWD_frac(c) * plant_dens * &
-              EDPftvarcon_inst%allom_agb_frac(pft)
+              prt_params%allom_agb_frac(pft)
 
          flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                (struct_m_turnover + sapw_m_turnover) * SF_val_CWD_frac(c) * &
-               EDPftvarcon_inst%allom_agb_frac(pft) * currentCohort%n
+               prt_params%allom_agb_frac(pft) * currentCohort%n
 
          bg_cwd_tot = (sapw_m_turnover + struct_m_turnover) * &
               SF_val_CWD_frac(c) * plant_dens * & 
-              (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
+              (1.0_r8-prt_params%allom_agb_frac(pft))
 
          do ilyr = 1, numlevsoil
             litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + &
@@ -1796,7 +1797,7 @@ contains
          
          bg_cwd_tot = (struct_m + sapw_m) * & 
               SF_val_CWD_frac(c) * dead_n * &
-              (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
+              (1.0_r8-prt_params%allom_agb_frac(pft))
          
          do ilyr = 1, numlevsoil
             litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + &
@@ -1815,7 +1816,7 @@ contains
 
             trunk_wood =  (struct_m + sapw_m) * &
                  SF_val_CWD_frac(c) * dead_n_dlogging * &
-                 EDPftvarcon_inst%allom_agb_frac(pft) 
+                 prt_params%allom_agb_frac(pft) 
             
             site_mass%wood_product = site_mass%wood_product + &
                  trunk_wood * currentPatch%area * logging_export_frac
@@ -1833,21 +1834,21 @@ contains
 
             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * & 
                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
-                 EDPftvarcon_inst%allom_agb_frac(pft)
+                 prt_params%allom_agb_frac(pft)
 
             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                   SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * &
-                  currentPatch%area * EDPftvarcon_inst%allom_agb_frac(pft)
+                  currentPatch%area * prt_params%allom_agb_frac(pft)
 
          else
 
             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * & 
                  SF_val_CWD_frac(c) * dead_n  * &
-                 EDPftvarcon_inst%allom_agb_frac(pft)
+                 prt_params%allom_agb_frac(pft)
 
             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                   SF_val_CWD_frac(c) * dead_n * (struct_m + sapw_m) * &
-                  currentPatch%area * EDPftvarcon_inst%allom_agb_frac(pft)
+                  currentPatch%area * prt_params%allom_agb_frac(pft)
             
          end if
          
@@ -2112,18 +2113,18 @@ contains
     ! Calculate plant maximum nutrient content [kg]
     if(element_id.eq.nitrogen_element) then
        plant_max_x = & 
-            c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,leaf_organ) + & 
-            c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,fnrt_organ) + & 
-            c_store*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,store_organ) + & 
-            c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,sapw_organ) + & 
-            c_struct*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,struct_organ)
+            c_leaf*prt_params%nitr_stoich_p2(pft,leaf_organ) + & 
+            c_fnrt*prt_params%nitr_stoich_p2(pft,fnrt_organ) + & 
+            c_store*prt_params%nitr_stoich_p2(pft,store_organ) + & 
+            c_sapw*prt_params%nitr_stoich_p2(pft,sapw_organ) + & 
+            c_struct*prt_params%nitr_stoich_p2(pft,struct_organ)
     elseif(element_id.eq.phosphorus_element) then
        plant_max_x = &
-            c_leaf*EDPftvarcon_inst%prt_phos_stoich_p2(pft,leaf_organ) + & 
-            c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p2(pft,fnrt_organ) + & 
-            c_store*EDPftvarcon_inst%prt_phos_stoich_p2(pft,store_organ) + & 
-            c_sapw*EDPftvarcon_inst%prt_phos_stoich_p2(pft,sapw_organ) + & 
-            c_struct*EDPftvarcon_inst%prt_phos_stoich_p2(pft,struct_organ)
+            c_leaf*prt_params%phos_stoich_p2(pft,leaf_organ) + & 
+            c_fnrt*prt_params%phos_stoich_p2(pft,fnrt_organ) + & 
+            c_store*prt_params%phos_stoich_p2(pft,store_organ) + & 
+            c_sapw*prt_params%phos_stoich_p2(pft,sapw_organ) + & 
+            c_struct*prt_params%phos_stoich_p2(pft,struct_organ)
     end if
 
     if(ccohort%isnew) then
@@ -2585,11 +2586,11 @@ contains
                                                    ccohort%prt%GetState(store_organ, nitrogen_element))
                 
                 ! Calculate the ideal CN ratio for leaves and storage organs
-                nc_ideal = ((target_leaf_c*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,leaf_organ)) + &
-                     (target_store_c*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,store_organ))) / & 
+                nc_ideal = ((target_leaf_c*prt_params%nitr_stoich_p2(pft,leaf_organ)) + &
+                     (target_store_c*prt_params%nitr_stoich_p2(pft,store_organ))) / & 
                      (target_leaf_c+target_store_c)
-                nc_min =  ((target_leaf_c*EDPftvarcon_inst%prt_nitr_stoich_p1(pft,leaf_organ)) + &
-                     (target_store_c*EDPftvarcon_inst%prt_nitr_stoich_p1(pft,store_organ))) / & 
+                nc_min =  ((target_leaf_c*prt_params%nitr_stoich_p1(pft,leaf_organ)) + &
+                     (target_store_c*prt_params%nitr_stoich_p1(pft,store_organ))) / & 
                      (target_leaf_c+target_store_c)
                 
                 nc_actual = max(leaf_store_n/(target_leaf_c+target_store_c),rsnbl_math_prec)
@@ -2661,11 +2662,11 @@ contains
 
                 
                 ! Calculate the ideal CN ratio for leaves and storage organs
-                pc_ideal = ((target_leaf_c*EDPftvarcon_inst%prt_phos_stoich_p2(pft,leaf_organ)) + &
-                     (target_store_c*EDPftvarcon_inst%prt_phos_stoich_p2(pft,store_organ))) / & 
+                pc_ideal = ((target_leaf_c*prt_params%phos_stoich_p2(pft,leaf_organ)) + &
+                     (target_store_c*prt_params%phos_stoich_p2(pft,store_organ))) / & 
                      (target_leaf_c+target_store_c)
-                pc_min = ((target_leaf_c*EDPftvarcon_inst%prt_phos_stoich_p1(pft,leaf_organ)) + &
-                     (target_store_c*EDPftvarcon_inst%prt_phos_stoich_p1(pft,store_organ))) / & 
+                pc_min = ((target_leaf_c*prt_params%phos_stoich_p1(pft,leaf_organ)) + &
+                     (target_store_c*prt_params%phos_stoich_p1(pft,store_organ))) / & 
                      (target_leaf_c+target_store_c)
                 
                 pc_actual = max(leaf_store_p/(target_leaf_c+target_store_c),rsnbl_math_prec)

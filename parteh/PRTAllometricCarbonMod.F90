@@ -43,12 +43,12 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : i4 => fates_int
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
-  use EDPftvarcon         , only : EDPftvarcon_inst
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
   use FatesConstantsMod   , only : years_per_day
 
+  use PRTParametersMod    , only : prt_params
 
   implicit none
   private
@@ -198,7 +198,7 @@ contains
      ! notably the size of the leaf-longevity parameter's second dimension.
      ! This is the same value in FatesInterfaceMod.F90
 
-     nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
+     nleafage = size(prt_params%leaf_long,dim=2)
      
      if(nleafage>max_nleafage) then
         write(fates_log(),*) 'The allometric carbon PARTEH hypothesis'
@@ -430,8 +430,8 @@ contains
 
     if(nleafage>1) then
        do i_age = 1,nleafage-1
-          if (EDPftvarcon_inst%leaf_long(ipft,i_age)>nearzero) then
-             leaf_age_flux   = leaf_c0(i_age) * years_per_day / EDPftvarcon_inst%leaf_long(ipft,i_age)
+          if (prt_params%leaf_long(ipft,i_age)>nearzero) then
+             leaf_age_flux   = leaf_c0(i_age) * years_per_day / prt_params%leaf_long(ipft,i_age)
              leaf_c(i_age)   = leaf_c(i_age) - leaf_age_flux
              leaf_c(i_age+1) = leaf_c(i_age+1) + leaf_age_flux
           end if
@@ -471,15 +471,15 @@ contains
     !         or forcefully pay from storage. 
     ! -----------------------------------------------------------------------------------
     
-    if( EDPftvarcon_inst%evergreen(ipft) ==1 ) then
+    if( prt_params%evergreen(ipft) ==1 ) then
        leaf_c_demand   = max(0.0_r8, &
-             EDPftvarcon_inst%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
+             prt_params%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
     else
        leaf_c_demand   = 0.0_r8
     end if
     
     fnrt_c_demand   = max(0.0_r8, &
-          EDPftvarcon_inst%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
+          prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
 
     total_c_demand = leaf_c_demand + fnrt_c_demand
     
@@ -940,10 +940,10 @@ contains
         call bstore_allom(dbh,ipft,canopy_trim,ct_store,ct_dstoredd)
         
         ! fraction of carbon going towards reproduction
-        if (dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
-           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft)
+        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
+           repro_fraction = prt_params%seed_alloc(ipft)
         else
-           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%seed_alloc_mature(ipft)
+           repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
         end if
 
         dCdx = 0.0_r8

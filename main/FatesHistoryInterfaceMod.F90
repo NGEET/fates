@@ -41,7 +41,8 @@ module FatesHistoryInterfaceMod
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon              , only : EDPftvarcon_inst
-
+  use PRTParametersMod         , only : prt_params
+  
   ! CIME Globals
   use shr_log_mod              , only : errMsg => shr_log_errMsg
   use shr_infnan_mod           , only : isnan => shr_infnan_isnan
@@ -2089,7 +2090,7 @@ end subroutine flush_hvars
 
                      this%hvars(ih_agb_pa)%r81d(io_pa)     = &
                           this%hvars(ih_agb_pa)%r81d(io_pa)+ n_density * g_per_kg * &
-                          ( leaf_m + (sapw_m + struct_m + store_m) * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) )
+                          ( leaf_m + (sapw_m + struct_m + store_m) * prt_params%allom_agb_frac(ccohort%pft) )
                      
                   elseif(element_list(el).eq.nitrogen_element)then
 
@@ -2182,10 +2183,10 @@ end subroutine flush_hvars
                   hio_npp_leaf_si(io_si) = hio_npp_leaf_si(io_si) + leaf_m_net_alloc * n_perm2
                   hio_npp_seed_si(io_si) = hio_npp_seed_si(io_si) + repro_m_net_alloc * n_perm2
                   hio_npp_stem_si(io_si) = hio_npp_stem_si(io_si) + (sapw_m_net_alloc + struct_m_net_alloc) * n_perm2 * &
-                       (EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
+                       (prt_params%allom_agb_frac(ccohort%pft))
                   hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) + fnrt_m_net_alloc * n_perm2
                   hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) + (sapw_m_net_alloc + struct_m_net_alloc) * n_perm2 * &
-                       (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
+                       (1._r8-prt_params%allom_agb_frac(ccohort%pft))
                   hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) + store_m_net_alloc * n_perm2
                   
                   associate( scpf => ccohort%size_by_pft_class, &
@@ -2203,23 +2204,23 @@ end subroutine flush_hvars
                                                        fnrt_m_net_alloc*n_perm2
                     hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
                                                        sapw_m_net_alloc*n_perm2*           &
-                                                       (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
+                                                       (1._r8-prt_params%allom_agb_frac(ccohort%pft))
                     hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
                                                        sapw_m_net_alloc*n_perm2*           &
-                                                       EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
+                                                       prt_params%allom_agb_frac(ccohort%pft)
                     hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
                                                        struct_m_net_alloc*n_perm2*         &
-                                                       (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
+                                                       (1._r8-prt_params%allom_agb_frac(ccohort%pft))
                     hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
                                                        struct_m_net_alloc*n_perm2*         &
-                                                       EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
+                                                       prt_params%allom_agb_frac(ccohort%pft)
                     hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
                                                        repro_m_net_alloc*n_perm2
                     hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
                                                        store_m_net_alloc*n_perm2
 
                     ! Woody State Variables (basal area growth increment)
-                    if (EDPftvarcon_inst%woody(ft) == 1) then
+                    if ( int(prt_params%woody(ft)) == itrue) then
 
                        ! basal area  [m2/ha]
                        hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
@@ -2263,7 +2264,7 @@ end subroutine flush_hvars
 
 
                     hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
-                          total_m * ccohort%n * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) * AREA_INV
+                          total_m * ccohort%n * prt_params%allom_agb_frac(ccohort%pft) * AREA_INV
 
                     hio_biomass_si_scls(io_si,scls) = hio_biomass_si_scls(io_si,scls) + &
                           total_m * ccohort%n * AREA_INV
@@ -3005,6 +3006,8 @@ end subroutine flush_hvars
     integer  :: ft               ! functional type index
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: resp_g      ! growth respiration per timestep [kgC/indiv/step]
+    real(r8) :: npp         ! npp for this time-step (adjusted for g resp) [kgC/indiv/step]
+    real(r8) :: aresp       ! autotrophic respiration (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8) :: patch_area_by_age(nlevage) ! patch area in each bin for normalizing purposes
     real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
@@ -3146,10 +3149,18 @@ end subroutine flush_hvars
                   ! depending on our different allocation hypotheses
                   if( hlm_parteh_mode.eq.prt_carbon_allom_hyp) then
                      ! This is updated during photosynthesis
+                     npp    = ccohort%npp_tstep
                      resp_g = ccohort%resp_g_tstep
+                     aresp  = ccohort%resp_tstep
                   else
-                     ! This is updated during allocation
+                     ! If we impose growth respiration as a tax
+                     ! during growth, and not during photosyntheis
+                     ! we need to estimate growth respiration
+                     ! by using the previous day's mean, and passing
+                     ! that into npp and total autotrophic r
                      resp_g = ccohort%resp_g_daily / (sec_per_day/dt_tstep)
+                     npp    = ccohort%npp_tstep-resp_g
+                     aresp  = ccohort%resp_tstep+resp_g
                   end if
                   
                   ! Calculate index for the scpf class
@@ -3158,18 +3169,18 @@ end subroutine flush_hvars
 
                   ! scale up cohort fluxes to their patches
                   hio_npp_pa(io_pa) = hio_npp_pa(io_pa) + &
-                        ccohort%npp_tstep * g_per_kg * n_density * per_dt_tstep
+                        npp * g_per_kg * n_density * per_dt_tstep
                   hio_gpp_pa(io_pa) = hio_gpp_pa(io_pa) + &
                         ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep
                   hio_aresp_pa(io_pa) = hio_aresp_pa(io_pa) + &
-                        ccohort%resp_tstep * g_per_kg * n_density * per_dt_tstep
+                        aresp * g_per_kg * n_density * per_dt_tstep
                   hio_growth_resp_pa(io_pa) = hio_growth_resp_pa(io_pa) + &
                         resp_g * g_per_kg * n_density * per_dt_tstep
                   hio_maint_resp_pa(io_pa) = hio_maint_resp_pa(io_pa) + &
                         ccohort%resp_m * g_per_kg * n_density * per_dt_tstep
                   
                   ! map ed cohort-level npp fluxes to clm column fluxes
-                  hio_npp_si(io_si) = hio_npp_si(io_si) + ccohort%npp_tstep * n_perm2 * g_per_kg * per_dt_tstep
+                  hio_npp_si(io_si) = hio_npp_si(io_si) + npp * n_perm2 * g_per_kg * per_dt_tstep
 
                   ! aggregate MR fluxes to the site level
                   hio_leaf_mr_si(io_si) = hio_leaf_mr_si(io_si) + ccohort%rdark &
@@ -3215,7 +3226,7 @@ end subroutine flush_hvars
                   hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
                        + ccohort%gpp_tstep * ccohort%n * g_per_kg * per_dt_tstep
                   hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
-                       + ccohort%npp_tstep * ccohort%n * g_per_kg * per_dt_tstep
+                       + npp * ccohort%n * g_per_kg * per_dt_tstep
 
                   ! accumulate fluxes on canopy- and understory- separated fluxes
                   if (ccohort%canopy_layer .eq. 1) then
@@ -3224,7 +3235,7 @@ end subroutine flush_hvars
                      hio_gpp_canopy_pa(io_pa) = hio_gpp_canopy_pa(io_pa) + &
                           ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      hio_ar_canopy_pa(io_pa) = hio_ar_canopy_pa(io_pa) + &
-                          ccohort%resp_tstep * g_per_kg * n_density * per_dt_tstep                     
+                          aresp * g_per_kg * n_density * per_dt_tstep                     
                      !
                      ! size-resolved respiration fluxes are in kg C / ha / yr
                      hio_rdark_canopy_si_scls(io_si,scls) = hio_rdark_canopy_si_scls(io_si,scls) + &
@@ -3245,7 +3256,7 @@ end subroutine flush_hvars
                      hio_gpp_understory_pa(io_pa) = hio_gpp_understory_pa(io_pa) + &
                           ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      hio_ar_understory_pa(io_pa) = hio_ar_understory_pa(io_pa) + &
-                          ccohort%resp_tstep * g_per_kg * n_density * per_dt_tstep                     
+                          aresp * g_per_kg * n_density * per_dt_tstep                     
                      !
                      ! size-resolved respiration fluxes are in kg C / ha / yr
                      hio_rdark_understory_si_scls(io_si,scls) = hio_rdark_understory_si_scls(io_si,scls) + &

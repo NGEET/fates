@@ -63,9 +63,9 @@ module FatesCohortWrapMod
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_leafon
 
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootcexude
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootnexude
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootpexude
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux 
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_nefflux 
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_growresp
 
 
@@ -98,9 +98,9 @@ module FatesCohortWrapMod
      real(r8) :: daily_r_maint            !
      real(r8) :: daily_r_maint_demand          !
      real(r8) :: accum_r_maint_deficit  !
-     real(r8) :: carbon_root_exudate           !
-     real(r8) :: nitrogen_root_exudate         !
-     real(r8) :: phosphorus_root_exudate      !
+     real(r8) :: carbon_root_efflux
+     real(r8) :: nitrogen_root_efflux
+     real(r8) :: phosphorus_root_efflux
      integer  :: parteh_mode                 ! THIS IS NOT IN FATES
                                              ! WE MAKE THIS A PER-TREE
                                              ! ATTRIBUTE HERE FOR INTERCOMPARISON
@@ -150,15 +150,15 @@ contains
        ccohort%ddbhdt                   = -999.9_r8
        ccohort%daily_carbon_gain        = -999.9_r8
        ccohort%daily_nitrogen_gain      = -999.9_r8
-       ccohort%daily_phosphorus_gain   = -999.9_r8
+       ccohort%daily_phosphorus_gain    = -999.9_r8
        ccohort%daily_r_grow             = -999.9_r8
        ccohort%daily_r_maint            = -999.9_r8
        ccohort%daily_r_maint_demand     = -999.9_r8
        ccohort%accum_r_maint_deficit    = -999.9_r8
-       ccohort%carbon_root_exudate      = -999.9_r8
-       ccohort%nitrogen_root_exudate    = -999.9_r8
-       ccohort%phosphorus_root_exudate = -999.9_r8
-       ccohort%vcmax25top              = -999.9_r8
+       ccohort%carbon_root_efflux       = -999.9_r8
+       ccohort%nitrogen_root_efflux     = -999.9_r8
+       ccohort%phosphorus_root_efflux   = -999.9_r8
+       ccohort%vcmax25top               = -999.9_r8
     end do
 
     return
@@ -351,9 +351,9 @@ contains
        call ccohort%prt%RegisterBCIn(acnp_bc_in_id_leafon,bc_ival = ccohort%status_coh)
 
        ! Register Output Boundary Conditions
-       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootcexude,bc_rval = ccohort%carbon_root_exudate)
-       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootnexude,bc_rval = ccohort%nitrogen_root_exudate)
-       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootpexude,bc_rval = ccohort%phosphorus_root_exudate)
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux,bc_rval = ccohort%carbon_root_efflux)
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux,bc_rval = ccohort%nitrogen_root_efflux)
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux,bc_rval = ccohort%phosphorus_root_efflux)
        call ccohort%prt%RegisterBCOut(acnp_bc_out_id_growresp,bc_rval = ccohort%daily_r_grow )
 
     
@@ -410,7 +410,7 @@ contains
        call ccohort%prt%DailyPRT()
 
        ccohort%daily_r_grow = 0.0_r8
-       ccohort%carbon_root_exudate = 0.0_r8
+       ccohort%carbon_root_efflux = 0.0_r8
 
     case (prt_cnp_flex_allom_hyp)
 
@@ -496,7 +496,7 @@ contains
                                  leaf_p, fnrt_p, sapw_p, store_p, struct_p, repro_p, &
                                  leaf_pturn, fnrt_pturn, sapw_pturn, store_pturn, struct_pturn, &
                                  crown_area, &
-                                 carbon_root_exudate, nitrogen_root_exudate, phosphorus_root_exudate, &
+                                 carbon_root_efflux, nitrogen_root_efflux, phosphorus_root_efflux, &
                                  growth_resp )
     
     implicit none
@@ -541,9 +541,9 @@ contains
     real(r8),intent(out)   :: struct_pturn
 
 
-    real(r8),intent(out)   :: carbon_root_exudate
-    real(r8),intent(out)   :: nitrogen_root_exudate
-    real(r8),intent(out)   :: phosphorus_root_exudate
+    real(r8),intent(out)   :: carbon_root_efflux
+    real(r8),intent(out)   :: nitrogen_root_efflux
+    real(r8),intent(out)   :: phosphorus_root_efflux
     real(r8),intent(out)   :: growth_resp
     
     real(r8),intent(out)   :: crown_area
@@ -605,9 +605,9 @@ contains
 
     call carea_allom(ccohort%dbh,nplant,site_spread,ipft,crown_area)
 
-    carbon_root_exudate = ccohort%carbon_root_exudate
-    nitrogen_root_exudate = ccohort%nitrogen_root_exudate
-    phosphorus_root_exudate = ccohort%phosphorus_root_exudate
+    carbon_root_efflux = ccohort%carbon_root_efflux
+    nitrogen_root_efflux = ccohort%nitrogen_root_efflux
+    phosphorus_root_efflux = ccohort%phosphorus_root_efflux
 
     return
  end subroutine WrapQueryDiagnostics
