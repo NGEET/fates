@@ -29,6 +29,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceMod        , only : hlm_hio_ignore_val
   use FatesInterfaceMod        , only : hlm_use_planthydro
   use FatesInterfaceMod        , only : hlm_use_ed_st3
+  use FatesInterfaceMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceMod        , only : numpft
   use FatesInterfaceMod        , only : hlm_freq_day
   use EDParamsMod              , only : ED_val_comp_excln
@@ -2274,10 +2275,15 @@ end subroutine flush_hvars
                          (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
                     hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) + ccohort%frmort*ccohort%n
                     hio_m9_si_scpf(io_si,scpf) = hio_m9_si_scpf(io_si,scpf) + ccohort%smort*ccohort%n
-                    hio_m10_si_scpf(io_si,scpf) = hio_m10_si_scpf(io_si,scpf) + ccohort%asmort*ccohort%n
-                                      
-                    hio_m10_si_capf(io_si,capf) = hio_m10_si_capf(io_si,capf) + ccohort%asmort*ccohort%n
- 
+                    
+                    if (hlm_use_cohort_age_tracking .eq.itrue) then
+                       hio_m10_si_scpf(io_si,scpf) = hio_m10_si_scpf(io_si,scpf) + ccohort%asmort*ccohort%n
+                       hio_m10_si_capf(io_si,capf) = hio_m10_si_capf(io_si,capf) + ccohort%asmort*ccohort%n
+                       hio_m10_si_scls(io_si,scls) = hio_m10_si_scls(io_si,scls) + ccohort%asmort*ccohort%n
+                       hio_m10_si_cacls(io_si,cacls) = hio_m10_si_cacls(io_si,cacls)+ &
+                            ccohort%asmort*ccohort%n
+                    end if
+                    
                     hio_m1_si_scls(io_si,scls) = hio_m1_si_scls(io_si,scls) + ccohort%bmort*ccohort%n
                     hio_m2_si_scls(io_si,scls) = hio_m2_si_scls(io_si,scls) + ccohort%hmort*ccohort%n
                     hio_m3_si_scls(io_si,scls) = hio_m3_si_scls(io_si,scls) + ccohort%cmort*ccohort%n
@@ -2287,10 +2293,7 @@ end subroutine flush_hvars
                          ccohort%frmort*ccohort%n
                     hio_m9_si_scls(io_si,scls) = hio_m9_si_scls(io_si,scls) + ccohort%smort*ccohort%n
                   
-                    hio_m10_si_scls(io_si,scls) = hio_m10_si_scls(io_si,scls) + ccohort%asmort*ccohort%n
-      
-                    hio_m10_si_cacls(io_si,cacls) = hio_m10_si_cacls(io_si,cacls)+ &
-                         ccohort%asmort*ccohort%n
+                  
                    
                     !C13 discrimination
                     if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
@@ -2302,9 +2305,13 @@ end subroutine flush_hvars
 
                     ! number density [/ha]
                     hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n
+
                     ! number density along the cohort age dimension
-                    hio_nplant_si_capf(io_si,capf) = hio_nplant_si_capf(io_si,capf) + ccohort%n
-                  
+                    if (hlm_use_cohort_age_tracking .eq.itrue) then
+                       hio_nplant_si_capf(io_si,capf) = hio_nplant_si_capf(io_si,capf) + ccohort%n
+                       hio_nplant_si_cacls(io_si,cacls) = hio_nplant_si_cacls(io_si,cacls)+ccohort%n
+                    end if
+                    
                     ! number density by size and biomass
                     hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
                          total_c * ccohort%n * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) * AREA_INV
@@ -2322,7 +2329,7 @@ end subroutine flush_hvars
                     hio_nplant_si_scag(io_si,iscag) = hio_nplant_si_scag(io_si,iscag) + ccohort%n
 
                     hio_nplant_si_scls(io_si,scls) = hio_nplant_si_scls(io_si,scls) + ccohort%n
-                    hio_nplant_si_cacls(io_si,cacls) = hio_nplant_si_cacls(io_si,cacls)+ccohort%n
+                    
                   
                     ! update size, age, and PFT - indexed quantities
 
@@ -2821,13 +2828,13 @@ end subroutine flush_hvars
 
          hio_cwd_elcwd(io_si,:)   = 0._r8
 
-
+         
          do el = 1, num_elements
             
             flux_diags => sites(s)%flux_diags(el)
             
             ! Sum up all input litter fluxes (above below, fines, cwd)
-            hio_litter_in_elem(io_si, el) = hio_litter_in_elem(io_si, el) + &
+            hio_litter_in_elem(io_si, el) =  & 
                  sum(flux_diags%cwd_ag_input(:)) + & 
                  sum(flux_diags%cwd_bg_input(:)) + &
                  sum(flux_diags%leaf_litter_input(:)) + &
@@ -2843,6 +2850,7 @@ end subroutine flush_hvars
             hio_seed_decay_elem(io_si,el)     = 0._r8
             hio_seeds_in_local_elem(io_si,el) = 0._r8
             hio_seed_in_extern_elem(io_si,el) = 0._r8
+            hio_litter_out_elem(io_si,el)     = 0._r8
             
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
@@ -2857,7 +2865,7 @@ end subroutine flush_hvars
                      sum(litt%root_fines_frag(:,:)) + &
                      sum(litt%ag_cwd_frag(:)) + & 
                      sum(litt%bg_cwd_frag(:,:))) * area_frac
-               
+
                hio_seed_bank_elem(io_si,el) = hio_seed_bank_elem(io_si,el) + & 
                     sum(litt%seed(:)) * area_frac
 
