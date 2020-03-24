@@ -98,11 +98,16 @@ contains
     end if
 
     ! if param values have been set then calculate asmort
+
+    
+
+    mort_r_age_senescence = EDPftvarcon_inst%mort_r_age_senescence(cohort_in%pft)
+    mort_ip_age_senescence = EDPftvarcon_inst%mort_ip_age_senescence(cohort_in%pft)
+    
     if ( mort_ip_age_senescence < fates_check_param_set ) then
        ! Age Dependent Senescence
        ! rate and inflection point define the change in mortality with age
-       mort_r_age_senescence = EDPftvarcon_inst%mort_r_age_senescence(cohort_in%pft)
-       mort_ip_age_senescence = EDPftvarcon_inst%mort_ip_age_senescence(cohort_in%pft)
+       
        asmort = 1.0_r8 / (1.0_r8 + exp(-1.0_r8 * mort_r_age_senescence * &
             (cohort_in%coage - mort_ip_age_senescence ) ) )
     else
