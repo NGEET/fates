@@ -53,6 +53,7 @@ module FatesPlantHydraulicsMod
   use EDTypesMod        , only : ed_cohort_type
   use EDTypesMod        , only : AREA_INV
   use EDTypesMod        , only : AREA
+  use EDTypesMod        , only : leaves_on
 
   use FatesInterfaceMod  , only : bc_in_type
   use FatesInterfaceMod  , only : bc_out_type
@@ -61,6 +62,7 @@ module FatesPlantHydraulicsMod
   use FatesInterfaceMod  , only : numpft
   use FatesInterfaceMod  , only : nlevsclass
 
+  use FatesAllometryMod, only    : bleaf
   use FatesAllometryMod, only    : bsap_allom
   use FatesAllometryMod, only    : CrownDepth
   use FatesAllometryMod , only   : set_root_fraction
@@ -779,6 +781,7 @@ contains
     real(r8) :: roota                        ! root profile parameter a zeng2001_crootfr
     real(r8) :: rootb                        ! root profile parameter b zeng2001_crootfr
     real(r8) :: leaf_c                       ! Current amount of leaf carbon in the plant                            [kg]
+    real(r8) :: leaf_c_target                ! Target leaf carbon (with some conditions) [kgC]
     real(r8) :: fnrt_c                       ! Current amount of fine-root carbon in the plant                       [kg]
     real(r8) :: sapw_c                       ! Current amount of sapwood carbon in the plant                         [kg]
     real(r8) :: struct_c                     ! Current amount of structural carbon in the plant                      [kg]
@@ -803,8 +806,12 @@ contains
     ! roots to help mitigate numerical issues due to very small volumes. This is the
     ! fraction the transporting roots donate to those layers
     real(r8), parameter :: t2aroot_vol_donate_frac = 0.65_r8
-    
 
+    real(r8), parameter :: min_leaf_frac = 0.1_r8   ! Fraction of maximum leaf carbon that
+                                                    ! we set as our lower cap on leaf volume
+    real(r8), parameter :: min_trim      = 0.1_r8   ! The lower cap on trimming function used
+                                                    ! to estimate maximum leaf carbon
+    
     ccohort_hydr => ccohort%co_hydr
     ft           = ccohort%pft
     nlevrhiz = site_hydr%nlevrhiz
@@ -829,24 +836,32 @@ contains
     denleaf                    = -2.3231_r8*sla/EDPftvarcon_inst%c2b(ft) + 781.899_r8    
  
     ! Leaf volumes
-    ! Note: We only update the leaf volume if there is leaf mass, thus preventing
-    ! us from calculating a zero volume.  We do this because, in deciduous trees,
-    ! when they drop their leaves, we actually want to keep the leaf water they had
-    ! in stasis.  So that when they reflush, there is water there to work with.  But
-    ! if we zero out the comapartment when we flush, we have no way to conserve
-    ! that water.  Until we have a better way to provide water on flushing,
-    ! we do this (rgk 03/20)
+    ! Note: Leaf volumes of zero is problematic for two reasons.  Zero volumes create
+    ! numerical difficulties, and they could also create problems when a leaf is trying
+    ! to re-flush.
+    ! Therefore, if the leaf is in an "off" status, then we do not update the leaf
+    ! volume.  This way the volume is where it was when it dropped, and this is consistent
+    ! with the theory that leaf water potentials drive growth and re-flushing, not the
+    ! other way around.  However, it is possible that we may have recruits with an
+    ! "off" status (due to external seed rain active during a dry or cold season). If a
+    ! cohort is newly created, we must give it a starting volume.
+    ! We also place a lower bound on how low the leaf volume is allowed to go, which is 10%
+    ! of the plant's carrying capacity.
+
     
     ! [kgC] * [kg/kgC] / [kg/m3] -> [m3]
-    ! Using rsnbl_math_prec here. Objective is to catch leaves that are in a dormant (off) state
-    ! but for any possible reason. If a leaf biomass is very close to zero, but not zero, we
-    ! will update the volume, which will force us to remove a lot of water, which will prevent
-    ! it from coming back in the wet season. Thus, we want to avoid any strange edge cases, and use
-    ! rsnbl_math_prec.
-    if(leaf_c>rsnbl_math_prec) then
-       ccohort_hydr%v_ag(1:n_hypool_leaf) = leaf_c * EDPftvarcon_inst%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
-    end if
 
+
+    ! Get the target, or rather, maximum leaf carrying capacity of plant
+    ! Lets also avoid super-low targets that have very low trimming functions
+
+    call bleaf(ccohort%dbh,ccohort%pft,max(ccohort%canopy_trim,min_trim),leaf_c_target)
+
+    if( (ccohort%status_coh == leaves_on) .or. ccohort_hydr%is_newly_recruited ) then
+       ccohort_hydr%v_ag(1:n_hypool_leaf) = max(leaf_c,min_leaf_frac*leaf_c_target) * &
+            EDPftvarcon_inst%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
+    end if
+    
     ! Step sapwood volume
     ! -----------------------------------------------------------------------------------
 
