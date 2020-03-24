@@ -2821,13 +2821,13 @@ end subroutine flush_hvars
 
          hio_cwd_elcwd(io_si,:)   = 0._r8
 
-
+         
          do el = 1, num_elements
             
             flux_diags => sites(s)%flux_diags(el)
             
             ! Sum up all input litter fluxes (above below, fines, cwd)
-            hio_litter_in_elem(io_si, el) = hio_litter_in_elem(io_si, el) + &
+            hio_litter_in_elem(io_si, el) =  & 
                  sum(flux_diags%cwd_ag_input(:)) + & 
                  sum(flux_diags%cwd_bg_input(:)) + &
                  sum(flux_diags%leaf_litter_input(:)) + &
@@ -2843,6 +2843,7 @@ end subroutine flush_hvars
             hio_seed_decay_elem(io_si,el)     = 0._r8
             hio_seeds_in_local_elem(io_si,el) = 0._r8
             hio_seed_in_extern_elem(io_si,el) = 0._r8
+            hio_litter_out_elem(io_si,el)     = 0._r8
             
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
@@ -2857,7 +2858,7 @@ end subroutine flush_hvars
                      sum(litt%root_fines_frag(:,:)) + &
                      sum(litt%ag_cwd_frag(:)) + & 
                      sum(litt%bg_cwd_frag(:,:))) * area_frac
-               
+
                hio_seed_bank_elem(io_si,el) = hio_seed_bank_elem(io_si,el) + & 
                     sum(litt%seed(:)) * area_frac
 
