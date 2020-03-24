@@ -19,9 +19,7 @@ module FatesCohortWrapMod
   use FatesAllometryMod,     only : h2d_allom
   use FatesAllometryMod,     only : tree_lai
   use FatesAllometryMod,     only : carea_allom
-
-  use EDPftvarcon,            only : EDPftvarcon_inst
-
+  use PRTParametersMod,      only : prt_params
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
@@ -297,19 +295,19 @@ contains
 
        ! Initializing with the target stoichiometric ratios
        ! (OR you can initialize with the minimum ratios too.... p2)
-       leaf_n = leaf_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ)
-       fnrt_n = fnrt_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ)
-       sapw_n = sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
-       store_n = store_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,store_organ)
-       struct_n = struct_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,struct_organ)
-       repro_n = repro_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ)
+       leaf_n = leaf_c * prt_params%nitr_stoich_p1(ipft,leaf_organ)
+       fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ipft,fnrt_organ)
+       sapw_n = sapw_c * prt_params%nitr_stoich_p1(ipft,sapw_organ)
+       store_n = store_c * prt_params%nitr_stoich_p1(ipft,store_organ)
+       struct_n = struct_c * prt_params%nitr_stoich_p1(ipft,struct_organ)
+       repro_n = repro_c * prt_params%nitr_stoich_p1(ipft,repro_organ)
        
-       leaf_p = leaf_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,leaf_organ)
-       fnrt_p = fnrt_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,fnrt_organ)
-       sapw_p = sapw_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,sapw_organ)
-       store_p = store_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,store_organ)
-       struct_p = struct_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,struct_organ)
-       repro_p = repro_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ)
+       leaf_p = leaf_c * prt_params%phos_stoich_p1(ipft,leaf_organ)
+       fnrt_p = fnrt_c * prt_params%phos_stoich_p1(ipft,fnrt_organ)
+       sapw_p = sapw_c * prt_params%phos_stoich_p1(ipft,sapw_organ)
+       store_p = store_c * prt_params%phos_stoich_p1(ipft,store_organ)
+       struct_p = struct_c * prt_params%phos_stoich_p1(ipft,struct_organ)
+       repro_p = repro_c * prt_params%phos_stoich_p1(ipft,repro_organ)
 
        ccohort%accum_r_maint_deficit = 0.0_r8
        
@@ -339,10 +337,6 @@ contains
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdc,bc_rval = ccohort%daily_carbon_gain)
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn,bc_rval = ccohort%daily_nitrogen_gain)
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp,bc_rval = ccohort%daily_phosphorus_gain)
-
-       print*,'N GAIN: ',ccohort%daily_nitrogen_gain
-       print*,'P GAIN: ',ccohort%daily_phosphorus_gain
-
        call ccohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def, bc_rval = ccohort%accum_r_maint_deficit) 
 
        ! Register Input only BC's
@@ -390,9 +384,6 @@ contains
     ccohort%status_coh = leaf_status
 
     ! Zero the rate of change and the turnover arrays
-
-    print*,"NGAIN0: ",daily_nitrogen_gain
-    print*,"PGAIN0: ",daily_phosphorus_gain
 
     call ccohort%prt%ZeroRates()
 

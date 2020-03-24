@@ -10,18 +10,22 @@
     <!-- we want to introduce real data drivers            -->
     <timestep_sec> 86400 </timestep_sec>
     <date_start> 1500-01-01 </date_start>
-    <date_stop>  1520-01-01 </date_stop>
+    <date_stop>  1700-01-01 </date_stop>
     <max_trunc_error> 0.001 </max_trunc_error>
   </time_control>
 
-  <fates_cdl_file>fates_params_3trop.c190715.cdl</fates_cdl_file>
+  <fates_cdl_file>../../parameter_files/fates_params_default.cdl</fates_cdl_file>
 
   <!-- <boundary_formulation method="AllometricCarbon"> DailyCFromCArea  </boundary_formulation> -->
 
   <boundary_formulation>DailyCNPFromStorageSinWaveNoMaint</boundary_formulation>
 
+  <!-- These are the PFT indices in the CDL parameter file that match the different plants
+       in the driver_parameters section -->
+  <use_pfts> 1,1,1 </use_pfts>
+  
   <driver_parameters >
-	<pft_par name="parteh_model"> 1,1,2  </pft_par>
+    <pft_par name="parteh_model"> 1,1,2  </pft_par>
     <pft_par name="fates_prescribed_npp_p1">   0.4, 0.4, 0.4  </pft_par>
     <pft_par name="fates_prescribed_nflux_p1"> 4, 4, 4 </pft_par>
     <pft_par name="fates_prescribed_pflux_p1"> 4, 4, 4 </pft_par>

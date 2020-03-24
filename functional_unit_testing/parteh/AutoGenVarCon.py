@@ -12,7 +12,7 @@ F90ParamParse = imp.load_source('F90ParamParse','py_modules/F90ParamParse.py')
 CDLParse = imp.load_source('CDLParse','py_modules/CDLParse.py')
 
 
-from F90ParamParse import f90_param_type, GetSymbolUsage, GetPFTParmFileSymbols, MakeListUnique
+from F90ParamParse import f90_param_type, GetParamsInFile, GetPFTParmFileSymbols, MakeListUnique
 from CDLParse import CDLParseDims, CDLParseParam, cdl_param_type
 
 
@@ -22,30 +22,13 @@ from CDLParse import CDLParseDims, CDLParseParam, cdl_param_type
 # The procedure GetSymbolUsage() returns a list of strings (non-unique)
 # -------------------------------------------------------------------------------------
 
-check_str = 'EDPftvarcon_inst%'
+var_list = GetParamsInFile('../../parteh/PRTParametersMod.F90')
 
-var_list0 = GetSymbolUsage('../../parteh/PRTLossFluxesMod.F90',check_str)
-var_list0.extend(GetSymbolUsage('../../biogeochem/FatesAllometryMod.F90',check_str))
-var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCarbonMod.F90',check_str))
-var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCNPMod.F90',check_str))
-
-# Add some extra parameters (not used in F90 code, but used in python code)
-var_list0.append(f90_param_type('season_decid'))
-var_list0.append(f90_param_type('stress_decid'))
-var_list0.append(f90_param_type('hgt_min'))
-
-# This is the unique list of PFT parameters found in the salient Fortran code
-
-var_list = MakeListUnique(var_list0)
 
 # Now look through EDPftvarcon.F90 to determine the variable name in file
 # that is associated with the variable pointer
 
-var_list = GetPFTParmFileSymbols(var_list,'../../main/EDPftvarcon.F90')
-
-#var_list.append(f90_param_type('parteh_mode'))
-#var_list[-1].var_name = 'fates_parteh_mode'
-
+var_list = GetPFTParmFileSymbols(var_list,'../../parteh/PRTParamsFATESMod.F90')
 
 # -------------------------------------------------------------
 # We can now cross reference our list of parameters against
@@ -69,7 +52,7 @@ dims = CDLParseDims(default_file_relpath)
 
 parms = {}
 for elem in var_list:
-    parms[elem.var_sym] = CDLParseParam(default_file_relpath,cdl_param_type(elem.var_name),dims)
+    parms[elem.var_sym] = CDLParseParam(default_file_relpath,cdl_param_type(elem.var_name,True),dims)
     print('Finished loading PFT parameters')
 
 
@@ -122,18 +105,6 @@ for i,str in enumerate(contents):
     if 'VARIABLE-DEFINITIONS-HERE' in str:
         index0=i
 
-index=index0+2
-for symbol, var in parms.iteritems():
-
-    if(var.ndims==1):
-        contents.insert(index,'    real(r8),pointer :: {}(:)\n'.format(symbol))
-    elif(var.ndims==2):
-        contents.insert(index,'    real(r8),pointer :: {}(:,:)\n'.format(symbol))
-    else:
-        print('Incorrect number of dims...')
-        exit(-2)
-    index=index+1
-
 # Identify where we do the pointer assignments, and insert the pointer assignments
 
 
@@ -157,20 +128,20 @@ for symbol, var in parms.iteritems():
 
 
     if(var.ndims==1):
-        ins_l1='\t allocate(EDPftvarcon_inst%{}({}))\n'.format(symbol,dim_alloc_str)
-        ins_l2='\t EDPftvarcon_inst%{}(:) = fates_unset_r8\n'.format(symbol)
+        ins_l1='\t allocate(prt_params%{}({}))\n'.format(symbol,dim_alloc_str)
+        ins_l2='\t prt_params%{}(:) = fates_unset_r8\n'.format(symbol)
         ins_l3='\t iv1 = iv1 + 1\n'
-        ins_l4='\t EDPftvarcon_ptr%var1d(iv1)%var_name = "{}"\n'.format(var.symbol)
-        ins_l5='\t EDPftvarcon_ptr%var1d(iv1)%var_rp   => EDPftvarcon_inst%{}\n'.format(symbol)
-        ins_l6='\t EDPftvarcon_ptr%var1d(iv1)%vtype    = 1\n'
+        ins_l4='\t prt_params_ptr%var1d(iv1)%var_name = "{}"\n'.format(var.symbol)
+        ins_l5='\t prt_params_ptr%var1d(iv1)%var_rp   => prt_params%{}\n'.format(symbol)
+        ins_l6='\t prt_params_ptr%var1d(iv1)%vtype    = 1\n'
         ins_l7='\n'
     elif(var.ndims==2):
-        ins_l1='\t allocate(EDPftvarcon_inst%{}({}))\n'.format(symbol,dim_alloc_str)
-        ins_l2='\t EDPftvarcon_inst%{}(:,:) = fates_unset_r8\n'.format(symbol)
+        ins_l1='\t allocate(prt_params%{}({}))\n'.format(symbol,dim_alloc_str)
+        ins_l2='\t prt_params%{}(:,:) = fates_unset_r8\n'.format(symbol)
         ins_l3='\t iv2 = iv2 + 1\n'
-        ins_l4='\t EDPftvarcon_ptr%var2d(iv2)%var_name = "{}"\n'.format(var.symbol)
-        ins_l5='\t EDPftvarcon_ptr%var2d(iv2)%var_rp   => EDPftvarcon_inst%{}\n'.format(symbol)
-        ins_l6='\t EDPftvarcon_ptr%var2d(iv2)%vtype    = 1\n'
+        ins_l4='\t prt_params_ptr%var2d(iv2)%var_name = "{}"\n'.format(var.symbol)
+        ins_l5='\t prt_params_ptr%var2d(iv2)%var_rp   => prt_params%{}\n'.format(symbol)
+        ins_l6='\t prt_params_ptr%var2d(iv2)%vtype    = 1\n'
         ins_l7='\n'
     else:
         print('Auto-generating FORTRAN parameter code does not handle >2D')

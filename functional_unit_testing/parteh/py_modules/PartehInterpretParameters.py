@@ -36,6 +36,13 @@ def load_xml(xmlfile):  #
 
     fates_cdl_file = xmlroot.find('fates_cdl_file').text
 
+    # List of PFTs for the plants
+
+    use_pfts_text = xmlroot.find('use_pfts').text
+    use_pfts = []
+    for use_pft in use_pfts_text.strip().split(','):
+        use_pfts.append(int(use_pft))
+
     # Specify the boundary condition
     # -----------------------------------------------------------------------------------
 
@@ -66,8 +73,8 @@ def load_xml(xmlfile):  #
         pft_param_name = par_elem.attrib['name'].strip()
         pft_param_val  = par_elem.text.strip()
         pft_vector = [float(i) for i in pft_param_val.split(',')]
-        if (len(pft_vector) < 1):
-            print('parameter was given no value?')
+        if (len(pft_vector) != len(use_pfts)):
+            print('PFT parameters in xml file must have as as many entries as use_pfts')
             print('{} is: {}'.format(pft_param_name,pft_param_val))
             print('exiting')
             exit(1)
@@ -83,4 +90,4 @@ def load_xml(xmlfile):  #
     print("\n\n Completed Interpreting: "+xmlfile)
 
 
-    return(time_control, fates_cdl_file, driver_params, boundary_method )
+    return(time_control, fates_cdl_file, driver_params, boundary_method, use_pfts)

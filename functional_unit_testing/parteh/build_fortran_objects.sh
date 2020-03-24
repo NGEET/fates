@@ -51,7 +51,15 @@ python AutoGenVarCon.py
 
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/FatesConstantsMod.o  f90src/FatesConstantsMod.F90
 
+
+# The Parameter Definitions
+${FC} ${F_OPTS} $MOD_FLAG bld/ -I bld/ -o bld/PRTParametersMod.o ../../parteh/PRTParametersMod.F90
+
+
+
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/UnitWrapMod.o f90src/UnitWrapMod.F90
+
+
 
 
 # Generic Integration routines (all native types except defined constants)

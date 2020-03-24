@@ -60,20 +60,15 @@ module EDTypesMod
 end module EDTypesMod
 
 
-module EDPftvarcon
+module PRTParamsGeneric
 
    use iso_c_binding, only : r8 => c_double
    use iso_c_binding, only : i4 => c_int
    use iso_c_binding, only : c_char
+   use PRTParametersMod, only : prt_params
 
    integer,parameter :: SHR_KIND_CS = 80                     ! short char
 
-   type, public :: EDPftvarcon_inst_type
-
-   ! VARIABLE-DEFINITIONS-HERE (DO NOT REMOVE THIS LINE, OR MOVE IT)
-
-
-   end type EDPftvarcon_inst_type
 
   type ptr_var1
      real(r8), dimension(:), pointer :: var_rp
@@ -89,14 +84,13 @@ module EDPftvarcon
      integer :: vtype
   end type ptr_var2
 
-  type EDPftvarcon_ptr_type
+
+  type prt_params_ptr_type
      type(ptr_var1), allocatable :: var1d(:)
-	 type(ptr_var2), allocatable :: var2d(:)
-  end type EDPftvarcon_ptr_type
+     type(ptr_var2), allocatable :: var2d(:)
+  end type prt_params_ptr_type
 
-
-  type(EDPftvarcon_inst_type), public :: EDPftvarcon_inst ! ED ecophysiological constants structure
-  type(EDPftvarcon_ptr_type),  public :: EDPftvarcon_ptr  ! Pointer structure for obj-oriented id
+  type(prt_params_ptr_type),  public :: prt_params_ptr
 
   integer :: numparm1d ! Number of different PFT parameters
   integer :: numparm2d
@@ -106,7 +100,7 @@ module EDPftvarcon
 contains
 
 
-   subroutine EDPftvarconPySet(rval,ival,indx1,indx2,name)
+   subroutine PRTParamsPySet(rval,ival,indx1,indx2,name)
 
       implicit none
       ! Arguments
@@ -122,19 +116,19 @@ contains
 
       namelen = len(trim(name))
 
-	  if(debug) print*,"F90: ARGS: ",trim(name)," IPFT: ",indx1," D2: ",indx2," RVAL: ",rval," IVAL: ",ival
+      	  if(debug) print*,"F90: ARGS: ",trim(name)," IPFT: ",indx1," D2: ",indx2," RVAL: ",rval," IVAL: ",ival
 
       ip=0
       npfound = .false.
       do ip=1,numparm1d
 
-         if (trim(name) == trim(EDPftvarcon_ptr%var1d(ip)%var_name ) ) then
+         if (trim(name) == trim(prt_params_ptr%var1d(ip)%var_name ) ) then
             print*,"F90: Found ",trim(name)," in lookup table"
             npfound = .true.
-            if(EDPftvarcon_ptr%var1d(ip)%vtype == 1) then ! real
-               EDPftvarcon_ptr%var1d(ip)%var_rp(indx1) = rval
-            elseif(EDPftvarcon_ptr%var1d(ip)%vtype == 2) then ! integer
-               EDPftvarcon_ptr%var1d(ip)%var_ip(indx1) = ival
+            if(prt_params_ptr%var1d(ip)%vtype == 1) then ! real
+               prt_params_ptr%var1d(ip)%var_rp(indx1) = rval
+            elseif(prt_params_ptr%var1d(ip)%vtype == 2) then ! integer
+               prt_params_ptr%var1d(ip)%var_ip(indx1) = ival
             else
                print*,"F90: STRANGE TYPE"
                stop
@@ -143,13 +137,13 @@ contains
       end do
 
       do ip=1,numparm2d
-         if (trim(name) == trim(EDPftvarcon_ptr%var2d(ip)%var_name ) ) then
+         if (trim(name) == trim(prt_params_ptr%var2d(ip)%var_name ) ) then
             print*,"F90: Found ",trim(name)," in lookup table"
             npfound = .true.
-            if(EDPftvarcon_ptr%var2d(ip)%vtype == 1) then ! real
-               EDPftvarcon_ptr%var2d(ip)%var_rp(indx1,indx2) = rval
-            elseif(EDPftvarcon_ptr%var2d(ip)%vtype == 2) then ! integer
-               EDPftvarcon_ptr%var2d(ip)%var_ip(indx1,indx2) = ival
+            if(prt_params_ptr%var2d(ip)%vtype == 1) then ! real
+               prt_params_ptr%var2d(ip)%var_rp(indx1,indx2) = rval
+            elseif(prt_params_ptr%var2d(ip)%vtype == 2) then ! integer
+               prt_params_ptr%var2d(ip)%var_ip(indx1,indx2) = ival
             else
                print*,"F90: STRANGE TYPE"
                stop
@@ -167,28 +161,28 @@ contains
 
 	  ! Perform a check to see if the target array is being filled
       if (trim(name) == 'fates_allom_d2h1') then
-         if (EDPftvarcon_inst%allom_d2h1(indx1) == rval) then
-            print*,"F90: POINTER CHECK PASSES:",rval," = ",EDPftvarcon_inst%allom_d2h1(indx1)
+         if (prt_params%allom_d2h1(indx1) == rval) then
+            print*,"F90: POINTER CHECK PASSES:",rval," = ",prt_params%allom_d2h1(indx1)
          else
-            print*,"F90: POINTER CHECK FAILS:",rval," != ",EDPftvarcon_inst%allom_d2h1(indx1)
+            print*,"F90: POINTER CHECK FAILS:",rval," != ",prt_params%allom_d2h1(indx1)
             stop
          end if
       end if
 
       if (trim(name) == 'fates_wood_density' ) then
-         if (EDPftvarcon_inst%wood_density(indx1) == rval) then
-            print*,"F90: POINTER CHECK PASSES:",rval," = ",EDPftvarcon_inst%wood_density(indx1)
+         if (prt_params%wood_density(indx1) == rval) then
+            print*,"F90: POINTER CHECK PASSES:",rval," = ",prt_params%wood_density(indx1)
          else
-            print*,"F90: POINTER CHECK FAILS:",rval," != ",EDPftvarcon_inst%wood_density(indx1)
+            print*,"F90: POINTER CHECK FAILS:",rval," != ",prt_params%wood_density(indx1)
             stop
          end if
       end if
 
       return
-   end subroutine EDPftvarconPySet
+  end subroutine PRTParamsPySet
 
 
-  subroutine EDPftvarconAlloc(ARGUMENT_IN1)
+  subroutine PRTParamsAlloc(ARGUMENT_IN1)
     !
     use FatesConstantsMod, only : fates_unset_r8
 
@@ -199,27 +193,27 @@ contains
 
     ! LOCALS:
     integer                    :: iv1   ! The parameter incrementer
-	integer                    :: iv2
+    integer                    :: iv2
     !------------------------------------------------------------------------
 
-    allocate( EDPftvarcon_ptr%var1d(100)) ! Make this plenty large
-	allocate( EDPftvarcon_ptr%var2d(100))
+    allocate( prt_params_ptr%var1d(100)) ! Make this plenty large
+	allocate( prt_params_ptr%var2d(100))
 	iv1=0
 	iv2=0
 
 	! POINTER-SPECIFICATION-HERE (DO NOT REMOVE THIS LINE, OR MOVE IT)
 
 
-    numparm1d = iv1
+        numparm1d = iv1
 	numparm2d = iv2
 
-    print*,"F90: ALLOCATED ",numparm1d," 1D PARAMETERS"
-    print*,"F90: ALLOCATED ",numparm2d," 2D PARAMETERS"
-    print*,"FOR ",fates_pft," PFTs"
+        print*,"F90: ALLOCATED ",numparm1d," 1D PARAMETERS"
+        print*,"F90: ALLOCATED ",numparm2d," 2D PARAMETERS"
+        print*,"FOR ",fates_pft," PFTs"
 
 	numpft = fates_pft
 
     return
- end subroutine EDPftvarconAlloc
+ end subroutine PRTParamsAlloc
 
-end module EDPftvarcon
+end module PRTParamsGeneric

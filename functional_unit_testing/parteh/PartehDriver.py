@@ -25,7 +25,7 @@ import matplotlib as mpl
 #mpl.use('Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
-#from matplotlib.backends.backend_pdf import PdfPages
+import argparse
 import platform
 import numpy as np
 import os
@@ -47,10 +47,10 @@ F90ParamParse = imp.load_source('F90ParamParse','py_modules/F90ParamParse.py')
 
 from PartehInterpretParameters import load_xml
 from CDLParse import CDLParseDims, CDLParseParam, cdl_param_type
-from F90ParamParse import f90_param_type, GetSymbolUsage, GetPFTParmFileSymbols, MakeListUnique
-
+from F90ParamParse import f90_param_type, GetParamsInFile, GetPFTParmFileSymbols, MakeListUnique
 
 f90_fates_integrators_obj_name = 'bld/FatesIntegratorsMod.o'
+f90_fates_parteh_params_obj_name = 'bld/PRTParametersMod.o'
 f90_fates_partehwrap_obj_name  = 'bld/FatesPARTEHWrapMod.o'
 f90_fates_lossfluxes_obj_name  = 'bld/PRTLossFluxesMod.o'
 f90_fates_parteh_generic_obj_name = 'bld/PRTGenericMod.o'
@@ -74,6 +74,7 @@ f90_fates_allom_obj_name = 'bld/FatesAllometryMod.o'
 # Note that these calls instantiate the modules
 
 f90_fates_integrators_obj    = ctypes.CDLL(f90_fates_integrators_obj_name,mode=ctypes.RTLD_GLOBAL)
+f90_fates_parteh_params_obj  = ctypes.CDLL(f90_fates_parteh_params_obj_name,mode=ctypes.RTLD_GLOBAL)
 f90_fates_unitwrap_obj        = ctypes.CDLL(f90_fates_unitwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
 f90_fates_parteh_generic_obj = ctypes.CDLL(f90_fates_parteh_generic_obj_name,mode=ctypes.RTLD_GLOBAL)
 f90_fates_allom_obj          = ctypes.CDLL(f90_fates_allom_obj_name,mode=ctypes.RTLD_GLOBAL)
@@ -84,11 +85,7 @@ f90_fates_partehwrap_obj = ctypes.CDLL(f90_fates_partehwrap_obj_name,mode=ctypes
 f90_fates_cohortwrap_obj = ctypes.CDLL(f90_fates_cohortwrap_obj_name,mode=ctypes.RTLD_GLOBAL)
 
 
-# =======================================================================================
-# Some Global Parmaeters
 
-## The name of the xml file containing site data (should not change)
-xml_file = ''
 
 
 # ========================================================================================
@@ -98,7 +95,7 @@ xml_file = ''
 # ========================================================================================
 
 
-def main(argv):
+def main():
 
     # First check to make sure python 2.7 is being used
     version = platform.python_version()
@@ -111,44 +108,39 @@ def main(argv):
         print(" exiting...")
         sys.exit(2)
 
+    parser = argparse.ArgumentParser(description='Parse command line arguments to this script.')
+    parser.add_argument('--xml-file', dest='xml_file', type=str, help="The path to the XML file controling this simulation.",required=True)
+    args = parser.parse_args()
 
-    # Retrieve the name and path to the xml control file
-    # from the input arguments
-    xml_file = interp_args(argv)
+    xml_file = args.xml_file
 
     # This loads the dictionaries of, and lists of objects that
     # define the variables, parameters and forms that govern the
     # system of equations and solution
-    [time_control, fates_cdl_file, driver_params, boundary_method] = load_xml(xml_file)
+    [time_control, fates_cdl_file, driver_params, boundary_method,use_pfts] = load_xml(xml_file)
 
+    num_plants = len(use_pfts)
+    
 
     # -------------------------------------------------------------------------------------
     # Check through the fortran Code we are coupling with, determine the list of parameters
     # that we need.
-    # The procedure GetSymbolUsage() returns a list of strings (non-unique)
     # -------------------------------------------------------------------------------------
 
-    check_str = 'EDPftvarcon_inst%'
-
-    var_list0 = GetSymbolUsage('../../parteh/PRTLossFluxesMod.F90',check_str)
-    var_list0.extend(GetSymbolUsage('../../biogeochem/FatesAllometryMod.F90',check_str))
-    var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCarbonMod.F90',check_str))
-    var_list0.extend(GetSymbolUsage('../../parteh/PRTAllometricCNPMod.F90',check_str))
-
-    # Add some extra parameters (not used in F90 code, but used in python code)
-    var_list0.append(f90_param_type('season_decid'))
-    var_list0.append(f90_param_type('stress_decid'))
-    var_list0.append(f90_param_type('hgt_min'))
-
-
-    # This is the unique list of PFT parameters found in the salient Fortran code
-    var_list = MakeListUnique(var_list0)
+    var_list = GetParamsInFile('../../parteh/PRTParametersMod.F90')
 
 
     # Now look through EDPftvarcon.F90 to determine the variable name in file
     # that is associated with the variable pointer
 
-    var_list = GetPFTParmFileSymbols(var_list,'../../main/EDPftvarcon.F90')
+    var_list = GetPFTParmFileSymbols(var_list,'../../parteh/PRTParamsFATESMod.F90')
+    
+
+    # This variable is not added to the list we send to fortran, this
+    # is only for the initial condition on the python side
+    var_list.append(f90_param_type('hgt_min','fates_recruit_hgt_min',False))
+    
+
 
     # -------------------------------------------------------------
     # We can now cross reference our list of parameters against
@@ -162,33 +154,27 @@ def main(argv):
 
     fates_params = {}
     for elem in var_list:
-        fates_params[elem.var_sym] = CDLParseParam(fates_cdl_file,cdl_param_type(elem.var_name),dims)
+        fates_params[elem.var_sym] = CDLParseParam(fates_cdl_file,cdl_param_type(elem.var_name,elem.in_f90),dims)
     print('Finished loading PFT parameters')
 
+    
+    
     num_pfts   = dims['fates_pft']
     num_organs = dims['fates_prt_organs']
-
-    # Cross check the number of PFTs in the unit test driver control file,
-    # And make sure that it matches the number of PFTs in the FATES parameter file
-    if(num_pfts !=  len(driver_params['parteh_model'].param_vals)):
-        print('The number of PFTS in the fates parameter file does not match')
-        print(' the number of pfts in the unit test control file')
-        print(' FATES N-PFT: {}, file: {}'.format(num_pfts,fates_cdl_file))
-        print(' Driver N-PFTs: {}, file: {}'.format(len(driver_params['parteh_model'].param_vals),xml_file))
-        code.interact(local=dict(globals(), **locals()))
-        exit(2)
 
     # Initialize the PARTEH instance
     iret=f90_fates_partehwrap_obj.__fatespartehwrapmod_MOD_spmappyset()
 
     # Allocate the PFT and ORGAN arrays  (leaf+root+sap+store+structure+repro = 6)
 
-    WrapEDPFTAllocArbitrary([val for key,val in dims.iteritems()])
+    WrapPFTAllocArbitrary([val for key,val in dims.iteritems()])
 
+    
     # Set the phenology type
     phen_type = []
-    for ipft in range(num_pfts):
+    for iplnt in range(num_plants):
 
+        ipft = use_pfts[iplnt]
         evergreen        = np.int(fates_params['evergreen'].data[ipft])
         cold_deciduous   = np.int(fates_params['season_decid'].data[ipft])
         stress_deciduous = np.int(fates_params['stress_decid'].data[ipft])
@@ -231,45 +217,49 @@ def main(argv):
 
         # Loop through their dimensions
         # 2D case
-        if(parm_obj.ndims>1):
-            for idx0 in range(parm_obj.dim_sizelist[0]):
-                for idx1 in range(parm_obj.dim_sizelist[1]):
-                    iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_double(parm_obj.data[idx0,idx1])), \
-                                                                                     byref(c_int(0)), \
-                                                                                     byref(c_int(idx1+1)), \
-                                                                                     byref(c_int(idx0+1)), \
-                                                                                     c_char_p(parm_obj.symbol), \
-                                                                                     c_long(len(parm_obj.symbol )))
+        if(parm_obj.in_f90):
+            if(parm_obj.ndims>1):
+                for idx0 in range(parm_obj.dim_sizelist[0]):
+                    for idx1 in range(parm_obj.dim_sizelist[1]):
+                        iret = f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamspyset(byref(c_double(parm_obj.data[idx0,idx1])), \
+                                                                                            byref(c_int(0)), \
+                                                                                            byref(c_int(idx1+1)), \
+                                                                                            byref(c_int(idx0+1)), \
+                                                                                            c_char_p(parm_obj.symbol), \
+                                                                                            c_long(len(parm_obj.symbol )))
 
-        else:
-            idx1=0
-            for idx0 in range(parm_obj.dim_sizelist[0]):
-                iret = f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconpyset(byref(c_double(parm_obj.data[idx0])), \
-                                                                                 byref(c_int(0)), \
-                                                                                 byref(c_int(idx0+1)), \
-                                                                                 byref(c_int(idx1+1)), \
-                                                                                 c_char_p(parm_obj.symbol), \
-                                                                                 c_long(len(parm_obj.symbol )))
+            else:
+                idx1=0
+                for idx0 in range(parm_obj.dim_sizelist[0]):
+                    iret = f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamspyset(byref(c_double(parm_obj.data[idx0])), \
+                                                                                        byref(c_int(0)), \
+                                                                                        byref(c_int(idx0+1)), \
+                                                                                        byref(c_int(idx1+1)), \
+                                                                                        c_char_p(parm_obj.symbol), \
+                                                                                        c_long(len(parm_obj.symbol )))
 
 
 
     # Allocate the cohort array (We create on cohort per PFT)
-    iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortinitalloc(byref(c_int(num_pfts)))
+    iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortinitalloc(byref(c_int(num_plants)))
 
-    for ipft in range(num_pfts):
-
-        hgt_min = np.int(fates_params['hgt_min'].data[ipft])
+   
+    
+    for iplnt in range(num_plants):
+        ipft = use_pfts[iplnt]
+        hgt_min = np.float(fates_params['hgt_min'].data[ipft])
         init_canopy_trim = 1.0
-        iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortmodeset(byref(c_int(ipft+1)), \
+        iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortmodeset(byref(c_int(ipft)), \
                                                                              byref(c_int(int(driver_params['parteh_model'].param_vals[ipft]))))
-        iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortpyset(byref(c_int(ipft+1)), \
+        iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_cohortpyset(byref(c_int(ipft)), \
                                                                            byref(c_double(hgt_min)), \
                                                                            byref(c_double(init_canopy_trim)))
 
 
     # Initialize diagnostics
     diagnostics = []
-    for ipft in range(num_pfts):
+    for iplnt in range(num_plants):
+        ipft = use_pfts[iplnt]
         diagnostics.append(PartehTypes.diagnostics_type())
 
 
@@ -288,8 +278,9 @@ def main(argv):
         # Start the integration substep loop
         endtime = time_control.datetime+np.timedelta64(int(time_control.dt_fullstep),'s')
 
-        for ipft in range(num_pfts):
+        for iplnt in range(num_plants):
 
+            ipft = use_pfts[iplnt]
             # Generate the boundary condition for the current time-step
             # ---------------------------------------------------------------------------
 
@@ -340,7 +331,7 @@ def main(argv):
             store_pturn    = c_double(0.0)
             struct_pturn   = c_double(0.0)
 
-            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapqueryvars(byref(c_int(ipft+1)), \
+            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapqueryvars(byref(c_int(ipft)), \
                                                                                  byref(leaf_area), \
                                                                                  byref(crown_area), \
                                                                                  byref(agb), \
@@ -356,17 +347,17 @@ def main(argv):
             # Call phenology module, if no leaves... then npp should be zero...
             flush_c,drop_frac_c,leaf_status = SyntheticBoundaries.DeciduousPhenology(doy, \
                                                                                      target_leaf_c.value, \
-                                                                                     store_c.value, phen_type[ipft])
+                                                                                     store_c.value, phen_type[iplnt])
 
 
 
             if(boundary_method=="DailyCFromCArea"):
 
-                presc_npp_p1     = driver_params['fates_prescribed_npp_p1'].param_vals[ipft]
+                presc_npp_p1     = driver_params['fates_prescribed_npp_p1'].param_vals[iplnt]
 
                 net_daily_c = SyntheticBoundaries.DailyCFromCArea(presc_npp_p1, \
                                                                   crown_area.value, \
-                                                                  phen_type[ipft], \
+                                                                  phen_type[iplnt], \
                                                                   leaf_status)
                 net_daily_n = 0.0
                 net_daily_p = 0.0
@@ -375,26 +366,25 @@ def main(argv):
 
             elif(boundary_method=="DailyCNPFromCArea"):
 
-                presc_npp_p1   = driver_params['fates_prescribed_npp_p1'].param_vals[ipft]
-                presc_nflux_p1 = driver_params['fates_prescribed_nflux_p1'].param_vals[ipft]
-                presc_pflux_p1 = driver_params['fates_prescribed_pflux_p1'].param_vals[ipft]
+                presc_npp_p1   = driver_params['fates_prescribed_npp_p1'].param_vals[iplnt]
+                presc_nflux_p1 = driver_params['fates_prescribed_nflux_p1'].param_vals[iplnt]
+                presc_pflux_p1 = driver_params['fates_prescribed_pflux_p1'].param_vals[iplnt]
 
                 net_daily_c, net_daily_n, net_daily_p = SyntheticBoundaries.DailyCNPFromCArea(presc_npp_p1, \
                                                                                               presc_nflux_p1, \
                                                                                               presc_pflux_p1, \
                                                                                               crown_area.value, \
-                                                                                              phen_type[ipft], \
+                                                                                              phen_type[iplnt], \
                                                                                               leaf_status)
                 r_maint_demand = 0.0
 
 
             elif(boundary_method=="DailyCNPFromStorageSinWaveNoMaint"):
 
-                presc_npp_amp  = driver_params['fates_prescribed_npp_amp'].param_vals[ipft]
-                presc_npp_p1   = driver_params['fates_prescribed_npp_p1'].param_vals[ipft]
-                presc_nflux_p1 = driver_params['fates_prescribed_nflux_p1'].param_vals[ipft]
-                presc_pflux_p1 = driver_params['fates_prescribed_pflux_p1'].param_vals[ipft]
-
+                presc_npp_amp  = driver_params['fates_prescribed_npp_amp'].param_vals[iplnt]
+                presc_npp_p1   = driver_params['fates_prescribed_npp_p1'].param_vals[iplnt]
+                presc_nflux_p1 = driver_params['fates_prescribed_nflux_p1'].param_vals[iplnt]
+                presc_pflux_p1 = driver_params['fates_prescribed_pflux_p1'].param_vals[iplnt]
 
                 net_daily_c, net_daily_n, net_daily_p = SyntheticBoundaries.DailyCNPFromStorageSinWave(doy,\
                                                                                  store_c.value,\
@@ -403,7 +393,7 @@ def main(argv):
                                                                                  presc_pflux_p1, \
                                                                                  crown_area.value, \
                                                                                  presc_npp_amp, \
-                                                                                 phen_type[ipft], \
+                                                                                 phen_type[iplnt], \
                                                                                  leaf_status )
                 r_maint_demand = 0.0
 
@@ -419,7 +409,7 @@ def main(argv):
 
             # This function will pass in all boundary conditions, some will be dummy arguments
             init_canopy_trim = 1.0
-            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapdailyprt(byref(c_int(ipft+1)), \
+            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapdailyprt(byref(c_int(ipft)), \
                                                                                 byref(c_double(net_daily_c)), \
                                                                                 byref(c_double(init_canopy_trim)), \
                                                                                 byref(c_double(flush_c)), \
@@ -432,7 +422,7 @@ def main(argv):
 
 
             # This function will retrieve diagnostics
-            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapquerydiagnostics(byref(c_int(ipft+1)),  \
+            iret=f90_fates_cohortwrap_obj.__fatescohortwrapmod_MOD_wrapquerydiagnostics(byref(c_int(ipft)),  \
                                                                                         byref(dbh),     \
                                                                                         byref(leaf_c),  \
                                                                                         byref(fnrt_c),  \
@@ -474,51 +464,51 @@ def main(argv):
                                                                                         byref(growth_resp))
 
 
-            diagnostics[ipft].dates.append(time_control.datetime.astype(datetime))
-            diagnostics[ipft].dbh.append(dbh.value)
-            diagnostics[ipft].leaf_c.append(leaf_c.value)
-            diagnostics[ipft].fnrt_c.append(fnrt_c.value)
-            diagnostics[ipft].sapw_c.append(sapw_c.value)
-            diagnostics[ipft].store_c.append(store_c.value)
-            diagnostics[ipft].struct_c.append(struct_c.value)
-            diagnostics[ipft].repro_c.append(repro_c.value)
-            diagnostics[ipft].leaf_cturn.append(leaf_cturn.value)
-            diagnostics[ipft].fnrt_cturn.append(fnrt_cturn.value)
-            diagnostics[ipft].sapw_cturn.append(sapw_cturn.value)
-            diagnostics[ipft].store_cturn.append(store_cturn.value)
-            diagnostics[ipft].struct_cturn.append(struct_cturn.value)
-            diagnostics[ipft].dailyc.append(net_daily_c)
-            diagnostics[ipft].crown_area.append(crown_area.value)
+            diagnostics[iplnt].dates.append(time_control.datetime.astype(datetime))
+            diagnostics[iplnt].dbh.append(dbh.value)
+            diagnostics[iplnt].leaf_c.append(leaf_c.value)
+            diagnostics[iplnt].fnrt_c.append(fnrt_c.value)
+            diagnostics[iplnt].sapw_c.append(sapw_c.value)
+            diagnostics[iplnt].store_c.append(store_c.value)
+            diagnostics[iplnt].struct_c.append(struct_c.value)
+            diagnostics[iplnt].repro_c.append(repro_c.value)
+            diagnostics[iplnt].leaf_cturn.append(leaf_cturn.value)
+            diagnostics[iplnt].fnrt_cturn.append(fnrt_cturn.value)
+            diagnostics[iplnt].sapw_cturn.append(sapw_cturn.value)
+            diagnostics[iplnt].store_cturn.append(store_cturn.value)
+            diagnostics[iplnt].struct_cturn.append(struct_cturn.value)
+            diagnostics[iplnt].dailyc.append(net_daily_c)
+            diagnostics[iplnt].crown_area.append(crown_area.value)
 
-            diagnostics[ipft].growth_resp.append(growth_resp.value)
+            diagnostics[iplnt].growth_resp.append(growth_resp.value)
 
-            diagnostics[ipft].leaf_n.append(leaf_n.value)
-            diagnostics[ipft].fnrt_n.append(fnrt_n.value)
-            diagnostics[ipft].sapw_n.append(sapw_n.value)
-            diagnostics[ipft].store_n.append(store_n.value)
-            diagnostics[ipft].struct_n.append(struct_n.value)
-            diagnostics[ipft].repro_n.append(repro_n.value)
-            diagnostics[ipft].leaf_nturn.append(leaf_nturn.value)
-            diagnostics[ipft].fnrt_nturn.append(fnrt_nturn.value)
-            diagnostics[ipft].sapw_nturn.append(sapw_nturn.value)
-            diagnostics[ipft].store_nturn.append(store_nturn.value)
-            diagnostics[ipft].struct_nturn.append(struct_nturn.value)
+            diagnostics[iplnt].leaf_n.append(leaf_n.value)
+            diagnostics[iplnt].fnrt_n.append(fnrt_n.value)
+            diagnostics[iplnt].sapw_n.append(sapw_n.value)
+            diagnostics[iplnt].store_n.append(store_n.value)
+            diagnostics[iplnt].struct_n.append(struct_n.value)
+            diagnostics[iplnt].repro_n.append(repro_n.value)
+            diagnostics[iplnt].leaf_nturn.append(leaf_nturn.value)
+            diagnostics[iplnt].fnrt_nturn.append(fnrt_nturn.value)
+            diagnostics[iplnt].sapw_nturn.append(sapw_nturn.value)
+            diagnostics[iplnt].store_nturn.append(store_nturn.value)
+            diagnostics[iplnt].struct_nturn.append(struct_nturn.value)
 
-            diagnostics[ipft].leaf_p.append(leaf_p.value)
-            diagnostics[ipft].fnrt_p.append(fnrt_p.value)
-            diagnostics[ipft].sapw_p.append(sapw_p.value)
-            diagnostics[ipft].store_p.append(store_p.value)
-            diagnostics[ipft].struct_p.append(struct_p.value)
-            diagnostics[ipft].repro_p.append(repro_p.value)
-            diagnostics[ipft].leaf_pturn.append(leaf_pturn.value)
-            diagnostics[ipft].fnrt_pturn.append(fnrt_pturn.value)
-            diagnostics[ipft].sapw_pturn.append(sapw_pturn.value)
-            diagnostics[ipft].store_pturn.append(store_pturn.value)
-            diagnostics[ipft].struct_pturn.append(struct_pturn.value)
+            diagnostics[iplnt].leaf_p.append(leaf_p.value)
+            diagnostics[iplnt].fnrt_p.append(fnrt_p.value)
+            diagnostics[iplnt].sapw_p.append(sapw_p.value)
+            diagnostics[iplnt].store_p.append(store_p.value)
+            diagnostics[iplnt].struct_p.append(struct_p.value)
+            diagnostics[iplnt].repro_p.append(repro_p.value)
+            diagnostics[iplnt].leaf_pturn.append(leaf_pturn.value)
+            diagnostics[iplnt].fnrt_pturn.append(fnrt_pturn.value)
+            diagnostics[iplnt].sapw_pturn.append(sapw_pturn.value)
+            diagnostics[iplnt].store_pturn.append(store_pturn.value)
+            diagnostics[iplnt].struct_pturn.append(struct_pturn.value)
 
-            diagnostics[ipft].root_c_exudate.append(root_c_exudate.value)
-            diagnostics[ipft].root_n_exudate.append(root_n_exudate.value)
-            diagnostics[ipft].root_p_exudate.append(root_p_exudate.value)
+            diagnostics[iplnt].root_c_exudate.append(root_c_exudate.value)
+            diagnostics[iplnt].root_n_exudate.append(root_n_exudate.value)
+            diagnostics[iplnt].root_p_exudate.append(root_p_exudate.value)
 
 
         # We don't have a fancy time integrator so we simply update with
@@ -548,49 +538,50 @@ def main(argv):
 
     fig1, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4 , sharex='col') #, sharey='row')
     fig1.set_size_inches(12, 6)
-    for ipft in range(num_pfts):
-        ax1.plot_date(diagnostics[ipft].dates,diagnostics[ipft].struct_c,linestyles[ipft],label='{}'.format(ipft))
+    for iplnt in range(num_plants):
+        ipft = use_pfts[iplnt]
+        ax1.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].struct_c,linestyles[iplnt],label='{}'.format(ipft))
     ax1.set_title('Structural\n Carbon')
     ax1.legend(loc='upper left')
     ax1.set_ylabel('[kg C]')
     ax1.grid(True)
 
-    for ipft in range(num_pfts):
-        ax2.plot_date(diagnostics[ipft].dates,diagnostics[ipft].leaf_c,linestyles[ipft])
+    for iplnt in range(num_plants):
+        ax2.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].leaf_c,linestyles[iplnt])
     ax2.set_title('Leaf\n Carbon')
     ax2.grid(True)
 
-    for ipft in range(num_pfts):
-        ax3.plot_date(diagnostics[ipft].dates,diagnostics[ipft].fnrt_c,linestyles[ipft])
+    for iplnt in range(num_plants):
+        ax3.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].fnrt_c,linestyles[iplnt])
     ax3.set_title('Fineroot\n Carbon')
     ax3.grid(True)
 
-    for ipft in range(num_pfts):
-        ax4.plot_date(diagnostics[ipft].dates,diagnostics[ipft].sapw_c,linestyles[ipft])
+    for iplnt in range(num_plants):
+        ax4.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].sapw_c,linestyles[iplnt])
     ax4.set_title('Sapwood\n Carbon')
     ax4.set_ylabel('[kg C]')
     ax4.grid(True)
 
-    for ipft in range(num_pfts):
-        ax5.plot_date(diagnostics[ipft].dates,diagnostics[ipft].store_c,linestyles[ipft])
+    for iplnt in range(num_plants):
+        ax5.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].store_c,linestyles[iplnt])
     ax5.set_title('Storage\n Carbon')
     ax5.set_xlabel('Year')
     ax5.grid(True)
 
-    for ipft in range(num_pfts):
-        ax6.plot_date(diagnostics[ipft].dates,diagnostics[ipft].repro_c,linestyles[ipft])
+    for iplnt in range(num_plants):
+        ax6.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].repro_c,linestyles[iplnt])
     ax6.set_title('Integrated\n Reproductive\n Carbon')
     ax6.set_xlabel('Year')
     ax6.grid(True)
 
-    for ipft in range(num_pfts):
-        ax7.plot_date(diagnostics[ipft].dates,np.cumsum(diagnostics[ipft].root_c_exudate),linestyles[ipft])
+    for iplnt in range(num_plants):
+        ax7.plot_date(diagnostics[iplnt].dates,np.cumsum(diagnostics[iplnt].root_c_exudate),linestyles[iplnt])
     ax7.set_title('Integrated\n Exudated\n Carbon')
     ax7.set_xlabel('Year')
     ax7.grid(True)
 
-    for ipft in range(num_pfts):
-        ax8.plot_date(diagnostics[ipft].dates,np.cumsum(diagnostics[ipft].growth_resp),linestyles[ipft])
+    for iplnt in range(num_plants):
+        ax8.plot_date(diagnostics[iplnt].dates,np.cumsum(diagnostics[iplnt].growth_resp),linestyles[iplnt])
     ax8.set_title('Integrated\n Growth\n Respiration')
     ax8.set_xlabel('Year')
     ax8.grid(True)
@@ -605,28 +596,29 @@ def main(argv):
     #  ---------------------------------------------------------------------------------
     fig2, ( (ax1,ax2),(ax3,ax4) ) = plt.subplots(2,2)
     fig2.set_size_inches(7, 6)
-    for ipft in range(num_pfts):
-        ax1.plot_date(diagnostics[ipft].dates,diagnostics[ipft].dbh,linestyles[ipft],label='{}'.format(ipft))
+    for iplnt in range(num_plants):
+        ipft = use_pfts[iplnt]
+        ax1.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].dbh,linestyles[iplnt],label='{}'.format(ipft))
     ax1.set_xlabel('Date')
     ax1.set_title('DBH [cm]')
     ax1.legend(loc='upper left')
     ax1.grid(True)
 
-    for ipft in range(num_pfts):
-        ax2.plot_date(diagnostics[ipft].dates,diagnostics[ipft].crown_area,linestyles[ipft])
+    for iplnt in range(num_plants):
+        ax2.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].crown_area,linestyles[iplnt])
     ax2.set_xlabel('Date')
     ax2.set_title('Crown Area [m2]')
     ax2.grid(True)
 
-    for ipft in range(num_pfts):
-        ax3.plot(diagnostics[ipft].dbh,1000.0*np.array(diagnostics[ipft].dailyc))
+    for iplnt in range(num_plants):
+        ax3.plot(diagnostics[iplnt].dbh,1000.0*np.array(diagnostics[iplnt].dailyc))
 
     ax3.set_xlabel('DBH [cm]')
     ax3.set_title('Daily Carbon Gain [g]')
     ax3.grid(True)
 
-    for ipft in range(num_pfts):
-        ax4.plot(diagnostics[ipft].dbh,diagnostics[ipft].crown_area)
+    for iplnt in range(num_plants):
+        ax4.plot(diagnostics[iplnt].dbh,diagnostics[iplnt].crown_area)
     ax4.set_xlabel('DBH [cm]')
     ax4.set_title('Crown Area [m2]')
     ax4.grid(True)
@@ -644,31 +636,31 @@ def main(argv):
     # ---------------------------------------------------------------------------------
 
     fig4 = plt.figure()
-    for ipft in range(num_pfts):
+    for iplnt in range(num_plants):
+        ipft = use_pfts[iplnt]
+        total_plant_carbon0 = np.array(diagnostics[iplnt].struct_c[0]) + \
+                              np.array(diagnostics[iplnt].leaf_c[0])   + \
+                              np.array(diagnostics[iplnt].fnrt_c[0])   + \
+                              np.array(diagnostics[iplnt].sapw_c[0])   + \
+                              np.array(diagnostics[iplnt].store_c[0])  + \
+                              np.array(diagnostics[iplnt].repro_c[0])
 
-        total_plant_carbon0 = np.array(diagnostics[ipft].struct_c[0]) + \
-                              np.array(diagnostics[ipft].leaf_c[0])   + \
-                              np.array(diagnostics[ipft].fnrt_c[0])   + \
-                              np.array(diagnostics[ipft].sapw_c[0])   + \
-                              np.array(diagnostics[ipft].store_c[0])  + \
-                              np.array(diagnostics[ipft].repro_c[0])
+        total_plant_carbon = np.array(diagnostics[iplnt].struct_c) + \
+                             np.array(diagnostics[iplnt].leaf_c)   + \
+                             np.array(diagnostics[iplnt].fnrt_c)   + \
+                             np.array(diagnostics[iplnt].sapw_c)   + \
+                             np.array(diagnostics[iplnt].store_c)  + \
+                             np.array(diagnostics[iplnt].repro_c)
 
-        total_plant_carbon = np.array(diagnostics[ipft].struct_c) + \
-                             np.array(diagnostics[ipft].leaf_c)   + \
-                             np.array(diagnostics[ipft].fnrt_c)   + \
-                             np.array(diagnostics[ipft].sapw_c)   + \
-                             np.array(diagnostics[ipft].store_c)  + \
-                             np.array(diagnostics[ipft].repro_c)
-
-        integrated_plant_turnover = np.cumsum(diagnostics[ipft].struct_cturn) + \
-                                    np.cumsum(diagnostics[ipft].leaf_cturn) +  \
-                                    np.cumsum(diagnostics[ipft].fnrt_cturn) +  \
-                                    np.cumsum(diagnostics[ipft].sapw_cturn) +  \
-                                    np.cumsum(diagnostics[ipft].store_cturn)
+        integrated_plant_turnover = np.cumsum(diagnostics[iplnt].struct_cturn) + \
+                                    np.cumsum(diagnostics[iplnt].leaf_cturn) +  \
+                                    np.cumsum(diagnostics[iplnt].fnrt_cturn) +  \
+                                    np.cumsum(diagnostics[iplnt].sapw_cturn) +  \
+                                    np.cumsum(diagnostics[iplnt].store_cturn)
 
 
-        plt.plot(np.cumsum(diagnostics[ipft].dailyc), \
-                 (np.cumsum(diagnostics[ipft].dailyc) - \
+        plt.plot(np.cumsum(diagnostics[iplnt].dailyc), \
+                 (np.cumsum(diagnostics[iplnt].dailyc) - \
                             (total_plant_carbon + \
                              integrated_plant_turnover - \
                              total_plant_carbon0 ) ) / total_plant_carbon )
@@ -680,8 +672,9 @@ def main(argv):
     # Plot out the input fluxes
 
     fig5= plt.figure()
-    for ipft in range(num_pfts):
-        plt.plot_date(diagnostics[ipft].dates,diagnostics[ipft].dailyc,linestyles[ipft],label='{}'.format(ipft))
+    for iplnt in range(num_plants):
+        ipft = use_pfts[iplnt]
+        plt.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].dailyc,linestyles[iplnt],label='{}'.format(ipft))
 
     plt.xlabel('Date')
     plt.ylabel('Daily Carbon Flux')
@@ -692,28 +685,29 @@ def main(argv):
     # Special Focus plots for a PFT of interest
 
     figs = {}
-    for ipft in range(num_pfts):
-        figs[ipft], (ax1, ax2, ax3) = plt.subplots(1, 3)
+    for iplnt in range(num_plants):
+        ipft = use_pfts[iplnt]
+        figs[iplnt], (ax1, ax2, ax3) = plt.subplots(1, 3)
 
-        figs[ipft].set_size_inches(8, 4)
-        ax1.stackplot(np.cumsum(diagnostics[ipft].dailyc), \
-                      np.array(diagnostics[ipft].struct_c)+np.cumsum(diagnostics[ipft].struct_cturn), \
-                      np.array(diagnostics[ipft].leaf_c)+np.cumsum(diagnostics[ipft].leaf_cturn), \
-                      np.array(diagnostics[ipft].fnrt_c)+np.cumsum(diagnostics[ipft].fnrt_cturn), \
-                      np.array(diagnostics[ipft].sapw_c)+np.cumsum(diagnostics[ipft].sapw_cturn), \
-                      np.array(diagnostics[ipft].store_c)+np.cumsum(diagnostics[ipft].store_cturn), \
-                      np.array(diagnostics[ipft].repro_c), \
+        figs[iplnt].set_size_inches(8, 4)
+        ax1.stackplot(np.cumsum(diagnostics[iplnt].dailyc), \
+                      np.array(diagnostics[iplnt].struct_c)+np.cumsum(diagnostics[iplnt].struct_cturn), \
+                      np.array(diagnostics[iplnt].leaf_c)+np.cumsum(diagnostics[iplnt].leaf_cturn), \
+                      np.array(diagnostics[iplnt].fnrt_c)+np.cumsum(diagnostics[iplnt].fnrt_cturn), \
+                      np.array(diagnostics[iplnt].sapw_c)+np.cumsum(diagnostics[iplnt].sapw_cturn), \
+                      np.array(diagnostics[iplnt].store_c)+np.cumsum(diagnostics[iplnt].store_cturn), \
+                      np.array(diagnostics[iplnt].repro_c), \
                       labels = ["Struct","Leaf","FRoot","Sapw","Storage","Repro"])
         ax1.set_title('Allocated Mass \nby Pool [kg]')
         ax1.grid(True)
 
-        ax2.stackplot(np.cumsum(diagnostics[ipft].dailyc), \
-                      np.cumsum(diagnostics[ipft].struct_cturn), \
-                      np.cumsum(diagnostics[ipft].leaf_cturn), \
-                      np.cumsum(diagnostics[ipft].fnrt_cturn),  \
-                      np.cumsum(diagnostics[ipft].sapw_cturn), \
-                      np.cumsum(diagnostics[ipft].store_cturn), \
-                      np.array(diagnostics[ipft].repro_c), \
+        ax2.stackplot(np.cumsum(diagnostics[iplnt].dailyc), \
+                      np.cumsum(diagnostics[iplnt].struct_cturn), \
+                      np.cumsum(diagnostics[iplnt].leaf_cturn), \
+                      np.cumsum(diagnostics[iplnt].fnrt_cturn),  \
+                      np.cumsum(diagnostics[iplnt].sapw_cturn), \
+                      np.cumsum(diagnostics[iplnt].store_cturn), \
+                      np.array(diagnostics[iplnt].repro_c), \
                       labels = ["Struct","Leaf","FRoot","Sapw","Storage","Repro"] )
         ax2.legend(loc=2)
         ax2.grid(True)
@@ -722,35 +716,34 @@ def main(argv):
 
 
         #code.interact(local=locals())
-        npp_leaf = np.array(diagnostics[ipft].leaf_c[1:]) - \
-                   np.array(diagnostics[ipft].leaf_c[0:-1]) + \
-                   np.array(diagnostics[ipft].leaf_cturn[1:])
-        npp_fnrt = np.array(diagnostics[ipft].fnrt_c[1:]) - \
-                   np.array(diagnostics[ipft].fnrt_c[0:-1]) + \
-                   np.array(diagnostics[ipft].fnrt_cturn[1:])
-        npp_sapw = np.array(diagnostics[ipft].sapw_c[1:]) - \
-                   np.array(diagnostics[ipft].sapw_c[0:-1]) + \
-                   np.array(diagnostics[ipft].sapw_cturn[1:])
-        npp_store = np.array(diagnostics[ipft].store_c[1:]) - \
-                    np.array(diagnostics[ipft].store_c[0:-1]) + \
-                    np.array(diagnostics[ipft].store_cturn[1:])
-        npp_struct = np.array(diagnostics[ipft].struct_c[1:]) - \
-                     np.array(diagnostics[ipft].struct_c[0:-1]) + \
-                     np.array(diagnostics[ipft].struct_cturn[1:])
-        npp_repro = np.array(diagnostics[ipft].repro_c[1:]) - \
-                    np.array(diagnostics[ipft].repro_c[0:-1])
+        npp_leaf = np.array(diagnostics[iplnt].leaf_c[1:]) - \
+                   np.array(diagnostics[iplnt].leaf_c[0:-1]) + \
+                   np.array(diagnostics[iplnt].leaf_cturn[1:])
+        npp_fnrt = np.array(diagnostics[iplnt].fnrt_c[1:]) - \
+                   np.array(diagnostics[iplnt].fnrt_c[0:-1]) + \
+                   np.array(diagnostics[iplnt].fnrt_cturn[1:])
+        npp_sapw = np.array(diagnostics[iplnt].sapw_c[1:]) - \
+                   np.array(diagnostics[iplnt].sapw_c[0:-1]) + \
+                   np.array(diagnostics[iplnt].sapw_cturn[1:])
+        npp_store = np.array(diagnostics[iplnt].store_c[1:]) - \
+                    np.array(diagnostics[iplnt].store_c[0:-1]) + \
+                    np.array(diagnostics[iplnt].store_cturn[1:])
+        npp_struct = np.array(diagnostics[iplnt].struct_c[1:]) - \
+                     np.array(diagnostics[iplnt].struct_c[0:-1]) + \
+                     np.array(diagnostics[iplnt].struct_cturn[1:])
+        npp_repro = np.array(diagnostics[iplnt].repro_c[1:]) - \
+                    np.array(diagnostics[iplnt].repro_c[0:-1])
 
-        ax3.stackplot(np.cumsum(diagnostics[ipft].dailyc[1:]), \
+        ax3.stackplot(np.cumsum(diagnostics[iplnt].dailyc[1:]), \
                       npp_struct, npp_leaf, npp_fnrt, npp_sapw, npp_store,  npp_repro)
 
         ax3.grid(True)
         ax3.set_title('Daily NPP \nby Pool [kg]')
 
-        plt.figtext(0.1,0.05,"PFT: {}".format(ipft+1),bbox={'facecolor':'red', 'alpha':0.5, 'pad':10}, fontsize=15)
+        plt.figtext(0.1,0.05,"PFT: {}".format(ipft),bbox={'facecolor':'red', 'alpha':0.5, 'pad':10}, fontsize=15)
 
 
         plt.tight_layout()
-
 
     plt.show()
 
@@ -759,44 +752,45 @@ def main(argv):
 
 
 
-def WrapEDPFTAllocArbitrary(*args):
+def WrapPFTAllocArbitrary(*args):
 
     nargs = len(args[0])
+
     if(nargs==1):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])))
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])))
     elif(nargs==2):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])))
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])))
     elif(nargs==3):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])))
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])))
     elif(nargs==4):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
                                                                        byref(c_int(args[0][3])))
     elif(nargs==5):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
                                                                        byref(c_int(args[0][3])), byref(c_int(args[0][4])))
     elif(nargs==6):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
                                                                        byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])))
     elif(nargs==7):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
                                                                        byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])), \
                                                                        byref(c_int(args[0][6])))
     elif(nargs==8):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
                                                                        byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])), \
                                                                        byref(c_int(args[0][6])), byref(c_int(args[0][7])))
 
     elif(nargs==9):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
                                                                        byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])), \
                                                                        byref(c_int(args[0][6])), byref(c_int(args[0][7])), byref(c_int(args[0][8])))
     elif(nargs==10):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
                                                                        byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])), \
                                                                        byref(c_int(args[0][6])), byref(c_int(args[0][7])), byref(c_int(args[0][8])), \
                                                                        byref(c_int(args[0][9])))
     elif(nargs==11):
-        iret=f90_fates_unitwrap_obj.__edpftvarcon_MOD_edpftvarconalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
+        iret=f90_fates_unitwrap_obj.__prtparamsgeneric_MOD_prtparamsalloc(byref(c_int(args[0][0])), byref(c_int(args[0][1])), byref(c_int(args[0][2])), \
                                                                        byref(c_int(args[0][3])), byref(c_int(args[0][4])), byref(c_int(args[0][5])), \
                                                                        byref(c_int(args[0][6])), byref(c_int(args[0][7])), byref(c_int(args[0][8])), \
                                                                        byref(c_int(args[0][9])), byref(c_int(args[0][10])))
@@ -815,7 +809,7 @@ def usage():
      print('')
      print('=======================================================================')
      print('')
-     print(' python PartehDriver.py --help --xmlfile=<path-to-file>')
+     print(' python PartehDriver.py --help --cdlfile=<path-to-file>')
      print('')
      print(' This is a driver script for PARTEH')
      print(' (Plant Allocation and Reactive Transport Extensible Hypotheses)')
@@ -832,50 +826,11 @@ def usage():
      print(' this simulation.')
      print('')
 
-def interp_args(argv):
-
-    argv.pop(0)  # The script itself is the first argument, forget it
-
-    ## File path to the xml control card
-    xmlfile = ''
-
-    try:
-        opts, args = getopt.getopt(argv, 'h',["help","xmlfile="])
-
-    except getopt.GetoptError as err:
-        print('Argument error, see usage')
-        usage()
-        sys.exit(2)
 
 
-    if(len(opts)==0):
-        print('\n\n')
-        print('No arguments were specified')
-        print('Exiting, see Usage below')
-        print('\n\n')
-        usage()
-        sys.exit(0)
-
-    for o, a in opts:
-        if o in ("-h", "--help"):
-            usage()
-            sys.exit(0)
-        elif o in ("--xmlfile"):
-            xmlfile = a.strip()
-            if(not os.path.isfile(xmlfile)):
-                print('\n\n')
-                print('The XML control file could not be found')
-                print(' via argument --xmlfile')
-                print(' xmlfile = ',xmlfile)
-                print('\n\n')
-                usage()
-                sys.exit(0)
-        else:
-            assert False, "unhandled option"
-
-    return(xmlfile)
+     
 # =======================================================================================
 # This is the actual call to main
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()

@@ -24,7 +24,7 @@ no_data_fill='1.e-32'
 # ===================================
 class cdl_param_type:
 
-    def __init__(self,symbol):
+    def __init__(self,symbol,in_f90):
 
         self.datatype = -9
         self.dim_namelist = []
@@ -32,6 +32,7 @@ class cdl_param_type:
         self.ndims    = -9
         self.symbol   = symbol
         self.units    = 'NA'
+        self.in_f90   = in_f90
 
     def Add1DToXD(self,val,indx):
 
