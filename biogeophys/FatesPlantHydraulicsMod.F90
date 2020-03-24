@@ -494,7 +494,7 @@ contains
     end if
     
     !h_aroot_mean = h_aroot_mean/real(site_hydr%nlevrhiz,r8)
-    h_aroot_mean = min(cohort_hydr%psi_aroot(:) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(:))
+    h_aroot_mean = minval(cohort_hydr%psi_aroot(:) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(:)))
 
     ! initialize plant water potentials with slight potential gradient (or zero) (dh/dz = C)
     ! the assumption is made here that initial conditions for soil water will 
@@ -782,7 +782,7 @@ contains
     real(r8) :: fnrt_c                       ! Current amount of fine-root carbon in the plant                       [kg]
     real(r8) :: sapw_c                       ! Current amount of sapwood carbon in the plant                         [kg]
     real(r8) :: struct_c                     ! Current amount of structural carbon in the plant                      [kg]
-    real(r8) :: woody_bg_carb                ! belowground woody biomass in carbon units                             [kgC/indiv]
+    real(r8) :: woody_bg_c                   ! belowground woody biomass in carbon units                             [kgC/indiv]
     real(r8) :: z_stem                       ! the height of the plants stem below crown [m]
     real(r8) :: sla                          ! specific leaf area                                                    [cm2/g]
     real(r8) :: v_aroot_tot                  ! total compartment volume of all absorbing roots for cohort            [m3]
@@ -790,14 +790,20 @@ contains
     real(r8) :: denleaf                      ! leaf dry mass per unit fresh leaf volume                              [kg/m3]     
     real(r8) :: a_sapwood                    ! sapwood area                                                          [m2]
     real(r8) :: a_sapwood_target             ! sapwood cross-section area at reference height, at target biomass     [m2]
-    real(r8) :: bsw_target                   ! sapwood carbon, at target                                             [kgC]
+    real(r8) :: sapw_c_target                ! sapwood carbon, at target                                             [kgC]
     real(r8) :: v_sapwood                    ! sapwood volume                                                        [m3]
     real(r8) :: v_troot                      ! transporting root volume                                              [m3/indiv]
-    real(r8) :: v_root                       ! Total (aroot+troot) root volume                                       [m3/indiv]
     real(r8) :: rootfr                       ! mass fraction of roots in each layer                                  [kg/kg]
     real(r8) :: crown_depth                  ! Depth of the plant's crown [m]
     real(r8) :: norm                         ! total root fraction used <1
     integer  :: nlevrhiz                     ! number of rhizosphere levels
+
+
+    ! We allow the transporting root to donate a fraction of its volume to the absorbing
+    ! roots to help mitigate numerical issues due to very small volumes. This is the
+    ! fraction the transporting roots donate to those layers
+    real(r8), parameter :: t2aroot_vol_donate_frac = 0.65_r8
+    
 
     ccohort_hydr => ccohort%co_hydr
     ft           = ccohort%pft
@@ -823,32 +829,44 @@ contains
     denleaf                    = -2.3231_r8*sla/EDPftvarcon_inst%c2b(ft) + 781.899_r8    
  
     ! Leaf volumes
-    ! [kgC] * [kg/kgC] / [kg/m3] -> [m3]
-    ccohort_hydr%v_ag(1:n_hypool_leaf) = leaf_c * EDPftvarcon_inst%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
+    ! Note: We only update the leaf volume if there is leaf mass, thus preventing
+    ! us from calculating a zero volume.  We do this because, in deciduous trees,
+    ! when they drop their leaves, we actually want to keep the leaf water they had
+    ! in stasis.  So that when they reflush, there is water there to work with.  But
+    ! if we zero out the comapartment when we flush, we have no way to conserve
+    ! that water.  Until we have a better way to provide water on flushing,
+    ! we do this (rgk 03/20)
     
+    ! [kgC] * [kg/kgC] / [kg/m3] -> [m3]
+    ! Using rsnbl_math_prec here. Objective is to catch leaves that are in a dormant (off) state
+    ! but for any possible reason. If a leaf biomass is very close to zero, but not zero, we
+    ! will update the volume, which will force us to remove a lot of water, which will prevent
+    ! it from coming back in the wet season. Thus, we want to avoid any strange edge cases, and use
+    ! rsnbl_math_prec.
+    if(leaf_c>rsnbl_math_prec) then
+       ccohort_hydr%v_ag(1:n_hypool_leaf) = leaf_c * EDPftvarcon_inst%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
+    end if
 
     ! Step sapwood volume
     ! -----------------------------------------------------------------------------------
 
-    !BOC...may be needed for testing/comparison w/ v_sapwood 
-    !    kg  / ( g cm-3 * cm3/m3 * kg/g ) -> m3    
+    ! BOC...may be needed for testing/comparison w/ v_sapwood 
+    ! kg  / ( g cm-3 * cm3/m3 * kg/g ) -> m3    
     ! v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(ft) * kg_per_g * cm3_per_m3 ) 
 
     ! calculate the sapwood cross-sectional area
-    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,bsw_target)
-    a_sapwood = a_sapwood_target
+    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
 
-    ! Alternative ways to calculate sapwood cross section
-    ! or ....
-    ! a_sapwood = a_sapwood_target * ccohort%bsw / bsw_target
-    !  a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(ft)*1.e-4_r8 
-    !  m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
-    ! or ...
+    ! uncomment this if you want to use
+    ! the actual sapwood, which may be lower than target due to branchfall.
+    a_sapwood = a_sapwood_target  ! * sapw_c / sapw_c_target
+
+    ! alternative cross section calculation
     ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%hite ) * 1.e-4_r8
 
     call CrownDepth(ccohort%hite,crown_depth)
     z_stem       = ccohort%hite - crown_depth
-    v_sapwood    = a_sapwood * z_stem
+    v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
     ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
 
@@ -856,9 +874,9 @@ contains
     ! leaf, fine root) biomass then subtract out the fine root biomass to get 
     ! coarse (transporting) root biomass
 
-    woody_bg_carb = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(ft)) * (sapw_c + struct_c)
+    woody_bg_c = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(ft)) * (sapw_c + struct_c)
     
-    v_troot                    = b_woody_bg_carb * EDPftvarcon_inst%c2b(ft) / & 
+    v_troot                    = woody_bg_c * EDPftvarcon_inst%c2b(ft) / & 
           (EDPftvarcon_inst%wood_density(ft)*kg_per_g*cm3_per_m3)
     
     
@@ -873,13 +891,10 @@ contains
     ! ------------------------------------------------------------------------------
     v_aroot_tot        = pi_const * (EDPftvarcon_inst%hydr_rs2(ft)**2._r8) * l_aroot_tot
 
-    ! Total amount of root volume
-    v_root = v_aroot_tot + v_troot
-    
     ! The transporting root donates some of its volume
     ! to the layer-by-layer absorbing root (which is now a hybrid compartment)
-    
-    ccohort_hydr%v_troot = 0.35 * v_root
+    ! ------------------------------------------------------------------------------
+    ccohort_hydr%v_troot = (1._r8-t2aroot_vol_donate_frac) * v_troot
     
     ! Partition the total absorbing root lengths and volumes into the active soil layers
     ! We have a condition, where we may ignore the first layer
@@ -896,7 +911,7 @@ contains
         ccohort_hydr%l_aroot_layer(j) = rootfr*l_aroot_tot
         
         ! This is a hybrid absorbing root and transporting root volume
-        ccohort_hydr%v_aroot_layer(j) = rootfr*(0.65*v_root)
+        ccohort_hydr%v_aroot_layer(j) = rootfr*(v_aroot_tot + t2aroot_vol_donate_frac*v_troot)
 
     end do
        
@@ -942,13 +957,13 @@ contains
     ! -- apply water mass conservation)
 
     do k=1,n_hypool_leaf
-        if( ccohort_hydr%v_ag(k) > nearzero) then
-            th_ag_uncorr(k)    = ccohort_hydr%th_ag(k)   * &
-                  ccohort_hydr%v_ag_init(k) /ccohort_hydr%v_ag(k)
-            ccohort_hydr%th_ag(k) = constrain_water_contents(th_ag_uncorr(k), small_theta_num, ft, pm_node(k))
-        else
-            
-        end if
+       if( ccohort_hydr%v_ag(k) > nearzero ) then
+          th_ag_uncorr(k)    = ccohort_hydr%th_ag(k)   * &
+               ccohort_hydr%v_ag_init(k) /ccohort_hydr%v_ag(k)
+          ccohort_hydr%th_ag(k) = constrain_water_contents(th_ag_uncorr(k), small_theta_num, ft, pm_node(k))
+       else
+          th_ag_uncorr(k)    = ccohort_hydr%th_ag(k) 
+       end if
     end do
 
     do k=n_hypool_leaf+1,n_hypool_ag
@@ -1968,8 +1983,8 @@ contains
 
   end subroutine updateSizeDepRhizHydStates
 
-
   ! ====================================================================================
+  
   subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
 
     ! Arguments
@@ -4281,8 +4296,8 @@ contains
           end if
           if(abs(u(k))>nearzero)then
               rel_err = abs(err/u(k))
-              if( ((rel_err > allowable_rel_err) .and. (err > max_wb_step_err)) .or.
-                  (err /= err) )then
+              if( ((rel_err > allowable_rel_err) .and. (err > max_wb_step_err)) .or. & 
+                   (err /= err) )then
                   write(fates_log(),*) 'Tri-diagonal solve produced solution with'
                   write(fates_log(),*) 'non-negligable error.'
                   write(fates_log(),*) 'Compartment: ',k
