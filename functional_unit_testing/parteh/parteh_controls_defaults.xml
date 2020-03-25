@@ -10,7 +10,7 @@
     <!-- we want to introduce real data drivers            -->
     <timestep_sec> 86400 </timestep_sec>
     <date_start> 1500-01-01 </date_start>
-    <date_stop>  1700-01-01 </date_stop>
+    <date_stop>  1550-01-01 </date_stop>
     <max_trunc_error> 0.001 </max_trunc_error>
   </time_control>
 
@@ -22,14 +22,14 @@
 
   <!-- These are the PFT indices in the CDL parameter file that match the different plants
        in the driver_parameters section -->
-  <use_pfts> 1,1,1 </use_pfts>
+  <use_pfts> 1,1 </use_pfts>
   
   <driver_parameters >
-    <pft_par name="parteh_model"> 1,1,2  </pft_par>
-    <pft_par name="fates_prescribed_npp_p1">   0.4, 0.4, 0.4  </pft_par>
-    <pft_par name="fates_prescribed_nflux_p1"> 4, 4, 4 </pft_par>
-    <pft_par name="fates_prescribed_pflux_p1"> 4, 4, 4 </pft_par>
-    <pft_par name="fates_prescribed_npp_amp">  1.2, 1.2, 1.2  </pft_par>
+    <pft_par name="parteh_model"> 1,2  </pft_par>
+    <pft_par name="fates_prescribed_npp_p1">   0.4, 0.4  </pft_par>
+    <pft_par name="fates_prescribed_nflux_p1"> 4, 4 </pft_par>
+    <pft_par name="fates_prescribed_pflux_p1"> 4, 4 </pft_par>
+    <pft_par name="fates_prescribed_npp_amp">  1.2, 1.2 </pft_par>
   </driver_parameters>
 
 

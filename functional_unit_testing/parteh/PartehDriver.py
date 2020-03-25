@@ -109,7 +109,8 @@ def main():
         sys.exit(2)
 
     parser = argparse.ArgumentParser(description='Parse command line arguments to this script.')
-    parser.add_argument('--xml-file', dest='xml_file', type=str, help="The path to the XML file controling this simulation.",required=True)
+    parser.add_argument('--xml-file', dest='xml_file', type=str, \
+                        help="The path to the XML file controling this simulation.",required=True)
     args = parser.parse_args()
 
     xml_file = args.xml_file
@@ -540,7 +541,7 @@ def main():
     fig1.set_size_inches(12, 6)
     for iplnt in range(num_plants):
         ipft = use_pfts[iplnt]
-        ax1.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].struct_c,linestyles[iplnt],label='{}'.format(ipft))
+        ax1.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].struct_c,linestyles[iplnt],label='{}'.format(iplnt))
     ax1.set_title('Structural\n Carbon')
     ax1.legend(loc='upper left')
     ax1.set_ylabel('[kg C]')
@@ -598,7 +599,7 @@ def main():
     fig2.set_size_inches(7, 6)
     for iplnt in range(num_plants):
         ipft = use_pfts[iplnt]
-        ax1.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].dbh,linestyles[iplnt],label='{}'.format(ipft))
+        ax1.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].dbh,linestyles[iplnt],label='{}'.format(iplnt))
     ax1.set_xlabel('Date')
     ax1.set_title('DBH [cm]')
     ax1.legend(loc='upper left')
@@ -674,7 +675,7 @@ def main():
     fig5= plt.figure()
     for iplnt in range(num_plants):
         ipft = use_pfts[iplnt]
-        plt.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].dailyc,linestyles[iplnt],label='{}'.format(ipft))
+        plt.plot_date(diagnostics[iplnt].dates,diagnostics[iplnt].dailyc,linestyles[iplnt],label='{}'.format(iplnt))
 
     plt.xlabel('Date')
     plt.ylabel('Daily Carbon Flux')
@@ -740,7 +741,7 @@ def main():
         ax3.grid(True)
         ax3.set_title('Daily NPP \nby Pool [kg]')
 
-        plt.figtext(0.1,0.05,"PFT: {}".format(ipft),bbox={'facecolor':'red', 'alpha':0.5, 'pad':10}, fontsize=15)
+        plt.figtext(0.1,0.05,"Plant: {}".format(iplnt),bbox={'facecolor':'red', 'alpha':0.5, 'pad':10}, fontsize=15)
 
 
         plt.tight_layout()
