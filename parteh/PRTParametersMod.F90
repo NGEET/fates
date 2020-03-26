@@ -1,0 +1,122 @@
+module PRTParametersMod
+
+
+  use FatesConstantsMod,     only : r8 => fates_r8
+  
+  ! This module only holds the parameter definitions for PARTEH and allometry.
+  ! This does not hold any of the code used for intiailizing and filling
+  ! that data, for that is model dependent (ie FATES may have a different
+  ! way than another TBM)
+  ! This code does perform checks on parameters.
+  
+  type,public ::  prt_param_type
+
+     ! The following three PFT classes 
+     ! are mutually exclusive
+     real(r8), pointer :: stress_decid(:)        ! Is the plant stress deciduous? (1=yes, 0=no)
+     real(r8), pointer :: season_decid(:)        ! Is the plant seasonally deciduous (1=yes, 0=no)
+     real(r8), pointer :: evergreen(:)           ! Is the plant an evergreen (1=yes, 0=no)
+
+     
+     ! Growth and Turnover Parameters
+     real(r8), pointer :: senleaf_long_fdrought(:)   ! Multiplication factor for leaf longevity of senescent 
+                                                         ! leaves during drought( 1.0 indicates no change)
+     real(r8), pointer :: leaf_long(:,:)             ! Leaf turnover time (longevity) (pft x age-class)
+                                                         ! If there is >1 class, it is the longevity from
+                                                         ! one class to the next [yr]
+     real(r8), pointer :: root_long(:)               ! root turnover time (longevity) (pft)             [yr]
+     real(r8), pointer :: branch_long(:)             ! Turnover time for branchfall on live trees (pft) [yr]
+     real(r8), pointer :: turnover_retrans_mode(:)   ! Retranslocation method (pft)
+     real(r8), pointer :: turnover_carb_retrans(:,:) ! carbon re-translocation fraction (pft x organ)
+     real(r8), pointer :: turnover_nitr_retrans(:,:) ! nitrogen re-translocation fraction (pft x organ)
+     real(r8), pointer :: turnover_phos_retrans(:,:) ! phosphorus re-translocation fraction (pft x organ)
+                                                         ! Parameters dimensioned by PFT and leaf age
+     
+     real(r8), pointer :: grperc(:)                  ! Growth respiration per unit Carbon gained
+                                                         ! One value for whole plant
+     ! ONLY parteh_mode == 1  [kg/kg]
+     !     real(r8), pointer ::grperc_organ(:,:)     ! Unit growth respiration (pft x organ) [kg/kg]
+     !                                                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     !                                                        ! THIS IS NOT READ IN BY THE PARAMETER FILE
+     !                                                        ! THIS IS JUST FILLED BY GRPERC.  WE KEEP THIS
+     !                                                        ! PARAMETER FOR HYPOTHESIS TESTING (ADVANCED USE)
+     !                                                        ! IT HAS THE PRT_ TAG BECAUSE THIS PARAMETER
+     !                                                        ! IS USED INSIDE PARTEH, WHILE GRPERC IS APPLIED
+     !                                                        ! IN THE LEAF BIOPHYSICS SCHEME
+     !                                                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+     real(r8), pointer :: nitr_stoich_p1(:,:)        ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
+     real(r8), pointer :: nitr_stoich_p2(:,:)        ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
+     real(r8), pointer :: phos_stoich_p1(:,:)        ! Parameter 1 for phosphorus stoichiometry (pft x organ) 
+     real(r8), pointer :: phos_stoich_p2(:,:)        ! Parameter 2 for phosphorus stoichiometry (pft x organ) 
+     real(r8), pointer :: alloc_priority(:,:)        ! Allocation priority for each organ (pft x organ) [integer 0-6]
+     real(r8), pointer :: cushion(:)                 ! labile carbon storage target as multiple of leaf pool.
+     real(r8), pointer :: leaf_stor_priority(:)      ! leaf turnover vs labile carbon use prioritisation
+                                                         ! (1 = lose  leaves, 0 = use store).
+     real(r8), pointer :: dbh_repro_threshold(:)     ! diameter at which mature plants shift allocation
+     real(r8), pointer :: seed_alloc_mature(:)       ! fraction of carbon balance allocated to 
+                                                         ! clonal reproduction.
+     real(r8), pointer :: seed_alloc(:)              ! fraction of carbon balance allocated to seeds.
+
+
+     ! Allometry Parameters
+     ! --------------------------------------------------------------------------------------------
+
+     ! Root profile parameters. Note we have separate parameters for those that govern
+     ! hydraulics, and those that govern biomass (for decomposition and respiration)
+
+     !     real(r8), pointer :: fnrt_prof_mode(:)           ! Fine root profile functional form
+     real(r8), pointer :: fnrt_prof_a(:)              ! Fine root profile scaling parameter A
+     real(r8), pointer :: fnrt_prof_b(:)              ! Fine root profile scaling parameter B
+
+     real(r8), pointer :: rootprof_beta(:,:)      ! Deprecating this (biomass rootprofile parameters)
+
+     
+     real(r8), pointer :: c2b(:)                        ! Carbon to biomass multiplier [kg/kgC]
+     real(r8), pointer :: wood_density(:)               ! wood density  g cm^-3  ...
+     real(r8), pointer :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
+ 
+     real(r8), pointer :: slamax(:)                     ! Maximum specific leaf area of plant (at bottom) [m2/gC]
+     real(r8), pointer :: slatop(:)                     ! Specific leaf area at canopy top [m2/gC]
+     real(r8), pointer :: allom_sai_scaler(:)           ! 
+     real(r8), pointer :: allom_dbh_maxheight(:)        ! dbh at which height growth ceases
+     real(r8), pointer :: allom_hmode(:)                ! height allometry function type
+     real(r8), pointer :: allom_lmode(:)                ! maximum leaf allometry function type
+     real(r8), pointer :: allom_fmode(:)                ! maximum root allometry function type
+     real(r8), pointer :: allom_amode(:)                ! AGB allometry function type
+     real(r8), pointer :: allom_cmode(:)                ! Coarse root allometry function type
+     real(r8), pointer :: allom_smode(:)                ! sapwood allometry function type
+     real(r8), pointer :: allom_stmode(:)               ! storage allometry functional type 
+                                                            ! (HARD-CODED FOR TIME BEING, RGK 11-2017)
+     real(r8), pointer :: allom_la_per_sa_int(:)        ! Leaf area to sap area conversion, intercept 
+                                                            ! (sapwood area / leaf area) [cm2/m2]
+     real(r8), pointer :: allom_la_per_sa_slp(:)        ! Leaf area to sap area conversion, slope 
+                                                            ! (sapwood area / leaf area / diameter) [cm2/m2/cm]
+     real(r8), pointer :: allom_l2fr(:)                 ! Fine root biomass per leaf biomass ratio [kgC/kgC]
+     real(r8), pointer :: allom_agb_frac(:)             ! Fraction of stem above ground [-]
+     real(r8), pointer :: allom_d2h1(:)                 ! Parameter 1 for d2h allometry (intercept, or "c")
+     real(r8), pointer :: allom_d2h2(:)                 ! Parameter 2 for d2h allometry (slope, or "m")
+     real(r8), pointer :: allom_d2h3(:)                 ! Parameter 3 for d2h allometry (optional)
+     real(r8), pointer :: allom_d2bl1(:)                ! Parameter 1 for d2bl allometry (intercept)
+     real(r8), pointer :: allom_d2bl2(:)                ! Parameter 2 for d2bl allometry (slope)
+     real(r8), pointer :: allom_d2bl3(:)                ! Parameter 3 for d2bl allometry (optional)
+     real(r8), pointer :: allom_blca_expnt_diff(:)      ! Any difference in the exponent between the leaf
+                                                            ! biomass and crown area scaling
+     real(r8), pointer :: allom_d2ca_coefficient_max(:) ! upper (savanna) value for crown 
+                                                            ! area to dbh coefficient
+     real(r8), pointer :: allom_d2ca_coefficient_min(:) ! lower (closed-canopy forest) value for crown 
+                                                            ! area to dbh coefficient
+     real(r8), pointer :: allom_agb1(:)                 ! Parameter 1 for agb allometry
+     real(r8), pointer :: allom_agb2(:)                 ! Parameter 2 for agb allometry
+     real(r8), pointer :: allom_agb3(:)                 ! Parameter 3 for agb allometry
+     real(r8), pointer :: allom_agb4(:)                 ! Parameter 3 for agb allometry
+
+     
+  end type prt_param_type
+
+  type(prt_param_type),public :: prt_params          ! Instantiation of the parameter object
+
+  
+  
+end module PRTParametersMod
+
