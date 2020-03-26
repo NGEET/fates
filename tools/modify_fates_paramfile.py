@@ -69,7 +69,6 @@ def main():
             if args.varname != 'fates_pftname':
                 raise RuntimeError('output variable not interpretable as real or array')
             else:
-                print(args.val)
                 rename_pft = True
     #
     #
