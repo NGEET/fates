@@ -1055,353 +1055,353 @@ contains
 
                     if (coage_diff <= dynamic_age_fusion_tolerance ) then 
 
-                    ! Don't fuse a cohort with itself!
-                    if (.not.associated(currentCohort,nextc) ) then
+                       ! Don't fuse a cohort with itself!
+                       if (.not.associated(currentCohort,nextc) ) then
 
-                       if (currentCohort%pft == nextc%pft) then              
+                          if (currentCohort%pft == nextc%pft) then              
 
-                          ! check cohorts in same c. layer. before fusing
+                             ! check cohorts in same c. layer. before fusing
 
-                          if (currentCohort%canopy_layer == nextc%canopy_layer) then 
+                             if (currentCohort%canopy_layer == nextc%canopy_layer) then 
 
-                             ! Note: because newly recruited cohorts that have not experienced
-                             ! a day yet will have un-known flux quantities or change rates
-                             ! we don't want them fusing with non-new cohorts.  We allow them
-                             ! to fuse with other new cohorts to keep the total number of cohorts
-                             ! down.
+                                ! Note: because newly recruited cohorts that have not experienced
+                                ! a day yet will have un-known flux quantities or change rates
+                                ! we don't want them fusing with non-new cohorts.  We allow them
+                                ! to fuse with other new cohorts to keep the total number of cohorts
+                                ! down.
 
-                             if( currentCohort%isnew.eqv.nextc%isnew ) then
+                                if( currentCohort%isnew.eqv.nextc%isnew ) then
 
-                                newn = currentCohort%n + nextc%n
+                                   newn = currentCohort%n + nextc%n
 
-                                fusion_took_place = 1         
+                                   fusion_took_place = 1         
 
-                                if ( fuse_debug .and. currentCohort%isnew ) then
-                                   write(fates_log(),*) 'Fusing Two Cohorts'
-                                   write(fates_log(),*) 'newn: ',newn
-                                   write(fates_log(),*) 'Cohort I, Cohort II' 
-                                   write(fates_log(),*) 'n:',currentCohort%n,nextc%n
-                                   write(fates_log(),*) 'isnew:',currentCohort%isnew,nextc%isnew
-                                   write(fates_log(),*) 'laimemory:',currentCohort%laimemory,nextc%laimemory
-                                   write(fates_log(),*) 'hite:',currentCohort%hite,nextc%hite
-                                   write(fates_log(),*) 'coage:',currentCohort%coage,nextc%coage
-                                   write(fates_log(),*) 'dbh:',currentCohort%dbh,nextc%dbh
-                                   write(fates_log(),*) 'pft:',currentCohort%pft,nextc%pft
-                                   write(fates_log(),*) 'canopy_trim:',currentCohort%canopy_trim,nextc%canopy_trim
-                                   write(fates_log(),*) 'canopy_layer_yesterday:', &
-                                         currentCohort%canopy_layer_yesterday,nextc%canopy_layer_yesterday
-                                   do i=1, nlevleaf
-                                      write(fates_log(),*) 'leaf level: ',i,'year_net_uptake', &
-                                            currentCohort%year_net_uptake(i),nextc%year_net_uptake(i)
-                                   end do
-                                end if
+                                   if ( fuse_debug .and. currentCohort%isnew ) then
+                                      write(fates_log(),*) 'Fusing Two Cohorts'
+                                      write(fates_log(),*) 'newn: ',newn
+                                      write(fates_log(),*) 'Cohort I, Cohort II' 
+                                      write(fates_log(),*) 'n:',currentCohort%n,nextc%n
+                                      write(fates_log(),*) 'isnew:',currentCohort%isnew,nextc%isnew
+                                      write(fates_log(),*) 'laimemory:',currentCohort%laimemory,nextc%laimemory
+                                      write(fates_log(),*) 'hite:',currentCohort%hite,nextc%hite
+                                      write(fates_log(),*) 'coage:',currentCohort%coage,nextc%coage
+                                      write(fates_log(),*) 'dbh:',currentCohort%dbh,nextc%dbh
+                                      write(fates_log(),*) 'pft:',currentCohort%pft,nextc%pft
+                                      write(fates_log(),*) 'canopy_trim:',currentCohort%canopy_trim,nextc%canopy_trim
+                                      write(fates_log(),*) 'canopy_layer_yesterday:', &
+                                           currentCohort%canopy_layer_yesterday,nextc%canopy_layer_yesterday
+                                      do i=1, nlevleaf
+                                         write(fates_log(),*) 'leaf level: ',i,'year_net_uptake', &
+                                              currentCohort%year_net_uptake(i),nextc%year_net_uptake(i)
+                                      end do
+                                   end if
 
-                                ! new cohort age is weighted mean of two cohorts
-                                currentCohort%coage = &
-                                      (currentCohort%coage * (currentCohort%n/(currentCohort%n + nextc%n))) + &
-                                                      (nextc%coage * (nextc%n/(currentCohort%n + nextc%n)))
+                                   ! new cohort age is weighted mean of two cohorts
+                                   currentCohort%coage = &
+                                        (currentCohort%coage * (currentCohort%n/(currentCohort%n + nextc%n))) + &
+                                        (nextc%coage * (nextc%n/(currentCohort%n + nextc%n)))
 
-                                ! update the cohort age again
-                                if (hlm_use_cohort_age_tracking .eq.itrue) then 
-                                   call coagetype_class_index(currentCohort%coage, currentCohort%pft, &
-                                        currentCohort%coage_class, currentCohort%coage_by_pft_class)
-                                end if
-                             
-                                ! Fuse all mass pools
-                                call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, &
-                                                                               currentCohort%n/newn )
+                                   ! update the cohort age again
+                                   if (hlm_use_cohort_age_tracking .eq.itrue) then 
+                                      call coagetype_class_index(currentCohort%coage, currentCohort%pft, &
+                                           currentCohort%coage_class, currentCohort%coage_by_pft_class)
+                                   end if
 
-                                ! Leaf biophysical rates (use leaf mass weighting)
-                                ! -----------------------------------------------------------------
-                                call UpdateCohortBioPhysRates(currentCohort)
+                                   ! Fuse all mass pools
+                                   call currentCohort%prt%WeightedFusePRTVartypes(nextc%prt, &
+                                        currentCohort%n/newn )
 
-                                currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
-                                      + nextc%n*nextc%laimemory)/newn
-				      
-                                currentCohort%sapwmemory   = (currentCohort%n*currentCohort%sapwmemory   &
-                                      + nextc%n*nextc%sapwmemory)/newn
-				      
-                                currentCohort%structmemory   = (currentCohort%n*currentCohort%structmemory   &
-                                      + nextc%n*nextc%structmemory)/newn				      				      
-
-                                currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
-                                      + nextc%n*nextc%canopy_trim)/newn
-				
-                                ! c13disc_acc calculation; weighted mean by GPP
-                                if ((currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc) .eq. 0.0_r8) then
-                                    currentCohort%c13disc_acc = 0.0_r8
-                                else  
-                                    currentCohort%c13disc_acc = (currentCohort%n * currentCohort%gpp_acc * currentCohort%c13disc_acc +   &
-                                          nextc%n * nextc%gpp_acc * nextc%c13disc_acc)/    &
-                                          (currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc)
-                                endif
-                                
-                                select case(cohort_fusion_conservation_method)
-                                   !
+                                   ! Leaf biophysical rates (use leaf mass weighting)
                                    ! -----------------------------------------------------------------
-                                   ! Because cohort fusion is an unavoidable but non-physical process,
-                                   ! and because of the various nonlinear allometric relationships,
-                                   ! it isn't possible to simultaneously conserve all of the allometric
-                                   ! relationships during cohort fusion.  We will always conserve carbon,
-                                   ! but there are choices to made about what else to conserve or not.
-                                   ! In particular, there is a choice to be made of conservation amongst
-                                   ! the number density, stem diameter, and crown area. Below,
-                                   ! some different conservation relationships can be chosen during fusion.
-                                   ! -----------------------------------------------------------------
-                                   !
-                                case(conserve_crownarea_and_number_not_dbh)
-                                   !
-                                   ! -----------------------------------------------------------------
-                                   ! conserve total crown area during the fusion step, and then calculate
-                                   ! dbh of the fused cohort as that which conserves both crown area and
-                                   ! the dbh to crown area allometry.  dbh will be updated in the next
-                                   ! growth step in the (likely) event that dbh to structural iomass
-                                   ! allometry is exceeded. if using a capped crown area allometry and
-                                   ! above the cap, then calculate as the weighted average of fusing
-                                   ! cohorts' dbh
-                                   ! -----------------------------------------------------------------
-                                   !
-                                   
-                                   call carea_allom(currentCohort%dbh,currentCohort%n, &
-                                         currentSite%spread,currentCohort%pft,&
-                                         currentCohort%c_area,inverse=.false.)
-                                   
-                                   call carea_allom(nextc%dbh,nextc%n, &
-                                         currentSite%spread,nextc%pft,&
-                                         nextc%c_area,inverse=.false.)
-                                   
-                                   currentCohort%c_area = currentCohort%c_area + nextc%c_area
+                                   call UpdateCohortBioPhysRates(currentCohort)
 
-                                   !
-                                   call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
-                                        currentCohort%c_area,inverse=.true.)
-                                   !
-                                   if (abs(dbh-fates_unset_r8)<nearzero) then
-                                      currentCohort%dbh = (currentCohort%n*currentCohort%dbh         &
+                                   currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
+                                        + nextc%n*nextc%laimemory)/newn
+
+                                   currentCohort%sapwmemory   = (currentCohort%n*currentCohort%sapwmemory   &
+                                        + nextc%n*nextc%sapwmemory)/newn
+
+                                   currentCohort%structmemory   = (currentCohort%n*currentCohort%structmemory   &
+                                        + nextc%n*nextc%structmemory)/newn				      				      
+
+                                   currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
+                                        + nextc%n*nextc%canopy_trim)/newn
+
+                                   ! c13disc_acc calculation; weighted mean by GPP
+                                   if ((currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc) .eq. 0.0_r8) then
+                                      currentCohort%c13disc_acc = 0.0_r8
+                                   else  
+                                      currentCohort%c13disc_acc = (currentCohort%n * currentCohort%gpp_acc * currentCohort%c13disc_acc +   &
+                                           nextc%n * nextc%gpp_acc * nextc%c13disc_acc)/    &
+                                           (currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc)
+                                   endif
+
+                                   select case(cohort_fusion_conservation_method)
+                                      !
+                                      ! -----------------------------------------------------------------
+                                      ! Because cohort fusion is an unavoidable but non-physical process,
+                                      ! and because of the various nonlinear allometric relationships,
+                                      ! it isn't possible to simultaneously conserve all of the allometric
+                                      ! relationships during cohort fusion.  We will always conserve carbon,
+                                      ! but there are choices to made about what else to conserve or not.
+                                      ! In particular, there is a choice to be made of conservation amongst
+                                      ! the number density, stem diameter, and crown area. Below,
+                                      ! some different conservation relationships can be chosen during fusion.
+                                      ! -----------------------------------------------------------------
+                                      !
+                                   case(conserve_crownarea_and_number_not_dbh)
+                                      !
+                                      ! -----------------------------------------------------------------
+                                      ! conserve total crown area during the fusion step, and then calculate
+                                      ! dbh of the fused cohort as that which conserves both crown area and
+                                      ! the dbh to crown area allometry.  dbh will be updated in the next
+                                      ! growth step in the (likely) event that dbh to structural iomass
+                                      ! allometry is exceeded. if using a capped crown area allometry and
+                                      ! above the cap, then calculate as the weighted average of fusing
+                                      ! cohorts' dbh
+                                      ! -----------------------------------------------------------------
+                                      !
+
+                                      call carea_allom(currentCohort%dbh,currentCohort%n, &
+                                           currentSite%spread,currentCohort%pft,&
+                                           currentCohort%c_area,inverse=.false.)
+
+                                      call carea_allom(nextc%dbh,nextc%n, &
+                                           currentSite%spread,nextc%pft,&
+                                           nextc%c_area,inverse=.false.)
+
+                                      currentCohort%c_area = currentCohort%c_area + nextc%c_area
+
+                                      !
+                                      call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
+                                           currentCohort%c_area,inverse=.true.)
+                                      !
+                                      if (abs(dbh-fates_unset_r8)<nearzero) then
+                                         currentCohort%dbh = (currentCohort%n*currentCohort%dbh         &
+                                              + nextc%n*nextc%dbh)/newn
+
+                                         if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
+
+                                            call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
+                                                 currentCohort%dbh, currentCohort%hite, &
+                                                 bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+
+                                         end if
+                                         !
+                                         call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
+                                              currentCohort%c_area,inverse=.false.)
+
+                                      else
+                                         currentCohort%dbh = dbh
+                                      endif
+
+                                      !
+                                      call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+                                      !
+                                   case(conserve_dbh_and_number_not_crownarea)
+                                      !
+                                      ! -----------------------------------------------------------------
+                                      ! Here we conserve the mean stem diameter of the trees in the cohorts
+                                      ! rather than the crown area of the cohort
+                                      ! -----------------------------------------------------------------
+                                      !
+                                      currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
                                            + nextc%n*nextc%dbh)/newn
-
+                                      !
+                                      call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+                                      !
+                                      ! -----------------------------------------------------------------
+                                      ! If fusion pushed structural biomass to be larger than
+                                      ! the allometric target value derived by diameter, we
+                                      ! then increase diameter and height until the allometric
+                                      ! target matches actual bdead. (if it is the other way around
+                                      ! we then just let the carbon pools grow to fill out allometry)
+                                      ! -----------------------------------------------------------------
+                                      !
                                       if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
-
-                                          call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
-                                               currentCohort%dbh, currentCohort%hite, &
-                                               bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+                                         call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
+                                              currentCohort%dbh, currentCohort%hite, &
+                                              bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
 
                                       end if
                                       !
                                       call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
-                                            currentCohort%c_area,inverse=.false.)
-                                      
-                                   else
-                                      currentCohort%dbh = dbh
-                                   endif
+                                           currentCohort%c_area,inverse=.false.)
+                                      !
+                                   case default
+                                      write(fates_log(),*) 'FATES: Invalid choice for cohort_fusion_conservation_method'
+                                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                                   end select
 
-                                   !
-                                   call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
-                                   !
-                                case(conserve_dbh_and_number_not_crownarea)
-                                   !
-                                   ! -----------------------------------------------------------------
-                                   ! Here we conserve the mean stem diameter of the trees in the cohorts
-                                   ! rather than the crown area of the cohort
-                                   ! -----------------------------------------------------------------
-                                   !
-                                   currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
-                                        + nextc%n*nextc%dbh)/newn
-                                   !
-                                   call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
-                                   !
-                                   ! -----------------------------------------------------------------
-                                   ! If fusion pushed structural biomass to be larger than
-                                   ! the allometric target value derived by diameter, we
-                                   ! then increase diameter and height until the allometric
-                                   ! target matches actual bdead. (if it is the other way around
-                                   ! we then just let the carbon pools grow to fill out allometry)
-                                   ! -----------------------------------------------------------------
-                                   !
-                                   if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
-                                      call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
-                                           currentCohort%dbh, currentCohort%hite, &
-                                           bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+                                   leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
 
-                                   end if
-                                   !
-                                   call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
-                                        currentCohort%c_area,inverse=.false.)
-                                   !
-                                case default
-                                    write(fates_log(),*) 'FATES: Invalid choice for cohort_fusion_conservation_method'
-                                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                                end select
-
-                                leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
-
-                                currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, newn, &
-                                               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-                                               currentCohort%vcmax25top)
-                                currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                                               currentCohort%c_area, newn, currentCohort%canopy_layer, &
-                                               currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,1 ) 
-
-                                call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
-                                      currentCohort%size_class,currentCohort%size_by_pft_class)
-
-                                                   
-                                if(hlm_use_planthydro.eq.itrue) then			  					  				  
-                                    call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
-                                endif
-
-                                ! recent canopy history
-                                currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
-                                      nextc%n*nextc%canopy_layer_yesterday)/newn
-
-
-                                ! keep track of the size class bins so that we can monitor growth fluxes
-                                ! compare the values.  if they are the same, then nothing needs to be done. if not, track the diagnostic flux
-                                if (currentCohort%size_class_lasttimestep .ne. nextc%size_class_lasttimestep ) then
-                                   !
-                                   ! keep track of which was which, irresespective of which cohort they were in
-                                   if (currentCohort%size_class_lasttimestep .gt. nextc%size_class_lasttimestep) then
-                                      largersc = currentCohort%size_class_lasttimestep
-                                      smallersc = nextc%size_class_lasttimestep
-                                      larger_n = currentCohort%n
-                                      smaller_n = nextc%n
-                                   else
-                                      largersc = nextc%size_class_lasttimestep
-                                      smallersc = currentCohort%size_class_lasttimestep
-                                      larger_n = nextc%n
-                                      smaller_n = currentCohort%n
-                                   endif
-                                   !
-                                   ! it is possible that fusion has caused cohorts separated by at least two size bin deltas to join.  
-                                   ! so slightly complicated to keep track of because the resulting cohort could be in one of the old bins or in between
-                                   ! structure as a loop to handle the general case
-                                   !
-                                   ! first the positive growth case
-                                   do sc_i = smallersc + 1, currentCohort%size_class
-                                      currentSite%growthflux_fusion(sc_i, currentCohort%pft) = &
-                                           currentSite%growthflux_fusion(sc_i, currentCohort%pft) + smaller_n
-                                   end do
-                                   !
-                                   ! next the negative growth case
-                                   do sc_i = currentCohort%size_class + 1, largersc
-                                      currentSite%growthflux_fusion(sc_i, currentCohort%pft) = &
-                                           currentSite%growthflux_fusion(sc_i, currentCohort%pft) - larger_n
-                                   end do
-                                   ! now that we've tracked the change flux.  reset the memory of the prior timestep
-                                   currentCohort%size_class_lasttimestep = currentCohort%size_class
-                                endif
-
-                                   
-                                ! Flux and biophysics variables have not been calculated for recruits we just default to 
-                                ! their initization values, which should be the same for each
-                                
-                                if ( .not.currentCohort%isnew) then
-                                   currentCohort%seed_prod      = (currentCohort%n*currentCohort%seed_prod + &
-                                         nextc%n*nextc%seed_prod)/newn
-                                   currentCohort%gpp_acc        = (currentCohort%n*currentCohort%gpp_acc     + &
-                                         nextc%n*nextc%gpp_acc)/newn
-                                   currentCohort%npp_acc        = (currentCohort%n*currentCohort%npp_acc     + &
-                                         nextc%n*nextc%npp_acc)/newn
-                                   currentCohort%resp_acc       = (currentCohort%n*currentCohort%resp_acc    + &
-                                         nextc%n*nextc%resp_acc)/newn
-                                   currentCohort%resp_acc_hold  = &
-                                         (currentCohort%n*currentCohort%resp_acc_hold + &
-                                         nextc%n*nextc%resp_acc_hold)/newn
-                                   currentCohort%npp_acc_hold   = &
-                                         (currentCohort%n*currentCohort%npp_acc_hold + &
-                                         nextc%n*nextc%npp_acc_hold)/newn
-                                   currentCohort%gpp_acc_hold   = &
-                                         (currentCohort%n*currentCohort%gpp_acc_hold + &
-                                         nextc%n*nextc%gpp_acc_hold)/newn
-
-                                   currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
-                                         nextc%n*nextc%dmort)/newn
-
-                                   currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
-                                         nextc%n*nextc%fire_mort)/newn
-
-                                   ! mortality diagnostics
-                                   currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
-                                   currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
-                                   currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
-                                   currentCohort%smort = (currentCohort%n*currentCohort%smort + nextc%n*nextc%smort)/newn
-                                   currentCohort%asmort = (currentCohort%n*currentCohort%asmort + nextc%n*nextc%asmort)/newn
-                                   currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
-
-                                   ! logging mortality, Yi Xu
-                                   currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &
-                                         nextc%n*nextc%lmort_direct)/newn
-                                   currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
-                                         nextc%n*nextc%lmort_collateral)/newn
-                                   currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
-                                         nextc%n*nextc%lmort_infra)/newn
-                                   currentCohort%l_degrad = (currentCohort%n*currentCohort%l_degrad + &
-                                         nextc%n*nextc%l_degrad)/newn
-                                   
-                                   ! biomass and dbh tendencies
-                                   currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + &
-                                         nextc%n*nextc%ddbhdt)/newn
-
-                                   do i=1, nlevleaf     
-                                      if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
-                                         currentCohort%year_net_uptake(i) = &
-                                               min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
-                                      else
-                                         currentCohort%year_net_uptake(i) = (currentCohort%n*currentCohort%year_net_uptake(i) + &
-                                               nextc%n*nextc%year_net_uptake(i))/newn                
-                                      endif
-                                   enddo
-                                   
-                                end if !(currentCohort%isnew)
-
-                                currentCohort%n = newn     
-
-                                ! Set pointers and remove the current cohort from the list
-                                
-                                shorterCohort => nextc%shorter
-                                tallerCohort  => nextc%taller
-                                
-                                if (.not. associated(tallerCohort)) then
-                                   currentPatch%tallest => shorterCohort
-                                   if(associated(shorterCohort)) shorterCohort%taller => null()
-                                else 
-                                   tallerCohort%shorter => shorterCohort
-                                endif
-                                
-                                if (.not. associated(shorterCohort)) then
-                                   currentPatch%shortest => tallerCohort
-                                   if(associated(tallerCohort)) tallerCohort%shorter => null()
-                                else 
-                                   shorterCohort%taller => tallerCohort
-                                endif
-                                
-                                ! At this point, nothing should be pointing to current Cohort
-                                ! update hydraulics quantities that are functions of hite & biomasses
-                                ! deallocate the hydro structure of nextc
-                                if (hlm_use_planthydro.eq.itrue) then				    
-                                   call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                                        currentCohort%pft,currentCohort%c_area)
-                                   leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
-                                   currentCohort%treelai = tree_lai(leaf_c,             &
-                                        currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+                                   currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, newn, &
                                         currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-                                        currentCohort%vcmax25top  )			    
-                                   call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)  				   
-                                endif
-                                
-                                call DeallocateCohort(nextc)
-                                deallocate(nextc)
-                                nullify(nextc)
+                                        currentCohort%vcmax25top)
+                                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+                                        currentCohort%c_area, newn, currentCohort%canopy_layer, &
+                                        currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,1 ) 
 
-                             endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
-                          endif !canopy layer
-                       endif !pft
-                    endif  !index no. 
-                  endif  ! cohort age diff 
-                endif !diff   
-                 
+                                   call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
+                                        currentCohort%size_class,currentCohort%size_by_pft_class)
+
+
+                                   if(hlm_use_planthydro.eq.itrue) then			  					  				  
+                                      call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)				    
+                                   endif
+
+                                   ! recent canopy history
+                                   currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
+                                        nextc%n*nextc%canopy_layer_yesterday)/newn
+
+
+                                   ! keep track of the size class bins so that we can monitor growth fluxes
+                                   ! compare the values.  if they are the same, then nothing needs to be done. if not, track the diagnostic flux
+                                   if (currentCohort%size_class_lasttimestep .ne. nextc%size_class_lasttimestep ) then
+                                      !
+                                      ! keep track of which was which, irresespective of which cohort they were in
+                                      if (currentCohort%size_class_lasttimestep .gt. nextc%size_class_lasttimestep) then
+                                         largersc = currentCohort%size_class_lasttimestep
+                                         smallersc = nextc%size_class_lasttimestep
+                                         larger_n = currentCohort%n
+                                         smaller_n = nextc%n
+                                      else
+                                         largersc = nextc%size_class_lasttimestep
+                                         smallersc = currentCohort%size_class_lasttimestep
+                                         larger_n = nextc%n
+                                         smaller_n = currentCohort%n
+                                      endif
+                                      !
+                                      ! it is possible that fusion has caused cohorts separated by at least two size bin deltas to join.  
+                                      ! so slightly complicated to keep track of because the resulting cohort could be in one of the old bins or in between
+                                      ! structure as a loop to handle the general case
+                                      !
+                                      ! first the positive growth case
+                                      do sc_i = smallersc + 1, currentCohort%size_class
+                                         currentSite%growthflux_fusion(sc_i, currentCohort%pft) = &
+                                              currentSite%growthflux_fusion(sc_i, currentCohort%pft) + smaller_n
+                                      end do
+                                      !
+                                      ! next the negative growth case
+                                      do sc_i = currentCohort%size_class + 1, largersc
+                                         currentSite%growthflux_fusion(sc_i, currentCohort%pft) = &
+                                              currentSite%growthflux_fusion(sc_i, currentCohort%pft) - larger_n
+                                      end do
+                                      ! now that we've tracked the change flux.  reset the memory of the prior timestep
+                                      currentCohort%size_class_lasttimestep = currentCohort%size_class
+                                   endif
+
+
+                                   ! Flux and biophysics variables have not been calculated for recruits we just default to 
+                                   ! their initization values, which should be the same for each
+
+                                   if ( .not.currentCohort%isnew) then
+                                      currentCohort%seed_prod      = (currentCohort%n*currentCohort%seed_prod + &
+                                           nextc%n*nextc%seed_prod)/newn
+                                      currentCohort%gpp_acc        = (currentCohort%n*currentCohort%gpp_acc     + &
+                                           nextc%n*nextc%gpp_acc)/newn
+                                      currentCohort%npp_acc        = (currentCohort%n*currentCohort%npp_acc     + &
+                                           nextc%n*nextc%npp_acc)/newn
+                                      currentCohort%resp_acc       = (currentCohort%n*currentCohort%resp_acc    + &
+                                           nextc%n*nextc%resp_acc)/newn
+                                      currentCohort%resp_acc_hold  = &
+                                           (currentCohort%n*currentCohort%resp_acc_hold + &
+                                           nextc%n*nextc%resp_acc_hold)/newn
+                                      currentCohort%npp_acc_hold   = &
+                                           (currentCohort%n*currentCohort%npp_acc_hold + &
+                                           nextc%n*nextc%npp_acc_hold)/newn
+                                      currentCohort%gpp_acc_hold   = &
+                                           (currentCohort%n*currentCohort%gpp_acc_hold + &
+                                           nextc%n*nextc%gpp_acc_hold)/newn
+
+                                      currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
+                                           nextc%n*nextc%dmort)/newn
+
+                                      currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
+                                           nextc%n*nextc%fire_mort)/newn
+
+                                      ! mortality diagnostics
+                                      currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
+                                      currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
+                                      currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
+                                      currentCohort%smort = (currentCohort%n*currentCohort%smort + nextc%n*nextc%smort)/newn
+                                      currentCohort%asmort = (currentCohort%n*currentCohort%asmort + nextc%n*nextc%asmort)/newn
+                                      currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
+
+                                      ! logging mortality, Yi Xu
+                                      currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &
+                                           nextc%n*nextc%lmort_direct)/newn
+                                      currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
+                                           nextc%n*nextc%lmort_collateral)/newn
+                                      currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
+                                           nextc%n*nextc%lmort_infra)/newn
+                                      currentCohort%l_degrad = (currentCohort%n*currentCohort%l_degrad + &
+                                           nextc%n*nextc%l_degrad)/newn
+
+                                      ! biomass and dbh tendencies
+                                      currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + &
+                                           nextc%n*nextc%ddbhdt)/newn
+
+                                      do i=1, nlevleaf     
+                                         if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
+                                            currentCohort%year_net_uptake(i) = &
+                                                 min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
+                                         else
+                                            currentCohort%year_net_uptake(i) = (currentCohort%n*currentCohort%year_net_uptake(i) + &
+                                                 nextc%n*nextc%year_net_uptake(i))/newn                
+                                         endif
+                                      enddo
+
+                                   end if !(currentCohort%isnew)
+
+                                   currentCohort%n = newn     
+
+                                   ! Set pointers and remove the current cohort from the list
+
+                                   shorterCohort => nextc%shorter
+                                   tallerCohort  => nextc%taller
+
+                                   if (.not. associated(tallerCohort)) then
+                                      currentPatch%tallest => shorterCohort
+                                      if(associated(shorterCohort)) shorterCohort%taller => null()
+                                   else 
+                                      tallerCohort%shorter => shorterCohort
+                                   endif
+
+                                   if (.not. associated(shorterCohort)) then
+                                      currentPatch%shortest => tallerCohort
+                                      if(associated(tallerCohort)) tallerCohort%shorter => null()
+                                   else 
+                                      shorterCohort%taller => tallerCohort
+                                   endif
+
+                                   ! At this point, nothing should be pointing to current Cohort
+                                   ! update hydraulics quantities that are functions of hite & biomasses
+                                   ! deallocate the hydro structure of nextc
+                                   if (hlm_use_planthydro.eq.itrue) then				    
+                                      call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                                           currentCohort%pft,currentCohort%c_area)
+                                      leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+                                      currentCohort%treelai = tree_lai(leaf_c,             &
+                                           currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+                                           currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
+                                           currentCohort%vcmax25top  )			    
+                                      call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)  				   
+                                   endif
+
+                                   call DeallocateCohort(nextc)
+                                   deallocate(nextc)
+                                   nullify(nextc)
+
+                                endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
+                             endif !canopy layer
+                          endif !pft
+                       endif  !index no. 
+                    endif  ! cohort age diff 
+                 endif !diff   
+
                  nextc => nextnextc
-                 
+
               enddo !end checking nextc cohort loop
 
               ! Ususally we always point to the next cohort. But remember ...
