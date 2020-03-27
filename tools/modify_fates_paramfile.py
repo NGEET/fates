@@ -187,7 +187,6 @@ def main():
             raise ValueError('can only specify pft number or name, not both.')
         if (args.pftnum == None or args.pftname != None) and not args.allpfts and ispftvar:
             ## now we need to figure out what the number of the pft that has been given a name argument
-            print(args.pftname)
             pftnamelist = []
             npftnames = ncfile.variables['fates_pftname'].shape[0]
             for i in range(npftnames):
