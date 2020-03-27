@@ -4,7 +4,7 @@ dimensions:
 	fates_history_age_bins = 7 ;
 	fates_history_height_bins = 6 ;
 	fates_history_size_bins = 13 ;
-	fates_history_coage_bins = 1 ;
+	fates_history_coage_bins = 2 ;
 	fates_hydr_organs = 4 ;
 	fates_leafage_class = 1 ;
 	fates_litterclass = 6 ;
@@ -319,16 +319,16 @@ variables:
 		fates_mort_hf_sm_threshold:long_name = "soil moisture (btran units) at which drought mortality begins for non-hydraulic model" ;
 	double fates_mort_ip_age_senescence(fates_pft) ;
 		fates_mort_ip_age_senescence:units = "years" ;
-		fates_mort_ip_age_senescence:long_name = "Mortality cohort age senescence inflection point" ;
+		fates_mort_ip_age_senescence:long_name = "Mortality cohort age senescence inflection point. If _ this mortality term is off. Setting this value turns on age dependent mortality. " ;
 	double fates_mort_ip_size_senescence(fates_pft) ;
 		fates_mort_ip_size_senescence:units = "dbh cm" ;
-		fates_mort_ip_size_senescence:long_name = "Mortality dbh senescence inflection point" ;
+		fates_mort_ip_size_senescence:long_name = "Mortality dbh senescence inflection point. If _ this mortality term is off. Setting this value turns on size dependent mortality" ;
 	double fates_mort_r_age_senescence(fates_pft) ;
 		fates_mort_r_age_senescence:units = "mortality rate year^-1" ;
-		fates_mort_r_age_senescence:long_name = "Mortality age senescence rate of change" ;
+		fates_mort_r_age_senescence:long_name = "Mortality age senescence rate of change. Sensible range is around 0.03-0.06. Larger values givesteeper mortality curves." ;
 	double fates_mort_r_size_senescence(fates_pft) ;
 		fates_mort_r_size_senescence:units = "mortality rate dbh^-1" ;
-		fates_mort_r_size_senescence:long_name = "Mortality dbh senescence rate of change" ;
+		fates_mort_r_size_senescence:long_name = "Mortality dbh senescence rate of change. Sensible range is around 0.03-0.06. Larger values give steeper mortality curves."  ;
 	double fates_mort_scalar_coldstress(fates_pft) ;
 		fates_mort_scalar_coldstress:units = "1/yr" ;
 		fates_mort_scalar_coldstress:long_name = "maximum mortality rate from cold stress" ;
@@ -539,7 +539,7 @@ variables:
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
 	double fates_cohort_age_fusion_tol ;
 		fates_cohort_age_fusion_tol:units = "unitless" ;
-		fates_cohort_age_fusion_tol:long_name = "minimum fraction in differece in cohort age between cohorts. 0 or _ implies functionality is turned off." ;
+		fates_cohort_age_fusion_tol:long_name = "minimum fraction in differece in cohort age between cohorts." ;
 	double fates_cohort_size_fusion_tol ;
 		fates_cohort_size_fusion_tol:units = "unitless" ;
 		fates_cohort_size_fusion_tol:long_name = "minimum fraction in difference in dbh between cohorts" ;
@@ -685,12 +685,13 @@ data:
 
  fates_history_ageclass_bin_edges = 0, 1, 2, 5, 10, 20, 50 ;
 
- fates_history_coageclass_bin_edges = _ ;
+ fates_history_coageclass_bin_edges = 0, 5 ;
 
  fates_history_height_bin_edges = 0, 0.1, 0.3, 1, 3, 10 ;
 
  fates_history_sizeclass_bin_edges = 0, 5, 10, 15, 20, 30, 40, 50, 60, 70, 
     80, 90, 100 ;
+
 
  fates_pftname =
   "broadleaf_evergreen_tropical_tree          ",
@@ -1144,6 +1145,7 @@ data:
 
  fates_seed_suppl = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
+
  fates_senleaf_long_fdrought = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_smpsc = -255000, -255000, -255000, -255000, -255000, -255000, -255000, 
@@ -1232,7 +1234,7 @@ data:
 
  fates_canopy_closure_thresh = 0.8 ;
 
- fates_cohort_age_fusion_tol = _ ;
+ fates_cohort_age_fusion_tol = 0.08 ;
 
  fates_cohort_size_fusion_tol = 0.08 ;
 

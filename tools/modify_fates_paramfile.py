@@ -91,7 +91,7 @@ def main():
                 npft_file = var.shape[i]
                 pftdim = i
                 otherdimpresent = False
-            elif var.dimensions[i] in ['fates_history_age_bins','fates_history_size_bins','fates_history_height_bins','fates_NCWD','fates_litterclass','fates_leafage_class','fates_prt_organs','fates_hydr_organs','fates_variants']:
+            elif var.dimensions[i] in ['fates_history_age_bins','fates_history_size_bins','fates_history_coage_bins','fates_history_height_bins','fates_NCWD','fates_litterclass','fates_leafage_class','fates_prt_organs','fates_hydr_organs','fates_variants']:
                 otherdimpresent = True
                 otherdimname = var.dimensions[i]
                 otherdimlength = var.shape[i]
@@ -110,7 +110,7 @@ def main():
                 ### ok, we find ourselves in the situation where we need to rewrite the netcdf from scratch with its revised shape.
                 #
                 # first lets chech to make sure the dimension we are changing can be changed without breaking things.
-                plastic_dimensions_list = ['fates_history_age_bins','fates_history_size_bins','fates_history_height_bins','fates_leafage_class']
+                plastic_dimensions_list = ['fates_history_age_bins','fates_history_size_bins','fates_history_coage_bins','fates_history_height_bins','fates_leafage_class']
                 if otherdimname not in plastic_dimensions_list:
                     raise ValueError('asking to change the shape of a dimension, '+otherdimname+', that will probably break things')
                 else:
