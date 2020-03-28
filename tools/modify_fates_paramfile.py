@@ -190,7 +190,9 @@ def main():
             pftnamelist = []
             npftnames = ncfile.variables['fates_pftname'].shape[0]
             for i in range(npftnames):
-                pftnamelist.append(''.join((ncfile.variables['fates_pftname'][i,:]).tolist()).strip())
+                pftname_bytelist = list(ncfile.variables['fates_pftname'][i,:])
+                pftname_stringlist = [i.decode('utf-8') for i in pftname_bytelist]
+                pftnamelist.append(''.join(pftname_stringlist).strip())
             n_times_pft_listed = pftnamelist.count(args.pftname.strip())
             if n_times_pft_listed != 1:
                 raise ValueError('can only index by PFT name if the chosen PFT name occurs once and only once.')
@@ -209,8 +211,10 @@ def main():
                         print('replacing prior value of variable '+args.varname+', for PFT '+str(args.pftnum)+', which was '+str(var[:,args.pftnum-1])+', with new value of '+str(outputval))
                     var[:,args.pftnum-1] = outputval
             else:
-                print('replacing prior value of pft name for PFT '+str(args.pftnum)+', which was "'+''.join((ncfile.variables['fates_pftname'][args.pftnum-1,:]).tolist()).strip()+'", with new value of "'+args.val+'"')
-                var[args.pftnum-1] = args.val
+                pftname_in_bytelist = list(ncfile.variables['fates_pftname'][args.pftnum-1,:])
+                pftname_in_stringlist = [i.decode('utf-8') for i in pftname_in_bytelist]
+                print('replacing prior value of pft name for PFT '+str(args.pftnum)+', which was "'+''.join(pftname_in_stringlist).strip()+'", with new value of "'+args.val+'"')
+                var[args.pftnum-1] = args.val.ljust(otherdimlength)
         elif args.allpfts and ispftvar:
             if pftdim == 0:
                 if not args.silent:
@@ -243,7 +247,7 @@ def main():
             actionstring = 'modify_fates_paramfile.py '+' '.join(sys.argv[1:])
             timestampstring = datetime.datetime.fromtimestamp(time.time()).strftime('%a %b %d %Y, %H:%M:%S')
             #
-            oldhiststr = ncfile.history
+            oldhiststr = ncfile.history.decode('utf-8')
             newhiststr = oldhiststr + "\n "+timestampstring + ': ' + actionstring
             ncfile.history = newhiststr
         #
