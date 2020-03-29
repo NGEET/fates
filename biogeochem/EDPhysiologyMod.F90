@@ -2063,9 +2063,10 @@ contains
 
     ! This function calculates the plant's demand for a given nutrient
     ! based upon the need to fill its NPP demand and/or the need to
-    ! get its tissues to the maximum carrying capacity of that nutrient.
+    ! get its tissues to their ideal stoichiometry ratios.
     ! This routine is used for informing BGC competition schemes, and
-    ! for generating synthetic upake rates.
+    ! for generating synthetic upake rates and also for calculating
+    ! diagnostics.
     
     type(ed_cohort_type),intent(in) :: ccohort
     integer,intent(in)              :: element_id   ! Should match nitrogen_element or
@@ -2076,7 +2077,7 @@ contains
     real(r8)              :: plant_max_x  ! Maximum mass for element of interest [kg]
     real(r8)              :: npp_demand
     real(r8)              :: deficit_demand
-    real(r8)              :: c_leaf,c_fnrt,c_sapw,a_sapw,c_agw,c_bgw,c_struct,c_store
+    real(r8)              :: leaf_c, fnrt_c, sapw_c, store_c, struct_c, repro_c
     integer               :: pft
     real(r8)              :: dbh
 
@@ -2084,60 +2085,59 @@ contains
     dbh = ccohort%dbh
     
     ! Total plant carbon [kg]
-    plant_c = ccohort%prt%GetState(leaf_organ,carbon12_element) + & 
-              ccohort%prt%GetState(store_organ, carbon12_element) + &
-              ccohort%prt%GetState(fnrt_organ, carbon12_element) + &
-              ccohort%prt%GetState(struct_organ, carbon12_element) + &
-              ccohort%prt%GetState(sapw_organ, carbon12_element)
+    leaf_c = ccohort%prt%GetState(leaf_organ,carbon12_element) 
+    store_c = ccohort%prt%GetState(store_organ, carbon12_element)
+    fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+    struct_c = ccohort%prt%GetState(struct_organ, carbon12_element)
+    sapw_c = ccohort%prt%GetState(sapw_organ, carbon12_element)
+    repro_c = ccohort%prt%GetState(repro_organ, carbon12_element)
+
+    plant_c = leaf_c + store_c + fnrt_c + struct_c + sapw_c + repro_c
     
-    ! Calculate the total plant nitrogen content [kg]
-    ! Exclude seeds since that pool is ephemeral
+    ! Calculate the total plant nutrient content [kg]
     plant_x = ccohort%prt%GetState(leaf_organ, element_id) + & 
               ccohort%prt%GetState(store_organ, element_id) + &
               ccohort%prt%GetState(fnrt_organ, element_id) + &
               ccohort%prt%GetState(struct_organ, element_id) + &
-              ccohort%prt%GetState(sapw_organ, element_id)
+              ccohort%prt%GetState(sapw_organ, element_id) + &
+              ccohort%prt%GetState(repro_organ,element_id)
 
-    if(ccohort%status_coh.eq.leaves_on) then
-       call bleaf(dbh,pft,ccohort%canopy_trim,c_leaf)
-    else
-       c_leaf = 0._r8
-    end if
-    call bfineroot(dbh,pft,ccohort%canopy_trim,c_fnrt)
-    call bsap_allom(dbh,pft,ccohort%canopy_trim,a_sapw, c_sapw)
-    call bagw_allom(dbh,pft,c_agw)
-    call bbgw_allom(dbh,pft,c_bgw)
-    call bdead_allom(c_agw,c_bgw,c_sapw,pft,c_struct)
-    call bstore_allom(dbh,pft,ccohort%canopy_trim,c_store)
-    
     ! Calculate plant maximum nutrient content [kg]
     if(element_id.eq.nitrogen_element) then
        plant_max_x = & 
-            c_leaf*prt_params%nitr_stoich_p2(pft,leaf_organ) + & 
-            c_fnrt*prt_params%nitr_stoich_p2(pft,fnrt_organ) + & 
-            c_store*prt_params%nitr_stoich_p2(pft,store_organ) + & 
-            c_sapw*prt_params%nitr_stoich_p2(pft,sapw_organ) + & 
-            c_struct*prt_params%nitr_stoich_p2(pft,struct_organ)
+            leaf_c*prt_params%nitr_stoich_p2(pft,leaf_organ) + & 
+            fnrt_c*prt_params%nitr_stoich_p2(pft,fnrt_organ) + & 
+            store_c*prt_params%nitr_stoich_p2(pft,store_organ) + & 
+            sapw_c*prt_params%nitr_stoich_p2(pft,sapw_organ) + & 
+            struct_c*prt_params%nitr_stoich_p2(pft,struct_organ) + &
+            repro_c*prt_params%nitr_stoich_p2(pft,repro_organ)
     elseif(element_id.eq.phosphorus_element) then
        plant_max_x = &
-            c_leaf*prt_params%phos_stoich_p2(pft,leaf_organ) + & 
-            c_fnrt*prt_params%phos_stoich_p2(pft,fnrt_organ) + & 
-            c_store*prt_params%phos_stoich_p2(pft,store_organ) + & 
-            c_sapw*prt_params%phos_stoich_p2(pft,sapw_organ) + & 
-            c_struct*prt_params%phos_stoich_p2(pft,struct_organ)
+            leaf_c*prt_params%phos_stoich_p2(pft,leaf_organ) + & 
+            fnrt_c*prt_params%phos_stoich_p2(pft,fnrt_organ) + & 
+            store_c*prt_params%phos_stoich_p2(pft,store_organ) + & 
+            sapw_c*prt_params%phos_stoich_p2(pft,sapw_organ) + & 
+            struct_c*prt_params%phos_stoich_p2(pft,struct_organ) + &
+            repro_c*prt_params%phos_stoich_p2(pft,repro_organ)
     end if
 
+    ! When calculating the NPP demand, the ratio plant_max_x/plant_c
+    ! is like a plant-wide organ-mass-weighted mean ideal plant stoichiometry.
+    ! Like saying, on average, the plant would like this amount of nutrient
+    ! per unit carbon to spend all of its daily carbon gain (npp_acc_hold)
+    
     if(ccohort%isnew) then
        ! If a cohort is new, we don't have a precedent of npp, so
        ! we instead demand 1% of its total phosphorus for that first day of life
        npp_demand = 0.01_r8*plant_max_x
     else
-       npp_demand = (plant_x/plant_c)*ccohort%npp_acc_hold
+       npp_demand = (plant_max_x/plant_c)*ccohort%npp_acc_hold
     end if
 
     
     ! If this plant has flexible stoichiometry, then we also calculate
-    ! if there is any deficit between the current nitrogen content and
+    ! if there is any deficit between the current nutrient content and
+    ! its ideal nutrient content.
     
     deficit_demand = (plant_max_x - plant_x)
     

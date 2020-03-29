@@ -601,6 +601,7 @@ module EDTypesMod
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
 
+     real(r8),allocatable :: nutrient_need_scpf(:)    ! Nutrient needed to match NPP
      real(r8),allocatable :: nutrient_uptake_scpf(:)
      real(r8),allocatable :: nutrient_efflux_scpf(:)
 
