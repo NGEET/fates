@@ -997,7 +997,7 @@ contains
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end select   
-	 dbstoredd = dbstoredd + dbagwdd   
+	 dbstoredd = dbstoredd + dbagwdd/agb_frac   
        endif
        
      end associate
