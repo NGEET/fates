@@ -394,6 +394,7 @@ contains
 	       dbh_maxh     => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
 	       woody        => EDPftvarcon_inst%woody(ipft), &
                allom_amode  => EDPftvarcon_inst%allom_amode(ipft))
+      d1 = d
       !for grasses, no growth of structural wood after maximum height
       if(d >= dbh_maxh .and. woody .ne. itrue)d1 = dbh_maxh 
       select case(int(allom_amode))
