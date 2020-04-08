@@ -138,8 +138,13 @@ contains
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
     
+
     ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE
-    site_in%area_pft(1:4)=0.25_r8
+    ! Also fixing static biogeog which will become a namelist eventually. 
+    hlm_use_static_biogeog=1
+    if(hlm_use_static_biogeog.eq.1)then
+      site_in%area_pft(1:4)=0.25_r8
+    end if
 
     !
     end subroutine init_site_vars
