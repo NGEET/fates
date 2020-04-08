@@ -138,13 +138,6 @@ contains
     site_in%z_soil(:)  = bc_in%z_sisl(:)
     
 
-    ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE
-    ! Also fixing static biogeog which will become a namelist eventually. 
-    hlm_use_static_biogeog=1
-    if(hlm_use_static_biogeog.eq.1)then
-      site_in%area_pft(1:4)=0.25_r8
-    end if
-
     !
     end subroutine init_site_vars
 
@@ -251,6 +244,7 @@ contains
     integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
     integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
+    integer  :: ft         ! PFT loop
     !----------------------------------------------------------------------
 
 
@@ -293,7 +287,24 @@ contains
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8         
           sites(s)%frac_burnt = 0.0_r8
+         
+         ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE                                                                                               
+         ! Also fixing static biogeog which will become a namelist eventually.                                                                                
+          hlm_use_static_biogeog=1
+          if(hlm_use_static_biogeog.eq.1)then
+            sites(s)%area_pft(1:4) = 0.25_r8
+          end if
 
+          do ft = 1,numpft
+           sites(s)%use_this_pft(ft) = 1
+           if(hlm_use_static_biogeog.eq.1)then
+             if(sites(s)%area_pft(ft).gt.0.0_r8)then
+                sites(s)%use_this_pft(ft) = 1
+             else
+                sites(s)%use_this_pft(ft) = 0
+             end if !area
+           end if !SBG
+          end do !ft
           
        end do
 
@@ -473,7 +484,7 @@ contains
     patch_in%shortest => null()
     
     do pft =  1,numpft
-
+     if(site_in%use_this_pft(pft).eq.1)then
        if(EDPftvarcon_inst%initd(pft)>1.0E-7) then
 
        allocate(temp_cohort) ! temporary cohort
@@ -617,7 +628,7 @@ contains
        deallocate(temp_cohort) ! get rid of temporary cohort
 
        endif
-
+     endif !use_this_pft
     enddo !numpft
 
     ! Zero the mass flux pools of the new cohorts

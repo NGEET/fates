@@ -663,7 +663,8 @@ module EDTypesMod
      ! Fixed Biogeography mode inputs
 
      real(r8) ::  area_PFT(maxpft)                       ! Area allocated to individual PFTs 
-
+     integer  ::  use_this_pft(maxpft)                   ! Is area_PFT > 0 ? (1=yes, 0=no) 
+ 
      ! Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)

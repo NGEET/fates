@@ -1301,7 +1301,7 @@ contains
 
           litt => currentPatch%litter(el)
           do pft = 1,numpft
-             
+            if(currentSite%use_this_pft(pft).eq.1)then 
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
              
@@ -1312,7 +1312,11 @@ contains
 
              ! Seeds entering externally [kg/site/day]
              site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
-
+            else
+              litt%seed_in_local(pft)=0.0_r8
+              litt%seed_in_extern(pft)=0.0_r8
+              site_mass%seed_in=0.0_r8
+            endif !use this pft?
           enddo
           
           
@@ -1404,6 +1408,7 @@ contains
            litt%seed_germ_in(pft) = 0.0_r8
        end if
 
+
     enddo
 
   end subroutine SeedGermination
@@ -1423,7 +1428,6 @@ contains
     !
     ! !USES:
     use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
-    use FatesInterfaceMod, only : hlm_use_static_biogeog
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target   :: currentSite
@@ -1462,7 +1466,6 @@ contains
                             ! of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
     real(r8) :: stem_drop_fraction 
                              
-    integer :: use_this_pft(1:numpft) 
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
@@ -1470,18 +1473,7 @@ contains
 
 
     do ft = 1,numpft
-     use_this_pft(ft) = 1
-     if(hlm_use_static_biogeog.eq.1)then
-       if(currentSite%area_pft(ft).gt.0.0_r8)then
-         use_this_pft(ft) = 1
-       else
-         use_this_pft(ft) = 0
-       end if !area
-     end if !SBG
-    end do !ft
-
-    do ft = 1,numpft
-    
+      if(currentSite%use_this_pft(ft).eq.1)then
        temp_cohort%canopy_trim = 0.8_r8  !starting with the canopy not fully expanded 
        temp_cohort%pft         = ft
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
@@ -1718,6 +1710,7 @@ contains
           
 
        endif
+      endif !use_this_pft
      enddo  !pft loop
      
      deallocate(temp_cohort) ! delete temporary cohort
