@@ -1423,6 +1423,7 @@ contains
     !
     ! !USES:
     use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
+    use FatesInterfaceMod, only : hlm_use_static_biogeog
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target   :: currentSite
@@ -1460,14 +1461,27 @@ contains
     real(r8) :: mass_demand ! Total mass demanded by the plant to achieve the stoichiometric targets
                             ! of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
     real(r8) :: stem_drop_fraction 
-                              
+                             
+    integer :: use_this_pft(1:numpft) 
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
     call zero_cohort(temp_cohort)
 
-    do ft = 1,numpft
 
+    do ft = 1,numpft
+     use_this_pft(ft) = 1
+     if(hlm_use_static_biogeog.eq.1)then
+       if(currentSite%area_pft(ft).gt.0.0_r8)then
+         use_this_pft(ft) = 1
+       else
+         use_this_pft(ft) = 0
+       end if !area
+     end if !SBG
+    end do !ft
+
+    do ft = 1,numpft
+    
        temp_cohort%canopy_trim = 0.8_r8  !starting with the canopy not fully expanded 
        temp_cohort%pft         = ft
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)

@@ -662,7 +662,7 @@ module EDTypesMod
 
      ! Fixed Biogeography mode inputs
 
-     real(r8), allocatable :: area_PFT(:)                       ! Area allocated to individual PFTs 
+     real(r8) ::  area_PFT(maxpft)                       ! Area allocated to individual PFTs 
 
      ! Mass Balance (allocation for each element)
 

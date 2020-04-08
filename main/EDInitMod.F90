@@ -123,7 +123,6 @@ contains
     allocate(site_in%dz_soil(site_in%nlevsoil))
     allocate(site_in%z_soil(site_in%nlevsoil))
 
-    allocate(site_in%area_pft(1:numpft))
 
     do el=1,num_elements
         allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
