@@ -659,7 +659,11 @@ module EDTypesMod
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
-     
+
+     ! Fixed Biogeography mode inputs
+
+     real(r8), allocatable :: area_PFT(:)                       ! Area allocated to individual PFTs 
+
      ! Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)

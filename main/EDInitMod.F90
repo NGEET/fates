@@ -38,6 +38,7 @@ module EDInitMod
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
+  use FatesInterfaceMod         , only : hlm_use_static_biogeog
   use FatesInterfaceMod         , only : numpft
   use FatesInterfaceMod         , only : nleafage
   use FatesInterfaceMod         , only : nlevsclass
@@ -122,6 +123,8 @@ contains
     allocate(site_in%dz_soil(site_in%nlevsoil))
     allocate(site_in%z_soil(site_in%nlevsoil))
 
+    allocate(site_in%area_pft(1:numpft))
+
     do el=1,num_elements
         allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
@@ -134,7 +137,9 @@ contains
     site_in%zi_soil(:) = bc_in%zi_sisl(:)
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
-
+    
+    ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE
+    site_in%area_pft(1:4)=0.25_r8
 
     !
     end subroutine init_site_vars

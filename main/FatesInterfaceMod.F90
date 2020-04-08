@@ -174,6 +174,8 @@ module FatesInterfaceMod
                                                                     ! This need only be defined when
                                                                     ! hlm_use_inventory_init = 1
 
+  integer, public ::  hlm_use_static_biogeog                           ! Placeholder for the flag the HLM compset will send to FATES when
+                                                           ! using the fixed biogeography. 
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
