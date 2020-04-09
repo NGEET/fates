@@ -123,6 +123,8 @@ contains
     allocate(site_in%dz_soil(site_in%nlevsoil))
     allocate(site_in%z_soil(site_in%nlevsoil))
 
+    allocate(site_in%area_pft(1:numpft))
+    allocate(site_in%use_this_pft(1:numpft))
 
     do el=1,num_elements
         allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
@@ -218,10 +220,12 @@ contains
     ! canopy spread
     site_in%spread = 0._r8
 
+    site_in%area_pft = 0._r8
+    site_in%use_this_pft = fates_unset_int
   end subroutine zero_site
 
   ! ============================================================================
-  subroutine set_site_properties( nsites, sites )
+  subroutine set_site_properties( nsites, sites,bc_in )
     !
     ! !DESCRIPTION:
     !
@@ -231,7 +235,7 @@ contains
 
     integer, intent(in)                        :: nsites
     type(ed_site_type) , intent(inout), target :: sites(nsites)
-
+    type(bc_in_type), intent(in)               :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
     integer  :: s
@@ -288,10 +292,11 @@ contains
           sites(s)%NF         = 0.0_r8         
           sites(s)%frac_burnt = 0.0_r8
          
-         ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE                                                                                               
-         ! Also fixing static biogeog which will become a namelist eventually.                                                                                
+         ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE                                                                                   
           if(hlm_use_static_biogeog.eq.itrue)then
-            sites(s)%area_pft(1:4) = 0.25_r8
+            do ft =  1,numpft
+              sites(s)%area_pft(ft) = bc_in(s)%pft_areafrac(ft)
+            end do
           end if
 
           do ft = 1,numpft
