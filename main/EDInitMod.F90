@@ -290,14 +290,13 @@ contains
          
          ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE                                                                                               
          ! Also fixing static biogeog which will become a namelist eventually.                                                                                
-          hlm_use_static_biogeog=1
-          if(hlm_use_static_biogeog.eq.1)then
+          if(hlm_use_static_biogeog.eq.itrue)then
             sites(s)%area_pft(1:4) = 0.25_r8
           end if
 
           do ft = 1,numpft
            sites(s)%use_this_pft(ft) = 1
-           if(hlm_use_static_biogeog.eq.1)then
+           if(hlm_use_static_biogeog.eq.itrue)then
              if(sites(s)%area_pft(ft).gt.0.0_r8)then
                 sites(s)%use_this_pft(ft) = 1
              else
