@@ -11,8 +11,8 @@ module FatesHistoryInterfaceMod
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
   use EDTypesMod               , only : ican_upper
-  use EDTypesMod               , only : element_pos
-  use EDTypesMod               , only : num_elements
+  use PRTGenericMod            , only : element_pos
+  use PRTGenericMod            , only : num_elements
   use EDTypesMod               , only : site_fluxdiags_type
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_cohort_type
@@ -22,7 +22,7 @@ module FatesHistoryInterfaceMod
   use EDTypesMod               , only : numWaterMem
   use EDTypesMod               , only : num_vegtemp_mem
   use EDTypesMod               , only : site_massbal_type
-  use EDTypesMod               , only : element_list
+  use PRTGenericMod            , only : element_list
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -155,6 +155,15 @@ module FatesHistoryInterfaceMod
   integer :: ih_fnrtp_si
   integer :: ih_reprop_si
   integer :: ih_totvegp_si
+
+  integer :: ih_nuptake_si
+  integer :: ih_puptake_si
+  integer :: ih_nefflux_si
+  integer :: ih_pefflux_si
+  integer :: ih_nneedgrow_si
+  integer :: ih_nneedmax_si
+  integer :: ih_pneedgrow_si
+  integer :: ih_pneedmax_si
   
   integer :: ih_trimming_pa
   integer :: ih_area_plant_pa
@@ -200,6 +209,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_bleaf_understory_si_scpf
 
 
+
   integer :: ih_totvegn_scpf
   integer :: ih_leafn_scpf
   integer :: ih_fnrtn_scpf
@@ -208,6 +218,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_repron_scpf
   integer :: ih_nuptake_scpf
   integer :: ih_nefflux_scpf
+  integer :: ih_nneedgrow_scpf
+  integer :: ih_nneedmax_scpf
 
   integer :: ih_totvegc_scpf
   integer :: ih_leafc_scpf
@@ -226,7 +238,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_sapwp_scpf
   integer :: ih_puptake_scpf
   integer :: ih_pefflux_scpf
-
+  integer :: ih_pneedgrow_scpf
+  integer :: ih_pneedmax_scpf
 
   integer :: ih_daily_temp
   integer :: ih_daily_rh
@@ -2073,7 +2086,7 @@ end subroutine flush_hvars
                   
                   ! Plant multi-element states and fluxes
                   ! Zero states, and set the fluxes
-                  if(any(element_list(:).eq.all_carbon_elements))then
+                  if( element_list(el).eq.carbon12_element )then
 
                      this%hvars(ih_storec_si)%r81d(io_si)  = &
                           this%hvars(ih_storec_si)%r81d(io_si) + n_perm2 * store_m * g_per_kg
@@ -2101,13 +2114,16 @@ end subroutine flush_hvars
                      this%hvars(ih_fnrtn_si)%r81d(io_si)   = &
                           this%hvars(ih_fnrtn_si)%r81d(io_si) + n_perm2 * fnrt_m * g_per_kg
                      this%hvars(ih_repron_si)%r81d(io_si)  = &
-                          this%hvars(ih_repron_si)%r81d(io_si)+ n_perm2 * repro_m * g_per_kg
+                          this%hvars(ih_repron_si)%r81d(io_si) + n_perm2 * repro_m * g_per_kg
                      this%hvars(ih_sapwn_si)%r81d(io_si)   = &
-                          this%hvars(ih_sapwn_si)%r81d(io_si)+ n_perm2 * sapw_m * g_per_kg
+                          this%hvars(ih_sapwn_si)%r81d(io_si) + n_perm2 * sapw_m * g_per_kg
                      this%hvars(ih_totvegn_si)%r81d(io_si) = &
-                          this%hvars(ih_totvegn_si)%r81d(io_si)+ n_perm2 * total_m * g_per_kg
+                          this%hvars(ih_totvegn_si)%r81d(io_si) + n_perm2 * total_m * g_per_kg
+
+
                      
                   elseif(element_list(el).eq.phosphorus_element) then
+                     
                      this%hvars(ih_storep_si)%r81d(io_si)  = &
                           this%hvars(ih_storep_si)%r81d(io_si) + n_perm2 * store_m * g_per_kg
                      this%hvars(ih_leafp_si)%r81d(io_si)   = &
@@ -2161,8 +2177,6 @@ end subroutine flush_hvars
                ! Flux Variables (cohorts must had experienced a day before any of these values
                ! have any meaning, otherwise they are just inialization values
                if( .not.(ccohort%isnew) ) then
-
-
 
                   ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                   sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, all_carbon_elements) * days_per_year
@@ -2791,17 +2805,44 @@ end subroutine flush_hvars
                     sites(s)%flux_diags(el)%nutrient_uptake_scpf(:)
                this%hvars(ih_cefflux_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_efflux_scpf(:)
+               
             elseif(element_list(el).eq.nitrogen_element)then
+               
                this%hvars(ih_totvegn_scpf)%r82d(io_si,:) = 0._r8
                this%hvars(ih_leafn_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_fnrtn_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_sapwn_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_storen_scpf)%r82d(io_si,:)  = 0._r8
                this%hvars(ih_repron_scpf)%r82d(io_si,:)  = 0._r8
+
                this%hvars(ih_nuptake_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_uptake_scpf(:)
+
                this%hvars(ih_nefflux_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_efflux_scpf(:)
+
+               this%hvars(ih_nneedgrow_scpf)%r82d(io_si,:) = &
+                    sites(s)%flux_diags(el)%nutrient_needgrow_scpf(:)
+
+               this%hvars(ih_nneedmax_scpf)%r82d(io_si,:) = &
+                    sites(s)%flux_diags(el)%nutrient_needmax_scpf(:)
+               
+               this%hvars(ih_nneedgrow_si)%r81d(io_si) = &
+                    sum(sites(s)%flux_diags(el)%nutrient_needgrow_scpf(:),dim=1)
+
+               this%hvars(ih_nneedmax_si)%r81d(io_si) = &
+                    sum(sites(s)%flux_diags(el)%nutrient_needmax_scpf(:),dim=1)
+
+               this%hvars(ih_nuptake_si)%r81d(io_si) = & 
+                    this%hvars(ih_nuptake_si)%r81d(io_si) + &
+                    sum(sites(s)%flux_diags(el)%nutrient_uptake_scpf(:),dim=1)
+
+               this%hvars(ih_nefflux_si)%r81d(io_si) = & 
+                    this%hvars(ih_nefflux_si)%r81d(io_si) + &
+                    sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1)
+               
+               
+               
             elseif(element_list(el).eq.phosphorus_element)then
                this%hvars(ih_totvegp_scpf)%r82d(io_si,:) = 0._r8
                this%hvars(ih_leafp_scpf)%r82d(io_si,:)   = 0._r8
@@ -2809,12 +2850,35 @@ end subroutine flush_hvars
                this%hvars(ih_sapwp_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_storep_scpf)%r82d(io_si,:)  = 0._r8
                this%hvars(ih_reprop_scpf)%r82d(io_si,:)  = 0._r8
+
                this%hvars(ih_puptake_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_uptake_scpf(:)
+
                this%hvars(ih_pefflux_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_efflux_scpf(:)
+               
+               this%hvars(ih_pneedgrow_scpf)%r82d(io_si,:) = &
+                    sites(s)%flux_diags(el)%nutrient_needgrow_scpf(:)
+
+               this%hvars(ih_pneedmax_scpf)%r82d(io_si,:) = &
+                    sites(s)%flux_diags(el)%nutrient_needmax_scpf(:)
+
+               this%hvars(ih_pneedgrow_si)%r81d(io_si) = &
+                    sum(sites(s)%flux_diags(el)%nutrient_needgrow_scpf(:),dim=1)
+
+               this%hvars(ih_pneedmax_si)%r81d(io_si) = &
+                    sum(sites(s)%flux_diags(el)%nutrient_needmax_scpf(:),dim=1)
+
+               this%hvars(ih_puptake_si)%r81d(io_si) = & 
+                    this%hvars(ih_puptake_si)%r81d(io_si) + &
+                    sum(sites(s)%flux_diags(el)%nutrient_uptake_scpf(:),dim=1)
+               
+               this%hvars(ih_pefflux_si)%r81d(io_si) = & 
+                    this%hvars(ih_pefflux_si)%r81d(io_si) + &
+                    sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1)
+               
             end if
-            
+
 
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
@@ -4263,6 +4327,27 @@ end subroutine flush_hvars
             long='Total nitrogen in live plant reproductive tissues', use_default='active', &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
             ivar=ivar, initialize=initialize_variables, index = ih_repron_si )
+
+       call this%set_history_var(vname='NUPTAKE', units='kgN d-1 ha-1',                          &
+            long='Total nitrogen uptake by plants per sq meter per day', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+            ivar=ivar, initialize=initialize_variables, index = ih_nuptake_si )
+
+       call this%set_history_var(vname='NEFFLUX', units='kgN d-1 ha-1',                          &
+            long='Nitrogen effluxed from plant (unused)', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+            ivar=ivar, initialize=initialize_variables, index = ih_nefflux_si )
+
+       call this%set_history_var(vname='NNEED_GROW', units='kgN d-1 ha-1',                          &
+            long='(Approx) plant nitrogen needed to satisfy growth', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+            ivar=ivar, initialize=initialize_variables, index = ih_nneedgrow_si )
+
+       call this%set_history_var(vname='NNEED_MAX', units='kgN d-1 ha-1',                          &
+            long='(Approx) plant nitrogen needed to reach maximum capacity', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+            ivar=ivar, initialize=initialize_variables, index = ih_nneedmax_si )
+       
     end if
 
     
@@ -4296,6 +4381,28 @@ end subroutine flush_hvars
             long='Total phosphorus in live plant reproductive tissues', use_default='active', &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
             ivar=ivar, initialize=initialize_variables, index = ih_reprop_si )
+
+       call this%set_history_var(vname='PUPTAKE', units='gP d-1 m-2',                          &
+            long='Total phosphorus uptake by plants per sq meter per day', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+            ivar=ivar, initialize=initialize_variables, index = ih_puptake_si )
+
+       call this%set_history_var(vname='PEFFLUX', units='gP d-1 m-2',                          &
+            long='Phosphorus effluxed from plant (unused)', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+            ivar=ivar, initialize=initialize_variables, index = ih_pefflux_si )
+       
+       call this%set_history_var(vname='PNEED_GROW', units='gP d-1 m-2',                          &
+            long='Plant phosphorus needed to satisfy growth', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+            ivar=ivar, initialize=initialize_variables, index = ih_pneedgrow_si )
+
+       call this%set_history_var(vname='PNEED_MAX', units='gP d-1 m-2',                          &
+            long='Plant phosphorus needed to reach maximum capacity', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
+            ivar=ivar, initialize=initialize_variables, index = ih_pneedmax_si )
+       
+       
     end if
 
     
@@ -5422,15 +5529,27 @@ end subroutine flush_hvars
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_repron_scpf )
 
-       call this%set_history_var(vname='NUPTAKE_SCPF', units='kg/ha/day', &
+       call this%set_history_var(vname='NUPTAKE_SCPF', units='kgN d-1 ha-1', &
             long='nitrogen uptake, soil to root, by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nuptake_scpf )
 
-       call this%set_history_var(vname='NEFFLUX_SCPF', units='kg/ha/day', &
+       call this%set_history_var(vname='NEFFLUX_SCPF', units='kgN d-1 ha-1', &
             long='nitrogen efflux, root to soil, by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nefflux_scpf )
+
+       call this%set_history_var(vname='NNEEDGROW_SCPF', units='kgN d-1 ha-1', &
+            long='nitrogen needed to match growth, by size-class x pft', use_default='inactive', &
+            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nneedgrow_scpf )
+
+       call this%set_history_var(vname='NNEEDMAX_SCPF', units='kgN d-1 ha-1', &
+            long='nitrogen needed to reach max concentrations, by size-class x pft', use_default='inactive', &
+            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nneedmax_scpf )
+       
+       
     end if
 
     ! PHOSPHORUS
@@ -5474,6 +5593,18 @@ end subroutine flush_hvars
             long='phosphorus efflux, root to soil, by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_pefflux_scpf )
+
+       call this%set_history_var(vname='PNEEDGROW_SCPF', units='kg/ha/day', &
+            long='phosphorus needed to match growth, by size-class x pft', use_default='inactive', &
+            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_pneedgrow_scpf )
+
+       call this%set_history_var(vname='PNEEDMAX_SCPF', units='kg/ha/day', &
+            long='phosphorus needed to reach max concentrations, by size-class x pft', use_default='inactive', &
+            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_pneedmax_scpf )
+       
+       
     end if
 
     ! organ-partitioned NPP / allocation fluxes

@@ -24,7 +24,7 @@ module EDCohortDynamicsMod
   use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
-  use EDTypesMod            , only : element_list
+  use PRTGenericMod         , only : element_list
   use FatesLitterMod        , only : ncwd
   use FatesLitterMod        , only : ndcmpy
   use FatesLitterMod        , only : litter_type
@@ -33,10 +33,10 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
-  use EDTypesMod            , only : max_nleafage
+  use PRTGenericMod         , only : max_nleafage
   use EDTypesMod            , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
-  use EDTypesMod            , only : num_elements
+  use PRTGenericMod          , only : num_elements
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
@@ -86,11 +86,12 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_leafon, acnp_bc_inout_id_dbh
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_inout_id_netdc
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdn, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_out_id_growresp
-
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_ngrow,acnp_bc_out_id_nmax
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pgrow,acnp_bc_out_id_pmax
   
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
 
@@ -372,15 +373,21 @@ contains
 
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def,bc_rval = new_cohort%resp_m_def)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdc, bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval = new_cohort%daily_n_uptake)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval = new_cohort%daily_p_uptake)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_in_id_netdn, bc_rval = new_cohort%daily_n_uptake)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
 
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_growresp, bc_rval = new_cohort%resp_g_daily)
 
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_ngrow, bc_rval = new_cohort%daily_n_need1)
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pgrow, bc_rval = new_cohort%daily_p_need1)
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nmax, bc_rval = new_cohort%daily_n_need2)
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pmax, bc_rval = new_cohort%daily_p_need2)
+       
+       
     case DEFAULT
        
        write(fates_log(),*) 'You specified an unknown PRT module'
@@ -524,6 +531,11 @@ contains
     currentCohort%daily_c_efflux = nan
     currentCohort%daily_n_efflux = nan
     currentCohort%daily_p_efflux = nan
+    currentCohort%daily_n_need1 = nan
+    currentCohort%daily_n_need2 = nan
+    currentCohort%daily_p_need1 = nan
+    currentCohort%daily_p_need2 = nan
+    
     
     currentCohort%c13disc_clm        = nan ! C13 discrimination, per mil at indiv/timestep
     currentCohort%c13disc_acc        = nan ! C13 discrimination, per mil at indiv/timestep at indiv/daily at the end of a day
@@ -638,7 +650,13 @@ contains
     currentCohort%daily_c_efflux = 0._r8
     currentCohort%daily_n_efflux = 0._r8
     currentCohort%daily_p_efflux = 0._r8
+    
+    currentCohort%daily_n_need1 = 0._r8
+    currentCohort%daily_n_need2 = 0._r8
+    currentCohort%daily_p_need1 = 0._r8
+    currentCohort%daily_p_need2 = 0._r8
 
+    
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
@@ -1297,6 +1315,16 @@ contains
                                    currentCohort%daily_p_efflux = (currentCohort%n*currentCohort%daily_p_efflux + & 
                                                                    nextc%n*nextc%daily_p_efflux)/newn
 
+                                   currentCohort%daily_n_need1 = (currentCohort%n*currentCohort%daily_n_need1 + & 
+                                                                   nextc%n*nextc%daily_n_need1)/newn
+                                   currentCohort%daily_n_need2 = (currentCohort%n*currentCohort%daily_n_need2 + & 
+                                                                   nextc%n*nextc%daily_n_need2)/newn
+                                   currentCohort%daily_p_need1 = (currentCohort%n*currentCohort%daily_p_need1 + & 
+                                                                   nextc%n*nextc%daily_p_need1)/newn
+                                   currentCohort%daily_p_need2 = (currentCohort%n*currentCohort%daily_p_need2 + & 
+                                                                   nextc%n*nextc%daily_p_need2)/newn
+
+                                   
                                    ! These two carbon variables need continuity from day to day, as resp_m_def
                                    ! needs to hold mass and be conservative, and resp_g_daily needs to inform
                                    ! diagnostics post fusion (during the next day's short timesteps)
@@ -1677,7 +1705,11 @@ contains
     n%daily_c_efflux = o%daily_c_efflux
     n%daily_n_efflux = o%daily_n_efflux
     n%daily_p_efflux = o%daily_p_efflux
-
+    n%daily_n_need1 = o%daily_n_need1
+    n%daily_n_need2 = o%daily_n_need2
+    n%daily_p_need1 = o%daily_p_need1
+    n%daily_p_need2 = o%daily_p_need2
+    
     ! C13 discrimination
     n%c13disc_clm   = o%c13disc_clm
     n%c13disc_acc   = o%c13disc_acc

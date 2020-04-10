@@ -55,9 +55,9 @@ module EDMainMod
   use EDtypesMod               , only : ed_cohort_type
   use EDTypesMod               , only : AREA
   use EDTypesMod               , only : site_massbal_type
-  use EDTypesMod               , only : num_elements
-  use EDTypesMod               , only : element_list
-  use EDTypesMod               , only : element_pos
+  use PRTGenericMod            , only : num_elements
+  use PRTGenericMod            , only : element_list
+  use PRTGenericMod            , only : element_pos
   use EDTypesMod               , only : phen_dstat_moiston
   use EDTypesMod               , only : phen_dstat_timeon
   use FatesConstantsMod        , only : itrue,ifalse
@@ -414,26 +414,12 @@ contains
           hite_old = currentCohort%hite
           dbh_old  = currentCohort%dbh
 
-          if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
-             
-             ! Mass balance for N uptake
-             currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = & 
-                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + & 
-                  currentCohort%daily_n_uptake*currentCohort%n
-             
-             ! Mass balance for P uptake
-             currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = & 
-                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + & 
-                  currentCohort%daily_p_uptake*currentCohort%n
-          end if
-
-          
           ! -----------------------------------------------------------------------------
           ! Growth and Allocation (PARTEH)
           ! -----------------------------------------------------------------------------
           
           call currentCohort%prt%DailyPRT()
-
+          
 
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
@@ -443,13 +429,13 @@ contains
 
              ! Mass balance for N uptake
              currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = & 
-                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake - &
-                  currentCohort%daily_n_efflux*currentCohort%n
+                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + &
+                  (currentCohort%daily_n_uptake-currentCohort%daily_n_efflux)*currentCohort%n
              
              ! Mass balance for P uptake
              currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = & 
                   currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake - & 
-                  currentCohort%daily_p_efflux*currentCohort%n
+                  (currentCohort%daily_p_uptake-currentCohort%daily_p_efflux)*currentCohort%n
              
              ! mass balance for C efflux (if any)
              currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake = & 
@@ -459,7 +445,7 @@ contains
              ! size class index
              iscpf = currentCohort%size_by_pft_class
              
-             ! Diagnostics for uptake and efflux, by size and pft and element, [kgX/ha/day]
+             ! Diagnostics for uptake, by size and pft, [kgX/ha/day]
              currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_uptake_scpf(iscpf) = & 
                   currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_uptake_scpf(iscpf) + & 
                   currentCohort%daily_n_uptake*currentCohort%n
@@ -467,7 +453,8 @@ contains
              currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_uptake_scpf(iscpf) = & 
                   currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_uptake_scpf(iscpf) + & 
                   currentCohort%daily_p_uptake*currentCohort%n
-
+             
+             ! Diagnostics on efflux, size and pft [kgX/ha/day]
              currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_efflux_scpf(iscpf) = & 
                   currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_efflux_scpf(iscpf) + & 
                   currentCohort%daily_n_efflux*currentCohort%n
@@ -480,12 +467,24 @@ contains
                   currentSite%flux_diags(element_pos(carbon12_element))%nutrient_efflux_scpf(iscpf) + & 
                   currentCohort%daily_c_efflux*currentCohort%n
 
+             ! Diagnostics on plant nutrient need
+             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needgrow_scpf(iscpf) = &
+                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needgrow_scpf(iscpf) + &
+                  currentCohort%daily_n_need1*currentCohort%n
+
+             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needmax_scpf(iscpf) = &
+                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needmax_scpf(iscpf) + &
+                  currentCohort%daily_n_need2*currentCohort%n
+
+             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needgrow_scpf(iscpf) = &
+                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needgrow_scpf(iscpf) + &
+                  currentCohort%daily_p_need1*currentCohort%n
+
+             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needmax_scpf(iscpf) = &
+                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needmax_scpf(iscpf) + &
+                  currentCohort%daily_p_need2*currentCohort%n
+
              
-             ! Create a diagnostic save array for N and P uptake rates,
-             ! fill it here before these are zero'd
-             
-             currentCohort%daily_n_uptake = 0._r8
-             currentCohort%daily_p_uptake = 0._r8
 
              ! Don't zero out the efflux terms, they need to be written to restarts,
              ! so that litter fluxes can be reconstructed.
@@ -720,7 +719,7 @@ contains
     type(ed_patch_type)  , pointer :: currentPatch
     type(ed_cohort_type) , pointer :: currentCohort
     type(litter_type), pointer     :: litt
-    logical, parameter :: print_cohorts = .false.   ! Set to true if you want
+    logical, parameter :: print_cohorts = .true.   ! Set to true if you want
                                                     ! to print cohort data
                                                     ! upon fail (lots of text)
     !-----------------------------------------------------------------------
@@ -815,6 +814,14 @@ contains
                         write(fates_log(),*) 'leaf: ',leaf_m,' structure: ',struct_m,' store: ',store_m
                         write(fates_log(),*) 'fineroot: ',fnrt_m,' repro: ',repro_m,' sapwood: ',sapw_m
                         write(fates_log(),*) 'num plant: ',currentCohort%n
+
+                        if(element_list(el).eq.nitrogen_element) then
+                           write(fates_log(),*) 'N uptake: ',currentCohort%daily_n_uptake
+                        elseif(element_list(el).eq.phosphorus_element) then
+                           write(fates_log(),*) 'P uptake: ',currentCohort%daily_p_uptake
+                        end if
+
+                           
                         currentCohort => currentCohort%shorter
                     enddo !end cohort loop
                 end if

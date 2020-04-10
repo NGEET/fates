@@ -28,8 +28,8 @@ module EDInitMod
   use EDTypesMod                , only : init_spread_inventory
   use EDTypesMod                , only : leaves_on
   use EDTypesMod                , only : leaves_off
-  use EDTypesMod                , only : num_elements
-  use EDTypesMod                , only : element_list
+  use PRTGenericMod             , only : num_elements
+  use PRTGenericMod             , only : element_list
   use EDTypesMod                , only : phen_cstat_nevercold
   use EDTypesMod                , only : phen_cstat_iscold
   use EDTypesMod                , only : phen_dstat_timeoff

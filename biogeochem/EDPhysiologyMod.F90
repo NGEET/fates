@@ -62,9 +62,9 @@ module EDPhysiologyMod
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
   use EDTypesMod          , only : min_n_safemath
-  use EDTypesMod          , only : num_elements
-  use EDTypesMod          , only : element_list
-  use EDTypesMod          , only : element_pos
+  use PRTGenericMod       , only : num_elements
+  use PRTGenericMod       , only : element_list
+  use PRTGenericMod       , only : element_pos
   use EDTypesMod          , only : site_fluxdiags_type
   use EDTypesMod          , only : phen_cstat_nevercold
   use EDTypesMod          , only : phen_cstat_iscold
@@ -141,6 +141,10 @@ module EDPhysiologyMod
 
   integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter 
 
+  integer, public, parameter :: growth_demand = 1
+  integer, public, parameter :: max_demand = 2
+
+  
   ! ============================================================================
 
 contains
@@ -2069,7 +2073,9 @@ contains
     ! diagnostics.
     
     type(ed_cohort_type),intent(in) :: ccohort
-    integer,intent(in)              :: element_id   ! Should match nitrogen_element or
+    integer,intent(in)              :: element_id      ! Should match nitrogen_element or
+    !    integer,intent(in)              :: demand_mode
+    
     ! phosphorus_element
     real(r8)              :: plant_demand ! Nutrient demand per plant [kg]
     real(r8)              :: plant_c      ! Total carbon across organs in list [kg]
@@ -2078,12 +2084,30 @@ contains
     real(r8)              :: npp_demand
     real(r8)              :: deficit_demand
     real(r8)              :: leaf_c, fnrt_c, sapw_c, store_c, struct_c, repro_c
+    real(r8)              :: leaf_c_trgt, fnrt_c_trgt, sapw_c_trgt, struct_c_trgt, store_c_trgt
+    real(r8)              :: leaf_dcdd,fnrt_dcdd,sapw_dcdd,store_dcdd,struct_dcdd
+    real(r8)              :: agw_c,bgw_c,agw_dcdd,bgw_dcdd
+    real(r8)              :: leaf_c_deficit
+    real(r8)              :: daily_x_demand2
     integer               :: pft
     real(r8)              :: dbh
 
+    
     pft = ccohort%pft
     dbh = ccohort%dbh
-    
+
+    ! To determine demand, we need to approximate which plant pools
+    ! will be getting carbon. This is important because those
+    ! pools have much different nutrient concentration requirements
+
+!!    call bleaf(ccohort%dbh,ft,ccohort%canopy_trim,leaf_c_trgt,leaf_dcdd)
+!!    call bfineroot(ccohort%dbh,ft,ccohort%canopy_trim,fnrt_c_trgt,fnrt_dcdd)
+!!    call bsap_allom(ccohort%dbh,ft,ccohort%canopy_trim,a_sapw, sapw_c_trgt,sapw_dcdd)
+!!    call bagw_allom(ccohort%dbh,ft,agw_c,agw_dcdd)
+!!    call bbgw_allom(ccohort%dbh,ft,bgw_c,bgw_dcdd)
+!!    call bdead_allom(c_agw,c_bgw,sapw_c_trgt,ft,struct_c_trgt,agw_dcdd,bgw_dcdd,sapw_dcdd,struct_dcdd)
+!!    call bstore_allom(ccohort%dbh,ft,ccohort%canopy_trim,store_c_trgt,store_dcdd)
+
     ! Total plant carbon [kg]
     leaf_c = ccohort%prt%GetState(leaf_organ,carbon12_element) 
     store_c = ccohort%prt%GetState(store_organ, carbon12_element)
@@ -2092,6 +2116,38 @@ contains
     sapw_c = ccohort%prt%GetState(sapw_organ, carbon12_element)
     repro_c = ccohort%prt%GetState(repro_organ, carbon12_element)
 
+    
+    ! Deficit from target
+!    leaf_c_def   = max(leaf_c_trgt - leaf_c,0._r8)
+!    store_c_def  = max(store_c_trgt - store_c,0._r8)
+!    fnrt_c_def   = max(fnrt_c_trgt - fnrt_c,0._r8)
+!    struct_c_def = max(struct_c_trgt - struct_c,0._r8)
+!    sapw_c_def   = max(sapw_c_trgt - sapw_c,0._r8)
+!    repro_c_def  = max(repro_c_trgt - repor_c,0._r8)
+
+    
+    
+    if(element_id.eq.nitrogen_element) then
+       plant_max_x = & 
+            leaf_c*prt_params%nitr_stoich_p2(pft,leaf_organ) + & 
+            fnrt_c*prt_params%nitr_stoich_p2(pft,fnrt_organ) + & 
+            store_c*prt_params%nitr_stoich_p2(pft,store_organ) + & 
+            sapw_c*prt_params%nitr_stoich_p2(pft,sapw_organ) + & 
+            struct_c*prt_params%nitr_stoich_p2(pft,struct_organ) + &
+            repro_c*prt_params%nitr_stoich_p2(pft,repro_organ)
+    elseif(element_id.eq.phosphorus_element) then
+       plant_max_x = &
+            leaf_c*prt_params%phos_stoich_p2(pft,leaf_organ) + & 
+            fnrt_c*prt_params%phos_stoich_p2(pft,fnrt_organ) + & 
+            store_c*prt_params%phos_stoich_p2(pft,store_organ) + & 
+            sapw_c*prt_params%phos_stoich_p2(pft,sapw_organ) + & 
+            struct_c*prt_params%phos_stoich_p2(pft,struct_organ) + &
+            repro_c*prt_params%phos_stoich_p2(pft,repro_organ)
+    end if
+    
+
+
+    
     plant_c = leaf_c + store_c + fnrt_c + struct_c + sapw_c + repro_c
     
     ! Calculate the total plant nutrient content [kg]
@@ -2111,6 +2167,9 @@ contains
             sapw_c*prt_params%nitr_stoich_p2(pft,sapw_organ) + & 
             struct_c*prt_params%nitr_stoich_p2(pft,struct_organ) + &
             repro_c*prt_params%nitr_stoich_p2(pft,repro_organ)
+
+       daily_x_demand2 = ccohort%daily_n_need2
+       
     elseif(element_id.eq.phosphorus_element) then
        plant_max_x = &
             leaf_c*prt_params%phos_stoich_p2(pft,leaf_organ) + & 
@@ -2119,6 +2178,9 @@ contains
             sapw_c*prt_params%phos_stoich_p2(pft,sapw_organ) + & 
             struct_c*prt_params%phos_stoich_p2(pft,struct_organ) + &
             repro_c*prt_params%phos_stoich_p2(pft,repro_organ)
+
+       daily_x_demand2 = ccohort%daily_p_need2
+       
     end if
 
     ! When calculating the NPP demand, the ratio plant_max_x/plant_c
@@ -2131,7 +2193,7 @@ contains
        ! we instead demand 1% of its total phosphorus for that first day of life
        npp_demand = 0.01_r8*plant_max_x
     else
-       npp_demand = (plant_max_x/plant_c)*ccohort%npp_acc_hold
+       npp_demand = (plant_max_x/plant_c)*ccohort%npp_acc_hold/real(hlm_days_per_year,r8)
     end if
 
     
@@ -2144,7 +2206,16 @@ contains
     ! kg/plant/day
     
     plant_demand = max(0._r8,npp_demand+deficit_demand)
+
+    if(ccohort%isnew) then
+       plant_demand = 0.01_r8*plant_max_x
+    else
+       plant_demand = daily_x_demand2
+    end if
+
     
+
+    return
   end function GetPlantDemand
 
   ! =====================================================================================
@@ -2196,9 +2267,10 @@ contains
 
 
     nsites = size(sites,dim=1)
-    
-    ! Trivial solution
+
     if(hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) then
+
+       ! Trivial solution for C-only model
        do s = 1, nsites
           cpatch => sites(s)%oldest_patch
           do while (associated(cpatch))
@@ -2217,6 +2289,23 @@ contains
        return   ! EXIT
     end if
 
+    if(hlm_parteh_mode.eq.prt_cnp_flex_allom_hyp) then
+
+       ! Trivial solution for C-only model
+       do s = 1, nsites
+          cpatch => sites(s)%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                ccohort%daily_n_uptake = 0._r8
+                ccohort%daily_p_uptake = 0._r8
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+       end do
+    end if
+    
     do s = 1, nsites
 
        ! If the plant's PFT has a non-zero positive prescribed rate,
@@ -2316,6 +2405,7 @@ contains
                       icomp = icomp+1
                       ! N Uptake:  Convert g/m2/day -> kg/plant/day
                       ! Note: this sum is over 1 index.
+
                       ccohort%daily_n_uptake = ccohort%daily_n_uptake + &
                            sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
                    else

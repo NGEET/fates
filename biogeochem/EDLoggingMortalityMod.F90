@@ -29,8 +29,8 @@ module EDLoggingMortalityMod
    use EDPftvarcon       , only : EDPftvarcon_inst
    use EDPftvarcon       , only : GetDecompyFrac
    use PRTParametersMod  , only : prt_params
-   use EDTypesMod        , only : num_elements
-   use EDTypesMod        , only : element_list
+   use PRTGenericMod     , only : num_elements
+   use PRTGenericMod     , only : element_list
    use EDParamsMod       , only : logging_export_frac
    use EDParamsMod       , only : logging_event_code
    use EDParamsMod       , only : logging_dbhmin

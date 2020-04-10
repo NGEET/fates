@@ -21,9 +21,9 @@ module FatesInterfaceMod
    use EDTypesMod          , only : do_fates_salinity
    use EDTypesMod          , only : numWaterMem
    use EDTypesMod          , only : numlevsoil_max
-   use EDTypesMod          , only : num_elements
-   use EDTypesMod          , only : element_list
-   use EDTypesMod          , only : element_pos
+   use PRTGenericMod       , only : num_elements
+   use PRTGenericMod       , only : element_list
+   use PRTGenericMod       , only : element_pos
    use EDTypesMod          , only : p_uptake_mode
    use EDTypesMod          , only : n_uptake_mode
    use FatesConstantsMod   , only : prescribed_p_uptake
@@ -2609,11 +2609,12 @@ contains
            ! If any PFTs are specified as either prescribed N or P uptake
            ! then they all must be !
 
-           if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero )) then
+           if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero ) .or. &
+               any(EDPftvarcon_inst%prescribed_nuptake(:) > 10._r8 ) ) then
               write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
-              write(fates_log(),*) 'are not allowed.'
-              write(fates_log(),*) 'Set to zero or unset to turn off and use coupled nutrients.'
-              write(fates_log(),*) 'Typical values when active are between 0 and 1.2-ish'
+              write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
+              write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
+              write(fates_log(),*) 'Set to zero to turn off and use coupled nutrients.'
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
@@ -2633,11 +2634,12 @@ contains
 
            
            ! Same for phosphorus
-           if (any(EDPftvarcon_inst%prescribed_puptake(:) < -nearzero )) then
+           if (any(EDPftvarcon_inst%prescribed_puptake(:) < -nearzero ) .or. &
+               any(EDPftvarcon_inst%prescribed_puptake(:) > 10._r8 )) then
               write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_puptake(:)'
-              write(fates_log(),*) 'are not allowed.'
+              write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
+              write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
               write(fates_log(),*) 'Set to zero or unset to turn off and use coupled nutrients.'
-              write(fates_log(),*) 'Typical values when active are between 0 and 1.2-ish'
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            elseif (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
@@ -2654,6 +2656,11 @@ contains
            else
               p_uptake_mode = coupled_p_uptake
            end if
+
+
+
+
+           
            
         end if
 

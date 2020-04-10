@@ -31,9 +31,8 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
   use EDTypesMod           , only : ican_upper
-  use EDTypesMod           , only : num_elements
-  use EDTypesMod           , only : element_list
-  use EDTypesMod           , only : element_pos
+  use PRTGenericMod        , only : num_elements
+  use PRTGenericMod        , only : element_list
   use EDTypesMod           , only : lg_sf
   use EDTypesMod           , only : dl_sf
   use EDTypesMod           , only : dump_patch

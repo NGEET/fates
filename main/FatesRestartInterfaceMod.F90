@@ -34,7 +34,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : ncwd
   use FatesLitterMod,          only : ndcmpy
   use PRTGenericMod,           only : prt_global
-  use EDTypesMod,              only : num_elements
+  use PRTGenericMod,           only : num_elements
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
