@@ -38,7 +38,7 @@ module EDInitMod
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
-  use FatesInterfaceMod         , only : hlm_use_static_biogeog
+  use FatesInterfaceMod         , only : hlm_use_fixed_biogeog
   use FatesInterfaceMod         , only : numpft
   use FatesInterfaceMod         , only : nleafage
   use FatesInterfaceMod         , only : nlevsclass
@@ -293,7 +293,7 @@ contains
           sites(s)%frac_burnt = 0.0_r8
          
          ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE                                                                                   
-          if(hlm_use_static_biogeog.eq.itrue)then
+          if(hlm_use_fixed_biogeog.eq.itrue)then
             do ft =  1,numpft
               sites(s)%area_pft(ft) = bc_in(s)%pft_areafrac(ft)
             end do
@@ -301,7 +301,7 @@ contains
 
           do ft = 1,numpft
            sites(s)%use_this_pft(ft) = 1
-           if(hlm_use_static_biogeog.eq.itrue)then
+           if(hlm_use_fixed_biogeog.eq.itrue)then
              if(sites(s)%area_pft(ft).gt.0.0_r8)then
                 sites(s)%use_this_pft(ft) = 1
              else

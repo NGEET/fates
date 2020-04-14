@@ -174,7 +174,7 @@ module FatesInterfaceMod
                                                                     ! This need only be defined when
                                                                     ! hlm_use_inventory_init = 1
 
-  integer, public ::  hlm_use_static_biogeog                           ! Placeholder for the flag the HLM compset will send to FATES when
+  integer, public ::  hlm_use_fixed_biogeog                           ! Placeholder for the flag the HLM compset will send to FATES when
                                                            ! using the fixed biogeography. 
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
@@ -801,10 +801,8 @@ contains
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
 
-      hlm_use_static_biogeog=itrue
-      if(hlm_use_static_biogeog.eq.itrue)then
          allocate(bc_in%pft_areafrac(maxpft))
-      end if
+
 
       return
    end subroutine allocate_bcin
@@ -1479,6 +1477,7 @@ contains
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
+         hlm_use_fixed_biogeog = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
@@ -1679,6 +1678,13 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+        if(hlm_use_fixed_biogeog.eq.unset_int) then
+           if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
+           end if
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'switch for cohort_age_tracking  unset: hlm_use_cohort_age_tracking, exiting'
@@ -1761,6 +1767,12 @@ contains
                hlm_use_spitfire = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_spitfire= ',ival,' to FATES'
+               end if
+
+            case('use_fixed_biogeog')
+                hlm_use_fixed_biogeog = ival
+               if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
                end if
                
             case('use_planthydro')
