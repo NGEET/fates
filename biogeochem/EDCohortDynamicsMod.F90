@@ -40,13 +40,13 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
-  use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
-  use FatesPlantHydraulicsMod, only : InitTreeHydStates
+  use FatesPlantHydraulicsMod, only : UpdateSizeDepPlantHydProps
+  use FatesPlantHydraulicsMod, only : InitPlantHydStates
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
-  use FatesPlantHydraulicsMod, only : UpdateTreeHydrNodes
-  use FatesPlantHydraulicsMod, only : UpdateTreeHydrLenVol
+  use FatesPlantHydraulicsMod, only : UpdatePlantHydrNodes
+  use FatesPlantHydraulicsMod, only : UpdatePlantHydrLenVol
   use FatesPlantHydraulicsMod, only : UpdatePlantKmax
   use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
   use FatesPlantHydraulicsMod, only : ConstrainRecruitNumber
@@ -293,11 +293,11 @@ contains
        call InitHydrCohort(currentSite,new_cohort)
 
        ! This calculates node heights
-       call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
+       call UpdatePlantHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
                                 new_cohort%hite,currentSite%si_hydr)
 
        ! This calculates volumes and lengths
-       call UpdateTreeHydrLenVol(new_cohort,currentSite%si_hydr)
+       call UpdatePlantHydrLenVol(new_cohort,currentSite%si_hydr)
        
        ! This updates the Kmax's of the plant's compartments
        call UpdatePlantKmax(new_cohort%co_hydr,new_cohort,currentSite%si_hydr)
@@ -308,7 +308,7 @@ contains
        
        ! This comes up with starter suctions and then water contents
        ! based on the soil values
-       call InitTreeHydStates(currentSite,new_cohort)
+       call InitPlantHydStates(currentSite,new_cohort)
 
        if(recruitstatus==1)then
 
@@ -1322,7 +1322,7 @@ contains
                                         currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                                         currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
                                         currentCohort%vcmax25top  )			    
-                                   call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)  				   
+                                   call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)  				   
                                 endif
                                 
                                 call DeallocateCohort(nextc)

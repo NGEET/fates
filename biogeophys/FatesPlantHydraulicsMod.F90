@@ -222,17 +222,17 @@ module FatesPlantHydraulicsMod
   public :: UpdateH2OVeg
   public :: CopyCohortHydraulics
   public :: FuseCohortHydraulics
-  public :: updateSizeDepTreeHydProps
-  public :: updateSizeDepTreeHydStates
-  public :: UpdateTreePsiFTCFromTheta
-  public :: InitTreeHydStates
-  public :: updateSizeDepRhizHydProps
-  public :: updateSizeDepRhizHydStates
+  public :: UpdateSizeDepPlantHydProps
+  public :: UpdateSizeDepPlantHydStates
+  public :: UpdatePlantPsiFTCFromTheta
+  public :: InitPlantHydStates
+  public :: UpdateSizeDepRhizHydProps
+  public :: UpdateSizeDepRhizHydStates
   public :: RestartHydrStates
   public :: SavePreviousCompartmentVolumes
   public :: SavePreviousRhizVolumes
-  public :: UpdateTreeHydrNodes
-  public :: UpdateTreeHydrLenVol
+  public :: UpdatePlantHydrNodes
+  public :: UpdatePlantHydrLenVol
   public :: UpdatePlantKmax
   public :: ConstrainRecruitNumber
   public :: InitHydroGlobals
@@ -325,11 +325,11 @@ contains
              ccohort_hydr => ccohort%co_hydr
 
              ! This calculates node heights
-             call UpdateTreeHydrNodes(ccohort_hydr,ccohort%pft,ccohort%hite, &
+             call UpdatePlantHydrNodes(ccohort_hydr,ccohort%pft,ccohort%hite, &
                   sites(s)%si_hydr)
 
              ! This calculates volumes and lengths
-             call UpdateTreeHydrLenVol(ccohort,csite_hydr)
+             call UpdatePlantHydrLenVol(ccohort,csite_hydr)
 
              ! This updates the Kmax's of the plant's compartments
              call UpdatePlantKmax(ccohort_hydr,ccohort,sites(s)%si_hydr)
@@ -426,7 +426,7 @@ contains
 
   ! ====================================================================================
 
-  subroutine InitTreeHydStates(site, cohort)
+  subroutine InitPlantHydStates(site, cohort)
 
     ! REQUIRED INPUTS:
     !
@@ -564,11 +564,11 @@ contains
 
     
 
-  end subroutine InitTreeHydStates
+  end subroutine InitPlantHydStates
   
   ! =====================================================================================
 
-  subroutine UpdateTreePsiFTCFromTheta(ccohort,csite_hydr)
+  subroutine UpdatePlantPsiFTCFromTheta(ccohort,csite_hydr)
     
     ! This subroutine updates the potential and the fractional
     ! of total conductivity based on the relative water
@@ -611,13 +611,13 @@ contains
     end do
 
     return
-  end subroutine UpdateTreePsiFTCFromTheta
+  end subroutine UpdatePlantPsiFTCFromTheta
 
 
   ! =====================================================================================
 
 
-  subroutine UpdateTreeHydrNodes(ccohort_hydr,ft,plant_height,csite_hydr)
+  subroutine UpdatePlantHydrNodes(ccohort_hydr,ft,plant_height,csite_hydr)
 
     ! --------------------------------------------------------------------------------
     ! This subroutine calculates the nodal heights critical to hydraulics in the plant
@@ -689,7 +689,7 @@ contains
     ccohort_hydr%z_node_troot = -z_cumul_rf
     
     return
-  end subroutine UpdateTreeHydrNodes
+  end subroutine UpdatePlantHydrNodes
 
   ! =====================================================================================
 
@@ -711,7 +711,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine updateSizeDepTreeHydProps(currentSite,ccohort,bc_in)
+  subroutine UpdateSizeDepPlantHydProps(currentSite,ccohort,bc_in)
 
 
     ! DESCRIPTION: Updates absorbing root length (total and its vertical distribution)
@@ -741,23 +741,23 @@ contains
     call SavePreviousCompartmentVolumes(ccohort_hydr)
 
     ! This updates all of the z_node positions
-    call UpdateTreeHydrNodes(ccohort_hydr,ft,ccohort%hite,currentSite%si_hydr)
+    call UpdatePlantHydrNodes(ccohort_hydr,ft,ccohort%hite,currentSite%si_hydr)
 
     ! This updates plant compartment volumes, lengths and 
     ! maximum conductances. Make sure for already
     ! initialized vegetation, that SavePreviousCompartment
-    ! volumes, and UpdateTreeHydrNodes is called prior to this.
-    call UpdateTreeHydrLenVol(ccohort,currentSite%si_hydr)
+    ! volumes, and UpdatePlantHydrNodes is called prior to this.
+    call UpdatePlantHydrLenVol(ccohort,currentSite%si_hydr)
 
     ! This updates the Kmax's of the plant's compartments
     call UpdatePlantKmax(ccohort_hydr,ccohort,currentsite%si_hydr)
 
 
-  end subroutine updateSizeDepTreeHydProps
+  end subroutine UpdateSizeDepPlantHydProps
 
   ! =====================================================================================
 
-  subroutine UpdateTreeHydrLenVol(ccohort,site_hydr)
+  subroutine UpdatePlantHydrLenVol(ccohort,site_hydr)
 
     ! -----------------------------------------------------------------------------------
     ! This subroutine calculates two attributes of a plant:
@@ -931,11 +931,11 @@ contains
     end do
        
     return
-  end subroutine UpdateTreeHydrLenVol
+  end subroutine UpdatePlantHydrLenVol
 
   ! =====================================================================================
 
-  subroutine updateSizeDepTreeHydStates(currentSite,ccohort)
+  subroutine UpdateSizeDepPlantHydStates(currentSite,ccohort)
     !
     ! !DESCRIPTION: 
     !
@@ -964,7 +964,7 @@ contains
     
     associate(pm_node => currentSite%si_hydr%pm_node)
     
-    ! MAYBE ADD A NAN CATCH?  If updateSizeDepTreeHydProps() was not called twice prior to the first
+    ! MAYBE ADD A NAN CATCH?  If UpdateSizeDepPlantHydProps() was not called twice prior to the first
     ! time this routine is called for a new cohort, then v_ag_init(k) will be a nan.
     ! It should be ok, but may be vulnerable if code is changed (RGK 02-2017)
 
@@ -1017,7 +1017,7 @@ contains
     ! UPDATES OF WATER POTENTIALS ARE DONE PRIOR TO RICHARDS' SOLUTION WITHIN FATESPLANTHYDRAULICSMOD.F90
     end associate
 
-  end subroutine updateSizeDepTreeHydStates
+  end subroutine UpdateSizeDepPlantHydStates
 
   ! =====================================================================================
 
@@ -1405,12 +1405,12 @@ contains
     ! --------------------------------------------------------------------------------
     ! All other ed_Hydr_site_type variables are initialized elsewhere:
     !
-    ! init_patch() -> updateSizeDepRhizHydProps -> shellgeom()
+    ! init_patch() -> UpdateSizeDepRhizHydProps -> shellgeom()
     !         this%v_shell
     !         this%r_node_shell
     !         this%r_out_shell
     !
-    ! init_patch() -> updateSizeDepRhizHydProps()
+    ! init_patch() -> UpdateSizeDepRhizHydProps()
     !         this%l_aroot_layer_init
     !         this%l_aroot_1D
     !         this%kmax_upper_shell
@@ -1785,7 +1785,7 @@ contains
   ! =====================================================================================
 
 
-  subroutine updateSizeDepRhizHydProps(currentSite, bc_in )
+  subroutine UpdateSizeDepRhizHydProps(currentSite, bc_in )
     !
     ! !DESCRIPTION: Updates size of 'representative' rhizosphere -- node radii, volumes.
     ! As fine root biomass (and thus absorbing root length) increases, this characteristic
@@ -1811,11 +1811,11 @@ contains
 
 
     return
-  end subroutine updateSizeDepRhizHydProps
+  end subroutine UpdateSizeDepRhizHydProps
 
   ! =================================================================================
 
-  subroutine updateSizeDepRhizHydStates(currentSite, bc_in)
+  subroutine UpdateSizeDepRhizHydStates(currentSite, bc_in)
     !
     ! !DESCRIPTION: Updates size of 'representative' rhizosphere -- node radii, volumes.
     ! As fine root biomass (and thus absorbing root length) increases, this characteristic
@@ -1996,7 +1996,7 @@ contains
 
     end if !nshell > 1
 
-  end subroutine updateSizeDepRhizHydStates
+  end subroutine UpdateSizeDepRhizHydStates
 
   ! ====================================================================================
   
@@ -2468,7 +2468,7 @@ contains
              ! of plant compartments
              ! ---------------------------------------------------------
              
-             call UpdateTreePsiFTCFromTheta(ccohort,site_hydr)
+             call UpdatePlantPsiFTCFromTheta(ccohort,site_hydr)
 
              ccohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
              

@@ -24,7 +24,7 @@ module FatesRestartInterfaceMod
   use FatesHydraulicsMemMod,   only : n_hypool_ag
   use FatesHydraulicsMemMod,   only : n_hypool_troot
   use FatesHydraulicsMemMod,   only : nlevsoi_hyd_max
-  use FatesPlantHydraulicsMod, only : UpdateTreePsiFTCFromTheta
+  use FatesPlantHydraulicsMod, only : UpdatePlantPsiFTCFromTheta
   use PRTGenericMod,           only : prt_global
   use EDCohortDynamicsMod,     only : nan_cohort
   use EDCohortDynamicsMod,     only : zero_cohort
@@ -2412,7 +2412,7 @@ contains
                    
                    ccohort%co_hydr%th_troot = this%rvars(ir_hydro_th_troot)%r81d(io_idx_co)
                    
-                   call UpdateTreePsiFTCFromTheta(ccohort,sites(s)%si_hydr)
+                   call UpdatePlantPsiFTCFromTheta(ccohort,sites(s)%si_hydr)
 
                    
                    ccohort%co_hydr%errh2o_growturn_aroot = &
