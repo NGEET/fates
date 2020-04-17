@@ -131,6 +131,9 @@ module FatesInterfaceMod
                                                        ! 1 = TRUE, 0 = FALSE
                                                        ! THIS IS CURRENTLY NOT SUPPORTED 
 
+   integer, public, protected :: hlm_use_cohort_age_tracking ! This flag signals whether or not to use
+                                                             ! cohort age tracking. 1 = TRUE, 0 = FALSE
+
    integer, public, protected :: hlm_use_ed_st3        ! This flag signals whether or not to use
                                                        ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                        ! Essentially, this gives us the ability
@@ -194,6 +197,11 @@ module FatesInterfaceMod
    ! well.
    ! -------------------------------------------------------------------------------------
    
+   real(r8), public, allocatable :: fates_hdim_levcoage(:)         ! cohort age class lower bound dimension
+   integer , public, allocatable :: fates_hdim_pfmap_levcapf(:)    ! map of pfts into cohort age class x pft dimension
+   integer , public, allocatable :: fates_hdim_camap_levcapf(:)    ! map of cohort age class into cohort age x pft dimension
+  
+
    real(r8), public, allocatable :: fates_hdim_levsclass(:)        ! plant size class lower bound dimension
    integer , public, allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
    integer , public, allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
@@ -223,7 +231,6 @@ module FatesInterfaceMod
    integer , public, allocatable :: fates_hdim_pftmap_levelpft(:)       ! map of pfts in the element x pft dimension
    integer , public, allocatable :: fates_hdim_cwdmap_levelcwd(:)       ! map of cwds in the element x cwd dimension
    integer , public, allocatable :: fates_hdim_agemap_levelage(:)       ! map of ages in the element x age dimension
-
 
    ! ------------------------------------------------------------------------------------
    !                              DYNAMIC BOUNDARY CONDITIONS
@@ -259,6 +266,7 @@ module FatesInterfaceMod
    integer, public, protected :: nlevsclass       ! The total number of cohort size class bins output to history
    integer, public, protected :: nlevage          ! The total number of patch age bins output to history
    integer, public, protected :: nlevheight       ! The total number of height bins output to history
+   integer, public, protected :: nlevcoage        ! The total number of cohort age bins output to history 
    integer, public, protected :: nleafage         ! The total number of leaf age classes
 
    ! -------------------------------------------------------------------------------------
@@ -1040,6 +1048,7 @@ contains
 
       use EDParamsMod, only : ED_val_history_sizeclass_bin_edges, ED_val_history_ageclass_bin_edges
       use EDParamsMod, only : ED_val_history_height_bin_edges
+      use EDParamsMod, only : ED_val_history_coageclass_bin_edges
       use CLMFatesParamInterfaceMod         , only : FatesReadParameters
       implicit none
       
@@ -1102,6 +1111,7 @@ contains
          nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
+         nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
 
          ! do some checks on the size, age, and height bin arrays to make sure they make sense:
          ! make sure that all start at zero, and that both are monotonically increasing
@@ -1132,6 +1142,12 @@ contains
          do i = 2,nlevheight
             if ( (ED_val_history_height_bin_edges(i) - ED_val_history_height_bin_edges(i-1)) .le. 0._r8) then
                write(fates_log(), *) 'height class bins specified in parameter file must be monotonically increasing'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+         end do
+         do i = 2,nlevcoage
+            if ( (ED_val_history_coageclass_bin_edges(i) - ED_val_history_coageclass_bin_edges(i-1)) .le. 0._r8) then
+               write(fates_log(), *) 'cohort age class bins specified in parameter file must be monotonically increasing'
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
@@ -1166,10 +1182,11 @@ contains
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
+       use EDParamsMod, only : ED_val_history_coageclass_bin_edges
 
        ! ------------------------------------------------------------------------------------------
        ! This subroutine allocates and populates the variables
-       ! that define the mapping of variables in history files in multiplexed dimensions liked
+       ! that define the mapping of variables in history files in multiplexed dimensions like
        ! the "scpf" format
        ! back to
        ! their respective single component dimensions, like size-class "sc" and pft "pf"
@@ -1184,6 +1201,7 @@ contains
        integer :: ileaf
        integer :: iage
        integer :: iheight
+       integer :: icoage
        integer :: iel
 
        allocate( fates_hdim_levsclass(1:nlevsclass   ))
@@ -1194,6 +1212,9 @@ contains
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
        allocate( fates_hdim_levheight(1:nlevheight   ))
+       allocate( fates_hdim_levcoage(1:nlevcoage ))
+       allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
+       allocate( fates_hdim_camap_levcapf(1:nlevcoage*numpft))
 
        allocate( fates_hdim_levcan(nclmax))
        allocate( fates_hdim_levelem(num_elements))
@@ -1222,6 +1243,7 @@ contains
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
        fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
+       fates_hdim_levcoage(:) = ED_val_history_coageclass_bin_edges(:)
 
        ! make pft array
        do ipft=1,numpft
@@ -1283,6 +1305,15 @@ contains
              i=i+1
              fates_hdim_pfmap_levscpf(i) = ipft
              fates_hdim_scmap_levscpf(i) = isc
+          end do
+       end do
+
+       i=0
+       do ipft=1,numpft
+          do icoage=1,nlevcoage
+             i=i+1
+             fates_hdim_pfmap_levcapf(i) = ipft
+             fates_hdim_camap_levcapf(i) = icoage
           end do
        end do
 
@@ -1399,7 +1430,9 @@ contains
       !
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
-
+      use FatesConstantsMod, only : fates_check_param_set
+    
+    
       ! Arguments
       integer, optional, intent(in)         :: ival
       real(r8), optional, intent(in)        :: rval
@@ -1432,6 +1465,7 @@ contains
          hlm_parteh_mode   = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
+         hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1489,6 +1523,19 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+
+         if ( ( ANY(EDPftvarcon_inst%mort_ip_age_senescence < fates_check_param_set )) .and. &
+           (hlm_use_cohort_age_tracking .eq.0 ) ) then
+
+           write(fates_log(),*) 'Age dependent mortality cannot be on if'
+           write(fates_log(),*) 'cohort age tracking is off.'
+           write(fates_log(),*) 'Set hlm_use_cohort_age_tracking = .true.'
+           write(fates_log(),*) 'in FATES namelist options'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+         
+
          if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'The FATES namelist stand structure flag must be 0 or 1, exiting'
@@ -1510,6 +1557,16 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
+
+         if ( hlm_use_inventory_init.eq.1  .and. hlm_use_cohort_age_tracking .eq.1) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'Fates inventory init cannot be used with age dependent mortality'
+               write(fates_log(), *) 'Set hlm_use_cohort_age_tracking to 0 or turn off inventory init'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+
          
          if (  .not.((hlm_use_inventory_init.eq.1).or.(hlm_use_inventory_init.eq.0))    ) then
             if (fates_global_verbose()) then
@@ -1612,6 +1669,14 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_cohort_age_tracking .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for cohort_age_tracking  unset: hlm_use_cohort_age_tracking, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
          end if
@@ -1694,6 +1759,13 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
                end if
 
+            case('use_cohort_age_tracking')
+               hlm_use_cohort_age_tracking = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
+               end if
+
+               
             case('use_logging')
                hlm_use_logging = ival
                if (fates_global_verbose()) then

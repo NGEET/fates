@@ -1471,7 +1471,9 @@ contains
        temp_cohort%canopy_trim = 0.8_r8  !starting with the canopy not fully expanded 
        temp_cohort%pft         = ft
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
+       temp_cohort%coage       = 0.0_r8
        stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
+
        call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
 
        ! Initialize live pools
@@ -1589,7 +1591,6 @@ contains
           ! Initialize the PARTEH object, and determine the initial masses of all
           ! organs and elements.
           ! -----------------------------------------------------------------------------
-
           prt => null()
           call InitPRTObject(prt)
 
@@ -1689,7 +1690,7 @@ contains
            
            ! This initializes the cohort
            call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, & 
-                temp_cohort%hite, temp_cohort%dbh, prt, & 
+                temp_cohort%hite, temp_cohort%coage, temp_cohort%dbh, prt, & 
                 temp_cohort%laimemory, temp_cohort%sapwmemory, temp_cohort%structmemory, &
                 cohortstatus, recruitstatus, &
                 temp_cohort%canopy_trim, currentPatch%NCL_p, currentSite%spread, bc_in)
