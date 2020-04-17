@@ -30,6 +30,9 @@ module FatesHydroWTFMod
 
   real(r8), parameter :: min_ftc = 0.0005_r8   ! Minimum allowed fraction of total conductance
                                                
+  ! Bounds on saturated fraction, outside of which we use linear PV or stop flow
+  ! In this context, the saturated fraction is defined by the volumetric WC "th"
+  ! and the volumetric residual and saturation "th_res" and "th_sat": (th-th_r)/(th_sat-th_res)
 
   real(r8), parameter :: min_sf_interp = 0.02 ! Linear interpolation below this saturated frac
   real(r8), parameter :: max_sf_interp = 0.95 ! Linear interpolation above this saturated frac
@@ -294,7 +297,7 @@ contains
     real(r8)             :: satfrac       ! Saturated fraction [-]
     real(r8)             :: th            ! Volumetric Water Cont [m3/m3]
 
-    real(r8)             :: psi_interp      ! psi where we start lin interp
+    real(r8)             :: psi_interp      ! psi where we start lin interp [Mpa]
     real(r8)             :: th_interp       ! th where we start lin interp
     real(r8)             :: dpsidth_interp  ! change in psi during lin interp (slope)
     real(r8)             :: m               ! pore size distribution param (1/n)
@@ -307,7 +310,7 @@ contains
     if(psi<psi_interp) then
 
        ! Saturation fraction
-       satfrac = (1._r8 + (-this%alpha*psi)**this%psd)**(-1._r8+1._r8/this%psd)
+       satfrac = (1._r8 + (-this%alpha*psi)**this%psd)**(-1._r8+m)
 
        ! convert to volumetric water content
        th = satfrac*(this%th_sat-this%th_res) + this%th_res
@@ -341,8 +344,12 @@ contains
     !------------------------------------------------------------------------------------
     ! saturation fraction is the origial equation in vg 1980, we just
     ! need to invert it:
-    ! satfrac = (1._r8 + (alpha*psi)**n)**(1._r8/n-1)
-    ! we also modify these functions to
+    ! (note "psd" is the pore-size-distribution parameter, equivalent to "n" from the
+    ! manuscript.)
+    !
+    ! satfrac = (1._r8 + (alpha*psi)**psd)**(1._r8/psd-1)
+    !
+    ! *also modified to accomodate linear pressure regime for super-saturation
     ! -----------------------------------------------------------------------------------
 
     m   = 1._r8/this%psd
@@ -419,15 +426,18 @@ contains
     real(r8)            :: den ! denominator term
     real(r8)            :: ftc
     real(r8)            :: psi_eff
+    real(r8)            :: m          ! inverse pore size distribution param (1/psd)
 
+    m   = 1._r8/this%psd
+    
     if(psi<0._r8) then
 
        ! VG 1980 assumes a postive pressure convention...
        psi_eff = -psi
 
        num = (1._r8 - (this%alpha*psi_eff)**(this%psd-1._r8) * &
-            (1._r8 + (this%alpha*psi_eff)**this%psd)**(-(1._r8-1._r8/this%psd)))**2._r8
-       den = (1._r8 + (this%alpha*psi_eff)**this%psd)**(this%tort*(1._r8-1._r8/this%psd))
+            (1._r8 + (this%alpha*psi_eff)**this%psd)**(-(1._r8-m)))**2._r8
+       den = (1._r8 + (this%alpha*psi_eff)**this%psd)**(this%tort*(1._r8-m))
 
        ! Make sure this is well behaved
        ftc = min(1._r8,max(min_ftc,num/den))
@@ -458,6 +468,9 @@ contains
     real(r8) :: dt3      ! derivative of term 3
     real(r8) :: ftc      ! calculate current ftc to see if we are at min
     real(r8) :: dftcdpsi ! change in frac total cond wrt psi
+    real(r8) :: m        ! pore size distribution param (1/psd)
+    
+    m   = 1._r8/this%psd
 
     if(psi>=0._r8) then
        dftcdpsi = 0._r8
@@ -473,14 +486,14 @@ contains
           t1  = (this%alpha*psi_eff)**(this%psd-1._r8)
           dt1 = this%alpha*(this%psd-1._r8)*(this%alpha*psi_eff)**(this%psd-2._r8)
 
-          t2  = (1._r8 + (this%alpha*psi_eff)**this%psd)**(1._r8/this%psd-1._r8)
-          dt2 = (1._r8/this%psd-1._r8) * &
-               (1._r8 + (this%alpha*psi_eff)**this%psd)**(1._r8/this%psd-2._r8) * &
+          t2  = (1._r8 + (this%alpha*psi_eff)**this%psd)**(m-1._r8)
+          dt2 = (m-1._r8) * &
+               (1._r8 + (this%alpha*psi_eff)**this%psd)**(m-2._r8) * &
                this%psd * (this%alpha*psi_eff)**(this%psd-1._r8) * this%alpha
 
-          t3  = (1._r8 + (this%alpha*psi_eff)**this%psd)**(this%tort*( 1._r8-1._r8/this%psd))
-          dt3 = this%tort*(1._r8-1._r8/this%psd) * &
-               (1._r8 + (this%alpha*psi_eff)**this%psd )**(this%tort*(1._r8-1._r8/this%psd)-1._r8) * &
+          t3  = (1._r8 + (this%alpha*psi_eff)**this%psd)**(this%tort*( 1._r8-m))
+          dt3 = this%tort*(1._r8-m) * &
+               (1._r8 + (this%alpha*psi_eff)**this%psd )**(this%tort*(1._r8-m)-1._r8) * &
                this%psd * (this%alpha*psi_eff)**(this%psd-1._r8) * this%alpha
 
           dftcdpsi = 2._r8*(1._r8-t1*t2)*(t1*dt2 + t2*dt1)/t3 - &

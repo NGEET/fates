@@ -1038,7 +1038,7 @@ contains
     !
     !------------------------------------------------------------------------
     ths     = EDPftvarcon_inst%hydr_thetas_node(ft,pm_type)
-    thr     = ths * EDPftvarcon_inst%hydr_resid_node(ft,pm_type)
+    thr     = EDPftvarcon_inst%hydr_resid_node(ft,pm_type)
     th_corr = max((thr+delta),min((ths-delta),th_uncorr))
 
     return
