@@ -1198,6 +1198,7 @@ contains
     ! !USES:
     use EDTypesMod, only : area
     use EDTypesMod, only : homogenize_seed_pfts
+    use FatesInterfaceMod,  only : hlm_use_fixed_biogeog
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -1301,22 +1302,18 @@ contains
 
           litt => currentPatch%litter(el)
           do pft = 1,numpft
-            if(currentSite%use_this_pft(pft).eq.1)then 
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
              
              ! Seed input from external sources (user param seed rain, or dispersal model)
              seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day
-             
+             if(hlm_use_fixed_biogeog.eq.itrue)then 
+               seed_in_external = 0._r8
+             end if 
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
              ! Seeds entering externally [kg/site/day]
              site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
-            else
-              litt%seed_in_local(pft)=0.0_r8
-              litt%seed_in_extern(pft)=0.0_r8
-              site_mass%seed_in=0.0_r8
-            endif !use this pft?
           enddo
           
           
@@ -1428,6 +1425,7 @@ contains
     !
     ! !USES:
     use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
+
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target   :: currentSite

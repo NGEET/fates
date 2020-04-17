@@ -220,8 +220,8 @@ contains
     ! canopy spread
     site_in%spread = 0._r8
 
-    site_in%area_pft = 0._r8
-    site_in%use_this_pft = fates_unset_int
+    site_in%area_pft(:) = 0._r8
+    site_in%use_this_pft(:) = fates_unset_int
   end subroutine zero_site
 
   ! ============================================================================
