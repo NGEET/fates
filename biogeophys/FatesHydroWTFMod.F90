@@ -31,8 +31,8 @@ module FatesHydroWTFMod
   real(r8), parameter :: min_ftc = 0.0005_r8   ! Minimum allowed fraction of total conductance
                                                
 
-  real(r8), parameter :: min_sf_interp = 0.02 ! Linear interpolation above this saturated frac
-  real(r8), parameter :: max_sf_interp = 0.95 ! Linear interpolation below this saturated frac
+  real(r8), parameter :: min_sf_interp = 0.02 ! Linear interpolation below this saturated frac
+  real(r8), parameter :: max_sf_interp = 0.95 ! Linear interpolation above this saturated frac
 
   real(r8), parameter :: quad_a1 = 0.80_r8  ! smoothing factor "A" term
                                             ! in the capillary-elastic region
@@ -148,7 +148,7 @@ module FatesHydroWTFMod
      real(r8) :: th_res   ! Residual volumentric water content          [m3/m3]
      real(r8) :: pinot    ! osmotic potential at full turger            [MPa]
      real(r8) :: epsil    ! bulk elastic modulus                        [MPa]
-     real(r8) :: rwc_fd   ! total RWC @ which elastic drainage begins     [-]
+     real(r8) :: rwc_ft   ! RWC @ full turgor, (elastic drainage begins)[-]
      real(r8) :: cap_corr ! correction for nonzero psi0x
      real(r8) :: cap_int  ! intercept of capillary region of curve
      real(r8) :: cap_slp  ! slope of capillary region of curve
@@ -652,7 +652,7 @@ contains
     this%th_res   = params_in(2)
     this%pinot    = params_in(3)
     this%epsil    = params_in(4)
-    this%rwc_fd   = params_in(5)
+    this%rwc_ft   = params_in(5)
     this%cap_corr = params_in(6)
     this%cap_int  = params_in(7)
     this%cap_slp  = params_in(8)
@@ -758,8 +758,8 @@ contains
        ! the elastic and capilary, and then smooth their
        ! combined with the caviation
        
-       call solutepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,psi_sol)
-       call pressurepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
+       call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol)
+       call pressurepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
        
        psi_elastic = psi_sol + psi_press
        
@@ -836,11 +836,11 @@ contains
        ! the elastic and capilary, and then smooth their
        ! combined with the caviation
        
-       call solutepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,psi_sol)
-       call pressurepsi(th_corr,this%rwc_fd,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
+       call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol)
+       call pressurepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
        
-       call dsolutepsidth(th,this%th_sat,this%th_res,this%rwc_fd,this%pinot,dsol_dth)
-       call dpressurepsidth(this%th_sat,this%th_res,this%rwc_fd,this%epsil,dpress_dth)
+       call dsolutepsidth(th,this%th_sat,this%th_res,this%rwc_ft,this%pinot,dsol_dth)
+       call dpressurepsidth(this%th_sat,this%th_res,this%rwc_ft,this%epsil,dpress_dth)
        
        delast_dth = dsol_dth + dpress_dth
        psi_elastic = psi_sol + psi_press
@@ -938,9 +938,9 @@ contains
 
   end function dftcdpsi_from_psi_tfs
 
-  !-------------------------------------------------------------------------------!
+  ! =====================================================================================
 
-  subroutine solutepsi(th,rwc_fd,th_sat,th_res,pinot,psi)
+  subroutine solutepsi(th,rwc_ft,th_sat,th_res,pinot,psi)
     !
     ! !DESCRIPTION: computes solute water potential (negative) as a function of
     !  water content for the plant PV curve.
@@ -950,20 +950,32 @@ contains
     ! !ARGUMENTS
 
     real(r8)      , intent(in)     :: th          ! vol wc       [m3 m-3]
-    real(r8)      , intent(in)     :: rwc_fd
+    real(r8)      , intent(in)     :: rwc_ft
     real(r8)      , intent(in)     :: th_sat
     real(r8)      , intent(in)     :: th_res
     real(r8)      , intent(in)     :: pinot
     real(r8)      , intent(out)    :: psi         ! water potential   [MPa]
 
-    psi = pinot*th_sat*(rwc_fd - th_res) / (th - th_sat*th_res)
+    ! -----------------------------------------------------------------------------------
+    ! From eq 8, Christopherson et al:
+    !
+    ! psi = pino/RWC*, where RWC*=(rwc-rwc_res)/(rwc_ft-rwc_res)
+    ! psi = pino * (rwc_ft-rwc_res)/(rwc-rwc_res)
+    !
+    ! if rwc_res =  th_res/th_sat
+    !
+    !     = pino * (rwc_ft - th_res/th_sat)/(th/th_sat - th_res/th_sat )
+    !     = pino * (th_sat*rwc_ft - th_res)/(th - th_res)
+    ! -----------------------------------------------------------------------------------
+    
+    psi = pinot * (th_sat*rwc_ft - th_res) / (th - th_res)
 
     return
   end subroutine solutepsi
 
-  !-------------------------------------------------------------------------------!
+  ! ====================================================================================
 
-  subroutine dsolutepsidth(th,th_sat,th_res,rwc_fd,pinot,dpsi_dth)
+  subroutine dsolutepsidth(th,th_sat,th_res,rwc_ft,pinot,dpsi_dth)
 
     !
     ! !DESCRIPTION: returns derivative of solutepsi() wrt theta
@@ -974,18 +986,24 @@ contains
     real(r8)      , intent(in)     :: th
     real(r8)      , intent(in)     :: th_sat
     real(r8)      , intent(in)     :: th_res
-    real(r8)      , intent(in)     :: rwc_fd
+    real(r8)      , intent(in)     :: rwc_ft
     real(r8)      , intent(in)     :: pinot
     real(r8)      , intent(out)    :: dpsi_dth
 
-    dpsi_dth = -1._r8*th_sat*pinot*(rwc_fd - th_res )/((th - th_sat*th_res)**2._r8)
+    ! -----------------------------------------------------------------------------------
+    ! Take derivative of eq 8 (function solutepsi)
+    ! psi      =  pinot * (th_sat*rwc_ft - th_res) * (th - th_res)^-1
+    ! dpsi_dth = -pinot * (th_sat*rwc_ft - th_res) * (th - th_res)^-2
+    ! -----------------------------------------------------------------------------------
+    
+    dpsi_dth = -1._r8*pinot*(th_sat*rwc_ft - th_res )*(th - th_res)**(-2._r8)
 
     return
   end subroutine dsolutepsidth
 
-  !-------------------------------------------------------------------------------!
+  ! =====================================================================================
 
-  subroutine pressurepsi(th,rwc_fd,th_sat,th_res,pinot,epsil,psi)
+  subroutine pressurepsi(th,rwc_ft,th_sat,th_res,pinot,epsil,psi)
     !
     ! !DESCRIPTION: computes pressure water potential (positive) as a function of
     !  water content for the plant PV curve.
@@ -994,22 +1012,22 @@ contains
     !
     ! !ARGUMENTS
     real(r8) , intent(in)  :: th
-    real(r8) , intent(in)  :: rwc_fd
+    real(r8) , intent(in)  :: rwc_ft
     real(r8) , intent(in)  :: th_sat
     real(r8) , intent(in)  :: th_res
     real(r8) , intent(in)  :: pinot
     real(r8) , intent(in)  :: epsil
     real(r8) , intent(out) :: psi         ! water potential   [MPa]
 
-
-    psi = epsil * (th - th_sat*rwc_fd) / (th_sat*(rwc_fd-th_res)) - pinot
+    psi = epsil * (th - th_sat*rwc_ft) / (th_sat*rwc_ft-th_res) - pinot
 
     return
   end subroutine pressurepsi
 
-  !-------------------------------------------------------------------------------!
 
-  subroutine dpressurepsidth(th_sat,th_res,rwc_fd,epsil,dpsi_dth)
+  ! =====================================================================================
+
+  subroutine dpressurepsidth(th_sat,th_res,rwc_ft,epsil,dpsi_dth)
     !
     ! !DESCRIPTION: returns derivative of pressurepsi() wrt theta
     !
@@ -1018,16 +1036,16 @@ contains
     ! !ARGUMENTS
     real(r8)      , intent(in)     :: th_sat
     real(r8)      , intent(in)     :: th_res
-    real(r8)      , intent(in)     :: rwc_fd
+    real(r8)      , intent(in)     :: rwc_ft
     real(r8)      , intent(in)     :: epsil
     real(r8)      , intent(out)    :: dpsi_dth       ! derivative of water potential wrt theta  [MPa m3 m-3]
 
-    dpsi_dth = epsil/(th_sat*(rwc_fd - th_res))
+    dpsi_dth = epsil/(th_sat*rwc_ft - th_res)
 
     return
   end subroutine dpressurepsidth
 
-  !-------------------------------------------------------------------------------!
+  ! =====================================================================================
 
   subroutine capillarypsi(th,th_sat,cap_int,cap_slp,psi)
     !
@@ -1047,7 +1065,7 @@ contains
     return
   end subroutine capillarypsi
 
-  !-------------------------------------------------------------------------------!
+  ! =====================================================================================
 
   subroutine dcapillarypsidth(cap_slp,th_sat,y)
     !
@@ -1065,8 +1083,8 @@ contains
     return
   end subroutine dcapillarypsidth
 
-  ! -------------------------------------------------------------------------------------
-
+  ! =====================================================================================
+  
   subroutine bisect_pv(this,lower, upper, psi, th)
     !
     ! !DESCRIPTION: Bisection routine for getting the inverse of the plant PV curve.
