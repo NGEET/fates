@@ -174,8 +174,14 @@ module FatesInterfaceMod
                                                                     ! This need only be defined when
                                                                     ! hlm_use_inventory_init = 1
 
-  integer, public ::  hlm_use_fixed_biogeog                           ! Placeholder for the flag the HLM compset will send to FATES when
-                                                           ! using the fixed biogeography. 
+  integer, public ::  hlm_use_fixed_biogeog                         !  Flag to use FATES fixed biogeography mode
+                                                                    !  1 = TRUE, 0 = FALSE 
+
+  integer, public ::  hlm_use_nocomp                                !  Flag to use FATES no PFT competition mode
+                                                                    !  1 = TRUE, 0 = FALSE   
+
+
+
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -474,7 +480,6 @@ module FatesInterfaceMod
 
 
      ! Fixed biogeography mode 
-
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT
 
       
@@ -1478,6 +1483,7 @@ contains
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_fixed_biogeog = unset_int
+         hlm_use_nocomp = unset_int    
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
@@ -1685,6 +1691,13 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+        if(hlm_use_nocomp.eq.unset_int) then
+              if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for no competition mode. '
+            end if
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'switch for cohort_age_tracking  unset: hlm_use_cohort_age_tracking, exiting'
@@ -1775,6 +1788,13 @@ contains
                    write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
                end if
                
+            case('use_nocomp')
+                hlm_use_nocomp = ival
+               if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
+               end if
+
+
             case('use_planthydro')
                hlm_use_planthydro = ival
                if (fates_global_verbose()) then
