@@ -445,6 +445,7 @@ module FatesHistoryInterfaceMod
 
 !  integer :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
   integer :: ih_sapflow_scpf
+  integer :: ih_sapflow_si
   integer :: ih_iterh1_scpf          
   integer :: ih_iterh2_scpf           
   integer :: ih_supsub_scpf              
@@ -3461,6 +3462,7 @@ end subroutine flush_hvars
     associate( hio_errh2o_scpf  => this%hvars(ih_errh2o_scpf)%r82d, &
           hio_tran_scpf         => this%hvars(ih_tran_scpf)%r82d, &
           hio_sapflow_scpf      => this%hvars(ih_sapflow_scpf)%r82d, &
+          hio_sapflow_si        => this%hvars(ih_sapflow_si)%r81d, & 
           hio_iterh1_scpf       => this%hvars(ih_iterh1_scpf)%r82d, &          
           hio_iterh2_scpf       => this%hvars(ih_iterh2_scpf)%r82d, &           
           hio_ath_scpf          => this%hvars(ih_ath_scpf)%r82d, &               
@@ -3547,7 +3549,7 @@ end subroutine flush_hvars
          hio_rootuptake_si(io_si) = sum(site_hydr%rootuptake_sl,dim=1)
          hio_rootuptake_sl(io_si,:) = 0._r8
          hio_rootuptake_sl(io_si,jr1:jr2) = site_hydr%rootuptake_sl(1:nlevrhiz)
-
+         hio_rootuptake_si(io_si) = sum(site_hydr%sapflow_scpf)
          
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -5293,9 +5295,15 @@ end subroutine flush_hvars
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_tran_scpf )
 
        call this%set_history_var(vname='FATES_SAPFLOW_SCPF', units='kg/ha/s', &
-             long='individual sap flow rate', use_default='inactive', &
+             long='areal sap flow rate dimensioned by size x pft', use_default='inactive', &
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_sapflow_scpf )
+
+       call this%set_history_var(vname='FATES_SAPFLOW_SI', units='kg/ha/s', &
+             long='areal sap flow rate', use_default='active', &
+             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_sapflow_si )
+
        
        call this%set_history_var(vname='FATES_ITERH1_SCPF', units='count/indiv/step', &
              long='number of outer iterations required to achieve tolerable water balance error', &

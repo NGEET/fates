@@ -168,7 +168,7 @@ module FatesPlantHydraulicsMod
                                                ! is left between soil moisture and saturation [m3/m3]
                                                ! (if we are going to help purge super-saturation)
                                              
-  logical,parameter :: debug = .true.          ! flag to report warning in hydro
+  logical,parameter :: debug = .false.          ! flag to report warning in hydro
 
 
   character(len=*), parameter, private :: sourcefile = &
@@ -2268,6 +2268,7 @@ contains
     real(r8) :: transp_flux         ! total transpiration flux from plants [kg/m2]
     real(r8) :: delta_plant_storage ! change in plant water storage over the step [kg/m2]
     real(r8) :: delta_soil_storage  ! change in soil water storage over the step [kg/m2]
+    real(r8) :: sumcheck            ! used to debug mass balance in soil horizon diagnostics
     integer  :: nlevrhiz            ! local for number of rhizosphere levels
     integer  :: sc                  ! size class index
     
@@ -2457,27 +2458,27 @@ contains
              sc = ccohort%size_class
              
              ! Sapflow diagnostic [kg/ha/s]
-             site_hydr%sapflow_scpf(sc,ft) = site_hydr%sapflow_scpf(sc,ft) + sapflow/dtime
+             site_hydr%sapflow_scpf(sc,ft) = site_hydr%sapflow_scpf(sc,ft) + sapflow*ccohort%n/dtime
 
              ! Root uptake per rhiz layer [kg/ha/s]
              site_hydr%rootuptake_sl(1:nlevrhiz) = site_hydr%rootuptake_sl(1:nlevrhiz) + &
-                  rootuptake(1:nlevrhiz)*ccohort%n
+                  rootuptake(1:nlevrhiz)*ccohort%n/dtime
 
              ! Root uptake per pft x size class, over set layer depths [kg/ha/m/s]
              ! These are normalized by depth (in case the desired horizon extends
              ! beyond the actual rhizosphere)
-             
+
              site_hydr%rootuptake0_scpf(sc,ft) = site_hydr%rootuptake0_scpf(sc,ft) + & 
-                  SumBetweenDepths(site_hydr,0._r8,0.1_r8,rootuptake(1:nlevrhiz))*ccohort%n
+                  SumBetweenDepths(site_hydr,0._r8,0.1_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
 
              site_hydr%rootuptake10_scpf(sc,ft) = site_hydr%rootuptake10_scpf(sc,ft) + & 
-                  SumBetweenDepths(site_hydr,0.1_r8,0.5_r8,rootuptake(1:nlevrhiz))*ccohort%n
-             
+                  SumBetweenDepths(site_hydr,0.1_r8,0.5_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
+
              site_hydr%rootuptake50_scpf(sc,ft) = site_hydr%rootuptake50_scpf(sc,ft) + & 
-                  SumBetweenDepths(site_hydr,0.5_r8,1.0_r8,rootuptake(1:nlevrhiz))*ccohort%n
+                  SumBetweenDepths(site_hydr,0.5_r8,1.0_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
 
              site_hydr%rootuptake100_scpf(sc,ft) = site_hydr%rootuptake100_scpf(sc,ft) + & 
-                  SumBetweenDepths(site_hydr,1.0_r8,1.e10_r8,rootuptake(1:nlevrhiz))*ccohort%n
+                  SumBetweenDepths(site_hydr,1.0_r8,1.e10_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
              
              ! ---------------------------------------------------------
              ! Update water potential and frac total conductivity
