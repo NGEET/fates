@@ -1179,10 +1179,6 @@ contains
 
     ccohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
 
-!    ccohort_hydr%sapflow        = (currentCohort%n*ccohort_hydr%sapflow        + &
-!         nextCohort%n*ncohort_hydr%sapflow)/newn
-!    ccohort_hydr%rootuptake     = (currentCohort%n*ccohort_hydr%rootuptake     + &
-!         nextCohort%n*ncohort_hydr%rootuptake)/newn
     ccohort_hydr%qtop     = (currentCohort%n*ccohort_hydr%qtop     + &
          nextCohort%n*ncohort_hydr%qtop)/newn
 
@@ -2230,6 +2226,7 @@ contains
     integer :: j_bc  ! soil layer index for boundary conditions
     integer :: k     ! 1D plant-soil continuum array
     integer :: ft    ! plant functional type index
+    integer :: sz    ! plant's size class index
     integer :: t     ! previous timesteps (for lwp stability calculation)
     integer :: nstep !number of time steps
 
@@ -2248,12 +2245,9 @@ contains
     ! array of soil layer indices which have been ordered
     integer             :: ordered(nlevsoi_hyd_max) = (/(j,j=1,nlevsoi_hyd_max,1)/) 
 
-    ! number of cohorts in this size-class/pft bin (nlevsclass,numpft) for averaging
-    integer,allocatable :: ncohorts_scpf(:,:)
-
     ! total absorbing root & rhizosphere conductance (over all shells) by soil layer   [MPa]
     real(r8) :: kbg_layer(nlevsoi_hyd_max)   
-
+    real(r8) :: rootuptake(nlevsoi_hyd_max) ! mass-flux from 1st rhizosphere to absorbing roots            [kg/indiv/layer/step]
     
     real(r8) :: site_runoff         ! If plants are pushing water into saturated soils, we create
                                     ! runoff. This is either banked, or sent to the correct flux pool [kg/m2]
@@ -2266,8 +2260,7 @@ contains
     real(r8) :: dwat_plant          ! change in water mass in the whole plant [kg]
     real(r8) :: qflx_tran_veg_indiv ! individiual transpiration rate [kgh2o indiv-1 s-1]
     real(r8) :: gscan_patch         ! sum of ccohort%gscan across all cohorts within a patch          
-    real(r8) :: sapflow             ! mass-flux for the cohort between transporting root and stem   [kg/indiv/step]
-    real(r8) :: rootuptake          ! mass-flux from 1st rhizosphere to absorbing roots             [kg/indiv/step]
+    real(r8) :: sapflow             ! mass-flux for the cohort between transporting root and stem  [kg/indiv/step]
     real(r8) :: prev_h2oveg         ! plant water storage at start of timestep (kg/m2)
     real(r8) :: prev_h2osoil        ! soil water storage at start of timestep (kg/m2)
     logical  :: recruitflag         ! flag to check if there is newly recruited cohorts
@@ -2275,9 +2268,8 @@ contains
     real(r8) :: transp_flux         ! total transpiration flux from plants [kg/m2]
     real(r8) :: delta_plant_storage ! change in plant water storage over the step [kg/m2]
     real(r8) :: delta_soil_storage  ! change in soil water storage over the step [kg/m2]
+    integer  :: nlevrhiz            ! local for number of rhizosphere levels
     integer  :: sc                  ! size class index
-
-
     
     ! ----------------------------------------------------------------------------------
     ! Important note: We are interested in calculating the total fluxes in and out of the
@@ -2293,24 +2285,30 @@ contains
     !update water storage in veg after incorporating newly recuited cohorts
     if(recruitflag) call UpdateH2OVeg(nsites,sites,bc_out)
 
-    ! This helps with diagnostics
-    allocate(ncohorts_scpf(nlevsclass,numpft))
-    
     do s = 1, nsites
 
        site_hydr => sites(s)%si_hydr
 
+       nlevrhiz = site_hydr%nlevrhiz
+       
        ! AVERAGE ROOT WATER UPTAKE (BY RHIZOSPHERE SHELL) ACROSS ALL COHORTS WITHIN A COLUMN
        dth_layershell_col(:,:)  = 0._r8
        site_hydr%dwat_veg       = 0._r8
        site_hydr%errh2o_hyd     = 0._r8
-       ncohorts_scpf(:,:)       = 0
        prev_h2oveg    = site_hydr%h2oveg
        prev_h2osoil   = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
                         site_hydr%v_shell(:,:)) * denh2o * AREA_INV
 
        bc_out(s)%qflx_ro_sisl(:) = 0._r8
-       site_hydr%sapflow(:,:) = 0._r8
+
+       ! Zero out diagnotsics that rely on accumulation
+       site_hydr%sapflow_scpf(:,:)       = 0._r8
+       site_hydr%rootuptake_sl(:)        = 0._r8
+       site_hydr%rootuptake0_scpf(:,:)   = 0._r8
+       site_hydr%rootuptake10_scpf(:,:)  = 0._r8
+       site_hydr%rootuptake50_scpf(:,:)  = 0._r8
+       site_hydr%rootuptake100_scpf(:,:) = 0._r8
+
        
        ! Initialize water mass balancing terms [kg h2o / m2]
        ! --------------------------------------------------------------------------------
@@ -2411,7 +2409,7 @@ contains
 
                  call MatSolve2D(site_hydr,ccohort,ccohort_hydr, &
                        dtime,qflx_tran_veg_indiv, &
-                       sapflow,rootuptake,wb_err_plant,dwat_plant, &
+                       sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
                        dth_layershell_col)
                 
              else
@@ -2436,7 +2434,7 @@ contains
                 
                 call ImTaylorSolve1D(site_hydr,ccohort,ccohort_hydr, &
                                      dtime,qflx_tran_veg_indiv,ordered, kbg_layer, & 
-                                     sapflow,rootuptake, & 
+                                     sapflow,rootuptake(1:nlevrhiz), & 
                                      wb_err_plant,dwat_plant, &
                                      dth_layershell_col)
 
@@ -2456,12 +2454,30 @@ contains
              ! (this is not zerod, but incremented)
              site_hydr%h2oveg     = site_hydr%h2oveg + dwat_plant*ccohort%n*AREA_INV
 
-             ! Sapflow diagnostic [kg/indiv/s]
-             ncohorts_scpf(ccohort%size_class,ft) = &
-                  ncohorts_scpf(ccohort%size_class,ft) + 1
-             site_hydr%sapflow(ccohort%size_class,ft) = &
-                  site_hydr%sapflow(ccohort%size_class,ft) + sapflow/dtime
+             sc = ccohort%size_class
              
+             ! Sapflow diagnostic [kg/ha/s]
+             site_hydr%sapflow_scpf(sc,ft) = site_hydr%sapflow_scpf(sc,ft) + sapflow/dtime
+
+             ! Root uptake per rhiz layer [kg/ha/s]
+             site_hydr%rootuptake_sl(1:nlevrhiz) = site_hydr%rootuptake_sl(1:nlevrhiz) + &
+                  rootuptake(1:nlevrhiz)*ccohort%n
+
+             ! Root uptake per pft x size class, over set layer depths [kg/ha/m/s]
+             ! These are normalized by depth (in case the desired horizon extends
+             ! beyond the actual rhizosphere)
+             
+             site_hydr%rootuptake0_scpf(sc,ft) = site_hydr%rootuptake0_scpf(sc,ft) + & 
+                  SumBetweenDepths(site_hydr,0._r8,0.1_r8,rootuptake(1:nlevrhiz))*ccohort%n
+
+             site_hydr%rootuptake10_scpf(sc,ft) = site_hydr%rootuptake10_scpf(sc,ft) + & 
+                  SumBetweenDepths(site_hydr,0.1_r8,0.5_r8,rootuptake(1:nlevrhiz))*ccohort%n
+             
+             site_hydr%rootuptake50_scpf(sc,ft) = site_hydr%rootuptake50_scpf(sc,ft) + & 
+                  SumBetweenDepths(site_hydr,0.5_r8,1.0_r8,rootuptake(1:nlevrhiz))*ccohort%n
+
+             site_hydr%rootuptake100_scpf(sc,ft) = site_hydr%rootuptake100_scpf(sc,ft) + & 
+                  SumBetweenDepths(site_hydr,1.0_r8,1.e10_r8,rootuptake(1:nlevrhiz))*ccohort%n
              
              ! ---------------------------------------------------------
              ! Update water potential and frac total conductivity
@@ -2614,19 +2630,9 @@ contains
             site_hydr%h2oveg_pheno_err-&
             site_hydr%h2oveg_hydro_err
 
-       do ft = 1, numpft
-          do sc = 1,nlevsclass
-             if(ncohorts_scpf(sc,ft)>0)then
-                site_hydr%sapflow(sc,ft) = &
-                     site_hydr%sapflow(sc,ft) / real(ncohorts_scpf(sc,ft),r8)
-             end if
-          end do
-       end do
-       
     enddo !site
-    
-    deallocate(ncohorts_scpf)
-    
+
+    return
   end subroutine Hydraulics_BC
 
   ! =====================================================================================
@@ -3016,7 +3022,7 @@ contains
     ! Arguments (OUT)
 
     real(r8),intent(out) :: sapflow                   ! time integrated mass flux between transp-root and stem [kg]
-    real(r8),intent(out) :: rootuptake                ! time integrated mass flux between rhizosphere and aroot [kg]
+    real(r8),intent(out) :: rootuptake(:)             ! time integrated mass flux between rhizosphere and aroot [kg]
     real(r8),intent(out) :: wb_err_plant              ! total error from the plant, transpiration
                                                       ! should match change in storage [kg]
     real(r8),intent(out) :: dwat_plant                ! Change in plant stored water [kg]
@@ -3119,7 +3125,7 @@ contains
     ! So we need to zero them, as they are incremented
     ! over the sub-steps
     sapflow = 0._r8
-    rootuptake = 0._r8
+    rootuptake(:) = 0._r8
     
     ft = cohort%pft
 
@@ -3602,7 +3608,7 @@ contains
         ! Add the current soil layer's contribution to total
         ! sap and root flux [kg]
         sapflow = sapflow + sapflow_lyr
-        rootuptake = rootuptake + rootuptake_lyr
+        rootuptake(ilayer) = rootuptake_lyr
         
         
         ! Record the layer with the most iterations, but only
@@ -4374,7 +4380,7 @@ contains
     real(r8),intent(in)                          :: tmx ! time interval to integrate over [s]
     real(r8),intent(in)                          :: qtop
     real(r8),intent(out) :: sapflow                   ! time integrated mass flux between transp-root and stem [kg]
-    real(r8),intent(out) :: rootuptake                ! time integrated mass flux between rhizosphere and aroot [kg]
+    real(r8),intent(out) :: rootuptake(:)             ! time integrated mass flux between rhizosphere and aroot [kg]
    
     
     real(r8),intent(out)                         :: wb_err_plant ! total error over plant, transpiration 
@@ -4515,7 +4521,7 @@ contains
       ! The rootuptake is the integrated flux between the 1st rhizosphere
       ! and absorbing roots
       sapflow = 0._r8
-      rootuptake = 0._r8
+      rootuptake(:) = 0._r8
 
       ! Chnage in water content, over all substeps [m3/m3]
       dth_node(:) = 0._r8
@@ -4990,7 +4996,7 @@ contains
          do j = 1,site_hydr%nlevrhiz
             ! Connection betwen the 1st rhizosphere and absorbing roots
             icnx_ar = n_hypool_ag + (j-1)*(nshell+1)+2
-            rootuptake = rootuptake + q_flux(icnx_ar)*dtime
+            rootuptake(j) = q_flux(icnx_ar)*dtime
          enddo
 
 
@@ -5044,6 +5050,58 @@ contains
     return   
   end subroutine MatSolve2D
 
+  ! =====================================================================================
+  
+  function SumBetweenDepths(site_hydr,depth_t,depth_b,array_in) result(depth_sum)
+
+    ! This function sums the quantity in array_in between depth_t (top)
+    ! and depth_b.  It assumes many things. Firstly, that the depth coordinates
+    ! for array_in do match site_hydr%zi_rhiz (on rhizosphere layers), and that
+    ! those coordinates are positive down.
+
+    type(ed_site_hydr_type), intent(in) :: site_hydr
+    real(r8),intent(in)    :: depth_t      ! Top Depth    (positive coordinate)
+    real(r8),intent(in)    :: depth_b      ! Bottom depth (positive coordinate)
+    real(r8),intent(in)    :: array_in(:)  ! Quantity to be summed (flux?mass?)
+    real(r8)               :: depth_sum    ! The summed result we return in units (/depth)
+    integer  :: i_rhiz_t                   ! Layer index of top full layer
+    integer  :: i_rhiz_b                   ! layer index of bottom full layer
+    integer  :: nlevrhiz                   ! Number of rhizosphere layers (not shells)
+    real(r8) :: frac                       ! Fraction of partial layer, by depth
+    
+    i_rhiz_t = count((site_hydr%zi_rhiz-site_hydr%dz_rhiz)<depth_t)+1  ! First layer completely below top depth
+    i_rhiz_b = count(site_hydr%zi_rhiz<depth_b)                        ! Last layer completely above bottom depth
+    nlevrhiz = size(site_hydr%zi_rhiz)
+
+    depth_sum = 0._r8
+    
+    ! Trivial, the top depth is deeper than the soil column
+    ! return... 0 or nan..?
+    if(i_rhiz_t>nlevrhiz) then
+       return
+    end if
+    
+    ! Sum all fully encased layers
+    if(i_rhiz_b>=i_rhiz_t)then
+       depth_sum = depth_sum + sum(array_in(i_rhiz_t:i_rhiz_b)) 
+    end if
+    
+    ! Find fraction contribution from top partial layer (if any)
+    if(i_rhiz_t>1) then
+       frac = (site_hydr%zi_rhiz(i_rhiz_t-1)-depth_t)/site_hydr%dz_rhiz(i_rhiz_t-1)
+       depth_sum = depth_sum + frac*array_in(i_rhiz_t-1)
+    end if
+    
+    ! Find fraction contribution from bottom partial layer (if any)
+    if(i_rhiz_b<nlevrhiz) then
+       frac = (depth_b-site_hydr%zi_rhiz(i_rhiz_b))/site_hydr%dz_rhiz(i_rhiz_b+1)
+       depth_sum = depth_sum + frac*array_in(i_rhiz_b+1)
+    end if
+    
+    depth_sum = depth_sum/(min(depth_b,site_hydr%zi_rhiz(nlevrhiz))-depth_t)
+    
+  end function SumBetweenDepths
+  
   ! =====================================================================================
   
   subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up)

@@ -144,12 +144,20 @@ module FatesHydraulicsMemMod
      ! Useful diagnostics
      ! ----------------------------------------------------------------------------------
 
-     real(r8),allocatable ::  sapflow(:,:)        ! flow at base of tree (+ upward)      [kg/indiv/s]
+     real(r8),allocatable ::  sapflow_scpf(:,:)   ! flow at base of tree (+ upward)      [kg/ha/s]
                                                   ! discretized by size x pft
-!!     real(r8),allocatable ::  rootuptake(:)       ! net flow into roots (+ into roots)   [kg/cohort/s]
 
+     ! Root uptake per rhiz layer [kg/ha/s]
+     real(r8),allocatable :: rootuptake_sl(:)
 
+     ! Root uptake per pft x size class, over set layer depths [kg/ha/m/s]
+     ! These are normalized by depth (in case the desired horizon extends
+     ! beyond the actual rhizosphere)
      
+     real(r8), allocatable :: rootuptake0_scpf(:,:)   ! 0-10 cm
+     real(r8), allocatable :: rootuptake10_scpf(:,:)  ! 10-50 cm
+     real(r8), allocatable :: rootuptake50_scpf(:,:)  ! 50-100 cm
+     real(r8), allocatable :: rootuptake100_scpf(:,:) ! 100+ cm
 
      
      
@@ -404,7 +412,13 @@ module FatesHydraulicsMemMod
          allocate(this%h2osoi_liq_prev(1:nlevrhiz))          ; this%h2osoi_liq_prev = nan
          allocate(this%rs1(1:nlevrhiz)); this%rs1(:) = fine_root_radius_const
          allocate(this%recruit_w_uptake(1:nlevrhiz)); this%recruit_w_uptake = nan
-         allocate(this%sapflow(1:numlevsclass,1:numpft)); this%sapflow = nan
+         
+         allocate(this%sapflow_scpf(1:numlevsclass,1:numpft))       ; this%sapflow_scpf = nan
+         allocate(this%rootuptake_sl(1:nlevrhiz))                   ; this%rootuptake_sl = nan
+         allocate(this%rootuptake0_scpf(1:numlevsclass,1:numpft))   ; this%rootuptake0_scpf = nan
+         allocate(this%rootuptake10_scpf(1:numlevsclass,1:numpft))  ; this%rootuptake10_scpf = nan
+         allocate(this%rootuptake50_scpf(1:numlevsclass,1:numpft))  ; this%rootuptake50_scpf = nan
+         allocate(this%rootuptake100_scpf(1:numlevsclass,1:numpft)) ; this%rootuptake100_scpf = nan
          
          this%errh2o_hyd     = nan
          this%dwat_veg       = nan
