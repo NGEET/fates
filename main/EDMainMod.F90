@@ -614,7 +614,7 @@ contains
     type(ed_patch_type)  , pointer :: currentPatch
     type(ed_cohort_type) , pointer :: currentCohort
     type(litter_type), pointer     :: litt
-    logical, parameter :: print_cohorts = .true.   ! Set to true if you want
+    logical, parameter :: print_cohorts = .false.   ! Set to true if you want
                                                     ! to print cohort data
                                                     ! upon fail (lots of text)
     !-----------------------------------------------------------------------
