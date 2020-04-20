@@ -26,10 +26,11 @@ module EDCanopyStructureMod
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceMod     , only : hlm_days_per_year
   use FatesInterfaceMod     , only : hlm_use_planthydro
+  use FatesInterfaceMod     , only : hlm_use_cohort_age_tracking
   use FatesInterfaceMod     , only : numpft
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
-
+  
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -1256,11 +1257,14 @@ contains
      ! ---------------------------------------------------------------------------------
 
     use FatesInterfaceMod    , only : bc_in_type
+    use FatesInterfaceMod    , only : hlm_use_cohort_age_tracking
     use EDPatchDynamicsMod   , only : set_patchno
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+    use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod           , only : area
     use EDPftvarcon          , only : EDPftvarcon_inst
-
+    use FatesConstantsMod    , only : itrue
+    
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -1279,8 +1283,9 @@ contains
     real(r8) :: sapw_c           ! sapwood carbon [kg]
     real(r8) :: store_c          ! storage carbon [kg]
     real(r8) :: struct_c         ! structure carbon [kg]
-    !----------------------------------------------------------------------
 
+    !----------------------------------------------------------------------
+    
     if ( debug ) then
        write(fates_log(),*) 'in canopy_summarization'
     endif
@@ -1319,8 +1324,13 @@ contains
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
              call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
-                                       currentCohort%size_class,currentCohort%size_by_pft_class)
+                  currentCohort%size_class,currentCohort%size_by_pft_class)
 
+             if (hlm_use_cohort_age_tracking .eq. itrue) then
+             call coagetype_class_index(currentCohort%coage,currentCohort%pft, &
+                  currentCohort%coage_class,currentCohort%coage_by_pft_class)
+          end if
+          
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                   currentCohort%pft,currentCohort%c_area)
 

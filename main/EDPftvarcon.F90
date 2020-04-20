@@ -94,6 +94,10 @@ module EDPftvarcon
      real(r8), allocatable :: maintresp_reduction_intercept(:) ! intercept of MR reduction as f(carbon storage), 
                                                                ! 0=no throttling, 1=max throttling
      real(r8), allocatable :: bmort(:)
+     real(r8), allocatable :: mort_ip_size_senescence(:)  ! inflection point of dbh dependent senescence
+     real(r8), allocatable :: mort_r_size_senescence(:) ! rate of change in mortality with dbh
+     real(r8), allocatable :: mort_ip_age_senescence(:) ! inflection point of age dependent senescence 
+     real(r8), allocatable :: mort_r_age_senescence(:) ! rate of change in mortality with age 
      real(r8), allocatable :: mort_scalar_coldstress(:)
      real(r8), allocatable :: mort_scalar_cstarvation(:)
      real(r8), allocatable :: mort_scalar_hydrfailure(:)
@@ -165,15 +169,15 @@ module EDPftvarcon
      real(r8), allocatable :: allom_frbstor_repro(:) ! fraction of bstrore for reproduction after mortality
 
      ! Prescribed Physiology Mode Parameters
-     real(r8), allocatable :: prescribed_npp_canopy(:)           ! this is only for the special 
+     real(r8), allocatable :: prescribed_npp_canopy(:)           ! this is only for the  
                                                                  ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_npp_understory(:)       ! this is only for the special 
+     real(r8), allocatable :: prescribed_npp_understory(:)       ! this is only for the 
+                                                                 ! prescribed physiology mode
+     real(r8), allocatable :: prescribed_mortality_canopy(:)     ! this is only for the 
                                                                  ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_mortality_canopy(:)     ! this is only for the special
+     real(r8), allocatable :: prescribed_mortality_understory(:) ! this is only for the  
                                                                  ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_mortality_understory(:) ! this is only for the special 
-                                                                 ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the special 
+     real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the 
                                                                  ! prescribed_physiology_mode
 
      
@@ -707,7 +711,23 @@ contains
     name = 'fates_mort_bmort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-	  
+
+    name = 'fates_mort_r_size_senescence'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_ip_size_senescence'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_r_age_senescence'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_ip_age_senescence'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_mort_scalar_coldstress'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -1207,7 +1227,23 @@ contains
     name = 'fates_mort_bmort'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bmort)
-	 	 
+
+    name = 'fates_mort_ip_size_senescence'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_ip_size_senescence)
+
+    name = 'fates_mort_r_size_senescence'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_r_size_senescence)
+
+    name = 'fates_mort_ip_age_senescence'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_ip_age_senescence)
+
+    name = 'fates_mort_r_age_senescence'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_r_age_senescence)
+    
     name = 'fates_mort_scalar_coldstress'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_scalar_coldstress)
@@ -1946,7 +1982,11 @@ contains
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc
         write(fates_log(),fmt0) 'c2b = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'bmort = ',EDPftvarcon_inst%bmort
-	write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
+        write(fates_log(),fmt0) 'mort_ip_size_senescence = ', EDPftvarcon_inst%mort_ip_size_senescence
+        write(fates_log(),fmt0) 'mort_r_size_senescence = ', EDPftvarcon_inst%mort_r_size_senescence
+        write(fates_log(),fmt0) 'mort_ip_age_senescence = ', EDPftvarcon_inst%mort_ip_age_senescence
+        write(fates_log(),fmt0) 'mort_r_age_senescence = ', EDPftvarcon_inst%mort_r_age_senescence 
+        write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
         write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
         write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
@@ -2047,8 +2087,9 @@ contains
      ! cannot have a structural biomass allometry intercept of 0, and a non-woody
      ! plant (grass) can't have a non-zero intercept...
      ! -----------------------------------------------------------------------------------
-
-
+    use FatesConstantsMod  , only : fates_check_param_set
+    use FatesConstantsMod  , only : itrue, ifalse
+    
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
      integer, intent(in) :: parteh_mode  ! argument for nl flag hlm_parteh_mode
@@ -2122,12 +2163,65 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
            
         end if
+        
+     
+
+        ! Check that parameter ranges for age-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < fates_check_param_set ) .and. &
+             (  EDPftvarcon_inst%mort_r_age_senescence(ipft) > fates_check_param_set ) ) then
+
+           write(fates_log(),*) 'Age-dependent mortality is on'
+           write(fates_log(),*) 'Please also set mort_r_age_senescence'
+           write(fates_log(),*) 'Sensible values are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        ! Check that parameter ranges for size-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < fates_check_param_set ) .and. &
+             (  EDPftvarcon_inst%mort_r_size_senescence(ipft) > fates_check_param_set ) ) then
+
+           write(fates_log(),*) 'Size-dependent mortality is on'
+           write(fates_log(),*) 'Please also set mort_r_size_senescence'
+           write(fates_log(),*) 'Sensible values are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        ! Check that parameter ranges for size-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < 0.0_r8 ) .or. &
+           ( EDPftvarcon_inst%mort_r_size_senescence(ipft) < 0.0_r8 ) ) then
+
+           write(fates_log(),*) 'Either mort_ip_size_senescence or mort_r_size_senescence'
+           write(fates_log(),*) 'is negative which makes no biological sense.'
+           write(fates_log(),*) 'Sensible values for ip are between 1 and 300?'
+           write(fates_log(),*) 'Sensible values for r are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+
+        ! Check that parameter ranges for size-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < 0.0_r8 ) .or. &
+           ( EDPftvarcon_inst%mort_r_size_senescence(ipft) < 0.0_r8 ) ) then
+
+           write(fates_log(),*) 'Either mort_ip_size_senescence or mort_r_size_senescence'
+           write(fates_log(),*) 'is negative which makes no biological sense.'
+           write(fates_log(),*) 'Sensible values for ip are between 1 and 300?'
+           write(fates_log(),*) 'Sensible values for r are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 
 
         ! Check to see if mature and base seed allocation is greater than 1
         ! ----------------------------------------------------------------------------------
         if ( ( EDPftvarcon_inst%seed_alloc(ipft) + &
-               EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0_r8 ) then
+             EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0_r8 ) then
 
            write(fates_log(),*) 'The sum of seed allocation from base and mature trees may'
            write(fates_log(),*) ' not exceed 1.'
@@ -2136,7 +2230,7 @@ contains
            write(fates_log(),*) ' seed_alloc_mature: ',EDPftvarcon_inst%seed_alloc_mature(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
-           
+
         end if
 
         ! Check if woody plants have a structural biomass (agb) intercept
