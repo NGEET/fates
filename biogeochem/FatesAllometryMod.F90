@@ -945,10 +945,10 @@ contains
      
      real(r8) :: bl          ! Allometric target leaf biomass
      real(r8) :: dbldd       ! Allometric target change in leaf biomass per cm
-     real(r8) :: bagw    ! biomass above ground woody tissues
-     real(r8) :: dbagwdd  ! change in agbw per diameter [kgC/cm]  
-     real(r8) :: h       ! height
-     real(r8) :: dhdd    ! change in height wrt d  
+     real(r8) :: bagw0,bagw1 ! biomass above ground woody tissues
+     real(r8) :: dbagwdd     ! change in agbw per diameter [kgC/cm]  
+     real(r8) :: h           ! height
+     real(r8) :: dhdd         ! change in height wrt d  
      
      ! TODO: allom_stmode needs to be added to the parameter file
      
@@ -978,27 +978,51 @@ contains
           write(fates_log(),*) 'Aborting'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
+
        !-------------------------------------------------------------
        !for grasses, when plant reaches maximum height, 
        !carbon goes to storage instead of structural carbon
-       if(d >= dbh_maxh.and.woody.ne.itrue.and.present(dbstoredd)) then
-         select case(int(allom_amode))
-         case (1) !"salda")
-           call h_allom(d,ipft,h,dhdd)
-           call dh2bagw_salda(d,h,dhdd,p1,p2,p3,p4,wood_density,c2b,agb_frac,bagw,dbagwdd) 
-         case (2) !"2par_pwr")
+       if(d >= dbh_maxh.and.woody.ne.itrue) then
+
+          select case(int(allom_amode))
+          case (1) !"salda")
+             call h_allom(dbh_maxh,ipft,h,dhdd)
+             call dh2bagw_salda(dbh_maxh,h,dhdd,p1,p2,p3,p4,wood_density,c2b,agb_frac,bagw0) 
+          case (2) !"2par_pwr")
           ! Switch for woodland dbh->drc
-           call d2bagw_2pwr(d,p1,p2,c2b,bagw,dbagwdd)
-         case (3) !"chave14") 
-           call h_allom(d,ipft,h,dhdd)
-           call dh2bagw_chave2014(d,h,dhdd,p1,p2,wood_density,c2b,bagw,dbagwdd)
-         case DEFAULT
-           write(fates_log(),*) 'An undefined AGB allometry was specified: ',allom_amode
-           write(fates_log(),*) 'Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-         end select   
-	 dbstoredd = dbstoredd + dbagwdd/agb_frac   
-       endif
+             call d2bagw_2pwr(dbh_maxh,p1,p2,c2b,bagw0)
+          case (3) !"chave14") 
+             call h_allom(dbh_maxh,ipft,h,dhdd)
+             call dh2bagw_chave2014(dbh_maxh,h,dhdd,p1,p2,wood_density,c2b,bagw0)
+          case DEFAULT
+             write(fates_log(),*) 'An undefined AGB allometry was specified: ',allom_amode
+             write(fates_log(),*) 'Aborting'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end select
+
+          
+          select case(int(allom_amode))
+          case (1) !"salda")
+             call h_allom(d,ipft,h,dhdd)
+             call dh2bagw_salda(d,h,dhdd,p1,p2,p3,p4,wood_density,c2b,agb_frac,bagw1,dbagwdd) 
+          case (2) !"2par_pwr")
+          ! Switch for woodland dbh->drc
+             call d2bagw_2pwr(d,p1,p2,c2b,bagw1,dbagwdd)
+          case (3) !"chave14") 
+             call h_allom(d,ipft,h,dhdd)
+             call dh2bagw_chave2014(d,h,dhdd,p1,p2,wood_density,c2b,bagw1,dbagwdd)
+          case DEFAULT
+             write(fates_log(),*) 'An undefined AGB allometry was specified: ',allom_amode
+             write(fates_log(),*) 'Aborting'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end select
+
+          bstore = bstore + (bagw1 - bagw0)/agb_frac
+          
+          if(present(dbstoredd)) then
+             dbstoredd = dbstoredd + dbagwdd/agb_frac   
+          end if
+     endif
        
      end associate
      return
