@@ -1559,7 +1559,7 @@ end subroutine flush_hvars
 
  ! =======================================================================
 
-  subroutine update_history_cbal(this,nc,nsites,sites,bc_in)
+  subroutine update_history_cbal(this,nc,nsites,sites,bc_in,dtime)
 
      use EDtypesMod          , only : ed_site_type
       
@@ -1570,10 +1570,12 @@ end subroutine flush_hvars
      integer                 , intent(in)            :: nsites
      type(ed_site_type)      , intent(inout), target :: sites(nsites)
      type(bc_in_type)        , intent(in)            :: bc_in(nsites)
-
+     real(r8)                , intent(in)            :: dtime   ! Time-step (s)
+     
      ! Locals
      integer  :: s        ! The local site index
      integer  :: io_si     ! The site index of the IO array
+     real(r8) :: inv_dtime  ! inverse of dtime (faster math)
      type(ed_cohort_type), pointer  :: ccohort ! current cohort
      type(ed_patch_type) , pointer  :: cpatch ! current patch
      
@@ -1585,7 +1587,9 @@ end subroutine flush_hvars
        ! ---------------------------------------------------------------------------------
 
        call this%flush_hvars(nc,upfreq_in=3)        
-        
+
+       inv_dtime = 1._r8/dtime
+       
        do s = 1,nsites
            
            io_si  = this%iovar_map(nc)%site_index(s)
@@ -1600,7 +1604,8 @@ end subroutine flush_hvars
                    ! Add up the total Net Ecosystem Production
                    ! for this timestep.  [gC/m2/s]
                    hio_nep_si(io_si) = hio_nep_si(io_si) + &
-                         (ccohort%gpp_tstep - ccohort%resp_tstep) * g_per_kg * ccohort%n * area_inv
+                        (ccohort%gpp_tstep - ccohort%resp_tstep) * &
+                        g_per_kg * ccohort%n * area_inv * inv_dtime
                    ccohort => ccohort%taller
                end do
                cpatch => cpatch%younger
