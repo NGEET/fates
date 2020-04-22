@@ -420,7 +420,7 @@ contains
           
           call currentCohort%prt%DailyPRT()
           
-
+          
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
           ! -----------------------------------------------------------------------------
@@ -431,10 +431,10 @@ contains
              currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = & 
                   currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + &
                   (currentCohort%daily_n_uptake-currentCohort%daily_n_efflux)*currentCohort%n
-             
+                  
              ! Mass balance for P uptake
              currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = & 
-                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake - & 
+                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + & 
                   (currentCohort%daily_p_uptake-currentCohort%daily_p_efflux)*currentCohort%n
              
              ! mass balance for C efflux (if any)
@@ -763,6 +763,7 @@ contains
           write(fates_log(),*) 'mass balance error detected'
           write(fates_log(),*) 'element type (see PRTGenericMod.F90): ',element_list(el)
           write(fates_log(),*) 'error fraction relative to biomass stock: ',error_frac
+          write(fates_log(),*) 'absolut error (flux in - change): ',net_flux - change_in_stock
           write(fates_log(),*) 'call index: ',call_index
           write(fates_log(),*) 'Element index (PARTEH global):',element_list(el)
           write(fates_log(),*) 'net: ',net_flux
@@ -814,11 +815,14 @@ contains
                         write(fates_log(),*) 'leaf: ',leaf_m,' structure: ',struct_m,' store: ',store_m
                         write(fates_log(),*) 'fineroot: ',fnrt_m,' repro: ',repro_m,' sapwood: ',sapw_m
                         write(fates_log(),*) 'num plant: ',currentCohort%n
+                        write(fates_log(),*) 'resp m def: ',currentCohort%resp_m_def*currentCohort%n
 
                         if(element_list(el).eq.nitrogen_element) then
-                           write(fates_log(),*) 'N uptake: ',currentCohort%daily_n_uptake
+                           write(fates_log(),*) 'N uptake: ',currentCohort%daily_n_uptake*currentCohort%n
+                           write(fates_log(),*) 'N efflux: ',currentCohort%daily_n_efflux*currentCohort%n
                         elseif(element_list(el).eq.phosphorus_element) then
-                           write(fates_log(),*) 'P uptake: ',currentCohort%daily_p_uptake
+                           write(fates_log(),*) 'P uptake: ',currentCohort%daily_p_uptake*currentCohort%n
+                           write(fates_log(),*) 'P efflux: ',currentCohort%daily_p_efflux*currentCohort%n
                         end if
 
                            

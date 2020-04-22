@@ -16,6 +16,7 @@ module ChecksBalancesMod
    use FatesLitterMod,    only : ncwd
    use FatesLitterMod,    only : ndcmpy
    use PRTGenericMod,     only : all_carbon_elements
+   use PRTGenericMod,     only : carbon12_element
    use PRTGenericMod,     only : leaf_organ
    use PRTGenericMod,     only : fnrt_organ
    use PRTGenericMod,     only : sapw_organ
@@ -119,7 +120,17 @@ contains
                 * currentCohort%n
           currentCohort => currentCohort%shorter
       enddo !end cohort loop 
-
+      
+      
+      if(element_id.eq.carbon12_element) then
+         currentCohort => currentPatch%tallest
+         do while(associated(currentCohort))
+            live_stock = live_stock - &
+                 (currentCohort%resp_m_def*currentCohort%n)
+            currentCohort => currentCohort%shorter
+         enddo !end cohort loop 
+      end if
+      
       return
   end subroutine PatchMassStock
 

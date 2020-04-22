@@ -127,6 +127,8 @@ contains
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%nutrient_efflux_scpf(nlevsclass*numpft))
         allocate(site_in%flux_diags(el)%nutrient_uptake_scpf(nlevsclass*numpft))
+        allocate(site_in%flux_diags(el)%nutrient_needgrow_scpf(nlevsclass*numpft))
+        allocate(site_in%flux_diags(el)%nutrient_needmax_scpf(nlevsclass*numpft))
     end do
 
     ! Initialize the static soil 

@@ -396,6 +396,8 @@ contains
     dbh                             => this%bc_inout(ac_bc_inout_id_dbh)%rval
     carbon_balance                  => this%bc_inout(ac_bc_inout_id_netdc)%rval
 
+    print*,"c_gain: ",carbon_balance
+    
     canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
     ipft                            = this%bc_in(ac_bc_in_id_pft)%ival
 

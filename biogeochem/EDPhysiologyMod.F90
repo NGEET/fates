@@ -2126,28 +2126,6 @@ contains
 !    repro_c_def  = max(repro_c_trgt - repor_c,0._r8)
 
     
-    
-    if(element_id.eq.nitrogen_element) then
-       plant_max_x = & 
-            leaf_c*prt_params%nitr_stoich_p2(pft,leaf_organ) + & 
-            fnrt_c*prt_params%nitr_stoich_p2(pft,fnrt_organ) + & 
-            store_c*prt_params%nitr_stoich_p2(pft,store_organ) + & 
-            sapw_c*prt_params%nitr_stoich_p2(pft,sapw_organ) + & 
-            struct_c*prt_params%nitr_stoich_p2(pft,struct_organ) + &
-            repro_c*prt_params%nitr_stoich_p2(pft,repro_organ)
-    elseif(element_id.eq.phosphorus_element) then
-       plant_max_x = &
-            leaf_c*prt_params%phos_stoich_p2(pft,leaf_organ) + & 
-            fnrt_c*prt_params%phos_stoich_p2(pft,fnrt_organ) + & 
-            store_c*prt_params%phos_stoich_p2(pft,store_organ) + & 
-            sapw_c*prt_params%phos_stoich_p2(pft,sapw_organ) + & 
-            struct_c*prt_params%phos_stoich_p2(pft,struct_organ) + &
-            repro_c*prt_params%phos_stoich_p2(pft,repro_organ)
-    end if
-    
-
-
-    
     plant_c = leaf_c + store_c + fnrt_c + struct_c + sapw_c + repro_c
     
     ! Calculate the total plant nutrient content [kg]
@@ -2188,27 +2166,26 @@ contains
     ! Like saying, on average, the plant would like this amount of nutrient
     ! per unit carbon to spend all of its daily carbon gain (npp_acc_hold)
     
-    if(ccohort%isnew) then
+!!    if(ccohort%isnew) then
        ! If a cohort is new, we don't have a precedent of npp, so
        ! we instead demand 1% of its total phosphorus for that first day of life
-       npp_demand = 0.01_r8*plant_max_x
-    else
-       npp_demand = (plant_max_x/plant_c)*ccohort%npp_acc_hold/real(hlm_days_per_year,r8)
-    end if
+!!       npp_demand = 0.01_r8*plant_max_x
+!!    else
+!!       npp_demand = (plant_max_x/plant_c)*ccohort%npp_acc_hold/real(hlm_days_per_year,r8)
+!!    end if
 
     
     ! If this plant has flexible stoichiometry, then we also calculate
     ! if there is any deficit between the current nutrient content and
     ! its ideal nutrient content.
     
-    deficit_demand = (plant_max_x - plant_x)
-    
+!!    deficit_demand = (plant_max_x - plant_x)
     ! kg/plant/day
-    
-    plant_demand = max(0._r8,npp_demand+deficit_demand)
+!!    plant_demand = max(0._r8,npp_demand+deficit_demand)
 
+    
     if(ccohort%isnew) then
-       plant_demand = 0.01_r8*plant_max_x
+       plant_demand = 0.1_r8*plant_max_x
     else
        plant_demand = daily_x_demand2
     end if
@@ -2291,7 +2268,7 @@ contains
 
     if(hlm_parteh_mode.eq.prt_cnp_flex_allom_hyp) then
 
-       ! Trivial solution for C-only model
+       ! Zero the uptake rates
        do s = 1, nsites
           cpatch => sites(s)%oldest_patch
           do while (associated(cpatch))
@@ -2408,6 +2385,9 @@ contains
 
                       ccohort%daily_n_uptake = ccohort%daily_n_uptake + &
                            sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+
+!                      write(fates_log(),*) 'SETTING UPTAKE: ',sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                      
                    else
                       icomp = pft
                       ! Total fine-root carbon of the cohort [kgC/ha]
@@ -2651,6 +2631,7 @@ contains
        end do
 
        ! ECA, in coupled mode affinity is diagnosed
+
        if(n_uptake_mode.eq.coupled_n_uptake) then
           icomp = 0
           cpatch => csite%oldest_patch
@@ -2725,10 +2706,9 @@ contains
           
        end if
        
-       if(p_uptake_mode.eq.prescribed_p_uptake) then
-          ! ECA, affinity for P should be zero when in un-coupled mode
-          bc_out%cp_scalar(1:bc_out%n_plant_comps) = 0._r8
-       else
+       if(p_uptake_mode.eq.coupled_p_uptake) then
+
+          
           ! ECA, in coupled mode affinity for P is diagnosed
           icomp = 0
           cpatch => csite%oldest_patch
@@ -2847,16 +2827,21 @@ contains
              cpatch => cpatch%younger
           end do
        end if
-       
-       if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
-          bc_out%n_plant_comps = icomp
+
+       if( (n_uptake_mode.eq.coupled_p_uptake) .or. &
+           (p_uptake_mode.eq.coupled_p_uptake)) then
+          if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+             bc_out%n_plant_comps = icomp
+          else
+             bc_out%n_plant_comps = numpft
+          end if
+          
        else
-          bc_out%n_plant_comps = numpft
+          bc_out%n_plant_comps = 1
+          
        end if
        
     end if
-
-   
     
     
     return

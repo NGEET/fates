@@ -158,6 +158,7 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_nuptake_si
   integer :: ih_puptake_si
+  integer :: ih_cefflux_si
   integer :: ih_nefflux_si
   integer :: ih_pefflux_si
   integer :: ih_nneedgrow_si
@@ -227,7 +228,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_storec_scpf
   integer :: ih_sapwc_scpf
   integer :: ih_reproc_scpf
-  integer :: ih_cuptake_scpf
   integer :: ih_cefflux_scpf
 
   integer :: ih_totvegp_scpf
@@ -2769,7 +2769,6 @@ end subroutine flush_hvars
 
          hio_cwd_elcwd(io_si,:)   = 0._r8
 
-
          do el = 1, num_elements
             
             flux_diags => sites(s)%flux_diags(el)
@@ -2801,10 +2800,12 @@ end subroutine flush_hvars
                this%hvars(ih_sapwc_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_storec_scpf)%r82d(io_si,:)  = 0._r8
                this%hvars(ih_reproc_scpf)%r82d(io_si,:)  = 0._r8
-               this%hvars(ih_cuptake_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_uptake_scpf(:)
+
                this%hvars(ih_cefflux_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_efflux_scpf(:)
+               
+               this%hvars(ih_cefflux_si)%r81d(io_si) = & 
+                    sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1)
                
             elseif(element_list(el).eq.nitrogen_element)then
                
@@ -2834,13 +2835,10 @@ end subroutine flush_hvars
                     sum(sites(s)%flux_diags(el)%nutrient_needmax_scpf(:),dim=1)
 
                this%hvars(ih_nuptake_si)%r81d(io_si) = & 
-                    this%hvars(ih_nuptake_si)%r81d(io_si) + &
                     sum(sites(s)%flux_diags(el)%nutrient_uptake_scpf(:),dim=1)
 
                this%hvars(ih_nefflux_si)%r81d(io_si) = & 
-                    this%hvars(ih_nefflux_si)%r81d(io_si) + &
                     sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1)
-               
                
                
             elseif(element_list(el).eq.phosphorus_element)then
@@ -2870,11 +2868,9 @@ end subroutine flush_hvars
                     sum(sites(s)%flux_diags(el)%nutrient_needmax_scpf(:),dim=1)
 
                this%hvars(ih_puptake_si)%r81d(io_si) = & 
-                    this%hvars(ih_puptake_si)%r81d(io_si) + &
                     sum(sites(s)%flux_diags(el)%nutrient_uptake_scpf(:),dim=1)
                
                this%hvars(ih_pefflux_si)%r81d(io_si) = & 
-                    this%hvars(ih_pefflux_si)%r81d(io_si) + &
                     sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1)
                
             end if
@@ -4297,6 +4293,12 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
          ivar=ivar, initialize=initialize_variables, index = ih_reproc_si )
 
+    call this%set_history_var(vname='CEFFLUX', units='kgC/ha/day', &
+         long='carbon efflux, root to soil', use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cefflux_si )
+    
+
     if(any(element_list(:)==nitrogen_element)) then
        call this%set_history_var(vname='STOREN', units='gN m-2',                      &
             long='Total nitrogen in live plant storage', use_default='active',          &
@@ -5486,11 +5488,6 @@ end subroutine flush_hvars
          long='reproductive carbon mass (on plant) by size-class x pft', use_default='inactive', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_reproc_scpf )
-    
-    call this%set_history_var(vname='CUPTAKE_SCPF', units='kg/ha/day', &
-         long='carbon uptake, soil to root, by size-class x pft', use_default='inactive', &
-         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cuptake_scpf )
     
     call this%set_history_var(vname='CEFFLUX_SCPF', units='kg/ha/day', &
          long='carbon efflux, root to soil, by size-class x pft', use_default='inactive', &

@@ -370,21 +370,20 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pft,bc_ival = new_cohort%pft)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_leafon,bc_ival = new_cohort%status_coh)
-
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdn, bc_rval = new_cohort%daily_n_uptake)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
+       
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def,bc_rval = new_cohort%resp_m_def)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_in_id_netdn, bc_rval = new_cohort%daily_n_uptake)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
 
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_growresp, bc_rval = new_cohort%resp_g_daily)
-
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_ngrow, bc_rval = new_cohort%daily_n_need1)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pgrow, bc_rval = new_cohort%daily_p_need1)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nmax, bc_rval = new_cohort%daily_n_need2)
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pgrow, bc_rval = new_cohort%daily_p_need1)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pmax, bc_rval = new_cohort%daily_p_need2)
        
        

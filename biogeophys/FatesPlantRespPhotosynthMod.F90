@@ -101,7 +101,7 @@ contains
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
     
-    use FatesAllometryMod, only : bleaf
+    use FatesAllometryMod, only : bleaf, bstore_allom
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
     use FatesAllometryMod, only : i_hydro_rootprof_context
@@ -180,6 +180,7 @@ contains
     real(r8) :: live_croot_n       ! Live coarse root (below-ground sapwood) 
                                    ! nitrogen content (kgN/plant)
     real(r8) :: sapw_c             ! Sapwood carbon (kgC/plant)
+    real(r8) :: store_c_target     ! Target storage carbon (kgC/plant)
     real(r8) :: fnrt_c             ! Fine root carbon (kgC/plant)
     real(r8) :: fnrt_n             ! Fine root nitrogen content (kgN/plant)
     real(r8) :: leaf_c             ! Leaf carbon (kgC/plant)
@@ -365,8 +366,11 @@ contains
                      ft = currentCohort%pft
                      cl = currentCohort%canopy_layer
                      
-                     call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,b_leaf)
-                     call storage_fraction_of_target(b_leaf, &
+                     call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,store_c_target)
+!                     call bstore_allom(currentCohort%dbh,currentCohort%pft, &
+!                                       currentCohort%canopy_trim,store_c_target)
+
+                     call storage_fraction_of_target(store_c_target, & 
                            currentCohort%prt%GetState(store_organ, all_carbon_elements), &
                            frac)
                      call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
@@ -457,9 +461,11 @@ contains
                                  
                               case (prt_cnp_flex_allom_hyp)
 
-                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
-                                 lnc_top = leaf_n / (slatop(ft) * leaf_c )
+!                                 leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+!                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
+!                                 lnc_top = leaf_n / (slatop(ft) * leaf_c )
+
+                                 lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
                                  
                               end select
 
