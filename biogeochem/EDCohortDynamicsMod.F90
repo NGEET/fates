@@ -42,13 +42,14 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
-  use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
-  use FatesPlantHydraulicsMod, only : initTreeHydStates
+  use FatesPlantHydraulicsMod, only : UpdateSizeDepPlantHydProps
+  use FatesPlantHydraulicsMod, only : InitPlantHydStates
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
-  use FatesPlantHydraulicsMod, only : UpdateTreeHydrNodes
-  use FatesPlantHydraulicsMod, only : UpdateTreeHydrLenVolCond
+  use FatesPlantHydraulicsMod, only : UpdatePlantHydrNodes
+  use FatesPlantHydraulicsMod, only : UpdatePlantHydrLenVol
+  use FatesPlantHydraulicsMod, only : UpdatePlantKmax
   use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
   use FatesPlantHydraulicsMod, only : ConstrainRecruitNumber
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
@@ -188,7 +189,7 @@ contains
     integer  :: iage                           ! loop counter for leaf age classes 
     real(r8) :: leaf_c                         ! total leaf carbon
     integer  :: tnull,snull                    ! are the tallest and shortest cohorts allocate
-    integer  :: nlevsoi_hyd                    ! number of hydraulically active soil layers 
+    integer  :: nlevrhiz                       ! number of rhizosphere layers
 
     !----------------------------------------------------------------------
     
@@ -300,25 +301,28 @@ contains
 
     if( hlm_use_planthydro.eq.itrue ) then
 
-       nlevsoi_hyd = currentSite%si_hydr%nlevsoi_hyd
+       nlevrhiz = currentSite%si_hydr%nlevrhiz
 
        ! This allocates array spaces
        call InitHydrCohort(currentSite,new_cohort)
 
        ! This calculates node heights
-       call UpdateTreeHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
-                                new_cohort%hite,nlevsoi_hyd,bc_in)
+       call UpdatePlantHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
+                                new_cohort%hite,currentSite%si_hydr)
 
-       ! This calculates volumes, lengths and max conductances
-       call UpdateTreeHydrLenVolCond(new_cohort,nlevsoi_hyd,bc_in)
+       ! This calculates volumes and lengths
+       call UpdatePlantHydrLenVol(new_cohort,currentSite%si_hydr)
        
+       ! This updates the Kmax's of the plant's compartments
+       call UpdatePlantKmax(new_cohort%co_hydr,new_cohort,currentSite%si_hydr)
+
        ! Since this is a newly initialized plant, we set the previous compartment-size
        ! equal to the ones we just calculated.
        call SavePreviousCompartmentVolumes(new_cohort%co_hydr)
        
        ! This comes up with starter suctions and then water contents
        ! based on the soil values
-       call initTreeHydStates(currentSite,new_cohort, bc_in)
+       call InitPlantHydStates(currentSite,new_cohort)
 
        if(recruitstatus==1)then
 
@@ -1386,12 +1390,13 @@ contains
                                            currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                                            currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
                                            currentCohort%vcmax25top  )			    
-                                      call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)  				   
+                                      call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)  				   
                                    endif
-
+                                   
                                    call DeallocateCohort(nextc)
                                    deallocate(nextc)
                                    nullify(nextc)
+                                   
 
                                 endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
                              endif !canopy layer

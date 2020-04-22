@@ -128,9 +128,9 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
     if(hlm_use_planthydro.eq.itrue)then
      !note the flc is set as the fraction of max conductivity in hydro
-     min_fmc_ag = minval(cohort_in%co_hydr%flc_ag(:))
-     min_fmc_tr = minval(cohort_in%co_hydr%flc_troot(:))
-     min_fmc_ar = minval(cohort_in%co_hydr%flc_aroot(:))
+     min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
+     min_fmc_tr = cohort_in%co_hydr%ftc_troot
+     min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
      min_fmc = min(min_fmc_ag, min_fmc_tr)
      min_fmc = min(min_fmc, min_fmc_ar)
      flc = 1.0_r8-min_fmc

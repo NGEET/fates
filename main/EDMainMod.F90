@@ -60,13 +60,13 @@ module EDMainMod
   use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesConstantsMod        , only : nearzero
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
-  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
-  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
-  use FatesPlantHydraulicsMod  , only : initTreeHydStates
-  use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydProps
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydStates
+  use FatesPlantHydraulicsMod  , only : InitPlantHydStates
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
-  use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
@@ -256,12 +256,8 @@ contains
        ! 'rhizosphere geometry' (column-level root biomass + rootfr --> root length 
        ! density --> node radii and volumes)
        if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-          call updateSizeDepRhizHydProps(currentSite, bc_in)
-          call updateSizeDepRhizHydStates(currentSite, bc_in)
-          !       if(nshell > 1) then  (THIS BEING CHECKED INSIDE OF the update)
-          !          call updateSizeDepRhizHydStates(currentSite, c, soilstate_inst, &
-          !                waterstate_inst)
-          !       end if
+          call UpdateSizeDepRhizHydProps(currentSite, bc_in)
+          call UpdateSizeDepRhizHydStates(currentSite, bc_in)
        end if
     end if
 
@@ -439,8 +435,8 @@ contains
           ! (size --> heights of elements --> hydraulic path lengths --> 
           ! maximum node-to-node conductances)
           if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-             call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)
-             call updateSizeDepTreeHydStates(currentSite,currentCohort)
+             call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
+             call UpdateSizeDepPlantHydStates(currentSite,currentCohort)
           end if
 
           ! if we are in age-dependent mortality mode

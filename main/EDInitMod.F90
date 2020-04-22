@@ -35,6 +35,7 @@ module EDInitMod
   use EDTypesMod                , only : phen_dstat_moistoff
   use EDTypesMod                , only : phen_cstat_notcold
   use EDTypesMod                , only : phen_dstat_moiston
+  use EDTypesMod                , only : element_pos
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
@@ -65,6 +66,9 @@ module EDInitMod
   use PRTGenericMod,          only : nitrogen_element
   use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : SetState
+  use FatesPlantHydraulicsMod,  only : InitHydroGlobals
+  use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
+!   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -81,11 +85,99 @@ module EDInitMod
   public  :: init_site_vars
   public  :: init_patches
   public  :: set_site_properties
+  public  :: InitFatesGlobals
   private :: init_cohorts
+
 
   ! ============================================================================
 
 contains
+
+  ! ============================================================================
+
+   ! ====================================================================================
+
+   subroutine InitFatesGlobals(masterproc)
+
+       ! --------------------------------------------------------------------------
+       ! This subroutine is simply a wrapper that calls various FATES modules
+       ! that initialize global objects, things, constructs, etc. Globals only
+       ! need to be set once during initialization, for each machine, and this
+       ! should not be called for forked SMP processes.
+       ! --------------------------------------------------------------------------
+
+       logical,intent(in) :: masterproc        ! This is useful for reporting
+                                              ! and diagnostics so info is not printed
+                                              ! on numerous nodes to standard out. This
+                                              ! is not used to filter which machines
+                                              ! (nodes) to run these procedures, they
+                                              ! should be run on ALL nodes.
+
+       ! Initialize PARTEH globals 
+       ! (like the element lists, and mapping tables)
+       call InitPARTEHGlobals()
+
+       ! Initialize Hydro globals 
+       ! (like water retention functions)
+       call InitHydroGlobals()
+
+
+       return
+   end subroutine InitFatesGlobals
+
+   ! ====================================================================================
+   
+
+   subroutine InitPARTEHGlobals()
+   
+     ! Initialize the Plant Allocation and Reactive Transport
+     ! global functions and mapping tables
+     ! Also associate the elements defined in PARTEH with a list in FATES
+     ! "element_list" is useful because it allows the fates side of the code
+     ! to loop through elements, and call the correct PARTEH interfaces
+     ! automatically.
+     
+     select case(hlm_parteh_mode)
+     case(prt_carbon_allom_hyp)
+
+        num_elements = 1
+        allocate(element_list(num_elements))
+        element_list(1) = carbon12_element
+        element_pos(:) = 0
+        element_pos(carbon12_element) = 1
+
+        call InitPRTGlobalAllometricCarbon()
+
+     case(prt_cnp_flex_allom_hyp)
+        
+        num_elements = 3
+        allocate(element_list(num_elements))
+        element_list(1) = carbon12_element
+        element_list(2) = nitrogen_element
+        element_list(3) = phosphorus_element
+        element_pos(:)  = 0
+        element_pos(carbon12_element)   = 1
+        element_pos(nitrogen_element)   = 2
+        element_pos(phosphorus_element) = 3
+
+        !call InitPRTGlobalAllometricCNP()
+        write(fates_log(),*) 'You specified the allometric CNP mode'
+        write(fates_log(),*) 'with relaxed target stoichiometry.'
+        write(fates_log(),*) 'I.e., namelist parametre fates_parteh_mode = 2'
+        write(fates_log(),*) 'This mode is not available yet. Please set it to 1.'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        
+     case DEFAULT
+        write(fates_log(),*) 'You specified an unknown PRT module'
+        write(fates_log(),*) 'Check your setting for fates_parteh_mode'
+        write(fates_log(),*) 'in the CLM namelist. The only valid value now is 1'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+    end select
+
+   end subroutine InitPARTEHGlobals
+
 
   ! ============================================================================
 
@@ -411,7 +503,7 @@ contains
      ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
      if (hlm_use_planthydro.eq.itrue) then 
         do s = 1, nsites
-	   sitep => sites(s)
+           sitep => sites(s)
            call updateSizeDepRhizHydProps(sitep, bc_in(s))
         end do
      end if
