@@ -396,8 +396,6 @@ contains
     dbh                             => this%bc_inout(ac_bc_inout_id_dbh)%rval
     carbon_balance                  => this%bc_inout(ac_bc_inout_id_netdc)%rval
 
-    print*,"c_gain: ",carbon_balance
-    
     canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
     ipft                            = this%bc_in(ac_bc_in_id_pft)%ival
 
@@ -420,7 +418,6 @@ contains
     repro_c0 = repro_c                        ! Set initial reproductive carbon
     struct_c0 = struct_c                      ! Set initial structural carbon
 
-    
     ! -----------------------------------------------------------------------------------
     ! If we have more than one leaf age classification, allow
     ! some leaf biomass to transition to the older classes.  NOTE! This is not handling

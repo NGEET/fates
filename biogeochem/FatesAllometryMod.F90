@@ -2095,15 +2095,14 @@ contains
     real(r8) :: sum_rootfr  ! sum of root fraction for normalization
     
     nlevsoil = ubound(zi,1)
-    
+
     sum_rootfr = 0.0_r8
     do lev = 1, nlevsoil
        root_fraction(lev) = .5_r8*( exp(-a_par * zi(lev-1)) + exp(-b_par * zi(lev-1))  &
-                                  - exp(a_par * zi(lev)) - exp(-b_par * zi(lev)))
-       
+                                  - exp(-a_par * zi(lev)) - exp(-b_par * zi(lev)))
        sum_rootfr = sum_rootfr + root_fraction(lev)
     end do
-    
+
     ! Normalize the root profile
     root_fraction(1:nlevsoil) = root_fraction(1:nlevsoil)/sum_rootfr
     
