@@ -432,10 +432,10 @@ module FatesHistoryInterfaceMod
   integer :: ih_c_lblayer_si_age
   integer :: ih_agesince_anthrodist_si_age
   integer :: ih_secondaryforest_area_si_age
-  integer :: if_area_burnt_si_age
-  ! integer :: if_fire_rate_of_spread_front_si_age
-  ! integer :: if_fire_intensity_si_age
-  integer :: if_fire_sum_fuel_si_age
+  integer :: ih_area_burnt_si_age
+  ! integer :: ih_fire_rate_of_spread_front_si_age
+  ! integer :: ih_fire_intensity_si_age
+  integer :: ih_fire_sum_fuel_si_age
 
   ! indices to (site x height) variables
   integer :: ih_canopy_height_dist_si_height
@@ -2080,13 +2080,13 @@ end subroutine flush_hvars
             end do
 
             hio_area_burnt_si_age(io_si,cpatch%age_class) = hio_area_burnt_si_age(io_si,cpatch%age_class) + &
-                 cpatch*frac_burnt * cpatch%area * AREA_INV
+                 cpatch%frac_burnt * cpatch%area * AREA_INV
 
             ! hio_fire_rate_of_spread_front_si_age(io_si, cpatch%age_class) = hio_fire_rate_of_spread_si_age(io_si, cpatch%age_class) + &
             !      cpatch%ros_front * cpatch*frac_burnt * cpatch%area * AREA_INV
 
             ! hio_fire_intensity_si_age(io_si, cpatch%age_class) = hio_fire_intensity_si_age(io_si, cpatch%age_class) + &
-            !      cpatch%FI * cpatch*frac_burnt * cpatch%area * AREA_INV
+            !      cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV
 
             hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) + &
                  cpatch%sum_fuel * cpatch%area * AREA_INV
@@ -4090,7 +4090,7 @@ end subroutine flush_hvars
          long='spitfire ground fuel related to ros (omits 1000hr fuels) within each patch age bin (divide by patch_area_by_age to get fuel per unit area of that-age patch)', &
          use_default='active', &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_sum_fuel_si_age )
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_sum_fuel_si_age )
 
 
     ! Litter Variables
