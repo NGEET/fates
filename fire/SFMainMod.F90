@@ -96,7 +96,7 @@ contains
        call charecteristics_of_fuel(currentSite)
        call rate_of_spread(currentSite)
        call ground_fuel_consumption(currentSite)
-       call area_burnt_intensity(currentSite)
+       call area_burnt_intensity(currentSite, bc_in)
        call crown_scorching(currentSite)
        call crown_damage(currentSite)
        call cambial_damage_kill(currentSite)
@@ -651,7 +651,7 @@ contains
 
   
   !*****************************************************************
-  subroutine  area_burnt_intensity ( currentSite ) 
+  subroutine  area_burnt_intensity ( currentSite, bc_in )
   !*****************************************************************
 
     !returns the updated currentPatch%FI value for each patch.
@@ -662,8 +662,8 @@ contains
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
+    use clm_varctl, only: use_fates_spitfire
     use FatesInterfaceMod, only : hlm_use_spitfire
-    use EDParamsMod,       only : ED_val_nignitions
     use EDParamsMod,       only : cg_strikes    ! fraction of cloud-to-ground ligtning strikes
     use FatesConstantsMod, only : years_per_day
     use SFParamsMod,       only : SF_val_fdi_alpha,SF_val_fuel_energy, &
@@ -671,6 +671,7 @@ contains
     
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type), pointer :: currentPatch
+    type(bc_in_type), intent(in) :: bc_in
 
     real(r8) ROS !m/s
     real(r8) W   !kgBiomass/m2
@@ -688,10 +689,14 @@ contains
     
     ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
-    currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
+    if (use_fates_spitfire == 3) then
+       currentSite%FDI = 1.0_r8  ! READING "SUCCESSFUL IGNITION" DATA
+    else  ! USING LIGHTNING DATA
+       currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
+    end if
     
     !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
-    currentSite%NF = ED_val_nignitions * years_per_day * cg_strikes
+    currentSite%NF = bc_in%lightning24 * cg_strikes
 
     ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
     ! then there are 15 * 1/365 strikes/km2 each day 
