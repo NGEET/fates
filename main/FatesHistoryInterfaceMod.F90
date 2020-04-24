@@ -141,16 +141,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_trimming_pa
   integer :: ih_area_plant_pa
   integer :: ih_area_treespread_pa
-  integer :: ih_spitfire_ROS_pa
-  integer :: ih_effect_wspeed_pa
-  integer :: ih_TFC_ROS_pa
-  integer :: ih_fire_intensity_pa
-  integer :: ih_fire_area_pa
-  integer :: ih_fire_fuel_bulkd_pa
-  integer :: ih_fire_fuel_eff_moist_pa
-  integer :: ih_fire_fuel_sav_pa
-  integer :: ih_fire_fuel_mef_pa
-  integer :: ih_sum_fuel_pa
 
   integer :: ih_cwd_elcwd
 
@@ -269,6 +259,16 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_nesterov_fire_danger_si
   integer :: ih_fire_intensity_area_product_si
+  integer :: ih_spitfire_ROS_si
+  integer :: ih_effect_wspeed_si
+  integer :: ih_TFC_ROS_si
+  integer :: ih_fire_intensity_si
+  integer :: ih_fire_area_si
+  integer :: ih_fire_fuel_bulkd_si
+  integer :: ih_fire_fuel_eff_moist_si
+  integer :: ih_fire_fuel_sav_si
+  integer :: ih_fire_fuel_mef_si
+  integer :: ih_sum_fuel_si
 
   integer :: ih_nplant_si_scpf
   integer :: ih_gpp_si_scpf
@@ -1738,17 +1738,17 @@ end subroutine flush_hvars
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
                hio_nesterov_fire_danger_si => this%hvars(ih_nesterov_fire_danger_si)%r81d, &
-               hio_spitfire_ros_pa     => this%hvars(ih_spitfire_ROS_pa)%r81d, &
-               hio_tfc_ros_pa          => this%hvars(ih_TFC_ROS_pa)%r81d, &
-               hio_effect_wspeed_pa    => this%hvars(ih_effect_wspeed_pa)%r81d, &
-               hio_fire_intensity_pa   => this%hvars(ih_fire_intensity_pa)%r81d, &
+               hio_spitfire_ros_si     => this%hvars(ih_spitfire_ROS_si)%r81d, &
+               hio_tfc_ros_si          => this%hvars(ih_TFC_ROS_si)%r81d, &
+               hio_effect_wspeed_si    => this%hvars(ih_effect_wspeed_si)%r81d, &
+               hio_fire_intensity_si   => this%hvars(ih_fire_intensity_si)%r81d, &
                hio_fire_intensity_area_product_si => this%hvars(ih_fire_intensity_area_product_si)%r81d, &
-               hio_fire_area_pa        => this%hvars(ih_fire_area_pa)%r81d, &
-               hio_fire_fuel_bulkd_pa  => this%hvars(ih_fire_fuel_bulkd_pa)%r81d, &
-               hio_fire_fuel_eff_moist_pa => this%hvars(ih_fire_fuel_eff_moist_pa)%r81d, &
-               hio_fire_fuel_sav_pa    => this%hvars(ih_fire_fuel_sav_pa)%r81d, &
-               hio_fire_fuel_mef_pa    => this%hvars(ih_fire_fuel_mef_pa)%r81d, &
-               hio_sum_fuel_pa         => this%hvars(ih_sum_fuel_pa)%r81d,  &
+               hio_fire_area_si        => this%hvars(ih_fire_area_si)%r81d, &
+               hio_fire_fuel_bulkd_si  => this%hvars(ih_fire_fuel_bulkd_si)%r81d, &
+               hio_fire_fuel_eff_moist_si => this%hvars(ih_fire_fuel_eff_moist_si)%r81d, &
+               hio_fire_fuel_sav_si    => this%hvars(ih_fire_fuel_sav_si)%r81d, &
+               hio_fire_fuel_mef_si    => this%hvars(ih_fire_fuel_mef_si)%r81d, &
+               hio_sum_fuel_si         => this%hvars(ih_sum_fuel_si)%r81d,  &
                hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
                hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
                hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
@@ -2627,16 +2627,16 @@ end subroutine flush_hvars
             endif
             
             ! Update Fire Variables
-            hio_spitfire_ros_pa(io_pa)         = cpatch%ROS_front 
-            hio_effect_wspeed_pa(io_pa)        = cpatch%effect_wspeed
-            hio_tfc_ros_pa(io_pa)              = cpatch%TFC_ROS
-            hio_fire_intensity_pa(io_pa)       = cpatch%FI
-            hio_fire_area_pa(io_pa)            = cpatch%frac_burnt
-            hio_fire_fuel_bulkd_pa(io_pa)      = cpatch%fuel_bulkd
-            hio_fire_fuel_eff_moist_pa(io_pa)  = cpatch%fuel_eff_moist
-            hio_fire_fuel_sav_pa(io_pa)        = cpatch%fuel_sav
-            hio_fire_fuel_mef_pa(io_pa)        = cpatch%fuel_mef
-            hio_sum_fuel_pa(io_pa)             = cpatch%sum_fuel * g_per_kg * patch_scaling_scalar
+            hio_spitfire_ros_si(io_si)         = hio_spitfire_ros_si(io_si) + cpatch%ROS_front * cpatch%area * AREA_INV
+            hio_effect_wspeed_si(io_si)        = hio_effect_wspeed_si(io_si) + cpatch%effect_wspeed * cpatch%area * AREA_INV
+            hio_tfc_ros_si(io_si)              = hio_tfc_ros_si(io_si) + cpatch%TFC_ROS * cpatch%area * AREA_INV
+            hio_fire_intensity_si(io_si)       = hio_fire_intensity_si(io_si) + cpatch%FI * cpatch%area * AREA_INV
+            hio_fire_area_si(io_si)            = hio_fire_area_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV
+            hio_fire_fuel_bulkd_si(io_si)      = hio_fire_fuel_bulkd_si(io_si) + cpatch%fuel_bulkd * cpatch%area * AREA_INV
+            hio_fire_fuel_eff_moist_si(io_si)  = hio_fire_fuel_eff_moist_si(io_si) + cpatch%fuel_eff_moist * cpatch%area * AREA_INV
+            hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel_sav * cpatch%area * AREA_INV
+            hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel_mef * cpatch%area * AREA_INV
+            hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%sum_fuel * g_per_kg * patch_scaling_scalar * cpatch%area * AREA_INV
             
             do i_fuel = 1,nfsc
                hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
@@ -3825,17 +3825,17 @@ end subroutine flush_hvars
     call this%set_history_var(vname='TRIMMING', units='none',                   &
          long='Degree to which canopy expansion is limited by leaf economics',  & 
          use_default='active', &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=1.0_r8, upfreq=1,    &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=1.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_trimming_pa)
     
     call this%set_history_var(vname='AREA_PLANT', units='m2',                   &
          long='area occupied by all plants', use_default='active',              &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_area_plant_pa)
     
     call this%set_history_var(vname='AREA_TREES', units='m2',                   &
          long='area occupied by woody plants', use_default='active',            &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_area_treespread_pa)
 
     call this%set_history_var(vname='SITE_COLD_STATUS', units='0,1,2', &
@@ -4032,23 +4032,23 @@ end subroutine flush_hvars
 
     call this%set_history_var(vname='FIRE_ROS', units='m/min',                 &
          long='fire rate of spread m/min', use_default='active',                &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_spitfire_ROS_pa)
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_spitfire_ROS_si)
 
     call this%set_history_var(vname='EFFECT_WSPEED', units='none',             &
          long ='effective windspeed for fire spread', use_default='active',     &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_effect_wspeed_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_effect_wspeed_si )
 
     call this%set_history_var(vname='FIRE_TFC_ROS', units='kgC/m2',              &
          long ='total fuel consumed', use_default='active',                     &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_TFC_ROS_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_TFC_ROS_si )
 
     call this%set_history_var(vname='FIRE_INTENSITY', units='kJ/m/s',          &
          long='spitfire fire intensity: kJ/m/s', use_default='active',          &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_si )
 
     call this%set_history_var(vname='FIRE_INTENSITY_AREA_PRODUCT', units='kJ/m/s',          &
          long='spitfire product of fire intensity and burned area (divide by FIRE_AREA to get area-weifghted mean intensity)', &
@@ -4058,34 +4058,34 @@ end subroutine flush_hvars
 
     call this%set_history_var(vname='FIRE_AREA', units='fraction',             &
          long='spitfire fire area burn fraction', use_default='active',                    &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_fire_area_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_area_si )
 
     call this%set_history_var(vname='fire_fuel_mef', units='m',                &
          long='spitfire fuel moisture',  use_default='active',                  &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_mef_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_mef_si )
 
     call this%set_history_var(vname='fire_fuel_bulkd', units='kg biomass/m3',              &
          long='spitfire fuel bulk density',  use_default='active',              &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_bulkd_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_bulkd_si )
 
     call this%set_history_var(vname='FIRE_FUEL_EFF_MOIST', units='m',          &
          long='spitfire fuel moisture', use_default='active',                   &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_eff_moist_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_eff_moist_si )
 
     call this%set_history_var(vname='fire_fuel_sav', units='per m',                &
          long='spitfire fuel surface/volume ',  use_default='active',           &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_sav_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_sav_si )
 
     call this%set_history_var(vname='SUM_FUEL', units='gC m-2',                &
          long='total ground fuel related to ros (omits 1000hr fuels)',          & 
          use_default='active',                                                  & 
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_sum_fuel_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_sum_fuel_si )
 
     call this%set_history_var(vname='FUEL_MOISTURE_NFSC', units='-',                &
          long='spitfire size-resolved fuel moisture', use_default='active',       &
