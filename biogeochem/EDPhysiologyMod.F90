@@ -1471,7 +1471,7 @@ contains
 
 
     do ft = 1,numpft
-      if(currentSite%use_this_pft(ft).eq.1)then
+      if(currentSite%use_this_pft(ft).eq.itrue)then
        temp_cohort%canopy_trim = 0.8_r8  !starting with the canopy not fully expanded 
        temp_cohort%pft         = ft
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
