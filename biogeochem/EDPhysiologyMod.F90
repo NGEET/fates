@@ -1,4 +1,4 @@
- EDPhysiologyMod
+module EDPhysiologyMod
 
 #include "shr_assert.h"
 
