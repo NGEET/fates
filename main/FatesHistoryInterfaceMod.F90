@@ -259,9 +259,11 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_nesterov_fire_danger_si
   integer :: ih_fire_intensity_area_product_si
-  integer :: ih_spitfire_ROS_si
+  integer :: ih_spitfire_ros_si
+  integer :: ih_fire_ros_area_product_si
   integer :: ih_effect_wspeed_si
-  integer :: ih_TFC_ROS_si
+  integer :: ih_tfc_ros_si
+  integer :: ih_tfc_ros_area_product_si
   integer :: ih_fire_intensity_si
   integer :: ih_fire_area_si
   integer :: ih_fire_fuel_bulkd_si
@@ -1737,8 +1739,10 @@ end subroutine flush_hvars
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
                hio_nesterov_fire_danger_si => this%hvars(ih_nesterov_fire_danger_si)%r81d, &
-               hio_spitfire_ROS_si     => this%hvars(ih_spitfire_ROS_si)%r81d, &
-               hio_tfc_ros_si          => this%hvars(ih_TFC_ROS_si)%r81d, &
+               hio_spitfire_ros_si     => this%hvars(ih_spitfire_ros_si)%r81d, &
+               hio_fire_ros_area_product_si=> this%hvars(ih_fire_ros_area_product_si)%r81d, &
+               hio_tfc_ros_si          => this%hvars(ih_tfc_ros_si)%r81d, &
+               hio_tfc_ros_area_product_si => this%hvars(ih_tfc_ros_area_product_si)%r81d, &
                hio_effect_wspeed_si    => this%hvars(ih_effect_wspeed_si)%r81d, &
                hio_fire_intensity_si   => this%hvars(ih_fire_intensity_si)%r81d, &
                hio_fire_intensity_area_product_si => this%hvars(ih_fire_intensity_area_product_si)%r81d, &
@@ -2621,8 +2625,12 @@ end subroutine flush_hvars
                         
             ! Update Fire Variables
             hio_spitfire_ros_si(io_si)         = hio_spitfire_ros_si(io_si) + cpatch%ROS_front * cpatch%area * AREA_INV
+            hio_fire_ros_area_product_si(io_si)= hio_fire_ros_area_product_si(io_si) + &
+                 cpatch%frac_burnt * cpatch%ROS_front * cpatch%area * AREA_INV
             hio_effect_wspeed_si(io_si)        = hio_effect_wspeed_si(io_si) + cpatch%effect_wspeed * cpatch%area * AREA_INV
             hio_tfc_ros_si(io_si)              = hio_tfc_ros_si(io_si) + cpatch%TFC_ROS * cpatch%area * AREA_INV
+            hio_tfc_ros_area_product_si(io_si) = hio_tfc_ros_area_product_si(io_si) + &
+                 cpatch%frac_burnt * cpatch%TFC_ROS * cpatch%area * AREA_INV
             hio_fire_intensity_si(io_si)       = hio_fire_intensity_si(io_si) + cpatch%FI * cpatch%area * AREA_INV
             hio_fire_area_si(io_si)            = hio_fire_area_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV
             hio_fire_fuel_bulkd_si(io_si)      = hio_fire_fuel_bulkd_si(io_si) + cpatch%fuel_bulkd * cpatch%area * AREA_INV
@@ -4026,7 +4034,12 @@ end subroutine flush_hvars
     call this%set_history_var(vname='FIRE_ROS', units='m/min',                 &
          long='fire rate of spread m/min', use_default='active',                &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_spitfire_ROS_si)
+         ivar=ivar, initialize=initialize_variables, index = ih_spitfire_ros_si)
+
+    call this%set_history_var(vname='FIRE_ROS_AREA_PRODUCT', units='m/min',                 &
+         long='product of fire rate of spread (m/min) and burned area (fraction)--divide by FIRE_AREA to get burned-area-weighted-mean ROS', use_default='active',                &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_ros_area_product_si)
 
     call this%set_history_var(vname='EFFECT_WSPEED', units='none',             &
          long ='effective windspeed for fire spread', use_default='active',     &
@@ -4036,7 +4049,12 @@ end subroutine flush_hvars
     call this%set_history_var(vname='FIRE_TFC_ROS', units='kgC/m2',              &
          long ='total fuel consumed', use_default='active',                     &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_TFC_ROS_si )
+         ivar=ivar, initialize=initialize_variables, index = ih_tfc_ros_si )
+
+    call this%set_history_var(vname='FIRE_TFC_ROS_AREA_PRODUCT', units='kgC/m2',              &
+         long ='product of total fuel consumed and burned area--divide by FIRE_AREA to get burned-area-weighted-mean TFC', use_default='active',                     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_tfc_ros_area_product_si )
 
     call this%set_history_var(vname='FIRE_INTENSITY', units='kJ/m/s',          &
          long='spitfire fire intensity: kJ/m/s', use_default='active',          &
