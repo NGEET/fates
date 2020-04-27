@@ -581,6 +581,7 @@ contains
     real(r8) :: gdd_threshold     ! GDD accumulation function,
     integer  :: ilayer_swater     ! Layer index for soil water
                                   ! which also depends on chilling days.
+    integer  :: n_patch           ! number of patches on this site
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
     real(r8) :: temp_in_C         ! daily averaged temperature in celcius
@@ -612,7 +613,9 @@ contains
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725 
     !Parameters, default from from SDGVM model of senesence
 
-    temp_in_C = bc_in%t_veg24_si - tfrz
+
+    n_patch = currentSite%youngest_patch%patchno
+    temp_in_C = sum(bc_in%t_veg24_pa(1:n_patch),dim=1)/real(n_patch,r8) - tfrz
 
     !-----------------Cold Phenology--------------------!              
 
@@ -663,8 +666,8 @@ contains
     !
     ! accumulate the GDD using daily mean temperatures
     ! Don't accumulate GDD during the growing season (that wouldn't make sense)
-    if (bc_in%t_veg24_si .gt. tfrz.and. currentSite%cstatus == phen_cstat_iscold) then
-       currentSite%grow_deg_days = currentSite%grow_deg_days + bc_in%t_veg24_si - tfrz
+    if (temp_in_C .gt. 0._r8 .and. currentSite%cstatus == phen_cstat_iscold) then
+       currentSite%grow_deg_days = currentSite%grow_deg_days + temp_in_C
     endif
     
     !this logic is to prevent GDD accumulating after the leaves have fallen and before the 
@@ -2109,7 +2112,7 @@ contains
 
     if ( .not. use_century_tfunc ) then
     !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
-    !are assigned for non-moisture limiting conditions at 25C. 
+    !are assigned for non-moisture limiting conditions at 25C.
       if (bc_in%t_veg24_pa(ifp)  >=  tfrz) then
         t_scalar = q10_mr**((bc_in%t_veg24_pa(ifp)-(tfrz+25._r8))/10._r8)
                  !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
