@@ -32,7 +32,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
-  use EDTypesMod          , only : dl_sf, dinc_ed
+  use EDTypesMod          , only : dl_sf, dinc_ed, area_inv
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
   use FatesLitterMod      , only : ilabile
@@ -564,6 +564,7 @@ contains
     !
     ! !LOCAL VARIABLES:
 
+    type(ed_patch_type),pointer :: cpatch
     integer  :: model_day_int     ! integer model day 1 - inf
     integer  :: ncolddays         ! no days underneath the threshold for leaf drop
     integer  :: i_wmem            ! Loop counter for water mem days
@@ -581,7 +582,6 @@ contains
     real(r8) :: gdd_threshold     ! GDD accumulation function,
     integer  :: ilayer_swater     ! Layer index for soil water
                                   ! which also depends on chilling days.
-    integer  :: n_patch           ! number of patches on this site
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
     real(r8) :: temp_in_C         ! daily averaged temperature in celcius
@@ -613,10 +613,15 @@ contains
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725 
     !Parameters, default from from SDGVM model of senesence
 
-
-    n_patch = currentSite%youngest_patch%patchno
-    temp_in_C = sum(bc_in%t_veg24_pa(1:n_patch),dim=1)/real(n_patch,r8) - tfrz
-
+    temp_in_C = 0._r8
+    cpatch => CurrentSite%oldest_patch   
+    do while(associated(cpatch))    
+       temp_in_C = temp_in_C + bc_in%t_veg24_pa(cpatch%patchno)*cpatch%area
+       cpatch => cpatch%younger
+    end do
+    temp_in_C = temp_in_C * area_inv - tfrz
+       
+       
     !-----------------Cold Phenology--------------------!              
 
     !Zero growing degree and chilling day counters
