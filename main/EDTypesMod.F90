@@ -32,7 +32,7 @@ module EDTypesMod
                                                           ! are not the top canopy layer)
 
   integer, parameter, public :: nlevleaf = 30             ! number of leaf layers in canopy layer
-  integer, parameter, public :: maxpft = 15               ! maximum number of PFTs allowed
+  integer, parameter, public :: maxpft = 16               ! maximum number of PFTs allowed
                                                           ! the parameter file may determine that fewer
                                                           ! are used, but this helps allocate scratch
                                                           ! space and output arrays.
