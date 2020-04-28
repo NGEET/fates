@@ -415,6 +415,8 @@ contains
 
     real(r8) :: initial_trim              ! Initial trim
     real(r8) :: optimum_trim              ! Optimum trim value 
+    real(r8) :: initial_laimem            ! Initial laimemory
+    real(r8) :: optimum_laimem            ! Optimum laimemory
 
     !----------------------------------------------------------------------
 
@@ -434,8 +436,9 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort)) 
 
-         ! Save off the incoming trim
+         ! Save off the incoming trim and laimemory
          initial_trim = currentCohort%canopy_trim
+         initial_laimem = currentCohort%laimemory
 
           ! Add debug diagnstic output to determine which cohort
           if (debug) then
@@ -551,16 +554,8 @@ contains
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif
 
-                if (debug) then
-                  write(fates_log(),*) 'cl,nv,z:', cl,',', currentCohort%nv,',', z
-                  write(fates_log(),*) 'cumulative lai:', cumulative_lai
-                  write(fates_log(),*) 'leaf_cost:', currentCohort%leaf_cost
-                  write(fates_log(),*) 'year_net_uptake:', currentCohort%year_net_uptake(z)   
-                  write(fates_log(),*) 'canopy trim:', currentCohort%canopy_trim   
-                endif
-
                 ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
-                if (currentCohort%nv - z < nll) then  ! Only for nll layers
+                if (currentCohort%nv > nll .and. currentCohort%nv - z < nll) then  ! Only for nll layers
                   nnu_clai_a(1,1) = nnu_clai_a(1,1) + 1 ! Increment for each layer used
                   nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(z) - currentCohort%leaf_cost
                   nnu_clai_a(2,1) = nnu_clai_a(1,2)
@@ -619,20 +614,29 @@ contains
             endif
 
             if (debug) then
-               ! write(fates_log(),*) 'LLSF optimium LAI (intercept,slope):', nnu_clai_b
+               write(fates_log(),*) 'LLSF optimium LAI (intercept,slope):', nnu_clai_b
                write(fates_log(),*) 'LLSF optimium LAI:', nnu_clai_b(1,1)
-               ! write(fates_log(),*) 'LLSF optimium LAI info:', info
-               ! write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cumulative_lai
+               write(fates_log(),*) 'LLSF optimium LAI info:', info
+               write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cumulative_lai
             endif
 
             ! Calculate the optimum trim based on the initial canopy trim value
-            optimum_trim = (nnu_clai_b(1,1) / cumulative_lai) * initial_trim
+            if (cumulative_lai > 0._r8) then  ! Sometime cumulative_lai comes in at 0.0?
+               optimum_trim = (nnu_clai_b(1,1) / cumulative_lai) * initial_trim
+               optimum_laimem = (nnu_clai_b(1,1) / cumulative_lai) * initial_laimem
 
-            ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
-            if (optimum_trim > 0. .and. optimum_trim < 1.) then
-               currentCohort%canopy_trim = optimum_trim
-               trimmed = .true.
-            endif
+               ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
+               if (optimum_trim > 0. .and. optimum_trim < 1.) then
+                  currentCohort%canopy_trim = optimum_trim
+
+                  ! If the cohort pft is not evergreen we reduce the laimemory as well
+                  if (EDPftvarcon_inst%evergreen(ipft) /= 1) then
+                     currentCohort%laimemory = optimum_laimem
+                  endif
+
+                  trimmed = .true.
+
+               endif
 
          endif
 
