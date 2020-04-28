@@ -161,6 +161,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_fines_bg_elem
   integer :: ih_cwd_ag_elem
   integer :: ih_cwd_bg_elem
+  integer :: ih_burn_flux_elem
 
   integer :: ih_daily_temp
   integer :: ih_daily_rh
@@ -490,6 +491,7 @@ module FatesHistoryInterfaceMod
   
   ! indices to (site x fuel class) variables
   integer :: ih_litter_moisture_si_fuel
+  integer :: ih_burnt_frac_litter_si_fuel
 
   ! indices to (site x cwd size class) variables
   integer :: ih_cwd_ag_si_cwdsc
@@ -1830,6 +1832,7 @@ end subroutine flush_hvars
                hio_cambialfiremort_si_scpf   => this%hvars(ih_cambialfiremort_si_scpf)%r82d, &
 
                hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
+               hio_burn_flux_elem    => this%hvars(ih_burn_flux_elem)%r82d, &
 
                hio_m1_si_scls          => this%hvars(ih_m1_si_scls)%r82d, &
                hio_m2_si_scls          => this%hvars(ih_m2_si_scls)%r82d, &
@@ -1921,6 +1924,7 @@ end subroutine flush_hvars
                ! hio_fire_rate_of_spread_front_si_age  => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
                hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
                hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
+               hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
                hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
                hio_leaf_height_dist_si_height     => this%hvars(ih_leaf_height_dist_si_height)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
@@ -1991,6 +1995,12 @@ end subroutine flush_hvars
          do el = 1, num_elements
              site_mass => sites(s)%mass_balance(el)
              hio_err_fates_si(io_si,el) = site_mass%err_fates * mg_per_kg
+
+             ! Total element lost to atmosphere from burning (kg/site/day -> g/m2/s)
+             hio_burn_flux_elem(io_si,el) = &
+                  sites(s)%mass_balance(el)%burn_flux_to_atm * &
+                  g_per_kg * ha_per_m2 * days_per_sec
+
          end do
 
          hio_canopy_spread_si(io_si)        = sites(s)%spread
@@ -2642,6 +2652,9 @@ end subroutine flush_hvars
             do i_fuel = 1,nfsc
                hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
                     cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
+
+               hio_burnt_frac_litter_si_fuel(io_si, i_fuel) = hio_burnt_frac_litter_si_fuel(io_si, i_fuel) + &
+                    cpatch%burnt_frac_litter(i_fuel) * cpatch%frac_burnt * cpatch%area * AREA_INV
             end do
 
 
@@ -4121,6 +4134,12 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_sum_fuel_si_age )
 
+    call this%set_history_var(vname='BURNT_LITTER_FRAC_AREA_PRODUCT', units='fraction', &
+         long='product of fraction of fuel burnt and burned area (divide by FIRE_AREA to get burned-area-weighted mean fraction fuel burnt)', &
+         use_default='active', &
+         avgflag='A', vtype=site_fuel_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_burnt_frac_litter_si_fuel )
+
 
     ! Litter Variables
 
@@ -5279,6 +5298,11 @@ end subroutine flush_hvars
           long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
+   
+    call this%set_history_var(vname='FIRE_FLUX', units='g/m^2/s', &
+          long='ED/SPitfire loss to atmosphere of elements', use_default='active', &
+          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_burn_flux_elem )
    
     call this%set_history_var(vname='CBALANCE_ERROR_FATES', units='mgC/day',  &
          long='total carbon error, FATES', use_default='active', &
