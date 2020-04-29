@@ -637,7 +637,7 @@ contains
                   trimmed = .true.
 
                endif
-
+            endif
          endif
 
           ! Reset activity for the cohort for the start of the next year
