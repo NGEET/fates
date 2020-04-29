@@ -14,6 +14,7 @@ module FatesRestartInterfaceMod
   use FatesIODimensionsMod,    only : fates_io_dimension_type
   use FatesIOVariableKindMod,  only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
+  use FatesInterfaceMod,       only : nlevcoage
   use FatesInterfaceMod,       only : bc_in_type 
   use FatesInterfaceMod,       only : bc_out_type
   use FatesInterfaceMod,       only : hlm_use_planthydro
@@ -23,6 +24,7 @@ module FatesRestartInterfaceMod
   use FatesHydraulicsMemMod,   only : n_hypool_ag
   use FatesHydraulicsMemMod,   only : n_hypool_troot
   use FatesHydraulicsMemMod,   only : nlevsoi_hyd_max
+  use FatesPlantHydraulicsMod, only : UpdatePlantPsiFTCFromTheta
   use PRTGenericMod,           only : prt_global
   use EDCohortDynamicsMod,     only : nan_cohort
   use EDCohortDynamicsMod,     only : zero_cohort
@@ -35,6 +37,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : ndcmpy
   use PRTGenericMod,           only : prt_global
   use EDTypesMod,              only : num_elements
+
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -90,6 +93,7 @@ module FatesRestartInterfaceMod
   integer :: ir_canopy_trim_co
   integer :: ir_size_class_lasttimestep_co
   integer :: ir_dbh_co
+  integer :: ir_coage_co
   integer :: ir_g_sb_laweight_co
   integer :: ir_height_co
   integer :: ir_laimemory_co
@@ -106,6 +110,8 @@ module FatesRestartInterfaceMod
   integer :: ir_hmort_co
   integer :: ir_cmort_co
   integer :: ir_frmort_co
+  integer :: ir_smort_co
+  integer :: ir_asmort_co
 
   !Logging
   integer :: ir_lmort_direct_co
@@ -141,7 +147,6 @@ module FatesRestartInterfaceMod
 
 
   ! Site level
-
   integer :: ir_watermem_siwm
   integer :: ir_vegtempmem_sitm
   integer :: ir_seed_bank_sift
@@ -175,12 +180,12 @@ module FatesRestartInterfaceMod
 
   ! Hydraulic indices
   integer :: ir_hydro_th_ag_covec
-  integer :: ir_hydro_th_troot_covec
+  integer :: ir_hydro_th_troot
   integer :: ir_hydro_th_aroot_covec 
   integer :: ir_hydro_liqvol_shell_si
-  integer :: ir_hydro_err_growturn_aroot_covec
+  integer :: ir_hydro_err_growturn_aroot
   integer :: ir_hydro_err_growturn_ag_covec
-  integer :: ir_hydro_err_growturn_troot_covec
+  integer :: ir_hydro_err_growturn_troot
   integer :: ir_hydro_recruit_si
   integer :: ir_hydro_dead_si
   integer :: ir_hydro_growturn_err_si
@@ -651,6 +656,10 @@ contains
          long_name='ed cohort - diameter at breast height', units='cm', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbh_co )
 
+    call this%set_restart_var(vname='fates_coage', vtype=cohort_r8, &
+         long_name='ed cohort - age in days', units='days', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_coage_co ) 
+
     call this%set_restart_var(vname='fates_height', vtype=cohort_r8, &
          long_name='ed cohort - plant height', units='m', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_height_co )
@@ -724,6 +733,16 @@ contains
          long_name='ed cohort - freezing mortality rate', &
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_frmort_co )
+
+    call this%set_restart_var(vname='fates_smort', vtype=cohort_r8, &
+         long_name='ed cohort - senescence mortality rate', &
+         units='/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_smort_co )
+
+    call this%set_restart_var(vname='fates_asmort', vtype=cohort_r8, &
+         long_name='ed cohort - age senescence mortality rate', &
+         units = '/year', flushval = flushzero, & 
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_asmort_co )
 
     call this%set_restart_var(vname='fates_lmort_direct', vtype=cohort_r8, &
          long_name='ed cohort - directly logging mortality rate', &
@@ -906,7 +925,7 @@ contains
        call this%RegisterCohortVector(symbol_base='fates_hydro_th_troot', vtype=cohort_r8, &
             long_name_base='water in transporting roots', &
             units='kg/plant', veclength=n_hypool_troot, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_th_troot_covec) 
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_th_troot) 
        
        call this%RegisterCohortVector(symbol_base='fates_hydro_th_aroot', vtype=cohort_r8, &
             long_name_base='water in absorbing roots',  &
@@ -916,7 +935,7 @@ contains
        call this%RegisterCohortVector(symbol_base='fates_hydro_err_aroot', vtype=cohort_r8, &
             long_name_base='error in plant-hydro balance in absorbing roots',  &
             units='kg/plant', veclength=nlevsoi_hyd_max, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_aroot_covec) 
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_aroot) 
 
        call this%RegisterCohortVector(symbol_base='fates_hydro_err_ag', vtype=cohort_r8, &
             long_name_base='error in plant-hydro balance above ground',  &
@@ -926,7 +945,7 @@ contains
        call this%RegisterCohortVector(symbol_base='fates_hydro_err_troot', vtype=cohort_r8, &
             long_name_base='error in plant-hydro balance above ground',  &
             units='kg/plant', veclength=n_hypool_troot, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_troot_covec) 
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_troot) 
 
        ! Site-level volumentric liquid water content (shell x layer)
        call this%set_restart_var(vname='fates_hydro_liqvol_shell', vtype=cohort_r8, &
@@ -1425,9 +1444,12 @@ contains
     integer  :: io_idx_si_lyr_shell ! site - layer x shell index
     integer  :: io_idx_si_scpf ! each size-class x pft index within site
     integer  :: io_idx_si_sc   ! each size-class index within site
+    integer  :: io_idx_si_capf ! each cohort age-class x pft index within site
+    integer  :: io_idx_si_cacls ! each cohort age class index within site
     integer  :: io_idx_si_cwd  ! each site-cwd index
     integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
+
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1443,6 +1465,7 @@ contains
     integer  :: i_var            ! loop counter for PRT variables
     integer  :: i_pos            ! loop counter for discrete PRT positions
     integer  :: i_scls           ! loop counter for size-class
+    integer  :: i_cacls          ! loop counter for cohort age class
     integer  :: i_cwd            ! loop counter for cwd
     integer  :: i_pft            ! loop counter for pft
 
@@ -1472,6 +1495,7 @@ contains
            rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
+           rio_coage_co                => this%rvars(ir_coage_co)%r81d, &
            rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
            rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
@@ -1487,6 +1511,8 @@ contains
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
+           rio_smort_co                => this%rvars(ir_smort_co)%r81d, &
+           rio_asmort_co               => this%rvars(ir_asmort_co)%r81d, &
            rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
            rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
            rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
@@ -1554,7 +1580,8 @@ contains
           io_idx_si_lyr_shell = io_idx_co_1st
           io_idx_si_scpf = io_idx_co_1st
           io_idx_si_sc   = io_idx_co_1st
-
+          io_idx_si_capf = io_idx_co_1st
+          io_idx_si_cacls= io_idx_co_1st
           
           ! recruitment rate
           do i_pft = 1,numpft
@@ -1649,23 +1676,22 @@ contains
                    ! Load the water contents
                    call this%SetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
                                                  ir_hydro_th_ag_covec,io_idx_co)
-                   call this%SetCohortRealVector(ccohort%co_hydr%th_troot,n_hypool_troot, &
-                                                 ir_hydro_th_troot_covec,io_idx_co)
-                   call this%SetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevsoi_hyd, &
+                   call this%SetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevrhiz, &
                                                  ir_hydro_th_aroot_covec,io_idx_co)
 
-                   ! Load the error terms
-                   call this%setCohortRealVector(ccohort%co_hydr%errh2o_growturn_aroot, &
-                                                 sites(s)%si_hydr%nlevsoi_hyd, &
-                                                 ir_hydro_err_growturn_aroot_covec,io_idx_co)
-                   
-                   call this%setCohortRealVector(ccohort%co_hydr%errh2o_growturn_troot, &
-                                                 n_hypool_troot, &
-                                                 ir_hydro_err_growturn_troot_covec,io_idx_co)
+                   this%rvars(ir_hydro_th_troot)%r81d(io_idx_co) = ccohort%co_hydr%th_troot
 
+                   ! Load the error terms
                    call this%setCohortRealVector(ccohort%co_hydr%errh2o_growturn_ag, &
                                                  n_hypool_ag, &
                                                  ir_hydro_err_growturn_ag_covec,io_idx_co)
+                   
+                   this%rvars(ir_hydro_err_growturn_aroot)%r81d(io_idx_co) = &
+                        ccohort%co_hydr%errh2o_growturn_aroot
+                        
+                   this%rvars(ir_hydro_err_growturn_troot)%r81d(io_idx_co) = &
+                        ccohort%co_hydr%errh2o_growturn_troot
+                        
 
                 end if
 
@@ -1675,6 +1701,7 @@ contains
                 rio_seed_prod_co(io_idx_co)    = ccohort%seed_prod
                 rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
+                rio_coage_co(io_idx_co)        = ccohort%coage
                 rio_height_co(io_idx_co)       = ccohort%hite
                 rio_laimemory_co(io_idx_co)    = ccohort%laimemory
                 rio_sapwmemory_co(io_idx_co)   = ccohort%sapwmemory
@@ -1692,6 +1719,8 @@ contains
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
                 rio_hmort_co(io_idx_co)        = ccohort%hmort
                 rio_cmort_co(io_idx_co)        = ccohort%cmort
+                rio_smort_co(io_idx_co)        = ccohort%smort
+                rio_asmort_co(io_idx_co)       = ccohort%asmort
                 rio_frmort_co(io_idx_co)       = ccohort%frmort                
 
                 !Logging
@@ -1829,7 +1858,7 @@ contains
                 rio_termnindiv_cano_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_canopy(i_scls,i_pft)
                 rio_termnindiv_usto_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_ustory(i_scls,i_pft)
                 rio_growflx_fusion_siscpf(io_idx_si_scpf)  = sites(s)%growthflux_fusion(i_scls, i_pft)
-
+                
                 io_idx_si_scpf = io_idx_si_scpf + 1
              end do
 
@@ -1838,8 +1867,7 @@ contains
                 
              io_idx_si_sc = io_idx_si_sc + 1
           end do
-         
-
+          
           rio_termcflux_cano_si(io_idx_si)  = sites(s)%term_carbonflux_canopy
           rio_termcflux_usto_si(io_idx_si)  = sites(s)%term_carbonflux_ustory
           rio_democflux_si(io_idx_si)       = sites(s)%demotion_carbonflux
@@ -1892,7 +1920,7 @@ contains
              this%rvars(ir_hydro_hydro_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_hydro_err
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
-             do i = 1, sites(s)%si_hydr%nlevsoi_hyd
+             do i = 1, sites(s)%si_hydr%nlevrhiz
                 ! Loop shells
                 do k = 1, nshell
                    this%rvars(ir_hydro_liqvol_shell_si)%r81d(io_idx_si_lyr_shell) = &
@@ -2163,6 +2191,8 @@ contains
      integer  :: io_idx_si_lyr_shell ! site - layer x shell index
      integer  :: io_idx_si_scpf ! each size-class x pft index within site
      integer  :: io_idx_si_sc   ! each size-class index within site
+     integer  :: io_idx_si_cacls ! each coage class index within site
+     integer  :: io_idx_si_capf ! each cohort age class x pft index within site
      integer  :: io_idx_si_cwd
      integer  :: io_idx_si_pft
 
@@ -2178,7 +2208,8 @@ contains
      integer  :: i_var            ! loop counter for PRT variables
      integer  :: i_pos            ! loop counter for discrete PRT positions
      integer  :: i_pft            ! loop counter for pft
-     integer  :: i_scls           ! loop counter for size-class
+     integer  :: i_scls           ! loop counter for size-clas
+     integer  :: i_cacls          ! loop counter for cohort age class
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
@@ -2201,6 +2232,7 @@ contains
           rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
+          rio_coage_co                => this%rvars(ir_coage_co)%r81d, & 
           rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
           rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
@@ -2216,6 +2248,8 @@ contains
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
+          rio_smort_co                => this%rvars(ir_smort_co)%r81d, &
+          rio_asmort_co               => this%rvars(ir_asmort_co)%r81d, &
           rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
           rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
           rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
@@ -2272,7 +2306,9 @@ contains
 
           io_idx_si_scpf = io_idx_co_1st
           io_idx_si_sc   = io_idx_co_1st
-
+          io_idx_si_capf = io_idx_co_1st
+          io_idx_si_cacls= io_idx_co_1st
+          
           ! read seed_bank info(site-level, but PFT-resolved)
           do i_pft = 1,numpft 
              sites(s)%recruitment_rate(i_pft) = rio_recrate_sift(io_idx_co_1st+i_pft-1)
@@ -2366,6 +2402,7 @@ contains
                 ccohort%seed_prod    = rio_seed_prod_co(io_idx_co)
                 ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
+                ccohort%coage        = rio_coage_co(io_idx_co)
                 ccohort%g_sb_laweight= rio_g_sb_laweight_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
                 ccohort%laimemory    = rio_laimemory_co(io_idx_co)
@@ -2382,6 +2419,8 @@ contains
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
+                ccohort%smort        = rio_smort_co(io_idx_co)
+                ccohort%asmort       = rio_asmort_co(io_idx_co)
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
 
                 !Logging
@@ -2405,18 +2444,18 @@ contains
                    ! Load the water contents
                    call this%GetCohortRealVector(ccohort%co_hydr%th_ag,n_hypool_ag, &
                                                  ir_hydro_th_ag_covec,io_idx_co)
-                   call this%GetCohortRealVector(ccohort%co_hydr%th_troot,n_hypool_troot, &
-                                                 ir_hydro_th_troot_covec,io_idx_co)
-                   call this%GetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevsoi_hyd, &
+                   call this%GetCohortRealVector(ccohort%co_hydr%th_aroot,sites(s)%si_hydr%nlevrhiz, &
                                                  ir_hydro_th_aroot_covec,io_idx_co)
-
-                   call this%GetCohortRealVector(ccohort%co_hydr%errh2o_growturn_aroot, &
-                                                 sites(s)%si_hydr%nlevsoi_hyd, &
-                                                 ir_hydro_err_growturn_aroot_covec,io_idx_co)
                    
-                   call this%GetCohortRealVector(ccohort%co_hydr%errh2o_growturn_troot, &
-                                                 n_hypool_troot, &
-                                                 ir_hydro_err_growturn_troot_covec,io_idx_co)
+                   ccohort%co_hydr%th_troot = this%rvars(ir_hydro_th_troot)%r81d(io_idx_co)
+                   
+                   call UpdatePlantPsiFTCFromTheta(ccohort,sites(s)%si_hydr)
+
+                   
+                   ccohort%co_hydr%errh2o_growturn_aroot = &
+                        this%rvars(ir_hydro_err_growturn_aroot)%r81d(io_idx_co)
+                   ccohort%co_hydr%errh2o_growturn_troot = &
+                        this%rvars(ir_hydro_err_growturn_troot)%r81d(io_idx_co)
 
                    call this%GetCohortRealVector(ccohort%co_hydr%errh2o_growturn_ag, &
                                                  n_hypool_ag, &
@@ -2560,7 +2599,7 @@ contains
              sites(s)%si_hydr%h2oveg_hydro_err    = this%rvars(ir_hydro_hydro_err_si)%r81d(io_idx_si)
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
-             do i = 1, sites(s)%si_hydr%nlevsoi_hyd
+             do i = 1, sites(s)%si_hydr%nlevrhiz
                 ! Loop shells
                 do k = 1, nshell
                    sites(s)%si_hydr%h2osoi_liqvol_shell(i,k) = &
@@ -2594,7 +2633,6 @@ contains
                 
              io_idx_si_sc = io_idx_si_sc + 1
           end do
-         
 
           sites(s)%term_carbonflux_canopy   = rio_termcflux_cano_si(io_idx_si)
           sites(s)%term_carbonflux_ustory   = rio_termcflux_usto_si(io_idx_si)

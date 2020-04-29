@@ -396,8 +396,8 @@ contains
                                
                                if (hlm_use_planthydro.eq.itrue ) then
                                    
-                                 bbb = max( cf/rsmax0, bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1) ) 
-                                 btran_eff = currentCohort%co_hydr%btran(1) 
+                                 bbb = max( cf/rsmax0, bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran ) 
+                                 btran_eff = currentCohort%co_hydr%btran
                                  
                                  ! dinc_ed is the total vegetation area index of each "leaf" layer
                                  ! we convert to the leaf only portion of the increment
