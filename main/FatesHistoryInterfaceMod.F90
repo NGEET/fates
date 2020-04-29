@@ -4143,7 +4143,7 @@ end subroutine flush_hvars
     ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=2)
 
     call this%set_history_var(vname='NPP', units='gC/m^2/s',                &
-         long='net primary production on the site',  use_default='active',      &
+         long='net primary production',  use_default='active',      &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_npp_si )
 
