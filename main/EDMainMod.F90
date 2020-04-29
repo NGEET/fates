@@ -136,11 +136,19 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     integer :: el              ! Loop counter for elements
 
+    integer,save :: counter = 0
+    
     !-----------------------------------------------------------------------
 
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
+    
+    counter = counter + 1
+
+    if(counter==24) then
+!       stop
+    end if
     
     ! Consider moving this towards the end, because some of these 
     ! are being integrated over the short time-step
@@ -417,8 +425,17 @@ contains
           ! -----------------------------------------------------------------------------
           ! Growth and Allocation (PARTEH)
           ! -----------------------------------------------------------------------------
+          print*,"carbon gain: ",currentCohort%npp_acc, &
+               currentCohort%gpp_acc, currentCohort%dbh
           
           call currentCohort%prt%DailyPRT()
+
+          print*,"net allocations: ",currentCohort%prt%GetNetAlloc(leaf_organ,carbon12_element), &
+               currentCohort%prt%GetNetAlloc(fnrt_organ,carbon12_element), &
+               currentCohort%prt%GetNetAlloc(sapw_organ,carbon12_element), &
+               currentCohort%prt%GetNetAlloc(store_organ,carbon12_element), &
+               currentCohort%prt%GetNetAlloc(struct_organ,carbon12_element), &
+               currentCohort%prt%GetNetAlloc(repro_organ,carbon12_element)
           
           
           ! Update the mass balance tracking for the daily nutrient uptake flux

@@ -3218,6 +3218,7 @@ end subroutine flush_hvars
                      ! we need to estimate growth respiration
                      ! by using the previous day's mean, and passing
                      ! that into npp and total autotrophic r
+                     print*,"resp daily: ",ccohort%resp_g_daily
                      resp_g = ccohort%resp_g_daily / (sec_per_day/dt_tstep)
                      npp    = ccohort%npp_tstep-resp_g
                      aresp  = ccohort%resp_tstep+resp_g

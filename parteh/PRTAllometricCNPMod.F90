@@ -196,7 +196,8 @@ module PRTAllometricCNPMod
      procedure :: FastPRT      => FastPRTAllometricCNP
 
      ! Extended functions specific to Allometric CNP
-     procedure :: CNPPrioritizedReplacement
+     procedure :: CNPPrioritizedReplacement1
+     procedure :: CNPPrioritizedReplacement2
      procedure :: CNPStatureGrowth
      procedure :: CNPAllocateRemainder
      procedure :: GetDeficit
@@ -484,7 +485,7 @@ contains
        ! any un-paid maintenance respiration from storage.
        ! ===================================================================================
         
-       call this%CNPPrioritizedReplacement(maint_r_def, c_gain_unl, n_gain_unl, p_gain_unl, &
+       call this%CNPPrioritizedReplacement2(maint_r_def, c_gain_unl, n_gain_unl, p_gain_unl, &
             growth_r, state_c, state_n, state_p, target_c)
 
        ! ===================================================================================
@@ -550,7 +551,7 @@ contains
     ! ===================================================================================
     
     
-    call this%CNPPrioritizedReplacement(maint_r_def, c_gain, n_gain, p_gain, &
+    call this%CNPPrioritizedReplacement2(maint_r_def, c_gain, n_gain, p_gain, &
          growth_r, state_c, state_n, state_p, target_c)
     
     sum_c = 0._r8
@@ -680,7 +681,7 @@ contains
 
   ! =====================================================================================
   
-  subroutine CNPPrioritizedReplacement(this, & 
+  subroutine CNPPrioritizedReplacement1(this, & 
        maint_r_deficit, c_gain, n_gain, p_gain, growth_resp, &
        state_c, state_n, state_p, target_c)
 
@@ -780,10 +781,6 @@ contains
     ! and pay for it in this routine, we will never pass in a negative carbon gain,
     ! and thus the transferrable storage carbon is calculated here.
 
-
-    print*,"c_gain: ",c_gain
-
-    
     if (c_gain < 0._r8) then
 
        
@@ -1083,7 +1080,309 @@ contains
     
 
     return
-  end subroutine CNPPrioritizedReplacement
+  end subroutine CNPPrioritizedReplacement1
+
+  ! =====================================================================================
+  
+  subroutine CNPPrioritizedReplacement2(this, & 
+       maint_r_deficit, c_gain, n_gain, p_gain, growth_resp, &
+       state_c, state_n, state_p, target_c)
+
+      
+    ! -----------------------------------------------------------------------------------
+    ! Alternative allocation hypothesis for the prioritized replacement phase.
+    ! This is more similar to the current (04/2020) carbon only hypothesis.
+    ! -----------------------------------------------------------------------------------
+    
+    class(cnp_allom_prt_vartypes) :: this
+    real(r8), intent(inout) :: c_gain
+    real(r8), intent(inout) :: n_gain
+    real(r8), intent(inout) :: p_gain
+    real(r8), intent(inout) :: growth_resp
+    real(r8), intent(inout) :: maint_r_deficit
+    type(parray_type) :: state_c(:)     ! State array for carbon, by organ [kg]
+    type(parray_type) :: state_n(:)     ! State array for N, by organ [kg]
+    type(parray_type) :: state_p(:)     ! State array for P, by organ [kg]
+    real(r8), intent(in) :: target_c(:)
+    
+    integer  :: n_curpri_org
+    integer, dimension(num_organs) :: curpri_org         ! C variable ID's of the current priority level
+    real(r8), dimension(num_organs) :: deficit_c ! Deficit to get to target from current    [kg]
+    real(r8), dimension(num_organs) :: deficit_n ! Deficit to get to target from current    [kg]
+    real(r8), dimension(num_organs) :: deficit_p ! Deficit to get to target from current    [kg]
+    real(r8), dimension(num_organs) :: r_g  ! Growth respiration rate [kgC/kgC]
+    integer  :: i, ii, i_org             ! Loop indices (mostly for organs)
+    integer  :: i_cvar                   ! variable index
+    integer  :: i_pri                    ! loop index for priority
+    integer  :: ipft                     ! Plant functional type index of this plant
+    integer  :: leaves_on                ! Is this plant in a leaf-on status?
+    real(r8) :: dbh                      ! DBH [cm]
+    real(r8) :: canopy_trim              ! trim factor for maximum leaf biomass
+    real(r8) :: target_n                 ! Target mass of N for a given organ [kg]
+    real(r8) :: target_p                 ! Target mass of P for a given organ [kg]
+    real(r8) :: n_gain0
+    integer  :: priority_code            ! Index for priority level of each organ
+    real(r8) :: sum_c_demand            ! Carbon demanded to bring tissues up to allometry (kg)
+    real(r8) :: sum_n_deficit            ! The nitrogen deficit of all pools for given priority level (kg)
+    real(r8) :: sum_p_deficit            ! The phosphorus deficit of all pools for given priority level (kg)
+    real(r8) :: store_below_target
+    real(r8) :: store_target_fraction
+    real(r8) :: store_demand
+    real(r8) :: store_c_flux
+    real(r8) :: sum_c_flux               ! The flux to bring tissues up to allometry (kg)
+    real(r8) :: sum_n_flux               ! The flux of nitrogen ""  (kg)
+    real(r8) :: sum_p_flux               ! The flux of phosphorus "" (Kg)
+    real(r8) :: c_flux                   ! carbon flux into an arbitrary pool (kg)
+    real(r8) :: gr_flux                  ! carbon flux to fulfill growth respiration of an arbitrary pool (kg)
+    real(r8) :: n_flux                   ! nitrogen flux into  an arbitrary pool (kg)
+    real(r8) :: p_flux                   ! phosphorus flux into an arbitrary pool (kg)
+    real(r8) :: maint_r_def_flux         ! Flux into maintenance respiration during priority 1 allocation
+    real(r8) :: c_gain_flux              ! Flux used to pay back negative carbon gain (from storage) (kgC)
+    real(r8) :: sapw_area
+    real(r8) :: new_state                ! This is just for checking the pointer's target update result
+    integer, parameter  :: n_max_priority = num_organs + 1 ! Maximum possible number of priority levels is
+                                                           ! the total number organs plus 1, which allows
+                                                           ! each organ to have its own level, and ignore
+                                                           ! the specialized priority 1
+
+
+    n_gain0=n_gain
+    
+    leaves_on       = this%bc_in(acnp_bc_in_id_leafon)%ival
+    ipft            = this%bc_in(acnp_bc_in_id_pft)%ival
+    canopy_trim     = this%bc_in(acnp_bc_in_id_ctrim)%rval
+    
+    ! Choose growth respiration rates depending on hypothesis
+    r_g(leaf_id)       = prt_params%grperc(ipft)
+    r_g(fnrt_id)       = prt_params%grperc(ipft)
+    r_g(sapw_id)       = prt_params%grperc(ipft)
+    r_g(store_id)      = prt_params%grperc(ipft)
+    r_g(struct_id)     = prt_params%grperc(ipft)
+    r_g(repro_id)      = prt_params%grperc(ipft)
+
+    
+    ! -----------------------------------------------------------------------------------
+    ! Preferential transfer of available carbon and nutrients into the highest
+    ! priority pools, and maintenance respiration. We will loop through the available
+    ! pools, and identify if that pool is part of the highest transfer priority.
+    ! If it is, then we track the variable ids associated with that pool for each CNP
+    ! species.  It "should" work fine if there are NO priority=1 pools...
+    ! -----------------------------------------------------------------------------------
+
+    
+    curpri_org(:) = -9    ! reset "current-priority" organ ids
+    i = 0
+    do ii = 1, num_organs
+
+       deficit_c(ii) = max(0._r8,this%GetDeficit(carbon12_element,organ_list(ii),target_c(ii)))
+       
+       ! The priority code associated with this organ
+       priority_code = int(prt_params%alloc_priority(ipft, organ_list(ii)))
+       
+       ! Don't allow allocation to leaves if they are in an "off" status.
+       ! Also, dont allocate to replace turnover if this is not evergreen
+       ! (this prevents accidental re-flushing on the day they drop)
+       if( ((leaves_on.ne.2) .or. (prt_params%evergreen(ipft) .ne. itrue)) &
+            .and. (organ_list(ii).eq.leaf_organ)) cycle
+       
+       ! 1 is the highest priority code possible
+       if( priority_code == 1 ) then
+          i = i + 1
+          curpri_org(i) = ii
+       end if
+    end do
+
+      
+    ! Number of pools in the current priority level
+    n_curpri_org = i
+
+    ! -----------------------------------------------------------------------------------
+    ! The high-priority pools, and their associated variable
+    ! indices have been identified.
+    !
+    ! Let us now calculate the fluxes into these priority pools
+    ! The first step is to replace just their maintenance turnover
+    ! -----------------------------------------------------------------------------------
+
+    sum_c_demand = 0._r8
+    do ii = 1,n_curpri_org
+       i = curpri_org(ii)
+
+       i_cvar        = prt_global%sp_organ_map(organ_list(i),carbon12_element)
+       sum_c_demand = sum_c_demand + prt_params%leaf_stor_priority(ipft) * &
+            sum(this%variables(i_cvar)%turnover(:))*(1._r8 + r_g(i))
+          
+    end do
+
+
+    sum_c_flux = min(sum_c_demand,state_c(store_id)%p+c_gain)
+    
+    if (sum_c_flux> nearzero ) then
+       
+       ! We pay this even if we don't have the carbon
+       ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
+       
+       do ii = 1,n_curpri_org
+          i = curpri_org(ii)
+          
+          i_cvar        = prt_global%sp_organ_map(organ_list(i),carbon12_element)
+          c_flux = sum_c_flux*(prt_params%leaf_stor_priority(ipft) * &
+               sum(this%variables(i_cvar)%turnover(:))*(1._r8 + r_g(i))/sum_c_demand)
+
+          ! Add carbon to the pool
+          state_c(i)%p = state_c(i)%p + c_flux/(1._r8 + r_g(i))
+          
+          ! Tax growth respiration
+          growth_resp  = growth_resp + r_g(i)*c_flux/(1._r8 + r_g(i))
+          
+          ! Remove from daily  carbon gain
+          c_gain = c_gain - c_flux
+
+       end do
+    end if
+
+
+    ! -----------------------------------------------------------------------------------
+    ! IV. if carbon balance is negative, re-coup the losses from storage
+    !       if it is positive, give some love to storage carbon
+    ! -----------------------------------------------------------------------------------
+    
+    if( c_gain < 0.0_r8 ) then
+
+       ! Storage will have to pay for any negative gains
+       store_c_flux           = -c_gain
+       c_gain                 = c_gain  + store_c_flux
+       state_c(store_id)%p    = state_c(store_id)%p - store_c_flux
+
+    else
+
+       ! This is just a cap, no need to transfer more into storage than it needs
+       store_below_target     = max(target_c(store_id) - state_c(store_id)%p,0._r8)*(1._r8+r_g(store_id))
+
+       ! This is the desired need for carbon
+       store_target_fraction  = max(0._r8, state_c(store_id)%p/target_c(store_id))
+       store_demand           = (exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ))*(1._r8+r_g(store_id))
+
+       ! The flux is the minimum of all three 
+       store_c_flux = min(min(store_below_target,store_demand),c_gain)
+       
+       c_gain              = c_gain  - store_c_flux
+       state_c(store_id)%p = state_c(store_id)%p + store_c_flux/(1._r8+r_g(store_id))
+       growth_resp         = growth_resp + r_g(store_id)*store_c_flux/(1._r8+r_g(store_id))
+
+    end if
+
+    
+    ! -----------------------------------------------------------------------------------
+    !  If carbon is still available, allocate to remaining high
+    !        carbon balance is guaranteed to be >=0 beyond this point
+    ! -----------------------------------------------------------------------------------
+
+    ! -----------------------------------------------------------------------------------
+    ! Bring all pools, in priority order, up to allometric targets if possible
+    ! We have already done priority 1, so start with 2
+    ! -----------------------------------------------------------------------------------
+    
+    do i_pri = 1, n_max_priority
+       
+       curpri_org(:) = -9    ! "current-priority" organ indices
+
+       i = 0
+       do ii = 1, num_organs
+          
+          ! The priority code associated with this organ
+          priority_code = int(prt_params%alloc_priority(ipft, organ_list(ii)))
+          
+          ! Don't allow allocation to leaves if they are in an "off" status.
+          ! (this prevents accidental re-flushing on the day they drop)
+          if((leaves_on.ne.2) .and. (organ_list(ii).eq.leaf_organ)) cycle
+          
+          ! 1 is the highest priority code possible
+          if( priority_code == i_pri ) then
+             deficit_c(ii) = max(0._r8,this%GetDeficit(carbon12_element,organ_list(ii),target_c(ii)))
+             i = i + 1
+             curpri_org(i) = ii
+          end if
+       end do
+
+       ! Bring carbon up to target first, this order is required
+       ! because we need to know the resulting carbon concentrations
+       ! before  we set the allometric targets for the nutrients
+
+       n_curpri_org  = i
+
+
+       ! The total amount of carbon needed to be replaced
+       ! is the deficit and the growth respiration needed
+       ! accomany replacing that deficit
+
+       sum_c_demand = 0._r8
+       do i=1,n_curpri_org
+          i_org = curpri_org(i)
+          sum_c_demand = sum_c_demand + &
+               deficit_c(i_org) * (1._r8 + r_g(i_org))
+       end do
+       
+       sum_c_flux = min(c_gain, sum_c_demand)
+       
+       ! Transfer carbon into pools if there is any
+       if (sum_c_flux>nearzero) then
+          do i = 1, n_curpri_org
+             
+             i_org = curpri_org(i)
+             
+             c_flux  =            sum_c_flux*deficit_c(i_org)/sum_c_demand
+             gr_flux = r_g(i_org)*sum_c_flux*deficit_c(i_org)/sum_c_demand
+             
+             ! Update the carbon pool
+             state_c(i_org)%p = state_c(i_org)%p + c_flux
+             
+             ! Update carbon pools deficit
+             deficit_c(i_org) = max(0._r8,deficit_c(i_org) - c_flux)
+             
+             ! Estimate the growth respiration associated with this allocation
+             growth_resp = growth_resp + gr_flux
+
+             ! Reduce the carbon gain
+             c_gain      = c_gain - (c_flux+gr_flux)
+             
+          end do
+
+       end if
+       
+       ! Determine nutrient demand and make tansfers
+       do i = 1, n_curpri_org
+          
+          i_org = curpri_org(i)
+          
+          ! Update the nitrogen deficits
+          ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
+          target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i_org),stoich_growth_min)
+          deficit_n(i_org) = max(0.0_r8, target_n - state_n(i_org)%p )
+          
+          ! Update the phosphorus deficits (which are based off of carbon actual..)
+          ! Note that the phsophorus target is tied to the stoichiometry of thegrowing pool only (also)
+          target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i_org),stoich_growth_min)
+          deficit_p(i_org) = max(0.0_r8, target_p - state_p(i_org)%p )
+       end do
+       
+       
+       ! Allocate nutrients at this priority level
+       ! Nitrogen
+       call ProportionalNutrAllocation(state_n, deficit_n, &
+            n_gain, nitrogen_element, curpri_org(1:n_curpri_org))
+       
+       ! Phosphorus
+       call ProportionalNutrAllocation(state_p, deficit_p, &
+            p_gain, phosphorus_element, curpri_org(1:n_curpri_org))
+       
+       
+       
+    end do
+    
+    return
+  end subroutine CNPPrioritizedReplacement2
+
   
   ! =====================================================================================
     
