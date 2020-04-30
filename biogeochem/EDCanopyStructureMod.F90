@@ -1592,7 +1592,7 @@ contains
                 if(snow_depth_avg>= minh(iv).and.snow_depth_avg <= maxh(iv))then !only partly hidden... 
                    fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-minh(iv))/dh)))
                 endif
-                ! fraction_exposed = 1.0_r8
+                fraction_exposed = 1.0_r8
                 ! no m2 of leaf per m2 of ground in each height class
                 ! FIX(SPM,032414) these should be uncommented this and double check
                 
