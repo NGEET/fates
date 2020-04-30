@@ -143,6 +143,7 @@ module FatesRestartInterfaceMod
   integer :: ir_area_pa
   integer :: ir_agesinceanthrodist_pa
   integer :: ir_patchdistturbcat_pa
+  integer :: ir_nocomp_pft_label_pa
 
 
   ! Site level
@@ -823,6 +824,10 @@ contains
     call this%set_restart_var(vname='fates_patchdistturbcat', vtype=cohort_int, &
          long_name='Disturbance label of patch', units='yr', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_patchdistturbcat_pa )
+
+    call this%set_restart_var(vname='fates_nocomp_pft_label', vtype=cohort_int, &
+         long_name='PFT label of patch in nocomp mode', units='none', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nocomp_pft_label_pa )
 
     call this%set_restart_var(vname='fates_area', vtype=cohort_r8, &
          long_name='are of the ED patch', units='m2', flushval = flushzero, &
@@ -1540,6 +1545,7 @@ contains
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d, &           
            rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &           
+           rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
            rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
@@ -1778,6 +1784,7 @@ contains
              rio_age_pa(io_idx_co_1st)         = cpatch%age
              rio_patchdistturbcat_pa(io_idx_co_1st)   = cpatch%anthro_disturbance_label
              rio_agesinceanthrodist_pa(io_idx_co_1st) = cpatch%age_since_anthro_disturbance
+             rio_nocomp_pft_label_pa(io_idx_co_1st)= cpatch%nocomp_pft_label
              rio_area_pa(io_idx_co_1st)        = cpatch%area
              
              ! set cohorts per patch for IO
@@ -2288,6 +2295,7 @@ contains
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_patchdistturbcat_pa     => this%rvars(ir_patchdistturbcat_pa)%int1d,  &
           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
+          rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
           rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
@@ -2510,6 +2518,7 @@ contains
              cpatch%age                = rio_age_pa(io_idx_co_1st)
              cpatch%anthro_disturbance_label       = rio_patchdistturbcat_pa(io_idx_co_1st)
              cpatch%age_since_anthro_disturbance   = rio_agesinceanthrodist_pa(io_idx_co_1st)
+             cpatch%nocomp_pft_label               = rio_nocomp_pft_label_pa(io_idx_co_1st)
              cpatch%area               = rio_area_pa(io_idx_co_1st)
              cpatch%age_class          = get_age_class_index(cpatch%age)
 

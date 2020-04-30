@@ -39,6 +39,7 @@ module EDInitMod
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
   use FatesInterfaceMod         , only : hlm_use_fixed_biogeog
+  use FatesInterfaceMod         , only : hlm_use_nocomp
   use FatesInterfaceMod         , only : numpft
   use FatesInterfaceMod         , only : nleafage
   use FatesInterfaceMod         , only : nlevsclass
@@ -391,6 +392,14 @@ contains
            ! have smaller spread factors than bare ground (they are crowded)
            sites(s)%spread     = init_spread_near_bare_ground
 
+          if(hlm_use_nocomp.eq.itrue)then
+           no_new_patches = numpft
+          else
+           no_new_patches = 1
+          end if
+
+          do n = 1, no_new_patches
+
            allocate(newp)
 
            newp%patchno = 1
@@ -403,7 +412,7 @@ contains
 
            ! make new patch...
 
-           call create_patch(sites(s), newp, age, area, primaryforest)
+           call create_patch(sites(s), newp, age, area, primaryforest, nocomp_pft)
            
            ! Initialize the litter pools to zero, these
            ! pools will be populated by looping over the existing patches
@@ -419,6 +428,8 @@ contains
            
            sitep => sites(s)
            call init_cohorts(sitep, newp, bc_in(s))
+
+         end do !no new patches
            
            ! For carbon balance checks, we need to initialize the 
            ! total carbon stock
@@ -426,7 +437,9 @@ contains
               call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                    biomass_stock,litter_stock,seed_stock)
            end do
-        enddo
+
+
+        enddo !s
 
      end if
 

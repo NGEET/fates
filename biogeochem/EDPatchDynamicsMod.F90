@@ -42,6 +42,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_days_per_year
   use FatesInterfaceMod    , only : numpft
+  use FatesInterfaceMod    , only : hlm_use_nocomp
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -395,6 +396,7 @@ contains
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day    
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
+    real(r8) :: site_areadis_pft(numpft)     ! total area disturbed per PFT class when nocomp mode is on. m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
     integer  :: tnull                        ! is there a tallest cohort?
@@ -409,6 +411,7 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
+    integer :: nocomp_pft                   ! where nocomp mode is on, PFT label 
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -419,6 +422,7 @@ contains
 
     site_areadis_primary = 0.0_r8
     site_areadis_secondary = 0.0_r8    
+    site_areadis_pft(1:numpft)=0.0_r8
 
     do while(associated(currentPatch))
 
@@ -448,7 +452,12 @@ contains
           else
              site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate          
           endif
-          
+            
+         ! accumulate PFT specific disturbance rates in nocomp mode
+         if(hlm_use_nocomp.eq.itrue)then
+           site_areadis_pft(currentPatch%nocomp_pft_label) = site_areadis_pft(currentPatch%nocomp_pft_label) &
+               + currentPatch%area * currentPatch%disturbance_rate
+         end if 
        end if
 
        currentPatch => currentPatch%older     
@@ -465,7 +474,7 @@ contains
           allocate(new_patch_primary)
 
           call create_patch(currentSite, new_patch_primary, age, &
-                site_areadis_primary, primaryforest)
+                site_areadis_primary, primaryforest,nocomp_pft)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -488,7 +497,7 @@ contains
        if ( site_areadis_secondary .gt. nearzero) then
           allocate(new_patch_secondary)
           call create_patch(currentSite, new_patch_secondary, age, &
-                site_areadis_secondary, secondaryforest)
+                site_areadis_secondary, secondaryforest,nocomp_pft)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -1821,7 +1830,7 @@ contains
 
   ! ============================================================================
 
-  subroutine create_patch(currentSite, new_patch, age, areap, label)
+  subroutine create_patch(currentSite, new_patch, age, areap, label,nocomp_pft)
 
     !
     ! !DESCRIPTION:
@@ -1835,7 +1844,7 @@ contains
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
-
+    integer, intent(in)  :: nocomp_pft           ! sets PFT of patch only where nocomp is active 
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
     integer :: el                                ! element loop index
@@ -1881,6 +1890,10 @@ contains
 
     ! assign anthropgenic disturbance category and label
     new_patch%anthro_disturbance_label = label
+
+    ! where nocomp is active, set PFT of patch
+    new_patch%nocomp_pft_label = nocomp_pft
+
     if (label .eq. secondaryforest) then
        new_patch%age_since_anthro_disturbance = age
     else
@@ -2022,6 +2035,9 @@ contains
 
     currentPatch%gnd_alb_dir(:)             = nan
     currentPatch%gnd_alb_dif(:)             = nan
+
+   ! special modes
+    currentPatch%nocomp_pft_label           = fates_unset_int
 
   end subroutine zero_patch
 
@@ -2183,6 +2199,11 @@ contains
                             endif ! sum(biomass(:,:) .gt. force_patchfuse_min_biomass 
                          endif ! maxage
 
+                        ! Do not fuse patches that have different PFT labels in nocomp mode
+                        if(hlm_use_nocomp.eq.itrue.and. &
+                           tpp%nocomp_pft_label.ne.currentPatch%nocomp_pft_label)then
+                         fuse_flag = 0 
+                        end if
                          !-------------------------------------------------------------------------!
                          ! Call the patch fusion routine if there is not a meaningful difference   !
                          ! any of the pft x height categories                                      !
