@@ -4295,7 +4295,7 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_reproc_si )
 
     call this%set_history_var(vname='CEFFLUX', units='kgC/ha/day', &
-         long='carbon efflux, root to soil', use_default='inactive', &
+         long='carbon efflux, root to soil', use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cefflux_si )
     

@@ -1680,7 +1680,11 @@ contains
           end if
        end if
        
-       c_gstature = c_gain * np_limit
+ !      c_gstature = c_gain * np_limit
+
+       ! HACK, ALLOW FULL C ALLOCATION AND LET REST OF ALGORITHM LIMIT
+       c_gstature = c_gain
+       
        
     end if
 
@@ -1850,8 +1854,6 @@ contains
           write(fates_log(),*) 'sapw_c: ',sapwc_tp1, sapw_c_target_tp1 ,sapwc_tp1- sapw_c_target_tp1
           write(fates_log(),*) 'store_c: ',storec_tp1, store_c_target_tp1,storec_tp1- store_c_target_tp1
           write(fates_log(),*) 'struct_c: ',structc_tp1, struct_c_target_tp1,structc_tp1- struct_c_target_tp1
-
-
           write(fates_log(),*) 'sapw_c_t0: ',state_c(sapw_id)%p, target_c(sapw_id)
           
           call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1886,38 +1888,38 @@ contains
        ! ideally, this should be a pretty good match.
        
        if(debug) then
-          if(sum_n_demand > 1.20*n_gain) then
-             write(fates_log(),*) 'The prediction of N limitation was pretty bad...'
-             write(fates_log(),*) 'The actualized demand on N to match C growth'
-             write(fates_log(),*) 'is not within 20% of what we thought it would be'
-             write(fates_log(),*) 'when we predicted N to limit C. This is likely'
-             write(fates_log(),*) 'a result of using a linear interpolation to predict'
-             write(fates_log(),*) 'an integration over non-linear equations'
-             write(fates_log(),*) 'dbh: ',dbh
-             write(fates_log(),*) 'pft: ',ipft
-             write(fates_log(),*) 'total demanded (post stature C growth): ',sum_n_demand
-             write(fates_log(),*) 'mask: ',state_mask(:)
-             write(fates_log(),*) 'deficit per organ: ',deficit_n(:)
-             write(fates_log(),*) 'target_dcdd: ',target_dcdd(:)
-             write(fates_log(),*) 'available: ',n_gain
-             write(fates_log(),*) 'frac_c: ',frac_c(:)
-             write(fates_log(),*) 'grow_c_from_x: ',grow_c_from_c,grow_c_from_n,grow_c_from_p
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
+!          if(sum_n_demand > 1.20*n_gain) then
+!             write(fates_log(),*) 'The prediction of N limitation was pretty bad...'
+!             write(fates_log(),*) 'The actualized demand on N to match C growth'
+!             write(fates_log(),*) 'is not within 20% of what we thought it would be'
+!             write(fates_log(),*) 'when we predicted N to limit C. This is likely'
+!             write(fates_log(),*) 'a result of using a linear interpolation to predict'
+!             write(fates_log(),*) 'an integration over non-linear equations'
+!             write(fates_log(),*) 'dbh: ',dbh
+!             write(fates_log(),*) 'pft: ',ipft
+!             write(fates_log(),*) 'total demanded (post stature C growth): ',sum_n_demand
+!             write(fates_log(),*) 'mask: ',state_mask(:)
+!             write(fates_log(),*) 'deficit per organ: ',deficit_n(:)
+!             write(fates_log(),*) 'target_dcdd: ',target_dcdd(:)
+!             write(fates_log(),*) 'available: ',n_gain
+!             write(fates_log(),*) 'frac_c: ',frac_c(:)
+!             write(fates_log(),*) 'grow_c_from_x: ',grow_c_from_c,grow_c_from_n,grow_c_from_p
+!             call endrun(msg=errMsg(sourcefile, __LINE__))
+!          end if
           
-          if(sum_p_demand > 1.20*p_gain) then
-             write(fates_log(),*) 'The prediction of P limitation was pretty bad..'
-             write(fates_log(),*) 'The actualized demand on P to match C growth'
-             write(fates_log(),*) 'is not within 20% of what we thought it would be'
-             write(fates_log(),*) 'when we predicted P to limit C. This is likely'
-             write(fates_log(),*) 'a result of using a linear interpolation to predict'
-             write(fates_log(),*) 'an integration over non-linear equations'
-             write(fates_log(),*) 'dbh: ',dbh
-             write(fates_log(),*) 'pft: ',ipft
-             write(fates_log(),*) 'demanded (post stature C growth): ',sum_p_demand
-             write(fates_log(),*) 'available: ',p_gain
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
+!          if(sum_p_demand > 1.20*p_gain) then
+!             write(fates_log(),*) 'The prediction of P limitation was pretty bad..'
+!             write(fates_log(),*) 'The actualized demand on P to match C growth'
+!             write(fates_log(),*) 'is not within 20% of what we thought it would be'
+!             write(fates_log(),*) 'when we predicted P to limit C. This is likely'
+!             write(fates_log(),*) 'a result of using a linear interpolation to predict'
+!             write(fates_log(),*) 'an integration over non-linear equations'
+!             write(fates_log(),*) 'dbh: ',dbh
+!             write(fates_log(),*) 'pft: ',ipft
+!             write(fates_log(),*) 'demanded (post stature C growth): ',sum_p_demand
+!             write(fates_log(),*) 'available: ',p_gain
+!             call endrun(msg=errMsg(sourcefile, __LINE__))
+!          end if
        end if
        
        ! Nitrogen
