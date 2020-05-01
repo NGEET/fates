@@ -7,7 +7,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : fates_long_string_length
   use FatesConstantsMod,       only : itrue
   use FatesConstantsMod,       only : ifalse
-  use FatesConstantsMod,       only : fates_unset_r8
+  use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
   use FatesConstantsMod,       only : primaryforest
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
@@ -2018,7 +2018,7 @@ contains
      integer                           :: ft
      integer                           :: el            ! element loop counter
      integer, parameter                :: recruitstatus = 0
-
+     integer                           ::  nocomp_pft ! PFT patch label for nocomp mode
      ! ----------------------------------------------------------------------------------
      ! We really only need the counts for the number of patches per site
      ! and the number of cohorts per patch. These values tell us how much
@@ -2055,9 +2055,9 @@ contains
              
              ! create patch
              allocate(newp)    
-             
+             nocomp_pft = fates_unset_int             
              ! make new patch
-             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest )
+             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest, nocomp_pft )
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches

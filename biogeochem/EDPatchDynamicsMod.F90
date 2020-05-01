@@ -419,6 +419,10 @@ contains
 
     !---------------------------------------------------------------------
 
+    ! Allocate PFT arrays of patches to form the new patches in nocomp mode. 
+    allocate(new_patch_primary_pft(numpft))
+    allocate(new_patch_secondary_pft(numpft))
+
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
 
@@ -501,9 +505,9 @@ contains
 
           else !nocomp
              do nocomp_pft=1,numpft ! looping round a new patch for each present PFT. 
-                allocate(new_patch_primary)
+!                allocate(new_patch_primary_pft(nocompt_pft))
                 if( site_areadis_primary_pft(nocomp_pft) .gt. nearzero ) then
-                   call create_patch(currentSite, new_patch_primary, age, &
+                   call create_patch(currentSite, new_patch_primary_pft(nocomp_pft), age, &
                    site_areadis_primary_pft(nocomp_pft), primaryforest,nocomp_pft)
                    ! Initialize the litter pools to zero
                    do el=1,num_elements
@@ -534,7 +538,7 @@ contains
           else !nocomp                                                                                                            
              do nocomp_pft=1,numpft ! looping round a new patch for each present PFT.                                                             allocate(new_patch_secondary)
                 if( site_areadis_secondary_pft(nocomp_pft) .gt. nearzero ) then
-                   call create_patch(currentSite, new_patch_secondary, age, &
+                   call create_patch(currentSite, new_patch_secondary_pft(nocomp_pft), age, &
                    site_areadis_secondary_pft(nocomp_pft), secondaryforest,nocomp_pft)
                    do el=1,num_elements
                       call new_patch_secondary%litter(el)%InitConditions(&
@@ -566,14 +570,24 @@ contains
               ! will be primary or secondary land receiver patch is primary forest 
               ! only if both the donor patch is primary forest and the dominant 
               ! disturbance type is not logging
-             if(hlm_use_nocomp.eq.ifalse)then
                  if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
                     (currentPatch%disturbance_mode .ne. dtype_ilog)) then
                      new_patch => new_patch_primary
+                     rec_type = primaryforest
                  else
                      new_patch => new_patch_secondary
+                     rec_type = secondaryforest
                  endif
-              endif
+
+             if(hlm_use_nocomp.eq.itrue)then !nocomp case
+                if(rec_type.eq.primaryforest)then
+                   new_patch => new_patch_primary_pft(currentPatch%nocomp_pft_label)
+                else
+                   new_patch => new_patch_secondary_pft(currentPatch%nocomp_pft_label)
+                endif
+             endif 
+
+
               
               if(.not.associated(new_patch))then
                   write(fates_log(),*) 'Patch spawning has attempted to point to'
@@ -1047,42 +1061,84 @@ contains
       !*************************/
       !**  INSERT NEW PATCH(ES) INTO LINKED LIST    
       !**********`***************/
-       
-      if ( site_areadis_primary .gt. nearzero) then
+
+     ! currentPatch is the youngest of the pre-existing patches. 
+     !newpatch_primary_pft and newpatch_secondary_pft need to be added into the mix
+
+     if(hlm_use_nocomp.eq.ifalse)then        
+        if ( site_areadis_primary .gt. nearzero) then
           currentPatch               => currentSite%youngest_patch
           new_patch_primary%older    => currentPatch
           new_patch_primary%younger  => null()
           currentPatch%younger       => new_patch_primary
           currentSite%youngest_patch => new_patch_primary
-      endif
+        endif
       
-      if ( site_areadis_secondary .gt. nearzero) then
+        if ( site_areadis_secondary .gt. nearzero) then
           currentPatch               => currentSite%youngest_patch
           new_patch_secondary%older  => currentPatch
           new_patch_secondary%younger=> null()
           currentPatch%younger       => new_patch_secondary
           currentSite%youngest_patch => new_patch_secondary
-      endif
- 
+        endif
+     else !nocomp case with one new patch for each PFT
+        do nocomp_pft=1,numpft
+           if ( site_areadis_primary_pft(nocomp_pft) .gt. nearzero) then
+             currentPatch               => currentSite%youngest_patch
+             new_patch_primary_pft(nocomp_pft)%older    => currentPatch
+             new_patch_primary_pft(nocomp_pft)%younger  => null()
+             currentPatch%younger       => new_patch_primary_pft(nocomp_pft)
+             currentSite%youngest_patch => new_patch_primary_pft(nocomp_pft)
+           endif
+
+           if ( site_areadis_secondary .gt. nearzero) then
+             currentPatch               => currentSite%youngest_patch
+             new_patch_secondary_pft(nocomp_pft)%older  => currentPatch
+             new_patch_secondary_pft(nocomp_pft)%younger=> null()
+             currentPatch%younger       => new_patch_secondary_pft(nocomp_pft)
+             currentSite%youngest_patch => new_patch_secondary_pft(nocomp_pft)
+           endif
+        enddo !pft
+      endif !nocomp 
+
+
+
+
        
        ! sort out the cohorts, since some of them may be so small as to need removing. 
        ! the first call to terminate cohorts removes sparse number densities,
        ! the second call removes for all other reasons (sparse culling must happen
        ! before fusion)
-
-       if ( site_areadis_primary .gt. nearzero) then
-          call terminate_cohorts(currentSite, new_patch_primary, 1,17)
-          call fuse_cohorts(currentSite,new_patch_primary, bc_in)
-          call terminate_cohorts(currentSite, new_patch_primary, 2,17)
-          call sort_cohorts(new_patch_primary)
-       endif
+       if(hlm_use_nocomp.eq.ifalse)then
+          if ( site_areadis_primary .gt. nearzero) then
+             call terminate_cohorts(currentSite, new_patch_primary, 1,17)
+             call fuse_cohorts(currentSite,new_patch_primary, bc_in)
+             call terminate_cohorts(currentSite, new_patch_primary, 2,17)
+             call sort_cohorts(new_patch_primary)
+          endif
        
-       if ( site_areadis_secondary .gt. nearzero) then
-          call terminate_cohorts(currentSite, new_patch_secondary, 1,18)
-          call fuse_cohorts(currentSite,new_patch_secondary, bc_in)
-          call terminate_cohorts(currentSite, new_patch_secondary, 2,18)
-          call sort_cohorts(new_patch_secondary)
-       endif
+          if ( site_areadis_secondary .gt. nearzero) then
+             call terminate_cohorts(currentSite, new_patch_secondary, 1,18)
+             call fuse_cohorts(currentSite,new_patch_secondary, bc_in)
+             call terminate_cohorts(currentSite, new_patch_secondary, 2,18)
+             call sort_cohorts(new_patch_secondary)
+          endif
+       else !nocomp case
+          do nocomp_pft=1,numpft
+             if ( site_areadis_primary_pft(nocomp_pft) .gt. nearzero) then
+                call terminate_cohorts(currentSite, new_patch_primary_pft(nocomp_pft), 1,17)
+                call fuse_cohorts(currentSite,new_patch_primary_pft(nocomp_pft), bc_in)
+                call terminate_cohorts(currentSite, new_patch_primary_pft(nocomp_pft), 2,17)
+                call sort_cohorts(new_patch_primary_pft(nocomp_pft))
+             endif 
+             if ( site_areadis_primary_pft(nocomp_pft) .gt. nearzero) then
+                call terminate_cohorts(currentSite, new_patch_secondary_pft(nocomp_pft), 1,18)
+                call fuse_cohorts(currentSite, new_patch_secondary_pft(nocomp_pft), bc_in)
+                call terminate_cohorts(currentSite, new_patch_secondary_pft(nocomp_pft), 2,18)
+                call sort_cohorts(new_patch_secondary_pft(nocomp_pft))
+             endif 
+          enddo !pft                                                                                                       
+        endif !nocomp 
        
     endif !end new_patch area 
     
