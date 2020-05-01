@@ -389,14 +389,17 @@ contains
     type (ed_patch_type) , pointer :: new_patch_primary
     type (ed_patch_type) , pointer :: new_patch_secondary
     type (ed_patch_type) , pointer :: currentPatch
+    type (ed_patch_type) , pointer :: new_patch_primary_pft(:)
+    type (ed_patch_type) , pointer :: new_patch_secondary_pft(:)
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_cohort_type), pointer :: nc
     type (ed_cohort_type), pointer :: storesmallcohort
     type (ed_cohort_type), pointer :: storebigcohort
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day    
-    real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
-    real(r8) :: site_areadis_pft(numpft)     ! total area disturbed per PFT class when nocomp mode is on. m2 per patch per day
+    real(r8) :: site_areadis_primary_pft(numpft) ! primary area disturbed per PFT in nocomp mode. m2/patch/day 
+    real(r8) :: site_areadis_secondary_pft(numpft) ! secondary area disturbed per PFT in nocomp mode. m2/patch/day
+    real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day 
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
     integer  :: tnull                        ! is there a tallest cohort?
@@ -411,7 +414,9 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
+    integer  :: rec_type                     ! records type of disturbance while in patch loop
     integer :: nocomp_pft                   ! where nocomp mode is on, PFT label 
+
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -422,10 +427,10 @@ contains
 
     site_areadis_primary = 0.0_r8
     site_areadis_secondary = 0.0_r8    
-    site_areadis_pft(1:numpft)=0.0_r8
+    site_areadis_primary_pft(1:numpft) = 0.0_r8
+    site_areadis_secondary_pft(1:numpft) = 0.0_r8
 
     do while(associated(currentPatch))
-
     
        if(currentPatch%disturbance_rate>1.0_r8) then
           write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
@@ -449,19 +454,28 @@ contains
                 (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
              
              site_areadis_primary = site_areadis_primary + currentPatch%area * currentPatch%disturbance_rate
+             rec_type = primaryforest
           else
              site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate          
-          endif
+             rec_type = secondaryforest
+          end if
             
          ! accumulate PFT specific disturbance rates in nocomp mode
-         if(hlm_use_nocomp.eq.itrue)then
-           site_areadis_pft(currentPatch%nocomp_pft_label) = site_areadis_pft(currentPatch%nocomp_pft_label) &
+          if(hlm_use_nocomp.eq.itrue)then
+             if(rec_type.eq.primaryforest)then
+                nocomp_pft = currentPatch%nocomp_pft_label
+                site_areadis_primary_pft(nocomp_pft) = site_areadis_primary_pft(nocomp_pft) &
+                + currentPatch%area * currentPatch%disturbance_rate
+             else
+                site_areadis_secondary_pft(nocomp_pft) = site_areadis_secondary_pft(nocomp_pft) &
                + currentPatch%area * currentPatch%disturbance_rate
-         end if 
-       end if
+             end if  !rectype
+          end if !nocomp
 
+       end if !area
        currentPatch => currentPatch%older     
-    enddo ! end loop over patches. sum area disturbed for all patches. 
+
+    end do ! end loop over patches. sum area disturbed for all patches. 
 
     ! It is possible that no disturbance area was generated
     if ( (site_areadis_primary + site_areadis_secondary) > nearzero) then  
@@ -471,49 +485,68 @@ contains
        ! create two empty patches, to absorb newly disturbed primary and secondary forest area
        ! first create patch to receive primary forest area
        if ( site_areadis_primary .gt. nearzero ) then
-          allocate(new_patch_primary)
-
-          call create_patch(currentSite, new_patch_primary, age, &
+          if(hlm_use_nocomp.eq.ifalse)then
+             allocate(new_patch_primary)
+             call create_patch(currentSite, new_patch_primary, age, &
                 site_areadis_primary, primaryforest,nocomp_pft)
-          
-          ! Initialize the litter pools to zero, these
-          ! pools will be populated by looping over the existing patches
-          ! and transfering in mass
-          do el=1,num_elements
-              call new_patch_primary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
-                    init_root_fines=0._r8, &
-                    init_ag_cwd=0._r8, &
-                    init_bg_cwd=0._r8, &
-                    init_seed=0._r8,   &
-                    init_seed_germ=0._r8)
-          end do
-          new_patch_primary%tallest  => null()
-          new_patch_primary%shortest => null()
+             ! Initialize the litter pools to zero, these                                                                                     ! pools will be populated by looping over the existing patches                             
+             ! and transfering in mass                                                     
+             do el=1,num_elements
+                call new_patch_primary%litter(el)%InitConditions(&
+                    init_leaf_fines=0._r8, init_root_fines=0._r8,  init_ag_cwd=0._r8, &
+                    init_bg_cwd    =0._r8,  init_seed  =0._r8, init_seed_germ=0._r8)
+             end do
+             new_patch_primary%tallest  => null()
+             new_patch_primary%shortest => null()
 
-       endif
-
+          else !nocomp
+             do nocomp_pft=1,numpft ! looping round a new patch for each present PFT. 
+                allocate(new_patch_primary)
+                if( site_areadis_primary_pft(nocomp_pft) .gt. nearzero ) then
+                   call create_patch(currentSite, new_patch_primary, age, &
+                   site_areadis_primary_pft(nocomp_pft), primaryforest,nocomp_pft)
+                   ! Initialize the litter pools to zero
+                   do el=1,num_elements
+                      call new_patch_primary%litter(el)%InitConditions(&
+                      init_leaf_fines=0._r8, init_root_fines=0._r8,  init_ag_cwd=0._r8, &
+                      init_bg_cwd    =0._r8,  init_seed  =0._r8, init_seed_germ=0._r8)
+                   end do
+                   new_patch_primary%tallest  => null()
+                   new_patch_primary%shortest => null()
+                 end if !area
+              end do !pft
+           endif !nocomp
+       end if !primary
 
        ! next create patch to receive secondary forest area
        if ( site_areadis_secondary .gt. nearzero) then
-          allocate(new_patch_secondary)
-          call create_patch(currentSite, new_patch_secondary, age, &
+          if(hlm_use_nocomp.eq.ifalse)then
+            allocate(new_patch_secondary)
+            call create_patch(currentSite, new_patch_secondary, age, &
                 site_areadis_secondary, secondaryforest,nocomp_pft)
-          
-          ! Initialize the litter pools to zero, these
-          ! pools will be populated by looping over the existing patches
-          ! and transfering in mass
-          do el=1,num_elements
-              call new_patch_secondary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
-                    init_root_fines=0._r8, &
-                    init_ag_cwd=0._r8, &
-                    init_bg_cwd=0._r8, &
-                    init_seed=0._r8,   &
-                    init_seed_germ=0._r8)
-          end do
-          new_patch_secondary%tallest  => null()
-          new_patch_secondary%shortest => null() 
-
-       endif
+             do el=1,num_elements
+                call new_patch_secondary%litter(el)%InitConditions(&
+                    init_leaf_fines=0._r8, init_root_fines=0._r8,  init_ag_cwd=0._r8, &
+                    init_bg_cwd    =0._r8,  init_seed  =0._r8, init_seed_germ=0._r8)
+             end do
+             new_patch_secondary%tallest  => null()
+             new_patch_secondary%shortest => null()
+          else !nocomp                                                                                                            
+             do nocomp_pft=1,numpft ! looping round a new patch for each present PFT.                                                             allocate(new_patch_secondary)
+                if( site_areadis_secondary_pft(nocomp_pft) .gt. nearzero ) then
+                   call create_patch(currentSite, new_patch_secondary, age, &
+                   site_areadis_secondary_pft(nocomp_pft), secondaryforest,nocomp_pft)
+                   do el=1,num_elements
+                      call new_patch_secondary%litter(el)%InitConditions(&
+                      init_leaf_fines=0._r8, init_root_fines=0._r8,  init_ag_cwd=0._r8, &
+                      init_bg_cwd    =0._r8,  init_seed  =0._r8, init_seed_germ=0._r8)
+                   end do
+                   new_patch_secondary%tallest  => null()
+                   new_patch_secondary%shortest => null()
+                 end if !area                                                                                              
+              end do !pft           
+           endif !nocomp    
+       endif !secondary
     
        ! loop round all the patches that contribute surviving indivduals and litter 
        ! pools to the new patch.  We only loop the pre-existing patches, so 
@@ -533,11 +566,13 @@ contains
               ! will be primary or secondary land receiver patch is primary forest 
               ! only if both the donor patch is primary forest and the dominant 
               ! disturbance type is not logging
-              if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
+             if(hlm_use_nocomp.eq.ifalse)then
+                 if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
                     (currentPatch%disturbance_mode .ne. dtype_ilog)) then
-                  new_patch => new_patch_primary
-              else
-                  new_patch => new_patch_secondary
+                     new_patch => new_patch_primary
+                 else
+                     new_patch => new_patch_secondary
+                 endif
               endif
               
               if(.not.associated(new_patch))then

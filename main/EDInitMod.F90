@@ -348,7 +348,9 @@ contains
      real(r8) :: biomass_stock
      real(r8) :: litter_stock
      real(r8) :: seed_stock
-     
+     integer  :: n
+     integer  :: no_new_patches
+     integer  :: nocomp_pft     
      type(ed_site_type),  pointer :: sitep
      type(ed_patch_type), pointer :: newp
 
@@ -411,7 +413,12 @@ contains
            sites(s)%oldest_patch   => newp
 
            ! make new patch...
-
+           if(hlm_use_nocomp.eq.itrue)then
+             nocomp_pft = n
+           else
+             nocomp_pft = fates_unset_int
+           end if 
+       
            call create_patch(sites(s), newp, age, area, primaryforest, nocomp_pft)
            
            ! Initialize the litter pools to zero, these
