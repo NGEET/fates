@@ -351,6 +351,8 @@ contains
      integer  :: n
      integer  :: no_new_patches
      integer  :: nocomp_pft     
+     real(r8) :: newparea
+
      type(ed_site_type),  pointer :: sitep
      type(ed_patch_type), pointer :: newp
 
@@ -398,6 +400,7 @@ contains
            no_new_patches = numpft
           else
            no_new_patches = 1
+           newparea = area
           end if
 
           do n = 1, no_new_patches
@@ -412,15 +415,29 @@ contains
            sites(s)%youngest_patch => newp
            sites(s)%oldest_patch   => newp
 
-           ! make new patch...
+           ! set the PFT index for patches if in nocomp mode. 
            if(hlm_use_nocomp.eq.itrue)then
              nocomp_pft = n
            else
-             nocomp_pft = fates_unset_int
+             nocomp_pft = 999
            end if 
-       
-           call create_patch(sites(s), newp, age, area, primaryforest, nocomp_pft)
-           
+
+           if(hlm_use_nocomp.eq.itrue)then 
+              ! In no competition mode, if we are using the fixed_biogeog filter 
+              ! then each PFT has the area dictated  by the surface dataset.
+              ! If not, each PFT gets the same area. 
+              if(hlm_use_fixed_biogeog.eq.itrue)then
+                 newparea = area * sites(s)%area_pft(nocomp_pft)
+              else
+                 newparea = area / numpft
+              end if 
+           else  ! The default case is initialized w/ one patch with the area of the whole site. 
+             newparea = area       
+           end if 
+   
+           if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode 
+             call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
+           end if
            ! Initialize the litter pools to zero, these
            ! pools will be populated by looping over the existing patches
            ! and transfering in mass
