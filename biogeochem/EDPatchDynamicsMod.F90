@@ -102,7 +102,7 @@ module EDPatchDynamicsMod
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
-  logical, parameter :: debug = .false.
+  logical, parameter :: debug = .true.
 
   ! When creating new patches from other patches, we need to send some of the
   ! litter from the old patch to the new patch.  Likewise, when plants die
@@ -1198,7 +1198,7 @@ contains
        end if
 
        if(debug) then
-          write(fates_log(),*) 'Total patch area precision being fixed, adjusting'
+          write(fates_log(),*) 'Total patch area precision being fixed, adjusting',areatot-area_site
           write(fates_log(),*) 'largest patch. This may have slight impacts on carbon balance.'
        end if
        
@@ -2293,7 +2293,7 @@ contains
                         ! Do not fuse patches that have different PFT labels in nocomp mode
                         if(hlm_use_nocomp.eq.itrue.and. &
                            tpp%nocomp_pft_label.ne.currentPatch%nocomp_pft_label)then
-                         fuse_flag = 0 
+                           fuse_flag = 0 
                         end if
                          !-------------------------------------------------------------------------!
                          ! Call the patch fusion routine if there is not a meaningful difference   !
