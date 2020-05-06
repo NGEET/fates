@@ -38,14 +38,14 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_mechanical_frac 
    use EDParamsMod       , only : logging_coll_under_frac 
    use EDParamsMod       , only : logging_dbhmax_infra
-   use FatesInterfaceMod , only : hlm_current_year
-   use FatesInterfaceMod , only : hlm_current_month
-   use FatesInterfaceMod , only : hlm_current_day
-   use FatesInterfaceMod , only : hlm_model_day
-   use FatesInterfaceMod , only : hlm_day_of_year 
-   use FatesInterfaceMod , only : hlm_days_per_year
-   use FatesInterfaceMod , only : hlm_use_logging 
-   use FatesInterfaceMod , only : hlm_use_planthydro
+   use FatesInterfaceTypesMod , only : hlm_current_year
+   use FatesInterfaceTypesMod , only : hlm_current_month
+   use FatesInterfaceTypesMod , only : hlm_current_day
+   use FatesInterfaceTypesMod , only : hlm_model_day
+   use FatesInterfaceTypesMod , only : hlm_day_of_year 
+   use FatesInterfaceTypesMod , only : hlm_days_per_year
+   use FatesInterfaceTypesMod , only : hlm_use_logging 
+   use FatesInterfaceTypesMod , only : hlm_use_planthydro
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log

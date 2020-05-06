@@ -6,18 +6,18 @@ module EDCohortDynamicsMod
   ! !USES: 
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
-  use FatesInterfaceMod     , only : hlm_freq_day
-  use FatesInterfaceMod     , only : bc_in_type
-  use FatesInterfaceMod     , only : hlm_use_planthydro
-  use FatesInterfaceMod     , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod     , only : hlm_freq_day
+  use FatesInterfaceTypesMod     , only : bc_in_type
+  use FatesInterfaceTypesMod     , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
-  use FatesInterfaceMod     , only : hlm_days_per_year
-  use FatesInterfaceMod     , only : nleafage
+  use FatesInterfaceTypesMod     , only : hlm_days_per_year
+  use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDPftvarcon           , only : GetDecompyFrac
@@ -38,8 +38,8 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : site_fluxdiags_type
   use EDTypesMod            , only : num_elements
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
-  use FatesInterfaceMod      , only : hlm_use_planthydro
-  use FatesInterfaceMod      , only : hlm_parteh_mode
+  use FatesInterfaceTypesMod      , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
   use FatesPlantHydraulicsMod, only : UpdateSizeDepPlantHydProps
@@ -953,7 +953,7 @@ contains
      ! !USES:
      use EDParamsMod , only :  ED_val_cohort_size_fusion_tol
      use EDParamsMod , only :  ED_val_cohort_age_fusion_tol
-     use FatesInterfaceMod , only :  hlm_use_cohort_age_tracking
+     use FatesInterfaceTypesMod , only :  hlm_use_cohort_age_tracking
      use FatesConstantsMod , only : itrue
      use FatesConstantsMod, only : days_per_year
      use EDTypesMod  , only : maxCohortsPerPatch

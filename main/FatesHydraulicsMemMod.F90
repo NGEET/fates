@@ -64,6 +64,37 @@ module FatesHydraulicsMemMod
 
    ! Should we ignore the first soil layer and have root layers start on the second?
    logical, parameter, public :: ignore_layer1=.true.
+
+     integer, public, parameter :: van_genuchten_type      = 1
+  integer, public, parameter :: campbell_type           = 2
+  integer, public, parameter :: tfs_type                = 3
+  
+  integer, parameter :: plant_wrf_type = tfs_type
+  integer, parameter :: plant_wkf_type = tfs_type
+  integer, parameter :: soil_wrf_type  = campbell_type
+  integer, parameter :: soil_wkf_type  = campbell_type
+  
+  
+  ! Define the global object that holds the water retention functions
+  ! for plants of each different porous media type, and plant functional type
+  
+  class(wrf_arr_type),pointer :: wrf_plant(:,:)
+  
+  ! Define the global object that holds the water conductance functions
+  ! for plants of each different porous media type, and plant functional type
+  
+  class(wkf_arr_type), pointer :: wkf_plant(:,:)
+
+  ! Testing parameters for Van Genuchten soil WRTs
+  ! unused unless van_genuchten_type is selected, also
+  ! it would be much better to use the native parameters passed in
+  ! from the HLM's soil model
+  real(r8), parameter :: alpha_vg  = 0.001_r8
+  real(r8), parameter :: th_sat_vg = 0.65_r8
+  real(r8), parameter :: th_res_vg = 0.15_r8
+  real(r8), parameter :: psd_vg    = 2.7_r8
+  real(r8), parameter :: tort_vg   = 0.5_r8
+
    
    
    ! Derived parameters
@@ -74,6 +105,10 @@ module FatesHydraulicsMemMod
                                                              ! single individual at different layer (kg H2o/m2)
    real(r8), public :: recruit_water_avail_layer(nlevsoi_hyd_max)    ! the recruit water avaibility from soil (kg H2o/m2)
 
+
+   public :: InitHydroGlobals
+
+   
    type, public :: ed_site_hydr_type
 
       ! Plant Hydraulics
@@ -577,6 +612,148 @@ module FatesHydraulicsMemMod
      end if
      
    end subroutine SetConnections
+
+   ! ====================================================================================
+
+   subroutine InitHydroGlobals(numpft)
+     
+     use FatesHydroWTFMod, only : wrf_arr_type
+     use FatesHydroWTFMod, only : wkf_arr_type
+     use FatesHydroWTFMod, only : wrf_type, wrf_type_vg, wrf_type_cch, wrf_type_tfs
+     use FatesHydroWTFMod, only : wkf_type, wkf_type_vg, wkf_type_cch, wkf_type_tfs
+     use EDPftvarcon,      only : EDPftvarcon_inst
+     use EDParamsMod,      only : hydr_psi0
+     use EDParamsMod,      only : hydr_psicap
+
+     
+    ! This routine allocates the Water Transfer Functions (WTFs)
+    ! which include both water retention functions (WRFs)
+    ! as well as the water conductance (K) functions (WKFs)
+    ! But, this is only for plants! These functions have specific
+    ! parameters, potentially, for each plant functional type and
+    ! each organ (pft x organ), but this can be used globally (across
+    ! all sites on the node (machine) to save memory.  These functions
+    ! are also applied to soils, but since soil properties vary with
+    ! soil layer and location, those functions are bound to the site
+    ! structure, and are therefore not "global".
+
+    integer,intent(in) :: numpft
+     
+    ! Define
+    class(wrf_type_vg), pointer :: wrf_vg
+    class(wkf_type_vg), pointer :: wkf_vg
+    class(wrf_type_cch), pointer :: wrf_cch
+    class(wkf_type_tfs), pointer :: wkf_tfs
+    class(wrf_type_tfs), pointer :: wrf_tfs
+
+    integer :: ft            ! PFT index
+    integer :: pm            ! plant media index
+    integer :: inode         ! compartment node index
+    real(r8) :: cap_corr     ! correction for nonzero psi0x (TFS)
+    real(r8) :: cap_slp      ! slope of capillary region of curve
+    real(r8) :: cap_int      ! intercept of capillary region of curve
+
+    if(hlm_use_planthydro.eq.ifalse) return
     
+    ! we allocate from stomata_p_media, which should be zero
+
+    allocate(wrf_plant(stomata_p_media:n_plant_media,numpft))
+    allocate(wkf_plant(stomata_p_media:n_plant_media,numpft))
+  
+    ! -----------------------------------------------------------------------------------
+    ! Initialize the Water Retention Functions
+    ! -----------------------------------------------------------------------------------
+
+    select case(plant_wrf_type)
+    case(van_genuchten_type)
+       do ft = 1,numpft
+            do pm = 1, n_plant_media
+                allocate(wrf_vg)
+                wrf_plant(pm,ft)%p => wrf_vg
+                call wrf_vg%set_wrf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg])
+            end do
+        end do
+     case(campbell_type)
+        do ft = 1,numpft
+           do pm = 1,n_plant_media
+              allocate(wrf_cch)
+              wrf_plant(pm,ft)%p => wrf_cch
+              call wrf_cch%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
+                                          EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
+                                          9._r8])
+           end do
+        end do
+     case(tfs_type)
+        do ft = 1,numpft
+           do pm = 1,n_plant_media
+              allocate(wrf_tfs)
+              wrf_plant(pm,ft)%p => wrf_tfs
+
+              if (pm.eq.leaf_p_media) then   ! Leaf tissue
+                 cap_slp    = 0.0_r8
+                 cap_int    = 0.0_r8
+                 cap_corr   = 1.0_r8
+              else               ! Non leaf tissues
+                 cap_slp    = (hydr_psi0 - hydr_psicap )/(1.0_r8 - rwccap(pm))  
+                 cap_int    = -cap_slp + hydr_psi0    
+                 cap_corr   = -cap_int/cap_slp
+              end if
+              
+              call wrf_tfs%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
+                                          EDPftvarcon_inst%hydr_resid_node(ft,pm), &
+                                          EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
+                                          EDPftvarcon_inst%hydr_epsil_node(ft,pm), &
+                                          rwcft(pm), & 
+                                          cap_corr, &
+                                          cap_int, &
+                                          cap_slp,real(pm,r8)])
+           end do
+        end do
+
+    end select
+
+    ! -----------------------------------------------------------------------------------
+    ! Initialize the Water Conductance (K) Functions
+    ! -----------------------------------------------------------------------------------
+
+    select case(plant_wkf_type)
+    case(van_genuchten_type)
+        do ft = 1,numpft
+            do pm = 1, n_plant_media
+                allocate(wkf_vg)
+                wkf_plant(pm,ft)%p => wkf_vg
+                call wkf_vg%set_wkf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg, tort_vg])
+            end do
+           
+        end do
+    case(campbell_type)
+        write(fates_log(),*) 'campbell/clapp-hornberger conductance not used in plants'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+    case(tfs_type)
+        do ft = 1,numpft
+            do pm = 1, n_plant_media
+               allocate(wkf_tfs)
+               wkf_plant(pm,ft)%p => wkf_tfs
+               call wkf_tfs%set_wkf_param([EDPftvarcon_inst%hydr_p50_node(ft,pm), &
+                                       EDPftvarcon_inst%hydr_avuln_node(ft,pm)])
+            end do
+        end do
+    end select
+
+    ! There is only 1 stomata conductance hypothesis which uses the p50 and 
+    ! vulnerability parameters
+    ! -----------------------------------------------------------------------------------
+
+    do ft = 1,numpft
+       allocate(wkf_tfs)
+       wkf_plant(stomata_p_media,ft)%p => wkf_tfs
+       call wkf_tfs%set_wkf_param([EDPftvarcon_inst%hydr_p50_gs(ft), &
+                              EDPftvarcon_inst%hydr_avuln_gs(ft)])
+    end do
+
+    
+    return
+  end subroutine InitHydroGlobals
+   
 
 end module FatesHydraulicsMemMod

@@ -27,19 +27,19 @@ module FatesHistoryInterfaceMod
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
-  use FatesInterfaceMod        , only : hlm_hio_ignore_val
-  use FatesInterfaceMod        , only : hlm_use_planthydro
-  use FatesInterfaceMod        , only : hlm_use_ed_st3
-  use FatesInterfaceMod        , only : hlm_use_cohort_age_tracking
-  use FatesInterfaceMod        , only : numpft
-  use FatesInterfaceMod        , only : hlm_freq_day
+  use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
+  use FatesInterfaceTypesMod        , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
+  use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod        , only : numpft
+  use FatesInterfaceTypesMod        , only : hlm_freq_day
   use EDParamsMod              , only : ED_val_comp_excln
   use EDParamsMod              , only : ED_val_phen_coldtemp
-  use FatesInterfaceMod        , only : nlevsclass, nlevage
-  use FatesInterfaceMod        , only : nlevheight
-  use FatesInterfaceMod        , only : bc_in_type
-  use FatesInterfaceMod        , only : hlm_model_day
-  use FatesInterfaceMod        , only : nlevcoage
+  use FatesInterfaceTypesMod        , only : nlevsclass, nlevage
+  use FatesInterfaceTypesMod        , only : nlevheight
+  use FatesInterfaceTypesMod        , only : bc_in_type
+  use FatesInterfaceTypesMod        , only : hlm_model_day
+  use FatesInterfaceTypesMod        , only : nlevcoage
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -1376,7 +1376,7 @@ end subroutine flush_hvars
        hlms, flushval, upfreq, ivar, initialize, index)
 
     use FatesUtilsMod, only     : check_hlm_list
-    use FatesInterfaceMod, only : hlm_name
+    use FatesInterfaceTypesMod, only : hlm_name
 
     implicit none
     
@@ -3765,7 +3765,7 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_coage_pft_r8, site_coage_r8
     use FatesIOVariableKindMod, only : site_height_r8
-    use FatesInterfaceMod     , only : hlm_use_planthydro
+    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
     
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
