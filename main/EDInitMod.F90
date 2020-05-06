@@ -17,6 +17,7 @@ module EDInitMod
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
   use EDPatchDynamicsMod        , only : create_patch
+  use EDPatchDynamicsMod        , only : set_patchno
   use ChecksBalancesMod         , only : SiteMassStock
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod                , only : numWaterMem
@@ -250,6 +251,7 @@ contains
     integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
     integer  :: ft         ! PFT loop
+    real(r8) :: sumarea    ! area of PFTs in nocomp mode. 
     !----------------------------------------------------------------------
 
 
@@ -297,6 +299,13 @@ contains
           if(hlm_use_fixed_biogeog.eq.itrue)then
             do ft =  1,numpft
               sites(s)%area_pft(ft) = bc_in(s)%pft_areafrac(ft)
+            end do
+           ! re-normalize PFT area to ensure it sums to one.
+           ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM) 
+           ! the bare ground will no longer be proscribed and should emerge from FATES
+           sumarea = sum(sites(s)%area_pft(1:numpft))
+           do ft =  1,numpft
+               sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
             end do
           end if
 
@@ -352,9 +361,11 @@ contains
      integer  :: no_new_patches
      integer  :: nocomp_pft     
      real(r8) :: newparea
+     real(r8) :: tota !check on area
 
      type(ed_site_type),  pointer :: sitep
      type(ed_patch_type), pointer :: newp
+     type(ed_patch_type), pointer :: recall_younger_patch
 
      ! List out some nominal patch values that are used for Near Bear Ground initializations
      ! as well as initializing inventory
@@ -388,14 +399,14 @@ contains
 
      else
 
-        !FIX(SPM,032414) clean this up...inits out of this loop
-        do s = 1, nsites
 
+        do s = 1, nsites
+           write(*,*) 'areapft',sites(s)%area_pft(1:3)
            ! Initialize the site-level crown area spread factor (0-1)
            ! It is likely that closed canopy forest inventories
            ! have smaller spread factors than bare ground (they are crowded)
            sites(s)%spread     = init_spread_near_bare_ground
-
+          
           if(hlm_use_nocomp.eq.itrue)then
            no_new_patches = numpft
           else
@@ -404,16 +415,6 @@ contains
           end if
 
           do n = 1, no_new_patches
-
-           allocate(newp)
-
-           newp%patchno = 1
-           newp%younger => null()
-           newp%older   => null()
-
-           sites(s)%youngest_patch => newp
-           sites(s)%youngest_patch => newp
-           sites(s)%oldest_patch   => newp
 
            ! set the PFT index for patches if in nocomp mode. 
            if(hlm_use_nocomp.eq.itrue)then
@@ -434,37 +435,70 @@ contains
            else  ! The default case is initialized w/ one patch with the area of the whole site. 
              newparea = area       
            end if 
-   
+
            if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode 
-             call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
-           end if
-           ! Initialize the litter pools to zero, these
-           ! pools will be populated by looping over the existing patches
-           ! and transfering in mass
-           do el=1,num_elements
-              call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
+              allocate(newp)
+
+              call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
+             
+              if(.not.associated(recall_younger_patch))then !is this the first patch?
+                newp%patchno = 1
+                newp%younger => null()
+                newp%older   => null()
+
+                sites(s)%youngest_patch => newp
+                sites(s)%oldest_patch   => newp
+                allocate(recall_younger_patch)
+              else ! the new patch is the 'oldest' one, arbitrarily. 
+                newp%patchno = nocomp_pft
+                newp%younger => recall_younger_patch
+                newp%older   => null()
+                recall_younger_patch%older => newp
+                sites(s)%oldest_patch   => newp
+                write(*,*) 'links',s,nocomp_pft,newp%younger%nocomp_pft_label
+              end if
+              recall_younger_patch => newp ! remember this patch for the next one to point at. 
+
+
+              ! Initialize the litter pools to zero, these
+              ! pools will be populated by looping over the existing patches
+              ! and transfering in mass
+              do el=1,num_elements
+                 call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                    init_root_fines=0._r8, &
                    init_ag_cwd=0._r8, &
                    init_bg_cwd=0._r8, &
                    init_seed=0._r8,   &
                    init_seed_germ=0._r8)
-           end do
-           
-           sitep => sites(s)
-           call init_cohorts(sitep, newp, bc_in(s))
-
+             end do
+             write(*,*) 'litt', newp%litter(1)%ag_cwd(1)
+              sitep => sites(s)
+              call init_cohorts(sitep, newp, bc_in(s))
+            end if 
          end do !no new patches
-           
-           ! For carbon balance checks, we need to initialize the 
-           ! total carbon stock
-           do el=1,num_elements
-              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
-                   biomass_stock,litter_stock,seed_stock)
-           end do
 
+         tota=0.0_r8
+         newp=> sites(s)%oldest_patch
+         do while (associated(newp))
+           tota=tota+newp%area
+            write(*,*)'test links1',s,newp%nocomp_pft_label,tota
+            newp=>newp%younger
+          end do
+          if(tota.lt.area)then
+             write(*,*) 'error in assigning areas in init patch',s,tota
+          endif 
+          ! For carbon balance checks, we need to initialize the 
+          ! total carbon stock
+          do el=1,num_elements
+             call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
+                   biomass_stock,litter_stock,seed_stock)
+          end do
+          
+          call set_patchno(sites(s))
+         deallocate(recall_younger_patch)
 
         enddo !s
-
+write(*,*)'end init'
      end if
 
      ! This sets the rhizosphere shells based on the plant initialization
