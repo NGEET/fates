@@ -4075,7 +4075,7 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_si )
 
     call this%set_history_var(vname='FIRE_INTENSITY_AREA_PRODUCT', units='kJ/m/s',          &
-         long='spitfire product of fire intensity and burned area (divide by FIRE_AREA to get area-weifghted mean intensity)', &
+         long='spitfire product of fire intensity and burned area (divide by FIRE_AREA to get area-weighted mean intensity)', &
          use_default='active',          &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_area_product_si )
@@ -4085,12 +4085,12 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_si )
 
-    call this%set_history_var(vname='fire_fuel_mef', units='m',                &
+    call this%set_history_var(vname='FIRE_FUEL_MEF', units='m',                &
          long='spitfire fuel moisture',  use_default='active',                  &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_mef_si )
 
-    call this%set_history_var(vname='fire_fuel_bulkd', units='kg biomass/m3',              &
+    call this%set_history_var(vname='FIRE_FUEL_BULKD', units='kg biomass/m3',              &
          long='spitfire fuel bulk density',  use_default='active',              &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_bulkd_si )
@@ -4100,7 +4100,7 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_eff_moist_si )
 
-    call this%set_history_var(vname='fire_fuel_sav', units='per m',                &
+    call this%set_history_var(vname='FIRE_FUEL_SAV', units='per m',                &
          long='spitfire fuel surface/volume ',  use_default='active',           &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_sav_si )
@@ -5300,7 +5300,7 @@ end subroutine flush_hvars
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
    
     call this%set_history_var(vname='FIRE_FLUX', units='g/m^2/s', &
-          long='ED/SPitfire loss to atmosphere of elements', use_default='active', &
+          long='ED-spitfire loss to atmosphere of elements', use_default='active', &
           avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_burn_flux_elem )
    
