@@ -3390,7 +3390,6 @@ end subroutine flush_hvars
     integer  :: ft               ! functional type index
     integer  :: scpf
 !    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
-    real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     real(r8) :: ncohort_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
                                                    ! should be "hio_nplant_si_scpf"
@@ -3550,13 +3549,6 @@ end subroutine flush_hvars
             do while(associated(ccohort))
 
                ccohort_hydr => ccohort%co_hydr
-               
-               ! TODO: we need a standardized logical function on this (used lots, RGK)
-               if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
-                  n_perm2   = ccohort%n/AREA   
-               else
-                  n_perm2   = 0.0_r8
-               endif
                
                if ( .not. ccohort%isnew ) then
 
