@@ -9,58 +9,71 @@ module FatesInterfaceMod
    ! which is allocated by thread
    ! ------------------------------------------------------------------------------------
 
-   use EDTypesMod          , only : ed_site_type
-   use EDTypesMod          , only : maxPatchesPerSite
-   use EDTypesMod          , only : maxCohortsPerPatch
-   use EDTypesMod          , only : maxSWb
-   use EDTypesMod          , only : ivis
-   use EDTypesMod          , only : inir
-   use EDTypesMod          , only : nclmax
-   use EDTypesMod          , only : nlevleaf
-   use EDTypesMod          , only : maxpft
-   use EDTypesMod          , only : do_fates_salinity
-   use EDTypesMod          , only : numWaterMem
-   use EDTypesMod          , only : numlevsoil_max
-   use EDTypesMod          , only : num_elements
-   use EDTypesMod          , only : element_list
-   use FatesConstantsMod   , only : r8 => fates_r8
-   use FatesConstantsMod   , only : itrue,ifalse
-   use FatesGlobals        , only : fates_global_verbose
-   use FatesGlobals        , only : fates_log
-   use FatesGlobals        , only : endrun => fates_endrun
-   use FatesLitterMod      , only : ncwd
-   use FatesLitterMod      , only : ndcmpy
-   use EDPftvarcon         , only : FatesReportPFTParams
-   use EDPftvarcon         , only : FatesCheckParams
-   use EDPftvarcon         , only : EDPftvarcon_inst
-   use SFParamsMod         , only : SpitFireCheckParams
-   use EDParamsMod         , only : FatesReportParams
-   use EDParamsMod         , only : bgc_soil_salinity
-   use PRTGenericMod       , only : prt_carbon_allom_hyp
-   use PRTGenericMod       , only : prt_cnp_flex_allom_hyp
-   use HydraulicsMemMod    , only : InitHydroGlobals
-   use EDParamsMod, only : ED_val_history_sizeclass_bin_edges, ED_val_history_ageclass_bin_edges
-   use EDParamsMod, only : ED_val_history_height_bin_edges
-   use EDParamsMod, only : ED_val_history_coageclass_bin_edges
-   use CLMFatesParamInterfaceMod         , only : FatesReadParameters
+   use EDTypesMod                , only : ed_site_type
+   use EDTypesMod                , only : maxPatchesPerSite
+   use EDTypesMod                , only : maxCohortsPerPatch
+   use EDTypesMod                , only : maxSWb
+   use EDTypesMod                , only : ivis
+   use EDTypesMod                , only : inir
+   use EDTypesMod                , only : nclmax
+   use EDTypesMod                , only : nlevleaf
+   use EDTypesMod                , only : maxpft
+   use EDTypesMod                , only : do_fates_salinity
+   use EDTypesMod                , only : numWaterMem
+   use EDTypesMod                , only : numlevsoil_max
+   use EDTypesMod                , only : num_elements
+   use EDTypesMod                , only : element_list
+   use FatesConstantsMod         , only : r8 => fates_r8
+   use FatesConstantsMod         , only : itrue,ifalse
+   use FatesGlobals              , only : fates_global_verbose
+   use FatesGlobals              , only : fates_log
+   use FatesGlobals              , only : endrun => fates_endrun
+   use FatesLitterMod            , only : ncwd
+   use FatesLitterMod            , only : ndcmpy
+   use EDPftvarcon               , only : FatesReportPFTParams
+   use EDPftvarcon               , only : FatesCheckParams
+   use EDPftvarcon               , only : EDPftvarcon_inst
+   use SFParamsMod               , only : SpitFireCheckParams
+   use EDParamsMod               , only : FatesReportParams
+   use EDParamsMod               , only : bgc_soil_salinity
+   use PRTGenericMod             , only : prt_carbon_allom_hyp
+   use PRTGenericMod             , only : prt_cnp_flex_allom_hyp
+   use PRTGenericMod             , only : carbon12_element
+   use PRTGenericMod             , only : nitrogen_element
+   use PRTGenericMod             , only : phosphorus_element
+   use EDTypesMod                , only : element_pos, element_list
+   use FatesPlantHydraulicsMod   , only : InitHydroGlobals
+   use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
+   use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
+   use EDParamsMod               , only : ED_val_history_height_bin_edges
+   use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
+   use CLMFatesParamInterfaceMod , only : FatesReadParameters
+   use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    
    ! CIME Globals
-   use shr_log_mod         , only : errMsg => shr_log_errMsg
-   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
+   use shr_log_mod               , only : errMsg => shr_log_errMsg
+   use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
 
 
    ! Just use everything from FatesInterfaceTypesMod, this is
    ! its sister code
    use FatesInterfaceTypesMod
 
+   implicit none
+
+   character(len=*), parameter :: sourcefile = &
+        __FILE__
+
+   
    ! Make public necessary subroutines and functions
    public :: FatesInterfaceInit
    public :: set_fates_ctrlparms
    public :: SetFatesTime
-   public :: set_fates_global_elements
+   public :: SetFatesGlobalElements
    public :: FatesReportParameters
    public :: allocate_bcin
    public :: allocate_bcout
+   public :: zero_bcs
 
 contains
 
@@ -99,8 +112,123 @@ contains
   end subroutine fates_clean
   
 
-   ! ====================================================================================
-   
+  ! ====================================================================================
+
+  subroutine zero_bcs(fates,s)
+
+    type(fates_interface_type), intent(inout) :: fates
+    integer, intent(in) :: s
+    
+    ! Input boundaries
+    
+    fates%bc_in(s)%t_veg24_si     = 0.0_r8
+    fates%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
+    fates%bc_in(s)%precip24_pa(:) = 0.0_r8
+    fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8
+    fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
+
+    fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
+    fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
+    fates%bc_in(s)%smp_sl(:)           = 0.0_r8
+    fates%bc_in(s)%eff_porosity_sl(:)  = 0.0_r8
+    fates%bc_in(s)%watsat_sl(:)        = 0.0_r8
+    fates%bc_in(s)%tempk_sl(:)         = 0.0_r8
+    fates%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
+    fates%bc_in(s)%filter_vegzen_pa(:) = .false.
+    fates%bc_in(s)%coszen_pa(:)        = 0.0_r8
+    fates%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
+    fates%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
+    fates%bc_in(s)%max_rooting_depth_index_col = 0
+    fates%bc_in(s)%tot_het_resp        = 0.0_r8
+    fates%bc_in(s)%tot_somc            = 0.0_r8 
+    fates%bc_in(s)%tot_litc            = 0.0_r8
+    fates%bc_in(s)%snow_depth_si       = 0.0_r8
+    fates%bc_in(s)%frac_sno_eff_si     = 0.0_r8
+    
+    if(do_fates_salinity)then
+       fates%bc_in(s)%salinity_sl(:)   = 0.0_r8
+    endif
+    
+    if (hlm_use_planthydro.eq.itrue) then
+       
+       fates%bc_in(s)%qflx_transp_pa(:) = 0.0_r8
+       fates%bc_in(s)%swrad_net_pa(:) = 0.0_r8
+       fates%bc_in(s)%lwrad_net_pa(:) = 0.0_r8
+       fates%bc_in(s)%watsat_sisl(:) = 0.0_r8
+       fates%bc_in(s)%watres_sisl(:) = 0.0_r8
+       fates%bc_in(s)%sucsat_sisl(:) = 0.0_r8
+       fates%bc_in(s)%bsw_sisl(:) = 0.0_r8
+       fates%bc_in(s)%hksat_sisl(:) = 0.0_r8
+    end if
+
+    
+    ! Output boundaries
+    fates%bc_out(s)%active_suction_sl(:) = .false.
+    fates%bc_out(s)%fsun_pa(:)      = 0.0_r8
+    fates%bc_out(s)%laisun_pa(:)    = 0.0_r8
+    fates%bc_out(s)%laisha_pa(:)    = 0.0_r8
+    fates%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
+    fates%bc_out(s)%btran_pa(:)     = 0.0_r8
+    
+    ! Fates -> BGC fragmentation mass fluxes
+    select case(hlm_parteh_mode) 
+    case(prt_carbon_allom_hyp)
+       fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+    case(prt_cnp_flex_allom_hyp) 
+       fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
+    case default
+       write(fates_log(), *) 'An unknown parteh hypothesis was passed'
+       write(fates_log(), *) 'while zeroing output boundary conditions'
+       write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
+    
+    
+    
+    fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
+    fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
+    
+    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%ftii_parb(:,:) = 0.0_r8
+    
+    fates%bc_out(s)%elai_pa(:)   = 0.0_r8
+    fates%bc_out(s)%esai_pa(:)   = 0.0_r8
+    fates%bc_out(s)%tlai_pa(:)   = 0.0_r8
+    fates%bc_out(s)%tsai_pa(:)   = 0.0_r8
+    fates%bc_out(s)%htop_pa(:)   = 0.0_r8
+    fates%bc_out(s)%hbot_pa(:)   = 0.0_r8
+    fates%bc_out(s)%displa_pa(:) = 0.0_r8
+    fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
+    fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
+    
+    fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
+    fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
+    
+    if (hlm_use_planthydro.eq.itrue) then
+       fates%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
+       fates%bc_out(s)%qflx_ro_sisl(:)        = 0.0_r8
+    end if
+    fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
+    
+    return
+  end subroutine zero_bcs
+
+  ! ===========================================================================
 
    subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in)
       
@@ -344,7 +472,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine set_fates_global_elements(use_fates)
+    subroutine SetFatesGlobalElements(use_fates)
 
        ! --------------------------------------------------------------------------------
        !
@@ -366,11 +494,10 @@ contains
       implicit none
       
       logical,intent(in) :: use_fates    ! Is fates turned on?
-      
       integer :: i
       
       if (use_fates) then
-
+         
          ! first read the non-PFT parameters
          call FatesReadParameters()
 
@@ -386,7 +513,7 @@ contains
             write(fates_log(), *) 'it was found that the lower bound was neither 0 or 1?'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         
+
          if(numpft>maxpft) then
             write(fates_log(), *) 'The number of PFTs dictated by the FATES parameter file'
             write(fates_log(), *) 'is larger than the maximum allowed. Increase the FATES parameter constant'
@@ -404,6 +531,18 @@ contains
          else
             nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
          end if
+
+         ! These values are used to define the restart file allocations and general structure
+         ! of memory for the cohort arrays
+
+         if ( hlm_use_cohort_age_tracking .eq. itrue) then
+            maxCohortsPerPatch = 300
+         else
+            maxCohortsPerPatch = 100
+         end if
+
+         fates_maxElementsPerPatch = max(maxCohortsPerPatch, ndcmpy*numlevsoil_max ,ncwd*numlevsoil_max)
+
          
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
@@ -469,7 +608,7 @@ contains
          ! (like water retention functions)
          ! this needs to know the number of PFTs, which is
          ! determined in that call
-         call InitHydroGlobals(numpft)
+         call InitHydroGlobals()
    
          ! Initialize the Plant Allocation and Reactive Transport
          ! global functions and mapping tables
@@ -498,7 +637,7 @@ contains
       end if
 
 
-    end subroutine set_fates_global_elements
+    end subroutine SetFatesGlobalElements
 
     ! ======================================================================
     

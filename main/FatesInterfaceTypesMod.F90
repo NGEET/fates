@@ -1,4 +1,14 @@
 module FatesInterfaceTypesMod
+  
+  use FatesConstantsMod   , only : r8 => fates_r8
+  use FatesConstantsMod   , only : itrue,ifalse
+  use FatesGlobals        , only : fates_global_verbose
+  use FatesGlobals        , only : fates_log
+  use FatesGlobals        , only : endrun => fates_endrun
+  use shr_log_mod         , only : errMsg => shr_log_errMsg
+  use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
+  use EDTypesMod          , only : ed_site_type
+  
   implicit none
 
    private        ! By default everything is private
@@ -12,26 +22,26 @@ module FatesInterfaceTypesMod
    ! -------------------------------------------------------------------------------------
 
   
-   integer, public, protected :: hlm_numSWb  ! Number of broad-bands in the short-wave radiation
+   integer, public :: hlm_numSWb  ! Number of broad-bands in the short-wave radiation
                                              ! specturm to track 
                                              ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
 
-   integer, public, protected :: hlm_ivis    ! The HLMs assumption of the array index associated with the 
+   integer, public :: hlm_ivis    ! The HLMs assumption of the array index associated with the 
                                              ! visible portion of the spectrum in short-wave radiation arrays
 
-   integer, public, protected :: hlm_inir    ! The HLMs assumption of the array index associated with the 
+   integer, public :: hlm_inir    ! The HLMs assumption of the array index associated with the 
                                              ! NIR portion of the spectrum in short-wave radiation arrays
 
 
-   integer, public, protected :: hlm_numlevgrnd   ! Number of ground layers
+   integer, public :: hlm_numlevgrnd   ! Number of ground layers
                                                   ! NOTE! SOIL LAYERS ARE NOT A GLOBAL, THEY 
                                                   ! ARE VARIABLE BY SITE
 
-   integer, public, protected :: hlm_is_restart   ! Is the HLM signalling that this is a restart
+   integer, public :: hlm_is_restart   ! Is the HLM signalling that this is a restart
                                                   ! type simulation?
                                                   ! 1=TRUE, 0=FALSE
    
-   character(len=16), public, protected :: hlm_name ! This character string passed by the HLM
+   character(len=16), public :: hlm_name ! This character string passed by the HLM
                                                     ! is used during the processing of IO data, 
                                                     ! so that FATES knows which IO variables it 
                                                     ! should prepare.  For instance
@@ -40,24 +50,24 @@ module FatesInterfaceTypesMod
                                                     ! This string sets which filter is enacted.
    
   
-   real(r8), public, protected :: hlm_hio_ignore_val  ! This value can be flushed to history 
+   real(r8), public :: hlm_hio_ignore_val  ! This value can be flushed to history 
                                                       ! diagnostics, such that the
                                                       ! HLM will interpret that the value should not 
                                                       ! be included in the average.
    
-   integer, public, protected :: hlm_masterproc  ! Is this the master processor, typically useful
+   integer, public :: hlm_masterproc  ! Is this the master processor, typically useful
                                                  ! for knowing if the current machine should be 
                                                  ! printing out messages to the logs or terminals
                                                  ! 1 = TRUE (is master) 0 = FALSE (is not master)
 
-   integer, public, protected :: hlm_ipedof      ! The HLM pedotransfer index
+   integer, public :: hlm_ipedof      ! The HLM pedotransfer index
                                                  ! this is only used by the plant hydraulics
                                                  ! submodule to check and/or enable consistency
                                                  ! between the pedotransfer functions of the HLM
                                                  ! and how it moves and stores water in its
                                                  ! rhizosphere shells
    
-   integer, public, protected :: hlm_max_patch_per_site ! The HLM needs to exchange some patch
+   integer, public :: hlm_max_patch_per_site ! The HLM needs to exchange some patch
                                                         ! level quantities with FATES
                                                         ! FATES does not dictate those allocations
                                                         ! since it happens pretty early in
@@ -66,31 +76,31 @@ module FatesInterfaceTypesMod
                                                         ! compare it to our maxpatchpersite,
                                                         ! and gracefully halt if we are over-allocating
 
-   integer, public, protected :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
+   integer, public :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
 
-   integer, public, protected :: hlm_use_vertsoilc ! This flag signals whether or not the 
+   integer, public :: hlm_use_vertsoilc ! This flag signals whether or not the 
                                                    ! host model is using vertically discretized
                                                    ! soil carbon
                                                    ! 1 = TRUE,  0 = FALSE
    
-   integer, public, protected :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
+   integer, public :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
                                                    ! 1 = TRUE, 0 = FALSE
 
 
-   integer, public, protected :: hlm_use_logging       ! This flag signals whether or not to use
+   integer, public :: hlm_use_logging       ! This flag signals whether or not to use
                                                        ! the logging module
 
-   integer, public, protected :: hlm_use_planthydro    ! This flag signals whether or not to use
+   integer, public :: hlm_use_planthydro    ! This flag signals whether or not to use
                                                        ! plant hydraulics (bchristo/xu methods)
                                                        ! 1 = TRUE, 0 = FALSE
                                                        ! THIS IS CURRENTLY NOT SUPPORTED 
 
-   integer, public, protected :: hlm_use_cohort_age_tracking ! This flag signals whether or not to use
+   integer, public :: hlm_use_cohort_age_tracking ! This flag signals whether or not to use
                                                              ! cohort age tracking. 1 = TRUE, 0 = FALSE
 
-   integer, public, protected :: hlm_use_ed_st3        ! This flag signals whether or not to use
+   integer, public :: hlm_use_ed_st3        ! This flag signals whether or not to use
                                                        ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                        ! Essentially, this gives us the ability
                                                        ! to turn off "dynamics", ie growth, disturbance
@@ -100,7 +110,7 @@ module FatesInterfaceTypesMod
                                                        ! default should be FALSE (dynamics on)
                                                        ! cannot be true with prescribed_phys
 
-   integer, public, protected :: hlm_use_ed_prescribed_phys ! This flag signals whether or not to use
+   integer, public :: hlm_use_ed_prescribed_phys ! This flag signals whether or not to use
                                                             ! prescribed physiology, somewhat the opposite
                                                             ! to ST3, in this case can turn off
                                                             ! fast processes like photosynthesis and respiration
@@ -110,13 +120,13 @@ module FatesInterfaceTypesMod
                                                             ! default should be FALSE (biophysics on)
                                                             ! cannot be true with st3 mode
 
-   integer, public, protected :: hlm_use_inventory_init     ! Initialize this simulation from
+   integer, public :: hlm_use_inventory_init     ! Initialize this simulation from
                                                             ! an inventory file. If this is toggled on
                                                             ! an inventory control file must be specified
                                                             ! as well.
                                                             ! 1 = TRUE, 0 = FALSE
    
-   character(len=256), public, protected :: hlm_inventory_ctrl_file ! This is the full path to the
+   character(len=256), public :: hlm_inventory_ctrl_file ! This is the full path to the
                                                                     ! inventory control file that
                                                                     ! specifieds the availabel inventory datasets
                                                                     ! there locations and their formats
@@ -130,7 +140,7 @@ module FatesInterfaceTypesMod
 
    ! Variables mostly used for dimensioning host land model (HLM) array spaces
    
-   integer, public, protected :: fates_maxElementsPerPatch ! maxElementsPerPatch is the value that is ultimately
+   integer, public :: fates_maxElementsPerPatch ! maxElementsPerPatch is the value that is ultimately
                                                            ! used to set the size of the largest arrays necessary
                                                            ! in things like restart files (probably hosted by the 
                                                            ! HLM). The size of these arrays are not a parameter
@@ -139,7 +149,7 @@ module FatesInterfaceTypesMod
                                                            ! maximum number of cohorts per patch, but
                                                            ! but it could be other things.
 
-   integer, public, protected :: fates_maxElementsPerSite  ! This is the max number of individual items one can store per 
+   integer, public :: fates_maxElementsPerSite  ! This is the max number of individual items one can store per 
                                                            ! each grid cell and effects the striding in the ED restart 
                                                            ! data as some fields are arrays where each array is
                                                            ! associated with one cohort
@@ -198,17 +208,17 @@ module FatesInterfaceTypesMod
    ! It is assumed that all of the sites on a given machine will be synchronous.
    ! It is also assumed that the HLM will control time.
    ! -------------------------------------------------------------------------------------
-   integer, public, protected  :: hlm_current_year    ! Current year
-   integer, public, protected  :: hlm_current_month   ! month of year
-   integer, public, protected  :: hlm_current_day     ! day of month
-   integer, public, protected  :: hlm_current_tod     ! time of day (seconds past 0Z)
-   integer, public, protected  :: hlm_current_date    ! time of day (seconds past 0Z)
-   integer, public, protected  :: hlm_reference_date  ! YYYYMMDD
-   real(r8), public, protected :: hlm_model_day       ! elapsed days between current date and ref
-   integer, public, protected  :: hlm_day_of_year     ! The integer day of the year
-   integer, public, protected  :: hlm_days_per_year   ! The HLM controls time, some HLMs may 
+   integer, public  :: hlm_current_year    ! Current year
+   integer, public  :: hlm_current_month   ! month of year
+   integer, public  :: hlm_current_day     ! day of month
+   integer, public  :: hlm_current_tod     ! time of day (seconds past 0Z)
+   integer, public  :: hlm_current_date    ! time of day (seconds past 0Z)
+   integer, public  :: hlm_reference_date  ! YYYYMMDD
+   real(r8), public :: hlm_model_day       ! elapsed days between current date and ref
+   integer, public  :: hlm_day_of_year     ! The integer day of the year
+   integer, public  :: hlm_days_per_year   ! The HLM controls time, some HLMs may 
                                                       ! include a leap
-   real(r8), public, protected :: hlm_freq_day        ! fraction of year for daily time-step 
+   real(r8), public :: hlm_freq_day        ! fraction of year for daily time-step 
                                                       ! (1/days_per_year_, this is a frequency
    
 
@@ -218,12 +228,12 @@ module FatesInterfaceTypesMod
    !
    ! -------------------------------------------------------------------------------------
 
-   integer, public, protected :: numpft           ! The total number of PFTs defined in the simulation
-   integer, public, protected :: nlevsclass       ! The total number of cohort size class bins output to history
-   integer, public, protected :: nlevage          ! The total number of patch age bins output to history
-   integer, public, protected :: nlevheight       ! The total number of height bins output to history
-   integer, public, protected :: nlevcoage        ! The total number of cohort age bins output to history 
-   integer, public, protected :: nleafage         ! The total number of leaf age classes
+   integer, public :: numpft           ! The total number of PFTs defined in the simulation
+   integer, public :: nlevsclass       ! The total number of cohort size class bins output to history
+   integer, public :: nlevage          ! The total number of patch age bins output to history
+   integer, public :: nlevheight       ! The total number of height bins output to history
+   integer, public :: nlevcoage        ! The total number of cohort age bins output to history 
+   integer, public :: nleafage         ! The total number of leaf age classes
 
    ! -------------------------------------------------------------------------------------
    ! Structured Boundary Conditions (SITE/PATCH SCALE)
@@ -570,129 +580,14 @@ module FatesInterfaceTypesMod
       
       type(bc_out_type), allocatable  :: bc_out(:)
 
-   contains
-      
-      procedure, public :: zero_bcs
 
    end type fates_interface_type
 
 
+ contains
+   
    ! ====================================================================================
    
-   subroutine zero_bcs(this,s)
-
-      implicit none
-      class(fates_interface_type), intent(inout) :: this
-      integer, intent(in) :: s
-
-      ! Input boundaries
-      
-      this%bc_in(s)%t_veg24_si     = 0.0_r8
-      this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
-      this%bc_in(s)%precip24_pa(:) = 0.0_r8
-      this%bc_in(s)%relhumid24_pa(:) = 0.0_r8
-      this%bc_in(s)%wind24_pa(:)     = 0.0_r8
-
-      this%bc_in(s)%solad_parb(:,:)     = 0.0_r8
-      this%bc_in(s)%solai_parb(:,:)     = 0.0_r8
-      this%bc_in(s)%smp_sl(:)           = 0.0_r8
-      this%bc_in(s)%eff_porosity_sl(:)  = 0.0_r8
-      this%bc_in(s)%watsat_sl(:)        = 0.0_r8
-      this%bc_in(s)%tempk_sl(:)         = 0.0_r8
-      this%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
-      this%bc_in(s)%filter_vegzen_pa(:) = .false.
-      this%bc_in(s)%coszen_pa(:)        = 0.0_r8
-      this%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
-      this%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
-      this%bc_in(s)%max_rooting_depth_index_col = 0
-      this%bc_in(s)%tot_het_resp        = 0.0_r8
-      this%bc_in(s)%tot_somc            = 0.0_r8 
-      this%bc_in(s)%tot_litc            = 0.0_r8
-      this%bc_in(s)%snow_depth_si       = 0.0_r8
-      this%bc_in(s)%frac_sno_eff_si     = 0.0_r8
-      
-      if(do_fates_salinity)then
-         this%bc_in(s)%salinity_sl(:)   = 0.0_r8
-      endif
-
-      if (hlm_use_planthydro.eq.itrue) then
-  
-         this%bc_in(s)%qflx_transp_pa(:) = 0.0_r8
-         this%bc_in(s)%swrad_net_pa(:) = 0.0_r8
-         this%bc_in(s)%lwrad_net_pa(:) = 0.0_r8
-         this%bc_in(s)%watsat_sisl(:) = 0.0_r8
-         this%bc_in(s)%watres_sisl(:) = 0.0_r8
-         this%bc_in(s)%sucsat_sisl(:) = 0.0_r8
-         this%bc_in(s)%bsw_sisl(:) = 0.0_r8
-         this%bc_in(s)%hksat_sisl(:) = 0.0_r8
-      end if
-
-
-      ! Output boundaries
-      this%bc_out(s)%active_suction_sl(:) = .false.
-      this%bc_out(s)%fsun_pa(:)      = 0.0_r8
-      this%bc_out(s)%laisun_pa(:)    = 0.0_r8
-      this%bc_out(s)%laisha_pa(:)    = 0.0_r8
-      this%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
-      this%bc_out(s)%btran_pa(:)     = 0.0_r8
-
-      ! Fates -> BGC fragmentation mass fluxes
-      select case(hlm_parteh_mode) 
-      case(prt_carbon_allom_hyp)
-         this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
-      case(prt_cnp_flex_allom_hyp) 
-         this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
-      case default
-         write(fates_log(), *) 'An unknown parteh hypothesis was passed'
-         write(fates_log(), *) 'while zeroing output boundary conditions'
-         write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
-         call endrun(msg=errMsg(sourcefile, __LINE__))
-      end select
-
-
-
-      this%bc_out(s)%rssun_pa(:)     = 0.0_r8
-      this%bc_out(s)%rssha_pa(:)     = 0.0_r8
-
-      this%bc_out(s)%albd_parb(:,:) = 0.0_r8
-      this%bc_out(s)%albi_parb(:,:) = 0.0_r8
-      this%bc_out(s)%fabd_parb(:,:) = 0.0_r8
-      this%bc_out(s)%fabi_parb(:,:) = 0.0_r8
-      this%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
-      this%bc_out(s)%ftid_parb(:,:) = 0.0_r8
-      this%bc_out(s)%ftii_parb(:,:) = 0.0_r8
-
-      this%bc_out(s)%elai_pa(:)   = 0.0_r8
-      this%bc_out(s)%esai_pa(:)   = 0.0_r8
-      this%bc_out(s)%tlai_pa(:)   = 0.0_r8
-      this%bc_out(s)%tsai_pa(:)   = 0.0_r8
-      this%bc_out(s)%htop_pa(:)   = 0.0_r8
-      this%bc_out(s)%hbot_pa(:)   = 0.0_r8
-      this%bc_out(s)%displa_pa(:) = 0.0_r8
-      this%bc_out(s)%z0m_pa(:)    = 0.0_r8
-      this%bc_out(s)%dleaf_pa(:)   = 0.0_r8
-
-      this%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
-      this%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
-
-      if (hlm_use_planthydro.eq.itrue) then
-         this%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
-         this%bc_out(s)%qflx_ro_sisl(:)        = 0.0_r8
-      end if
-      this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
-
-      return
-   end subroutine zero_bcs
    
-  
-end module FatesInterfaceTypesMod
+    
+  end module FatesInterfaceTypesMod

@@ -85,7 +85,6 @@ module EDInitMod
   public  :: init_site_vars
   public  :: init_patches
   public  :: set_site_properties
-  public  :: InitFatesGlobals
   private :: init_cohorts
 
 

@@ -985,7 +985,6 @@ contains
      real(r8) :: leaf_c_target 
      real(r8) :: dynamic_size_fusion_tolerance
      real(r8) :: dynamic_age_fusion_tolerance
-     integer  :: maxCohortsPerPatch_age_tracking
      real(r8) :: dbh
      real(r8) :: leaf_c             ! leaf carbon [kg]
 
@@ -1004,11 +1003,6 @@ contains
      ! set the cohort age fusion tolerance (in fraction of years)
      dynamic_age_fusion_tolerance = ED_val_cohort_age_fusion_tol
 
-     if ( hlm_use_cohort_age_tracking .eq. itrue) then
-        maxCohortsPerPatch_age_tracking = 300
-     end if
-     
-     
      
      !This needs to be a function of the canopy layer, because otherwise, at canopy closure
      !the number of cohorts doubles and very dissimilar cohorts are fused together
@@ -1434,7 +1428,7 @@ contains
 
 
            if ( hlm_use_cohort_age_tracking .eq.itrue) then
-              if ( nocohorts > maxCohortsPerPatch_age_tracking ) then
+              if ( nocohorts > maxCohortsPerPatch ) then
                  iterate = 1
                  !---------------------------------------------------------------------!
                  ! Making profile tolerance larger means that more fusion will happen  !
