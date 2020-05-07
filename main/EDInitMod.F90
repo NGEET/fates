@@ -9,6 +9,7 @@ module EDInitMod
   use FatesConstantsMod         , only : itrue
   use FatesConstantsMod         , only : fates_unset_int
   use FatesConstantsMod         , only : primaryforest
+  use FatesConstantsMod   , only : nearzero
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
@@ -362,10 +363,12 @@ contains
      integer  :: nocomp_pft     
      real(r8) :: newparea
      real(r8) :: tota !check on area
+     integer  :: is_first_patch
 
      type(ed_site_type),  pointer :: sitep
+     type(ed_patch_type), pointer :: newppft(:)
      type(ed_patch_type), pointer :: newp
-     type(ed_patch_type), pointer :: recall_younger_patch
+     type(ed_patch_type), pointer :: recall_older_patch
 
      ! List out some nominal patch values that are used for Near Bear Ground initializations
      ! as well as initializing inventory
@@ -399,21 +402,20 @@ contains
 
      else
 
-
+        allocate(recall_older_patch)
         do s = 1, nsites
-           write(*,*) 'areapft',sites(s)%area_pft(1:3)
            ! Initialize the site-level crown area spread factor (0-1)
            ! It is likely that closed canopy forest inventories
            ! have smaller spread factors than bare ground (they are crowded)
            sites(s)%spread     = init_spread_near_bare_ground
-          
           if(hlm_use_nocomp.eq.itrue)then
            no_new_patches = numpft
+           allocate(newppft(numpft))
           else
            no_new_patches = 1
            newparea = area
           end if
-
+          is_first_patch = 1
           do n = 1, no_new_patches
 
            ! set the PFT index for patches if in nocomp mode. 
@@ -438,27 +440,31 @@ contains
 
            if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode 
               allocate(newp)
+              if(hlm_use_nocomp.eq.itrue)then
+               newp => newppft(nocomp_pft)
+              endif
 
               call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
              
-              if(.not.associated(recall_younger_patch))then !is this the first patch?
+              if(is_first_patch.eq.1)then !is this the first patch?
+                ! set poointers for first patch (or only patch, if nocomp is false)
                 newp%patchno = 1
                 newp%younger => null()
                 newp%older   => null()
-
                 sites(s)%youngest_patch => newp
                 sites(s)%oldest_patch   => newp
-                allocate(recall_younger_patch)
+                is_first_patch = 0
               else ! the new patch is the 'oldest' one, arbitrarily. 
+                ! Set pointers for N>1 patches. Note this only happens when nocomp mode s on. 
+                ! The new patch is the 'youngest' one, arbitrarily.
                 newp%patchno = nocomp_pft
-                newp%younger => recall_younger_patch
-                newp%older   => null()
-                recall_younger_patch%older => newp
-                sites(s)%oldest_patch   => newp
-                write(*,*) 'links',s,nocomp_pft,newp%younger%nocomp_pft_label
+                newp%older => recall_older_patch
+                newp%younger   => null()
+                recall_older_patch%younger => newp
+                sites(s)%youngest_patch   => newp
               end if
-              recall_younger_patch => newp ! remember this patch for the next one to point at. 
-
+              recall_older_patch => newp ! remember this patch for the next one to point at. 
+              write(*,*) 'ed init litter01',s,sites(s)%oldest_patch%area
 
               ! Initialize the litter pools to zero, these
               ! pools will be populated by looping over the existing patches
@@ -471,34 +477,46 @@ contains
                    init_seed=0._r8,   &
                    init_seed_germ=0._r8)
              end do
-             write(*,*) 'litt', newp%litter(1)%ag_cwd(1)
+              write(*,*) 'ed init litter02',s,sites(s)%oldest_patch%area
+              write(*,*) 'ed init litter03',s,sites(s)%oldest_patch%litter(1)%ag_cwd(1)
+!             write(*,*) 'ed init litter04',s,sites(1)%oldest_patch%litter(1)%ag_cwd(1)
+
               sitep => sites(s)
               call init_cohorts(sitep, newp, bc_in(s))
             end if 
          end do !no new patches
-
-         tota=0.0_r8
-         newp=> sites(s)%oldest_patch
+         
+        !check if the total area adds to the same as site area
+         tota = 0.0_r8
+         newp => sites(s)%oldest_patch
          do while (associated(newp))
            tota=tota+newp%area
-            write(*,*)'test links1',s,newp%nocomp_pft_label,tota
-            newp=>newp%younger
-          end do
-          if(tota.lt.area)then
-             write(*,*) 'error in assigning areas in init patch',s,tota
-          endif 
+           write(*,*) 'test links',s,newp%nocomp_pft_label,tota
+           newp=>newp%younger
+         end do
+         if(abs(tota-area).gt.nearzero)then
+             write(*,*) 'error in assigning areas in init patch',s,tota-area
+         endif 
+
           ! For carbon balance checks, we need to initialize the 
           ! total carbon stock
+         write(*,*) 'calling sitemassstock',s
           do el=1,num_elements
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                    biomass_stock,litter_stock,seed_stock)
           end do
-          
+          write(*,*) 'ed init litter05',s,sites(s)%oldest_patch%area
+          write(*,*) 'call set_patchno',s 
           call set_patchno(sites(s))
-         deallocate(recall_younger_patch)
+          write(*,*) 'after set_patchno',s
+!          deallocate(recall_older_patch)
 
+         write(*,*) 'ed init litter06', s,sites(s)%oldest_patch%area
+!         write(*,*) 'ed init litter15',s,sites(1)%oldest_patch%area
+!         write(*,*) 'ed init litter2', s,sites(s)%oldest_patch%litter(1)%ag_cwd(1)
+!         write(*,*) 'ed init litter25',s,sites(1)%oldest_patch%litter(1)%ag_cwd(1)
         enddo !s
-write(*,*)'end init'
+        write(*,*)'end init'
      end if
 
      ! This sets the rhizosphere shells based on the plant initialization
@@ -509,6 +527,7 @@ write(*,*)'end init'
 	   sitep => sites(s)
            call updateSizeDepRhizHydProps(sitep, bc_in(s))
         end do
+          deallocate(recall_older_patch)
      end if
 
      return
