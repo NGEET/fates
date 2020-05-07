@@ -49,7 +49,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use CLMFatesParamInterfaceMod , only : FatesReadParameters
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
-   
+
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -121,7 +121,6 @@ contains
     
     ! Input boundaries
     
-    fates%bc_in(s)%t_veg24_si     = 0.0_r8
     fates%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
     fates%bc_in(s)%precip24_pa(:) = 0.0_r8
     fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8

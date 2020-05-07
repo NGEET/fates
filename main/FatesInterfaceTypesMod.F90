@@ -281,13 +281,6 @@ module FatesInterfaceTypesMod
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
 
-      ! The site level 24 hour vegetation temperature is used for various purposes during vegetation 
-      ! dynamics.  However, we are currently using the bare ground patch's value [K]
-      ! TO-DO: Get some consensus on the correct vegetation temperature used for phenology.
-      ! It is possible that the bare-ground value is where the average is being stored.
-      ! (RGK-01-2017)
-      real(r8)             :: t_veg24_si
-
       ! Patch 24 hour vegetation temperature [K]
       real(r8),allocatable :: t_veg24_pa(:)  
       
