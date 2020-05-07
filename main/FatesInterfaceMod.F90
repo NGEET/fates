@@ -44,7 +44,7 @@ module FatesInterfaceMod
    use PRTGenericMod         , only : phosphorus_element
    use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
    !   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
-
+   use decompMod             , only : bounds_type
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -130,8 +130,32 @@ module FatesInterfaceMod
                                                    ! 1 = TRUE, 0 = FALSE
 
 
+   integer, public, protected :: hlm_use_harvest_area    ! This flag signals whether or not to use
+                                                         ! harvest area data from the hlm
+                                                         ! If TRUE, it automatically sets
+                                                         ! hlm_use_logging to TRUE
+                                                         ! Only one of hlm_use_harvest_area
+                                                         ! or hlm_use_harvest_c can be TRUE
+
+   integer, public, protected :: hlm_use_harvest_c       ! This flag signals whether or not to use
+                                                         ! harvest carbon data from the hlm
+                                                         ! If TRUE, it automatically sets
+                                                         ! hlm_use_logging to TRUE
+                                                         ! Only one of hlm_use_harvest_area
+                                                         ! or hlm_use_harvest_c can be TRUE
+                                                         ! These data are not available yet
+
    integer, public, protected :: hlm_use_logging       ! This flag signals whether or not to use
                                                        ! the logging module
+                                                         ! If hlm_use_harvest_area or
+                                                         ! hlm_use_harvest_c are NOT true,
+                                                         ! then logging is determined by
+                                                         ! the fates parameter file
+                                                         ! If hlm_use_harvest_area or
+                                                         ! hlm_use_harvest_c are TRUE,
+                                                         ! then this flag is automatically
+                                                         ! set and logging is determined
+                                                         ! by the harvest input from the hlm
 
    integer, public, protected :: hlm_use_planthydro    ! This flag signals whether or not to use
                                                        ! plant hydraulics (bchristo/xu methods)
@@ -461,7 +485,14 @@ module FatesInterfaceMod
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-      
+
+      ! Land use
+      ! ---------------------------------------------------------------------------------
+
+      logical :: hlm_do_harvest_today           ! denotes whether hlm harvest data
+                                                ! are available for today
+      real(r8),allocatable :: hlm_harvest(:)    ! harvest data from hlm
+
    end type bc_in_type
 
 
@@ -662,7 +693,7 @@ contains
    ! ====================================================================================
    
 
-   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in)
+   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, harvest_bounds)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -672,9 +703,9 @@ contains
       type(bc_in_type), intent(inout) :: bc_in
       integer,intent(in)              :: nlevsoil_in
       integer,intent(in)              :: nlevdecomp_in
+      type(bounds_type),intent(in)    :: harvest_bounds
       
       ! Allocate input boundaries
-
 
       bc_in%nlevsoil   = nlevsoil_in
 
@@ -783,6 +814,15 @@ contains
          allocate(bc_in%bsw_sisl(nlevsoil_in))
          allocate(bc_in%hksat_sisl(nlevsoil_in))
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
+      end if
+
+      ! Land use
+
+      ! harvest flags denote data from hlm,
+      ! while the logging flag signifies only that logging is occurring,
+      ! which could also just be FATES logging
+      if (hlm_use_harvest_area .or. hlm_use_harvest_c) then
+         allocate(bc_in%harvest(harvest_bounds%begg:harvest_bounds%endg))
       end if
 
       return
@@ -1429,6 +1469,8 @@ contains
          hlm_parteh_mode   = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
+         hlm_use_harvest_area   = unset_int
+         hlm_use_harvest_c   = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1477,6 +1519,20 @@ contains
                write(fates_log(), *) ' for more information.'
                write(fates_log(), *) ''
                write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+         end if
+
+         if ( .not.((hlm_use_harvest_area .eq.1).or.(hlm_use_harvest_area.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist do_harvest flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( .not.((hlm_use_harvest_c .eq.1).or.(hlm_use_harvest_c.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist do_harvest flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
@@ -1689,6 +1745,18 @@ contains
                hlm_use_planthydro = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
+               end if
+
+            case('use_harvest_area')
+               hlm_use_harvest_area = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_harvest_area= ',ival,' to FATES'
+               end if
+
+            case('use_harvest_c')
+               hlm_use_harvest_c = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_harvest_c= ',ival,' to FATES'
                end if
 
             case('use_logging')

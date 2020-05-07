@@ -44,6 +44,8 @@ module EDLoggingMortalityMod
    use FatesInterfaceMod , only : hlm_model_day
    use FatesInterfaceMod , only : hlm_day_of_year 
    use FatesInterfaceMod , only : hlm_days_per_year
+   use FatesInterfaceMod , only : hlm_use_harvest_area
+   use FatesInterfaceMod , only : hlm_use_harvest_c
    use FatesInterfaceMod , only : hlm_use_logging 
    use FatesInterfaceMod , only : hlm_use_planthydro
    use FatesConstantsMod , only : itrue,ifalse
@@ -106,6 +108,8 @@ contains
       icode = int(logging_event_code)
 
       if(hlm_use_logging.eq.ifalse) return
+
+! todo: deal with hlm_use_harvest_area and the do_harvest in bc_in
 
       if(icode .eq. 1) then
          ! Logging is turned off
@@ -188,6 +192,8 @@ contains
  
       if (logging_time) then 
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
+
+! todo: deal with hlm_use_harvest_area vs. biomass here also
 
             ! Pass logging rates to cohort level 
 
