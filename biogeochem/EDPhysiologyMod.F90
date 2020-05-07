@@ -32,7 +32,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
-  use EDTypesMod          , only : dl_sf, dinc_ed
+  use EDTypesMod          , only : dl_sf, dinc_ed, area_inv
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
   use FatesLitterMod      , only : ilabile
@@ -564,6 +564,7 @@ contains
     !
     ! !LOCAL VARIABLES:
 
+    type(ed_patch_type),pointer :: cpatch
     integer  :: model_day_int     ! integer model day 1 - inf
     integer  :: ncolddays         ! no days underneath the threshold for leaf drop
     integer  :: i_wmem            ! Loop counter for water mem days
@@ -612,8 +613,15 @@ contains
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725 
     !Parameters, default from from SDGVM model of senesence
 
-    temp_in_C = bc_in%t_veg24_si - tfrz
-
+    temp_in_C = 0._r8
+    cpatch => CurrentSite%oldest_patch   
+    do while(associated(cpatch))    
+       temp_in_C = temp_in_C + bc_in%t_veg24_pa(cpatch%patchno)*cpatch%area
+       cpatch => cpatch%younger
+    end do
+    temp_in_C = temp_in_C * area_inv - tfrz
+       
+       
     !-----------------Cold Phenology--------------------!              
 
     !Zero growing degree and chilling day counters
@@ -663,8 +671,8 @@ contains
     !
     ! accumulate the GDD using daily mean temperatures
     ! Don't accumulate GDD during the growing season (that wouldn't make sense)
-    if (bc_in%t_veg24_si .gt. tfrz.and. currentSite%cstatus == phen_cstat_iscold) then
-       currentSite%grow_deg_days = currentSite%grow_deg_days + bc_in%t_veg24_si - tfrz
+    if (temp_in_C .gt. 0._r8 .and. currentSite%cstatus == phen_cstat_iscold) then
+       currentSite%grow_deg_days = currentSite%grow_deg_days + temp_in_C
     endif
     
     !this logic is to prevent GDD accumulating after the leaves have fallen and before the 
@@ -2109,7 +2117,7 @@ contains
 
     if ( .not. use_century_tfunc ) then
     !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
-    !are assigned for non-moisture limiting conditions at 25C. 
+    !are assigned for non-moisture limiting conditions at 25C.
       if (bc_in%t_veg24_pa(ifp)  >=  tfrz) then
         t_scalar = q10_mr**((bc_in%t_veg24_pa(ifp)-(tfrz+25._r8))/10._r8)
                  !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)

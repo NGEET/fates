@@ -650,10 +650,10 @@ variables:
 		fates_phen_c:long_name = "GDD accumulation function, exponent parameter: gdd_thesh = a + b exp(c*ncd)" ;
 	double fates_phen_chiltemp ;
 		fates_phen_chiltemp:units = "degrees C" ;
-		fates_phen_chiltemp:long_name = "chilling day counting threshold" ;
+		fates_phen_chiltemp:long_name = "chilling day counting threshold for vegetation" ;
 	double fates_phen_coldtemp ;
 		fates_phen_coldtemp:units = "degrees C" ;
-		fates_phen_coldtemp:long_name = "temperature exceedance to flag a cold-day for temperature leaf drop" ;
+		fates_phen_coldtemp:long_name = "vegetation temperature exceedance that flags a cold-day for leaf-drop" ;
 	double fates_phen_doff_time ;
 		fates_phen_doff_time:units = "days" ;
 		fates_phen_doff_time:long_name = "day threshold compared against days since leaves became off-allometry" ;
