@@ -61,6 +61,8 @@ module FatesInterfaceMod
 
    implicit none
 
+   private
+
    character(len=*), parameter :: sourcefile = &
         __FILE__
 
@@ -539,9 +541,6 @@ contains
          else
             maxCohortsPerPatch = 100
          end if
-
-         fates_maxElementsPerPatch = max(maxCohortsPerPatch, ndcmpy*numlevsoil_max ,ncwd*numlevsoil_max)
-
          
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
