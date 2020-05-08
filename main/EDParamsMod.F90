@@ -28,8 +28,6 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_understorey_death
    real(r8),protected, public :: ED_val_cwd_fcel
    real(r8),protected, public :: ED_val_cwd_flig
-   real(r8),protected, public :: ED_val_bbopt_c3
-   real(r8),protected, public :: ED_val_bbopt_c4
    real(r8),protected, public :: ED_val_base_mr_20
    real(r8),protected, public :: ED_val_phen_drought_threshold
    real(r8),protected, public :: ED_val_phen_doff_time
@@ -42,7 +40,8 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_phen_coldtemp
    real(r8),protected, public :: ED_val_cohort_fusion_tol
    real(r8),protected, public :: ED_val_patch_fusion_tol
-   real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
+   real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometriy
+   real(r8),protected, public :: stomatal_model  !switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn 
 
    
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
@@ -67,8 +66,6 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_understorey_death = "fates_mort_understorey_death"
    character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_cwd_fcel"   
    character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_cwd_flig"   
-   character(len=param_string_length),parameter,public :: ED_name_bbopt_c3= "fates_bbopt_c3"   
-   character(len=param_string_length),parameter,public :: ED_name_bbopt_c4= "fates_bbopt_c4"   
    character(len=param_string_length),parameter,public :: ED_name_base_mr_20= "fates_base_mr_20"   
    character(len=param_string_length),parameter,public :: ED_name_phen_drought_threshold= "fates_phen_drought_threshold"   
    character(len=param_string_length),parameter,public :: ED_name_phen_doff_time= "fates_phen_doff_time"   
@@ -82,6 +79,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_cohort_fusion_tol= "fates_cohort_size_fusion_tol"   
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
+   character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "stomatal_model"
 
    ! Resistance to active crown fire
   
@@ -168,8 +166,6 @@ contains
     ED_val_understorey_death              = nan
     ED_val_cwd_fcel                       = nan
     ED_val_cwd_flig                       = nan
-    ED_val_bbopt_c3                       = nan
-    ED_val_bbopt_c4                       = nan
     ED_val_base_mr_20                     = nan
     ED_val_phen_drought_threshold         = nan
     ED_val_phen_doff_time                 = nan
@@ -185,6 +181,7 @@ contains
     ED_val_canopy_closure_thresh          = nan    
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
+    stomatal_model                        = nan
 
     hydr_psi0                             = nan
     hydr_psicap                           = nan
@@ -245,12 +242,6 @@ contains
     call fates_params%RegisterParameter(name=ED_name_cwd_flig, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_bbopt_c3, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_bbopt_c4, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=ED_name_base_mr_20, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -288,6 +279,9 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_canopy_closure_thresh, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
+    call fates_params%RegisterParameter(name=ED_name_stomatal_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 	 
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
@@ -387,12 +381,6 @@ contains
     call fates_params%RetreiveParameter(name=ED_name_cwd_flig, &
          data=ED_val_cwd_flig)
 
-    call fates_params%RetreiveParameter(name=ED_name_bbopt_c3, &
-         data=ED_val_bbopt_c3)
-
-    call fates_params%RetreiveParameter(name=ED_name_bbopt_c4, &
-         data=ED_val_bbopt_c4)
-
     call fates_params%RetreiveParameter(name=ED_name_base_mr_20, &
          data=ED_val_base_mr_20)
 
@@ -431,6 +419,9 @@ contains
     
     call fates_params%RetreiveParameter(name=ED_name_canopy_closure_thresh, &
          data=ED_val_canopy_closure_thresh)
+
+    call fates_params%RetreiveParameter(name=ED_name_stomatal_model, &
+         data=stomatal_model)
 
     call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf1, &
           data=hydr_kmax_rsurf1)
@@ -516,8 +507,6 @@ contains
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death
         write(fates_log(),fmt0) 'ED_val_cwd_fcel = ',ED_val_cwd_fcel
         write(fates_log(),fmt0) 'ED_val_cwd_flig = ',ED_val_cwd_flig
-        write(fates_log(),fmt0) 'ED_val_bbopt_c3 = ',ED_val_bbopt_c3
-        write(fates_log(),fmt0) 'ED_val_bbopt_c4 = ',ED_val_bbopt_c4
         write(fates_log(),fmt0) 'ED_val_base_mr_20 = ', ED_val_base_mr_20
         write(fates_log(),fmt0) 'ED_val_phen_drought_threshold = ',ED_val_phen_drought_threshold
         write(fates_log(),fmt0) 'ED_val_phen_doff_time = ',ED_val_phen_doff_time
@@ -530,7 +519,8 @@ contains
         write(fates_log(),fmt0) 'ED_val_phen_coldtemp = ',ED_val_phen_coldtemp
         write(fates_log(),fmt0) 'ED_val_cohort_fusion_tol = ',ED_val_cohort_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
-        write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh      
+        write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
+        write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model      
         write(fates_log(),fmt0) 'hydr_kmax_rsurf1 = ',hydr_kmax_rsurf1
         write(fates_log(),fmt0) 'hydr_kmax_rsurf2 = ',hydr_kmax_rsurf2  
         write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0
