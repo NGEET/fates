@@ -403,8 +403,8 @@ contains
                                
                                if (hlm_use_planthydro.eq.itrue ) then
                                    
-                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran(1) )
-                                 btran_eff = currentCohort%co_hydr%btran(1) 
+                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
+                                 btran_eff = currentCohort%co_hydr%btran 
                                  
                                  ! dinc_ed is the total vegetation area index of each "leaf" layer
                                  ! we convert to the leaf only portion of the increment
