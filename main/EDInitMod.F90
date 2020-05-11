@@ -66,9 +66,6 @@ module EDInitMod
   use PRTGenericMod,          only : nitrogen_element
   use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : SetState
-!!  use FatesPlantHydraulicsMod,  only : InitHydroGlobals
-  use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
-!   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg

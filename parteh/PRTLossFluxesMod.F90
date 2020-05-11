@@ -18,8 +18,7 @@ module PRTLossFluxesMod
   use PRTGenericMod, only : check_initialized
   use PRTGenericMod, only : num_organ_types
   use PRTGenericMod, only : prt_global
-  use FatesConstantsMOd, only : years_per_day
-  
+  use FatesConstantsMod, only : years_per_day
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : i4 => fates_int
   use FatesConstantsMod, only : nearzero
