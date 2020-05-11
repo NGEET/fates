@@ -721,7 +721,6 @@ contains
       if(call_index == final_check_id) then
           site_mass%old_stock = total_stock
           site_mass%err_fates = net_flux - change_in_stock
-          call site_mass%ZeroMassBalFlux()
       end if
 
    end do

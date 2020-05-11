@@ -25,6 +25,7 @@ module FatesInterfaceMod
    use EDTypesMod          , only : element_list
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesConstantsMod   , only : itrue,ifalse
+   use FatesConstantsMod   , only : fates_unset_r8
    use FatesGlobals        , only : fates_global_verbose
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
@@ -315,13 +316,11 @@ module FatesInterfaceMod
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
 
-      ! The site level 24 hour vegetation temperature is used for various purposes during vegetation 
-      ! dynamics.  However, we are currently using the bare ground patch's value [K]
-      ! TO-DO: Get some consensus on the correct vegetation temperature used for phenology.
-      ! It is possible that the bare-ground value is where the average is being stored.
-      ! (RGK-01-2017)
+      ! THIS VARIABLE IS NOW DEPRECATED AND SHOULD NOT BE USED
+      ! THIS WILL BE REMOVED FROM THE API ALONG WITH THE NEXT MAJOR API CHANGE
       real(r8)             :: t_veg24_si
 
+      
       ! Patch 24 hour vegetation temperature [K]
       real(r8),allocatable :: t_veg24_pa(:)  
       
@@ -890,7 +889,7 @@ contains
 
       ! Input boundaries
       
-      this%bc_in(s)%t_veg24_si     = 0.0_r8
+      this%bc_in(s)%t_veg24_si     = fates_unset_r8
       this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
       this%bc_in(s)%precip24_pa(:) = 0.0_r8
       this%bc_in(s)%relhumid24_pa(:) = 0.0_r8
