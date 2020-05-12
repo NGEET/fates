@@ -198,7 +198,11 @@ contains
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
                                currentCohort%lmort_infra,                        &
-                               currentCohort%l_degrad)
+                               currentCohort%l_degrad, &
+                               bc_in%hlm_harvest, &
+                               bc_in%hlm_harvest_catnames, &
+                               currentCohort%patchptr%anthro_disturbance_label, &
+                               currentCohort%patchptr%age_since_anthro_disturbance)
 
     
     

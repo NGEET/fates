@@ -187,8 +187,8 @@ contains
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
       integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort
-      real(r8), intent(in) :: hlm_harvest       ! annual harvest rate per hlm category
-      character(len=64), intent(in) :: hlm_harvest_catnames ! names of hlm harvest categories
+      real(r8), intent(in) :: hlm_harvest(:)       ! annual harvest rate per hlm category
+      character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
       integer, intent(in) :: use_history        ! patch level anthro_disturbance_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction

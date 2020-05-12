@@ -193,7 +193,11 @@ contains
           currentCohort%frmort = frmort
 
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
-                lmort_direct,lmort_collateral,lmort_infra,l_degrad )
+                lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
+                bc_in%hlm_harvest, &
+                bc_in%hlm_harvest_catnames, &
+                currentPatch%anthro_disturbance_label, &
+                currentPatch%age_since_anthro_disturbance)
          
           currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
