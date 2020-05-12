@@ -44,8 +44,8 @@ module EDLoggingMortalityMod
    use FatesInterfaceMod , only : hlm_model_day
    use FatesInterfaceMod , only : hlm_day_of_year 
    use FatesInterfaceMod , only : hlm_days_per_year
-   use FatesInterfaceMod , only : hlm_use_harvest_area
-   use FatesInterfaceMod , only : hlm_use_harvest_c
+   use FatesInterfaceMod , only : hlm_use_lu_harvest
+   use FatesInterfaceMod , only : hlm_use_num_lu_harvest_cats
    use FatesInterfaceMod , only : hlm_use_logging 
    use FatesInterfaceMod , only : hlm_use_planthydro
    use FatesConstantsMod , only : itrue,ifalse
@@ -58,6 +58,7 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
    use FatesAllometryMod , only : i_biomass_rootprof_context
+  use FatesConstantsMod    , only : primaryforest, secondaryforest, secondary_age_threshold
 
    implicit none
    private
@@ -107,12 +108,17 @@ contains
       logging_time = .false.
       icode = int(logging_event_code)
 
+      ! this is true for either hlm harvest or fates logging
       if(hlm_use_logging.eq.ifalse) return
 
-! todo: deal with hlm_use_harvest_area and the do_harvest in bc_in
+      ! all of these are valid for hlm harvest
+      ! so adjust annual harvest inputs accordingly in LoggingMortality_frac
+      ! note that the specific event will allow only one hlm harvest, regardless of input
+      ! code 3, every day, may not work properly because of the exclusive mortality selection
+      ! even less fequent low harvest rates may be excluded - may need to give harvest priority
 
       if(icode .eq. 1) then
-         ! Logging is turned off
+         ! Logging is turned off - not sure why we need another switch
          logging_time = .false.
 
       else if(icode .eq. 2) then
@@ -173,12 +179,18 @@ contains
    ! ======================================================================================
 
    subroutine LoggingMortality_frac( pft_i, dbh, canopy_layer, lmort_direct, &
-                                     lmort_collateral,lmort_infra, l_degrad )
+                                     lmort_collateral,lmort_infra, l_degrad, &
+                                     hlm_harvest, hlm_harvest_catnames, &
+                                     use_history, secondary_age)
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
       integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort
+      real(r8), intent(in) :: hlm_harvest       ! annual harvest rate per hlm category
+      character(len=64), intent(in) :: hlm_harvest_catnames ! names of hlm harvest categories
+      integer, intent(in) :: use_history        ! patch level anthro_disturbance_label
+      real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
@@ -188,28 +200,103 @@ contains
                                                 ! forest patch)
 
       ! Parameters
+      integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
+      real(r89) :: harvest_rate ! the final harvest rate to apply to this cohort today
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates
- 
+      real(r8), parameter :: months_per_year = 12.0
+
+      icode = int(logging_event_code)
+
       if (logging_time) then 
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
 
-! todo: deal with hlm_use_harvest_area vs. biomass here also
+! todo: add a logging_dbhmax parameter, and probably lower the dbhmin one to 30 cm
+! todo: change the default logging_event_code to 1 september (-244)
+! todo: change the default logging_direct_frac to 0.7, which is closer to a clearcut event
+! todo: check outputs against the LUH2 carbon data
+! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
 
             ! Pass logging rates to cohort level 
 
+            if (hlm_use_lu_harvest == 0) then
+               ! 0=use fates logging when logging_time == .true.
+               ! this means harvest the whole cohort
+               harvest_rate = 1._r8
+
+            else if (hlm_use_lu_harvest == 1) then
+               ! 1=use area fraction from hlm
+               ! combine forest and non-forest fracs and then apply:
+               ! primary and secondary area fractions to the logging rates, which are fates parameters
+
+               ! Definitions of the underlying harvest land category variables
+               ! these are hardcoded to match the LUH input data via landuse.timseries file (see dynHarvestMod)
+               ! these are fraction of vegetated area harvested, split into five land category variables
+               ! HARVEST_VH1 = harvest from primary forest
+               ! HARVEST_VH2 = harvest from primary non-forest
+               ! HARVEST_SH1 = harvest from secondary mature forest
+               ! HARVEST_SH2 = harvest from secondary young forest
+               ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
+
+               ! determine the annual hlm harvest rate for the current cohort based on patch info
+               harvest_rate = 0._r8
+               do h_index = 1,hlm_use_num_lu_harvest_cats
+                  if (use_history .eq. primaryforest) then
+                     if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
+                        hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2")
+                        harvest_rate = harvest_rate + hlm_harvest(h_index)
+                     endif
+                  else if (use_history .eq. secondaryforest .and.
+                     secondary_age >= secondary_age_threshold) then
+                     if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1")
+                        harvest_rate = harvest_rate + hlm_harvest(h_index)
+                     endif
+                  else if (use_history .eq. secondaryforest .and.
+                     secondary_age < secondary_age_threshold) then
+                     if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
+                        hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3")
+                        harvest_rate = harvest_rate + hlm_harvest(h_index)
+                     endif
+                  endif
+               end do
+
+               ! calculate today's harvest rate
+               ! the timing has already been determined by IsItLoggingTime
+               ! for icode == 2, icode < 0, and icode > 10000 apply the annual rate one time (no calc)
+               ! Bad logging event flag is caught in IsItLoggingTime, so don't check it here
+               icode = int(logging_event_code)
+               !harvest_rate = harvest_rate / hlm_days_per_year
+               if(icode .eq. 1) then
+                  ! Logging is turned off - not sure why we need another switch
+                  harvest_rate = 0._r8
+               else if(icode .eq. 3) then
+                  ! Logging event every day - this may not work due to the mortality exclusivity
+                  harvest_rate = harvest_rate / hlm_days_per_year
+               else if(icode .eq. 4) then
+                  ! logging event once a month
+                  if(hlm_current_day.eq.1  ) then
+                     harvest_rate = harvest_rate / months_per_year
+               end if
+
+            else if (hlm_use_lu_harvest == 2) then
+               ! 2=use carbon from hlm
+               ! not implemented yet
+               write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            endif
+
             if (dbh >= logging_dbhmin ) then
-               lmort_direct = logging_direct_frac * adjustment
+               lmort_direct = harvest_rate * logging_direct_frac * adjustment
                l_degrad = 0._r8
             else
-               lmort_direct = 0.0_r8 
-               l_degrad = logging_direct_frac * adjustment
+               lmort_direct = 0.0_r8
+               l_degrad = harvest_rate * logging_direct_frac * adjustment
             end if
-           
+
             if (dbh >= logging_dbhmax_infra) then
                lmort_infra      = 0.0_r8
-               l_degrad         = l_degrad + logging_mechanical_frac * adjustment
+               l_degrad         = l_degrad + harvest_rate * logging_mechanical_frac * adjustment
             else
-               lmort_infra      = logging_mechanical_frac * adjustment
+               lmort_infra      = harvest_rate * logging_mechanical_frac * adjustment
             end if
             !damage rates for size class < & > threshold_size need to be specified seperately
 
@@ -220,9 +307,9 @@ contains
             ! for collateral damage, even understory collateral damage.
 
             if (canopy_layer .eq. 1) then
-                lmort_collateral = logging_collateral_frac * adjustment
+               lmort_collateral = harvest_rate * logging_collateral_frac * adjustment
             else
-                lmort_collateral = 0._r8
+               lmort_collateral = 0._r8
             endif
 
          else

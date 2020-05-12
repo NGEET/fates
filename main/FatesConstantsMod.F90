@@ -30,6 +30,9 @@ module FatesConstantsMod
   integer, parameter, public :: n_anthro_disturbance_categories = 2
   integer, parameter, public :: primaryforest = 1
   integer, parameter, public :: secondaryforest = 2
+  integer, parameter, public :: secondary_age_threshold = 94 ! less than this value is young
+                                                            ! based on average age of global
+                                                            ! secondary 1900s land in hurtt-2011
   
   ! Error Tolerances
 
