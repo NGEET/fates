@@ -45,7 +45,7 @@ module EDLoggingMortalityMod
    use FatesInterfaceMod , only : hlm_day_of_year 
    use FatesInterfaceMod , only : hlm_days_per_year
    use FatesInterfaceMod , only : hlm_use_lu_harvest
-   use FatesInterfaceMod , only : hlm_use_num_lu_harvest_cats
+   use FatesInterfaceMod , only : hlm_num_lu_harvest_cats
    use FatesInterfaceMod , only : hlm_use_logging 
    use FatesInterfaceMod , only : hlm_use_planthydro
    use FatesConstantsMod , only : itrue,ifalse
@@ -239,7 +239,7 @@ contains
 
                ! determine the annual hlm harvest rate for the current cohort based on patch info
                harvest_rate = 0._r8
-               do h_index = 1,hlm_use_num_lu_harvest_cats
+               do h_index = 1,hlm_num_lu_harvest_cats
                   if (use_history .eq. primaryforest) then
                      if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
                         hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2")

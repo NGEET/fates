@@ -1469,7 +1469,7 @@ contains
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
-         hlm_use_num_lu_harvest_cats   = unset_int
+         hlm_num_lu_harvest_cats   = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1527,7 +1527,7 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if ( (hlm_use_num_lu_harvest_cats .lt. 0) ) then
+         if ( (hlm_num_lu_harvest_cats .lt. 0) ) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'The FATES number of hlm harvest cats must be >= 0, exiting'
             end if
@@ -1752,10 +1752,10 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_lu_harvest= ',ival,' to FATES'
                end if
 
-            case('use_num_lu_harvest_cats')
-               hlm_use_num_lu_harvest_cats = ival
+            case('num_lu_harvest_cats')
+               hlm_num_lu_harvest_cats = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_use_num_lu_harvest_cats= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering hlm_num_lu_harvest_cats= ',ival,' to FATES'
                end if
 
             case('use_logging')
