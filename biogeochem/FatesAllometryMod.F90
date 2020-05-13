@@ -1349,6 +1349,9 @@ contains
     ! Chave et al. Improved allometric models to estimate the abovegroud
     ! biomass of tropical trees.  Global Change Biology. V20, p3177-3190. 2015.
     !
+    ! p1 =  0.893 - E
+    ! p2 =  0.76
+    ! p3 = -0.034
     ! =========================================================================
     
     real(r8),intent(in)  :: d        ! plant diameter [cm]
@@ -1581,6 +1584,9 @@ contains
     ! Output:
     ! bagw:   Total above ground biomass [kgC]
     !
+    ! Chave's Paper has p1 = 0.0673, p2 = 0.976
+    !
+    
     ! =========================================================================
     
     
