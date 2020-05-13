@@ -4,7 +4,7 @@ module EDPatchDynamicsMod
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
   use FatesGlobals         , only : fates_log 
-  use FatesInterfaceMod    , only : hlm_freq_day
+  use FatesInterfaceTypesMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
@@ -37,11 +37,11 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dl_sf
   use EDTypesMod           , only : dump_patch
   use FatesConstantsMod    , only : rsnbl_math_prec
-  use FatesInterfaceMod    , only : hlm_use_planthydro
-  use FatesInterfaceMod    , only : hlm_numSWb
-  use FatesInterfaceMod    , only : bc_in_type
-  use FatesInterfaceMod    , only : hlm_days_per_year
-  use FatesInterfaceMod    , only : numpft
+  use FatesInterfaceTypesMod    , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod    , only : hlm_numSWb
+  use FatesInterfaceTypesMod    , only : bc_in_type
+  use FatesInterfaceTypesMod    , only : hlm_days_per_year
+  use FatesInterfaceTypesMod    , only : numpft
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -75,7 +75,7 @@ module EDPatchDynamicsMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTLossFluxesMod,       only : PRTBurnLosses
-  use FatesInterfaceMod,      only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
 

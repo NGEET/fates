@@ -14,11 +14,11 @@ module FatesRestartInterfaceMod
   use FatesIODimensionsMod,    only : fates_io_dimension_type
   use FatesIOVariableKindMod,  only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
-  use FatesInterfaceMod,       only : nlevcoage
-  use FatesInterfaceMod,       only : bc_in_type 
-  use FatesInterfaceMod,       only : bc_out_type
-  use FatesInterfaceMod,       only : hlm_use_planthydro
-  use FatesInterfaceMod,       only : fates_maxElementsPerSite
+  use FatesInterfaceTypesMod,       only : nlevcoage
+  use FatesInterfaceTypesMod,       only : bc_in_type 
+  use FatesInterfaceTypesMod,       only : bc_out_type
+  use FatesInterfaceTypesMod,       only : hlm_use_planthydro
+  use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
   use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
   use FatesHydraulicsMemMod,   only : n_hypool_ag
@@ -31,7 +31,7 @@ module FatesRestartInterfaceMod
   use EDCohortDynamicsMod,     only : InitPRTObject
   use EDCohortDynamicsMod,     only : InitPRTBoundaryConditions
   use FatesPlantHydraulicsMod, only : InitHydrCohort
-  use FatesInterfaceMod,       only : nlevsclass
+  use FatesInterfaceTypesMod,       only : nlevsclass
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesLitterMod,          only : ndcmpy
@@ -1353,7 +1353,7 @@ contains
         hlms,initialize,ivar,index)
 
     use FatesUtilsMod, only : check_hlm_list
-    use FatesInterfaceMod, only : hlm_name
+    use FatesInterfaceTypesMod, only : hlm_name
 
     ! arguments
     class(fates_restart_interface_type) :: this
@@ -1404,8 +1404,8 @@ contains
 
  subroutine set_restart_vectors(this,nc,nsites,sites)
 
-   use FatesInterfaceMod, only : fates_maxElementsPerPatch
-   use FatesInterfaceMod, only : numpft
+   use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
+   use FatesInterfaceTypesMod, only : numpft
    use EDTypesMod, only : ed_site_type
    use EDTypesMod, only : ed_cohort_type
    use EDTypesMod, only : ed_patch_type
@@ -1955,7 +1955,7 @@ contains
      use EDTypesMod,           only : ed_cohort_type
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : maxSWb
-     use FatesInterfaceMod,    only : fates_maxElementsPerPatch
+     use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
      
      use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
@@ -2147,8 +2147,8 @@ contains
      use EDTypesMod, only : ed_cohort_type
      use EDTypesMod, only : ed_patch_type
      use EDTypesMod, only : maxSWb
-     use FatesInterfaceMod, only : numpft
-     use FatesInterfaceMod, only : fates_maxElementsPerPatch
+     use FatesInterfaceTypesMod, only : numpft
+     use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
      use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
@@ -2679,7 +2679,7 @@ contains
      use EDTypesMod, only            : ed_site_type
      use EDTypesMod, only            : ed_patch_type
      use EDSurfaceRadiationMod, only : PatchNormanRadiation
-     use FatesInterfaceMod, only     : hlm_numSWb
+     use FatesInterfaceTypesMod, only     : hlm_numSWb
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
