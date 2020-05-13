@@ -7,21 +7,21 @@ module EDPhysiologyMod
   ! ============================================================================
 
   use FatesGlobals, only         : fates_log
-  use FatesInterfaceMod, only    : hlm_days_per_year
-  use FatesInterfaceMod, only    : hlm_model_day
-  use FatesInterfaceMod, only    : hlm_freq_day
-  use FatesInterfaceMod, only    : hlm_day_of_year
-  use FatesInterfaceMod, only    : numpft
-  use FatesInterfaceMod, only    : nleafage
-  use FatesInterfaceMod, only    : hlm_use_planthydro
-  use FatesInterfaceMod, only    : hlm_parteh_mode
+  use FatesInterfaceTypesMod, only    : hlm_days_per_year
+  use FatesInterfaceTypesMod, only    : hlm_model_day
+  use FatesInterfaceTypesMod, only    : hlm_freq_day
+  use FatesInterfaceTypesMod, only    : hlm_day_of_year
+  use FatesInterfaceTypesMod, only    : numpft
+  use FatesInterfaceTypesMod, only    : nleafage
+  use FatesInterfaceTypesMod, only    : hlm_use_planthydro
+  use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : days_per_sec
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use EDPftvarcon      , only    : GetDecompyFrac
-  use FatesInterfaceMod, only    : bc_in_type
+  use FatesInterfaceTypesMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use EDCohortDynamicsMod , only : InitPRTObject
@@ -1430,7 +1430,7 @@ contains
     ! spawn new cohorts of juveniles of each PFT             
     !
     ! !USES:
-    use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
+    use FatesInterfaceTypesMod, only : hlm_use_ed_prescribed_phys
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target   :: currentSite
@@ -2234,9 +2234,9 @@ contains
 
     use EDTypesMod, only : AREA
     use FatesConstantsMod, only : sec_per_day
-    use FatesInterfaceMod, only : bc_in_type, bc_out_type
-    use FatesInterfaceMod, only : hlm_use_vertsoilc
-    use FatesInterfaceMod, only : hlm_numlevgrnd
+    use FatesInterfaceTypesMod, only : bc_in_type, bc_out_type
+    use FatesInterfaceTypesMod, only : hlm_use_vertsoilc
+    use FatesInterfaceTypesMod, only : hlm_numlevgrnd
     use FatesConstantsMod, only : itrue
     use FatesGlobals, only : endrun => fates_endrun
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel

@@ -10,7 +10,7 @@ module EDTypesMod
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,         only : all_carbon_elements
-  use PRTGenericMod,         only : num_organ_types
+  use PRTGenericMod,         only : num_element_types
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
@@ -23,7 +23,7 @@ module EDTypesMod
   integer, parameter, public :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
   integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
                                                      (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
-  integer, parameter, public :: maxCohortsPerPatch = 100  ! maximum number of cohorts per patch
+  integer,  public :: maxCohortsPerPatch = 100            ! maximum number of cohorts per patch
   
   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter, public :: ican_upper = 1            ! Nominal index for the upper canopy
@@ -189,7 +189,7 @@ module EDTypesMod
                                                         ! in PRTGenericMod.F90. examples are carbon12_element
                                                         ! nitrogen_element, etc.
 
-  integer, public :: element_pos(num_organ_types)       ! This is the reverse lookup
+  integer, public :: element_pos(num_element_types)       ! This is the reverse lookup
                                                         ! for element types. Pick an element
                                                         ! global index, and it gives you
                                                         ! the position in the element_list

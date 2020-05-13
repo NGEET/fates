@@ -6,18 +6,18 @@ module EDCohortDynamicsMod
   ! !USES: 
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
-  use FatesInterfaceMod     , only : hlm_freq_day
-  use FatesInterfaceMod     , only : bc_in_type
-  use FatesInterfaceMod     , only : hlm_use_planthydro
-  use FatesInterfaceMod     , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod     , only : hlm_freq_day
+  use FatesInterfaceTypesMod     , only : bc_in_type
+  use FatesInterfaceTypesMod     , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
-  use FatesInterfaceMod     , only : hlm_days_per_year
-  use FatesInterfaceMod     , only : nleafage
+  use FatesInterfaceTypesMod     , only : hlm_days_per_year
+  use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDPftvarcon           , only : GetDecompyFrac
@@ -38,8 +38,8 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : site_fluxdiags_type
   use EDTypesMod            , only : num_elements
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
-  use FatesInterfaceMod      , only : hlm_use_planthydro
-  use FatesInterfaceMod      , only : hlm_parteh_mode
+  use FatesInterfaceTypesMod      , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
   use FatesPlantHydraulicsMod, only : UpdateSizeDepPlantHydProps
@@ -953,7 +953,7 @@ contains
      ! !USES:
      use EDParamsMod , only :  ED_val_cohort_size_fusion_tol
      use EDParamsMod , only :  ED_val_cohort_age_fusion_tol
-     use FatesInterfaceMod , only :  hlm_use_cohort_age_tracking
+     use FatesInterfaceTypesMod , only :  hlm_use_cohort_age_tracking
      use FatesConstantsMod , only : itrue
      use FatesConstantsMod, only : days_per_year
      use EDTypesMod  , only : maxCohortsPerPatch
@@ -985,7 +985,6 @@ contains
      real(r8) :: leaf_c_target 
      real(r8) :: dynamic_size_fusion_tolerance
      real(r8) :: dynamic_age_fusion_tolerance
-     integer  :: maxCohortsPerPatch_age_tracking
      real(r8) :: dbh
      real(r8) :: leaf_c             ! leaf carbon [kg]
 
@@ -1004,11 +1003,6 @@ contains
      ! set the cohort age fusion tolerance (in fraction of years)
      dynamic_age_fusion_tolerance = ED_val_cohort_age_fusion_tol
 
-     if ( hlm_use_cohort_age_tracking .eq. itrue) then
-        maxCohortsPerPatch_age_tracking = 300
-     end if
-     
-     
      
      !This needs to be a function of the canopy layer, because otherwise, at canopy closure
      !the number of cohorts doubles and very dissimilar cohorts are fused together
@@ -1434,7 +1428,7 @@ contains
 
 
            if ( hlm_use_cohort_age_tracking .eq.itrue) then
-              if ( nocohorts > maxCohortsPerPatch_age_tracking ) then
+              if ( nocohorts > maxCohortsPerPatch ) then
                  iterate = 1
                  !---------------------------------------------------------------------!
                  ! Making profile tolerance larger means that more fusion will happen  !

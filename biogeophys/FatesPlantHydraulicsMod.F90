@@ -55,12 +55,12 @@ module FatesPlantHydraulicsMod
   use EDTypesMod        , only : AREA
   use EDTypesMod        , only : leaves_on
 
-  use FatesInterfaceMod  , only : bc_in_type
-  use FatesInterfaceMod  , only : bc_out_type
-  use FatesInterfaceMod  , only : hlm_use_planthydro
-  use FatesInterfaceMod  , only : hlm_ipedof
-  use FatesInterfaceMod  , only : numpft
-  use FatesInterfaceMod  , only : nlevsclass
+  use FatesInterfaceTypesMod  , only : bc_in_type
+  use FatesInterfaceTypesMod  , only : bc_out_type
+  use FatesInterfaceTypesMod  , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod  , only : hlm_ipedof
+  use FatesInterfaceTypesMod  , only : numpft
+  use FatesInterfaceTypesMod  , only : nlevsclass
 
   use FatesAllometryMod, only    : bleaf
   use FatesAllometryMod, only    : bsap_allom
