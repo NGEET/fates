@@ -410,7 +410,7 @@ contains
            sites(s)%spread     = init_spread_near_bare_ground
           if(hlm_use_nocomp.eq.itrue)then
            no_new_patches = numpft
-           allocate(newppft(numpft))
+!           allocate(newppft(numpft))
           else
            no_new_patches = 1
            newparea = area
@@ -441,7 +441,7 @@ contains
            if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode 
               allocate(newp)
               if(hlm_use_nocomp.eq.itrue)then
-               newp => newppft(nocomp_pft)
+             ! newp => newppft(nocomp_pft)
               endif
 
               call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
