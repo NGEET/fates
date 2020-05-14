@@ -26,10 +26,10 @@ module FATESPlantRespPhotosynthMod
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : itrue
    use FatesConstantsMod, only : nearzero
-   use FatesInterfaceMod, only : hlm_use_planthydro
-   use FatesInterfaceMod, only : hlm_parteh_mode
-   use FatesInterfaceMod, only : numpft
-   use FatesInterfaceMod, only : nleafage
+   use FatesInterfaceTypesMod, only : hlm_use_planthydro
+   use FatesInterfaceTypesMod, only : hlm_parteh_mode
+   use FatesInterfaceTypesMod, only : numpft
+   use FatesInterfaceTypesMod, only : nleafage
    use EDTypesMod,        only : maxpft
    use EDTypesMod,        only : nlevleaf
    use EDTypesMod,        only : nclmax
@@ -96,8 +96,8 @@ contains
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
     use EDTypesMod        , only : dinc_ed
-    use FatesInterfaceMod , only : bc_in_type
-    use FatesInterfaceMod , only : bc_out_type
+    use FatesInterfaceTypesMod , only : bc_in_type
+    use FatesInterfaceTypesMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
     use FatesConstantsMod, only : umolC_to_kgC
     use FatesConstantsMod, only : g_per_kg

@@ -8,20 +8,20 @@ module EDMainMod
   use shr_kind_mod             , only : r8 => shr_kind_r8
   
   use FatesGlobals             , only : fates_log
-  use FatesInterfaceMod        , only : hlm_freq_day
-  use FatesInterfaceMod        , only : hlm_day_of_year
-  use FatesInterfaceMod        , only : hlm_days_per_year
-  use FatesInterfaceMod        , only : hlm_current_year
-  use FatesInterfaceMod        , only : hlm_current_month
-  use FatesInterfaceMod        , only : hlm_current_day 
-  use FatesInterfaceMod        , only : hlm_use_planthydro 
-  use FatesInterfaceMod        , only : hlm_use_cohort_age_tracking
-  use FatesInterfaceMod        , only : hlm_reference_date
-  use FatesInterfaceMod        , only : hlm_use_ed_prescribed_phys
-  use FatesInterfaceMod        , only : hlm_use_ed_st3 
-  use FatesInterfaceMod        , only : bc_in_type
-  use FatesInterfaceMod        , only : hlm_masterproc
-  use FatesInterfaceMod        , only : numpft
+  use FatesInterfaceTypesMod        , only : hlm_freq_day
+  use FatesInterfaceTypesMod        , only : hlm_day_of_year
+  use FatesInterfaceTypesMod        , only : hlm_days_per_year
+  use FatesInterfaceTypesMod        , only : hlm_current_year
+  use FatesInterfaceTypesMod        , only : hlm_current_month
+  use FatesInterfaceTypesMod        , only : hlm_current_day 
+  use FatesInterfaceTypesMod        , only : hlm_use_planthydro 
+  use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod        , only : hlm_reference_date
+  use FatesInterfaceTypesMod        , only : hlm_use_ed_prescribed_phys
+  use FatesInterfaceTypesMod        , only : hlm_use_ed_st3 
+  use FatesInterfaceTypesMod        , only : bc_in_type
+  use FatesInterfaceTypesMod        , only : hlm_masterproc
+  use FatesInterfaceTypesMod        , only : numpft
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
@@ -280,7 +280,7 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
-    use FatesInterfaceMod, only : hlm_use_cohort_age_tracking
+    use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
     ! !ARGUMENTS:
     
@@ -721,7 +721,6 @@ contains
       if(call_index == final_check_id) then
           site_mass%old_stock = total_stock
           site_mass%err_fates = net_flux - change_in_stock
-          call site_mass%ZeroMassBalFlux()
       end if
 
    end do

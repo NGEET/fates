@@ -9,9 +9,9 @@ module ChecksBalancesMod
    use EDTypesMod,        only : site_massbal_type
    use EDTypesMod,        only : num_elements
    use EDTypesMod,        only : element_list
-   use FatesInterfaceMod, only : numpft
+   use FatesInterfaceTypesMod, only : numpft
    use FatesConstantsMod, only : g_per_kg
-   use FatesInterfaceMod, only : bc_in_type
+   use FatesInterfaceTypesMod, only : bc_in_type
    use FatesLitterMod,    only : litter_type
    use FatesLitterMod,    only : ncwd
    use FatesLitterMod,    only : ndcmpy
