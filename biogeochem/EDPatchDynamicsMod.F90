@@ -42,7 +42,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_days_per_year
   use FatesInterfaceMod    , only : numpft
- use FatesInterfaceMod    , only : hlm_use_nocomp
+  use FatesInterfaceMod    , only : hlm_use_nocomp
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -388,6 +388,8 @@ contains
     type (ed_patch_type) , pointer :: new_patch
     type (ed_patch_type) , pointer :: new_patch_primary
     type (ed_patch_type) , pointer :: new_patch_secondary
+    type (ed_patch_type) , pointer :: new_patch_primary_pft(:)
+    type (ed_patch_type) , pointer :: new_patch_secondary_pft(:)
     type (ed_patch_type) , pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_cohort_type), pointer :: nc
@@ -396,6 +398,8 @@ contains
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day    
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
+    real(r8) :: site_areadis_primary_pft(numpft) ! primary area disturbed per PFT in nocomp mode. m2/patch/day 
+    real(r8) :: site_areadis_secondary_pft(numpft) ! secondary area disturbed per PFT in nocomp mode. m2/patch/day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
     integer  :: tnull                        ! is there a tallest cohort?
@@ -410,7 +414,11 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
+    integer  :: rec_type                     ! records type of disturbance while in patch loop
+    integer :: nocomp_pft                   ! where nocomp mode is on, PFT label 
+
     !---------------------------------------------------------------------
+    ! Allocate PFT arrays of patches to form the new patches in nocomp mode. 
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
@@ -420,6 +428,8 @@ contains
 
     site_areadis_primary = 0.0_r8
     site_areadis_secondary = 0.0_r8    
+    site_areadis_primary_pft(1:numpft) = 0.0_r8
+    site_areadis_secondary_pft(1:numpft) = 0.0_r8 
 
     do while(associated(currentPatch))
 
@@ -444,18 +454,29 @@ contains
           ! donor patch is primary forest and the dominant disturbance type is not logging
           if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
                 (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
-             
-             site_areadis_primary = site_areadis_primary + currentPatch%area * currentPatch%disturbance_rate
+              site_areadis_primary = site_areadis_primary + currentPatch%area * currentPatch%disturbance_rate
+             rec_type = primaryforest
           else
-             site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate          
+             site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate     
+              rec_type = secondaryforest
           endif
-          
-       end if
 
+         ! accumulate PFT specific disturbance rates in nocomp mode
+          if(hlm_use_nocomp.eq.itrue)then
+             if(rec_type.eq.primaryforest)then
+                nocomp_pft = currentPatch%nocomp_pft_label
+                site_areadis_primary_pft(nocomp_pft) = site_areadis_primary_pft(nocomp_pft) &
+                + currentPatch%area * currentPatch%disturbance_rate
+             else
+                site_areadis_secondary_pft(nocomp_pft) = site_areadis_secondary_pft(nocomp_pft) &
+               + currentPatch%area * currentPatch%disturbance_rate
+             end if  !rectype
+          end if !nocomp
+       end if !area
        currentPatch => currentPatch%older     
     enddo ! end loop over patches. sum area disturbed for all patches. 
 
-    ! It is possible that no disturbance area was generated
+     ! It is possible that no disturbance area was generated
     if ( (site_areadis_primary + site_areadis_secondary) > nearzero) then  
        
        age = 0.0_r8
