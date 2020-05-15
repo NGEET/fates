@@ -1194,7 +1194,7 @@ contains
              
              ! Compare with Medlyn model: gs_mol = 1.6*(1+m/sqrt(vpd)) * an/leaf_co2_ppress*p + b
               if ( stomatal_model == 2 ) then
-                 gs_mol_err = 1.6*(1 + medlyn_slope(ft)/sqrt(vpd))*max(anet,0._r8)/leaf_co2_ppress*can_press + stomatal_intercept_btran
+                 gs_mol_err = h2o_co2_stoma_diffuse_ratio*(1 + medlyn_slope(ft)/sqrt(vpd))*max(anet,0._r8)/leaf_co2_ppress*can_press + stomatal_intercept_btran
              ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress*p + b             
               else if ( stomatal_model == 1 ) then 
                  hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
