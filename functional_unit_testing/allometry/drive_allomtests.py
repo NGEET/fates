@@ -720,14 +720,11 @@ if(True):
     ax.ticklabel_format(style='plain')
     ax.set_xlabel('diameter [cm]')
     ax.set_ylabel('[m2/m2]')
-    ax.set_title('In-Crown LAI')
+    ax.set_title('Untrimmed In-Crown LAI')
     ax.grid(True)
     plt.tight_layout()
 
 
-#    print(blmaxi[2,:])
-#    print(bfrmax[2,:])
-#    print(bstore[2,:])
-#    print(bsapd[2,:])
+
 
 plt.show()
