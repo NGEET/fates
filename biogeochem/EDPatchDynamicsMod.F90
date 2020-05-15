@@ -419,6 +419,8 @@ contains
 
     !---------------------------------------------------------------------
     ! Allocate PFT arrays of patches to form the new patches in nocomp mode. 
+    allocate(new_patch_primary_pft(numpft))
+    allocate(new_patch_secondary_pft(numpft))
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
@@ -484,8 +486,8 @@ contains
        ! create two empty patches, to absorb newly disturbed primary and secondary forest area
        ! first create patch to receive primary forest area
        if ( site_areadis_primary .gt. nearzero ) then
+        if(hlm_use_nocomp.eq.ifalse)then
           allocate(new_patch_primary)
-
           call create_patch(currentSite, new_patch_primary, age, &
                 site_areadis_primary, primaryforest,1)
           
@@ -503,11 +505,29 @@ contains
           new_patch_primary%tallest  => null()
           new_patch_primary%shortest => null()
 
-       endif
+         else !nocomp
+             do nocomp_pft=1,numpft ! looping round a new patch for each present PFT. 
+!                allocate(new_patch_primary_pft(nocompt_pft))
+                if( site_areadis_primary_pft(nocomp_pft) .gt. nearzero ) then
+                   call create_patch(currentSite, new_patch_primary_pft(nocomp_pft), age, &
+                   site_areadis_primary_pft(nocomp_pft), primaryforest,nocomp_pft)
+                   ! Initialize the litter pools to zero
+                   do el=1,num_elements
+                      call new_patch_primary%litter(el)%InitConditions(&
+                      init_leaf_fines=0._r8, init_root_fines=0._r8,  init_ag_cwd=0._r8, &
+                      init_bg_cwd    =0._r8,  init_seed  =0._r8, init_seed_germ=0._r8)
+                   end do
+                   new_patch_primary%tallest  => null()
+                   new_patch_primary%shortest => null()
+                 end if !area
+              end do !pft
+           endif !nocomp
+       end if !primary
 
 
        ! next create patch to receive secondary forest area
        if ( site_areadis_secondary .gt. nearzero) then
+         if(hlm_use_nocomp.eq.ifalse)then
           allocate(new_patch_secondary)
           call create_patch(currentSite, new_patch_secondary, age, &
                 site_areadis_secondary, secondaryforest,1)
@@ -526,7 +546,22 @@ contains
           new_patch_secondary%tallest  => null()
           new_patch_secondary%shortest => null() 
 
-       endif
+else !nocomp                                                                                                            
+             do nocomp_pft=1,numpft ! looping round a new patch for each present PFT.                                                             allocate(new_patch_secondary)
+                if( site_areadis_secondary_pft(nocomp_pft) .gt. nearzero ) then
+                   call create_patch(currentSite, new_patch_secondary_pft(nocomp_pft), age, &
+                   site_areadis_secondary_pft(nocomp_pft), secondaryforest,nocomp_pft)
+                   do el=1,num_elements
+                      call new_patch_secondary%litter(el)%InitConditions(&
+                      init_leaf_fines=0._r8, init_root_fines=0._r8,  init_ag_cwd=0._r8, &
+                      init_bg_cwd    =0._r8,  init_seed  =0._r8, init_seed_germ=0._r8)
+                   end do
+                   new_patch_secondary%tallest  => null()
+                   new_patch_secondary%shortest => null()
+                 end if !area                                                                                              
+              end do !pft           
+           endif !nocomp    
+       endif !secondary
     
        ! loop round all the patches that contribute surviving indivduals and litter 
        ! pools to the new patch.  We only loop the pre-existing patches, so 
