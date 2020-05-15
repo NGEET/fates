@@ -169,7 +169,7 @@ contains
     real(r8) :: mm_ko2             ! Michaelis-Menten constant for O2 (Pa)
     real(r8) :: co2_cpoint         ! CO2 compensation point (Pa)
     real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1) 
-    real(r8) :: stomatal_intercept_btran   ! minimum leaf conductance (umol H2O/m**2/s)
+    real(r8) :: stomatal_intercept_btran   ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
     real(r8) :: kn                 ! leaf nitrogen decay coefficient
     real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
     real(r8) :: gb_mol             ! leaf boundary layer conductance (molar form: [umol /m**2/s])
@@ -257,7 +257,7 @@ contains
          slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
                                                   ! projected area basis [m^2/gC]
          woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not?
-         stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept ) !stomatal intercept for Ball-Berry model and Medlyn model
+         stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept ) !Unstressed minimum stomatal conductance
 
 
 
@@ -884,7 +884,7 @@ contains
    real(r8), intent(in) :: can_co2_ppress  ! Partial pressure of CO2 NEAR the leaf surface (Pa) 
    real(r8), intent(in) :: can_o2_ppress   ! Partial pressure of O2 NEAR the leaf surface (Pa) 
    real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1) 
-   real(r8), intent(in) :: stomatal_intercept_btran ! minimum leaf conductance (umol H2O/m**2/s)
+   real(r8), intent(in) :: stomatal_intercept_btran !water-stressed minimum stomatal conductance (umol H2O/m**2/s)
    real(r8), intent(in) :: cf              ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
    real(r8), intent(in) :: gb_mol          ! leaf boundary layer conductance (umol /m**2/s)
    real(r8), intent(in) :: ceair           ! vapor pressure of air, constrained (Pa)
@@ -958,12 +958,10 @@ contains
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
 
-   !Flag for stomatal conductance model method, 1 for Ball-Berry, 2 for Medlyn
-   !integer, parameter :: stomatalcond_mtd
    
    associate( bb_slope  => EDPftvarcon_inst%BB_slope      ,& ! slope of BB relationship, unitless
       medlyn_slope=> EDPftvarcon_inst%medlyn_slope          , & ! Slope for Medlyn stomatal conductance model method, the unit is KPa^0.5
-      stomatal_intercept=> EDPftvarcon_inst%stomatal_intercept )  !Intercept for Medlyn & Ball Berry stomatal conductance model method, the unit is umol/m**2/s
+      stomatal_intercept=> EDPftvarcon_inst%stomatal_intercept )  !Unstressed minimum stomatal conductance, the unit is umol/m**2/s
       
    
 
@@ -1193,15 +1191,20 @@ contains
                  write (fates_log(),*)'gs_mol= ',gs_mol
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
-              
-              ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress p + b
-              hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
-              gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
-              
-              if (abs(gs_mol-gs_mol_err) > 1.e-01_r8 .and.  (stomatal_model == 1)) then
-               write (fates_log(),*) 'CF: Ball-Berry error check - stomatal conductance error:'
-               write (fates_log(),*) gs_mol, gs_mol_err
-            end if
+             
+             ! Compare with Medlyn model: gs_mol = 1.6*(1+m/sqrt(vpd)) * an/leaf_co2_ppress*p + b
+              if ( stomatal_model == 2 ) then
+                 gs_mol_err = 1.6*(1 + medlyn_slope(ft)/sqrt(vpd))*max(anet,0._r8)/leaf_co2_ppress*can_press + stomatal_intercept_btran
+             ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress*p + b             
+              else if ( stomatal_model == 1 ) then 
+                 hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
+                 gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
+              end if
+
+              if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
+                 write (fates_log(),*) 'Stomatal model error check - stomatal conductance error:'
+                 write (fates_log(),*) gs_mol, gs_mol_err
+              end if
               
            enddo !sunsha loop
 

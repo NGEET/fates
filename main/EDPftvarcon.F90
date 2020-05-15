@@ -53,7 +53,7 @@ module EDPftvarcon
      real(r8), allocatable :: seed_suppl(:)           ! seeds that come from outside the gridbox.
      real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
      real(r8), allocatable :: medlyn_slope(:)         ! Medlyn slope parameter KPa^0.5
-     real(r8), allocatable :: stomatal_intercept(:)   ! Stomatal intercept parameter umol/m**2/s
+     real(r8), allocatable :: stomatal_intercept(:)   ! intercept of stomatal conductance model (or unstressed minimum conductance) umol/m**2/s
      
      real(r8), allocatable :: seed_alloc_mature(:)   ! fraction of carbon balance allocated to 
                                                      ! clonal reproduction.
