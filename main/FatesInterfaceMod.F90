@@ -991,7 +991,7 @@ contains
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_fixed_biogeog = unset_int
-         hlm_use_nocomp = unset_int    
+         !hlm_use_nocomp = unset_int    ! future reduced complexity mode
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
@@ -1199,12 +1199,13 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-        if(hlm_use_nocomp.eq.unset_int) then
-              if(fates_global_verbose()) then
-             write(fates_log(), *) 'switch for no competition mode. '
-            end if
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
+        ! Future reduced complexity mode   
+        !if(hlm_use_nocomp.eq.unset_int) then
+        !      if(fates_global_verbose()) then
+        !     write(fates_log(), *) 'switch for no competition mode. '
+        !    end if
+        !   call endrun(msg=errMsg(sourcefile, __LINE__))
+        ! end if
 
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
             if (fates_global_verbose()) then
@@ -1295,12 +1296,13 @@ contains
                if (fates_global_verbose()) then
                    write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
                end if
-               
-            case('use_nocomp')
-                hlm_use_nocomp = ival
-               if (fates_global_verbose()) then
-                   write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
-               end if
+            
+            ! Future reduced complexity mode   
+            !case('use_nocomp')
+            !    hlm_use_nocomp = ival
+            !   if (fates_global_verbose()) then
+            !       write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
+            !   end if
 
 
             case('use_planthydro')
