@@ -76,6 +76,7 @@ module FatesInterfaceMod
    public :: allocate_bcin
    public :: allocate_bcout
    public :: zero_bcs
+   public :: set_bcs
 
 contains
 
