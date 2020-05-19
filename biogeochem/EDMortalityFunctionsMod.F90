@@ -13,13 +13,13 @@ module EDMortalityFunctionsMod
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
-   use FatesInterfaceMod     , only : bc_in_type
-   use FatesInterfaceMod     , only : hlm_use_ed_prescribed_phys
-   use FatesInterfaceMod     , only : hlm_freq_day
-   use FatesInterfaceMod     , only : hlm_use_planthydro
+   use FatesInterfaceTypesMod     , only : bc_in_type
+   use FatesInterfaceTypesMod     , only : hlm_use_ed_prescribed_phys
+   use FatesInterfaceTypesMod     , only : hlm_freq_day
+   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
-   use FatesInterfaceMod     , only : bc_in_type
+   use FatesInterfaceTypesMod     , only : bc_in_type
 
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : store_organ
@@ -50,7 +50,7 @@ contains
     ! ============================================================================
     
     use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
-    use FatesInterfaceMod        , only : hlm_hio_ignore_val   
+    use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val   
     use FatesConstantsMod,  only : fates_check_param_set
     
     type (ed_cohort_type), intent(in) :: cohort_in 
@@ -62,7 +62,7 @@ contains
     real(r8),intent(out) :: smort  ! size dependent senescence term
     real(r8),intent(out) :: asmort ! age dependent senescence term 
 
-
+    integer  :: ifp
     real(r8) :: frac  ! relativised stored carbohydrate
     real(r8) :: leaf_c_target      ! target leaf biomass kgC
     real(r8) :: store_c
@@ -128,9 +128,9 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
     if(hlm_use_planthydro.eq.itrue)then
      !note the flc is set as the fraction of max conductivity in hydro
-     min_fmc_ag = minval(cohort_in%co_hydr%flc_ag(:))
-     min_fmc_tr = minval(cohort_in%co_hydr%flc_troot(:))
-     min_fmc_ar = minval(cohort_in%co_hydr%flc_aroot(:))
+     min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
+     min_fmc_tr = cohort_in%co_hydr%ftc_troot
+     min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
      min_fmc = min(min_fmc_ag, min_fmc_tr)
      min_fmc = min(min_fmc, min_fmc_ar)
      flc = 1.0_r8-min_fmc
@@ -173,7 +173,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
     !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
 
-    temp_in_C = bc_in%t_veg24_si - tfrz
+    ifp = cohort_in%patchptr%patchno
+    temp_in_C = bc_in%t_veg24_pa(ifp) - tfrz
     temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
                          EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
     frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
@@ -217,7 +218,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !
     ! !USES:
 
-    use FatesInterfaceMod, only : hlm_freq_day
+    use FatesInterfaceTypesMod, only : hlm_freq_day
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite

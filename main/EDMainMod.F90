@@ -8,20 +8,20 @@ module EDMainMod
   use shr_kind_mod             , only : r8 => shr_kind_r8
   
   use FatesGlobals             , only : fates_log
-  use FatesInterfaceMod        , only : hlm_freq_day
-  use FatesInterfaceMod        , only : hlm_day_of_year
-  use FatesInterfaceMod        , only : hlm_days_per_year
-  use FatesInterfaceMod        , only : hlm_current_year
-  use FatesInterfaceMod        , only : hlm_current_month
-  use FatesInterfaceMod        , only : hlm_current_day 
-  use FatesInterfaceMod        , only : hlm_use_planthydro 
-  use FatesInterfaceMod        , only : hlm_use_cohort_age_tracking
-  use FatesInterfaceMod        , only : hlm_reference_date
-  use FatesInterfaceMod        , only : hlm_use_ed_prescribed_phys
-  use FatesInterfaceMod        , only : hlm_use_ed_st3 
-  use FatesInterfaceMod        , only : bc_in_type
-  use FatesInterfaceMod        , only : hlm_masterproc
-  use FatesInterfaceMod        , only : numpft
+  use FatesInterfaceTypesMod        , only : hlm_freq_day
+  use FatesInterfaceTypesMod        , only : hlm_day_of_year
+  use FatesInterfaceTypesMod        , only : hlm_days_per_year
+  use FatesInterfaceTypesMod        , only : hlm_current_year
+  use FatesInterfaceTypesMod        , only : hlm_current_month
+  use FatesInterfaceTypesMod        , only : hlm_current_day 
+  use FatesInterfaceTypesMod        , only : hlm_use_planthydro 
+  use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod        , only : hlm_reference_date
+  use FatesInterfaceTypesMod        , only : hlm_use_ed_prescribed_phys
+  use FatesInterfaceTypesMod        , only : hlm_use_ed_st3 
+  use FatesInterfaceTypesMod        , only : bc_in_type
+  use FatesInterfaceTypesMod        , only : hlm_masterproc
+  use FatesInterfaceTypesMod        , only : numpft
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
@@ -60,13 +60,13 @@ module EDMainMod
   use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesConstantsMod        , only : nearzero
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
-  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
-  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
-  use FatesPlantHydraulicsMod  , only : initTreeHydStates
-  use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydProps
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydStates
+  use FatesPlantHydraulicsMod  , only : InitPlantHydStates
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
-  use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
@@ -256,12 +256,8 @@ contains
        ! 'rhizosphere geometry' (column-level root biomass + rootfr --> root length 
        ! density --> node radii and volumes)
        if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-          call updateSizeDepRhizHydProps(currentSite, bc_in)
-          call updateSizeDepRhizHydStates(currentSite, bc_in)
-          !       if(nshell > 1) then  (THIS BEING CHECKED INSIDE OF the update)
-          !          call updateSizeDepRhizHydStates(currentSite, c, soilstate_inst, &
-          !                waterstate_inst)
-          !       end if
+          call UpdateSizeDepRhizHydProps(currentSite, bc_in)
+          call UpdateSizeDepRhizHydStates(currentSite, bc_in)
        end if
     end if
 
@@ -284,7 +280,7 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
-    use FatesInterfaceMod, only : hlm_use_cohort_age_tracking
+    use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
     ! !ARGUMENTS:
     
@@ -439,8 +435,8 @@ contains
           ! (size --> heights of elements --> hydraulic path lengths --> 
           ! maximum node-to-node conductances)
           if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-             call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)
-             call updateSizeDepTreeHydStates(currentSite,currentCohort)
+             call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
+             call UpdateSizeDepPlantHydStates(currentSite,currentCohort)
           end if
 
           ! if we are in age-dependent mortality mode
@@ -727,7 +723,6 @@ contains
       if(call_index == final_check_id) then
           site_mass%old_stock = total_stock
           site_mass%err_fates = net_flux - change_in_stock
-          call site_mass%ZeroMassBalFlux()
       end if
 
    end do

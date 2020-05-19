@@ -2267,6 +2267,8 @@ contains
 !        end if
 
 
+
+
         ! Check if the fraction of storage used for flushing deciduous trees
         ! is greater than zero, and less than or equal to 1.
 
@@ -2694,7 +2696,28 @@ contains
         end if
 
 
-     end do
+    end do
+
+!!    ! Checks for HYDRO
+!!    if( hlm_use_planthydro == itrue ) then
+!!     
+!!        do ipft=1,numpft
+!!            
+!!            ! Calculate fine-root density and see if the result
+!!            ! is reasonable.
+!!            ! kg/m3
+!!
+!!            dens_aroot = 1._r8/(g_per_kg*pi_const*EDPftvarcon_inst%hydr_rs2(ipft)**2.0_r8*EDPftvarcon_inst%hydr_srl(ipft))
+!!
+!!            if(rho_aroot>max_dens_aroot .or. dens_aroot<min_dens_aroot)then
+!!                write(fates_log(),*) 'The two parameters controling fine root radius'
+!!                write(fates_log(),*) 'and specific root length, have generated'
+!!                write(fates_log(),*) 'a strange root density.'
+!!                call endrun(msg=errMsg(sourcefile, __LINE__))
+!!            end if
+!!
+!!        end if
+!!    end do
 
 
      return

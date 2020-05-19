@@ -12,7 +12,7 @@ module FatesParameterDerivedMod
   use FatesConstantsMod,     only : r8 => fates_r8
   use FatesConstantsMod,     only : umolC_to_kgC
   use FatesConstantsMod,     only : g_per_kg
-  use FatesInterfaceMod,     only : nleafage
+  use FatesInterfaceTypesMod,     only : nleafage
   
   implicit none
   private
