@@ -18,6 +18,8 @@ module FatesIOVariableKindMod
   character(*), parameter, public :: site_ground_r8 = 'SI_GRND_R8'
   character(*), parameter, public :: site_size_pft_r8 = 'SI_SCPF_R8'
   character(*), parameter, public :: site_size_r8 = 'SI_SCLS_R8'
+  character(*), parameter, public :: site_coage_pft_r8 = 'SI_CAPF_R8'
+  character(*), parameter, public :: site_coage_r8 = 'SI_CACLS_R8'
   character(*), parameter, public :: patch_int = 'PA_INT'
   character(*), parameter, public :: cohort_r8 = 'CO_R8'
   character(*), parameter, public :: cohort_int = 'CO_INT'

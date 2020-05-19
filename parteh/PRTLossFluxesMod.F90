@@ -18,8 +18,7 @@ module PRTLossFluxesMod
   use PRTGenericMod, only : check_initialized
   use PRTGenericMod, only : num_organ_types
   use PRTGenericMod, only : prt_global
-  use FatesInterfaceMod, only : hlm_freq_day
-
+  use FatesConstantsMod, only : years_per_day
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : i4 => fates_int
   use FatesConstantsMod, only : nearzero
@@ -651,9 +650,9 @@ contains
       ! -----------------------------------------------------------------------------------
       
       if ( EDPftvarcon_inst%branch_turnover(ipft) > nearzero ) then
-         base_turnover(sapw_organ)   = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
-         base_turnover(struct_organ) = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
-         base_turnover(store_organ)  = hlm_freq_day / EDPftvarcon_inst%branch_turnover(ipft)
+         base_turnover(sapw_organ)   = years_per_day / EDPftvarcon_inst%branch_turnover(ipft)
+         base_turnover(struct_organ) = years_per_day / EDPftvarcon_inst%branch_turnover(ipft)
+         base_turnover(store_organ)  = years_per_day / EDPftvarcon_inst%branch_turnover(ipft)
       else
          base_turnover(sapw_organ)   = 0.0_r8
          base_turnover(struct_organ) = 0.0_r8
@@ -664,7 +663,7 @@ contains
       ! life-span is selected
       ! ---------------------------------------------------------------------------------
       if ( EDPftvarcon_inst%root_long(ipft) > nearzero ) then
-         base_turnover(fnrt_organ) = hlm_freq_day / EDPftvarcon_inst%root_long(ipft)
+         base_turnover(fnrt_organ) = years_per_day / EDPftvarcon_inst%root_long(ipft)
       else
          base_turnover(fnrt_organ) = 0.0_r8
       end if
@@ -681,11 +680,11 @@ contains
            (EDPftvarcon_inst%evergreen(ipft) == itrue) ) then
 
          if(is_drought) then
-            base_turnover(leaf_organ) = hlm_freq_day / &
+            base_turnover(leaf_organ) = years_per_day / &
                   (EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id) * &
                   EDPftvarcon_inst%senleaf_long_fdrought(ipft) ) 
          else
-            base_turnover(leaf_organ) = hlm_freq_day / &
+            base_turnover(leaf_organ) = years_per_day / &
                   EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id)
          end if
       else

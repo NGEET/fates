@@ -12,7 +12,7 @@ module EDInitMod
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
-  use FatesInterfaceMod         , only : hlm_is_restart
+  use FatesInterfaceTypesMod         , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
@@ -35,12 +35,14 @@ module EDInitMod
   use EDTypesMod                , only : phen_dstat_moistoff
   use EDTypesMod                , only : phen_cstat_notcold
   use EDTypesMod                , only : phen_dstat_moiston
-  use FatesInterfaceMod         , only : bc_in_type
-  use FatesInterfaceMod         , only : hlm_use_planthydro
-  use FatesInterfaceMod         , only : hlm_use_inventory_init
-  use FatesInterfaceMod         , only : numpft
-  use FatesInterfaceMod         , only : nleafage
-  use FatesInterfaceMod         , only : nlevsclass
+  use EDTypesMod                , only : element_pos
+  use FatesInterfaceTypesMod         , only : bc_in_type
+  use FatesInterfaceTypesMod         , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
+  use FatesInterfaceTypesMod         , only : numpft
+  use FatesInterfaceTypesMod         , only : nleafage
+  use FatesInterfaceTypesMod         , only : nlevsclass
+  use FatesInterfaceTypesMod         , only : nlevcoage
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
@@ -50,7 +52,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bdead_allom
   use FatesAllometryMod         , only : bstore_allom
 
-  use FatesInterfaceMod,      only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : prt_vartypes
@@ -81,6 +83,7 @@ module EDInitMod
   public  :: init_patches
   public  :: set_site_properties
   private :: init_cohorts
+
 
   ! ============================================================================
 
@@ -410,7 +413,7 @@ contains
      ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
      if (hlm_use_planthydro.eq.itrue) then 
         do s = 1, nsites
-	   sitep => sites(s)
+           sitep => sites(s)
            call updateSizeDepRhizHydProps(sitep, bc_in(s))
         end do
      end if
@@ -471,6 +474,7 @@ contains
        temp_cohort%pft         = pft
        temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
+       
 
        ! Calculate the plant diameter from height
        call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
@@ -529,6 +533,9 @@ contains
 
        if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
+       temp_cohort%coage = 0.0_r8
+       
+       
        ! --------------------------------------------------------------------------------
        ! Initialize the mass of every element in every organ of the organ
        ! --------------------------------------------------------------------------------
@@ -596,9 +603,9 @@ contains
        call prt_obj%CheckInitialConditions()
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-            temp_cohort%dbh, prt_obj, temp_cohort%laimemory, temp_cohort%sapwmemory, &
-            temp_cohort%structmemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, &
-            site_in%spread, bc_in)
+            temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%laimemory, &
+            temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
+             temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 
