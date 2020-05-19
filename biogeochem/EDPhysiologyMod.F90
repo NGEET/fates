@@ -1206,7 +1206,7 @@ contains
     ! !USES:
     use EDTypesMod, only : area
     use EDTypesMod, only : homogenize_seed_pfts
-    use FatesInterfaceMod,  only : hlm_use_fixed_biogeog
+    !use FatesInterfaceTypesMod,  only : hlm_use_fixed_biogeog    ! For future reduced complexity?
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
