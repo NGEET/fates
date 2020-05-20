@@ -574,7 +574,6 @@ contains
              patch_site_areadis = 0.0_r8
            endif
          endif 
-           write(*,*) 'patch donor pft loop' ,currentPatch%nocomp_pft_label,nocomp_pft,&
            patch_site_areadis,currentpatch%patchno,currentPatch%disturbance_rate
 
           if ( patch_site_areadis > nearzero ) then
@@ -1098,8 +1097,6 @@ contains
              call terminate_cohorts(currentSite, new_patch_secondary, 2,18)
              call sort_cohorts(new_patch_secondary)
           endif
-      write(*,*) 'pft loop', nocomp_pft
-
 
      end do ! PFT loop for nocomp
     endif !end new_patch area 
@@ -2663,6 +2660,7 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                   fusingPatch => olderPatch
                enddo !fusing patch
 
+               if(associated(currentPatch).and.found_fusion_patch.eq.ifalse)then
                ! if no older patches, search younger ones. 
                fusingPatch => currentPatch%younger
                do while(associated(fusingPatch).and.found_fusion_patch.eq.ifalse )
@@ -2683,6 +2681,11 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                   endif ! PFT 
                   fusingPatch => olderPatch
                enddo !fusing patch
+             endif !current patch exists.
+            if(found_fusion_patch.eq.itrue)then
+              currentPatch => fusingPatch
+            endif
+
              endif ! not youngest, or is very small patch
           endif !nocomp
        endif ! small area
@@ -2694,6 +2697,7 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
        ! we would had been at the end of the loop, and left with an incredibly small patch.
        ! Think this is impossible? No, this really happens, especially when we have fires.
        ! So, we don't move forward until we have merged enough area into this thing.
+
 
        if(currentPatch%area > min_patch_area_forced)then
           currentPatch => currentPatch%older
