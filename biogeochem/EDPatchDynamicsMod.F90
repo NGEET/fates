@@ -574,7 +574,6 @@ contains
              patch_site_areadis = 0.0_r8
            endif
          endif 
-           patch_site_areadis,currentpatch%patchno,currentPatch%disturbance_rate
 
           if ( patch_site_areadis > nearzero ) then
 
@@ -2474,6 +2473,7 @@ contains
     ! Define some aliases for the donor patches younger and older neighbors
     ! which may or may not exist.  After we set them, we will remove the donor
     ! And then we will go about re-setting the map.
+
     if(associated(dp%older))then
        olderp => dp%older
     else
@@ -2484,6 +2484,9 @@ contains
     else
        youngerp => null()
     end if
+
+
+
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
     call dealloc_patch(dp)
@@ -2532,6 +2535,7 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
     type(ed_patch_type), pointer :: olderPatch
+    type(ed_patch_type), pointer :: oldercPatch
     type(ed_patch_type), pointer :: youngerPatch
     type(ed_patch_type), pointer :: fusingPatch 
     integer, parameter           :: max_cycles = 10  ! After 10 loops through
@@ -2565,7 +2569,8 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
-       
+ write(*,*) 'currentPatch1',currentPatch%patchno,currentPatch%nocomp_pft_label
+       oldercpatch => currentPatch%older       
        if(currentPatch%area <= min_patch_area)then
 
          if(hlm_use_fixed_biogeog.eq.ifalse)then !just fuse to older or younger cohort.
@@ -2628,6 +2633,11 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
               if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
                 is_youngest = ifalse ! we found a yonger patch, so this isn't the youngest one. 
               endif ! PFT
+              if(associated(fusingpatch%younger))then
+                if(fusingpatch%patchno.eq.fusingpatch%younger%patchno)then
+                 write(*,*) 'is_youngest patch list error',fusingpatch%patchno,fusingpatch%younger%patchno
+                endif
+               endif
               fusingPatch => fusingPatch%younger 
             enddo !fusing patch
 
@@ -2648,7 +2658,12 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                fusingPatch => currentPatch%older
                do while(associated(fusingPatch).and.found_fusion_patch.eq.ifalse )
                   olderPatch => fusingPatch%older
-                  if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
+               if(associated(fusingpatch%younger))then
+                if(fusingpatch%patchno.eq.fusingpatch%younger%patchno)then
+                 write(*,*) 'fuse older patch list error',fusingpatch%patchno,fusingpatch%younger%patchno
+                endif
+               endif
+                   if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
                      if(debug) &
                         write(fates_log(),*) 'fusing to older patch of same PFT - this one is too small',&
                         currentPatch%area,   fusingPatch%area, &
@@ -2665,9 +2680,9 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                fusingPatch => currentPatch%younger
                do while(associated(fusingPatch).and.found_fusion_patch.eq.ifalse )
 
-              if(fusingPatch%patchno.eq.currentPatch%younger%patchno)then
-                 write(*,*) 'something weird with younger pointer here',fusingPatch%patchno,currentPatch%younger%patchno
-              end if
+                  if(fusingPatch%patchno.eq.currentPatch%younger%patchno)then
+                   write(*,*) 'something weird with younger pointer here',fusingPatch%patchno,currentPatch%younger%patchno
+                  end if
                   olderPatch => fusingPatch%older
                   if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
                      if(debug) &
@@ -2700,12 +2715,13 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
 
 
        if(currentPatch%area > min_patch_area_forced)then
-          currentPatch => currentPatch%older
+          currentPatch => oldercPatch
           count_cycles = 0
        else
           count_cycles = count_cycles + 1
        end if
-      
+!       write(*,*) 'currentPatch2',currentPatch%patchno,currentPatch%nocomp_pft_label
+
        if(count_cycles > max_cycles) then
         if(is_oldest.eq.itrue.and.is_youngest.eq.itrue.and.hlm_use_fixed_biogeog)then 
           write(fates_log(),*) 'this is the only patch of this PFT'
@@ -2727,20 +2743,27 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
           ! Note to user. If you DO decide to remove the end-run above this line
           ! Make sure that you keep the pointer below this line, or you will get
           ! an infinite loop.
-          currentPatch => currentPatch%older
+          currentPatch => oldercPatch
           count_cycles = 0
         end if !only patch
        end if  !count cycles
-      call set_patchno(currentSite)
+      call set_patchno(currentSite) !redo patch numbering for every potential termination. 
+      !n.b. could put filter in here for actual terminations to save time. 
 
     fusingpatch => currentSite%oldest_patch
     write(*,*) 'tp end list'
     do while(associated(fusingpatch))
         write(*,*) 'tp end y-o patch list',fusingpatch%patchno,fusingpatch%nocomp_pft_label,fusingpatch%area
-       fusingpatch => fusingpatch%younger
+
+       if(associated(fusingpatch%younger))then
+        if(fusingpatch%patchno.eq.fusingpatch%younger%patchno)then
+         write(*,*) 'patch list error',fusingpatch%patchno,fusingpatch%younger%patchno
+        endif
+       endif
+      fusingpatch => fusingpatch%younger
     enddo
 
-    enddo !patch loop
+    enddo ! current patch loop
     
     !check area is not exceeded
     call check_patch_area( currentSite )
