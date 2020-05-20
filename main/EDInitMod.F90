@@ -440,9 +440,6 @@ contains
 
            if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode 
               allocate(newp)
-              if(hlm_use_nocomp.eq.itrue)then
-             ! newp => newppft(nocomp_pft)
-              endif
 
               call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
              
@@ -464,7 +461,6 @@ contains
                 sites(s)%youngest_patch   => newp
               end if
               recall_older_patch => newp ! remember this patch for the next one to point at. 
-              write(*,*) 'ed init litter01',s,sites(s)%oldest_patch%area
 
               ! Initialize the litter pools to zero, these
               ! pools will be populated by looping over the existing patches
@@ -477,9 +473,6 @@ contains
                    init_seed=0._r8,   &
                    init_seed_germ=0._r8)
              end do
-              write(*,*) 'ed init litter02',s,sites(s)%oldest_patch%area
-              write(*,*) 'ed init litter03',s,sites(s)%oldest_patch%litter(1)%ag_cwd(1)
-!             write(*,*) 'ed init litter04',s,sites(1)%oldest_patch%litter(1)%ag_cwd(1)
 
               sitep => sites(s)
               call init_cohorts(sitep, newp, bc_in(s))
@@ -505,16 +498,10 @@ contains
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                    biomass_stock,litter_stock,seed_stock)
           end do
-          write(*,*) 'ed init litter05',s,sites(s)%oldest_patch%area
-          write(*,*) 'call set_patchno',s 
+
           call set_patchno(sites(s))
-          write(*,*) 'after set_patchno',s
 !          deallocate(recall_older_patch)
 
-         write(*,*) 'ed init litter06', s,sites(s)%oldest_patch%area
-!         write(*,*) 'ed init litter15',s,sites(1)%oldest_patch%area
-!         write(*,*) 'ed init litter2', s,sites(s)%oldest_patch%litter(1)%ag_cwd(1)
-!         write(*,*) 'ed init litter25',s,sites(1)%oldest_patch%litter(1)%ag_cwd(1)
         enddo !s
         write(*,*)'end init'
      end if
