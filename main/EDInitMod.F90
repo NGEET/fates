@@ -304,10 +304,23 @@ contains
            ! re-normalize PFT area to ensure it sums to one.
            ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM) 
            ! the bare ground will no longer be proscribed and should emerge from FATES
+
+            do ft =  1,numpft
+              if(sites(s)%area_pft(ft).lt.0.01_r8)then
+                 sites(s)%area_pft(ft)=0.0_r8 !remove tiny patches to prevent numerical errors.                                  
+!                write(*,*) 'removing small pft patches',s,sites(s)%area_pft(1:12)
+              endif
+            end do
+
            sumarea = sum(sites(s)%area_pft(1:numpft))
            do ft =  1,numpft
+             if(sumarea.gt.0._r8)then
                sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
-            end do
+             else
+               sites(s)%area_pft(ft)= 1.0_r8/numpft
+               write(*,*) 'setting totally bare patch to all pfts.',s,sumarea,sites(s)%area_pft(ft)
+            end if
+          end do !ft
           end if
 
           do ft = 1,numpft

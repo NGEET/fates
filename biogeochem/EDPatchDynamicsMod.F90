@@ -2652,7 +2652,7 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
             enddo !fusing patch  
 
             if (is_youngest.eq.ifalse .or. currentPatch%area <= min_patch_area_forced ) then
-
+               write(*,*) 'current patch is termination candidate',currentPatch%area
                found_fusion_patch = ifalse
 
                fusingPatch => currentPatch%older
@@ -2670,6 +2670,8 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                         currentPatch%nocomp_pft_label, fusingPatch%nocomp_pft_label, &
                         currentPatch%patchno, fusingPatch%patchno
                      call fuse_2_patches(currentSite, currentPatch, fusingPatch)
+                        currentPatch => fusingPatch !redirect rest of main loop back to this cp
+                        write(*,*) 'reverting curent patch to ', currentPatch%patchno
                      found_fusion_patch=itrue
                   endif ! PFT
                   fusingPatch => olderPatch
@@ -2681,9 +2683,10 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                do while(associated(fusingPatch).and.found_fusion_patch.eq.ifalse )
 
                   if(fusingPatch%patchno.eq.currentPatch%younger%patchno)then
-                   write(*,*) 'something weird with younger pointer here',fusingPatch%patchno,currentPatch%younger%patchno
+                   write(*,*) 'something weird with younger pointer here',fusingPatch%patchno,fusingPatch%nocomp_pft_label
                   end if
                   olderPatch => fusingPatch%older
+                  
                   if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
                      if(debug) &
                        write(fates_log(),*) 'fusing to younger patch of same PFT - this one is too small',&
@@ -2692,14 +2695,13 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                         currentPatch%patchno, fusingPatch%patchno,&
                         is_youngest,is_oldest
                     call fuse_2_patches(currentSite, currentPatch, fusingPatch)
+                      currentPatch => fusingPatch
                     found_fusion_patch=itrue
                   endif ! PFT 
                   fusingPatch => olderPatch
                enddo !fusing patch
              endif !current patch exists.
-            if(found_fusion_patch.eq.itrue)then
-              currentPatch => fusingPatch
-            endif
+
 
              endif ! not youngest, or is very small patch
           endif !nocomp
@@ -2716,15 +2718,19 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
 
        if(currentPatch%area > min_patch_area_forced)then
           currentPatch => oldercPatch
+         
           count_cycles = 0
        else
           count_cycles = count_cycles + 1
+         write(*,*) 'iterate count cycles',count_cycles
        end if
-!       write(*,*) 'currentPatch2',currentPatch%patchno,currentPatch%nocomp_pft_label
+       if(associated(oldercPatch))then
+       write(*,*) 'currentPatch2',currentPatch%patchno,oldercPatch%patchno
+       endif 
 
        if(count_cycles > max_cycles) then
         if(is_oldest.eq.itrue.and.is_youngest.eq.itrue.and.hlm_use_fixed_biogeog)then 
-          write(fates_log(),*) 'this is the only patch of this PFT'
+          write(fates_log(),*) 'this is the only patch of this PFT',currentPatch%area
           currentPatch => currentPatch%older
           count_cycles = 0
         else !not the only patch
