@@ -565,9 +565,18 @@ contains
        do while(associated(currentPatch))
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
+          if(hlm_use_nocomp.eq.ifalse)then
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
+         else 
+           if(currentPatch%nocomp_pft_label.eq.nocomp_pft)then
+             patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
+           else
+             patch_site_areadis = 0.0_r8
+           endif
+         endif 
+           write(*,*) 'patch donor pft loop' ,currentPatch%nocomp_pft_label,nocomp_pft,&
+           patch_site_areadis,currentpatch%patchno,currentPatch%disturbance_rate
 
-          
           if ( patch_site_areadis > nearzero ) then
 
               ! figure out whether the receiver patch for disturbance from this patch 
@@ -610,7 +619,7 @@ contains
              if(currentPatch%disturbance_mode .ne. dtype_ifire) then
                  currentPatch%burnt_frac_litter(:) = 0._r8
              end if
-
+            write(*,*) 'patch site areadis',patch_site_areadis,new_patch%area,nocomp_pft,currentPatch%disturbance_rate
              call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
 
              ! Transfer in litter fluxes from plants in various contexts of death and destruction
@@ -1043,11 +1052,6 @@ contains
 
           end if    ! if ( new_patch%area > nearzero ) then 
        
-          !zero disturbance rate trackers
-          currentPatch%disturbance_rate  = 0._r8
-          currentPatch%disturbance_rates = 0._r8
-          currentPatch%fract_ldist_not_harvested = 0._r8
-          
           currentPatch => currentPatch%younger
           
       enddo ! currentPatch patch loop. 
@@ -1094,19 +1098,31 @@ contains
              call terminate_cohorts(currentSite, new_patch_secondary, 2,18)
              call sort_cohorts(new_patch_secondary)
           endif
+      write(*,*) 'pft loop', nocomp_pft
+
 
      end do ! PFT loop for nocomp
     endif !end new_patch area 
     
+    currentpatch => currentSite%youngest_patch
+    do while(associated(currentpatch))
+       !zero disturbance rate trackers                                             
+       currentPatch%disturbance_rate  = 0._r8
+       currentPatch%disturbance_rates = 0._r8
+       currentPatch%fract_ldist_not_harvested = 0._r8
+       currentpatch => currentpatch%older
+    end do
+
     call check_patch_area(currentSite)
     call set_patchno(currentSite)
     
     currentpatch => currentSite%youngest_patch
     do while(associated(currentpatch))
-        write(*,*) 'sp patch list',currentpatch%patchno,currentpatch%nocomp_pft_label
        if(associated(currentpatch%younger))then
-       write(*,*) 'sp check cpy',currentpatch%younger%patchno,currentpatch%younger%nocomp_pft_label
+!       write(*,*) 'sp check cpy',currentpatch%younger%patchno,currentpatch%younger%nocomp_pft_label,&
+!currentpatch%younger%area
        endif
+!       write(*,*) 'sp patch list',currentpatch%patchno,currentpatch%nocomp_pft_label,currentpatch%area
         currentpatch => currentpatch%older
 
     enddo
@@ -2332,10 +2348,11 @@ contains
 
     currentpatch => currentSite%youngest_patch
     do while(associated(currentpatch))
-        write(*,*) 'fp patch list',currentpatch%patchno,currentpatch%nocomp_pft_label
        if(associated(currentpatch%younger))then
-       write(*,*) 'fp check cpy',currentpatch%younger%patchno,currentpatch%younger%nocomp_pft_label
+!       write(*,*) 'fp check cpy',currentpatch%younger%patchno,currentpatch%younger%nocomp_pft_label,&
+!currentpatch%younger%area
        endif
+!        write(*,*) 'fp patch list',currentpatch%patchno,currentpatch%nocomp_pft_label,currentpatch%area
         currentpatch => currentpatch%older
     enddo 
 
@@ -2535,13 +2552,18 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
 
     currentpatch => currentSite%youngest_patch
     do while(associated(currentpatch))
-        write(*,*) 'tp patch list',currentpatch%patchno,currentpatch%nocomp_pft_label
-       if(associated(currentpatch%younger))then
-       write(*,*) 'tp check cpy',currentpatch%younger%patchno,currentpatch%younger%nocomp_pft_label
-       endif
+!        write(*,*) 'tp o-y patch list',currentpatch%patchno,currentpatch%nocomp_pft_label,currentpatch%area
        currentpatch => currentpatch%older
-
     enddo
+
+    currentpatch => currentSite%oldest_patch
+    do while(associated(currentpatch))
+        write(*,*) 'tp y-o patch list',currentpatch%patchno,currentpatch%nocomp_pft_label,currentpatch%area
+       currentpatch => currentpatch%younger
+    enddo
+
+
+
 
 
     currentPatch => currentSite%youngest_patch
@@ -2622,7 +2644,7 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                 fusingPatch => fusingPatch%older
             enddo !fusing patch  
 
-            if (is_youngest.eq.itrue .or. currentPatch%area <= min_patch_area_forced ) then
+            if (is_youngest.eq.ifalse .or. currentPatch%area <= min_patch_area_forced ) then
 
                found_fusion_patch = ifalse
 
@@ -2635,7 +2657,7 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                         currentPatch%area,   fusingPatch%area, &
                         currentPatch%nocomp_pft_label, fusingPatch%nocomp_pft_label, &
                         currentPatch%patchno, fusingPatch%patchno
-                     call fuse_2_patches(currentSite, fusingPatch, currentPatch)
+                     call fuse_2_patches(currentSite, currentPatch, fusingPatch)
                      found_fusion_patch=itrue
                   endif ! PFT
                   fusingPatch => olderPatch
@@ -2644,14 +2666,19 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                ! if no older patches, search younger ones. 
                fusingPatch => currentPatch%younger
                do while(associated(fusingPatch).and.found_fusion_patch.eq.ifalse )
+
+              if(fusingPatch%patchno.eq.currentPatch%younger%patchno)then
+                 write(*,*) 'something weird with younger pointer here',fusingPatch%patchno,currentPatch%younger%patchno
+              end if
                   olderPatch => fusingPatch%older
                   if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
                      if(debug) &
                        write(fates_log(),*) 'fusing to younger patch of same PFT - this one is too small',&
                        currentPatch%area,   fusingPatch%area , &
                        currentPatch%nocomp_pft_label, fusingPatch%nocomp_pft_label, &
-                        currentPatch%patchno, fusingPatch%patchno
-                    call fuse_2_patches(currentSite, fusingPatch, currentPatch)
+                        currentPatch%patchno, fusingPatch%patchno,&
+                        is_youngest,is_oldest
+                    call fuse_2_patches(currentSite, currentPatch, fusingPatch)
                     found_fusion_patch=itrue
                   endif ! PFT 
                   fusingPatch => olderPatch
@@ -2700,6 +2727,14 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
           count_cycles = 0
         end if !only patch
        end if  !count cycles
+      call set_patchno(currentSite)
+
+    fusingpatch => currentSite%oldest_patch
+    write(*,*) 'tp end list'
+    do while(associated(fusingpatch))
+        write(*,*) 'tp end y-o patch list',fusingpatch%patchno,fusingpatch%nocomp_pft_label,fusingpatch%area
+       fusingpatch => fusingpatch%younger
+    enddo
 
     enddo !patch loop
     
