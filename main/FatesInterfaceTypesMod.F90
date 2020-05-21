@@ -88,7 +88,7 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
                                                    ! 1 = TRUE, 0 = FALSE
 
-   integer, public, protected :: hlm_use_lu_harvest      ! This flag signals whether or not to use
+   integer, public :: hlm_use_lu_harvest      ! This flag signals whether or not to use
                                                          ! harvest area data from the hlm
                                                          ! 0 = do not use lu harvest from hlm
                                                          ! 1 = use area fraction of vegetated land
@@ -97,7 +97,7 @@ module FatesInterfaceTypesMod
                                                          ! If 1 or 2, it automatically sets
                                                          ! hlm_use_logging to 1
 
-   integer, public, protected :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories
+   integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories
                                                          ! this is the first dimension of:
                                                          ! harvest_rates in dynHarvestMod
                                                          ! bc_in%hlm_harvest and bc_in%hlm_harvest_catnames
