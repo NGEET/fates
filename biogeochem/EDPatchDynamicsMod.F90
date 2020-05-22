@@ -2573,7 +2573,7 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
        oldercpatch => currentPatch%older       
        if(currentPatch%area <= min_patch_area)then
 
-         if(hlm_use_fixed_biogeog.eq.ifalse)then !just fuse to older or younger cohort.
+         if(hlm_use_nocomp.eq.ifalse)then !just fuse to older or younger patch
          
           ! Even if the patch area is small, avoid fusing it into its neighbor
           ! if it is the youngest of all patches. We do this in attempts to maintain
