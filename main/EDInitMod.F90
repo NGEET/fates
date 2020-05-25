@@ -554,6 +554,7 @@ contains
     integer  :: iage       ! index for leaf age loop
     integer  :: el         ! index for element loop
     integer  :: element_id ! element index consistent with defs in PRTGeneric
+    integer  :: use_pft_local(numpft) ! determine whether this PFT is used for this patch and site. 
     real(r8) :: c_agw      ! biomass above ground (non-leaf)     [kgC]
     real(r8) :: c_bgw      ! biomass below ground (non-fineroot) [kgC]
     real(r8) :: c_leaf     ! biomass in leaves [kgC]
@@ -576,9 +577,36 @@ contains
 
     patch_in%tallest  => null()
     patch_in%shortest => null()
-    
+
+    ! Manage interactions of ixed biogeg (site level filter) and 
+    ! nocomp (patch level filter) 
+    ! Need to cover all potential biogeog x nocomp combinations 
+    ! 1. biogeog = false. nocomp = false: all PFTs on (DEFAULT)
+    ! 2. biogeog = true.  nocomp = false: site level filter
+    ! 3. biogeog = false. nocomp = true : patch level filter
+    ! 4. biogeog = true.  nocomp = true : patch and site level filter
+    ! in principle this could be a patch level variable. 
+    do pft =  1,numpft 
+      ! Turn every PFT ON, unless we are in a special case.
+      use_pft_local(pft) = itrue ! Case 1
+      if(hlm_use_fixed_biogeog.eq.itrue)then !filter geographically
+        use_pft_local(pft) = site_in%use_this_pft(pft) ! Case 2
+        if(hlm_use_nocomp.eq.itrue.and.pft.ne.patch_in%nocomp_pft_label)then
+           ! Having set the biogeog filter as on or off, turn off all patches 
+           ! whose identiy does not correspond to this PFT. 
+           use_pft_local(pft) = ifalse ! Case 3
+        endif
+      else 
+        if(hlm_use_nocomp.eq.itrue.and.pft.ne.patch_in%nocomp_pft_label)then 
+        ! This case has all PFTs on their own patch everywhere. 
+           use_pft_local(pft) = ifalse ! Case 4 
+        endif
+      endif
+
+    end do
+      
     do pft =  1,numpft
-     if(site_in%use_this_pft(pft).eq.itrue)then
+     if(use_pft_local(pft).eq.itrue)then
        if(EDPftvarcon_inst%initd(pft)>1.0E-7) then
 
        allocate(temp_cohort) ! temporary cohort
