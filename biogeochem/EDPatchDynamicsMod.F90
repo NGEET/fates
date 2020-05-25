@@ -103,7 +103,7 @@ module EDPatchDynamicsMod
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
 
   ! When creating new patches from other patches, we need to send some of the
   ! litter from the old patch to the new patch.  Likewise, when plants die
@@ -399,8 +399,6 @@ contains
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day    
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
-    real(r8) :: site_areadis_primary_pft(numpft) ! primary area disturbed per PFT in nocomp mode. m2/patch/day 
-    real(r8) :: site_areadis_secondary_pft(numpft) ! secondary area disturbed per PFT in nocomp mode. m2/patch/day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
     integer  :: tnull                        ! is there a tallest cohort?
@@ -422,11 +420,7 @@ contains
     real(r8) :: areadis_secondary
 
     !---------------------------------------------------------------------
-    ! Allocate PFT arrays of patches to form the new patches in nocomp mode. 
-    if(hlm_use_nocomp.eq.itrue)then
-       allocate(new_patch_primary_pft(numpft))
-       allocate(new_patch_secondary_pft(numpft))
-    endif
+
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
 
@@ -483,7 +477,6 @@ contains
        currentPatch => currentPatch%older     
     enddo ! end loop over patches. sum area disturbed for all patches. 
 
-    write(*,*) 'areadis', site_areadis_primary_pft(1:12)
      ! It is possible that no disturbance area was generated
     if ( (site_areadis_primary + site_areadis_secondary) > nearzero) then  
 
@@ -617,7 +610,7 @@ contains
              if(currentPatch%disturbance_mode .ne. dtype_ifire) then
                  currentPatch%burnt_frac_litter(:) = 0._r8
              end if
-            write(*,*) 'patch site areadis',patch_site_areadis,new_patch%area,nocomp_pft,currentPatch%disturbance_rate
+
              call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
 
              ! Transfer in litter fluxes from plants in various contexts of death and destruction
@@ -1112,17 +1105,7 @@ contains
     call check_patch_area(currentSite)
     call set_patchno(currentSite)
     
-    currentpatch => currentSite%youngest_patch
-    do while(associated(currentpatch))
-       if(associated(currentpatch%younger))then
-!       write(*,*) 'sp check cpy',currentpatch%younger%patchno,currentpatch%younger%nocomp_pft_label,&
-!currentpatch%younger%area
-       endif
-!       write(*,*) 'sp patch list',currentpatch%patchno,currentpatch%nocomp_pft_label,currentpatch%area
-        currentpatch => currentpatch%older
-
-    enddo
-
+!    write(*,*) 'end spawn patches',currentsite%lat, currentSite%lon
     return
   end subroutine spawn_patches
 
@@ -2342,16 +2325,6 @@ contains
 
     end do  ! i_disttype loop
 
-    currentpatch => currentSite%youngest_patch
-    do while(associated(currentpatch))
-       if(associated(currentpatch%younger))then
-!       write(*,*) 'fp check cpy',currentpatch%younger%patchno,currentpatch%younger%nocomp_pft_label,&
-!currentpatch%younger%area
-       endif
-!        write(*,*) 'fp patch list',currentpatch%patchno,currentpatch%nocomp_pft_label,currentpatch%area
-        currentpatch => currentpatch%older
-    enddo 
-
   end subroutine fuse_patches
 
   ! ============================================================================
@@ -2490,7 +2463,6 @@ contains
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
     call dealloc_patch(dp)
-    write(*,*) 'deallocating2' ,dp%nocomp_pft_label, rp%nocomp_pft_label, dp%patchno, rp%patchno
    
     deallocate(dp)
 
@@ -2549,27 +2521,10 @@ contains
     !---------------------------------------------------------------------
  
     count_cycles = 0
-write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
-
-    currentpatch => currentSite%youngest_patch
-    do while(associated(currentpatch))
-!        write(*,*) 'tp o-y patch list',currentpatch%patchno,currentpatch%nocomp_pft_label,currentpatch%area
-       currentpatch => currentpatch%older
-    enddo
-
-    currentpatch => currentSite%oldest_patch
-    do while(associated(currentpatch))
-        write(*,*) 'tp y-o patch list',currentpatch%patchno,currentpatch%nocomp_pft_label,currentpatch%area
-       currentpatch => currentpatch%younger
-    enddo
-
-
-
-
+!write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
- write(*,*) 'currentPatch1',currentPatch%patchno,currentPatch%nocomp_pft_label
        oldercpatch => currentPatch%older       
        if(currentPatch%area <= min_patch_area)then
 
@@ -2652,7 +2607,6 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
             enddo !fusing patch  
 
             if (is_youngest.eq.ifalse .or. currentPatch%area <= min_patch_area_forced ) then
-               write(*,*) 'current patch is termination candidate',currentPatch%area
                found_fusion_patch = ifalse
 
                fusingPatch => currentPatch%older
@@ -2671,8 +2625,7 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                         currentPatch%patchno, fusingPatch%patchno
                      call fuse_2_patches(currentSite, currentPatch, fusingPatch)
                         currentPatch => fusingPatch !redirect rest of main loop back to this cp
-                        write(*,*) 'reverting curent patch to ', currentPatch%patchno
-                     found_fusion_patch=itrue
+                        found_fusion_patch=itrue
                   endif ! PFT
                   fusingPatch => olderPatch
                enddo !fusing patch
@@ -2681,10 +2634,6 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
                ! if no older patches, search younger ones. 
                fusingPatch => currentPatch%younger
                do while(associated(fusingPatch).and.found_fusion_patch.eq.ifalse )
-
-                  if(fusingPatch%patchno.eq.currentPatch%younger%patchno)then
-                   write(*,*) 'something weird with younger pointer here',fusingPatch%patchno,fusingPatch%nocomp_pft_label
-                  end if
                   olderPatch => fusingPatch%older
                   
                   if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
@@ -2722,11 +2671,7 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
           count_cycles = 0
        else
           count_cycles = count_cycles + 1
-         write(*,*) 'iterate count cycles',count_cycles
        end if
-       if(associated(oldercPatch))then
-       write(*,*) 'currentPatch2',currentPatch%patchno,oldercPatch%patchno
-       endif 
 
        if(count_cycles > max_cycles) then
         if(is_oldest.eq.itrue.and.is_youngest.eq.itrue.and.hlm_use_fixed_biogeog)then 
@@ -2757,23 +2702,12 @@ write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
       !n.b. could put filter in here for actual terminations to save time. 
 
     fusingpatch => currentSite%oldest_patch
-    write(*,*) 'tp end list'
-    do while(associated(fusingpatch))
-        write(*,*) 'tp end y-o patch list',fusingpatch%patchno,fusingpatch%nocomp_pft_label,fusingpatch%area
-
-       if(associated(fusingpatch%younger))then
-        if(fusingpatch%patchno.eq.fusingpatch%younger%patchno)then
-         write(*,*) 'patch list error',fusingpatch%patchno,fusingpatch%younger%patchno
-        endif
-       endif
-      fusingpatch => fusingpatch%younger
-    enddo
 
     enddo ! current patch loop
     
     !check area is not exceeded
     call check_patch_area( currentSite )
-   write(*,*) 'leaving terminate patches',currentSite%lat,currentSite%lon
+!   write(*,*) 'leaving terminate patches',currentSite%lat,currentSite%lon
     return
   end subroutine terminate_patches
 
