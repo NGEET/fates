@@ -130,7 +130,7 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
     integer :: el              ! Loop counter for elements
-
+    integer :: do_patch_dynamics ! for some modes, we turn off patch dynamics
     !-----------------------------------------------------------------------
 
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
@@ -240,15 +240,22 @@ contains
     ! Patch dynamics sub-routines: fusion, new patch creation (spwaning), termination.
     !*********************************************************************************
 
+    do_patch_dynamics = itrue
+    if(hlm_use_ed_st3.eq.ifalse)then
+      do_patch_dynamics = ifalse
+    end if
+    if(hlm_use_nocomp.eq.itrue)then
+      do_patch_dynamics = ifalse
+    end if 
     ! make new patches from disturbed land
-    if ( hlm_use_ed_st3.eq.ifalse.or.hlm_use_nocomp.eq.ifalse) then
+    if (do_patch_dynamics.eq.itrue ) then
        call spawn_patches(currentSite, bc_in)
     end if
    
     call TotalBalanceCheck(currentSite,3)
 
     ! fuse on the spawned patches.
-    if ( hlm_use_ed_st3.eq.ifalse.or.hlm_use_nocomp.eq.ifalse ) then
+    if ( do_patch_dynamics.eq.itrue ) then
        call fuse_patches(currentSite, bc_in )        
        
        ! If using BC FATES hydraulics, update the rhizosphere geometry
@@ -268,7 +275,7 @@ contains
     call TotalBalanceCheck(currentSite,4)
 
     ! kill patches that are too small
-    if ( hlm_use_ed_st3.eq.ifalse .or.hlm_use_nocomp.eq.ifalse) then
+    if ( do_patch_dynamics.eq.itrue ) then
        call terminate_patches(currentSite)   
     end if
    
