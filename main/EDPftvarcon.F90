@@ -50,9 +50,11 @@ module EDPftvarcon
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model. 
      real(r8), allocatable :: initd(:)               ! initial seedling density 
-     real(r8), allocatable :: seed_suppl(:)           ! seeds that come from outside the gridbox.
-     real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
-     
+     real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
+     real(r8), allocatable :: bb_slope(:)            ! ball berry slope parameter
+     real(r8), allocatable :: medlyn_slope(:)        ! Medlyn slope parameter KPa^0.5
+     real(r8), allocatable :: stomatal_intercept(:)  ! intercept of stomatal conductance model
+                                                     ! (or unstressed minimum conductance) umol/m**2/s
      real(r8), allocatable :: seed_alloc_mature(:)   ! fraction of carbon balance allocated to 
                                                      ! clonal reproduction.
      real(r8), allocatable :: seed_alloc(:)          ! fraction of carbon balance allocated to seeds.
@@ -439,10 +441,19 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_BB_slope'
+    name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_leaf_stomatal_slope_medlyn'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leaf_stomatal_intercept'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    
     name = 'fates_senleaf_long_fdrought'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -956,9 +967,17 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_suppl)
 
-    name = 'fates_leaf_BB_slope'
+    name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%BB_slope)
+         data=this%bb_slope)
+
+    name = 'fates_leaf_stomatal_slope_medlyn'   
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%medlyn_slope)
+
+    name = 'fates_leaf_stomatal_intercept'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%stomatal_intercept)
 
     name = 'fates_senleaf_long_fdrought'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1953,7 +1972,9 @@ contains
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
-        write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
+        write(fates_log(),fmt0) 'bb_slope = ',EDPftvarcon_inst%bb_slope
+        write(fates_log(),fmt0) 'medlyn_slope = ',EDPftvarcon_inst%medlyn_slope         
+        write(fates_log(),fmt0) 'stomatal_intercept = ',EDPftvarcon_inst%stomatal_intercept
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
         write(fates_log(),fmt0) 'senleaf_long_fdrought = ',EDPftvarcon_inst%senleaf_long_fdrought
         write(fates_log(),fmt0) 'seed_alloc_mature = ',EDPftvarcon_inst%seed_alloc_mature
