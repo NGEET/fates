@@ -389,8 +389,6 @@ contains
     type (ed_patch_type) , pointer :: new_patch
     type (ed_patch_type) , pointer :: new_patch_primary
     type (ed_patch_type) , pointer :: new_patch_secondary
-    type (ed_patch_type) , pointer :: new_patch_primary_pft(:)
-    type (ed_patch_type) , pointer :: new_patch_secondary_pft(:)
     type (ed_patch_type) , pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_cohort_type), pointer :: nc
@@ -398,6 +396,8 @@ contains
     type (ed_cohort_type), pointer :: storebigcohort
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day    
+    real(r8) :: site_areadis_primary_pft(numpft)
+    real(r8) :: site_areadis_secondary_pft(numpft)    
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
