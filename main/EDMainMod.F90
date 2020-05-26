@@ -1,4 +1,3 @@
-
 module EDMainMod
 
   ! ===========================================================================
@@ -19,6 +18,7 @@ module EDMainMod
   use FatesInterfaceMod        , only : hlm_reference_date
   use FatesInterfaceMod        , only : hlm_use_ed_prescribed_phys
   use FatesInterfaceMod        , only : hlm_use_ed_st3 
+  use FatesInterfaceMod        , only : hlm_use_nocomp
   use FatesInterfaceMod        , only : bc_in_type
   use FatesInterfaceMod        , only : hlm_masterproc
   use FatesInterfaceMod        , only : numpft
@@ -241,14 +241,14 @@ contains
     !*********************************************************************************
 
     ! make new patches from disturbed land
-    if ( hlm_use_ed_st3.eq.ifalse ) then
+    if ( hlm_use_ed_st3.eq.ifalse.or.hlm_use_nocomp.eq.ifalse) then
        call spawn_patches(currentSite, bc_in)
     end if
    
     call TotalBalanceCheck(currentSite,3)
 
     ! fuse on the spawned patches.
-    if ( hlm_use_ed_st3.eq.ifalse ) then
+    if ( hlm_use_ed_st3.eq.ifalse.or.hlm_use_nocomp.eq.ifalse ) then
        call fuse_patches(currentSite, bc_in )        
        
        ! If using BC FATES hydraulics, update the rhizosphere geometry
@@ -268,7 +268,7 @@ contains
     call TotalBalanceCheck(currentSite,4)
 
     ! kill patches that are too small
-    if ( hlm_use_ed_st3.eq.ifalse ) then
+    if ( hlm_use_ed_st3.eq.ifalse .or.hlm_use_nocomp.eq.ifalse) then
        call terminate_patches(currentSite)   
     end if
    
