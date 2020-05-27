@@ -253,7 +253,6 @@ contains
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
     integer  :: ft         ! PFT loop
     real(r8) :: sumarea    ! area of PFTs in nocomp mode. 
-    real(r8) :: hlm_to_fates_pft_map(12,numpft) !this should ultimately come from the HLM?
     integer  :: hlm_pft    ! used in fixed biogeog mode
     integer  :: fates_pft  ! used in fixed biogeog mode
     !----------------------------------------------------------------------
@@ -302,34 +301,12 @@ contains
 
           if(hlm_use_fixed_biogeog.eq.itrue)then  
            ! MAPPING OF FATES PFTs on to HLM_PFTs
-           ! in this first instance, we assume that there &
-           ! are fewer FATES PFTs than HLM PFTs
-
-           ! PLACEHOLDER FOR NEW FATES PARAMETER. This will always have to be 12 digits long. 
-           ! protocol is (hlm_pft,fates_pft)
-            hlm_to_fates_pft_map(1:12,1:numpft)=0._r8
-            !this is the fraction that is associated with each fates pft of a given hlm area
-            !each HLM row neds to sum to one...
-            hlm_to_fates_pft_map(1,1) = 1
-            hlm_to_fates_pft_map(2,1) = 1
-            hlm_to_fates_pft_map(3,2) = 1
-            hlm_to_fates_pft_map(4,2) = 1
-            hlm_to_fates_pft_map(5,3) = 1
-            hlm_to_fates_pft_map(6,3) = 1
-            hlm_to_fates_pft_map(7,4) = 1
-            hlm_to_fates_pft_map(8,4) = 1
-            hlm_to_fates_pft_map(9,5) = 1
-            hlm_to_fates_pft_map(10,5) = 1
-            hlm_to_fates_pft_map(11,6) = 1
-            hlm_to_fates_pft_map(12,6) = 1
-
-            ! assuming here there are 12 pfts on the surface dataset and 6 on fates pft file
             ! add up the area associated with each FATES PFT
             sites(s)%area_pft(1:numpft) = 0._r8
             do hlm_pft = 1,12
                do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts        
                  sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
-                     hlm_to_fates_pft_map(hlm_pft,fates_pft) * bc_in(s)%pft_areafrac(hlm_pft) 
+                     EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft) 
                end do
             end do !hlm_pft
 
