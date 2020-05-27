@@ -35,6 +35,7 @@ module FatesParametersInterface
   character(len=*), parameter, public :: dimension_name_history_age_bins = 'fates_history_age_bins'
   character(len=*), parameter, public :: dimension_name_history_height_bins = 'fates_history_height_bins'
   character(len=*), parameter, public :: dimension_name_history_coage_bins = 'fates_history_coage_bins'
+  character(len=*), parameter, public :: dimension_name_hlm_pftno = 'fates_hlm_pftno'
   
   ! Dimensions in the host namespace:
   character(len=*), parameter, public :: dimension_name_host_allpfts = 'allpfts'

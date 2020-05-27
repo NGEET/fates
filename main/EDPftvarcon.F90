@@ -293,7 +293,10 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_fcap_node(:,:)   ! fraction of (1-resid_node) that is capillary in source
      real(r8), allocatable :: hydr_pinot_node(:,:)  ! osmotic potential at full turgor
      real(r8), allocatable :: hydr_kmax_node(:,:)   ! maximum xylem conductivity per unit conducting xylem area
-     
+
+     ! fixed biogeog mode parameter(s)
+     real(r8), allocatable :: hlm_pft_map(:,:)           ! Mapping from HLM PFTs to FATES PFTs in fixed biogeog mode.    
+
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -352,7 +355,7 @@ contains
     call this%Register_PFT_hydr_organs(fates_params)
     call this%Register_PFT_prt_organs(fates_params)
     call this%Register_PFT_leafage(fates_params)
-    
+
   end subroutine Register
 
   !-----------------------------------------------------------------------
@@ -379,6 +382,7 @@ contains
 
     use FatesParametersInterface, only : fates_parameters_type, param_string_length
     use FatesParametersInterface, only : dimension_name_pft, dimension_shape_1d
+    use FatesParametersInterface, only : dimension_name_hlm_pftno, dimension_shape_2d
 
     implicit none
 
@@ -386,6 +390,7 @@ contains
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_pft/)
+    character(len=param_string_length) :: pftmap_dim_names(2) 
 
     integer, parameter :: dim_lower_bound(1) = (/ lower_bound_pft /)
 
@@ -893,7 +898,13 @@ contains
     name = 'fates_prescribed_puptake'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)    
-  
+
+    pftmap_dim_names(1) = dimension_name_pft 
+    pftmap_dim_names(2) = dimension_name_hlm_pftno 
+
+   name = 'fates_hlm_pft_map'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &                                           dimension_names=pftmap_dim_names, lower_bounds=dim_lower_bound)
+
   end subroutine Register_PFT
 
   !-----------------------------------------------------------------------
@@ -1417,6 +1428,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_puptake)
     
+    name = 'fates_hlm_pft_map' 
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%hlm_pft_map)
     
   end subroutine Receive_PFT
 
@@ -1669,6 +1683,9 @@ contains
 
     return
   end subroutine Register_PFT_leafage
+
+
+
 
   ! =====================================================================================
 
@@ -2055,7 +2072,6 @@ contains
         write(fates_log(),fmt0) 'hydr_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
         write(fates_log(),fmt0) 'hydr_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
         
-        
         write(fates_log(),fmt0) 'prt_nitr_stoich_p1 = ',EDPftvarcon_inst%prt_nitr_stoich_p1
         write(fates_log(),fmt0) 'prt_nitr_stoich_p2 = ',EDPftvarcon_inst%prt_nitr_stoich_p2
         write(fates_log(),fmt0) 'prt_phos_stoich_p1 = ',EDPftvarcon_inst%prt_phos_stoich_p1
@@ -2066,6 +2082,8 @@ contains
         write(fates_log(),fmt0) 'turnover_carb_retrans = ',EDPftvarcon_inst%turnover_carb_retrans
         write(fates_log(),fmt0) 'turnover_nitr_retrans = ',EDPftvarcon_inst%turnover_nitr_retrans
         write(fates_log(),fmt0) 'turnover_phos_retrans = ',EDPftvarcon_inst%turnover_phos_retrans
+
+        write(fates_log(),fmt0) 'hlm_pft_map = ', EDPftvarcon_inst%hlm_pft_map
 
         write(fates_log(),*) '-------------------------------------------------'
 
