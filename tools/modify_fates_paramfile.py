@@ -36,7 +36,8 @@ def main():
     parser = argparse.ArgumentParser(description='Parse command line arguments to this script.')
     #
     parser.add_argument('--var','--variable', dest='varname', type=str, help="What variable to modify? Required.", required=True)
-    parser.add_argument('--pft','--PFT', dest='pftnum', type=int, help="PFT number to modify. If this is missing and --allPFTs is not specified, will assume a global variable.")
+    parser.add_argument('--pft','--PFT', dest='pftnum', type=int, help="PFT number to modify. If this and --pftname are missing and --allPFTs is not specified, will assume a global variable.")
+    parser.add_argument('--pftname', '--PFTname', dest='pftname', type=str, help="Name of PFT to modify.  alternate argument to --pft or --allpfts")
     parser.add_argument('--allPFTs', '--allpfts', dest='allpfts', help="apply to all PFT indices. Cannot use at same time as --pft argument.", action="store_true")
     parser.add_argument('--fin', '--input', dest='inputfname', type=str, help="Input filename.  Required.", required=True)
     parser.add_argument('--fout','--output', dest='outputfname', type=str, help="Output filename.  Required.", required=True)
@@ -52,6 +53,7 @@ def main():
     tempdir = tempfile.mkdtemp()
     tempfilename = os.path.join(tempdir, 'temp_fates_param_file.nc')
     ncfile_old = None
+    rename_pft = False
     #
     try:
         outputval = float(args.val)
@@ -64,7 +66,10 @@ def main():
             if len(outputval) == 0:
                 raise RuntimeError('output variable needs to have size greater than zero')
         except:
-            raise RuntimeError('output variable not interpretable as real or array')
+            if args.varname != 'fates_pftname':
+                raise RuntimeError('output variable not interpretable as real or array')
+            else:
+                rename_pft = True
     #
     #
     try:
@@ -87,6 +92,10 @@ def main():
                 pftdim = i
                 otherdimpresent = False
             elif var.dimensions[i] in ['fates_history_age_bins','fates_history_size_bins','fates_history_coage_bins','fates_history_height_bins','fates_NCWD','fates_litterclass','fates_leafage_class','fates_prt_organs','fates_hydr_organs','fates_variants']:
+                otherdimpresent = True
+                otherdimname = var.dimensions[i]
+                otherdimlength = var.shape[i]
+            elif var.dimensions[i] == 'fates_string_length' and rename_pft:
                 otherdimpresent = True
                 otherdimname = var.dimensions[i]
                 otherdimlength = var.shape[i]
@@ -168,23 +177,44 @@ def main():
                 # declare as none for now
                 ncfile_old = None
         #
-        if (args.pftnum == None and ispftvar) and not args.allpfts:
+        if (args.pftnum == None and args.pftname == None and ispftvar) and not args.allpfts:
             raise ValueError('pft value is missing but variable has pft dimension.')
-        if (args.pftnum != None) and args.allpfts:
+        if (args.pftnum != None or args.pftname != None) and args.allpfts:
             raise ValueError("can't specify both a PFT number and the argument allPFTs.")
-        if args.pftnum != None and not ispftvar:
+        if (args.pftnum != None or args.pftname != None) and not ispftvar:
             raise ValueError('pft value is present but variable does not have pft dimension.')
+        if (args.pftnum != None and args.pftname != None):
+            raise ValueError('can only specify pft number or name, not both.')
+        if (args.pftnum == None or args.pftname != None) and not args.allpfts and ispftvar:
+            ## now we need to figure out what the number of the pft that has been given a name argument
+            pftnamelist = []
+            npftnames = ncfile.variables['fates_pftname'].shape[0]
+            for i in range(npftnames):
+                pftname_bytelist = list(ncfile.variables['fates_pftname'][i,:])
+                pftname_stringlist = [i.decode('utf-8') for i in pftname_bytelist]
+                pftnamelist.append(''.join(pftname_stringlist).strip())
+            n_times_pft_listed = pftnamelist.count(args.pftname.strip())
+            if n_times_pft_listed != 1:
+                raise ValueError('can only index by PFT name if the chosen PFT name occurs once and only once.')
+            pftnum = pftnamelist.index(args.pftname.strip())
+            args.pftnum=pftnum +1
         if args.pftnum != None and ispftvar:
-            if args.pftnum > npft_file:
-                raise ValueError('PFT specified ('+str(args.pftnum)+') is larger than the number of PFTs in the file ('+str(npft_file)+').')
-            if pftdim == 0:
-                if not args.silent:
-                    print('replacing prior value of variable '+args.varname+', for PFT '+str(args.pftnum)+', which was '+str(var[args.pftnum-1])+', with new value of '+str(outputval))
-                var[args.pftnum-1] = outputval
-            if pftdim == 1:
-                if not args.silent:
-                    print('replacing prior value of variable '+args.varname+', for PFT '+str(args.pftnum)+', which was '+str(var[:,args.pftnum-1])+', with new value of '+str(outputval))
-                var[:,args.pftnum-1] = outputval
+            if not rename_pft:
+                if args.pftnum > npft_file:
+                    raise ValueError('PFT specified ('+str(args.pftnum)+') is larger than the number of PFTs in the file ('+str(npft_file)+').')
+                if pftdim == 0:
+                    if not args.silent:
+                        print('replacing prior value of variable '+args.varname+', for PFT '+str(args.pftnum)+', which was '+str(var[args.pftnum-1])+', with new value of '+str(outputval))
+                    var[args.pftnum-1] = outputval
+                if pftdim == 1:
+                    if not args.silent:
+                        print('replacing prior value of variable '+args.varname+', for PFT '+str(args.pftnum)+', which was '+str(var[:,args.pftnum-1])+', with new value of '+str(outputval))
+                    var[:,args.pftnum-1] = outputval
+            else:
+                pftname_in_bytelist = list(ncfile.variables['fates_pftname'][args.pftnum-1,:])
+                pftname_in_stringlist = [i.decode('utf-8') for i in pftname_in_bytelist]
+                print('replacing prior value of pft name for PFT '+str(args.pftnum)+', which was "'+''.join(pftname_in_stringlist).strip()+'", with new value of "'+args.val+'"')
+                var[args.pftnum-1] = args.val.ljust(otherdimlength)
         elif args.allpfts and ispftvar:
             if pftdim == 0:
                 if not args.silent:
@@ -217,7 +247,7 @@ def main():
             actionstring = 'modify_fates_paramfile.py '+' '.join(sys.argv[1:])
             timestampstring = datetime.datetime.fromtimestamp(time.time()).strftime('%a %b %d %Y, %H:%M:%S')
             #
-            oldhiststr = ncfile.history
+            oldhiststr = ncfile.history.decode('utf-8')
             newhiststr = oldhiststr + "\n "+timestampstring + ': ' + actionstring
             ncfile.history = newhiststr
         #
