@@ -253,7 +253,7 @@ contains
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
     integer  :: ft         ! PFT loop
     real(r8) :: sumarea    ! area of PFTs in nocomp mode. 
-    real(r8) :: hlm_to_fates_pft_map(12) !this should ultimately come from the HLM?
+    real(r8) :: hlm_to_fates_pft_map(12,numpft) !this should ultimately come from the HLM?
     integer  :: hlm_pft    ! used in fixed biogeog mode
     integer  :: fates_pft  ! used in fixed biogeog mode
     !----------------------------------------------------------------------
@@ -306,25 +306,31 @@ contains
            ! are fewer FATES PFTs than HLM PFTs
 
            ! PLACEHOLDER FOR NEW FATES PARAMETER. This will always have to be 12 digits long. 
-            hlm_to_fates_pft_map(1) = 1
-            hlm_to_fates_pft_map(2) = 1
-            hlm_to_fates_pft_map(3) = 2
-            hlm_to_fates_pft_map(4) = 2
-            hlm_to_fates_pft_map(5) = 3
-            hlm_to_fates_pft_map(6) = 3
-            hlm_to_fates_pft_map(7) = 4
-            hlm_to_fates_pft_map(8) = 4
-            hlm_to_fates_pft_map(9) = 5
-            hlm_to_fates_pft_map(10) = 5
-            hlm_to_fates_pft_map(11) = 6
-            hlm_to_fates_pft_map(12) = 6
+           ! protocol is (hlm_pft,fates_pft)
+            hlm_to_fates_pft_map(1:12,1:numpft)=0._r8
+            !this is the fraction that is associated with each fates pft of a given hlm area
+            !each HLM row neds to sum to one...
+            hlm_to_fates_pft_map(1,1) = 1
+            hlm_to_fates_pft_map(2,1) = 1
+            hlm_to_fates_pft_map(3,2) = 1
+            hlm_to_fates_pft_map(4,2) = 1
+            hlm_to_fates_pft_map(5,3) = 1
+            hlm_to_fates_pft_map(6,3) = 1
+            hlm_to_fates_pft_map(7,4) = 1
+            hlm_to_fates_pft_map(8,4) = 1
+            hlm_to_fates_pft_map(9,5) = 1
+            hlm_to_fates_pft_map(10,5) = 1
+            hlm_to_fates_pft_map(11,6) = 1
+            hlm_to_fates_pft_map(12,6) = 1
 
             ! assuming here there are 12 pfts on the surface dataset and 6 on fates pft file
             ! add up the area associated with each FATES PFT
             sites(s)%area_pft(1:numpft) = 0._r8
-            do hlm_pft = 1,12        
-               fates_pft  = hlm_to_fates_pft_map(hlm_pft)
-               sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) +  bc_in(s)%pft_areafrac(hlm_pft) 
+            do hlm_pft = 1,12
+               do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts        
+                 sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
+                     hlm_to_fates_pft_map(hlm_pft,fates_pft) * bc_in(s)%pft_areafrac(hlm_pft) 
+               end do
             end do !hlm_pft
 
            ! re-normalize PFT area to ensure it sums to one.
@@ -639,6 +645,14 @@ contains
 
        temp_cohort%pft         = pft
        temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
+       if(hlm_use_nocomp.eq.itrue)then !in nocomp mode we only have one PFT per patch
+                                      ! as opposed to numpft's. So we should up the initial density
+                                      ! to compensate (otherwise runs are very hard to compare)
+                                      ! this multiplies it by the number of PFTs there would have been in
+                                      ! the single shared patch in competition mode.          
+          temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
+       endif
+
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
        
 
