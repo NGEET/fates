@@ -2674,7 +2674,7 @@ contains
        end if
 
        if(count_cycles > max_cycles) then
-        if(is_oldest.eq.itrue.and.is_youngest.eq.itrue.and.hlm_use_fixed_biogeog)then 
+        if(is_oldest.eq.itrue.and.is_youngest.eq.itrue.and.hlm_use_nocomp)then 
           write(fates_log(),*) 'this is the only patch of this PFT',currentPatch%area
           currentPatch => currentPatch%older
           count_cycles = 0
