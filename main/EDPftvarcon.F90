@@ -70,8 +70,12 @@ module EDPftvarcon
      real(r8), allocatable :: slamax(:)              ! Maximum specific leaf area of plant (at bottom) [m2/gC]
      real(r8), allocatable :: slatop(:)              ! Specific leaf area at canopy top [m2/gC]
      
-     real(r8), allocatable :: roota_par(:)           ! Normalized Root profile scaling parameter A
-     real(r8), allocatable :: rootb_par(:)           ! Normalized root profile scaling parameter B
+     integer, allocatable :: fates_fnrt_prof_mode(:) ! Index to select fine root profile function:
+                                                     ! 1) Jackson Beta, 2) 1-param exponential
+                                                     ! 3) 2-param exponential
+     real(r8),allocatable :: fates_fnrt_prof_a(:)    ! a parameter for fine-root profile (1st parameter)
+     real(r8),allocatable :: fates_fnrt_prof_b(:)    ! b parameter for fine-root profile (2nd parameter)
+     
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
      real(r8), allocatable :: lf_fcel(:)             ! Leaf litter cellulose fraction [-]
      real(r8), allocatable :: lf_flig(:)             ! Leaf litter lignan fraction [-]
@@ -124,7 +128,9 @@ module EDPftvarcon
      real(r8), allocatable :: rhos(:, :)
      real(r8), allocatable :: taul(:, :)
      real(r8), allocatable :: taus(:, :)
-     real(r8), allocatable :: rootprof_beta(:, :)
+
+
+     
 
      ! Fire Parameters (No PFT vector capabilities in their own routines)
      ! See fire/SFParamsMod.F90 for bulk of fire parameters
@@ -502,11 +508,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_roota_par'
+    name = 'fates_fnrt_prof_mode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_fnrt_prof_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_rootb_par'
+    name = 'fates_fnrt_prof_b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -1023,14 +1033,19 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
 
-    name = 'fates_roota_par'
+    name = 'fates_fnrt_prof_mode'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%roota_par)
+         data=this%fnrt_prof_mode)
 
-    name = 'fates_rootb_par'
+    name = 'fates_fnrt_prof_a'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%rootb_par)
+         data=this%fnrt_prof_a)
 
+    name = 'fates_fnrt_prof_b'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%fnrt_prof_b)
+
+    
     name = 'fates_lf_flab'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_flab)
@@ -1628,10 +1643,6 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
     !X!         dimension_names=dim_names)
 
-    name = 'fates_rootprof_beta'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
   end subroutine Register_PFT_nvariants
 
   !-----------------------------------------------------------------------
@@ -1651,9 +1662,6 @@ contains
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
 
-    name = 'fates_rootprof_beta'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%rootprof_beta)
 
   end subroutine Receive_PFT_nvariants
 
@@ -1986,8 +1994,9 @@ contains
         write(fates_log(),fmt0) 'slamax = ',EDPftvarcon_inst%slamax
         write(fates_log(),fmt0) 'slatop = ',EDPftvarcon_inst%slatop        
         write(fates_log(),fmt0) 'leaf_long = ',EDPftvarcon_inst%leaf_long
-        write(fates_log(),fmt0) 'roota_par = ',EDPftvarcon_inst%roota_par
-        write(fates_log(),fmt0) 'rootb_par = ',EDPftvarcon_inst%rootb_par
+        write(fates_log(),fmt0) 'fnrt_prof_mode = ',EDPftvarcon_inst%fnrt_prof_mode
+        write(fates_log(),fmt0) 'fnrt_prof_a = ',EDPftvarcon_inst%fnrt_prof_a
+        write(fates_log(),fmt0) 'fnrt_prof_b = ',EDPftvarcon_inst%fnrt_prof_b
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
         write(fates_log(),fmt0) 'lf_fcel = ',EDPftvarcon_inst%lf_fcel
         write(fates_log(),fmt0) 'lf_flig = ',EDPftvarcon_inst%lf_flig
@@ -2033,7 +2042,6 @@ contains
         write(fates_log(),fmt0) 'phenflush_fraction',EDpftvarcon_inst%phenflush_fraction
         write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
         write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
-        write(fates_log(),fmt0) 'rootprof_beta = ',EDPftvarcon_inst%rootprof_beta
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
         write(fates_log(),fmt0) 'allom_hmode = ',EDPftvarcon_inst%allom_hmode
         write(fates_log(),fmt0) 'allom_lmode = ',EDPftvarcon_inst%allom_lmode

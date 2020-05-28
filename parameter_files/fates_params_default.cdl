@@ -281,9 +281,13 @@ variables:
 	double fates_leaf_tpuse(fates_pft) ;
 		fates_leaf_tpuse:units = "J/mol/K" ;
 		fates_leaf_tpuse:long_name = "entropy term for tpu" ;
+
 	double fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
+
+
+
 	double fates_leaf_vcmaxha(fates_pft) ;
 		fates_leaf_vcmaxha:units = "J/mol" ;
 		fates_leaf_vcmaxha:long_name = "activation energy for vcmax" ;
@@ -425,15 +429,15 @@ variables:
 	double fates_root_long(fates_pft) ;
 		fates_root_long:units = "yr" ;
 		fates_root_long:long_name = "root longevity (alternatively, turnover time)" ;
-	double fates_roota_par(fates_pft) ;
-		fates_roota_par:units = "1/m" ;
-		fates_roota_par:long_name = "CLM rooting distribution parameter" ;
-	double fates_rootb_par(fates_pft) ;
-		fates_rootb_par:units = "1/m" ;
-		fates_rootb_par:long_name = "CLM rooting distribution parameter" ;
-	double fates_rootprof_beta(fates_variants, fates_pft) ;
-		fates_rootprof_beta:units = "unitless" ;
-		fates_rootprof_beta:long_name = "Rooting beta parameter, for C and N vertical discretization (NOT USED BY DEFAULT)" ;
+	double fates_fnrt_prof_mode(fates_pft) ;
+		fates_fnrt_prof_mode:units = "index" ;
+		fates_fnrt_prof_mode:long_name = "Index to select fine root profile function: 1) Jackson Beta, 2) 1-param exponential 3) 2-param exponential" ;
+	double fates_fnrt_prof_a(fates_pft) ;
+		fates_fnrt_prof_a:units = "unitless"
+		fates_fnrt_prof_a:long_name = "Fine root profile function, parameter a" ;
+	double fates_fnrt_prof_b(fates_pft) ;
+       		fates_fnrt_prof_b:units = "unitless"
+		fates_fnrt_prof_b:long_name = "Fine root profile function, parameter b" ;
 	double fates_seed_alloc(fates_pft) ;
 		fates_seed_alloc:units = "fraction" ;
 		fates_seed_alloc:long_name = "fraction of available carbon balance allocated to seeds" ;
@@ -1124,14 +1128,11 @@ data:
 
  fates_root_long = 1, 2, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1, 1 ;
 
- fates_roota_par = 7, 7, 7, 7, 6, 6, 7, 7, 7, 11, 11, 11 ;
+ fates_fnrt_prof_mode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ;
 
- fates_rootb_par = 1, 2, 2, 1, 2, 2, 1.5, 1.5, 1.5, 2, 2, 2 ;
+ fates_fnrt_prof_a = 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976 ;
 
- fates_rootprof_beta =
-  0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 
-    0.976, 0.976,
-  _, _, _, _, _, _, _, _, _, _, _, _ ;
+ fates_fnrt_prof_b = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
  fates_seed_alloc = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
 
