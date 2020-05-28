@@ -102,7 +102,6 @@ contains
     use FatesAllometryMod, only : bleaf
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
-    use FatesAllometryMod, only : i_hydro_rootprof_context
     use FatesAllometryMod, only : decay_coeff_kn
 
     ! ARGUMENTS:
@@ -267,7 +266,7 @@ contains
 
          do ft = 1,numpft
              call set_root_fraction(rootfr_ft(ft,:), ft, &
-                   bc_in(s)%zi_sisl,icontext = i_hydro_rootprof_context)
+                   bc_in(s)%zi_sisl)
          end do
           
 

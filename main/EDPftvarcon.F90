@@ -70,11 +70,11 @@ module EDPftvarcon
      real(r8), allocatable :: slamax(:)              ! Maximum specific leaf area of plant (at bottom) [m2/gC]
      real(r8), allocatable :: slatop(:)              ! Specific leaf area at canopy top [m2/gC]
      
-     integer, allocatable :: fates_fnrt_prof_mode(:) ! Index to select fine root profile function:
+     real(r8), allocatable :: fnrt_prof_mode(:)      ! Index to select fine root profile function:
                                                      ! 1) Jackson Beta, 2) 1-param exponential
-                                                     ! 3) 2-param exponential
-     real(r8),allocatable :: fates_fnrt_prof_a(:)    ! a parameter for fine-root profile (1st parameter)
-     real(r8),allocatable :: fates_fnrt_prof_b(:)    ! b parameter for fine-root profile (2nd parameter)
+                                                     ! 3) 2-param exponential 4) Zeng (not yet unified)
+     real(r8),allocatable :: fnrt_prof_a(:)          ! a parameter for fine-root profile (1st parameter)
+     real(r8),allocatable :: fnrt_prof_b(:)          ! b parameter for fine-root profile (2nd parameter)
      
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
      real(r8), allocatable :: lf_fcel(:)             ! Leaf litter cellulose fraction [-]
@@ -1450,8 +1450,7 @@ contains
     name = 'fates_prescribed_puptake'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_puptake)
-    
-    
+
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------
@@ -1508,6 +1507,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    
 
   end subroutine Register_PFT_numrad
 
@@ -2193,7 +2193,27 @@ contains
            
         end if
         
-     
+        ! Check fine-root profile parameters
+
+        if(EDPftvarcon_inst%fnrt_prof_a(ipft) < nearzero .or. & 
+              EDPftvarcon_inst%fnrt_prof_a(ipft) > fates_check_param_set) then
+            write(fates_log(),*) 'Rooting profile parameter a must have a meaningful value'
+            write(fates_log(),*) 'pft: ',ipft,' fnrt_prof_a(ipft): ',EDPftvarcon_inst%fnrt_prof_a(ipft)
+            write(fates_log(),*) 'Aborting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        if( EDPftvarcon_inst%fnrt_prof_mode(ipft) == 2 ) then
+            if (EDPftvarcon_inst%fnrt_prof_b(ipft) < nearzero .or. & 
+                  EDPftvarcon_inst%fnrt_prof_b(ipft) > fates_check_param_set) then
+                write(fates_log(),*) 'Rooting profile parameter b must have a meaningful value'
+                write(fates_log(),*) 'when using the 2 parameter exponential mode:'
+                write(fates_log(),*) 'pft: ',ipft,' fnrt_prof_b(ipft): ',EDPftvarcon_inst%fnrt_prof_b(ipft)
+                write(fates_log(),*) 'Aborting'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+        end if
+        
 
         ! Check that parameter ranges for age-dependent mortality make sense   
         !-----------------------------------------------------------------------------------    

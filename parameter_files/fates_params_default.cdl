@@ -433,10 +433,10 @@ variables:
 		fates_fnrt_prof_mode:units = "index" ;
 		fates_fnrt_prof_mode:long_name = "Index to select fine root profile function: 1) Jackson Beta, 2) 1-param exponential 3) 2-param exponential" ;
 	double fates_fnrt_prof_a(fates_pft) ;
-		fates_fnrt_prof_a:units = "unitless"
+		fates_fnrt_prof_a:units = "unitless" ;
 		fates_fnrt_prof_a:long_name = "Fine root profile function, parameter a" ;
 	double fates_fnrt_prof_b(fates_pft) ;
-       		fates_fnrt_prof_b:units = "unitless"
+       	fates_fnrt_prof_b:units = "unitless" ;
 		fates_fnrt_prof_b:long_name = "Fine root profile function, parameter b" ;
 	double fates_seed_alloc(fates_pft) ;
 		fates_seed_alloc:units = "fraction" ;
@@ -1128,11 +1128,11 @@ data:
 
  fates_root_long = 1, 2, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1, 1 ;
 
- fates_fnrt_prof_mode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ;
+ fates_fnrt_prof_mode = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
 
- fates_fnrt_prof_a = 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976 ;
+ fates_fnrt_prof_a = 7, 7, 7, 7, 6, 6, 7, 7, 7, 11, 11, 11 ;
 
- fates_fnrt_prof_b = _, _, _, _, _, _, _, _, _, _, _, _ ;
+ fates_fnrt_prof_b = 1, 2, 2, 1, 2, 2, 1.5, 1.5, 1.5, 2, 2, 2 ;
 
  fates_seed_alloc = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
 
