@@ -4591,7 +4591,7 @@ contains
          ! or, we just completed a solve but did not fully integrate
          ! the time.  Lets update the time-step to be the remainder
          ! of the step.
-         dtime = min(tmx*0.01,tmx-tm)
+         dtime = tmx-tm
           
          ! Relaxation factors are reset to starting point.
          rlfx_plnt = rlfx_plnt0
@@ -4607,7 +4607,7 @@ contains
          th_node(:) = th_node_init(:)
          
           
-         tm = tm + dtime
+!         tm = tm + dtime
          nwtn_iter = 0
 
          ! Return here if you are just continuing the
@@ -4915,7 +4915,7 @@ contains
             ! time and try a new round
             if( nsteps < max_newton_rounds ) then
 
-               tm = tm - dtime
+!               tm = tm - dtime
                nsteps = nsteps + 1
 
                write(fates_log(),*) 'fates hydraulics, MatSolve2D:'
@@ -5004,6 +5004,9 @@ contains
          ! If there are any sub-steps left, we need to update
          ! the initial water content
          th_node_init(:) = th_node(:)
+
+         ! Advance time forward
+         tm = tm + dtime
          
       end do outerloop
 

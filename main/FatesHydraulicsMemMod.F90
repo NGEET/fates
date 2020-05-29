@@ -10,7 +10,7 @@ module FatesHydraulicsMemMod
    implicit none
    private
 
-   logical, parameter, public :: use_2d_hydrosolve = .false.
+   logical, parameter, public :: use_2d_hydrosolve = .true.
    
    
    ! Number of soil layers for indexing cohort fine root quanitities
