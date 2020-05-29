@@ -28,7 +28,7 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_max_durat
    real(r8),protected, public :: SF_val_durat_slope
    real(r8),protected, public :: SF_val_drying_ratio
-   real(r8),protected, public :: SF_val_fire_threshold    ! threshold for fires that spread or go out. KW/m (Pyne 1986)
+   real(r8),protected, public :: SF_val_fire_threshold    ! threshold for fires that spread or go out. kW/m (Pyne 1996)
    real(r8),protected, public :: SF_val_CWD_frac(ncwd)
    real(r8),protected, public :: SF_val_max_decomp(NFSC)
    real(r8),protected, public :: SF_val_SAV(NFSC)
