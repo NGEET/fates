@@ -121,7 +121,14 @@ module EDParamsMod
    ! ----------------------------------------------------------------------------------------------
 
    real(r8),protected,public :: logging_dbhmin              ! Minimum dbh at which logging is applied (cm)
+                                                            ! Typically associated with harvesting
    character(len=param_string_length),parameter,public :: logging_name_dbhmin = "fates_logging_dbhmin"
+
+   real(r8),protected,public :: logging_dbhmax              ! Maximum dbh at which logging is applied (cm)
+                                                            ! Typically associated with fire suppression
+                                                            ! (THIS PARAMETER IS NOT USED YET)
+   character(len=param_string_length),parameter,public :: logging_name_dbhmax = "fates_logging_dbhmax"
+
 
    real(r8),protected,public :: logging_collateral_frac     ! Ratio of collateral mortality to direct logging mortality
    character(len=param_string_length),parameter,public :: logging_name_collateral_frac = "fates_logging_collateral_frac"
@@ -193,6 +200,7 @@ contains
     bgc_soil_salinity                     = nan
 
     logging_dbhmin                        = nan
+    logging_dbhmax                        = nan
     logging_collateral_frac               = nan
     logging_direct_frac                   = nan
     logging_mechanical_frac               = nan
@@ -312,6 +320,9 @@ contains
          dimension_names=dim_names_scalar) 
 
     call fates_params%RegisterParameter(name=logging_name_dbhmin, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=logging_name_dbhmax, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=logging_name_collateral_frac, dimension_shape=dimension_shape_scalar, &
@@ -459,7 +470,10 @@ contains
 
     call fates_params%RetreiveParameter(name=logging_name_dbhmin, &
           data=logging_dbhmin)
-    
+
+    call fates_params%RetreiveParameter(name=logging_name_dbhmax, &
+          data=logging_dbhmax)
+
     call fates_params%RetreiveParameter(name=logging_name_collateral_frac, &
           data=logging_collateral_frac)
     
@@ -550,6 +564,7 @@ contains
         write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
         write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
+        write(fates_log(),fmt0) 'logging_dbhmax = ',logging_dbhmax
         write(fates_log(),fmt0) 'logging_collateral_frac = ',logging_collateral_frac
         write(fates_log(),fmt0) 'logging_coll_under_frac = ',logging_coll_under_frac
         write(fates_log(),fmt0) 'logging_direct_frac = ',logging_direct_frac
