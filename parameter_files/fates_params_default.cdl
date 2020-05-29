@@ -592,7 +592,7 @@ variables:
 		fates_fire_part_dens:units = "kg/m2" ;
 		fates_fire_part_dens:long_name = "spitfire parameter, oven dry particle density, Table A1 Thonicke et al 2010" ;
 	double fates_fire_threshold ;
-		fates_fire_threshold:units = "kW/m2" ;
+		fates_fire_threshold:units = "kW/m" ;
 		fates_fire_threshold:long_name = "spitfire parameter, fire intensity threshold for tracking fires that spread" ;
 	double fates_hydr_kmax_rsurf1 ;
 		fates_hydr_kmax_rsurf1:units = "kg water/m2 root area/Mpa/s" ;
