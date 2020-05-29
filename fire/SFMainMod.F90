@@ -774,7 +774,7 @@ contains
          endif
 
          !'decide_fire' subroutine 
-         if (currentPatch%FI > SF_val_fire_threshold) then !track fires greater than kW/m2 energy threshold
+         if (currentPatch%FI > SF_val_fire_threshold) then !track fires greater than kW/m energy threshold
             currentPatch%fire = 1 ! Fire...    :D
           
          else     
