@@ -24,6 +24,10 @@ module FatesHistoryInterfaceMod
   use EDTypesMod               , only : num_vegtemp_mem
   use EDTypesMod               , only : site_massbal_type
   use EDTypesMod               , only : element_list
+  use EDTypesMod               , only : N_DIST_TYPES
+  use EDTypesMod               , only : dtype_ifall
+  use EDTypesMod               , only : dtype_ifire
+  use EDTypesMod               , only : dtype_ilog
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -186,6 +190,14 @@ module FatesHistoryInterfaceMod
   integer :: ih_gpp_understory_si
   integer :: ih_canopy_biomass_si
   integer :: ih_understory_biomass_si
+
+  integer :: ih_disturbance_rate_p2p_si
+  integer :: ih_disturbance_rate_p2s_si
+  integer :: ih_disturbance_rate_s2s_si
+  integer :: ih_fire_disturbance_rate_si
+  integer :: ih_logging_disturbance_rate_si
+  integer :: ih_fall_disturbance_rate_si
+  integer :: ih_potential_disturbance_rate_si
 
   ! Indices to site by size-class by age variables
   integer :: ih_nplant_si_scag
@@ -1774,6 +1786,13 @@ end subroutine flush_hvars
                hio_agb_si              => this%hvars(ih_agb_si)%r81d, &
                hio_canopy_biomass_si   => this%hvars(ih_canopy_biomass_si)%r81d, &
                hio_understory_biomass_si   => this%hvars(ih_understory_biomass_si)%r81d, &
+               hio_disturbance_rate_p2p_si       => this%hvars(ih_disturbance_rate_p2p_si)%r81d, &
+               hio_disturbance_rate_p2s_si       => this%hvars(ih_disturbance_rate_p2s_si)%r81d, &
+               hio_disturbance_rate_s2s_si       => this%hvars(ih_disturbance_rate_s2s_si)%r81d, &
+               hio_fire_disturbance_rate_si      => this%hvars(ih_fire_disturbance_rate_si)%r81d, &
+               hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
+               hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
+               hio_potential_disturbance_rate_si => this%hvars(ih_potential_disturbance_rate_si)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
                hio_npp_totl_si_scpf    => this%hvars(ih_npp_totl_si_scpf)%r82d, &
                hio_npp_leaf_si_scpf    => this%hvars(ih_npp_leaf_si_scpf)%r82d, &
@@ -2036,6 +2055,25 @@ end subroutine flush_hvars
             this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
             this%hvars(ih_h2oveg_pheno_err_si)%r81d(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
          end if
+
+         ! output site-level disturbance rates
+         hio_disturbance_rate_p2p_si = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES))
+         hio_disturbance_rate_p2s_si = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES))
+         hio_disturbance_rate_s2s_si = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES))
+
+         hio_fire_disturbance_rate_si = sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
+              sites(s)%disturbance_rates_primary_to_secondary(dtype_ifire) + &
+              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifire)
+
+         hio_logging_disturbance_rate_si = sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
+              sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) + &
+              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)
+
+         hio_fall_disturbance_rate_si = sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
+              sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) + &
+              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)
+
+         hio_potential_disturbance_rate_si = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES))
 
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -4199,6 +4237,42 @@ end subroutine flush_hvars
          long='Biomass of understory plants',  use_default='active',                            &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_understory_biomass_si )
+
+    ! disturbance rates
+    call this%set_history_var(vname='DISTURBANCE_RATE_P2P', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from primary to primary lands',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_p2p_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_P2S', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from primary to secondary lands',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_p2s_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_S2S', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from secondary to secondary lands',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_s2s_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_FIRE', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from fire',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_disturbance_rate_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_LOGGING', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from logging',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_logging_disturbance_rate_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_FALL', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from treefall',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fall_disturbance_rate_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_POTENTIAL', units='m2 m-2 d-1',                   &
+         long='Potential (i.e., including unresolved) disturbance rate',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_potential_disturbance_rate_si )
 
     ! Canopy Resistance 
 

@@ -36,6 +36,8 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : lg_sf
   use EDTypesMod           , only : dl_sf
   use EDTypesMod           , only : dump_patch
+  use EDTypesMod           , only : N_DIST_TYPES
+  use EDTypesMod           , only : AREA_INV
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : hlm_numSWb
@@ -169,6 +171,7 @@ contains
                                  ! secondary forest patch)
     real(r8) :: dist_rate_ldist_notharvested
     integer  :: threshold_sizeclass
+    integer  :: i_dist
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -218,6 +221,9 @@ contains
     ! Calculate Disturbance Rates based on the mortality rates just calculated
     ! ---------------------------------------------------------------------------------------------
 
+    ! zero the diagnostic disturbance rate fields
+    site_in%potential_disturbance_rates(1:N_DIST_TYPES) = 0._r8
+
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
        
@@ -260,9 +266,14 @@ contains
        endif
 
        ! Fire Disturbance Rate
-       ! Fires can't burn the whole patch, as this causes /0 errors. 
        currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
 
+       do i_dist = 1,N_DIST_TYPES
+          site_in%potential_disturbance_rates(i_dist) = site_in%potential_disturbance_rates(i_dist) + &
+               currentPatch%disturbance_rates(i_dist) * currentPatch%area * AREA_INV
+       end do
+
+       ! Fires can't burn the whole patch, as this causes /0 errors. 
        if (debug) then
           if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
           write(fates_log(),*) 'very high fire areas', &
@@ -424,6 +435,11 @@ contains
     site_areadis_primary = 0.0_r8
     site_areadis_secondary = 0.0_r8    
 
+    ! zero the diagnostic disturbance rate fields
+    currentSite%disturbance_rates_primary_to_primary(1:N_DIST_TYPES) = 0._r8
+    currentSite%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES) = 0._r8
+    currentSite%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES) = 0._r8
+
     do while(associated(currentPatch))
 
     
@@ -449,8 +465,25 @@ contains
                 (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
              
              site_areadis_primary = site_areadis_primary + currentPatch%area * currentPatch%disturbance_rate
+
+             ! track disturbance rates to output to history
+             currentSite%disturbance_rates_primary_to_primary(currentPatch%disturbance_mode) = &
+                  currentSite%disturbance_rates_primary_to_primary(currentPatch%disturbance_mode) + &
+                  currentPatch%area * currentPatch%disturbance_rate * AREA_INV
           else
              site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate          
+
+             ! track disturbance rates to output to history
+             if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
+                currentSite%disturbance_rates_secondary_to_secondary(currentPatch%disturbance_mode) = &
+                     currentSite%disturbance_rates_secondary_to_secondary(currentPatch%disturbance_mode) + &
+                     currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+             else
+                currentSite%disturbance_rates_primary_to_secondary(currentPatch%disturbance_mode) = &
+                     currentSite%disturbance_rates_primary_to_secondary(currentPatch%disturbance_mode) + &
+                     currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+             endif
+
           endif
           
        end if
