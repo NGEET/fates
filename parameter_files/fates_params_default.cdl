@@ -676,8 +676,8 @@ variables:
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
         int stomatal_model ;
-		stomatal_model:units = "unitless" ;
-                stomatal_model:long_name = "switch for choosing between Ball-Berry stomatal conductance model and Medlyn model" ;
+		stomatal_model:units = "flag" ;
+                stomatal_model:long_name = "switch for choosing between Ball-Berry stomatal conductance model (1) and Medlyn model (2)" ;
                 
 // global attributes:
 		:history = "This parameter file is maintained in version control\n",
