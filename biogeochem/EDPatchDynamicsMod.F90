@@ -424,6 +424,7 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
+    logical  :: foundfirstprimary            ! logical for finding the first primary forest patch
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -1043,12 +1044,41 @@ contains
        
       if ( site_areadis_primary .gt. nearzero) then
           currentPatch               => currentSite%youngest_patch
-          new_patch_primary%older    => currentPatch
-          new_patch_primary%younger  => null()
-          currentPatch%younger       => new_patch_primary
-          currentSite%youngest_patch => new_patch_primary
+          ! insert first primary patch after all the secondary patches, if there are any
+          if (currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+             foundfirstprimary = .false.
+             do while(associated(currentPatch) .and. .not. foundfirstprimary) 
+                currentPatch => currentPatch%older
+                if (associated(currentPatch)) then
+                   if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+                      foundfirstprimary = .true.
+                   endif
+                endif
+             end do
+             if (associated(currentPatch)) then
+                ! the case where we've found a youngest primary patch
+                new_patch_primary%older    => currentPatch
+                new_patch_primary%younger  => currentPatch%younger
+                currentPatch%younger%older => new_patch_primary
+                currentPatch%younger       => new_patch_primary
+             else
+                ! the case where we haven't, and are putting a primary patch at the oldest end of the 
+                ! linked list (not sure how this could happen, but who knows...)
+                new_patch_primary%older    => null()
+                new_patch_primary%younger  => currentSite%oldest_patch
+                currentSite%oldest_patch%older   => new_patch_primary
+                currentSite%oldest_patch   => new_patch_primary
+             endif
+          else
+             ! the case where there are no secondary patches at the start of the LL (prior logic)
+             new_patch_primary%older    => currentPatch
+             new_patch_primary%younger  => null()
+             currentPatch%younger       => new_patch_primary
+             currentSite%youngest_patch => new_patch_primary
+          endif
       endif
       
+      ! insert first secondary at the start of the list
       if ( site_areadis_secondary .gt. nearzero) then
           currentPatch               => currentSite%youngest_patch
           new_patch_secondary%older  => currentPatch
@@ -2363,6 +2393,10 @@ contains
        call rp%litter(el)%FuseLitter(rp%area,dp%area,dp%litter(el))
     end do
 
+    if ( rp%anthro_disturbance_label .ne. dp%anthro_disturbance_label) then
+       write(fates_log(),*) 'trying to fuse patches with different anthro_disturbance_label values'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
     
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
