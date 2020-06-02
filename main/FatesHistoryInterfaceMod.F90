@@ -191,6 +191,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_canopy_biomass_si
   integer :: ih_understory_biomass_si
 
+  integer :: ih_primaryland_fusion_error_si
   integer :: ih_disturbance_rate_p2p_si
   integer :: ih_disturbance_rate_p2s_si
   integer :: ih_disturbance_rate_s2s_si
@@ -1786,6 +1787,7 @@ end subroutine flush_hvars
                hio_agb_si              => this%hvars(ih_agb_si)%r81d, &
                hio_canopy_biomass_si   => this%hvars(ih_canopy_biomass_si)%r81d, &
                hio_understory_biomass_si   => this%hvars(ih_understory_biomass_si)%r81d, &
+               hio_primaryland_fusion_error_si    => this%hvars(ih_primaryland_fusion_error_si)%r81d, &
                hio_disturbance_rate_p2p_si       => this%hvars(ih_disturbance_rate_p2p_si)%r81d, &
                hio_disturbance_rate_p2s_si       => this%hvars(ih_disturbance_rate_p2s_si)%r81d, &
                hio_disturbance_rate_s2s_si       => this%hvars(ih_disturbance_rate_s2s_si)%r81d, &
@@ -2055,6 +2057,9 @@ end subroutine flush_hvars
             this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
             this%hvars(ih_h2oveg_pheno_err_si)%r81d(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
          end if
+
+         ! error in primary lands from patch fusion
+         hio_primaryland_fusion_error_si = sites(s)%primary_land_patchfusion_error
 
          ! output site-level disturbance rates
          hio_disturbance_rate_p2p_si = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES))
@@ -4239,6 +4244,11 @@ end subroutine flush_hvars
          ivar=ivar, initialize=initialize_variables, index = ih_understory_biomass_si )
 
     ! disturbance rates
+    call this%set_history_var(vname='PRIMARYLAND_PATCHFUSION_ERROR', units='m2 m-2 d-1',                   &
+         long='Error in total primary lands associated with patch fusion',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_primaryland_fusion_error_si )
+
     call this%set_history_var(vname='DISTURBANCE_RATE_P2P', units='m2 m-2 d-1',                   &
          long='Disturbance rate from primary to primary lands',  use_default='active',     &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &

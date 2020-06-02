@@ -2087,6 +2087,7 @@ contains
     integer  :: iterate     !switch of patch reduction iteration scheme. 1 to keep going, 0 to stop
     integer  :: fuse_flag   !do patches get fused (1) or not (0).
     integer  :: i_disttype  !iterator over anthropogenic disturbance categories
+    real(r8) :: primary_land_fraction_beforefusion,primary_land_fraction_afterfusion
     !
     !---------------------------------------------------------------------
 
@@ -2094,11 +2095,20 @@ contains
 
     profiletol = ED_val_patch_fusion_tol
 
+    primary_land_fraction_beforefusion = 0._r8
+    primary_land_fraction_afterfusion = 0._r8
+
     nopatches(1:n_anthro_disturbance_categories) = 0
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
        nopatches(currentPatch%anthro_disturbance_label) = &
             nopatches(currentPatch%anthro_disturbance_label) + 1
+       
+       if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+          primary_land_fraction_beforefusion = primary_land_fraction_beforefusion + &
+               currentPatch%area * AREA_INV
+       endif
+
        currentPatch => currentPatch%older
     enddo
 
@@ -2294,6 +2304,18 @@ contains
        enddo !do while nopatches>maxPatchesPerSite
 
     end do  ! i_disttype loop
+
+    do while(associated(currentPatch))
+
+       if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+          primary_land_fraction_afterfusion = primary_land_fraction_afterfusion + &
+               currentPatch%area * AREA_INV
+       endif
+
+       currentPatch => currentPatch%older
+    enddo
+
+    currentSite%primary_land_patchfusion_error = primary_land_fraction_afterfusion - primary_land_fraction_beforefusion
  
   end subroutine fuse_patches
 
