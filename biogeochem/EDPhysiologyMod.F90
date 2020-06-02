@@ -392,6 +392,7 @@ contains
                                  ! above the leaf layer of interest
     real(r8) :: lai_current      ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai   ! the cumulative LAI, top down, to the leaf layer of interest
+    real(r8) :: cohort_cumulative_lai ! cumulative LAI within the current cohort
 
     ! Temporary diagnostic ouptut
     integer :: ipatch
@@ -502,6 +503,7 @@ contains
              lai_layers_above  = leaf_inc * (z-1)
              lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
              cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current
+             cohort_cumulative_lai = lai_layers_above + 0.5*lai_current
              
              !there was activity this year in this leaf layer.  This should only occur for bottom most leaf layer
              if (currentCohort%year_net_uptake(z) /= 999._r8)then 
@@ -560,8 +562,8 @@ contains
                   nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(z) - currentCohort%leaf_cost
                   nnu_clai_a(2,1) = nnu_clai_a(1,2)
                   nnu_clai_a(2,2) = nnu_clai_a(2,2) + (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost)**2
-                  nnu_clai_b(1,1) = nnu_clai_b(1,1) + cumulative_lai
-                  nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cumulative_lai * & 
+                  nnu_clai_b(1,1) = nnu_clai_b(1,1) + cohort_cumulative_lai
+                  nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cohort_cumulative_lai * & 
                                     (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost))
                 end if
 
@@ -617,13 +619,13 @@ contains
                write(fates_log(),*) 'LLSF optimium LAI (intercept,slope):', nnu_clai_b
                write(fates_log(),*) 'LLSF optimium LAI:', nnu_clai_b(1,1)
                write(fates_log(),*) 'LLSF optimium LAI info:', info
-               write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cumulative_lai
+               write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cohort_cumulative_lai
             endif
 
             ! Calculate the optimum trim based on the initial canopy trim value
-            if (cumulative_lai > 0._r8) then  ! Sometime cumulative_lai comes in at 0.0?
-               optimum_trim = (nnu_clai_b(1,1) / cumulative_lai) * initial_trim
-               optimum_laimem = (nnu_clai_b(1,1) / cumulative_lai) * initial_laimem
+            if (cohort_cumulative_lai > 0._r8) then  ! Sometime cumulative_lai comes in at 0.0?
+               optimum_trim = (nnu_clai_b(1,1) / cohort_cumulative_lai) * initial_trim
+               optimum_laimem = (nnu_clai_b(1,1) / cohort_cumulative_lai) * initial_laimem
 
                ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
                if (optimum_trim > 0. .and. optimum_trim < 1.) then
