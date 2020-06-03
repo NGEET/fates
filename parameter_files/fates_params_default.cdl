@@ -97,7 +97,7 @@ variables:
 	double fates_allom_hmode(fates_pft) ;
 		fates_allom_hmode:units = "index" ;
 		fates_allom_hmode:long_name = "height allometry function index." ;
-		fates_allom_hmode:possible_values = "1: O'Brien 1995; 2: Poorter 2006; 3: 2 parameter power law; 4: Chave 2014; 5: Martinez-Cano 2019." ;
+		fates_allom_hmode:possible_values = "1: OBrien 1995; 2: Poorter 2006; 3: 2 parameter power law; 4: Chave 2014; 5: Martinez-Cano 2019." ;
 	double fates_allom_l2fr(fates_pft) ;
 		fates_allom_l2fr:units = "gC/gC" ;
 		fates_allom_l2fr:long_name = "Allocation parameter: fine root C per leaf C" ;
@@ -176,6 +176,15 @@ variables:
 	double fates_fire_crown_kill(fates_pft) ;
 		fates_fire_crown_kill:units = "NA" ;
 		fates_fire_crown_kill:long_name = "fire parameter, see equation 22 in Thonicke et al 2010" ;
+	double fates_fnrt_prof_a(fates_pft) ;
+		fates_fnrt_prof_a:units = "unitless" ;
+		fates_fnrt_prof_a:long_name = "Fine root profile function, parameter a" ;
+	double fates_fnrt_prof_b(fates_pft) ;
+		fates_fnrt_prof_b:units = "unitless" ;
+		fates_fnrt_prof_b:long_name = "Fine root profile function, parameter b" ;
+	double fates_fnrt_prof_mode(fates_pft) ;
+		fates_fnrt_prof_mode:units = "index" ;
+		fates_fnrt_prof_mode:long_name = "Index to select fine root profile function: 1) Jackson Beta, 2) 1-param exponential 3) 2-param exponential" ;
 	double fates_fr_fcel(fates_pft) ;
 		fates_fr_fcel:units = "fraction" ;
 		fates_fr_fcel:long_name = "Fine root litter cellulose fraction" ;
@@ -233,9 +242,6 @@ variables:
 	double fates_hydr_thetas_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_thetas_node:units = "cm3/cm3" ;
 		fates_hydr_thetas_node:long_name = "saturated water content" ;
-	double fates_leaf_BB_slope(fates_pft) ;
-		fates_leaf_BB_slope:units = "unitless" ;
-		fates_leaf_BB_slope:long_name = "stomatal slope parameter, as per Ball-Berry" ;
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
@@ -263,6 +269,15 @@ variables:
 	double fates_leaf_slatop(fates_pft) ;
 		fates_leaf_slatop:units = "m^2/gC" ;
 		fates_leaf_slatop:long_name = "Specific Leaf Area (SLA) at top of canopy, projected area basis" ;
+	double fates_leaf_stomatal_intercept(fates_pft) ;
+		fates_leaf_stomatal_intercept:units = "umol H2O/m**2/s" ;
+		fates_leaf_stomatal_intercept:long_name = "Minimum unstressed stomatal conductance for Ball-Berry model and Medlyn model" ;
+	double fates_leaf_stomatal_slope_ballberry(fates_pft) ;
+		fates_leaf_stomatal_slope_ballberry:units = "unitless" ;
+		fates_leaf_stomatal_slope_ballberry:long_name = "stomatal slope parameter, as per Ball-Berry" ;
+	double fates_leaf_stomatal_slope_medlyn(fates_pft) ;
+		fates_leaf_stomatal_slope_medlyn:units = "KPa**0.5" ;
+		fates_leaf_stomatal_slope_medlyn:long_name = "stomatal slope parameter, as per Medlyn" ;
 	double fates_leaf_stor_priority(fates_pft) ;
 		fates_leaf_stor_priority:units = "unitless" ;
 		fates_leaf_stor_priority:long_name = "factor governing priority of replacing storage with NPP" ;
@@ -328,7 +343,7 @@ variables:
 		fates_mort_r_age_senescence:long_name = "Mortality age senescence rate of change. Sensible range is around 0.03-0.06. Larger values givesteeper mortality curves." ;
 	double fates_mort_r_size_senescence(fates_pft) ;
 		fates_mort_r_size_senescence:units = "mortality rate dbh^-1" ;
-		fates_mort_r_size_senescence:long_name = "Mortality dbh senescence rate of change. Sensible range is around 0.03-0.06. Larger values give steeper mortality curves."  ;
+		fates_mort_r_size_senescence:long_name = "Mortality dbh senescence rate of change. Sensible range is around 0.03-0.06. Larger values give steeper mortality curves." ;
 	double fates_mort_scalar_coldstress(fates_pft) ;
 		fates_mort_scalar_coldstress:units = "1/yr" ;
 		fates_mort_scalar_coldstress:long_name = "maximum mortality rate from cold stress" ;
@@ -419,15 +434,6 @@ variables:
 	double fates_root_long(fates_pft) ;
 		fates_root_long:units = "yr" ;
 		fates_root_long:long_name = "root longevity (alternatively, turnover time)" ;
-	double fates_roota_par(fates_pft) ;
-		fates_roota_par:units = "1/m" ;
-		fates_roota_par:long_name = "CLM rooting distribution parameter" ;
-	double fates_rootb_par(fates_pft) ;
-		fates_rootb_par:units = "1/m" ;
-		fates_rootb_par:long_name = "CLM rooting distribution parameter" ;
-	double fates_rootprof_beta(fates_variants, fates_pft) ;
-		fates_rootprof_beta:units = "unitless" ;
-		fates_rootprof_beta:long_name = "Rooting beta parameter, for C and N vertical discretization (NOT USED BY DEFAULT)" ;
 	double fates_seed_alloc(fates_pft) ;
 		fates_seed_alloc:units = "fraction" ;
 		fates_seed_alloc:long_name = "fraction of available carbon balance allocated to seeds" ;
@@ -528,12 +534,6 @@ variables:
 	double fates_base_mr_20 ;
 		fates_base_mr_20:units = "gC/gN/s" ;
 		fates_base_mr_20:long_name = "Base maintenance respiration rate for plant tissues, using Ryan 1991" ;
-	double fates_bbopt_c3 ;
-		fates_bbopt_c3:units = "umol H2O/m**2/s" ;
-		fates_bbopt_c3:long_name = "Ball-Berry minimum unstressed leaf conductance for C3" ;
-	double fates_bbopt_c4 ;
-		fates_bbopt_c4:units = "umol H2O/m**2/s" ;
-		fates_bbopt_c4:long_name = "Ball-Berry minimum unstressed leaf conductance for C4" ;
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
@@ -591,6 +591,9 @@ variables:
 	double fates_fire_part_dens ;
 		fates_fire_part_dens:units = "kg/m2" ;
 		fates_fire_part_dens:long_name = "spitfire parameter, oven dry particle density, Table A1 Thonicke et al 2010" ;
+	double fates_fire_threshold ;
+		fates_fire_threshold:units = "kW/m" ;
+		fates_fire_threshold:long_name = "spitfire parameter, fire intensity threshold for tracking fires that spread" ;
 	double fates_hydr_kmax_rsurf1 ;
 		fates_hydr_kmax_rsurf1:units = "kg water/m2 root area/Mpa/s" ;
 		fates_hydr_kmax_rsurf1:long_name = "maximum conducitivity for unit root surface (into root)" ;
@@ -606,12 +609,18 @@ variables:
 	double fates_init_litter ;
 		fates_init_litter:units = "NA" ;
 		fates_init_litter:long_name = "Initialization value for litter pool in cold-start (NOT USED)" ;
+	double fates_leaf_stomatal_model ;
+		fates_leaf_stomatal_model:units = "unitless" ;
+		fates_leaf_stomatal_model:long_name = "switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model" ;
 	double fates_logging_coll_under_frac ;
 		fates_logging_coll_under_frac:units = "fraction" ;
 		fates_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
 	double fates_logging_collateral_frac ;
 		fates_logging_collateral_frac:units = "fraction" ;
 		fates_logging_collateral_frac:long_name = "Fraction of large stems in upperstory that die from logging collateral damage" ;
+	double fates_logging_dbhmax ;
+		fates_logging_dbhmax:units = "cm" ;
+		fates_logging_dbhmax:long_name = "Maximum dbh below which logging is applied (unset values flag this to be unused)" ;
 	double fates_logging_dbhmax_infra ;
 		fates_logging_dbhmax_infra:units = "cm" ;
 		fates_logging_dbhmax_infra:long_name = "Tree diameter, above which infrastructure from logging does not impact damage or mortality." ;
@@ -677,10 +686,7 @@ variables:
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
 
 // global attributes:
-		:history = "This parameter file is maintained in version control\n",
-			"See https://github.com/NGEET/fates/blob/master/parameter_files/fates_params_default.cdl \n",
-			"For changes, use git blame \n",
-			"" ;
+		:history = "This parameter file is maintained in version control\nSee https://github.com/NGEET/fates/blob/master/parameter_files/fates_params_default.cdl \nFor changes, use git blame \n" ;
 data:
 
  fates_history_ageclass_bin_edges = 0, 1, 2, 5, 10, 20, 50 ;
@@ -691,7 +697,6 @@ data:
 
  fates_history_sizeclass_bin_edges = 0, 5, 10, 15, 20, 30, 40, 50, 60, 70, 
     80, 90, 100 ;
-
 
  fates_pftname =
   "broadleaf_evergreen_tropical_tree          ",
@@ -830,6 +835,12 @@ data:
  fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 
     0.775, 0.775, 0.775, 0.775, 0.775 ;
 
+ fates_fnrt_prof_a = 7, 7, 7, 7, 6, 6, 7, 7, 7, 11, 11, 11 ;
+
+ fates_fnrt_prof_b = 1, 2, 2, 1, 2, 2, 1.5, 1.5, 1.5, 2, 2, 2 ;
+
+ fates_fnrt_prof_mode = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
+
  fates_fr_fcel = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ;
 
  fates_fr_flab = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
@@ -903,10 +914,8 @@ data:
 
  fates_hydr_resid_node =
   0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16,
-  0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 
-    0.21, 0.21,
-  0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 
-    0.21, 0.21,
+  0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21,
+  0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21,
   0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11 ;
 
  fates_hydr_rfrac_stem = 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 
@@ -922,8 +931,6 @@ data:
   0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65,
   0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65,
   0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75 ;
-
- fates_leaf_BB_slope = 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 ;
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
@@ -950,6 +957,14 @@ data:
 
  fates_leaf_slatop = 0.012, 0.01, 0.024, 0.012, 0.03, 0.03, 0.012, 0.03, 
     0.03, 0.03, 0.03, 0.03 ;
+
+ fates_leaf_stomatal_intercept = 10000, 10000, 10000, 10000, 10000, 10000, 
+    10000, 10000, 10000, 10000, 10000, 40000 ;
+
+ fates_leaf_stomatal_slope_ballberry = 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 ;
+
+ fates_leaf_stomatal_slope_medlyn = 4.1, 2.3, 2.3, 4.1, 4.4, 4.4, 4.7, 4.7, 
+    4.7, 2.2, 5.3, 1.6 ;
 
  fates_leaf_stor_priority = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
     0.8, 0.8 ;
@@ -1121,15 +1136,6 @@ data:
 
  fates_root_long = 1, 2, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1, 1 ;
 
- fates_roota_par = 7, 7, 7, 7, 6, 6, 7, 7, 7, 11, 11, 11 ;
-
- fates_rootb_par = 1, 2, 2, 1, 2, 2, 1.5, 1.5, 1.5, 2, 2, 2 ;
-
- fates_rootprof_beta =
-  0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 
-    0.976, 0.976,
-  _, _, _, _, _, _, _, _, _, _, _, _ ;
-
  fates_seed_alloc = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
 
  fates_seed_alloc_mature = 0, 0, 0, 0, 0, 0, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9 ;
@@ -1144,7 +1150,6 @@ data:
     0.5, 0.5, 0.5 ;
 
  fates_seed_suppl = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
 
  fates_senleaf_long_fdrought = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
@@ -1228,10 +1233,6 @@ data:
 
  fates_base_mr_20 = 2.52e-06 ;
 
- fates_bbopt_c3 = 10000 ;
-
- fates_bbopt_c4 = 40000 ;
-
  fates_canopy_closure_thresh = 0.8 ;
 
  fates_cohort_age_fusion_tol = 0.08 ;
@@ -1270,6 +1271,8 @@ data:
 
  fates_fire_part_dens = 513 ;
 
+ fates_fire_threshold = 50 ;
+
  fates_hydr_kmax_rsurf1 = 20 ;
 
  fates_hydr_kmax_rsurf2 = 0.0001 ;
@@ -1280,9 +1283,13 @@ data:
 
  fates_init_litter = 0.05 ;
 
+ fates_leaf_stomatal_model = 1 ;
+
  fates_logging_coll_under_frac = 0.55983 ;
 
  fates_logging_collateral_frac = 0.05 ;
+
+ fates_logging_dbhmax = _ ;
 
  fates_logging_dbhmax_infra = 35 ;
 

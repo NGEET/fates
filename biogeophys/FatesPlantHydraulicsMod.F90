@@ -66,7 +66,6 @@ module FatesPlantHydraulicsMod
   use FatesAllometryMod, only    : bsap_allom
   use FatesAllometryMod, only    : CrownDepth
   use FatesAllometryMod , only   : set_root_fraction
-  use FatesAllometryMod , only   : i_hydro_rootprof_context
   use FatesHydraulicsMemMod, only: use_2d_hydrosolve
   use FatesHydraulicsMemMod, only: ed_site_hydr_type
   use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
@@ -656,9 +655,8 @@ contains
     ! Crown Nodes
     ! in special case where n_hypool_leaf = 1, the node height of the canopy
     ! water pool is 1/2 the distance from the bottom of the canopy to the top of the tree
-
-    roota                      = EDPftvarcon_inst%roota_par(ft)
-    rootb                      = EDPftvarcon_inst%rootb_par(ft)
+    roota                      = EDPftvarcon_inst%fnrt_prof_a(ft)
+    rootb                      = EDPftvarcon_inst%fnrt_prof_b(ft)
     nlevrhiz                   = csite_hydr%nlevrhiz
     call CrownDepth(plant_height,crown_depth)
 
@@ -820,8 +818,8 @@ contains
     fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
     struct_c = ccohort%prt%GetState(struct_organ, all_carbon_elements)
 
-    roota    =  EDPftvarcon_inst%roota_par(ft)
-    rootb    =  EDPftvarcon_inst%rootb_par(ft)
+    roota    = EDPftvarcon_inst%fnrt_prof_a(ft)
+    rootb    = EDPftvarcon_inst%fnrt_prof_b(ft)
 
     ! Leaf Volumes
     ! -----------------------------------------------------------------------------------
@@ -1523,8 +1521,6 @@ contains
     type(ed_site_hydr_type), pointer :: csite_hydr
     integer :: s, j, ft
     integer :: nstep !number of time steps 
-    real(r8) :: roota !root distriubiton parameter a
-    real(r8) :: rootb !root distriubiton parameter b
     real(r8) :: rootfr !fraction of root in different soil layer
     real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/s)
     real(r8) :: recruitw_total ! total water for newly recruited cohorts (kg water/m2/s)
@@ -1546,8 +1542,6 @@ contains
              ! recruitment water uptake
              if(ccohort_hydr%is_newly_recruited) then
                 recruitflag = .true.
-                roota    =  EDPftvarcon_inst%roota_par(ft)
-                rootb    =  EDPftvarcon_inst%rootb_par(ft)
                 recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
                              ccohort_hydr%th_troot*ccohort_hydr%v_troot                 + &
                              sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
@@ -1604,16 +1598,11 @@ contains
     real(r8) :: watres_local   !minum water content [m3/m3]
     real(r8) :: total_water !total water in rhizosphere at a specific layer (m^3 ha-1)
     real(r8) :: total_water_min !total minimum water in rhizosphere at a specific layer (m^3)
-    real(r8) :: roota !root distriubiton parameter a
-    real(r8) :: rootb !root distriubiton parameter b
     real(r8) :: rootfr !fraction of root in different soil layer
     real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/individual)   
     real(r8) :: n, nmin !number of individuals in cohorts
     real(r8) :: sum_l_aroot
     integer :: s, j, ft
-
-    roota                     =  EDPftvarcon_inst%roota_par(ccohort%pft)
-    rootb                     =  EDPftvarcon_inst%rootb_par(ccohort%pft)
 
     csite_hydr => csite%si_hydr
     ccohort_hydr =>ccohort%co_hydr
@@ -2696,8 +2685,6 @@ contains
                                      ! and absorbing root node in each layer [kg s-1 MPa-1]
     real(r8) :: surfarea_aroot_layer ! Surface area of absorbing roots in each
                                      ! soil layer [m2]
-    real(r8) :: roota                ! root profile parameter a zeng2001_crootfr
-    real(r8) :: rootb                ! root profile parameter b zeng2001_crootfr
     real(r8) :: sum_l_aroot          ! sum of plant's total root length
     real(r8),parameter :: taper_exponent = 1._r8/3._r8 ! Savage et al. (2010) xylem taper exponent [-]
     real(r8),parameter :: min_pet_stem_dz = 0.00001_r8  ! Force at least a small difference
@@ -2705,8 +2692,6 @@ contains
 
 
     pft   = ccohort%pft
-    roota = EDPftvarcon_inst%roota_par(pft)
-    rootb = EDPftvarcon_inst%rootb_par(pft)
 
     ! Get the cross-section of the plant's sapwood area [m2]
     call bsap_allom(ccohort%dbh,pft,ccohort%canopy_trim,a_sapwood,c_sap_dummy)
@@ -3091,7 +3076,6 @@ contains
     integer  :: error_code                      ! flag that specifies which check tripped a failed solution
     integer  :: ft                              ! plant functional type
     real(r8) :: q_flow                          ! flow diagnostic [kg]
-    real(r8) :: roota, rootb                    ! rooting depth parameters (used for diagnostics)
     real(r8) :: rootfr                          ! rooting fraction of this layer (used for diagnostics)
     ! out of the total absorbing roots from the whole community of plants
     integer  :: iter                      ! iteration count for sub-step loops
