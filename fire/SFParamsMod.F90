@@ -3,6 +3,7 @@ module SFParamsMod
    ! module that deals with reading the SF parameter file
    !
    use FatesConstantsMod , only: r8 => fates_r8
+   use FatesConstantsMod , only: fates_check_param_set
    use EDtypesMod        , only: NFSC
    use FatesLitterMod    , only: ncwd
    use FatesParametersInterface, only : param_string_length
