@@ -2570,7 +2570,7 @@ contains
       delta_soil_storage  = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
             site_hydr%v_shell(:,:)) * denh2o * AREA_INV - prev_h2osoil
        
-      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-6_r8 ) then
+      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-5_r8 ) then
           write(fates_log(),*) 'Site plant water balance does not close'
           write(fates_log(),*) 'balance error: ',abs(delta_plant_storage - (root_flux - transp_flux))
           write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
@@ -2580,7 +2580,7 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
       
-       if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-6_r8 ) then
+       if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-5_r8 ) then
           write(fates_log(),*) 'Site soil water balance does not close'
           write(fates_log(),*) 'delta soil storage: ',delta_soil_storage,' [kg/m2]'
           write(fates_log(),*) 'integrated root flux (pos into root): ',root_flux,' [kg/m2]'
@@ -2604,7 +2604,7 @@ contains
 
        wb_check_site = delta_plant_storage+delta_soil_storage+site_runoff+transp_flux
 
-       if( abs(wb_check_site - site_hydr%errh2o_hyd) > 1.e-6_r8 ) then
+       if( abs(wb_check_site - site_hydr%errh2o_hyd) > 1.e-5_r8 ) then
            write(fates_log(),*) 'FATES hydro water ERROR balance does not add up [kg/m2]'
            write(fates_log(),*) 'wb_error_site: ',site_hydr%errh2o_hyd
            write(fates_log(),*) 'wb_check_site: ',wb_check_site
@@ -2616,7 +2616,7 @@ contains
        end if
 
        ! Now check on total error
-       if( abs(wb_check_site) > 1.e-6_r8 ) then
+       if( abs(wb_check_site) > 1.e-5_r8 ) then
            write(fates_log(),*) 'FATES hydro water balance does not add up [kg/m2]'
            write(fates_log(),*) 'site_hydr%errh2o_hyd: ',wb_check_site
            write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
@@ -4429,6 +4429,8 @@ contains
 
     real(r8) :: rlfx_soil        ! Pressure update reduction factor for soil compartments
     real(r8) :: rlfx_plnt        ! Pressure update reduction factor for plant comparmtents
+    real(r8) :: rlfx_soil0       ! Base relaxation factor for the current iteration round
+    real(r8) :: rlfx_plnt0       ! ""
 
     real(r8) :: tm               ! Total time integrated after each substep [s]
     real(r8) :: dtime              ! Total time to be integrated this step [s]
@@ -4454,14 +4456,15 @@ contains
     ! This is a convergence test.  This is the maximum difference
     ! allowed between the flux balance and the change in storage
     ! on a node. [kg/s] *Note, 1.e-9 = 1 ug/s
-    real(r8), parameter :: max_allowed_residual = 1.e-10_r8
+    real(r8), parameter :: max_allowed_residual = 1.e-9_r8
 
     ! Maximum number of times we re-try a round of Newton
     ! iterations, each time decreasing the time-step and
     ! potentially reducing relaxation factors
     integer, parameter :: max_newton_rounds = 20
     
-    ! dtime: 1800,900,450,225,112.5,56.25,28.125,14.0625,7.03125,3.515625,
+    ! dtime will shrink at the following rate (halving) [s]: 
+    ! 1800,900,450,225,112.5,56.25,28.125,14.0625,7.03125,3.515625,
     ! 1.7578125,0.87890625,0.439453125,0.2197265625,0.10986328125,
     ! 0.054931640625,0.0274658203125,0.01373291015625,0.006866455078125,
     ! 0.0034332275390625,0.00171661376953125,
@@ -4485,10 +4488,10 @@ contains
     
     real(r8), parameter :: dtime_rf = 0.2_r8
 
-    real(r8), parameter :: rlfx_soil0 = 0.3  ! 0.1  ! Initial Pressure update
-                                             ! reduction factor for soil compartments
-    real(r8), parameter :: rlfx_plnt0 = 0.3  ! 0.6  ! Initial Pressure update
-                                             ! reduction factor for plant comparmtents
+    real(r8), parameter :: rlfx_soil_init = 0.3  ! 0.1  ! Initial Pressure update
+                                         ! reduction factor for soil compartments
+    real(r8), parameter :: rlfx_plnt_init = 0.3  ! 0.6  ! Initial Pressure update
+                                         ! reduction factor for plant comparmtents
 
 
     associate(conn_up      => site_hydr%conn_up, &
@@ -4591,15 +4594,13 @@ contains
       ! Initialize variables and flags that track
       ! the progress of the solve
 
-      tm      = 0
-      nsteps  = 0
-
+      tm              = 0
+      nsteps          = 0
       th_node_prev(:) = th_node_init(:)
       th_node(:)      = th_node_init(:)
-
-      dtime = tmx
-      rlfx_plnt = rlfx_plnt0
-      rlfx_soil = rlfx_soil0
+      dtime           = tmx
+      rlfx_plnt0      = rlfx_plnt_init
+      rlfx_soil0      = rlfx_soil_init
 
 
       outerloop: do while( tm < tmx )
@@ -4809,8 +4810,10 @@ contains
                  tm                 = 0
                  th_node(:)         = th_node_init(:)
                  th_node_prev(:)    = th_node_init(:)
-                 rlfx_plnt          = rlfx_plnt0*0.9**real(nsteps,r8)
-                 rlfx_soil          = rlfx_soil0*0.9**real(nsteps,r8)
+                 rlfx_plnt0         = rlfx_plnt_init*0.9**real(nsteps,r8)
+                 rlfx_soil0         = rlfx_soil_init*0.9**real(nsteps,r8)
+                 rlfx_plnt          = rlfx_plnt0
+                 rlfx_soil          = rlfx_soil0 
                  cohort_hydr%iterh1 = 0
                  nwtn_iter          = 0
                  cycle outerloop
@@ -4924,9 +4927,11 @@ contains
                      rlfx_soil = min(1._r8,rlfx_soil0 + & 
                            (1.0-rlfx_soil0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
 
+                     print*,rlfx_plnt
+
                  end if
              end if
-
+             
 
          end do newtonloop
 
@@ -4946,7 +4951,7 @@ contains
          
          ! Advance time forward
          tm = tm + dtime
-         
+
          ! Reset relaxation factors
          rlfx_plnt = rlfx_plnt0
          rlfx_soil = rlfx_soil0
