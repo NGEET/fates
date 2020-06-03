@@ -2310,6 +2310,8 @@ contains
        site_hydr%rootuptake50_scpf(:,:)  = 0._r8
        site_hydr%rootuptake100_scpf(:,:) = 0._r8
 
+       print*,"Starting Hydro"
+
        
        ! Initialize water mass balancing terms [kg h2o / m2]
        ! --------------------------------------------------------------------------------
@@ -2353,6 +2355,8 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
           
+!          print*,"--New step--"
+
           ccohort=>cpatch%tallest
           do while(associated(ccohort))
 
@@ -2402,13 +2406,9 @@ contains
              !---------------------------------------------------------------------------
 
 
-             ! This routine will update the theta values for 1 cohort's flow-path
-             ! from leaf to the current soil layer.  This does NOT
-             ! update cohort%th_*
-
              if(use_2d_hydrosolve) then
 
-                 call MatSolve2D(site_hydr,ccohort,ccohort_hydr, &
+                 call MatSolve2D(bc_in(s),site_hydr,ccohort,ccohort_hydr, &
                        dtime,qflx_tran_veg_indiv, &
                        sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
                        dth_layershell_col)
@@ -2555,7 +2555,7 @@ contains
              end do
              
              bc_out(s)%qflx_ro_sisl(j_bc) = site_runoff/dtime
-          end if
+         end if
       enddo
 
        
@@ -2572,6 +2572,7 @@ contains
        
       if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-6_r8 ) then
           write(fates_log(),*) 'Site plant water balance does not close'
+          write(fates_log(),*) 'balance error: ',abs(delta_plant_storage - (root_flux - transp_flux))
           write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
           write(fates_log(),*) 'integrated root flux: ',root_flux,' [kg/m2]'
           write(fates_log(),*) 'transpiration flux: ',transp_flux,' [kg/m2]'
@@ -2603,7 +2604,7 @@ contains
 
        wb_check_site = delta_plant_storage+delta_soil_storage+site_runoff+transp_flux
 
-       if( abs(wb_check_site - site_hydr%errh2o_hyd) > 1.e-10_r8 ) then
+       if( abs(wb_check_site - site_hydr%errh2o_hyd) > 1.e-6_r8 ) then
            write(fates_log(),*) 'FATES hydro water ERROR balance does not add up [kg/m2]'
            write(fates_log(),*) 'wb_error_site: ',site_hydr%errh2o_hyd
            write(fates_log(),*) 'wb_check_site: ',wb_check_site
@@ -2611,6 +2612,7 @@ contains
            write(fates_log(),*) 'delta_soil_storage: ',delta_soil_storage
            write(fates_log(),*) 'site_runoff: ',site_runoff
            write(fates_log(),*) 'transp_flux: ',transp_flux
+           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
        ! Now check on total error
@@ -2621,6 +2623,7 @@ contains
            write(fates_log(),*) 'delta_soil_storage: ',delta_soil_storage
            write(fates_log(),*) 'site_runoff: ',site_runoff
            write(fates_log(),*) 'transp_flux: ',transp_flux
+           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
 
@@ -4337,7 +4340,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine MatSolve2D(site_hydr,cohort,cohort_hydr, &
+  subroutine MatSolve2D(bc_in,site_hydr,cohort,cohort_hydr, &
                         tmx,qtop, &
                         sapflow,rootuptake,wb_err_plant , dwat_plant, & 
                         dth_layershell_site)
@@ -4375,6 +4378,7 @@ contains
     
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
+    type(bc_in_type),intent(in) :: bc_in
     type(ed_site_hydr_type), intent(inout),target :: site_hydr        ! ED site_hydr structure
     type(ed_cohort_hydr_type), target            :: cohort_hydr
     type(ed_cohort_type) , intent(inout), target :: cohort
@@ -4393,6 +4397,7 @@ contains
     integer :: i                 ! generic index (sometimes node index)
     integer :: inode             ! node index
     integer :: k                 ! generic node index
+    integer :: j_bc              ! layer of bc
     integer :: j, icnx           ! soil layer and connection indices
     integer :: id_dn, id_up      ! Node indices on each side of flux path
     integer :: ishell            ! rhizosphere shell index
@@ -4429,7 +4434,7 @@ contains
     real(r8) :: dtime              ! Total time to be integrated this step [s]
     real(r8) :: w_tot_beg     ! total plant water prior to solve [kg]
     real(r8) :: w_tot_end     ! total plant water at end of solve [kg]
-    
+    logical  :: continue_search 
     real(r8) :: k_eff ! Effective conductivity over the current pathway
                       ! between two nodes.  Factors in fractional
                       ! loss of conductivity on each side of the pathway, and the material maximum
@@ -4449,13 +4454,19 @@ contains
     ! This is a convergence test.  This is the maximum difference
     ! allowed between the flux balance and the change in storage
     ! on a node. [kg/s] *Note, 1.e-9 = 1 ug/s
-    real(r8), parameter :: max_allowed_residual = 1.e-8_r8
+    real(r8), parameter :: max_allowed_residual = 1.e-10_r8
 
     ! Maximum number of times we re-try a round of Newton
     ! iterations, each time decreasing the time-step and
     ! potentially reducing relaxation factors
-    integer, parameter :: max_newton_rounds = 10
+    integer, parameter :: max_newton_rounds = 20
     
+    ! dtime: 1800,900,450,225,112.5,56.25,28.125,14.0625,7.03125,3.515625,
+    ! 1.7578125,0.87890625,0.439453125,0.2197265625,0.10986328125,
+    ! 0.054931640625,0.0274658203125,0.01373291015625,0.006866455078125,
+    ! 0.0034332275390625,0.00171661376953125,
+
+
     ! Maximum number of Newton iterations in each round
     integer, parameter :: max_newton_iter = 200
 
@@ -4464,21 +4475,19 @@ contains
     !          too many Newton iterations
     ! icnv = 2 continue onto next iteration, 
     ! icnv = 3 acceptable solution
-    ! icnv = 4 too many failures, aborting
+
     
     integer, parameter :: icnv_fail_round    = 1
-    integer, parameter :: incv_cont_search   = 2
-    integer, parameter :: icnv_pass_round    = 3
-    integer, parameter :: icnv_complete_fail = 4
+    integer, parameter :: icnv_pass_round    = 2
 
     ! Timestep reduction factor when a round of
     ! newton iterations fail. 
     
     real(r8), parameter :: dtime_rf = 0.2_r8
 
-    real(r8), parameter :: rlfx_soil0 = 0.1  ! Initial Pressure update
+    real(r8), parameter :: rlfx_soil0 = 0.3  ! 0.1  ! Initial Pressure update
                                              ! reduction factor for soil compartments
-    real(r8), parameter :: rlfx_plnt0 = 0.6  ! Initial Pressure update
+    real(r8), parameter :: rlfx_plnt0 = 0.3  ! 0.6  ! Initial Pressure update
                                              ! reduction factor for plant comparmtents
 
 
@@ -4491,6 +4500,7 @@ contains
               ajac         => site_hydr%ajac, &
               ipiv         => site_hydr%ipiv, & 
               th_node      => site_hydr%th_node, &
+              th_node_prev => site_hydr%th_node_prev, &
               th_node_init => site_hydr%th_node_init, &
               psi_node     => site_hydr%psi_node, &
               pm_node      => site_hydr%pm_node, & 
@@ -4573,8 +4583,7 @@ contains
 
       enddo
 
-     
-      
+
       ! Total water mass in the plant at the beginning of this solve [kg h2o]
       w_tot_beg = sum(th_node_init(:)*v_node(:))*denh2o
 
@@ -4585,439 +4594,384 @@ contains
       tm      = 0
       nsteps  = 0
 
-      outerloop: do while(tm < tmx)
+      th_node_prev(:) = th_node_init(:)
+      th_node(:)      = th_node_init(:)
 
-         ! If we are here, then we either are starting the solve,
-         ! or, we just completed a solve but did not fully integrate
-         ! the time.  Lets update the time-step to be the remainder
-         ! of the step.
-         dtime = tmx-tm
+      dtime = tmx
+      rlfx_plnt = rlfx_plnt0
+      rlfx_soil = rlfx_soil0
+
+
+      outerloop: do while( tm < tmx )
           
-         ! Relaxation factors are reset to starting point.
-         rlfx_plnt = rlfx_plnt0
-         rlfx_soil = rlfx_soil0
+          ! The solve may reduce the time-step, the shorter
+          ! time-steps may not be perfectly divisible into 
+          ! the remaining time. If so, then make sure we
+          ! don't overshoot
 
-         ! Return here if we want to start a new round of Newton
-         ! iterations. The previous round was unsucessful either
-         ! because it couldn't get a zero residual, or because
-         ! a singularity was encountered.
-100      continue
+          dtime = min(dtime,tmx-tm)
 
-         ! Set the current water content as the initial [m3/m3]
-         th_node(:) = th_node_init(:)
-         
+          ! If we have not exceeded our max number
+          ! of retrying rounds of Newton iterations, reduce
+          ! time and try a new round
           
-!         tm = tm + dtime
+          if( nsteps > max_newton_rounds ) then
+              
+              ! Complete failure to converge even with re-trying
+              ! iterations with smaller timesteps
+              
+              do k=1,site_hydr%num_nodes
+                  write(fates_log(),*) 'node: ',k,'th_init: ',th_node_init(k),psi_node(k)
+              end do
+              
+              write(fates_log(),*) 'Newton hydraulics solve'
+              write(fates_log(),*) 'could not converge on a solution.'
+              write(fates_log(),*) 'Perhaps try increasing iteration cap,'
+              write(fates_log(),*) 'and decreasing relaxation factors.'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+              
+          endif
+
+
+         ! This is the newton search loop
+
+         continue_search = .true.
          nwtn_iter = 0
+         newtonloop: do while(continue_search)
 
-         ! Return here if you are just continuing the
-         ! Newton search for a solution. No need to
-         ! update timing information.
-200      continue
+             nwtn_iter = nwtn_iter + 1
 
-         nwtn_iter = nwtn_iter + 1
-
-         ! The Jacobian and the residual are incremented,
-         ! and the Jacobian is sparse, thus they both need
-         ! to be zerod.
-         ajac(:,:)   = 0._r8
-         residual(:) = 0._r8
+             ! The Jacobian and the residual are incremented,
+             ! and the Jacobian is sparse, thus they both need
+             ! to be zerod.
+             ajac(:,:)   = 0._r8
+             residual(:) = 0._r8
         
-         
-         do k=1,site_hydr%num_nodes
+             do k=1,site_hydr%num_nodes
+                 
+                 ! This is the storage gained from previous newton iterations.
+                 residual(k) = residual(k) + denh2o*v_node(k)*(th_node(k) - th_node_prev(k))/dtime
+                 
+                 if(pm_node(k) == rhiz_p_media) then
+                     
+                     j = node_layer(k)
+                     psi_node(k) = site_hydr%wrf_soil(j)%p%psi_from_th(th_node(k))
+                     
+                     ! Get total potential [Mpa]
+                     h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
+                     ! Get Fraction of Total Conductivity [-]
+                     ftc_node(k) = site_hydr%wkf_soil(j)%p%ftc_from_psi(psi_node(k))
+                     ! deriv ftc wrt psi
+                     dftc_dpsi_node(k)   = site_hydr%wkf_soil(j)%p%dftcdpsi_from_psi(psi_node(k))
+                     
+                 else
+                     
+                     psi_node(k) = wrf_plant(pm_node(k),ft)%p%psi_from_th(th_node(k))
+                     ! Get total potential [Mpa]
+                     h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
+                     ! Get Fraction of Total Conductivity [-]
+                     ftc_node(k) = wkf_plant(pm_node(k),ft)%p%ftc_from_psi(psi_node(k))
+                     ! deriv ftc wrt psi
+                     dftc_dpsi_node(k)   = wkf_plant(pm_node(k),ft)%p%dftcdpsi_from_psi(psi_node(k))
+                     
+                 end if
+                 
+                 ! Fill the self-term on the Jacobian's diagonal with the
+                 ! the change in storage wrt change in psi.
+                 
+                 if(pm_node(k) == rhiz_p_media) then
+                     j = node_layer(k)
+                     ajac(k,k) = -denh2o*v_node(k)/(site_hydr%wrf_soil(j)%p%dpsidth_from_th(th_node(k))*dtime)
+                 else
+                     ajac(k,k) = -denh2o*v_node(k)/(wrf_plant(pm_node(k),ft)%p%dpsidth_from_th(th_node(k))*dtime)
+                 endif
+                 
+             enddo
 
-            ! This is the storage gained from previous newton iterations.
-            residual(k) = residual(k) + (th_node(k) - th_node_init(k))/dtime*denh2o*v_node(k)
+             
+             ! Calculations of maximum conductance for upstream and downstream sides
+             ! of each connection.  This IS dependant on total potential h_node
+             ! because of the root-soil radial conductance.
+             
+             call SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up)
+             
+             ! calculate boundary fluxes     
+             do icnx=1,site_hydr%num_connections
+                 
+                 id_dn = conn_dn(icnx)
+                 id_up = conn_up(icnx)
+                 
+                 ! The row (first index) of the Jacobian (ajac) represents the
+                 ! the node for which we are calculating the water balance
+                 ! The column (second index) of the Jacobian represents the nodes
+                 ! on which the pressure differentials effect the water balance
+                 ! of the node of the first index.
+                 ! This will get the effective K, and may modify FTC depending
+                 ! on the flow direction
+
+                 call GetKAndDKDPsi(kmax_dn(icnx), &
+                       kmax_up(icnx), &
+                       h_node(id_dn), &
+                       h_node(id_up), &
+                       ftc_node(id_dn), &
+                       ftc_node(id_up), &
+                       dftc_dpsi_node(id_dn), & 
+                       dftc_dpsi_node(id_up), & 
+                       dk_dpsi_dn, &
+                       dk_dpsi_up, & 
+                       k_eff)
+                 
+                 q_flux(icnx) = k_eff*(h_node(id_up)-h_node(id_dn))
+                 
+                 ! See equation (22) in technical documentation
+                 ! Add fluxes at current time to the residual
+                 residual(id_dn) = residual(id_dn) - q_flux(icnx)
+                 residual(id_up) = residual(id_up) + q_flux(icnx)
+                 
+                 ! This is the Jacobian term related to the pressure changes on the down-stream side
+                 ! and these are applied to both the up and downstream sides (oppositely)
+                 dqflx_dpsi_dn = -k_eff + (h_node(id_up)-h_node(id_dn)) * dk_dpsi_dn
+                 
+                 ! This is the Jacobian term related to the pressure changes on the up-stream side
+                 ! and these are applied to both the up and downstream sides (oppositely)
+                 dqflx_dpsi_up =  k_eff + (h_node(id_up)-h_node(id_dn)) * dk_dpsi_up
+                 
+                 ! Down-stream node's contribution to the down-stream node's Jacobian
+                 ajac(id_dn,id_dn) = ajac(id_dn,id_dn) + dqflx_dpsi_dn
+                 
+                 ! Down-stream node's contribution to the up-stream node's Jacobian
+                 ajac(id_up,id_dn) = ajac(id_up,id_dn) - dqflx_dpsi_dn
+                 
+                 ! Up-stream node's contribution to the down-stream node's Jacobian
+                 ajac(id_dn,id_up) = ajac(id_dn,id_up) + dqflx_dpsi_up
+                 
+                 ! Up-stream node's contribution to the up-stream node's Jacobian
+                 ajac(id_up,id_up) = ajac(id_up,id_up) - dqflx_dpsi_up
             
-            if(pm_node(k) == rhiz_p_media) then
+             enddo
 
-               j = node_layer(k)
-               psi_node(k) = site_hydr%wrf_soil(j)%p%psi_from_th(th_node(k))
-!!               if ( abs(th_node(k)-site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))) > nearzero) then
-!!                  print*,'non-reversible WRTs?'
-!!                  print*,psi_node(k)
-!!                  print*,th_node(k)
-!!                  print*,site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
-!!                  stop
-!!               end if
+             ! Add the transpiration flux (known, retrieved from photosynthesis scheme)
+             ! to the mass balance on the leaf (1st) node.  This is constant over
+             ! the time-step, so no Jacobian term needed (yet)
+             
+             residual(1) = residual(1) + qtop
 
 
-               
-               ! Get total potential [Mpa]
-               h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
-               ! Get Fraction of Total Conductivity [-]
-               ftc_node(k) = site_hydr%wkf_soil(j)%p%ftc_from_psi(psi_node(k))
-               ! deriv ftc wrt psi
-               dftc_dpsi_node(k)   = site_hydr%wkf_soil(j)%p%dftcdpsi_from_psi(psi_node(k))
-
-            else
-
-               psi_node(k) = wrf_plant(pm_node(k),ft)%p%psi_from_th(th_node(k))
-               ! Get total potential [Mpa]
-               h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
-               ! Get Fraction of Total Conductivity [-]
-               ftc_node(k) = wkf_plant(pm_node(k),ft)%p%ftc_from_psi(psi_node(k))
-               ! deriv ftc wrt psi
-               dftc_dpsi_node(k)   = wkf_plant(pm_node(k),ft)%p%dftcdpsi_from_psi(psi_node(k))
-
-            end if
-
-            ! Fill the self-term on the Jacobian's diagonal with the
-            ! the change in storage wrt change in psi.
-            
-            if(pm_node(k) == rhiz_p_media) then
-                ajac(k,k) = denh2o*v_node(k)/ &
-                      (site_hydr%wrf_soil(j)%p%dpsidth_from_th(th_node(k))*dtime)
-            else
-                ajac(k,k) = denh2o*v_node(k)/ &
-                      (wrf_plant(pm_node(k),ft)%p%dpsidth_from_th(th_node(k))*dtime)
-            endif
-            
-         enddo
-
-!         do i=1,site_hydr%num_nodes
-!            print*,i,node_layer(i),pm_node(i),z_node(i),v_node(i),th_node_init(i),psi_node(i),h_node(i)
-!         end do
-!         stop
-         
-
-         ! Calculations of maximum conductance for upstream and downstream sides
-         ! of each connection.  This IS dependant on total potential h_node
-         ! because of the root-soil radial conductance.
-
-         call SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up)
-         
-         ! calculate boundary fluxes     
-         do icnx=1,site_hydr%num_connections
-
-            id_dn = conn_dn(icnx)
-            id_up = conn_up(icnx)
-
-            ! The row (first index) of the Jacobian (ajac) represents the
-            ! the node for which we are calculating the water balance
-            ! The column (second index) of the Jacobian represents the nodes
-            ! on which the pressure differentials effect the water balance
-            ! of the node of the first index.
-
-            ! This will get the effective K, and may modify FTC depending
-            ! on the flow direction
-
-            call GetKAndDKDPsi(kmax_dn(icnx), &
-                               kmax_up(icnx), &
-                               h_node(id_dn), &
-                               h_node(id_up), &
-                               ftc_node(id_dn), &
-                               ftc_node(id_up), &
-                               dftc_dpsi_node(id_dn), & 
-                               dftc_dpsi_node(id_up), & 
-                               dk_dpsi_dn, &
-                               dk_dpsi_up, & 
-                               k_eff)
-
-            q_flux(icnx) = k_eff*(h_node(id_up)-h_node(id_dn))
-            
-            ! See equation (22) in technical documentation
-            ! Add fluxes at current time to the residual
-            residual(id_dn) = residual(id_dn) - q_flux(icnx)
-            residual(id_up) = residual(id_up) + q_flux(icnx)
-
-            ! This is the Jacobian term related to the pressure changes on the down-stream side
-            ! and these are applied to both the up and downstream sides (oppositely)
-            dqflx_dpsi_dn = -k_eff + (h_node(id_up)-h_node(id_dn)) * dk_dpsi_dn
-
-            ! This is the Jacobian term related to the pressure changes on the up-stream side
-            ! and these are applied to both the up and downstream sides (oppositely)
-            dqflx_dpsi_up =  k_eff + (h_node(id_up)-h_node(id_dn)) * dk_dpsi_up
-
-            ! Down-stream node's contribution to the down-stream node's Jacobian
-            ajac(id_dn,id_dn) = ajac(id_dn,id_dn) + dqflx_dpsi_dn
-
-            ! Down-stream node's contribution to the up-stream node's Jacobian
-            ajac(id_up,id_dn) = ajac(id_up,id_dn) - dqflx_dpsi_dn
-
-            ! Up-stream node's contribution to the down-stream node's Jacobian
-            ajac(id_dn,id_up) = ajac(id_dn,id_up) + dqflx_dpsi_up
-
-            ! Up-stream node's contribution to the up-stream node's Jacobian
-            ajac(id_up,id_up) = ajac(id_up,id_up) - dqflx_dpsi_up
-
-            
-         enddo
-
-         ! Add the transpiration flux (known, retrieved from photosynthesis scheme)
-         ! to the mass balance on the leaf (1st) node.  This is constant over
-         ! the time-step, so no Jacobian term needed (yet)
-         
-         residual(1) = residual(1) + qtop
-         
-
-         ! Start off assuming things will pass, then find numerous
-         ! ways to see if it failed
-         icnv = icnv_pass_round
-
-         
-         ! check residual
-         ! if(nstep==15764) print *,'ft,it,residual_amax-',ft,nwtn_iter,residual_amax,'qtop',qtop,psi_node,
-         ! 'init-',psi_node_init,'resi-',residual, 'qflux-',q_flux,'v_n',v_node
-
-         ! If we have performed any Newton iterations, then the residual
-         ! may reflect a flux that balances (equals) the change in storage. If this is
-         ! true, then the residual is zero, and we are done with the sub-step. If it is
-         ! not nearly zero, then we must continue our search and perform another solve.
-         
-         residual_amax = 0._r8
-         nsd = 0
-         do k = 1, site_hydr%num_nodes
-            rsdx = abs(residual(k))
-            ! check NaNs
-            if( rsdx /= rsdx ) then
-               icnv = icnv_fail_round
-               exit
-            endif
-            if( rsdx > residual_amax ) then
-               residual_amax = rsdx
-               nsd = k
-            endif
-         enddo
-
-         if(icnv == icnv_fail_round) goto 199
-         
-         ! If the solution is balanced, none of the residuals
-         ! should be very large, and we can ignore another
-         ! solve attempt.
-         if( residual_amax < max_allowed_residual ) then
-
-             goto 201
-
-         ! In this case, we still have a non-trivially small
-         ! residual, yet we have exceeded our iteration cap
-         ! Thus we set error flag to 1, which forces a time-step
-         ! shortening
-         elseif( nwtn_iter > max_newton_iter) then
-
-             icnv = icnv_fail_round
-             goto 199
+             ! Start off assuming things will pass, then find numerous
+             ! ways to see if it failed
+             icnv = icnv_pass_round
 
 
-         ! We still have some residual (perhaps this is first step),
-         ! have not used too many steps, so we go ahead
-         ! and perform a Newton iteration
-         else
+             ! If we have performed any Newton iterations, then the residual
+             ! may reflect a flux that balances (equals) the change in storage. If this is
+             ! true, then the residual is zero, and we are done with the sub-step. If it is
+             ! not nearly zero, then we must continue our search and perform another solve.
 
-            ! We wont actually know if we have a good solution
-            ! until we complete this step and re-calculate the residual
-            ! so we simply flag that we continue the search
-            icnv = incv_cont_search
-
-            ! ---------------------------------------------------------------------------
-            ! From Lapack documentation
-            !
-            ! subroutine dgesv(integer 	N  (in),
-            !                  integer 	NRHS (in),
-            !                  real(r8), dimension( lda, * ) 	A (in/out),
-            !                  integer 	LDA (in),
-            !                  integer, dimension( * ) 	IPIV (out),
-            !                  real(r8), dimension( ldb, * ) 	B (in/out),
-            !                  integer 	LDB (in),
-            !                  integer 	INFO (out) )
-            !
-            ! DGESV computes the solution to a real system of linear equations
-            ! A * X = B, where A is an N-by-N matrix and X and B are N-by-NRHS matrices.
-            ! The LU decomposition with partial pivoting and row interchanges is
-            ! used to factor A as   A = P * L * U,
-            ! where P is a permutation matrix, L is unit lower triangular, and U is
-            ! upper triangular.  The factored form of A is then used to solve the
-            ! system of equations A * X = B.
-            !
-            ! N is the number of linear equations, i.e., the order of the
-            ! matrix A.  N >= 0.
-            !
-            ! NRHS is the number of right hand sides, i.e., the number of columns
-            ! of the matrix B.  NRHS >= 0. 
-            !
-            ! A: 
-            ! On entry, the N-by-N coefficient matrix A.
-            ! On exit, the factors L and U from the factorization
-            ! A = P*L*U; the unit diagonal elements of L are not stored.
-            !
-            ! LDA is the leading dimension of the array A.  LDA >= max(1,N).
-            !
-            ! IPIV is the pivot indices that define the permutation matrix P;
-            ! row i of the matrix was interchanged with row IPIV(i).
-            !
-            ! B
-            ! On entry, the N-by-NRHS matrix of right hand side matrix B.
-            ! On exit, if INFO = 0, the N-by-NRHS solution matrix X.
-            !
-            ! LDB is the leading dimension of the array B.  LDB >= max(1,N).
-            !
-            ! INFO:
-            ! = 0:  successful exit
-            ! < 0:  if INFO = -i, the i-th argument had an illegal value
-            ! > 0:  if INFO = i, U(i,i) is exactly zero.  The factorization
-            !    has been completed, but the factor U is exactly
-            !    singular, so the solution could not be computed.
-            ! ---------------------------------------------------------------------------
-            
-
-            call DGESV(site_hydr%num_nodes,1,ajac,site_hydr%num_nodes,ipiv,residual,site_hydr%num_nodes,info)
-
-            
-            if ( info < 0 ) then
-               write(fates_log(),*) 'illegal value generated in DGESV() linear'
-               write(fates_log(),*) 'system solver, see node: ',-info
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            END IF
-            if ( info > 0 ) then
-               write(fates_log(),*) 'the factorization of linear system in DGESV() generated'
-               write(fates_log(),*) 'a singularity at node: ',info
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-            
-            ! If info == 0, then
-            ! lapack was able to generate a solution.
-            ! For A * X = B, 
-            ! Where the residual() was B, DGESV() returns
-            ! the solution X into the residual array.
-            
-            ! Update the matric potential of each node.  Since this is a search
-            ! we update matric potential as only a fraction of delta psi (residual)
-            
-            do k = 1, site_hydr%num_nodes
-               
-               if(pm_node(k) == rhiz_p_media) then
-                  psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
-                  j = node_layer(k)
-             !     print*,'psi:',psi_node(k),residual(k),k,j
-                  th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
-               else
-           !       print*,'psi:',psi_node(k),residual(k),k
-                  psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
-                  th_node(k) = wrf_plant(pm_node(k),ft)%p%th_from_psi(psi_node(k))
-               endif
-               
-            enddo
-
-!            stop
-            
-         endif
-         
-199      continue
-         
-         if( icnv == icnv_fail_round ) then
-
-            write(fates_log(),'(10x,a)') '---  Convergence Failure  ---'
-            write(fates_log(),'(4x,a,1pe11.4,2(a,i6),1pe11.4)') 'Equation Maximum Residual = ', &
-                 residual_amax,' Node = ',nsd, 'pft = ',ft, 'qtop: ',qtop
-
-            ! If we have not exceeded our max number
-            ! of retrying rounds of Newton iterations, reduce
-            ! time and try a new round
-            if( nsteps < max_newton_rounds ) then
-
-!               tm = tm - dtime
-               nsteps = nsteps + 1
-
-               write(fates_log(),*) 'fates hydraulics, MatSolve2D:'
-               write(fates_log(),'(4x,a,1pe11.4,1x,2a,1pe11.4,1x,a)')       &
-                    'Time Step Reduced From ',dtime,'s',' to ', &
-                    min(dtime * dtime_rf,tmx-tm),'s'
-               
-               dtime = min(dtime * dtime_rf,tmx-tm)
-               
-               do k = 1,site_hydr%num_nodes
-                  th_node(k) = th_node_init(k)
-               enddo
-
-               ! Decrease the relaxation factors 
-               rlfx_plnt = rlfx_plnt0*(0.9_r8**real(nsteps,r8))
-               rlfx_soil = rlfx_soil0*(0.9_r8**real(nsteps,r8))
-               
-               !
-               !---  Number of time step reductions failure: stop simulation  ---
-               !
-            else
-               ! Complete failure to converge even with re-trying
-               ! iterations with smaller timestepps and relaxations
-               icnv = icnv_complete_fail
-            endif
-            
-         endif
-
-      
-
-         
-         if(icnv == icnv_fail_round) then
-            goto 100
-         elseif(icnv == incv_cont_search) then
-
-            ! THIS MAY BE A GOOD PLACE TO INCREASE
-            ! THE RELAXATION FACTORS
-            goto 200
-
-         elseif(icnv == icnv_pass_round) then
-            dth_node(:) = dth_node(:) + (th_node(:) - th_node_init(:))
-            goto 201
-         elseif(icnv == icnv_complete_fail) then
-             write(fates_log(),*) 'Newton hydraulics solve'
-             write(fates_log(),*) 'could not converge on a solution.'
-             write(fates_log(),*) 'Perhaps try increasing iteration cap,'
-             write(fates_log(),*) 'and decreasing relaxation factors.'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-         else
-             write(fates_log(),*) 'unhandled failure mode in'
-             write(fates_log(),*) 'newton hydraulics solve'
-             write(fates_log(),*) 'icnv = ',icnv
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-         endif
+             residual_amax = 0._r8
+             nsd = 0
+             do k = 1, site_hydr%num_nodes
+                 rsdx = abs(residual(k))
+                 ! check NaNs
+                 if( rsdx /= rsdx ) then
+                     icnv = icnv_fail_round
+                     exit
+                 endif
+                 if( rsdx > residual_amax ) then
+                     residual_amax = rsdx
+                     nsd = k
+                 endif
+             enddo
+             if ( nwtn_iter > max_newton_iter) icnv = icnv_fail_round
 
 
-         ! If we have reached this point, we have iterated to
-         ! a stable solution (where residual mass balance = 0)
-         ! It is possible that we have used a sub-step though,
-         ! and need to continue the iteration.
+             ! Three scenarios:
+             ! 1) the residual is 0, everything is great, leave iteration loop
+             ! 2) the residual is not 0, but we have not taken too many steps
+             !    and the matrix solve did not fail. Perform an inversion and keep
+             !    searching.
+             ! 3) the residual is not 0, and either
+             !    we have taken too many newton steps or the solver won't return
+             !    a real solution.
+             !    Shorten time-step, reset time to 0, reset relaxation factors
+             !    and try a new round of newton (if not exceeded)
 
-201      continue
 
-         ! Save the number of substeps needed
+             if( icnv == icnv_fail_round ) then
+                 
+                 ! If the newton iteration fails, we go back
+                 ! to restart the time-stepping loop with shorter sub-steps.
+                 ! Therefore, we set the time elapsed (tm) to zero,
+                 ! shorten the timstep (dtime) and re-initialize the water
+                 ! contents to the starting amount.
+
+                 nsteps             = nsteps + 1
+                 dtime              = dtime * dtime_rf
+                 tm                 = 0
+                 th_node(:)         = th_node_init(:)
+                 th_node_prev(:)    = th_node_init(:)
+                 rlfx_plnt          = rlfx_plnt0*0.9**real(nsteps,r8)
+                 rlfx_soil          = rlfx_soil0*0.9**real(nsteps,r8)
+                 cohort_hydr%iterh1 = 0
+                 nwtn_iter          = 0
+                 cycle outerloop
+
+             else
+
+                 if( residual_amax < max_allowed_residual) then
+                     
+                     ! We have succesffully found a solution
+                     ! in this newton iteration.
+                     exit newtonloop
+                 else
+
+                     ! Move ahead and calculate another solution
+                     ! and continue the search. Residual isn't zero
+                     ! but no reason not to continue searching
+                     
+                     ! ---------------------------------------------------------------------------
+                     ! From Lapack documentation
+                     !
+                     ! subroutine dgesv(integer 	N  (in),
+                     !                  integer 	NRHS (in),
+                     !                  real(r8), dimension( lda, * ) 	A (in/out),
+                     !                  integer 	LDA (in),
+                     !                  integer, dimension( * ) 	IPIV (out),
+                     !                  real(r8), dimension( ldb, * ) 	B (in/out),
+                     !                  integer 	LDB (in),
+                     !                  integer 	INFO (out) )
+                     !
+                     ! DGESV computes the solution to a real system of linear equations
+                     ! A * X = B, where A is an N-by-N matrix and X and B are N-by-NRHS matrices.
+                     ! The LU decomposition with partial pivoting and row interchanges is
+                     ! used to factor A as   A = P * L * U,
+                     ! where P is a permutation matrix, L is unit lower triangular, and U is
+                     ! upper triangular.  The factored form of A is then used to solve the
+                     ! system of equations A * X = B.
+                     !
+                     ! N is the number of linear equations, i.e., the order of the
+                     ! matrix A.  N >= 0.
+                     !
+                     ! NRHS is the number of right hand sides, i.e., the number of columns
+                     ! of the matrix B.  NRHS >= 0. 
+                     !
+                     ! A: 
+                     ! On entry, the N-by-N coefficient matrix A.
+                     ! On exit, the factors L and U from the factorization
+                     ! A = P*L*U; the unit diagonal elements of L are not stored.
+                     !
+                     ! LDA is the leading dimension of the array A.  LDA >= max(1,N).
+                     !
+                     ! IPIV is the pivot indices that define the permutation matrix P;
+                     ! row i of the matrix was interchanged with row IPIV(i).
+                     !
+                     ! B
+                     ! On entry, the N-by-NRHS matrix of right hand side matrix B.
+                     ! On exit, if INFO = 0, the N-by-NRHS solution matrix X.
+                     !
+                     ! LDB is the leading dimension of the array B.  LDB >= max(1,N).
+                     !
+                     ! INFO:
+                     ! = 0:  successful exit
+                     ! < 0:  if INFO = -i, the i-th argument had an illegal value
+                     ! > 0:  if INFO = i, U(i,i) is exactly zero.  The factorization
+                     !    has been completed, but the factor U is exactly
+                     !    singular, so the solution could not be computed.
+                     ! ---------------------------------------------------------------------------
+                     
+                     
+                     call DGESV(site_hydr%num_nodes,1,ajac,site_hydr%num_nodes,ipiv,residual,site_hydr%num_nodes,info)
+
+
+                     if ( info < 0 ) then
+                         write(fates_log(),*) 'illegal value generated in DGESV() linear'
+                         write(fates_log(),*) 'system solver, see node: ',-info
+                         call endrun(msg=errMsg(sourcefile, __LINE__))
+                     END IF
+                     if ( info > 0 ) then
+                         write(fates_log(),*) 'the factorization of linear system in DGESV() generated'
+                         write(fates_log(),*) 'a singularity at node: ',info
+                         call endrun(msg=errMsg(sourcefile, __LINE__))
+                     end if
+
+                     ! Update the previous water content state to be the current
+                     !th_node_prev(:) = th_node(:)
+
+                     ! If info == 0, then
+                     ! lapack was able to generate a solution.
+                     ! For A * X = B, 
+                     ! Where the residual() was B, DGESV() returns
+                     ! the solution X into the residual array.
+
+                     ! Update the matric potential of each node.  Since this is a search
+                     ! we update matric potential as only a fraction of delta psi (residual)
+
+                     do k = 1, site_hydr%num_nodes
+
+                         if(pm_node(k) == rhiz_p_media) then
+                             j = node_layer(k)
+                             psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
+                             th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
+                         else
+                             psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
+                             th_node(k)  = wrf_plant(pm_node(k),ft)%p%th_from_psi(psi_node(k))
+                         endif
+
+                     enddo
+                     
+                     ! Increase relaxation factors for next round
+                     rlfx_plnt = min(1._r8,rlfx_plnt0 + & 
+                           (1.0-rlfx_plnt0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
+                     rlfx_soil = min(1._r8,rlfx_soil0 + & 
+                           (1.0-rlfx_soil0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
+
+                 end if
+             end if
+
+
+         end do newtonloop
+
+         ! If we are here, that means we succesfully finished
+         ! a solve with minimal error. More substeps may be required though
+         ! ------------------------------------------------------------------------------
+
+         ! Save the sub-step number
          cohort_hydr%iterh1 = cohort_hydr%iterh1 + 1
 
          ! Save the  max number of Newton iterations needed
          cohort_hydr%iterh2 = max(cohort_hydr%iterh2,real(nwtn_iter))
 
-         print*,'Completed a newton solve'
-         print*,psi_node(:)
-         stop
-
-         ! Save flux diagnostics
-         ! ------------------------------------------------------
-
-         sapflow = sapflow + q_flux(n_hypool_ag)*dtime
-
-         do j = 1,site_hydr%nlevrhiz
-            ! Connection betwen the 1st rhizosphere and absorbing roots
-            icnx_ar = n_hypool_ag + (j-1)*(nshell+1)+2
-            rootuptake(j) = q_flux(icnx_ar)*dtime
-         enddo
-
-
          ! If there are any sub-steps left, we need to update
          ! the initial water content
-         th_node_init(:) = th_node(:)
-
+         th_node_prev(:) = th_node(:)
+         
          ! Advance time forward
          tm = tm + dtime
          
-      end do outerloop
+         ! Reset relaxation factors
+         rlfx_plnt = rlfx_plnt0
+         rlfx_soil = rlfx_soil0
 
+     end do outerloop
+
+     if(cohort_hydr%iterh1>1._r8) then
+         print*,"i1: ",cohort_hydr%iterh1,"i2: ",cohort_hydr%iterh2
+     end if
+
+     ! Save flux diagnostics
+     ! ------------------------------------------------------
      
+     sapflow = sapflow + q_flux(n_hypool_ag)*tmx
 
-      ! If we have made it here, we have successfully integrated
-      ! the water content. Transfer this from scratch space
-      ! into the cohort memory structures for plant compartments,
-      ! and increment the site-level change in soil moistures
+     do j = 1,site_hydr%nlevrhiz
+         ! Connection betwen the 1st rhizosphere and absorbing roots
+         icnx_ar = n_hypool_ag + (j-1)*(nshell+1)+2
+         rootuptake(j) = q_flux(icnx_ar)*tmx
+     enddo
 
-      
+ 
+     ! Update the total change in water content
+     dth_node(:) = dth_node(:) + (th_node(:) - th_node_init(:))
+
       ! Update state variables in plant compartments
       cohort_hydr%th_ag(1:n_hypool_ag) = cohort_hydr%th_ag(1:n_hypool_ag) + dth_node(1:n_hypool_ag)
       cohort_hydr%th_troot             = cohort_hydr%th_troot + dth_node(n_hypool_ag+1)
@@ -5027,7 +4981,7 @@ contains
 
       inode = n_hypool_ag+n_hypool_troot
       do j = 1,site_hydr%nlevrhiz
-         do k = 1, nshell+1
+         do k = 1, 1 + nshell
             inode = inode + 1
             if(k==1) then
                cohort_hydr%th_aroot(j) = cohort_hydr%th_aroot(j)+dth_node(inode)
@@ -5046,9 +5000,9 @@ contains
       w_tot_end = sum(th_node(:)*v_node(:))*denh2o
       
       ! Mass error (flux - change) [kg/m2]
-      wb_err_plant = (qtop*dtime)-(w_tot_beg-w_tot_end)
+      wb_err_plant = (qtop*tmx)-(w_tot_beg-w_tot_end)
 
-            
+
      end associate
 
     return   

@@ -179,6 +179,7 @@ module FatesHydraulicsMemMod
      real(r8), allocatable :: residual(:)
      real(r8), allocatable :: ajac(:,:)
      real(r8), allocatable :: th_node_init(:)
+     real(r8), allocatable :: th_node_prev(:)
      real(r8), allocatable :: th_node(:)
      real(r8), allocatable :: dth_node(:)
      real(r8), allocatable :: h_node(:)
@@ -448,6 +449,7 @@ module FatesHydraulicsMemMod
             allocate(this%residual(this%num_nodes))
             allocate(this%ajac(this%num_nodes,this%num_nodes))
             allocate(this%th_node_init(this%num_nodes))
+            allocate(this%th_node_prev(this%num_nodes))
             allocate(this%th_node(this%num_nodes))
             allocate(this%dth_node(this%num_nodes))
             allocate(this%h_node(this%num_nodes))
@@ -496,6 +498,7 @@ module FatesHydraulicsMemMod
             this%residual(:)       = fates_unset_r8
             this%ajac(:,:)         = fates_unset_r8
             this%th_node_init(:)   = fates_unset_r8
+            this%th_node_prev(:)   = fates_unset_r8
             this%th_node(:)        = fates_unset_r8
             this%dth_node(:)       = fates_unset_r8
             this%h_node(:)         = fates_unset_r8
