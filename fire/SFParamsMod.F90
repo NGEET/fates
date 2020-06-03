@@ -65,6 +65,10 @@ module SFParamsMod
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
 
+
+   real(r8), parameter,private :: min_fire_threshold = 0.0001  ! The minimum reasonable fire intensity threshold [kW/m]
+
+
    public :: SpitFireRegisterParams
    public :: SpitFireReceiveParams
    public :: SpitFireCheckParams
@@ -119,6 +123,15 @@ contains
          correction = 1._r8 - sum(SF_val_CWD_frac(1:ncwd))
          corr_id = maxloc(SF_val_CWD_frac(1:ncwd))
          SF_val_CWD_frac(corr_id(1)) = SF_val_CWD_frac(corr_id(1)) + correction
+     end if
+
+     ! Check to see if the fire threshold is above the minimum and set at all
+     if(SF_val_fire_threshold < min_fire_threshold .or. & 
+           SF_val_fire_threshold >  fates_check_param_set ) then
+         write(fates_log(),*) 'The fates_fire_threshold parameter must be set, and > ',min_fire_threshold
+         write(fates_log(),*) 'The value is set at :',SF_val_fire_threshold
+         write(fates_log(),*) 'Please provide a reasonable value, aborting.'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
 
@@ -243,6 +256,8 @@ contains
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
+    real(r8) :: tmp_real
+    
 
     call fates_params%RetreiveParameter(name=SF_name_fdi_a, &
          data=SF_val_fdi_a)
@@ -276,6 +291,9 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_fire_threshold, &
          data=SF_val_fire_threshold)
+
+
+
 
   end subroutine SpitFireReceiveScalars
 

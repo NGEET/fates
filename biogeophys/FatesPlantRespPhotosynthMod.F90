@@ -239,10 +239,6 @@ contains
     ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
     ! -----------------------------------------------------------------------------------
 
-    ! Ball-Berry minimum leaf conductance, unstressed (umol H2O/m**2/s)
-    ! For C3 and C4 plants
-    ! -----------------------------------------------------------------------------------
-
     associate(  &
          stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept, & 
          c3psn     => EDPftvarcon_inst%c3psn  , &
