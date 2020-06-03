@@ -303,7 +303,7 @@ contains
            ! MAPPING OF FATES PFTs on to HLM_PFTs
             ! add up the area associated with each FATES PFT
             sites(s)%area_pft(1:numpft) = 0._r8
-            do hlm_pft = 1,12
+            do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
                do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts        
                  sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
                      EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft) 
