@@ -4820,7 +4820,7 @@ contains
                      nsd = k
                  endif
              enddo
-             if ( nwtn_iter > max_newton_iter) icnv = icnv_fail_round
+             if ( nwtn_iter > max_newton_iter ) icnv = icnv_fail_round
 
 
              ! Three scenarios:
@@ -4935,7 +4935,7 @@ contains
                      end if
 
                      ! Update the previous water content state to be the current
-                     !th_node_prev(:) = th_node(:)
+                     ! th_node_prev(:) = th_node(:)
 
                      ! If info == 0, then
                      ! lapack was able to generate a solution.
@@ -4965,7 +4965,6 @@ contains
                      rlfx_soil = min(1._r8,rlfx_soil0 + & 
                            (1.0-rlfx_soil0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
                      
-!                     print*,rlfx_plnt
 
                  end if
              end if
