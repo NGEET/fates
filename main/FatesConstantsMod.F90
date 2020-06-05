@@ -74,6 +74,9 @@ module FatesConstantsMod
   ! Conversion factor: grams per kilograms
   real(fates_r8), parameter, public :: g_per_kg = 1000.0_fates_r8
   
+  ! Conversion factor: kilograms per gram
+  real(fates_r8), parameter, public :: kg_per_g = 0.001_fates_r8
+
   ! Conversion factor: miligrams per grams
   real(fates_r8), parameter, public :: mg_per_g = 1000.0_fates_r8
 
@@ -92,11 +95,25 @@ module FatesConstantsMod
   ! Conversion factor: umols per kilomole
   real(fates_r8), parameter, public :: umol_per_kmol = 1.0E9_fates_r8
 
+  ! Conversion factor: meters per milimeter
+  real(fates_r8), parameter, public :: m_per_mm = 1.0E-3_fates_r8
+
+  ! Conversion factor: milimeters per meter
+  real(fates_r8), parameter, public :: mm_per_m = 1.0E3_fates_r8
+
   ! Conversion factor: m2 per ha
   real(fates_r8), parameter, public :: m2_per_ha = 1.0e4_fates_r8
 
   ! Conversion factor: cm2 per m2
   real(fates_r8), parameter, public :: cm2_per_m2 = 10000.0_fates_r8
+
+  ! Conversion factor: m3 per mm3
+  real(fates_r8), parameter, public :: m3_per_mm3 = 1.0E-9_fates_r8
+
+  ! Conversion factor: cubic meters per cubic cm
+  real(fates_r8), parameter, public :: m3_per_cm3 = 1.0E-6_fates_r8
+
+  real(fates_r8), parameter, public :: cm3_per_m3 = 1.0E6_fates_r8
 
   ! Conversion factor :: ha per m2
   real(fates_r8), parameter, public :: ha_per_m2 = 1.0e-4_fates_r8
@@ -135,6 +152,11 @@ module FatesConstantsMod
   ! Gravity constant on earth [m/s]
   real(fates_r8), parameter, public :: grav_earth = 9.8_fates_r8
 
+  ! Megapascals to pascals
+  real(fates_r8), parameter, public :: pa_per_mpa = 1.e6_fates_r8
+
+  ! Pascals to megapascals
+  real(fates_r8), parameter, public :: mpa_per_pa = 1.e-6_fates_r8
 
   ! For numerical inquiry
   real(fates_r8), parameter, public :: fates_huge = huge(g_per_kg)
