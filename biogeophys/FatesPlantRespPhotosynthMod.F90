@@ -247,7 +247,6 @@ contains
     ! -----------------------------------------------------------------------------------
 
     associate(  &
-         stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept, & 
          c3psn     => EDPftvarcon_inst%c3psn  , &
          slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
                                                   ! projected area basis [m^2/gC]
