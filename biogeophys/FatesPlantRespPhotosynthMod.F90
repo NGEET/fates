@@ -46,7 +46,11 @@ module FATESPlantRespPhotosynthMod
    use PRTGenericMod,     only : store_organ
    use PRTGenericMod,     only : repro_organ
    use PRTGenericMod,     only : struct_organ
+<<<<<<< HEAD
    use EDParamsMod, only :  ED_val_base_mr_20, stomatal_model
+=======
+   use EDParamsMod,       only : ED_val_base_mr_20
+>>>>>>> master
 
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -109,7 +113,6 @@ contains
     use FatesAllometryMod, only : bleaf
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
-    use FatesAllometryMod, only : i_hydro_rootprof_context
     use FatesAllometryMod, only : decay_coeff_kn
 
     ! ARGUMENTS:
@@ -168,7 +171,11 @@ contains
     real(r8) :: mm_kco2            ! Michaelis-Menten constant for CO2 (Pa)
     real(r8) :: mm_ko2             ! Michaelis-Menten constant for O2 (Pa)
     real(r8) :: co2_cpoint         ! CO2 compensation point (Pa)
+<<<<<<< HEAD
     real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1) 
+=======
+    real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1)
+>>>>>>> master
     real(r8) :: stomatal_intercept_btran   ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
     real(r8) :: kn                 ! leaf nitrogen decay coefficient
     real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
@@ -247,12 +254,16 @@ contains
     ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
     ! -----------------------------------------------------------------------------------
 
+<<<<<<< HEAD
     ! Ball-Berry minimum leaf conductance, unstressed (umol H2O/m**2/s)
     ! For C3 and C4 plants
     ! -----------------------------------------------------------------------------------
  
 
+=======
+>>>>>>> master
     associate(  &
+         stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept, & 
          c3psn     => EDPftvarcon_inst%c3psn  , &
          slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
                                                   ! projected area basis [m^2/gC]
@@ -260,8 +271,11 @@ contains
          stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept ) !Unstressed minimum stomatal conductance
 
 
+<<<<<<< HEAD
 
       
+=======
+>>>>>>> master
       do s = 1,nsites
 
          ! Multi-layer parameters scaled by leaf nitrogen profile.
@@ -278,7 +292,7 @@ contains
 
          do ft = 1,numpft
              call set_root_fraction(rootfr_ft(ft,:), ft, &
-                   bc_in(s)%zi_sisl,icontext = i_hydro_rootprof_context)
+                   bc_in(s)%zi_sisl)
          end do
           
 
@@ -400,11 +414,19 @@ contains
                                  (hlm_use_planthydro.eq.itrue) .or. &
                                  (nleafage > 1) .or. &
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
+<<<<<<< HEAD
                                
                                if (hlm_use_planthydro.eq.itrue ) then
                                    
                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
                                  btran_eff = currentCohort%co_hydr%btran 
+=======
+
+                              if (hlm_use_planthydro.eq.itrue ) then
+                              
+                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
+                                 btran_eff = currentCohort%co_hydr%btran
+>>>>>>> master
                                  
                                  ! dinc_ed is the total vegetation area index of each "leaf" layer
                                  ! we convert to the leaf only portion of the increment
@@ -419,8 +441,13 @@ contains
                                  cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current 
 
                               else
+<<<<<<< HEAD
                                  
                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentPatch%btran_ft(ft) ) 
+=======
+
+                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentPatch%btran_ft(ft))
+>>>>>>> master
                                  btran_eff = currentPatch%btran_ft(ft)
                                  ! For consistency sake, we use total LAI here, and not exposed
                                  ! if the plant is under-snow, it will be effectively dormant for 
@@ -829,7 +856,11 @@ contains
                                      can_co2_ppress,    &  ! in
                                      can_o2_ppress,     &  ! in
                                      btran,             &  ! in
+<<<<<<< HEAD
                                      stomatal_intercept_btran,  &  ! in
+=======
+                                     stomatal_intercept_btran, &  ! in
+>>>>>>> master
                                      cf,                &  ! in
                                      gb_mol,            &  ! in
                                      ceair,             &  ! in
@@ -927,8 +958,11 @@ contains
    real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
 
+<<<<<<< HEAD
    real(r8) :: term                 ! intermediate variable in Medlyn stomatal conductance model
    real(r8) :: vpd                  ! water vapor deficit in Medlyn stomatal model (KPa)
+=======
+>>>>>>> master
 
    ! Parameters
    ! ------------------------------------------------------------------------
@@ -959,16 +993,24 @@ contains
    real(r8),parameter :: theta_ip = 0.999_r8
 
    
+<<<<<<< HEAD
    associate( bb_slope  => EDPftvarcon_inst%BB_slope      ,& ! slope of BB relationship, unitless
       medlyn_slope=> EDPftvarcon_inst%medlyn_slope          , & ! Slope for Medlyn stomatal conductance model method, the unit is KPa^0.5
       stomatal_intercept=> EDPftvarcon_inst%stomatal_intercept )  !Unstressed minimum stomatal conductance, the unit is umol/m**2/s
       
    
+=======
+   associate( bb_slope  => EDPftvarcon_inst%bb_slope, &     ! slope of BB relationship
+              stomatal_intercept=> EDPftvarcon_inst%stomatal_intercept )  !Unstressed minimum stomatal conductance, the unit is umol/m**2/s
+>>>>>>> master
 
      ! photosynthetic pathway: 0. = c4, 1. = c3
      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
      
+<<<<<<< HEAD
 
+=======
+>>>>>>> master
      if (c3c4_path_index == 1) then
         init_co2_inter_c = init_a2l_co2_c3 * can_co2_ppress
      else
@@ -1102,6 +1144,7 @@ contains
                  end if
 
                  ! Quadratic gs_mol calculation with an known. Valid for an >= 0.
+<<<<<<< HEAD
                  ! With an <= 0, then gs_mol = stomatal_intercept_btran                 
                  leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press 
                  leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
@@ -1125,6 +1168,15 @@ contains
                     aquad = leaf_co2_ppress
                     bquad = leaf_co2_ppress*(gb_mol - stomatal_intercept_btran) - bb_slope(ft) * anet * can_press
                     cquad = -gb_mol*(leaf_co2_ppress*stomatal_intercept_btran + &
+=======
+                 ! With an <= 0, then gs_mol = stomatal_intercept_btran
+                 
+                 leaf_co2_ppress = can_co2_ppress- 1.4_r8/gb_mol * anet * can_press 
+                 leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
+                 aquad = leaf_co2_ppress
+                 bquad = leaf_co2_ppress*(gb_mol - stomatal_intercept_btran) - bb_slope(ft) * anet * can_press
+                 cquad = -gb_mol*(leaf_co2_ppress*stomatal_intercept_btran + &
+>>>>>>> master
                                   bb_slope(ft)*anet*can_press * ceair/ veg_esat )
 
                  call quadratic_f (aquad, bquad, cquad, r1, r2)
@@ -1145,10 +1197,16 @@ contains
                  end if
               end do !iteration loop
               
+<<<<<<< HEAD
               ! End of co2_inter_c iteration.  Check for an < 0, in which case
               ! gs_mol =stomatal_intercept_btran 
               if (anet < 0._r8) then
                   gs_mol = stomatal_intercept_btran
+=======
+              ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol = stomatal_intercept_btran
+              if (anet < 0._r8) then
+                 gs_mol = stomatal_intercept_btran
+>>>>>>> master
               end if
               
               ! Final estimates for leaf_co2_ppress and co2_inter_c 
@@ -1191,6 +1249,7 @@ contains
                  write (fates_log(),*)'gs_mol= ',gs_mol
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
+<<<<<<< HEAD
              
              ! Compare with Medlyn model: gs_mol = 1.6*(1+m/sqrt(vpd)) * an/leaf_co2_ppress*p + b
               if ( stomatal_model == 2 ) then
@@ -1201,6 +1260,13 @@ contains
                  gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
               end if
 
+=======
+              
+              ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress p + b
+              hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
+              gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
+              
+>>>>>>> master
               if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
                  write (fates_log(),*) 'Stomatal model error check - stomatal conductance error:'
                  write (fates_log(),*) gs_mol, gs_mol_err
@@ -1220,7 +1286,11 @@ contains
 
            psn_out     = 0._r8
            anet_av_out = 0._r8
+<<<<<<< HEAD
            rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
+=======
+           rstoma_out  = min(rsmax0, cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)   ))
+>>>>>>> master
            c13disc_z = 0.0_r8
            
        end if !is there leaf area? 

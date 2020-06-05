@@ -55,7 +55,6 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
-   use FatesAllometryMod , only : i_biomass_rootprof_context
 
    implicit none
    private
@@ -409,9 +408,7 @@ contains
             ! derived from the current patch, so we need to multiply by patch_areadis/np%area
             ! ----------------------------------------------------------------------------------------
 
-            call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
-                  icontext = i_biomass_rootprof_context)
-
+            call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
          
             ag_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
                   EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)

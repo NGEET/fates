@@ -53,7 +53,6 @@ module EDPatchDynamicsMod
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
-  use FatesAllometryMod    , only : i_biomass_rootprof_context
   use FatesConstantsMod    , only : g_per_kg
   use FatesConstantsMod    , only : ha_per_m2
   use FatesConstantsMod    , only : days_per_sec
@@ -1531,8 +1530,7 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
-                   icontext = i_biomass_rootprof_context)
+             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
 
              ! Contribution of dead trees to root litter (no root burn flux to atm)
              do dcmpy=1,ndcmpy
@@ -1741,8 +1739,8 @@ contains
           ag_wood = num_dead * (struct_m + sapw_m) * EDPftvarcon_inst%allom_agb_frac(pft)
           bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
           
-          call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
-                icontext = i_biomass_rootprof_context)
+          call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
+
 
           do c=1,ncwd
 
