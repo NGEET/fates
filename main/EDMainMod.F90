@@ -68,6 +68,7 @@ module EDMainMod
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
+  use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
@@ -307,15 +308,8 @@ contains
     !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
 
-    ! first calculate the fractino of the site that is primary land
-    frac_site_primary = 0._r8
-    currentPatch => currentSite%oldest_patch
-    do while (associated(currentPatch))   
-       if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
-          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
-       endif
-       currentPatch => currentPatch%younger
-    end do
+
+    call get_frac_site_primary(currentSite, frac_site_primary)
 
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
