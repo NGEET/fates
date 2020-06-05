@@ -177,7 +177,7 @@ module FatesHydraulicsMemMod
      integer, allocatable :: ipiv(:)       ! unused, returned from DSEGV
      
      real(r8), allocatable :: residual(:)
-     real(r8), allocatable :: ajac(:,:)
+     real(r8), allocatable :: ajac(:,:)       ! Jacobian (N terms, N equations)
      real(r8), allocatable :: th_node_init(:)
      real(r8), allocatable :: th_node_prev(:)
      real(r8), allocatable :: th_node(:)

@@ -2570,7 +2570,7 @@ contains
       delta_soil_storage  = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
             site_hydr%v_shell(:,:)) * denh2o * AREA_INV - prev_h2osoil
        
-      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-5_r8 ) then
+      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-4_r8 ) then
           write(fates_log(),*) 'Site plant water balance does not close'
           write(fates_log(),*) 'balance error: ',abs(delta_plant_storage - (root_flux - transp_flux))
           write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
@@ -2580,7 +2580,7 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
       
-       if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-5_r8 ) then
+       if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-4_r8 ) then
           write(fates_log(),*) 'Site soil water balance does not close'
           write(fates_log(),*) 'delta soil storage: ',delta_soil_storage,' [kg/m2]'
           write(fates_log(),*) 'integrated root flux (pos into root): ',root_flux,' [kg/m2]'
@@ -2604,19 +2604,19 @@ contains
 
        wb_check_site = delta_plant_storage+delta_soil_storage+site_runoff+transp_flux
 
-       if( abs(wb_check_site - site_hydr%errh2o_hyd) > 1.e-5_r8 ) then
-           write(fates_log(),*) 'FATES hydro water ERROR balance does not add up [kg/m2]'
-           write(fates_log(),*) 'wb_error_site: ',site_hydr%errh2o_hyd
-           write(fates_log(),*) 'wb_check_site: ',wb_check_site
-           write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
-           write(fates_log(),*) 'delta_soil_storage: ',delta_soil_storage
-           write(fates_log(),*) 'site_runoff: ',site_runoff
-           write(fates_log(),*) 'transp_flux: ',transp_flux
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
+!       if( abs(wb_check_site - site_hydr%errh2o_hyd) > 1.e-5_r8 ) then
+!           write(fates_log(),*) 'FATES hydro water ERROR balance does not add up [kg/m2]:',wb_check_site - site_hydr%errh2o_hyd
+!           write(fates_log(),*) 'wb_error_site: ',site_hydr%errh2o_hyd
+!           write(fates_log(),*) 'wb_check_site: ',wb_check_site
+!           write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
+!           write(fates_log(),*) 'delta_soil_storage: ',delta_soil_storage
+!           write(fates_log(),*) 'site_runoff: ',site_runoff
+!           write(fates_log(),*) 'transp_flux: ',transp_flux
+!           call endrun(msg=errMsg(sourcefile, __LINE__))
+!       end if
 
        ! Now check on total error
-       if( abs(wb_check_site) > 1.e-5_r8 ) then
+       if( abs(wb_check_site) > 1.e-4_r8 ) then
            write(fates_log(),*) 'FATES hydro water balance does not add up [kg/m2]'
            write(fates_log(),*) 'site_hydr%errh2o_hyd: ',wb_check_site
            write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
@@ -4456,12 +4456,12 @@ contains
     ! This is a convergence test.  This is the maximum difference
     ! allowed between the flux balance and the change in storage
     ! on a node. [kg/s] *Note, 1.e-9 = 1 ug/s
-    real(r8), parameter :: max_allowed_residual = 1.e-9_r8
+    real(r8), parameter :: max_allowed_residual = 1.e-8_r8
 
     ! Maximum number of times we re-try a round of Newton
     ! iterations, each time decreasing the time-step and
     ! potentially reducing relaxation factors
-    integer, parameter :: max_newton_rounds = 20
+    integer, parameter :: max_newton_rounds = 10
     
     ! dtime will shrink at the following rate (halving) [s]: 
     ! 1800,900,450,225,112.5,56.25,28.125,14.0625,7.03125,3.515625,
@@ -4471,7 +4471,7 @@ contains
 
 
     ! Maximum number of Newton iterations in each round
-    integer, parameter :: max_newton_iter = 200
+    integer, parameter :: max_newton_iter = 300
 
     ! Flag definitions for convergence flag (icnv)
     ! icnv = 1 fail the round due to either wacky math, or
@@ -4488,9 +4488,9 @@ contains
     
     real(r8), parameter :: dtime_rf = 0.2_r8
 
-    real(r8), parameter :: rlfx_soil_init = 0.3  ! 0.1  ! Initial Pressure update
+    real(r8), parameter :: rlfx_soil_init = 0.5  !rlfx1 ! 0.1  ! Initial Pressure update
                                          ! reduction factor for soil compartments
-    real(r8), parameter :: rlfx_plnt_init = 0.3  ! 0.6  ! Initial Pressure update
+    real(r8), parameter :: rlfx_plnt_init = 0.5  !rlfx  0.6  ! Initial Pressure update
                                          ! reduction factor for plant comparmtents
 
 
@@ -4601,7 +4601,8 @@ contains
       dtime           = tmx
       rlfx_plnt0      = rlfx_plnt_init
       rlfx_soil0      = rlfx_soil_init
-
+      rlfx_plnt       = rlfx_plnt0
+      rlfx_soil       = rlfx_soil0
 
       outerloop: do while( tm < tmx )
           
@@ -4622,13 +4623,47 @@ contains
               ! iterations with smaller timesteps
               
               do k=1,site_hydr%num_nodes
-                  write(fates_log(),*) 'node: ',k,'th_init: ',th_node_init(k),psi_node(k)
+
+                  if(k<site_hydr%num_nodes) then
+                      id_dn = k
+                      id_up = k+1
+                      icnx = k
+                      call GetKAndDKDPsi(kmax_dn(icnx), &
+                            kmax_up(icnx), &
+                            h_node(id_dn), &
+                            h_node(id_up), &
+                            ftc_node(id_dn), &
+                            ftc_node(id_up), &
+                            dftc_dpsi_node(id_dn), & 
+                            dftc_dpsi_node(id_up), & 
+                            dk_dpsi_dn, &
+                            dk_dpsi_up, & 
+                            k_eff)
+                  end if
+
+                  if(pm_node(k) == rhiz_p_media) then
+                      j = node_layer(k)
+                      j_bc = j+site_hydr%i_rhiz_t-1
+                      psi_node(k) = site_hydr%wrf_soil(j)%p%psi_from_th(th_node_init(k))
+                      h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
+                      write(fates_log(),*) 'node: ',k,'h: ',h_node(k)
+                      if(k<site_hydr%num_nodes) then
+                          write(fates_log(),*) '        dh:',h_node(k+1)-h_node(k),'K: ',k_eff
+                      end if
+                  else
+                      psi_node(k) = wrf_plant(pm_node(k),ft)%p%psi_from_th(th_node_init(k))
+                      h_node(k)   =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
+                      write(fates_log(),*) 'node: ',k,'h: ',h_node(k)
+                      write(fates_log(),*) '          dh:',h_node(k+1)-h_node(k),'K: ',k_eff
+                  end if
+
               end do
               
               write(fates_log(),*) 'Newton hydraulics solve'
               write(fates_log(),*) 'could not converge on a solution.'
               write(fates_log(),*) 'Perhaps try increasing iteration cap,'
               write(fates_log(),*) 'and decreasing relaxation factors.'
+              write(fates_log(),*) 'pft: ',ft,' dbh: ',cohort%dbh
               call endrun(msg=errMsg(sourcefile, __LINE__))
               
           endif
@@ -4731,23 +4766,26 @@ contains
                  
                  ! This is the Jacobian term related to the pressure changes on the down-stream side
                  ! and these are applied to both the up and downstream sides (oppositely)
+                 ! This should be used for the down-stream on thr second index)
                  dqflx_dpsi_dn = -k_eff + (h_node(id_up)-h_node(id_dn)) * dk_dpsi_dn
                  
                  ! This is the Jacobian term related to the pressure changes on the up-stream side
                  ! and these are applied to both the up and downstream sides (oppositely)
                  dqflx_dpsi_up =  k_eff + (h_node(id_up)-h_node(id_dn)) * dk_dpsi_up
                  
-                 ! Down-stream node's contribution to the down-stream node's Jacobian
+                 ! Down-stream node's contribution to the down-stream node's mass balance
                  ajac(id_dn,id_dn) = ajac(id_dn,id_dn) + dqflx_dpsi_dn
                  
-                 ! Down-stream node's contribution to the up-stream node's Jacobian
+                 ! Down-stream node's contribution to the up-stream node's mass balance
                  ajac(id_up,id_dn) = ajac(id_up,id_dn) - dqflx_dpsi_dn
                  
-                 ! Up-stream node's contribution to the down-stream node's Jacobian
+                 ! Up-stream node's contribution to the down-stream node's mass balance
                  ajac(id_dn,id_up) = ajac(id_dn,id_up) + dqflx_dpsi_up
                  
-                 ! Up-stream node's contribution to the up-stream node's Jacobian
+                 ! Up-stream node's contribution to the up-stream node's mass balance
                  ajac(id_up,id_up) = ajac(id_up,id_up) - dqflx_dpsi_up
+
+
             
              enddo
 
@@ -4926,8 +4964,8 @@ contains
                            (1.0-rlfx_plnt0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
                      rlfx_soil = min(1._r8,rlfx_soil0 + & 
                            (1.0-rlfx_soil0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
-
-                     print*,rlfx_plnt
+                     
+!                     print*,rlfx_plnt
 
                  end if
              end if

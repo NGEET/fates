@@ -603,10 +603,12 @@ contains
     real(r8)            :: psi_eff
     real(r8)            :: ftc
 
-    ! ftc = (th/th_sat)**(2*b+3)
-    !     = (th_sat*(psi/psi_sat)**(-1/b)/th_sat)**(2*b+3)
-    !     = ((psi/psi_sat)**(-1/b))**(2*b+3)
-    !     = (psi/psi_sat)**(-2-3/b)
+    ! th = th_sat * (psi/psi_sat)^(-1/b)
+
+    ! ftc = (th/th_sat)^(2*b+3)
+    ! ftc = ( th_sat * (psi/psi_sat)^(-1/b) / th_sat) ^(2*b+3)
+    !     = ((psi/psi_sat)^(-1/b))^(2*b+3)
+    !     = (psi/psi_sat)^(-2-3/b)
 
 
     psi_eff = min(psi,this%psi_sat)
@@ -708,18 +710,19 @@ contains
         th = this%th_res+max_sf_interp*(this%th_sat-this%th_res) + &
               (psi-this%psi_max)/this%dpsidth_max
 
-    elseif(psi<this%psi_min) then
-
-        ! Linear range for extreme values
-        th = this%th_res+min_sf_interp*(this%th_sat-this%th_res) + &
-              (psi-this%psi_min)/this%dpsidth_min
+!    elseif(psi<this%psi_min) then
+!
+!        ! Linear range for extreme values
+!        th = this%th_res+min_sf_interp*(this%th_sat-this%th_res) + &
+!              (psi-this%psi_min)/this%dpsidth_min
 
     else
 
        ! The bisection scheme performs a search via method of bisection,
        ! we need to define bounds with which to start
-       lower  = this%th_res+min_sf_interp*(this%th_sat-this%th_res)-1.e-9_r8
-       upper  = this%th_res+max_sf_interp*(this%th_sat-this%th_res)+1.e-9_r8
+       lower  = this%th_res+1.e-9_r8 !+min_sf_interp*(this%th_sat-this%th_res)-1.e-9_r8
+
+       upper  = 1.5_r8*this%th_sat !this%th_res+max_sf_interp*(this%th_sat-this%th_res)+1.e-9_r8
 
        call this%bisect_pv(lower, upper, psi, th)
        psi_check = this%psi_from_th(th)
@@ -758,10 +761,10 @@ contains
        psi = this%psi_max + this%dpsidth_max * &
             (th-(max_sf_interp*(this%th_sat-this%th_res)+this%th_res))
        
-    elseif(satfrac<min_sf_interp) then
-       
-       psi = this%psi_min + this%dpsidth_min * &
-              (th-(min_sf_interp*(this%th_sat-this%th_res)+this%th_res))
+!    elseif(satfrac<min_sf_interp) then
+!       
+!       psi = this%psi_min + this%dpsidth_min * &
+!              (th-(min_sf_interp*(this%th_sat-this%th_res)+this%th_res))
        
     else
        
@@ -838,9 +841,9 @@ contains
 
         dpsidth = this%dpsidth_max
 
-    elseif(satfrac<min_sf_interp) then
-
-        dpsidth = this%dpsidth_min
+!    elseif(satfrac<min_sf_interp) then
+!
+!        dpsidth = this%dpsidth_min
 
     else
        th_corr = th*this%cap_corr
