@@ -192,13 +192,9 @@ contains
     stomatal_model                        = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
-    stomatal_model                        = nan
-
     hydr_psi0                             = nan
     hydr_psicap                           = nan
-    
     bgc_soil_salinity                     = nan
-
     logging_dbhmin                        = nan
     logging_dbhmax                        = nan
     logging_collateral_frac               = nan
