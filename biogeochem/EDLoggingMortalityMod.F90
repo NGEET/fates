@@ -59,6 +59,7 @@ module EDLoggingMortalityMod
    use FatesAllometryMod , only : set_root_fraction
    use FatesAllometryMod , only : i_biomass_rootprof_context
    use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
+   use FatesConstantsMod , only : fates_tiny
 
    implicit none
    private
@@ -183,7 +184,8 @@ contains
    subroutine LoggingMortality_frac( pft_i, dbh, canopy_layer, lmort_direct, &
                                      lmort_collateral,lmort_infra, l_degrad, &
                                      hlm_harvest, hlm_harvest_catnames, &
-                                     use_history, secondary_age)
+                                     use_history, secondary_age, &
+                                     frac_site_primary)
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
@@ -200,6 +202,7 @@ contains
                                                 ! but suffer from forest degradation (i.e. they
                                                 ! are moved to newly-anthro-disturbed secondary
                                                 ! forest patch)
+      real(r8), intent(in) :: frac_site_primary
 
       ! Local variables
       integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
@@ -262,6 +265,24 @@ contains
                      endif
                   endif
                end do
+
+               ! normalize by site-level fractio primary or secondary forest fraction
+               ! since harvest_rate is specified in fraction of the gridcell
+               ! also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
+               if (use_history .eq. primaryforest) then
+                  if (frac_site_primary .gt. fates_tiny) then
+                     harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
+                  else
+                     harvest_rate = 0._r8
+                  endif
+               else
+                  if ((1._r8-frac_site_primary) .gt. fates_tiny) then
+                     harvest_rate = min((harvest_rate / (1._r8-frac_site_primary)),&
+                          (1._r8-frac_site_primary))
+                  else
+                     harvest_rate = 0._r8
+                  endif
+               endif
 
                ! calculate today's harvest rate
                ! whether to harvest today has already been determined by IsItLoggingTime

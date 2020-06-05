@@ -172,12 +172,23 @@ contains
     real(r8) :: dist_rate_ldist_notharvested
     integer  :: threshold_sizeclass
     integer  :: i_dist
+    real(r8) :: frac_site_primary
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
     !----------------------------------------------------------------------------------------------
     
+    ! first calculate the fractino of the site that is primary land
+    frac_site_primary = 0._r8
+    currentPatch => site_in%oldest_patch
+    do while (associated(currentPatch))   
+       if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
+       endif
+       currentPatch => currentPatch%younger
+    end do
+
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
 
@@ -204,7 +215,8 @@ contains
                 bc_in%hlm_harvest, &
                 bc_in%hlm_harvest_catnames, &
                 currentPatch%anthro_disturbance_label, &
-                currentPatch%age_since_anthro_disturbance)
+                currentPatch%age_since_anthro_disturbance, &
+                frac_site_primary)
          
           currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
