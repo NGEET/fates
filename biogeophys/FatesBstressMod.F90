@@ -19,7 +19,6 @@ module FatesBstressMod
    use FatesGlobals      , only : fates_log
    use EDBtranMod        , only : check_layer_water
    use FatesAllometryMod , only : set_root_fraction
-   use FatesAllometryMod , only : i_hydro_rootprof_context
 
    implicit none
    private
@@ -69,8 +68,7 @@ contains
               do ft = 1,numpft
                  cpatch%bstress_sal_ft(ft) = 0.0_r8
 
-                 call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
-                       icontext = i_hydro_rootprof_context)
+                 call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil )
 
                  do j = 1,bc_in(s)%nlevsoil
                     
