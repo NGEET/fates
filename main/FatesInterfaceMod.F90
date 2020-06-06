@@ -983,7 +983,7 @@ contains
          hlm_max_patch_per_site = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
-         hlm_use_spitfire  = unset_int
+         hlm_spitfire_mode = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
@@ -1182,9 +1182,9 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_spitfire .eq. unset_int) then
+         if(hlm_spitfire_mode .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_use_spitfire, exiting'
+               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_spitfire_mode, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1267,10 +1267,10 @@ contains
                   write(fates_log(),*) 'Transfering hlm_parteh_mode= ',ival,' to FATES'
                end if
 
-            case('use_spitfire')
-               hlm_use_spitfire = ival
+            case('spitfire_mode')
+               hlm_spitfire_mode = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_use_spitfire= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering hlm_spitfire_mode =',ival,' to FATES'
                end if
                
             case('use_planthydro')

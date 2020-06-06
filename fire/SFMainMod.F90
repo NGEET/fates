@@ -56,6 +56,7 @@
   public :: cambial_damage_kill
   public :: post_fire_mortality
 
+  integer :: no_fire = 0  ! value of the no_fire mode
   integer :: write_SF = 0     ! for debugging
   logical :: debug = .false.  ! for debugging
 
@@ -69,7 +70,7 @@ contains
   ! ============================================================================
   subroutine fire_model( currentSite, bc_in)
 
-    use FatesInterfaceTypesMod, only : hlm_use_spitfire
+    use FatesInterfaceTypesMod, only : hlm_spitfire_mode
 
     type(ed_site_type)     , intent(inout), target :: currentSite
     type(bc_in_type)       , intent(in)            :: bc_in
@@ -86,10 +87,10 @@ contains
     enddo
 
     if(write_SF==1)then
-       write(fates_log(),*) 'use_spitfire',hlm_use_spitfire
+       write(fates_log(),*) 'spitfire_mode', hlm_spitfire_mode
     endif
 
-    if( hlm_use_spitfire > 0 )then
+    if( hlm_spitfire_mode > no_fire )then
        call fire_danger_index(currentSite, bc_in)
        call wind_effect(currentSite, bc_in) 
        call charecteristics_of_fuel(currentSite)
@@ -661,7 +662,7 @@ contains
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
-    use FatesInterfaceTypesMod, only : hlm_use_spitfire
+    use FatesInterfaceTypesMod, only : hlm_spitfire_mode
     use EDParamsMod,       only : ED_val_nignitions
     use EDParamsMod,       only : cg_strikes    ! fraction of cloud-to-ground ligtning strikes
     use FatesConstantsMod, only : years_per_day
@@ -680,6 +681,8 @@ contains
     real(r8) AB               !daily area burnt in m2 per km2
     
     real(r8) size_of_fire !in m2
+    integer :: iofp  ! index of oldest fates patch
+    integer :: successful_ignitions = 3  ! value of successful_ignitions mode
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
 
     !  ---initialize site parameters to zero--- 
@@ -688,14 +691,15 @@ contains
     
     ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
-    if (hlm_use_spitfire == 3) then
+    if (hlm_spitfire_mode == successful_ignitions) then
        currentSite%FDI = 1.0_r8  ! READING "SUCCESSFUL IGNITION" DATA
     else  ! USING LIGHTNING DATA
        currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
     end if
     
     !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
-    currentSite%NF = bc_in%lightning24 * cg_strikes
+    iofp = currentSite%oldest_patch%patchno
+    currentSite%NF = bc_in%lightning24(iofp) * cg_strikes
 
     ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
     ! then there are 15 * 1/365 strikes/km2 each day 

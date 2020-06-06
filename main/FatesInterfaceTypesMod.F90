@@ -85,8 +85,8 @@ module FatesInterfaceTypesMod
                                                    ! soil carbon
                                                    ! 1 = TRUE,  0 = FALSE
    
-   integer, public :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
-                                                   ! 1 = TRUE, 0 = FALSE
+   integer, public :: hlm_spitfire_mode  ! Flag to signal SPITFIRE mode
+                                         ! 0 = no fire, 1 = global constant lightning value from fates_params file, 2 = Lightning dataset, 3 = Successful ignitions dataset
 
 
    integer, public :: hlm_use_logging       ! This flag signals whether or not to use
@@ -280,6 +280,9 @@ module FatesInterfaceTypesMod
 
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
+
+      ! 24-hour lightning or ignitions [#/km2/day]
+      real(r8),allocatable :: lightning24(:)
 
       ! Patch 24 hour vegetation temperature [K]
       real(r8),allocatable :: t_veg24_pa(:)  
