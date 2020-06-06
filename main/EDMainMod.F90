@@ -673,6 +673,7 @@ contains
           write(fates_log(),*) 'biomass', biomass_stock
           write(fates_log(),*) 'litter',litter_stock
           write(fates_log(),*) 'seeds',seed_stock
+          write(fates_log(),*) 'total stock', total_stock
           write(fates_log(),*) 'previous total',site_mass%old_stock  
           write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
           
@@ -690,6 +691,7 @@ contains
                 write(fates_log(),*) 'root litter (by layer): ',sum(litt%root_fines,dim=1)
                 write(fates_log(),*) 'dist mode: ',currentPatch%disturbance_mode
                 write(fates_log(),*) 'anthro_disturbance_label: ',currentPatch%anthro_disturbance_label
+                write(fates_log(),*) 'use_this_pft: ', currentSite%use_this_pft(:)
                 if(print_cohorts)then
                     write(fates_log(),*) '---- Biomass by cohort and organ -----'
                     currentCohort => currentPatch%tallest
