@@ -681,6 +681,7 @@ contains
     real(r8) AB               !daily area burnt in m2 per km2
     
     real(r8) size_of_fire !in m2
+    real(r8) cloud_to_ground_strikes  ! [fraction] depends on hlm_spitfire_mode
     integer :: iofp  ! index of oldest fates patch
     integer :: successful_ignitions = 3  ! value of successful_ignitions mode
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
@@ -693,14 +694,15 @@ contains
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
     if (hlm_spitfire_mode == successful_ignitions) then
        currentSite%FDI = 1.0_r8  ! READING "SUCCESSFUL IGNITION" DATA
-       cg_strikes = 1.0_r8
+       cloud_to_ground_strikes = 1.0_r8
     else  ! USING LIGHTNING DATA
        currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
+       cloud_to_ground_strikes = cg_strikes
     end if
     
     !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
     iofp = currentSite%oldest_patch%patchno
-    currentSite%NF = bc_in%lightning24(iofp) * cg_strikes
+    currentSite%NF = bc_in%lightning24(iofp) * cloud_to_ground_strikes
 
     ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
     ! then there are 15 * 1/365 strikes/km2 each day 
