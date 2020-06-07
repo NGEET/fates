@@ -693,6 +693,7 @@ contains
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
     if (hlm_spitfire_mode == successful_ignitions) then
        currentSite%FDI = 1.0_r8  ! READING "SUCCESSFUL IGNITION" DATA
+       cg_strikes = 1.0_r8
     else  ! USING LIGHTNING DATA
        currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
     end if
