@@ -64,7 +64,6 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : ForceDBH
   use FatesAllometryMod  , only : tree_lai, tree_sai
-  use FatesAllometryMod  , only : i_biomass_rootprof_context 
   use FatesAllometryMod    , only : set_root_fraction
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
@@ -847,8 +846,7 @@ contains
 
     plant_dens = nplant/cpatch%area
 
-    call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
-         icontext = i_biomass_rootprof_context)
+    call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil)
 
     do el=1,num_elements
        

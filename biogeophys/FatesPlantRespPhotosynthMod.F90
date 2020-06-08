@@ -109,7 +109,6 @@ contains
     use FatesAllometryMod, only : bleaf
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
-    use FatesAllometryMod, only : i_hydro_rootprof_context
     use FatesAllometryMod, only : decay_coeff_kn
 
     ! ARGUMENTS:
@@ -168,7 +167,7 @@ contains
     real(r8) :: mm_kco2            ! Michaelis-Menten constant for CO2 (Pa)
     real(r8) :: mm_ko2             ! Michaelis-Menten constant for O2 (Pa)
     real(r8) :: co2_cpoint         ! CO2 compensation point (Pa)
-    real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1) 
+    real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1)
     real(r8) :: stomatal_intercept_btran   ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
     real(r8) :: kn                 ! leaf nitrogen decay coefficient
     real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
@@ -247,11 +246,6 @@ contains
     ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
     ! -----------------------------------------------------------------------------------
 
-    ! Ball-Berry minimum leaf conductance, unstressed (umol H2O/m**2/s)
-    ! For C3 and C4 plants
-    ! -----------------------------------------------------------------------------------
- 
-
     associate(  &
          c3psn     => EDPftvarcon_inst%c3psn  , &
          slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
@@ -259,9 +253,6 @@ contains
          woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not?
          stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept ) !Unstressed minimum stomatal conductance
 
-
-
-      
       do s = 1,nsites
 
          ! Multi-layer parameters scaled by leaf nitrogen profile.
@@ -278,7 +269,7 @@ contains
 
          do ft = 1,numpft
              call set_root_fraction(rootfr_ft(ft,:), ft, &
-                   bc_in(s)%zi_sisl,icontext = i_hydro_rootprof_context)
+                   bc_in(s)%zi_sisl)
          end do
           
 
@@ -421,6 +412,7 @@ contains
                               else
                                  
                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentPatch%btran_ft(ft) ) 
+
                                  btran_eff = currentPatch%btran_ft(ft)
                                  ! For consistency sake, we use total LAI here, and not exposed
                                  ! if the plant is under-snow, it will be effectively dormant for 
@@ -926,9 +918,9 @@ contains
    real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
    real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
-
    real(r8) :: term                 ! intermediate variable in Medlyn stomatal conductance model
    real(r8) :: vpd                  ! water vapor deficit in Medlyn stomatal model (KPa)
+
 
    ! Parameters
    ! ------------------------------------------------------------------------
@@ -958,17 +950,13 @@ contains
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
 
-   
-   associate( bb_slope  => EDPftvarcon_inst%BB_slope      ,& ! slope of BB relationship, unitless
+   associate( bb_slope  => EDPftvarcon_inst%bb_slope      ,& ! slope of BB relationship, unitless
       medlyn_slope=> EDPftvarcon_inst%medlyn_slope          , & ! Slope for Medlyn stomatal conductance model method, the unit is KPa^0.5
       stomatal_intercept=> EDPftvarcon_inst%stomatal_intercept )  !Unstressed minimum stomatal conductance, the unit is umol/m**2/s
-      
-   
 
      ! photosynthetic pathway: 0. = c4, 1. = c3
      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
      
-
      if (c3c4_path_index == 1) then
         init_co2_inter_c = init_a2l_co2_c3 * can_co2_ppress
      else
@@ -1220,6 +1208,7 @@ contains
 
            psn_out     = 0._r8
            anet_av_out = 0._r8
+
            rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
            c13disc_z = 0.0_r8
            

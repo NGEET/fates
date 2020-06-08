@@ -41,9 +41,8 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_cohort_size_fusion_tol
    real(r8),protected, public :: ED_val_cohort_age_fusion_tol
    real(r8),protected, public :: ED_val_patch_fusion_tol
-   real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometriy
-   real(r8),protected, public :: stomatal_model  !switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn 
-
+   real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
+   integer,protected, public  :: stomatal_model  !switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
    
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
@@ -81,7 +80,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_cohort_age_fusion_tol = "fates_cohort_age_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
-   character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "stomatal_model"
+   character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
 
    ! Resistance to active crown fire
   
@@ -121,7 +120,14 @@ module EDParamsMod
    ! ----------------------------------------------------------------------------------------------
 
    real(r8),protected,public :: logging_dbhmin              ! Minimum dbh at which logging is applied (cm)
+                                                            ! Typically associated with harvesting
    character(len=param_string_length),parameter,public :: logging_name_dbhmin = "fates_logging_dbhmin"
+
+   real(r8),protected,public :: logging_dbhmax              ! Maximum dbh at which logging is applied (cm)
+                                                            ! Typically associated with fire suppression
+                                                            ! (THIS PARAMETER IS NOT USED YET)
+   character(len=param_string_length),parameter,public :: logging_name_dbhmax = "fates_logging_dbhmax"
+
 
    real(r8),protected,public :: logging_collateral_frac     ! Ratio of collateral mortality to direct logging mortality
    character(len=param_string_length),parameter,public :: logging_name_collateral_frac = "fates_logging_collateral_frac"
@@ -182,17 +188,15 @@ contains
     ED_val_cohort_size_fusion_tol         = nan
     ED_val_cohort_age_fusion_tol          = nan
     ED_val_patch_fusion_tol               = nan
-    ED_val_canopy_closure_thresh          = nan    
+    ED_val_canopy_closure_thresh          = nan
+    stomatal_model                        = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
-    stomatal_model                        = nan
-
     hydr_psi0                             = nan
     hydr_psicap                           = nan
-    
     bgc_soil_salinity                     = nan
-
     logging_dbhmin                        = nan
+    logging_dbhmax                        = nan
     logging_collateral_frac               = nan
     logging_direct_frac                   = nan
     logging_mechanical_frac               = nan
@@ -227,6 +231,7 @@ contains
     character(len=param_string_length), parameter :: dim_names_height(1) = (/dimension_name_history_height_bins/)
     character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
 
+       
     call FatesParamsInit()
 
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
@@ -291,7 +296,7 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_canopy_closure_thresh, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=ED_name_stomatal_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 	 
@@ -311,6 +316,9 @@ contains
          dimension_names=dim_names_scalar) 
 
     call fates_params%RegisterParameter(name=logging_name_dbhmin, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=logging_name_dbhmax, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=logging_name_collateral_frac, dimension_shape=dimension_shape_scalar, &
@@ -372,8 +380,8 @@ contains
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
-    real(r8) :: active_crown_fire_real !Local temp to transfer real data in file
-
+    real(r8) :: tmpreal ! local real variable for changing type on read
+    
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
 
@@ -438,7 +446,8 @@ contains
          data=ED_val_canopy_closure_thresh)
 
     call fates_params%RetreiveParameter(name=ED_name_stomatal_model, &
-         data=stomatal_model)
+         data=tmpreal)
+    stomatal_model = nint(tmpreal)
 
     call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf1, &
           data=hydr_kmax_rsurf1)
@@ -457,7 +466,10 @@ contains
 
     call fates_params%RetreiveParameter(name=logging_name_dbhmin, &
           data=logging_dbhmin)
-    
+
+    call fates_params%RetreiveParameter(name=logging_name_dbhmax, &
+          data=logging_dbhmax)
+
     call fates_params%RetreiveParameter(name=logging_name_collateral_frac, &
           data=logging_collateral_frac)
     
@@ -486,8 +498,8 @@ contains
           data=q10_froz)
 
     call fates_params%RetreiveParameter(name=fates_name_active_crown_fire, & 
-          data=active_crown_fire_real)
-    active_crown_fire = (abs(active_crown_fire_real-1.0_r8)<nearzero)
+          data=tmpreal)
+    active_crown_fire = (abs(tmpreal-1.0_r8)<nearzero)
 
     call fates_params%RetreiveParameter(name=fates_name_cg_strikes, &
           data=cg_strikes)
@@ -548,6 +560,7 @@ contains
         write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
         write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
+        write(fates_log(),fmt0) 'logging_dbhmax = ',logging_dbhmax
         write(fates_log(),fmt0) 'logging_collateral_frac = ',logging_collateral_frac
         write(fates_log(),fmt0) 'logging_coll_under_frac = ',logging_coll_under_frac
         write(fates_log(),fmt0) 'logging_direct_frac = ',logging_direct_frac
