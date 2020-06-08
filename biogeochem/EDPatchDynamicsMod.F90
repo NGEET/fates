@@ -233,6 +233,20 @@ contains
     ! zero the diagnostic disturbance rate fields
     site_in%potential_disturbance_rates(1:N_DIST_TYPES) = 0._r8
 
+    ! summarize how open the canopy is prior to resolving the disturbance
+    currentPatch => site_in%oldest_patch
+    do while (associated(currentPatch))
+       currentPatch%total_canopy_area = 0._r8
+       currentCohort => currentPatch%shortest
+       do while(associated(currentCohort))   
+          if(currentCohort%canopy_layer==1)then
+             currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
+          end if
+          currentCohort => currentCohort%taller
+       end do
+       currentPatch => currentPatch%younger
+    end do
+
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
        
