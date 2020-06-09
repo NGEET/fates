@@ -1161,7 +1161,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(in), target  :: currentSite 
+    type(ed_site_type), intent(inout), target  :: currentSite 
     !
     ! !LOCAL VARIABLES:
     real(r8)                     :: areatot
@@ -1216,6 +1216,9 @@ contains
                  currentSite%mass_balance(el)%patch_resize_err + mass_gain
 
        end do
+
+       currentSite%patch_area_conservation_error = currentSite%patch_area_conservation_error + &
+            area_site-areatot
        
        largestPatch%area = largestPatch%area + (area_site-areatot)
        

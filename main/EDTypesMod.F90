@@ -771,6 +771,7 @@ module EDTypesMod
      real(r8) :: disturbance_rates_secondary_to_secondary(N_DIST_TYPES)  ! actual disturbance rates from secondary patches to secondary patches [m2/m2/day]
      real(r8) :: potential_disturbance_rates(N_DIST_TYPES)               ! "potential" disturb rates (i.e. prior to the "which is most" logic) [m2/m2/day]
      real(r8) :: primary_land_patchfusion_error                          ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
+     real(r8) :: patch_area_conservation_error                           ! error term in total area of patches associated with patch area conservation [m2/m2/day]   
      
   end type ed_site_type
 

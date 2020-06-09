@@ -241,6 +241,9 @@ contains
     ! Patch dynamics sub-routines: fusion, new patch creation (spwaning), termination.
     !*********************************************************************************
 
+    ! zero site-level patch area error tracking
+    currentSite%patch_area_conservation_error = 0._r8
+
     ! make new patches from disturbed land
     if ( hlm_use_ed_st3.eq.ifalse ) then
        call spawn_patches(currentSite, bc_in)
