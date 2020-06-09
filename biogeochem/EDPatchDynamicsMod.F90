@@ -293,14 +293,14 @@ contains
 
        ! for non-closed-canopy areas subject to logging, add an additional increment of area disturbed
        ! equivalent to the fradction loged to account for transfer of interstitial ground area to new secondary lands
-       if ( currentPatch%disturbance_rates(dtype_ilog) .gt. fates_tiny .and. &
+       if ( logging_time .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
 
           call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, bc_in%hlm_harvest, &
                  frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
-               (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate * AREA_INV
+               (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
        endif
 
        do i_dist = 1,N_DIST_TYPES
