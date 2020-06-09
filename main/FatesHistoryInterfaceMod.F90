@@ -199,7 +199,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_logging_disturbance_rate_si
   integer :: ih_fall_disturbance_rate_si
   integer :: ih_potential_disturbance_rate_si
-  integer :: ih_harvest_primary_bcin_si
 
   ! Indices to site by size-class by age variables
   integer :: ih_nplant_si_scag
@@ -1639,7 +1638,7 @@ end subroutine flush_hvars
 
   ! ====================================================================================
   
-  subroutine update_history_dyn(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn(this,nc,nsites,sites)
     
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -1666,7 +1665,6 @@ end subroutine flush_hvars
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     
     ! Locals
     type(litter_type), pointer         :: litt_c   ! Pointer to the carbon12 litter pool
@@ -1797,7 +1795,6 @@ end subroutine flush_hvars
                hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
                hio_potential_disturbance_rate_si => this%hvars(ih_potential_disturbance_rate_si)%r81d, &
-               hio_harvest_primary_bcin_si => this%hvars(ih_harvest_primary_bcin_si)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
                hio_npp_totl_si_scpf    => this%hvars(ih_npp_totl_si_scpf)%r82d, &
                hio_npp_leaf_si_scpf    => this%hvars(ih_npp_leaf_si_scpf)%r82d, &
@@ -2082,8 +2079,6 @@ end subroutine flush_hvars
               sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)
 
          hio_potential_disturbance_rate_si = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES))
-
-         hio_harvest_primary_bcin_si = sum(bc_in(s)%hlm_harvest(1:2))
 
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -4288,11 +4283,6 @@ end subroutine flush_hvars
          long='Potential (i.e., including unresolved) disturbance rate',  use_default='active',     &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_potential_disturbance_rate_si )
-
-    call this%set_history_var(vname='HARVEST_PRIMARY_RATE_BCIN', units='m2 m-2 d-1',                   &
-         long='harvest disturbance rate input from HLM',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_harvest_primary_bcin_si )
 
     ! Canopy Resistance 
 
