@@ -82,6 +82,8 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+  use SFParamsMod,            only : SF_VAL_CWD_FRAC
+  use EDParamsMod,            only : logging_event_code
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -186,6 +188,8 @@ contains
     ! first calculate the fractino of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary)
  
+    site_in%harvest_carbon_flux = 0._r8
+
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
 
@@ -220,6 +224,15 @@ contains
           currentCohort%lmort_infra      = lmort_infra
           currentCohort%l_degrad         = l_degrad
           
+          if (currentCohort%canopy_layer==1) then
+             site_in%harvest_carbon_flux = site_in%harvest_carbon_flux + &
+                  currentCohort%lmort_direct * &
+                  ( currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
+                  currentCohort%prt%GetState(struct_organ, all_carbon_elements)) * &
+                  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                  SF_val_CWD_frac(ncwd)
+          endif
+
           currentCohort => currentCohort%taller
        end do
        currentPatch%disturbance_mode = fates_unset_int
@@ -2370,6 +2383,7 @@ contains
 
     end do  ! i_disttype loop
 
+    currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
 
        if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
