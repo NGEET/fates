@@ -210,10 +210,10 @@ contains
 
       ! todo: add a logging_dbhmax parameter, and probably lower the dbhmin one to 30 cm
       ! todo: change the default logging_event_code to 1 september (-244)
-      ! todo: change the default logging_direct_frac to 0.7, which is closer to a clearcut event
-      ! todo: check secondary forest creation
+      ! todo: change the default logging_direct_frac to 1.0 for cmip inputs
       ! todo: check outputs against the LUH2 carbon data
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
+      ! todo: implement harvested carbon inputs
       
       if (logging_time) then 
          ! Pass logging rates to cohort level 
@@ -247,14 +247,16 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
 
+         ! transfer of area to secondary land is based on overall area affected, not just logged crown area
+         ! l_degrad accounts for the affected area between logged crowns
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
             
             if (dbh >= logging_dbhmin ) then
                lmort_direct = harvest_rate * logging_direct_frac
-               l_degrad = 0._r8
+               l_degrad = harvest_rate * (1._r8 - logging_direct_frac)
             else
                lmort_direct = 0.0_r8
-               l_degrad = harvest_rate * logging_direct_frac
+               l_degrad = harvest_rate
             end if
 
             if (dbh >= logging_dbhmax_infra) then
@@ -281,7 +283,7 @@ contains
             lmort_direct    = 0.0_r8
             lmort_collateral = 0.0_r8
             lmort_infra      = harvest_rate * logging_mechanical_frac
-            l_degrad         = harvest_rate * logging_direct_frac
+            l_degrad         = harvest_rate
          end if
       else 
          lmort_direct    = 0.0_r8

@@ -84,6 +84,7 @@ module EDPatchDynamicsMod
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
+  use EDParamsMod,            only : logging_export_frac
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -223,14 +224,15 @@ contains
           currentCohort%lmort_collateral = lmort_collateral
           currentCohort%lmort_infra      = lmort_infra
           currentCohort%l_degrad         = l_degrad
-          
-          if (currentCohort%canopy_layer==1) then
+
+          ! estimate the wood product (trunk_product_site)
+          if (currentCohort%canopy_layer>=1) then
              site_in%harvest_carbon_flux = site_in%harvest_carbon_flux + &
-                  currentCohort%lmort_direct * &
+                  currentCohort%lmort_direct * currentCohort%n * &
                   ( currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
                   currentCohort%prt%GetState(struct_organ, all_carbon_elements)) * &
                   EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                  SF_val_CWD_frac(ncwd)
+                  SF_val_CWD_frac(ncwd) * logging_export_frac
           endif
 
           currentCohort => currentCohort%taller
