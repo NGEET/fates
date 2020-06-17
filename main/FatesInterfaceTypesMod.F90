@@ -153,6 +153,9 @@ module FatesInterfaceTypesMod
                                                                     ! This need only be defined when
                                                                     ! hlm_use_inventory_init = 1
 
+  integer, public ::  hlm_use_fixed_biogeog                         !  Flag to use FATES fixed biogeography mode
+                                                                    !  1 = TRUE, 0 = FALSE 
+
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -451,6 +454,9 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: hlm_harvest(:)    ! annual harvest rate per cat from hlm for a site
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
 
+      ! Fixed biogeography mode 
+      real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
+    
    end type bc_in_type
 
 

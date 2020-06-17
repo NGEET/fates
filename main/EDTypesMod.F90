@@ -32,7 +32,7 @@ module EDTypesMod
                                                           ! are not the top canopy layer)
 
   integer, parameter, public :: nlevleaf = 30             ! number of leaf layers in canopy layer
-  integer, parameter, public :: maxpft = 15               ! maximum number of PFTs allowed
+  integer, parameter, public :: maxpft = 16               ! maximum number of PFTs allowed
                                                           ! the parameter file may determine that fewer
                                                           ! are used, but this helps allocate scratch
                                                           ! space and output arrays.
@@ -146,8 +146,6 @@ module EDTypesMod
   integer,  parameter, public :: tr_sf                = 4          ! array index of dead trunk pool for spitfire
   integer,  parameter, public :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter, public :: lg_sf                = 6          ! array index of live grass pool for spitfire
-
-  real(r8), parameter, public :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
 
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
@@ -659,7 +657,11 @@ module EDTypesMod
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
-     
+
+     ! Fixed Biogeography mode inputs
+     real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
+     integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
+ 
      ! Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)

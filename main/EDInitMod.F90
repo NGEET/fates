@@ -35,10 +35,10 @@ module EDInitMod
   use EDTypesMod                , only : phen_dstat_moistoff
   use EDTypesMod                , only : phen_cstat_notcold
   use EDTypesMod                , only : phen_dstat_moiston
-  use EDTypesMod                , only : element_pos
   use FatesInterfaceTypesMod         , only : bc_in_type
   use FatesInterfaceTypesMod         , only : hlm_use_planthydro
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
+  use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod         , only : numpft
   use FatesInterfaceTypesMod         , only : nleafage
   use FatesInterfaceTypesMod         , only : nlevsclass
@@ -124,6 +124,9 @@ contains
     allocate(site_in%dz_soil(site_in%nlevsoil))
     allocate(site_in%z_soil(site_in%nlevsoil))
 
+    allocate(site_in%area_pft(1:numpft))
+    allocate(site_in%use_this_pft(1:numpft))
+
     do el=1,num_elements
         allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
@@ -136,7 +139,7 @@ contains
     site_in%zi_soil(:) = bc_in%zi_sisl(:)
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
-
+    
 
     !
     end subroutine init_site_vars
@@ -218,10 +221,12 @@ contains
     ! canopy spread
     site_in%spread = 0._r8
 
+    site_in%area_pft(:) = 0._r8
+    site_in%use_this_pft(:) = fates_unset_int
   end subroutine zero_site
 
   ! ============================================================================
-  subroutine set_site_properties( nsites, sites )
+  subroutine set_site_properties( nsites, sites,bc_in )
     !
     ! !DESCRIPTION:
     !
@@ -231,7 +236,7 @@ contains
 
     integer, intent(in)                        :: nsites
     type(ed_site_type) , intent(inout), target :: sites(nsites)
-
+    type(bc_in_type), intent(in)               :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
     integer  :: s
@@ -244,6 +249,7 @@ contains
     integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
     integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
+    integer  :: ft         ! PFT loop
     !----------------------------------------------------------------------
 
 
@@ -286,7 +292,24 @@ contains
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8         
           sites(s)%frac_burnt = 0.0_r8
+         
+         ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE                                                                                   
+          if(hlm_use_fixed_biogeog.eq.itrue)then
+            do ft =  1,numpft
+              sites(s)%area_pft(ft) = bc_in(s)%pft_areafrac(ft)
+            end do
+          end if
 
+          do ft = 1,numpft
+           sites(s)%use_this_pft(ft) = itrue
+           if(hlm_use_fixed_biogeog.eq.itrue)then
+             if(sites(s)%area_pft(ft).gt.0.0_r8)then
+                sites(s)%use_this_pft(ft) = itrue
+             else
+                sites(s)%use_this_pft(ft) = ifalse
+             end if !area
+           end if !SBG
+          end do !ft
           
        end do
 
@@ -466,7 +489,7 @@ contains
     patch_in%shortest => null()
     
     do pft =  1,numpft
-
+     if(site_in%use_this_pft(pft).eq.itrue)then
        if(EDPftvarcon_inst%initd(pft)>1.0E-7) then
 
        allocate(temp_cohort) ! temporary cohort
@@ -610,7 +633,7 @@ contains
        deallocate(temp_cohort) ! get rid of temporary cohort
 
        endif
-
+     endif !use_this_pft
     enddo !numpft
 
     ! Zero the mass flux pools of the new cohorts

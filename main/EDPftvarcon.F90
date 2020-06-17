@@ -50,9 +50,11 @@ module EDPftvarcon
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model. 
      real(r8), allocatable :: initd(:)               ! initial seedling density 
-     real(r8), allocatable :: seed_suppl(:)           ! seeds that come from outside the gridbox.
-     real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
-     
+     real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
+     real(r8), allocatable :: bb_slope(:)            ! ball berry slope parameter
+     real(r8), allocatable :: medlyn_slope(:)        ! Medlyn slope parameter KPa^0.5
+     real(r8), allocatable :: stomatal_intercept(:)  ! intercept of stomatal conductance model
+                                                     ! (or unstressed minimum conductance) umol/m**2/s
      real(r8), allocatable :: seed_alloc_mature(:)   ! fraction of carbon balance allocated to 
                                                      ! clonal reproduction.
      real(r8), allocatable :: seed_alloc(:)          ! fraction of carbon balance allocated to seeds.
@@ -68,8 +70,12 @@ module EDPftvarcon
      real(r8), allocatable :: slamax(:)              ! Maximum specific leaf area of plant (at bottom) [m2/gC]
      real(r8), allocatable :: slatop(:)              ! Specific leaf area at canopy top [m2/gC]
      
-     real(r8), allocatable :: roota_par(:)           ! Normalized Root profile scaling parameter A
-     real(r8), allocatable :: rootb_par(:)           ! Normalized root profile scaling parameter B
+     real(r8), allocatable :: fnrt_prof_mode(:)      ! Index to select fine root profile function:
+                                                     ! 1) Jackson Beta, 2) 1-param exponential
+                                                     ! 3) 2-param exponential 4) Zeng (not yet unified)
+     real(r8),allocatable :: fnrt_prof_a(:)          ! a parameter for fine-root profile (1st parameter)
+     real(r8),allocatable :: fnrt_prof_b(:)          ! b parameter for fine-root profile (2nd parameter)
+     
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
      real(r8), allocatable :: lf_fcel(:)             ! Leaf litter cellulose fraction [-]
      real(r8), allocatable :: lf_flig(:)             ! Leaf litter lignan fraction [-]
@@ -122,7 +128,9 @@ module EDPftvarcon
      real(r8), allocatable :: rhos(:, :)
      real(r8), allocatable :: taul(:, :)
      real(r8), allocatable :: taus(:, :)
-     real(r8), allocatable :: rootprof_beta(:, :)
+
+
+     
 
      ! Fire Parameters (No PFT vector capabilities in their own routines)
      ! See fire/SFParamsMod.F90 for bulk of fire parameters
@@ -439,10 +447,19 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_BB_slope'
+    name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_leaf_stomatal_slope_medlyn'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leaf_stomatal_intercept'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    
     name = 'fates_senleaf_long_fdrought'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -491,11 +508,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_roota_par'
+    name = 'fates_fnrt_prof_mode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_fnrt_prof_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_rootb_par'
+    name = 'fates_fnrt_prof_b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -956,9 +977,17 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_suppl)
 
-    name = 'fates_leaf_BB_slope'
+    name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%BB_slope)
+         data=this%bb_slope)
+
+    name = 'fates_leaf_stomatal_slope_medlyn'   
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%medlyn_slope)
+
+    name = 'fates_leaf_stomatal_intercept'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%stomatal_intercept)
 
     name = 'fates_senleaf_long_fdrought'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1004,14 +1033,19 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
 
-    name = 'fates_roota_par'
+    name = 'fates_fnrt_prof_mode'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%roota_par)
+         data=this%fnrt_prof_mode)
 
-    name = 'fates_rootb_par'
+    name = 'fates_fnrt_prof_a'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%rootb_par)
+         data=this%fnrt_prof_a)
 
+    name = 'fates_fnrt_prof_b'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%fnrt_prof_b)
+
+    
     name = 'fates_lf_flab'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_flab)
@@ -1416,8 +1450,7 @@ contains
     name = 'fates_prescribed_puptake'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_puptake)
-    
-    
+
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------
@@ -1474,6 +1507,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    
 
   end subroutine Register_PFT_numrad
 
@@ -1609,10 +1643,6 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
     !X!         dimension_names=dim_names)
 
-    name = 'fates_rootprof_beta'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
   end subroutine Register_PFT_nvariants
 
   !-----------------------------------------------------------------------
@@ -1632,9 +1662,6 @@ contains
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
 
-    name = 'fates_rootprof_beta'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%rootprof_beta)
 
   end subroutine Receive_PFT_nvariants
 
@@ -1953,7 +1980,9 @@ contains
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
-        write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
+        write(fates_log(),fmt0) 'bb_slope = ',EDPftvarcon_inst%bb_slope
+        write(fates_log(),fmt0) 'medlyn_slope = ',EDPftvarcon_inst%medlyn_slope         
+        write(fates_log(),fmt0) 'stomatal_intercept = ',EDPftvarcon_inst%stomatal_intercept
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
         write(fates_log(),fmt0) 'senleaf_long_fdrought = ',EDPftvarcon_inst%senleaf_long_fdrought
         write(fates_log(),fmt0) 'seed_alloc_mature = ',EDPftvarcon_inst%seed_alloc_mature
@@ -1965,8 +1994,9 @@ contains
         write(fates_log(),fmt0) 'slamax = ',EDPftvarcon_inst%slamax
         write(fates_log(),fmt0) 'slatop = ',EDPftvarcon_inst%slatop        
         write(fates_log(),fmt0) 'leaf_long = ',EDPftvarcon_inst%leaf_long
-        write(fates_log(),fmt0) 'roota_par = ',EDPftvarcon_inst%roota_par
-        write(fates_log(),fmt0) 'rootb_par = ',EDPftvarcon_inst%rootb_par
+        write(fates_log(),fmt0) 'fnrt_prof_mode = ',EDPftvarcon_inst%fnrt_prof_mode
+        write(fates_log(),fmt0) 'fnrt_prof_a = ',EDPftvarcon_inst%fnrt_prof_a
+        write(fates_log(),fmt0) 'fnrt_prof_b = ',EDPftvarcon_inst%fnrt_prof_b
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
         write(fates_log(),fmt0) 'lf_fcel = ',EDPftvarcon_inst%lf_fcel
         write(fates_log(),fmt0) 'lf_flig = ',EDPftvarcon_inst%lf_flig
@@ -2012,7 +2042,6 @@ contains
         write(fates_log(),fmt0) 'phenflush_fraction',EDpftvarcon_inst%phenflush_fraction
         write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
         write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
-        write(fates_log(),fmt0) 'rootprof_beta = ',EDPftvarcon_inst%rootprof_beta
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
         write(fates_log(),fmt0) 'allom_hmode = ',EDPftvarcon_inst%allom_hmode
         write(fates_log(),fmt0) 'allom_lmode = ',EDPftvarcon_inst%allom_lmode
@@ -2164,7 +2193,27 @@ contains
            
         end if
         
-     
+        ! Check fine-root profile parameters
+
+        if(EDPftvarcon_inst%fnrt_prof_a(ipft) < nearzero .or. & 
+              EDPftvarcon_inst%fnrt_prof_a(ipft) > fates_check_param_set) then
+            write(fates_log(),*) 'Rooting profile parameter a must have a meaningful value'
+            write(fates_log(),*) 'pft: ',ipft,' fnrt_prof_a(ipft): ',EDPftvarcon_inst%fnrt_prof_a(ipft)
+            write(fates_log(),*) 'Aborting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        if( EDPftvarcon_inst%fnrt_prof_mode(ipft) == 2 ) then
+            if (EDPftvarcon_inst%fnrt_prof_b(ipft) < nearzero .or. & 
+                  EDPftvarcon_inst%fnrt_prof_b(ipft) > fates_check_param_set) then
+                write(fates_log(),*) 'Rooting profile parameter b must have a meaningful value'
+                write(fates_log(),*) 'when using the 2 parameter exponential mode:'
+                write(fates_log(),*) 'pft: ',ipft,' fnrt_prof_b(ipft): ',EDPftvarcon_inst%fnrt_prof_b(ipft)
+                write(fates_log(),*) 'Aborting'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+        end if
+        
 
         ! Check that parameter ranges for age-dependent mortality make sense   
         !-----------------------------------------------------------------------------------    

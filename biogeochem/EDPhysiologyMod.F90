@@ -81,7 +81,6 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod, only : set_root_fraction
-  use FatesAllometryMod, only : i_biomass_rootprof_context 
   
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : prt_cnp_flex_allom_hyp
@@ -1206,6 +1205,7 @@ contains
     ! !USES:
     use EDTypesMod, only : area
     use EDTypesMod, only : homogenize_seed_pfts
+    !use FatesInterfaceTypesMod,  only : hlm_use_fixed_biogeog    ! For future reduced complexity?
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -1309,18 +1309,17 @@ contains
 
           litt => currentPatch%litter(el)
           do pft = 1,numpft
-             
+             if(currentSite%use_this_pft(pft).eq.itrue)then
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
              
              ! Seed input from external sources (user param seed rain, or dispersal model)
              seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day
-             
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
              ! Seeds entering externally [kg/site/day]
              site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
-
+            end if !use this pft  
           enddo
           
           
@@ -1412,6 +1411,7 @@ contains
            litt%seed_germ_in(pft) = 0.0_r8
        end if
 
+
     enddo
 
   end subroutine SeedGermination
@@ -1468,14 +1468,15 @@ contains
     real(r8) :: mass_demand ! Total mass demanded by the plant to achieve the stoichiometric targets
                             ! of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
     real(r8) :: stem_drop_fraction 
-                              
+                             
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
     call zero_cohort(temp_cohort)
 
-    do ft = 1,numpft
 
+    do ft = 1,numpft
+      if(currentSite%use_this_pft(ft).eq.itrue)then
        temp_cohort%canopy_trim = 0.8_r8  !starting with the canopy not fully expanded 
        temp_cohort%pft         = ft
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
@@ -1712,6 +1713,7 @@ contains
           
 
        endif
+      endif !use_this_pft
      enddo  !pft loop
      
      deallocate(temp_cohort) ! delete temporary cohort
@@ -1797,8 +1799,7 @@ contains
     do while(associated(currentCohort))
       pft = currentCohort%pft        
 
-      call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
-            icontext = i_biomass_rootprof_context)
+      call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
 
       leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id)
       store_m_turnover  = currentCohort%prt%GetTurnover(store_organ,element_id)
