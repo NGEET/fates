@@ -33,6 +33,7 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_export_frac
    use EDParamsMod       , only : logging_event_code
    use EDParamsMod       , only : logging_dbhmin
+   use EDParamsMod       , only : logging_dbhmax
    use EDParamsMod       , only : logging_collateral_frac 
    use EDParamsMod       , only : logging_direct_frac
    use EDParamsMod       , only : logging_mechanical_frac 
@@ -207,7 +208,7 @@ contains
       ! Local variables
       real(r8) :: harvest_rate ! the final harvest rate to apply to this cohort today
 
-      ! todo: add a logging_dbhmax parameter, and probably lower the dbhmin one to 30 cm
+      ! todo: probably lower the dbhmin default value to 30 cm
       ! todo: change the default logging_event_code to 1 september (-244)
       ! todo: change the default logging_direct_frac to 1.0 for cmip inputs
       ! todo: check outputs against the LUH2 carbon data
@@ -250,7 +251,8 @@ contains
          ! l_degrad accounts for the affected area between logged crowns
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
             
-            if (dbh >= logging_dbhmin ) then
+            if (dbh >= logging_dbhmin .and. .not. &
+                 ((logging_dbhmax < fates_check_param_set) .and. (dbh < logging_dbhmax )) ) then
                lmort_direct = harvest_rate * logging_direct_frac
                l_degrad = harvest_rate * (1._r8 - logging_direct_frac)
             else
