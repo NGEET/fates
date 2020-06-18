@@ -60,6 +60,7 @@ module EDLoggingMortalityMod
    use FatesAllometryMod , only : set_root_fraction
    use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
    use FatesConstantsMod , only : fates_tiny
+   use FatesConstantsMod, only : fates_check_param_set
 
    implicit none
    private
