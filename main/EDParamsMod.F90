@@ -567,7 +567,7 @@ contains
         write(fates_log(),fmt0) 'q10_mr = ',q10_mr
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
         write(fates_log(),fmt0) 'cg_strikes = ',cg_strikes
-        write(fates_log(),'(a,L)') 'active_crown_fire = ',active_crown_fire
+        write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
         write(fates_log(),*) '------------------------------------------------------'
 
      end if
