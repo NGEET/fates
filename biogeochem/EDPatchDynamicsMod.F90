@@ -495,6 +495,7 @@ contains
     
        if(currentPatch%disturbance_rate>1.0_r8) then
           write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
+          call dump_patch(currentPatch)
           call endrun(msg=errMsg(sourcefile, __LINE__))          
        end if
 
@@ -2581,6 +2582,7 @@ contains
     integer, parameter           :: max_cycles = 10  ! After 10 loops through
                                                      ! You should had fused
     integer                      :: count_cycles
+    logical                      :: gotfused
 
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
     !---------------------------------------------------------------------
@@ -2601,6 +2603,8 @@ contains
           if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
                currentPatch%area <= min_patch_area_forced ) then
              
+             gotfused = .false.
+
              if(associated(currentPatch%older) )then
                 
                 if(debug) &
@@ -2612,25 +2616,52 @@ contains
                 ! it will be returned by the subroutine as de-referenced
                 
                 olderPatch => currentPatch%older
-                call fuse_2_patches(currentSite, olderPatch, currentPatch)
+
+                if (currentPatch%anthro_disturbance_label .eq. olderPatch%anthro_disturbance_label) then
+                   
+                   call fuse_2_patches(currentSite, olderPatch, currentPatch)
                 
-                ! The fusion process has updated the "older" pointer on currentPatch
-                ! for us.
+                   ! The fusion process has updated the "older" pointer on currentPatch
+                   ! for us.
                 
-                ! This logic checks to make sure that the younger patch is not the youngest
-                ! patch. As mentioned earlier, we try not to fuse it.
-                
-             elseif( associated(currentPatch%younger) ) then
+                   ! This logic checks to make sure that the younger patch is not the youngest
+                   ! patch. As mentioned earlier, we try not to fuse it.
+                   
+                   gotfused = .true.
+                else
+                   if (count_cycles .gt. 0) then
+                      ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
+                      ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
+                      currentPatch%anthro_disturbance_label = olderPatch%anthro_disturbance_label
+                      call fuse_2_patches(currentSite, olderPatch, currentPatch)
+                      gotfused = .true.
+                   endif
+                endif
+             endif
+
+             if( .not. gotfused .and. associated(currentPatch%younger) ) then
                 
                 if(debug) &
-                      write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
-                      currentPatch%area
+                     write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
+                     currentPatch%area
 
                 youngerPatch => currentPatch%younger
-                call fuse_2_patches(currentSite, youngerPatch, currentPatch)
-                
-                ! The fusion process has updated the "younger" pointer on currentPatch
-                
+
+                if (currentPatch%anthro_disturbance_label .eq. youngerPatch% anthro_disturbance_label) then
+                   
+                   call fuse_2_patches(currentSite, youngerPatch, currentPatch)
+                   
+                   ! The fusion process has updated the "younger" pointer on currentPatch
+                   
+                else
+                   if (count_cycles .gt. 0) then
+                      ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
+                      ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
+                      currentPatch%anthro_disturbance_label = youngerPatch%anthro_disturbance_label
+                      call fuse_2_patches(currentSite, youngerPatch, currentPatch)
+                      gotfused = .true.
+                   endif
+                endif
              endif
           endif
        endif
