@@ -28,9 +28,9 @@ module FatesInventoryInitMod
    use FatesConstantsMod, only : itrue
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
-   use FatesInterfaceMod, only : bc_in_type
-   use FatesInterfaceMod, only : hlm_inventory_ctrl_file
-   use FatesInterfaceMod, only : nleafage
+   use FatesInterfaceTypesMod, only : bc_in_type
+   use FatesInterfaceTypesMod, only : hlm_inventory_ctrl_file
+   use FatesInterfaceTypesMod, only : nleafage
    use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
    use EDTypesMod       , only : ed_patch_type
@@ -45,7 +45,8 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : phen_dstat_timeoff
    use EDTypesMod       , only : phen_dstat_moistoff
    use PRTParametersMod , only : prt_params
-   use FatesInterfaceMod,      only : hlm_parteh_mode
+   use EDPftvarconMod   , only : EDPftvarcon_inst
+   use FatesInterfaceTypesMod, only : hlm_parteh_mode
    use EDCohortDynamicsMod,    only : InitPRTObject
    use PRTGenericMod,          only : prt_carbon_allom_hyp
    use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
@@ -862,7 +863,7 @@ contains
       use FatesAllometryMod         , only : bstore_allom
 
       use EDCohortDynamicsMod , only : create_cohort
-      use FatesInterfaceMod   , only : numpft
+      use FatesInterfaceTypesMod   , only : numpft
 
       ! Arguments
       type(ed_site_type),intent(inout), target    :: csite         ! current site
@@ -911,6 +912,7 @@ contains
       real(r8) :: m_sapw   ! Generic mass for sapwood [kg]
       real(r8) :: m_store  ! Generic mass for storage [kg]
       real(r8) :: m_repro  ! Generic mass for reproductive tissues [kg]
+      real(r8) :: stem_drop_fraction
       integer  :: i_pft, ncohorts_to_create
 
       character(len=128),parameter    :: wr_fmt = &
@@ -1035,25 +1037,37 @@ contains
          call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%canopy_trim, b_store)
       
          temp_cohort%laimemory = 0._r8
+         temp_cohort%sapwmemory = 0._r8
+         temp_cohort%structmemory = 0._r8	 
          cstatus = leaves_on
+         
+	 stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-             temp_cohort%laimemory = b_leaf
-             b_leaf  = 0._r8
-             cstatus = leaves_off
+            temp_cohort%laimemory = b_leaf
+            temp_cohort%sapwmemory = b_sapw * stem_drop_fraction
+            temp_cohort%structmemory = b_struct * stem_drop_fraction	    
+            b_leaf  = 0._r8
+	         b_sapw = (1._r8 - stem_drop_fraction) * b_sapw
+	         b_struct  = (1._r8 - stem_drop_fraction) * b_struct
+            cstatus = leaves_off
          endif
 
          if ( prt_params%stress_decid(temp_cohort%pft) == itrue .and. &
               any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-             temp_cohort%laimemory = b_leaf
-             b_leaf  = 0._r8
-             cstatus = leaves_off
+            temp_cohort%laimemory = b_leaf
+            temp_cohort%sapwmemory = b_sapw * stem_drop_fraction
+            temp_cohort%structmemory = b_struct * stem_drop_fraction	    
+            b_leaf  = 0._r8
+	         b_sapw = (1._r8 - stem_drop_fraction) * b_sapw
+	         b_struct  = (1._r8 - stem_drop_fraction) * b_struct	    
+            cstatus = leaves_off
          endif
          
          prt_obj => null()
          call InitPRTObject(prt_obj)
-         
+
          do el = 1,num_elements
              
              element_id = element_list(el)
@@ -1112,10 +1126,14 @@ contains
 
          call prt_obj%CheckInitialConditions()
 
+
          ! Since spread is a canopy level calculation, we need to provide an initial guess here.
-         call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-               prt_obj, temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, &
-               1, csite%spread, bc_in)
+
+         call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
+              temp_cohort%coage, temp_cohort%dbh, &
+              prt_obj, temp_cohort%laimemory,temp_cohort%sapwmemory, temp_cohort%structmemory, &
+              cstatus, rstatus, temp_cohort%canopy_trim, &
+              1, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort
 

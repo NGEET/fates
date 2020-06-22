@@ -65,7 +65,7 @@ module PRTParametersMod
      ! Root profile parameters. Note we have separate parameters for those that govern
      ! hydraulics, and those that govern biomass (for decomposition and respiration)
 
-     !     real(r8), allocatable :: fnrt_prof_mode(:)           ! Fine root profile functional form
+     real(r8), allocatable :: fnrt_prof_mode(:)           ! Fine root profile functional form
      real(r8), allocatable :: fnrt_prof_a(:)              ! Fine root profile scaling parameter A
      real(r8), allocatable :: fnrt_prof_b(:)              ! Fine root profile scaling parameter B
 
@@ -115,6 +115,9 @@ module PRTParametersMod
   end type prt_param_type
 
   type(prt_param_type),public :: prt_params          ! Instantiation of the parameter object
+
+
+  
 
   
   

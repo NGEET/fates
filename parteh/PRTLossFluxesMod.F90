@@ -108,7 +108,8 @@ contains
      ! If other organs should be desired (like seasonality of fine-roots)
      ! those parameters and clauses need to be added
 
-     if(organ_id .ne. leaf_organ) then
+     !if(organ_id .ne. leaf_organ) then
+     if(organ_id .ne. leaf_organ .AND. EDPftvarcon_inst%woody(ipft) == itrue) then
         write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
         write(fates_log(),*) ' organ: ',organ_id
@@ -117,7 +118,7 @@ contains
      end if
 
      if(prt_global%hyp_id .le. 2) then
-        i_leaf_pos  = 1
+        i_leaf_pos  = 1             ! also used for sapwood and structural for grass
         i_store_pos = 1             ! hypothesis 1/2 only have
                                     ! 1 storage pool
      else
@@ -225,11 +226,11 @@ contains
              else if( element_id == phosphorus_element ) then
                 target_stoich = prt_params%phos_stoich_p1(ipft,organ_id)
              else
-                write(fates_log(),*) ' Trying to calculate nutrient flushing target'
-                write(fates_log(),*) ' for element that DNE'
-                write(fates_log(),*) ' organ: ',organ_id,' element: ',element_id
-                write(fates_log(),*) 'Exiting'
-                call endrun(msg=errMsg(__FILE__, __LINE__))
+                  write(fates_log(),*) ' Trying to calculate nutrient flushing target'
+                  write(fates_log(),*) ' for element that DNE'
+                  write(fates_log(),*) ' organ: ',organ_id,' element: ',element_id
+                  write(fates_log(),*) 'Exiting'
+                  call endrun(msg=errMsg(__FILE__, __LINE__))
              end if
 
              ! Loop over all of the coordinate ids
@@ -245,25 +246,24 @@ contains
                 mass_transfer = min(sp_demand, prt%variables(i_store)%val(i_store_pos))
 
                 ! Increment the pool of interest
-                prt%variables(i_var)%net_alloc(i_pos)   = &
-                      prt%variables(i_var)%net_alloc(i_pos) + mass_transfer
+                prt%variables(i_var)%net_alloc(i_pos) = &
+                prt%variables(i_var)%net_alloc(i_pos) + mass_transfer
                 
                 ! Update the  pool
-                prt%variables(i_var)%val(i_pos)       = &
-                      prt%variables(i_var)%val(i_pos) + mass_transfer
+                prt%variables(i_var)%val(i_pos) = &
+                   prt%variables(i_var)%val(i_pos) + mass_transfer
 
                 ! Increment the store pool allocation diagnostic
                 prt%variables(i_store)%net_alloc(i_store_pos) = &
-                      prt%variables(i_store)%net_alloc(i_store_pos) - mass_transfer
+                    prt%variables(i_store)%net_alloc(i_store_pos) - mass_transfer
                 
                 ! Update the store pool
-                prt%variables(i_store)%val(i_store_pos)     = &
-                      prt%variables(i_store)%val(i_store_pos) - mass_transfer
-
+                prt%variables(i_store)%val(i_store_pos) = &
+                    prt%variables(i_store)%val(i_store_pos) - mass_transfer
              
              end do
           
-          end if
+           end if
 
        end do
        
@@ -415,7 +415,8 @@ contains
      ! If other organs should be desired (like seasonality of fine-roots)
      ! those parameters and clauses need to be added
      
-     if(organ_id .ne. leaf_organ) then
+     !if(organ_id .ne. leaf_organ) then
+     if(organ_id .ne. leaf_organ .AND. EDPftvarcon_inst%woody(ipft) == itrue) then
         write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
         write(fates_log(),*) ' organ: ',organ_id
@@ -472,16 +473,18 @@ contains
 
      associate(organ_map => prt_global%organ_map)
 
-       if( (organ_id == store_organ) .or. &
-           (organ_id == struct_organ) .or. & 
-           (organ_id == sapw_organ)) then
-        
-          write(fates_log(),*) 'Deciduous turnover (leaf drop, etc)'
-          write(fates_log(),*) ' was specified for an unexpected organ'
-          write(fates_log(),*) ' organ: ',organ_id
-          write(fates_log(),*) 'Exiting'
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-          
+       if((organ_id == store_organ) .or. &
+          (organ_id == struct_organ) .or. & 
+          (organ_id == sapw_organ)) then	   
+           
+          if (EDPftvarcon_inst%woody(ipft) == itrue) then        
+              write(fates_log(),*) 'Deciduous turnover (leaf drop, etc)'
+              write(fates_log(),*) ' was specified for an unexpected organ'
+              write(fates_log(),*) ' organ: ',organ_id
+              write(fates_log(),*) 'Exiting'
+              call endrun(msg=errMsg(__FILE__, __LINE__))        
+          end if
+	  
        end if
 
        if(prt_global%hyp_id .le. 2) then
@@ -654,6 +657,7 @@ contains
       ! All plants are allowed to have fine-root turnover if a non-zero
       ! life-span is selected
       ! ---------------------------------------------------------------------------------
+
       if ( prt_params%root_long(ipft) > nearzero ) then
          base_turnover(fnrt_organ) = years_per_day / prt_params%root_long(ipft)
       else

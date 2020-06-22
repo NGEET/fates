@@ -35,18 +35,19 @@ def main():
     # sort the variables by dimensionality, but mix the PFT x other dimension in with the regular PFT-indexed variables
     dimtype_sortorder_dict = {
     (u'fates_history_age_bins',):0,
-    (u'fates_history_height_bins',):1,
-    (u'fates_history_size_bins',):2,
-    (u'fates_pft', u'fates_string_length'):3,
-    (u'fates_prt_organs', u'fates_string_length'):4,
-    (u'fates_pft',):5,
-    (u'fates_variants', u'fates_pft'):5,
-    (u'fates_hydr_organs', u'fates_pft'):5,
-    (u'fates_leafage_class', u'fates_pft'):5,
-    (u'fates_prt_organs', u'fates_pft'):5,
-    (u'fates_litterclass',):6,
-    (u'fates_NCWD',):7,
-    ():8}
+    (u'fates_history_coage_bins',):1,
+    (u'fates_history_height_bins',):2,
+    (u'fates_history_size_bins',):3,
+    (u'fates_pft', u'fates_string_length'):4,
+    (u'fates_prt_organs', u'fates_string_length'):5,
+    (u'fates_pft',):6,
+    (u'fates_variants', u'fates_pft'):6,
+    (u'fates_hydr_organs', u'fates_pft'):6,
+    (u'fates_leafage_class', u'fates_pft'):6,
+    (u'fates_prt_organs', u'fates_pft'):6,
+    (u'fates_litterclass',):7,
+    (u'fates_NCWD',):8,
+    ():9}
     #
     # go through each of the variables and assign it to one of the sub-lists based on its dimensionality
     for v_name, varin in dsin.variables.iteritems():

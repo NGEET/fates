@@ -4,7 +4,7 @@ module EDPatchDynamicsMod
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
   use FatesGlobals         , only : fates_log 
-  use FatesInterfaceMod    , only : hlm_freq_day
+  use FatesInterfaceTypesMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
@@ -37,11 +37,11 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dl_sf
   use EDTypesMod           , only : dump_patch
   use FatesConstantsMod    , only : rsnbl_math_prec
-  use FatesInterfaceMod    , only : hlm_use_planthydro
-  use FatesInterfaceMod    , only : hlm_numSWb
-  use FatesInterfaceMod    , only : bc_in_type
-  use FatesInterfaceMod    , only : hlm_days_per_year
-  use FatesInterfaceMod    , only : numpft
+  use FatesInterfaceTypesMod    , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod    , only : hlm_numSWb
+  use FatesInterfaceTypesMod    , only : bc_in_type
+  use FatesInterfaceTypesMod    , only : hlm_days_per_year
+  use FatesInterfaceTypesMod    , only : numpft
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -53,7 +53,6 @@ module EDPatchDynamicsMod
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
-  use FatesAllometryMod    , only : i_biomass_rootprof_context
   use FatesConstantsMod    , only : g_per_kg
   use FatesConstantsMod    , only : ha_per_m2
   use FatesConstantsMod    , only : days_per_sec
@@ -75,7 +74,7 @@ module EDPatchDynamicsMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTLossFluxesMod,       only : PRTBurnLosses
-  use FatesInterfaceMod,      only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
 
@@ -158,6 +157,8 @@ contains
     real(r8) :: bmort
     real(r8) :: hmort
     real(r8) :: frmort
+    real(r8) :: smort
+    real(r8) :: asmort
 
     real(r8) :: lmort_direct
     real(r8) :: lmort_collateral
@@ -181,8 +182,8 @@ contains
           ! Mortality for trees in the understorey.
           currentCohort%patchptr => currentPatch
 
-          call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
-          currentCohort%dmort  = cmort+hmort+bmort+frmort
+          call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort,asmort)
+          currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
                currentCohort%c_area)
 
@@ -191,6 +192,8 @@ contains
           currentCohort%bmort = bmort
           currentCohort%hmort = hmort
           currentCohort%frmort = frmort
+          currentCohort%smort = smort
+          currentCohort%asmort = asmort
 
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
                 lmort_direct,lmort_collateral,lmort_infra,l_degrad )
@@ -287,6 +290,8 @@ contains
                 currentCohort%bmort = currentCohort%bmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%dmort = currentCohort%dmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%frmort = currentCohort%frmort*(1.0_r8 - fates_mortality_disturbance_fraction)
+                currentCohort%smort = currentCohort%smort*(1.0_r8 - fates_mortality_disturbance_fraction)
+                currentCohort%asmort = currentCohort%asmort*(1.0_r8 - fates_mortality_disturbance_fraction)
              end if
              currentCohort => currentCohort%taller
           enddo !currentCohort
@@ -307,6 +312,8 @@ contains
                 currentCohort%bmort = currentCohort%bmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%dmort = currentCohort%dmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%frmort = currentCohort%frmort*(1.0_r8 - fates_mortality_disturbance_fraction)
+                currentCohort%smort = currentCohort%smort*(1.0_r8 - fates_mortality_disturbance_fraction)
+                currentCohort%asmort = currentCohort%asmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%lmort_direct    = 0.0_r8
                 currentCohort%lmort_collateral = 0.0_r8
                 currentCohort%lmort_infra      = 0.0_r8
@@ -621,6 +628,8 @@ contains
                       nc%hmort = nan
                       nc%bmort = nan
                       nc%frmort = nan
+                      nc%smort = nan
+                      nc%asmort = nan
                       nc%lmort_direct     = nan
                       nc%lmort_collateral = nan
                       nc%lmort_infra      = nan
@@ -673,6 +682,8 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
+                         nc%smort            = currentCohort%smort
+                         nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
                          nc%lmort_direct     = currentCohort%lmort_direct
                          nc%lmort_collateral = currentCohort%lmort_collateral
@@ -697,6 +708,8 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
+                         nc%smort            = currentCohort%smort
+                         nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
                          nc%lmort_direct    = currentCohort%lmort_direct
                          nc%lmort_collateral = currentCohort%lmort_collateral
@@ -752,6 +765,8 @@ contains
                    nc%hmort            = currentCohort%hmort
                    nc%bmort            = currentCohort%bmort
                    nc%frmort           = currentCohort%frmort
+                   nc%smort            = currentCohort%smort
+                   nc%asmort           = currentCohort%asmort
                    nc%dmort            = currentCohort%dmort
                    nc%lmort_direct     = currentCohort%lmort_direct
                    nc%lmort_collateral = currentCohort%lmort_collateral
@@ -825,6 +840,8 @@ contains
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
                       nc%frmort           = currentCohort%frmort
+                      nc%smort            = currentCohort%smort
+                      nc%asmort           = currentCohort%asmort
                       nc%dmort            = currentCohort%dmort
 
                       ! since these are the ones that weren't logged, 
@@ -884,6 +901,8 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
+                         nc%smort            = currentCohort%smort
+                         nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
                          nc%lmort_direct     = currentCohort%lmort_direct
                          nc%lmort_collateral = currentCohort%lmort_collateral
@@ -904,6 +923,8 @@ contains
                          nc%hmort            = currentCohort%hmort
                          nc%bmort            = currentCohort%bmort
                          nc%frmort           = currentCohort%frmort
+                         nc%smort            = currentCohort%smort
+                         nc%asmort           = currentCohort%asmort
                          nc%dmort            = currentCohort%dmort
                          nc%lmort_direct     = currentCohort%lmort_direct
                          nc%lmort_collateral = currentCohort%lmort_collateral
@@ -1509,8 +1530,7 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
-                   icontext = i_biomass_rootprof_context)
+             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
 
              ! Contribution of dead trees to root litter (no root burn flux to atm)
              do dcmpy=1,ndcmpy
@@ -1719,8 +1739,8 @@ contains
           ag_wood = num_dead * (struct_m + sapw_m) * prt_params%allom_agb_frac(pft)
           bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-prt_params%allom_agb_frac(pft))
           
-          call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
-                icontext = i_biomass_rootprof_context)
+          call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
+
 
           do c=1,ncwd
 
@@ -1883,6 +1903,7 @@ contains
     new_patch%fabd_sha_z(:,:,:)  = 0._r8 
     new_patch%fabi_sun_z(:,:,:)  = 0._r8 
     new_patch%fabi_sha_z(:,:,:)  = 0._r8  
+    new_patch%scorch_ht(:)       = 0._r8  
     new_patch%frac_burnt         = 0._r8  
     new_patch%total_tree_area    = 0.0_r8  
     new_patch%NCL_p              = 1
@@ -1958,7 +1979,7 @@ contains
 
 
     ! FIRE
-    currentPatch%litter_moisture(:)         = 0.0_r8 ! litter moisture
+   currentPatch%litter_moisture(:)         = 0.0_r8 ! litter moisture
     currentPatch%fuel_eff_moist             = 0.0_r8 ! average fuel moisture content of the ground fuel 
     ! (incl. live grasses. omits 1000hr fuels)
     currentPatch%livegrass                  = 0.0_r8 ! total ag grass biomass in patch. 1=c3 grass, 2=c4 grass. gc/m2
@@ -1980,7 +2001,7 @@ contains
     currentPatch%fire                       = 999    ! sr decide_fire.1=fire hot enough to proceed. 0=stop everything- no fires today
     currentPatch%fd                         = 0.0_r8 ! fire duration (mins)
     currentPatch%ros_back                   = 0.0_r8 ! backward ros (m/min)
-    currentPatch%sh                         = 0.0_r8 ! average scorch height for the patch(m)
+    currentPatch%scorch_ht(:)               = 0.0_r8 ! scorch height of flames on a given PFT
     currentPatch%frac_burnt                 = 0.0_r8 ! fraction burnt daily  
     currentPatch%burnt_frac_litter(:)       = 0.0_r8 
     currentPatch%btran_ft(:)                = 0.0_r8
@@ -2296,7 +2317,7 @@ contains
     rp%fi                   = (dp%fi*dp%area + rp%fi*rp%area) * inv_sum_area
     rp%fd                   = (dp%fd*dp%area + rp%fd*rp%area) * inv_sum_area
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
-    rp%sh                   = (dp%sh*dp%area + rp%sh*rp%area) * inv_sum_area
+    rp%scorch_ht(:)         = (dp%scorch_ht(:)*dp%area + rp%scorch_ht(:)*rp%area) * inv_sum_area
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
     rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area

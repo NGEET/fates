@@ -9,762 +9,100 @@ module FatesInterfaceMod
    ! which is allocated by thread
    ! ------------------------------------------------------------------------------------
 
-   use EDTypesMod          , only : ed_site_type
-   use EDTypesMod          , only : maxPatchesPerSite
-   use EDTypesMod          , only : maxCohortsPerPatch
-   use EDTypesMod          , only : maxSWb
-   use EDTypesMod          , only : ivis
-   use EDTypesMod          , only : inir
-   use EDTypesMod          , only : nclmax
-   use EDTypesMod          , only : nlevleaf
-   use EDTypesMod          , only : maxpft
-   use EDTypesMod          , only : do_fates_salinity
-   use EDTypesMod          , only : numWaterMem
-   use EDTypesMod          , only : numlevsoil_max
-   use PRTGenericMod       , only : num_elements
-   use PRTGenericMod       , only : element_list
-   use PRTGenericMod       , only : element_pos
-   use EDTypesMod          , only : p_uptake_mode
-   use EDTypesMod          , only : n_uptake_mode
-   use FatesConstantsMod   , only : prescribed_p_uptake
-   use FatesConstantsMod   , only : prescribed_n_uptake
-   use FatesConstantsMod   , only : coupled_p_uptake
-   use FatesConstantsMod   , only : coupled_n_uptake
-   use FatesConstantsMod   , only : r8 => fates_r8
-   use FatesConstantsMod   , only : itrue,ifalse
-   use FatesConstantsMod   , only : fates_ncomp_scaling
-   use FatesConstantsMod   , only : cohort_ncomp_scaling
-   use FatesConstantsMod   , only : pft_ncomp_scaling
-   use FatesConstantsMod   , only : nearzero
-   use FatesConstantsMod   , only : years_per_day
-   use FatesGlobals        , only : fates_global_verbose
-   use FatesGlobals        , only : fates_log
-   use FatesGlobals        , only : endrun => fates_endrun
-   use FatesLitterMod      , only : ncwd
-   use FatesLitterMod      , only : ndcmpy
-   use EDPftvarcon         , only : FatesReportPFTParams
-   use EDPftvarcon         , only : EDPftvarcon_inst
-   use SFParamsMod         , only : SpitFireCheckParams
-   use EDParamsMod         , only : FatesReportParams
-   use EDParamsMod         , only : bgc_soil_salinity
-   use EDParamsMod         , only : eca_plant_escalar
-   use PRTGenericMod         , only : prt_carbon_allom_hyp
-   use PRTGenericMod         , only : prt_cnp_flex_allom_hyp
-   use PRTGenericMod         , only : carbon12_element
-   use PRTGenericMod         , only : nitrogen_element
-   use PRTGenericMod         , only : phosphorus_element
-   use PRTGenericMod,  only : num_organ_types
-   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
-   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
-   use PRTParametersMod, only : prt_params
-   use PRTAllometricCarbonMod, only : InitPRTGlobalAllometricCarbon
-   use PRTAllometricCNPMod, only    : InitPRTGlobalAllometricCNP
-
+   use EDTypesMod                , only : ed_site_type
+   use EDTypesMod                , only : maxPatchesPerSite
+   use EDTypesMod                , only : maxCohortsPerPatch
+   use EDTypesMod                , only : maxSWb
+   use EDTypesMod                , only : ivis
+   use EDTypesMod                , only : inir
+   use EDTypesMod                , only : nclmax
+   use EDTypesMod                , only : nlevleaf
+   use EDTypesMod                , only : maxpft
+   use EDTypesMod                , only : do_fates_salinity
+   use EDTypesMod                , only : numWaterMem
+   use EDTypesMod                , only : numlevsoil_max
+   use FatesConstantsMod         , only : r8 => fates_r8
+   use FatesConstantsMod         , only : itrue,ifalse
+   use FatesGlobals              , only : fates_global_verbose
+   use FatesGlobals              , only : fates_log
+   use FatesGlobals              , only : endrun => fates_endrun
+   use FatesLitterMod            , only : ncwd
+   use FatesLitterMod            , only : ndcmpy
+   use EDPftvarcon               , only : FatesReportPFTParams
+   use EDPftvarcon               , only : FatesCheckParams
+   use EDPftvarcon               , only : EDPftvarcon_inst
+   use SFParamsMod               , only : SpitFireCheckParams
+   use EDParamsMod               , only : FatesReportParams
+   use EDParamsMod               , only : bgc_soil_salinity
+   use FatesPlantHydraulicsMod   , only : InitHydroGlobals
+   use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
+   use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
+   use EDParamsMod               , only : ED_val_history_height_bin_edges
+   use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
+   use CLMFatesParamInterfaceMod , only : FatesReadParameters
+   use EDTypesMod                , only : p_uptake_mode
+   use EDTypesMod                , only : n_uptake_mode
+   use FatesConstantsMod         , only : prescribed_p_uptake
+   use FatesConstantsMod         , only : prescribed_n_uptake
+   use FatesConstantsMod         , only : coupled_p_uptake
+   use FatesConstantsMod         , only : coupled_n_uptake
+   use FatesConstantsMod         , only : fates_ncomp_scaling
+   use FatesConstantsMod         , only : cohort_ncomp_scaling
+   use FatesConstantsMod         , only : pft_ncomp_scaling
+   use PRTGenericMod             , only : num_elements
+   use PRTGenericMod             , only : element_list
+   use PRTGenericMod             , only : element_pos
+   use EDParamsMod               , only : eca_plant_escalar
+   use PRTGenericMod             , only : prt_carbon_allom_hyp
+   use PRTGenericMod             , only : prt_cnp_flex_allom_hyp
+   use PRTGenericMod             , only : carbon12_element
+   use PRTGenericMod             , only : nitrogen_element
+   use PRTGenericMod             , only : phosphorus_element
+   use PRTGenericMod             , only : num_organ_types
+   use PRTGenericMod             , only : leaf_organ, fnrt_organ, store_organ
+   use PRTGenericMod             , only : sapw_organ, struct_organ, repro_organ
+   use PRTParametersMod          , only : prt_params
+   use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
+   use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
 
    ! CIME Globals
-   use shr_log_mod         , only : errMsg => shr_log_errMsg
-   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
+   use shr_log_mod               , only : errMsg => shr_log_errMsg
+   use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
+
+   ! Just use everything from FatesInterfaceTypesMod, this is
+   ! its sister code
+   use FatesInterfaceTypesMod
+
 
    implicit none
 
-   private        ! By default everything is private
+   private
 
-   character(len=*), parameter, private :: sourcefile = &
-         __FILE__
-   
-   ! -------------------------------------------------------------------------------------
-   ! Parameters that are dictated by the Host Land Model
-   ! THESE ARE NOT DYNAMIC. SHOULD BE SET ONCE DURING INTIALIZATION.
-   ! -------------------------------------------------------------------------------------
+   character(len=*), parameter :: sourcefile = &
+        __FILE__
 
-  
-   integer, public, protected :: hlm_numSWb  ! Number of broad-bands in the short-wave radiation
-                                             ! specturm to track 
-                                             ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
-
-   integer, public, protected :: hlm_ivis    ! The HLMs assumption of the array index associated with the 
-                                             ! visible portion of the spectrum in short-wave radiation arrays
-
-   integer, public, protected :: hlm_inir    ! The HLMs assumption of the array index associated with the 
-                                             ! NIR portion of the spectrum in short-wave radiation arrays
-
-
-   integer, public, protected :: hlm_numlevgrnd   ! Number of ground layers
-                                                  ! NOTE! SOIL LAYERS ARE NOT A GLOBAL, THEY 
-                                                  ! ARE VARIABLE BY SITE
-
-   integer, public, protected :: hlm_is_restart   ! Is the HLM signalling that this is a restart
-                                                  ! type simulation?
-                                                  ! 1=TRUE, 0=FALSE
-   
-   character(len=16), public, protected :: hlm_name ! This character string passed by the HLM
-                                                    ! is used during the processing of IO data, 
-                                                    ! so that FATES knows which IO variables it 
-                                                    ! should prepare.  For instance
-                                                    ! ATS, ALM and CLM will only want variables 
-                                                    ! specficially packaged for them.
-                                                    ! This string sets which filter is enacted.
-
-   character(len=16), public, protected :: hlm_nu_com ! This string defines which soil
-                                                      ! nutrient competition scheme is in use.
-                                                      ! current options with
-                                                      ! E3SM: RD, ECA
-                                                      ! CESM: NONE
-                                                      ! ATS: ?
-                                                      ! NORESM: ?
-   
-
-   integer, public, protected :: hlm_nitrogen_spec   ! This flag signals which nitrogen
-                                                     ! species are active if any:
-                                                     ! 0: none
-                                                     ! 1: nh4 only
-                                                     ! 2: nh4 and no3
-
-   integer, public, protected :: hlm_phosphorus_spec ! Signals if phosphorous is turned on in the HLM
-                                                     ! 0: none
-                                                     ! 1: p is on
-
-  
-   real(r8), public, protected :: hlm_hio_ignore_val  ! This value can be flushed to history 
-                                                      ! diagnostics, such that the
-                                                      ! HLM will interpret that the value should not 
-                                                      ! be included in the average.
-   
-   integer, public, protected :: hlm_masterproc  ! Is this the master processor, typically useful
-                                                 ! for knowing if the current machine should be 
-                                                 ! printing out messages to the logs or terminals
-                                                 ! 1 = TRUE (is master) 0 = FALSE (is not master)
-
-   integer, public, protected :: hlm_ipedof      ! The HLM pedotransfer index
-                                                 ! this is only used by the plant hydraulics
-                                                 ! submodule to check and/or enable consistency
-                                                 ! between the pedotransfer functions of the HLM
-                                                 ! and how it moves and stores water in its
-                                                 ! rhizosphere shells
-   
-   integer, public, protected :: hlm_max_patch_per_site ! The HLM needs to exchange some patch
-                                                        ! level quantities with FATES
-                                                        ! FATES does not dictate those allocations
-                                                        ! since it happens pretty early in
-                                                        ! the model initialization sequence.
-                                                        ! So we want to at least query it,
-                                                        ! compare it to our maxpatchpersite,
-                                                        ! and gracefully halt if we are over-allocating
-
-   integer, public, protected :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
-                                                   ! Transport (exensible) Hypothesis (PARTEH) to use
-
-
-   integer, public, protected :: hlm_use_vertsoilc ! This flag signals whether or not the 
-                                                   ! host model is using vertically discretized
-                                                   ! soil carbon
-                                                   ! 1 = TRUE,  0 = FALSE
-   
-   integer, public, protected :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
-                                                   ! 1 = TRUE, 0 = FALSE
-
-
-   integer, public, protected :: hlm_use_logging       ! This flag signals whether or not to use
-                                                       ! the logging module
-
-   integer, public, protected :: hlm_use_planthydro    ! This flag signals whether or not to use
-                                                       ! plant hydraulics (bchristo/xu methods)
-                                                       ! 1 = TRUE, 0 = FALSE
-                                                       ! THIS IS CURRENTLY NOT SUPPORTED 
-
-   integer, public, protected :: hlm_use_ed_st3        ! This flag signals whether or not to use
-                                                       ! (ST)atic (ST)and (ST)ructure mode (ST3)
-                                                       ! Essentially, this gives us the ability
-                                                       ! to turn off "dynamics", ie growth, disturbance
-                                                       ! recruitment and mortality.
-                                                       ! (EXPERIMENTAL!!!!! - RGK 07-2017)
-                                                       ! 1 = TRUE, 0 = FALSE
-                                                       ! default should be FALSE (dynamics on)
-                                                       ! cannot be true with prescribed_phys
-
-   integer, public, protected :: hlm_use_ed_prescribed_phys ! This flag signals whether or not to use
-                                                            ! prescribed physiology, somewhat the opposite
-                                                            ! to ST3, in this case can turn off
-                                                            ! fast processes like photosynthesis and respiration
-                                                            ! and prescribe NPP
-                                                            ! (NOT CURRENTLY IMPLEMENTED - PLACEHOLDER)
-                                                            ! 1 = TRUE, 0 = FALSE
-                                                            ! default should be FALSE (biophysics on)
-                                                            ! cannot be true with st3 mode
-
-   integer, public, protected :: hlm_use_inventory_init     ! Initialize this simulation from
-                                                            ! an inventory file. If this is toggled on
-                                                            ! an inventory control file must be specified
-                                                            ! as well.
-                                                            ! 1 = TRUE, 0 = FALSE
-   
-   character(len=256), public, protected :: hlm_inventory_ctrl_file ! This is the full path to the
-                                                                    ! inventory control file that
-                                                                    ! specifieds the availabel inventory datasets
-                                                                    ! there locations and their formats
-                                                                    ! This need only be defined when
-                                                                    ! hlm_use_inventory_init = 1
-
-   ! -------------------------------------------------------------------------------------
-   ! Parameters that are dictated by FATES and known to be required knowledge
-   !  needed by the HLMs
-   ! -------------------------------------------------------------------------------------
-
-   ! Variables mostly used for dimensioning host land model (HLM) array spaces
-   
-   integer, public, protected :: fates_maxElementsPerPatch ! maxElementsPerPatch is the value that is ultimately
-                                                           ! used to set the size of the largest arrays necessary
-                                                           ! in things like restart files (probably hosted by the 
-                                                           ! HLM). The size of these arrays are not a parameter
-                                                           ! because it is simply the maximum of several different
-                                                           ! dimensions. It is possible that this would be the
-                                                           ! maximum number of cohorts per patch, but
-                                                           ! but it could be other things.
-
-   integer, public, protected :: fates_maxElementsPerSite  ! This is the max number of individual items one can store per 
-                                                           ! each grid cell and effects the striding in the ED restart 
-                                                           ! data as some fields are arrays where each array is
-                                                           ! associated with one cohort
-
-
-
-   integer, public, protected :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
-                                                           ! competitors that will be generated on each site
-                                                           
-
-   ! -------------------------------------------------------------------------------------
-   ! These vectors are used for history output mapping
-   ! CLM/ALM have limited support for multi-dimensional history output arrays.
-   ! FATES structure and composition is multi-dimensional, so we end up "multi-plexing"
-   ! multiple dimensions into one dimension.  These new dimensions need definitions,
-   ! mapping to component dimensions, and definitions for those component dimensions as
-   ! well.
-   ! -------------------------------------------------------------------------------------
-   
-   real(r8), public, allocatable :: fates_hdim_levsclass(:)        ! plant size class lower bound dimension
-   integer , public, allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
-   integer , public, allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
-   real(r8), public, allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
-   real(r8), public, allocatable :: fates_hdim_levheight(:)        ! height lower bound dimension
-   integer , public, allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
-   integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel class dimension
-   integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
-   integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
-   integer , public, allocatable :: fates_hdim_levelem(:)              ! element dimension
-   integer , public, allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
-   integer , public, allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
-   integer , public, allocatable :: fates_hdim_canmap_levcnlfpf(:) ! can-layer map into the can-layer x pft x leaf-layer dim
-   integer , public, allocatable :: fates_hdim_lfmap_levcnlfpf(:)  ! leaf-layer map into the can-layer x pft x leaf-layer dim
-   integer , public, allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dim
-   integer , public, allocatable :: fates_hdim_scmap_levscag(:)    ! map of size-class into size-class x patch age dimension
-   integer , public, allocatable :: fates_hdim_agmap_levscag(:)    ! map of patch-age into size-class x patch age dimension
-   integer , public, allocatable :: fates_hdim_scmap_levscagpft(:)     ! map of size-class into size-class x patch age x pft dimension
-   integer , public, allocatable :: fates_hdim_agmap_levscagpft(:)     ! map of patch-age into size-class x patch age x pft dimension
-   integer , public, allocatable :: fates_hdim_pftmap_levscagpft(:)    ! map of pft into size-class x patch age x pft dimension
-   integer , public, allocatable :: fates_hdim_agmap_levagepft(:)      ! map of patch-age into patch age x pft dimension
-   integer , public, allocatable :: fates_hdim_pftmap_levagepft(:)     ! map of pft into patch age x pft dimension
-   
-   integer , public, allocatable :: fates_hdim_elmap_levelpft(:)       ! map of elements in the element x pft dimension
-   integer , public, allocatable :: fates_hdim_elmap_levelcwd(:)       ! map of elements in the element x cwd dimension
-   integer , public, allocatable :: fates_hdim_elmap_levelage(:)       ! map of elements in the element x age dimension
-   integer , public, allocatable :: fates_hdim_pftmap_levelpft(:)       ! map of pfts in the element x pft dimension
-   integer , public, allocatable :: fates_hdim_cwdmap_levelcwd(:)       ! map of cwds in the element x cwd dimension
-   integer , public, allocatable :: fates_hdim_agemap_levelage(:)       ! map of ages in the element x age dimension
-
-
-   ! ------------------------------------------------------------------------------------
-   !                              DYNAMIC BOUNDARY CONDITIONS
-   ! ------------------------------------------------------------------------------------
-
-
-   ! -------------------------------------------------------------------------------------
-   ! Scalar Timing Variables
-   ! It is assumed that all of the sites on a given machine will be synchronous.
-   ! It is also assumed that the HLM will control time.
-   ! -------------------------------------------------------------------------------------
-   integer, public, protected  :: hlm_current_year    ! Current year
-   integer, public, protected  :: hlm_current_month   ! month of year
-   integer, public, protected  :: hlm_current_day     ! day of month
-   integer, public, protected  :: hlm_current_tod     ! time of day (seconds past 0Z)
-   integer, public, protected  :: hlm_current_date    ! time of day (seconds past 0Z)
-   integer, public, protected  :: hlm_reference_date  ! YYYYMMDD
-   real(r8), public, protected :: hlm_model_day       ! elapsed days between current date and ref
-   integer, public, protected  :: hlm_day_of_year     ! The integer day of the year
-   integer, public, protected  :: hlm_days_per_year   ! The HLM controls time, some HLMs may 
-                                                      ! include a leap
-   real(r8), public, protected :: hlm_freq_day        ! fraction of year for daily time-step 
-                                                      ! (1/days_per_year_, this is a frequency
-   
-
-   ! -------------------------------------------------------------------------------------
-   !
-   ! Constant parameters that are dictated by the fates parameter file
-   !
-   ! -------------------------------------------------------------------------------------
-
-   integer, public, protected :: numpft           ! The total number of PFTs defined in the simulation
-   integer, public, protected :: nlevsclass       ! The total number of cohort size class bins output to history
-   integer, public, protected :: nlevage          ! The total number of patch age bins output to history
-   integer, public, protected :: nlevheight       ! The total number of height bins output to history
-   integer, public, protected :: nleafage         ! The total number of leaf age classes
-
-   ! -------------------------------------------------------------------------------------
-   ! Structured Boundary Conditions (SITE/PATCH SCALE)
-   ! For floating point arrays, it is sometimes the convention to define the arrays as
-   ! POINTER instead of ALLOCATABLE.  This usually achieves the same result with subtle
-   ! differences.  POINTER arrays can point to scalar values, discontinuous array slices
-   ! or alias other variables, ALLOCATABLES cannnot.  According to S. Lionel 
-   ! (Intel-Forum Post), ALLOCATABLES are better perfomance wise as long as they point 
-   ! to contiguous memory spaces and do not alias other variables, the case here.
-   ! Naming conventions:   _si  means site dimensions (scalar in that case)
-   !                       _pa  means patch dimensions
-   !                       _rb  means radiation band
-   !                       _sl  means soil layer
-   !                       _sisl means site x soil layer
-   ! ------------------------------------------------------------------------------------
-
-   type, public :: bc_in_type
-
-      ! The actual number of FATES' ED patches
-      integer :: npatches
-
-
-      ! Soil layer structure
-
-      integer              :: nlevsoil           ! the number of soil layers in this column
-      integer              :: nlevdecomp         ! the number of soil layers in the column
-                                                 ! that are biogeochemically active
-      real(r8),allocatable :: zi_sisl(:)         ! interface level below a "z" level (m)
-                                                 ! this contains a zero index for surface.
-      real(r8),allocatable :: dz_sisl(:)         ! layer thickness (m)
-      real(r8),allocatable :: z_sisl(:)          ! layer depth (m)
-
-      ! Decomposition Layer Structure
-      real(r8), allocatable :: dz_decomp_sisl(:) ! This should match dz_sisl(), unless
-                                                 ! only one layer is chosen, in that
-                                                 ! case, it has its own depth, which
-                                                 ! has traditionally been 1 meter
-
-      integer,allocatable  :: decomp_id(:)       ! The decomposition layer index that each
-                                                 ! soil layer maps to. This will either
-                                                 ! be equivalent (ie integer ascending)
-                                                 ! Or, all will be 1.
-      
-
-      ! Vegetation Dynamics
-      ! ---------------------------------------------------------------------------------
-
-      ! The site level 24 hour vegetation temperature is used for various purposes during vegetation 
-      ! dynamics.  However, we are currently using the bare ground patch's value [K]
-      ! TO-DO: Get some consensus on the correct vegetation temperature used for phenology.
-      ! It is possible that the bare-ground value is where the average is being stored.
-      ! (RGK-01-2017)
-      real(r8)             :: t_veg24_si
-
-      ! Patch 24 hour vegetation temperature [K]
-      real(r8),allocatable :: t_veg24_pa(:)  
-      
-      ! Fire Model
-
-      ! Average precipitation over the last 24 hours [mm/s]
-      real(r8), allocatable :: precip24_pa(:)
-
-      ! Average relative humidity over past 24 hours [-]
-      real(r8), allocatable :: relhumid24_pa(:)
-
-      ! Patch 24-hour running mean of wind (m/s ?)
-      real(r8), allocatable :: wind24_pa(:)
-
-
-      ! Radiation variables for calculating sun/shade fractions
-      ! ---------------------------------------------------------------------------------
-
-      ! Downwelling direct beam radiation (patch,radiation-band) [W/m2]
-      real(r8), allocatable :: solad_parb(:,:)  
-
-      ! Downwelling diffuse (I-ndirect) radiation (patch,radiation-band) [W/m2]
-      real(r8), allocatable :: solai_parb(:,:)
-
-      ! Nutrient input fluxes (these are integrated fluxes over the day, most
-      !                        likely calculated over shorter dynamics steps,
-      !                        and then incremented until the end of the day)
-      !
-      ! Note 1: If these are indexed by COHORT, they don't also need to be indexed
-      !         by decomposition layer. So it is allocated with 2nd dim=1.
-      ! Note 2: Has it's own zero'ing call
-      real(r8), pointer :: plant_n_uptake_flux(:,:)   ! Nitrogen input flux for
-                                                      ! each competitor [gN/m2/day]
-      real(r8), pointer :: plant_p_uptake_flux(:,:)   ! Phosphorus input flux for
-                                                      ! each competitor [gP/m2/day]
-       
-
-      ! Photosynthesis variables
-      ! ---------------------------------------------------------------------------------
-
-      ! Patch level filter flag for photosynthesis calculations
-      ! has a short memory, flags:
-      ! 1 = patch has not been called
-      ! 2 = patch is currently marked for photosynthesis
-      ! 3 = patch has been called for photosynthesis at least once
-      integer, allocatable  :: filter_photo_pa(:)
-
-      ! atmospheric pressure (Pa)
-      real(r8)              :: forc_pbot             
-
-      ! daylength scaling factor (0-1)
-      real(r8), allocatable :: dayl_factor_pa(:)
-      
-      ! saturation vapor pressure at t_veg (Pa)
-      real(r8), allocatable :: esat_tv_pa(:)
-
-      ! vapor pressure of canopy air (Pa)
-      real(r8), allocatable :: eair_pa(:)
-
-      ! Atmospheric O2 partial pressure (Pa)
-      real(r8), allocatable :: oair_pa(:)
-
-      ! Atmospheric CO2 partial pressure (Pa)
-      real(r8), allocatable :: cair_pa(:)
-
-      ! boundary layer resistance (s/m)
-      real(r8), allocatable :: rb_pa(:)
-
-      ! vegetation temperature (Kelvin)
-      real(r8), allocatable :: t_veg_pa(:)
-             
-      ! air temperature at agcm reference height (kelvin)
-      real(r8), allocatable :: tgcm_pa(:)
-
-      ! soil temperature (Kelvin)
-      real(r8), allocatable :: t_soisno_sl(:)
-
-      ! Canopy Radiation Boundaries
-      ! ---------------------------------------------------------------------------------
-      
-      ! Filter for vegetation patches with a positive zenith angle (daylight)
-      logical, allocatable :: filter_vegzen_pa(:)
-
-      ! Cosine of the zenith angle (0-1), by patch
-      ! Note RGK: It does not seem like the code would currently generate
-      !           different zenith angles for different patches (nor should it)
-      !           I am leaving it at this scale for simplicity.  Patches should
-      !           have no spacially variable information
-      real(r8), allocatable :: coszen_pa(:)
-      
-      ! Abledo of the ground for direct radiation, by site broadband (0-1)
-      real(r8), allocatable :: albgr_dir_rb(:)
-
-      ! Albedo of the ground for diffuse radiation, by site broadband (0-1)
-      real(r8), allocatable :: albgr_dif_rb(:)
-      
-      ! LitterFlux Boundaries
-      ! the index of the deepest model soil level where roots may be
-      ! due to permafrost or bedrock constraints
-      integer  :: max_rooting_depth_index_col
-
-      ! BGC Accounting
-
-      real(r8) :: tot_het_resp  ! total heterotrophic respiration  (gC/m2/s)
-      real(r8) :: tot_somc      ! total soil organic matter carbon (gc/m2)
-      real(r8) :: tot_litc      ! total litter carbon tracked in the HLM (gc/m2)
-
-      ! Canopy Structure
-
-      real(r8) :: snow_depth_si    ! Depth of snow in snowy areas of site (m)
-      real(r8) :: frac_sno_eff_si  ! Fraction of ground covered by snow (0-1)
-
-      ! Hydrology variables for BTRAN
-      ! ---------------------------------------------------------------------------------
-
-      ! Soil suction potential of layers in each site, negative, [mm]
-      real(r8), allocatable :: smp_sl(:)
-      
-      !soil salinity of layers in each site [ppt]
-      real(r8), allocatable :: salinity_sl(:)
-
-      ! Effective porosity = porosity - vol_ic, of layers in each site [-]
-      real(r8), allocatable :: eff_porosity_sl(:)
-
-      ! volumetric soil water at saturation (porosity)
-      real(r8), allocatable :: watsat_sl(:)
-
-      ! Temperature of ground layers [K]
-      real(r8), allocatable :: tempk_sl(:)
-
-      ! Liquid volume in ground layer (m3/m3)
-      real(r8), allocatable :: h2o_liqvol_sl(:)
-
-      ! Site level filter for uptake response functions
-      logical               :: filter_btran
-
-      ! Plant-Hydro
-      ! ---------------------------------------------------------------------------------
-
-      
-      real(r8),allocatable :: qflx_transp_pa(:)    ! Transpiration flux as dictated by the HLM's
-                                                   ! canopy solver. [mm H2O/s] [+ into root]
-      real(r8),allocatable :: swrad_net_pa(:)      ! Net absorbed shortwave radiation (W/m2)
-      real(r8),allocatable :: lwrad_net_pa(:)      ! Net absorbed longwave radiation (W/m2)
-      real(r8),allocatable :: watsat_sisl(:)       ! volumetric soil water at saturation (porosity)
-      real(r8),allocatable :: watres_sisl(:)       ! volumetric residual soil water
-      real(r8),allocatable :: sucsat_sisl(:)       ! minimum soil suction (mm) 
-      real(r8),allocatable :: bsw_sisl(:)          ! Clapp and Hornberger "b"
-      real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
-      real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
-      real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-      
-   end type bc_in_type
-
-
-   ! This new type hold parameter constants
-   ! These parameter constants only need to specified once, and never modified again.
-   ! After re-factoring this module to split the procedures from the data-types
-   ! we can then set the datatypes as protected.
-
-   type, public :: bc_pconst_type
-
-       ! Nutrient competition boundary conditions for ECA hypothesis
-       ! Note, these "could" be stored globaly for each machine, saving them on
-       ! each column is inefficient. Each of these are dimensioned by PFT.
-       
-       integer           :: max_plant_comps
-       real(r8), pointer :: eca_km_nh4(:)
-       real(r8), pointer :: eca_vmax_nh4(:)
-       real(r8), pointer :: eca_km_no3(:)
-       real(r8), pointer :: eca_vmax_no3(:)
-       real(r8), pointer :: eca_km_p(:)     
-       real(r8), pointer :: eca_vmax_p(:)
-       real(r8), pointer :: eca_km_ptase(:)     
-       real(r8), pointer :: eca_vmax_ptase(:)
-       real(r8), pointer :: eca_alpha_ptase(:)
-       real(r8), pointer :: eca_lambda_ptase(:)
-       real(r8)          :: eca_plant_escalar
-
-       integer, pointer  :: j_uptake(:)         ! Mapping between decomposition
-                                                ! layers and the uptake layers
-                                                ! in FATES (is either incrementally
-                                                ! increasing, or all 1s)
-
-   end type bc_pconst_type
-   
-
-   type, public :: bc_out_type
-
-      ! Sunlit fraction of the canopy for this patch [0-1]
-      real(r8),allocatable :: fsun_pa(:)
-
-      ! Sunlit canopy LAI
-      real(r8),allocatable :: laisun_pa(:)
-      
-      ! Shaded canopy LAI
-      real(r8),allocatable :: laisha_pa(:)
-      
-      ! Logical stating whether a ground layer can have water uptake by plants
-      ! The only condition right now is that liquid water exists
-      ! The name (suction) is used to indicate that soil suction should be calculated
-      logical, allocatable :: active_suction_sl(:)
-
-      ! Effective fraction of roots in each soil layer 
-      real(r8), allocatable :: rootr_pasl(:,:)
-
-      ! Integrated (vertically) transpiration wetness factor (0 to 1) 
-      ! (diagnostic, should not be used by HLM)
-      real(r8), allocatable :: btran_pa(:)
-
-      ! Sunlit canopy resistance [s/m]
-      real(r8), allocatable :: rssun_pa(:)
-
-      ! Shaded canopy resistance [s/m]
-      real(r8), allocatable :: rssha_pa(:)
-
-      ! leaf photosynthesis (umol CO2 /m**2/ s)
-      ! (NOT CURRENTLY USED, PLACE-HOLDER)
-      !real(r8), allocatable :: psncanopy_pa(:)
-
-      ! leaf maintenance respiration rate (umol CO2/m**2/s) 
-      ! (NOT CURRENTLY USED, PLACE-HOLDER)
-      !real(r8), allocatable :: lmrcanopy_pa(:)
-
-      ! Canopy Radiation Boundaries
-      ! ---------------------------------------------------------------------------------
-      
-      ! Surface albedo (direct) (HLMs use this for atm coupling and balance checks)
-      real(r8), allocatable :: albd_parb(:,:)
-      
-      ! Surface albedo (diffuse) (HLMs use this for atm coupling and balance checks)
-      real(r8), allocatable :: albi_parb(:,:)                 
-      
-      ! Flux absorbed by canopy per unit direct flux (HLMs use this for balance checks)
-      real(r8), allocatable :: fabd_parb(:,:) 
-      
-      ! Flux absorbed by canopy per unit diffuse flux (HLMs use this for balance checks)
-      real(r8), allocatable :: fabi_parb(:,:)
-
-      ! Down direct flux below canopy per unit direct flx (HLMs use this for balance checks)
-      real(r8), allocatable :: ftdd_parb(:,:)
-
-      ! Down diffuse flux below canopy per unit direct flx (HLMs use this for balance checks)
-      real(r8), allocatable :: ftid_parb(:,:)
-      
-      ! Down diffuse flux below canopy per unit diffuse flx (HLMs use this for balance checks)
-      real(r8), allocatable :: ftii_parb(:,:)
-
-
-      ! Mass fluxes to BGC from fragmentation of litter into decomposing pools
-      
-      real(r8), allocatable :: litt_flux_cel_c_si(:) ! cellulose carbon litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_lig_c_si(:) ! lignan carbon litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_lab_c_si(:) ! labile carbon litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_cel_n_si(:) ! cellulose nitrogen litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_lig_n_si(:) ! lignan nitrogen litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_lab_n_si(:) ! labile nitrogen litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_cel_p_si(:) ! cellulose phosphorus litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignan phosphorus litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
-
-
-      ! Nutrient competition boundary conditions
-      ! (These are all pointer allocations, this is because the host models
-      !  will point to these arrays)
-      ! ---------------------------------------------------------------------------------
-
-      integer               :: n_plant_comps               ! Number of unique competitors
-
-      real(r8), allocatable :: source_nh4(:)  ! FATES generated source of ammonium to the mineralized N pool
-                                              ! in the BGC model [gN/m3]
-      real(r8), allocatable :: source_p(:)    ! FATES generated source of phosphorus to mineralized P
-                                              ! pool in the BGC model [gP/m3]
-      
-      real(r8), pointer :: veg_rootc(:,:)        ! Total fine-root carbon of each competitor
-                                                     ! [gC/m3 of site area]  
-                                                     ! (maxcohort_per_site x nlevdecomp)
-      real(r8), pointer :: decompmicc(:)         ! Microbial decomposer biomass [gc/m3] 
-                                                     ! (numpft x nledecomp_full)
-      integer, pointer :: ft_index(:)            ! functional type index of each competitor
-                                                     ! (maxcohort_per_site)
-      real(r8), pointer :: cn_scalar(:)          ! C:N scaling factor for root n uptake 
-                                                     ! kinetics (exact meaning differs between
-                                                     ! soil BGC hypotheses)
-      real(r8), pointer :: cp_scalar(:)          ! C:P scaling factor for root p uptake
-                                                     ! kinetics (exact meaning differs between
-                                                     ! soil BGC hypotheses)
-
-
-
-
-      ! CTC/RD Nutrient Boundary Conditions
-      ! ---------------------------------------------------------------------------------
-
-      real(r8), pointer :: n_demand(:)           ! Nitrogen demand from each competitor
-                                                     ! for use in ELMs CTC/RD [g/m2/s] 
-      real(r8), pointer :: p_demand(:)           ! Phosophorus demand from each competitor
-                                                     ! for use in ELMs CTC/RD [g/m2/s] 
-
-
-      
-      ! Canopy Structure
-
-      real(r8), allocatable :: elai_pa(:)  ! exposed leaf area index
-      real(r8), allocatable :: esai_pa(:)  ! exposed stem area index
-      real(r8), allocatable :: tlai_pa(:)  ! total leaf area index
-      real(r8), allocatable :: tsai_pa(:)  ! total stem area index
-      real(r8), allocatable :: htop_pa(:)  ! top of the canopy [m]
-      real(r8), allocatable :: hbot_pa(:)  ! bottom of canopy? [m]
-
-      real(r8), allocatable :: z0m_pa(:)   ! roughness length [m]
-      real(r8), allocatable :: displa_pa(:) ! displacement height [m]
-      real(r8), allocatable :: dleaf_pa(:)  ! leaf characteristic dimension/width/diameter [m]
-
-      real(r8), allocatable :: canopy_fraction_pa(:) ! Area fraction of each patch in the site
-                                                     ! Use most likely for weighting
-                                                     ! This is currently the projected canopy
-                                                     ! area of each patch [0-1]
-
-      real(r8), allocatable :: frac_veg_nosno_alb_pa(:) ! This is not really a fraction
-                                                        ! this is actually binary based on if any
-                                                        ! vegetation in the patch is exposed.
-                                                        ! [0,1]
-
-      ! FATES Hydraulics
-
-      real(r8) :: plant_stored_h2o_si         ! stored water in LIVE+DEAD vegetation (kg/m2 H2O)
-                                              ! Assuming density of 1Mg/m3 ~= mm/m2 H2O
-                                              ! This must be set and transfered prior to clm_drv()
-                                              ! following the calls to ed_update_site()
-                                              ! ed_update_site() is called during both the restart
-                                              ! and coldstart process
-
-      real(r8),allocatable :: qflx_soil2root_sisl(:)   ! Water flux from soil into root by site and soil layer
-                                                       ! [mm H2O/s] [+ into root]
-      
-      
-
-   end type bc_out_type
-
-
-   type, public :: fates_interface_type
-      
-      ! This is the root of the ED/FATES hierarchy of instantaneous state variables
-      ! ie the root of the linked lists. Each path list is currently associated with a 
-      ! grid-cell, this is intended to be migrated to columns 
-
-      integer                         :: nsites
-
-      type(ed_site_type), pointer :: sites(:)
-
-      ! These are boundary conditions that the FATES models are required to be filled.  
-      ! These values are filled by the driver or HLM.  Once filled, these have an 
-      ! intent(in) status.  Each site has a derived type structure, which may include 
-      ! a scalar for site level data, a patch vector, potentially cohort vectors (but 
-      ! not yet atm) and other dimensions such as soil-depth or pft.  These vectors 
-      ! are initialized by maximums, and the allocations are static in time to avoid
-      ! having to allocate/de-allocate memory
-
-      type(bc_in_type), allocatable   :: bc_in(:)
-
-      ! These are the boundary conditions that the FATES model returns to its HLM or 
-      ! driver. It has the same allocation strategy and similar vector types.
-      
-      type(bc_out_type), allocatable  :: bc_out(:)
-
-      
-      ! These are parameter constants that FATES may need to provide a host model
-      ! We have other methods of reading in input parameters. Since these
-      ! are parameter constants, we don't need them allocated over every site,one
-      ! instance is fine.
-
-      type(bc_pconst_type) :: bc_pconst
-
-
-   contains
-      
-      procedure, public :: zero_bcs
-      procedure, public :: set_bcs
-
-   end type fates_interface_type
-
- 
    ! Make public necessary subroutines and functions
    public :: FatesInterfaceInit
    public :: set_fates_ctrlparms
    public :: SetFatesTime
-   public :: set_fates_global_elements
+   public :: SetFatesGlobalElements
    public :: FatesReportParameters
-   public :: InitPARTEHGlobals
    public :: allocate_bcin
    public :: allocate_bcout
    public :: allocate_bcpconst
    public :: set_bcpconst
+   public :: zero_bcs
+   public :: set_bcs
 
 contains
 
-   ! ====================================================================================
+  ! ====================================================================================
   subroutine FatesInterfaceInit(log_unit,global_verbose)
-
+    
     use FatesGlobals, only : FatesGlobalsInit
-
+    
     implicit none
-
+    
     integer, intent(in) :: log_unit
     logical, intent(in) :: global_verbose
 
@@ -772,83 +110,202 @@ contains
     
   end subroutine FatesInterfaceInit
 
-   ! ====================================================================================
+  ! ====================================================================================
+  
+  ! INTERF-TODO: THIS IS A PLACE-HOLDER ROUTINE, NOT CALLED YET...
+  subroutine fates_clean(this)
+      
+    implicit none
+    
+    ! Input Arguments
+    class(fates_interface_type), intent(inout) :: this
+    
+    ! Incrementally walk through linked list and deallocate
+    
+    
+      
+    ! Deallocate the site list
+    !      deallocate (this%sites)
+      
+    return
+  end subroutine fates_clean
+  
 
-   ! INTERF-TODO: THIS IS A PLACE-HOLDER ROUTINE, NOT CALLED YET...
-   subroutine fates_clean(this)
-      
-      implicit none
-      
-      ! Input Arguments
-      class(fates_interface_type), intent(inout) :: this
-      
-      ! Incrementally walk through linked list and deallocate
-      
-      
-      
-      ! Deallocate the site list
-!      deallocate (this%sites)
-      
-      return
-   end subroutine fates_clean
+  ! ====================================================================================
 
-
-   ! ====================================================================================
    
-   subroutine allocate_bcpconst(bc_pconst,nlevdecomp)
+  subroutine allocate_bcpconst(bc_pconst,nlevdecomp)
+    
+    type(bc_pconst_type), intent(inout) :: bc_pconst
+    integer             , intent(in)    :: nlevdecomp 
+    
+    allocate(bc_pconst%eca_km_nh4(numpft))
+    allocate(bc_pconst%eca_vmax_nh4(numpft))
+    allocate(bc_pconst%eca_km_no3(numpft))
+    allocate(bc_pconst%eca_vmax_no3(numpft))      
+    allocate(bc_pconst%eca_km_p(numpft))
+    allocate(bc_pconst%eca_vmax_p(numpft))
+    allocate(bc_pconst%eca_km_ptase(numpft))
+    allocate(bc_pconst%eca_vmax_ptase(numpft))
+    allocate(bc_pconst%eca_alpha_ptase(numpft))
+    allocate(bc_pconst%eca_lambda_ptase(numpft))
+    allocate(bc_pconst%j_uptake(nlevdecomp))
+    
+    return
+  end subroutine allocate_bcpconst
+  
+  ! ====================================================================================
+  
+  subroutine set_bcpconst(bc_pconst,nlevdecomp)
 
-       type(bc_pconst_type), intent(inout) :: bc_pconst
-       integer             , intent(in)    :: nlevdecomp 
+    type(bc_pconst_type), intent(inout) :: bc_pconst
+    integer             , intent(in)    :: nlevdecomp 
+    integer                             :: j
+    
+    bc_pconst%eca_km_nh4(1:numpft)       = EDPftvarcon_inst%eca_km_nh4(1:numpft)
+    bc_pconst%eca_vmax_nh4(1:numpft)     = EDPftvarcon_inst%eca_vmax_nh4(1:numpft)
+    bc_pconst%eca_km_no3(1:numpft)       = EDPftvarcon_inst%eca_km_no3(1:numpft)
+    bc_pconst%eca_vmax_no3(1:numpft)     = EDPftvarcon_inst%eca_vmax_no3(1:numpft)
+    bc_pconst%eca_km_p(1:numpft)         = EDPftvarcon_inst%eca_km_p(1:numpft)
+    bc_pconst%eca_vmax_p(1:numpft)       = EDPftvarcon_inst%eca_vmax_p(1:numpft)
+    bc_pconst%eca_km_ptase(1:numpft)     = EDPftvarcon_inst%eca_km_ptase(1:numpft)
+    bc_pconst%eca_vmax_ptase(1:numpft)   = EDPftvarcon_inst%eca_vmax_ptase(1:numpft)
+    bc_pconst%eca_alpha_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
+    bc_pconst%eca_lambda_ptase(1:numpft) = EDPftvarcon_inst%eca_lambda_ptase(1:numpft)
+    bc_pconst%eca_plant_escalar          = eca_plant_escalar
+    if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+       bc_pconst%j_uptake(1:nlevdecomp)    = 1
+    else
+       do j=1,nlevdecomp
+          bc_pconst%j_uptake(j) = j
+       end do
+    end if
+    
+    return
+  end subroutine set_bcpconst
 
-       allocate(bc_pconst%eca_km_nh4(numpft))
-       allocate(bc_pconst%eca_vmax_nh4(numpft))
-       allocate(bc_pconst%eca_km_no3(numpft))
-       allocate(bc_pconst%eca_vmax_no3(numpft))      
-       allocate(bc_pconst%eca_km_p(numpft))
-       allocate(bc_pconst%eca_vmax_p(numpft))
-       allocate(bc_pconst%eca_km_ptase(numpft))
-       allocate(bc_pconst%eca_vmax_ptase(numpft))
-       allocate(bc_pconst%eca_alpha_ptase(numpft))
-       allocate(bc_pconst%eca_lambda_ptase(numpft))
-       allocate(bc_pconst%j_uptake(nlevdecomp))
-
-       return
-   end subroutine allocate_bcpconst
-
-   ! ====================================================================================
-
-   subroutine set_bcpconst(bc_pconst,nlevdecomp)
-
-       type(bc_pconst_type), intent(inout) :: bc_pconst
-       integer             , intent(in)    :: nlevdecomp 
-       integer                             :: j
-
-       bc_pconst%eca_km_nh4(1:numpft)       = EDPftvarcon_inst%eca_km_nh4(1:numpft)
-       bc_pconst%eca_vmax_nh4(1:numpft)     = EDPftvarcon_inst%eca_vmax_nh4(1:numpft)
-       bc_pconst%eca_km_no3(1:numpft)       = EDPftvarcon_inst%eca_km_no3(1:numpft)
-       bc_pconst%eca_vmax_no3(1:numpft)     = EDPftvarcon_inst%eca_vmax_no3(1:numpft)
-       bc_pconst%eca_km_p(1:numpft)         = EDPftvarcon_inst%eca_km_p(1:numpft)
-       bc_pconst%eca_vmax_p(1:numpft)       = EDPftvarcon_inst%eca_vmax_p(1:numpft)
-       bc_pconst%eca_km_ptase(1:numpft)     = EDPftvarcon_inst%eca_km_ptase(1:numpft)
-       bc_pconst%eca_vmax_ptase(1:numpft)   = EDPftvarcon_inst%eca_vmax_ptase(1:numpft)
-       bc_pconst%eca_alpha_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
-       bc_pconst%eca_lambda_ptase(1:numpft) = EDPftvarcon_inst%eca_lambda_ptase(1:numpft)
-       bc_pconst%eca_plant_escalar          = eca_plant_escalar
-       if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
-           bc_pconst%j_uptake(1:nlevdecomp)    = 1
-       else
-           do j=1,nlevdecomp
-               bc_pconst%j_uptake(j) = j
-           end do
-       end if
-
-       return
-   end subroutine set_bcpconst
-
-   ! ====================================================================================
+  ! ====================================================================================
    
+  subroutine zero_bcs(fates,s)
 
-   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in)
+    type(fates_interface_type), intent(inout) :: fates
+    integer, intent(in) :: s
+    
+    ! Input boundaries
+    
+    fates%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
+    fates%bc_in(s)%precip24_pa(:) = 0.0_r8
+    fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8
+    fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
+
+    fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
+    fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
+    fates%bc_in(s)%smp_sl(:)           = 0.0_r8
+    fates%bc_in(s)%eff_porosity_sl(:)  = 0.0_r8
+    fates%bc_in(s)%watsat_sl(:)        = 0.0_r8
+    fates%bc_in(s)%tempk_sl(:)         = 0.0_r8
+    fates%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
+    fates%bc_in(s)%filter_vegzen_pa(:) = .false.
+    fates%bc_in(s)%coszen_pa(:)        = 0.0_r8
+    fates%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
+    fates%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
+    fates%bc_in(s)%max_rooting_depth_index_col = 0
+    fates%bc_in(s)%tot_het_resp        = 0.0_r8
+    fates%bc_in(s)%tot_somc            = 0.0_r8 
+    fates%bc_in(s)%tot_litc            = 0.0_r8
+    fates%bc_in(s)%snow_depth_si       = 0.0_r8
+    fates%bc_in(s)%frac_sno_eff_si     = 0.0_r8
+    
+    if(do_fates_salinity)then
+       fates%bc_in(s)%salinity_sl(:)   = 0.0_r8
+    endif
+    
+    if (hlm_use_planthydro.eq.itrue) then
+       
+       fates%bc_in(s)%qflx_transp_pa(:) = 0.0_r8
+       fates%bc_in(s)%swrad_net_pa(:) = 0.0_r8
+       fates%bc_in(s)%lwrad_net_pa(:) = 0.0_r8
+       fates%bc_in(s)%watsat_sisl(:) = 0.0_r8
+       fates%bc_in(s)%watres_sisl(:) = 0.0_r8
+       fates%bc_in(s)%sucsat_sisl(:) = 0.0_r8
+       fates%bc_in(s)%bsw_sisl(:) = 0.0_r8
+       fates%bc_in(s)%hksat_sisl(:) = 0.0_r8
+    end if
+
+    
+    ! Output boundaries
+    fates%bc_out(s)%active_suction_sl(:) = .false.
+    fates%bc_out(s)%fsun_pa(:)      = 0.0_r8
+    fates%bc_out(s)%laisun_pa(:)    = 0.0_r8
+    fates%bc_out(s)%laisha_pa(:)    = 0.0_r8
+    fates%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
+    fates%bc_out(s)%btran_pa(:)     = 0.0_r8
+
+    ! Fates -> BGC fragmentation mass fluxes
+    select case(hlm_parteh_mode) 
+    case(prt_carbon_allom_hyp)
+       this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
+       this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
+       this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+    case(prt_cnp_flex_allom_hyp) 
+       
+       this%bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
+       this%bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
+       this%bc_out(s)%source_p(:)           = 0._r8
+       this%bc_out(s)%source_nh4(:)         = 0._r8
+       this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
+       this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
+       this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+       this%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
+       this%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
+       this%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
+       this%bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
+       this%bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
+       this%bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
+       
+    case default
+       write(fates_log(), *) 'An unknown parteh hypothesis was passed'
+       write(fates_log(), *) 'while zeroing output boundary conditions'
+       write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
+    
+    fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
+    fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
+    
+    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%ftii_parb(:,:) = 0.0_r8
+    
+    fates%bc_out(s)%elai_pa(:)   = 0.0_r8
+    fates%bc_out(s)%esai_pa(:)   = 0.0_r8
+    fates%bc_out(s)%tlai_pa(:)   = 0.0_r8
+    fates%bc_out(s)%tsai_pa(:)   = 0.0_r8
+    fates%bc_out(s)%htop_pa(:)   = 0.0_r8
+    fates%bc_out(s)%hbot_pa(:)   = 0.0_r8
+    fates%bc_out(s)%displa_pa(:) = 0.0_r8
+    fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
+    fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
+    
+    fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
+    fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
+    
+    if (hlm_use_planthydro.eq.itrue) then
+       fates%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
+       fates%bc_out(s)%qflx_ro_sisl(:)        = 0.0_r8
+    end if
+    fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
+    
+    return
+  end subroutine zero_bcs
+
+  ! ===========================================================================
+
+  subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -858,7 +315,6 @@ contains
       type(bc_in_type), intent(inout) :: bc_in
       integer,intent(in)              :: nlevsoil_in
       integer,intent(in)              :: nlevdecomp_in
-      
       ! Allocate input boundaries
 
 
@@ -979,10 +435,11 @@ contains
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
-      
+
          allocate(bc_in%qflx_transp_pa(maxPatchesPerSite))
          allocate(bc_in%swrad_net_pa(maxPatchesPerSite))
          allocate(bc_in%lwrad_net_pa(maxPatchesPerSite))
+         
          allocate(bc_in%watsat_sisl(nlevsoil_in))
          allocate(bc_in%watres_sisl(nlevsoil_in))
          allocate(bc_in%sucsat_sisl(nlevsoil_in))
@@ -991,8 +448,13 @@ contains
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
 
+         allocate(bc_in%pft_areafrac(maxpft))
+
+
       return
    end subroutine allocate_bcin
+
+   ! ====================================================================================
    
    subroutine allocate_bcout(bc_out, nlevsoil_in, nlevdecomp_in)
 
@@ -1101,6 +563,7 @@ contains
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
          allocate(bc_out%qflx_soil2root_sisl(nlevsoil_in))
+         allocate(bc_out%qflx_ro_sisl(nlevsoil_in))
       end if
 
       return
@@ -1108,127 +571,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine zero_bcs(this,s)
-
-      implicit none
-      class(fates_interface_type), intent(inout) :: this
-      integer, intent(in) :: s
-
-      ! Input boundaries
-      
-      this%bc_in(s)%t_veg24_si     = 0.0_r8
-      this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
-      this%bc_in(s)%precip24_pa(:) = 0.0_r8
-      this%bc_in(s)%relhumid24_pa(:) = 0.0_r8
-      this%bc_in(s)%wind24_pa(:)     = 0.0_r8
-
-      this%bc_in(s)%solad_parb(:,:)     = 0.0_r8
-      this%bc_in(s)%solai_parb(:,:)     = 0.0_r8
-      this%bc_in(s)%smp_sl(:)           = 0.0_r8
-      this%bc_in(s)%eff_porosity_sl(:)  = 0.0_r8
-      this%bc_in(s)%watsat_sl(:)        = 0.0_r8
-      this%bc_in(s)%tempk_sl(:)         = 0.0_r8
-      this%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
-      this%bc_in(s)%filter_vegzen_pa(:) = .false.
-      this%bc_in(s)%coszen_pa(:)        = 0.0_r8
-      this%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
-      this%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
-      this%bc_in(s)%max_rooting_depth_index_col = 0
-      this%bc_in(s)%tot_het_resp        = 0.0_r8
-      this%bc_in(s)%tot_somc            = 0.0_r8 
-      this%bc_in(s)%tot_litc            = 0.0_r8
-      this%bc_in(s)%snow_depth_si       = 0.0_r8
-      this%bc_in(s)%frac_sno_eff_si     = 0.0_r8
-      
-      if(do_fates_salinity)then
-         this%bc_in(s)%salinity_sl(:)   = 0.0_r8
-      endif
-
-      if (hlm_use_planthydro.eq.itrue) then
-  
-         this%bc_in(s)%qflx_transp_pa(:) = 0.0_r8
-         this%bc_in(s)%swrad_net_pa(:) = 0.0_r8
-         this%bc_in(s)%lwrad_net_pa(:) = 0.0_r8
-         this%bc_in(s)%watsat_sisl(:) = 0.0_r8
-         this%bc_in(s)%watres_sisl(:) = 0.0_r8
-         this%bc_in(s)%sucsat_sisl(:) = 0.0_r8
-         this%bc_in(s)%bsw_sisl(:) = 0.0_r8
-         this%bc_in(s)%hksat_sisl(:) = 0.0_r8
-      end if
-
-
-      ! Output boundaries
-      this%bc_out(s)%active_suction_sl(:) = .false.
-      this%bc_out(s)%fsun_pa(:)      = 0.0_r8
-      this%bc_out(s)%laisun_pa(:)    = 0.0_r8
-      this%bc_out(s)%laisha_pa(:)    = 0.0_r8
-      this%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
-      this%bc_out(s)%btran_pa(:)     = 0.0_r8
-
-      ! Fates -> BGC fragmentation mass fluxes
-      select case(hlm_parteh_mode) 
-      case(prt_carbon_allom_hyp)
-         this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
-      case(prt_cnp_flex_allom_hyp) 
-
-         this%bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
-         this%bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
-         this%bc_out(s)%source_p(:)           = 0._r8
-         this%bc_out(s)%source_nh4(:)         = 0._r8
-         this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
-         this%bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
-
-      case default
-         write(fates_log(), *) 'An unknown parteh hypothesis was passed'
-         write(fates_log(), *) 'while zeroing output boundary conditions'
-         write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
-         call endrun(msg=errMsg(sourcefile, __LINE__))
-      end select
-
-
-
-      this%bc_out(s)%rssun_pa(:)     = 0.0_r8
-      this%bc_out(s)%rssha_pa(:)     = 0.0_r8
-
-      this%bc_out(s)%albd_parb(:,:) = 0.0_r8
-      this%bc_out(s)%albi_parb(:,:) = 0.0_r8
-      this%bc_out(s)%fabd_parb(:,:) = 0.0_r8
-      this%bc_out(s)%fabi_parb(:,:) = 0.0_r8
-      this%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
-      this%bc_out(s)%ftid_parb(:,:) = 0.0_r8
-      this%bc_out(s)%ftii_parb(:,:) = 0.0_r8
-
-      this%bc_out(s)%elai_pa(:)   = 0.0_r8
-      this%bc_out(s)%esai_pa(:)   = 0.0_r8
-      this%bc_out(s)%tlai_pa(:)   = 0.0_r8
-      this%bc_out(s)%tsai_pa(:)   = 0.0_r8
-      this%bc_out(s)%htop_pa(:)   = 0.0_r8
-      this%bc_out(s)%hbot_pa(:)   = 0.0_r8
-      this%bc_out(s)%displa_pa(:) = 0.0_r8
-      this%bc_out(s)%z0m_pa(:)    = 0.0_r8
-      this%bc_out(s)%dleaf_pa(:)   = 0.0_r8
-
-      this%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
-      this%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
-
-      if (hlm_use_planthydro.eq.itrue) then
-         this%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
-      end if
-      this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
-
-      return
-   end subroutine zero_bcs
-   
-   subroutine set_bcs(this,s)
+   subroutine set_bcs(bc_in)
 
        ! --------------------------------------------------------------------------------
        !
@@ -1242,8 +585,7 @@ contains
        ! 
        ! --------------------------------------------------------------------------------
       implicit none
-      class(fates_interface_type), intent(inout) :: this
-      integer, intent(in) :: s
+      type(bc_in_type), intent(inout) :: bc_in
 
       ! Input boundaries
       ! Warning: these "z" type variables
@@ -1251,15 +593,14 @@ contains
       ! so THIS ROUTINE SHOULD NOT BE CALLED AFTER
       ! INITIALIZATION
       if(do_fates_salinity)then
-           this%bc_in(s)%salinity_sl(:)     = bgc_soil_salinity
+         bc_in%salinity_sl(:)     = bgc_soil_salinity
       endif
-
+      
     end subroutine set_bcs
-
 
     ! ===================================================================================
     
-    subroutine set_fates_global_elements(use_fates)
+    subroutine SetFatesGlobalElements(use_fates)
 
        ! --------------------------------------------------------------------------------
        !
@@ -1277,17 +618,14 @@ contains
        !
        ! --------------------------------------------------------------------------------
 
-      use EDParamsMod, only : ED_val_history_sizeclass_bin_edges, ED_val_history_ageclass_bin_edges
-      use EDParamsMod, only : ED_val_history_height_bin_edges
-      use CLMFatesParamInterfaceMod         , only : FatesReadParameters
+
       implicit none
       
       logical,intent(in) :: use_fates    ! Is fates turned on?
-      
       integer :: i
       
       if (use_fates) then
-
+         
          ! first read the non-PFT parameters
          call FatesReadParameters()
 
@@ -1310,7 +648,7 @@ contains
             write(fates_log(), *) 'FatesInterfaceMod.F90:maxpft accordingly'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-
+         
          ! Identify the number of leaf age-classes
          
          if( (lbound(prt_params%leaf_long(:,:),dim=2) .eq. 0) .or. &
@@ -1320,6 +658,15 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          else
             nleafage = size(prt_params%leaf_long,dim=2)
+         end if
+
+         ! These values are used to define the restart file allocations and general structure
+         ! of memory for the cohort arrays
+
+         if ( hlm_use_cohort_age_tracking .eq. itrue) then
+            maxCohortsPerPatch = 300
+         else
+            maxCohortsPerPatch = 100
          end if
          
          ! These values are used to define the restart file allocations and general structure
@@ -1362,6 +709,7 @@ contains
          nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
+         nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
 
          ! do some checks on the size, age, and height bin arrays to make sure they make sense:
          ! make sure that all start at zero, and that both are monotonically increasing
@@ -1395,7 +743,28 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
+         do i = 2,nlevcoage
+            if ( (ED_val_history_coageclass_bin_edges(i) - ED_val_history_coageclass_bin_edges(i-1)) .le. 0._r8) then
+               write(fates_log(), *) 'cohort age class bins specified in parameter file must be monotonically increasing'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+         end do
 
+         ! Initialize Hydro globals 
+         ! (like water retention functions)
+         ! this needs to know the number of PFTs, which is
+         ! determined in that call
+         call InitHydroGlobals()
+   
+         ! Initialize the Plant Allocation and Reactive Transport
+         ! global functions and mapping tables
+         ! Also associate the elements defined in PARTEH with a list in FATES
+         ! "element_list" is useful because it allows the fates side of the code
+         ! to loop through elements, and call the correct PARTEH interfaces
+         ! automatically.
+         call InitPARTEHGlobals()
+         
+         
          ! Set Various Mapping Arrays used in history output as well
          ! These will not be used if use_ed or use_fates is false
          call fates_history_maps()
@@ -1414,9 +783,56 @@ contains
       end if
 
 
-    end subroutine set_fates_global_elements
+    end subroutine SetFatesGlobalElements
 
-    !==============================================================================================
+    ! ======================================================================
+    
+    subroutine InitPARTEHGlobals()
+
+     ! Initialize the Plant Allocation and Reactive Transport
+     ! global functions and mapping tables
+     ! Also associate the elements defined in PARTEH with a list in FATES
+     ! "element_list" is useful because it allows the fates side of the code
+     ! to loop through elements, and call the correct PARTEH interfaces
+     ! automatically.
+     
+     select case(hlm_parteh_mode)
+     case(prt_carbon_allom_hyp)
+
+        num_elements = 1
+        allocate(element_list(num_elements))
+        element_list(1) = carbon12_element
+        element_pos(:) = 0
+        element_pos(carbon12_element) = 1
+
+        call InitPRTGlobalAllometricCarbon()
+
+     case(prt_cnp_flex_allom_hyp)
+        
+        num_elements = 3
+        allocate(element_list(num_elements))
+        element_list(1) = carbon12_element
+        element_list(2) = nitrogen_element
+        element_list(3) = phosphorus_element
+        element_pos(:)  = 0
+        element_pos(carbon12_element)   = 1
+        element_pos(nitrogen_element)   = 2
+        element_pos(phosphorus_element) = 3
+
+        call InitPRTGlobalAllometricCNP()
+        
+     case DEFAULT
+        write(fates_log(),*) 'You specified an unknown PRT module'
+        write(fates_log(),*) 'Check your setting for fates_parteh_mode'
+        write(fates_log(),*) 'in the CLM namelist. The only valid value now is 1'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+    end select
+
+   end subroutine InitPARTEHGlobals
+
+   !==============================================================================================
     
     subroutine fates_history_maps
        
@@ -1426,10 +842,11 @@ contains
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
+       use EDParamsMod, only : ED_val_history_coageclass_bin_edges
 
        ! ------------------------------------------------------------------------------------------
        ! This subroutine allocates and populates the variables
-       ! that define the mapping of variables in history files in multiplexed dimensions liked
+       ! that define the mapping of variables in history files in multiplexed dimensions like
        ! the "scpf" format
        ! back to
        ! their respective single component dimensions, like size-class "sc" and pft "pf"
@@ -1444,6 +861,7 @@ contains
        integer :: ileaf
        integer :: iage
        integer :: iheight
+       integer :: icoage
        integer :: iel
 
        allocate( fates_hdim_levsclass(1:nlevsclass   ))
@@ -1454,6 +872,9 @@ contains
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
        allocate( fates_hdim_levheight(1:nlevheight   ))
+       allocate( fates_hdim_levcoage(1:nlevcoage ))
+       allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
+       allocate( fates_hdim_camap_levcapf(1:nlevcoage*numpft))
 
        allocate( fates_hdim_levcan(nclmax))
        allocate( fates_hdim_levelem(num_elements))
@@ -1482,6 +903,7 @@ contains
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
        fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
+       fates_hdim_levcoage(:) = ED_val_history_coageclass_bin_edges(:)
 
        ! make pft array
        do ipft=1,numpft
@@ -1543,6 +965,15 @@ contains
              i=i+1
              fates_hdim_pfmap_levscpf(i) = ipft
              fates_hdim_scmap_levscpf(i) = isc
+          end do
+       end do
+
+       i=0
+       do ipft=1,numpft
+          do icoage=1,nlevcoage
+             i=i+1
+             fates_hdim_pfmap_levcapf(i) = ipft
+             fates_hdim_camap_levcapf(i) = icoage
           end do
        end do
 
@@ -1659,7 +1090,9 @@ contains
       !
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
-
+      use FatesConstantsMod, only : fates_check_param_set
+    
+    
       ! Arguments
       integer, optional, intent(in)         :: ival
       real(r8), optional, intent(in)        :: rval
@@ -1695,9 +1128,12 @@ contains
          hlm_parteh_mode   = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
+         hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
+         hlm_use_fixed_biogeog = unset_int
+         !hlm_use_nocomp = unset_int    ! future reduced complexity mode
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
@@ -1752,6 +1188,19 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+
+         if ( ( ANY(EDPftvarcon_inst%mort_ip_age_senescence < fates_check_param_set )) .and. &
+           (hlm_use_cohort_age_tracking .eq.0 ) ) then
+
+           write(fates_log(),*) 'Age dependent mortality cannot be on if'
+           write(fates_log(),*) 'cohort age tracking is off.'
+           write(fates_log(),*) 'Set hlm_use_cohort_age_tracking = .true.'
+           write(fates_log(),*) 'in FATES namelist options'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+         
+
          if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'The FATES namelist stand structure flag must be 0 or 1, exiting'
@@ -1773,6 +1222,16 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
+
+         if ( hlm_use_inventory_init.eq.1  .and. hlm_use_cohort_age_tracking .eq.1) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'Fates inventory init cannot be used with age dependent mortality'
+               write(fates_log(), *) 'Set hlm_use_cohort_age_tracking to 0 or turn off inventory init'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+
          
          if (  .not.((hlm_use_inventory_init.eq.1).or.(hlm_use_inventory_init.eq.0))    ) then
             if (fates_global_verbose()) then
@@ -1897,6 +1356,29 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+        if(hlm_use_fixed_biogeog.eq.unset_int) then
+           if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
+           end if
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+        ! Future reduced complexity mode   
+        !if(hlm_use_nocomp.eq.unset_int) then
+        !      if(fates_global_verbose()) then
+        !     write(fates_log(), *) 'switch for no competition mode. '
+        !    end if
+        !   call endrun(msg=errMsg(sourcefile, __LINE__))
+        ! end if
+
+         if(hlm_use_cohort_age_tracking .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for cohort_age_tracking  unset: hlm_use_cohort_age_tracking, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
          end if
@@ -1985,13 +1467,34 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_spitfire= ',ival,' to FATES'
                end if
-               
+
+            case('use_fixed_biogeog')
+                hlm_use_fixed_biogeog = ival
+               if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
+               end if
+            
+            ! Future reduced complexity mode   
+            !case('use_nocomp')
+            !    hlm_use_nocomp = ival
+            !   if (fates_global_verbose()) then
+            !       write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
+            !   end if
+
+
             case('use_planthydro')
                hlm_use_planthydro = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
                end if
 
+            case('use_cohort_age_tracking')
+               hlm_use_cohort_age_tracking = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
+               end if
+
+               
             case('use_logging')
                hlm_use_logging = ival
                if (fates_global_verbose()) then
@@ -2073,7 +1576,7 @@ contains
             
       return
    end subroutine set_fates_ctrlparms
-   
+
    ! ====================================================================================
 
    subroutine FatesReportParameters(masterproc)
@@ -2087,699 +1590,16 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
-      call FatesCheckParams(masterproc,hlm_parteh_mode)
+      call EDCheckParams(masterproc)
+      call PRTCheckParams(masterproc)
       call SpitFireCheckParams(masterproc)
 
       return
    end subroutine FatesReportParameters
 
-   ! ====================================================================================
-
-   subroutine InitPARTEHGlobals()
-   
-     ! Initialize the Plant Allocation and Reactive Transport
-     ! global functions and mapping tables
-     ! Also associate the elements defined in PARTEH with a list in FATES
-     ! "element_list" is useful because it allows the fates side of the code
-     ! to loop through elements, and call the correct PARTEH interfaces
-     ! automatically.
-     
-     select case(hlm_parteh_mode)
-     case(prt_carbon_allom_hyp)
-
-        num_elements = 1
-        allocate(element_list(num_elements))
-        element_list(1) = carbon12_element
-        element_pos(:) = 0
-        element_pos(carbon12_element) = 1
-
-        call InitPRTGlobalAllometricCarbon()
-
-     case(prt_cnp_flex_allom_hyp)
-        
-        num_elements = 3
-        allocate(element_list(num_elements))
-        element_list(1) = carbon12_element
-        element_list(2) = nitrogen_element
-        element_list(3) = phosphorus_element
-        element_pos(:)  = 0
-        element_pos(carbon12_element)   = 1
-        element_pos(nitrogen_element)   = 2
-        element_pos(phosphorus_element) = 3
-
-        call InitPRTGlobalAllometricCNP()
-        
-     case DEFAULT
-        write(fates_log(),*) 'You specified an unknown PRT module'
-        write(fates_log(),*) 'Check your setting for fates_parteh_mode'
-        write(fates_log(),*) 'in the CLM namelist. The only valid value now is 1'
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-       
-    end select
-
-
-
-   end subroutine InitPARTEHGlobals
-
   ! =====================================================================================
 
-  subroutine FatesCheckParams(is_master, parteh_mode)
 
-     ! ----------------------------------------------------------------------------------
-     !
-     ! This subroutine performs logical checks on user supplied parameters.  It cross
-     ! compares various parameters and will fail if they don't make sense.  
-     ! Examples:
-     ! A tree can not be defined as both evergreen and deciduous.  A woody plant
-     ! cannot have a structural biomass allometry intercept of 0, and a non-woody
-     ! plant (grass) can't have a non-zero intercept...
-     ! -----------------------------------------------------------------------------------
-
-
-     ! Argument
-     logical, intent(in) :: is_master    ! Only log if this is the master proc
-     integer, intent(in) :: parteh_mode  ! argument for nl flag hlm_parteh_mode
-
-     character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
-
-     integer :: npft     ! number of PFTs
-     integer :: ipft     ! pft index
-     integer :: nleafage ! size of the leaf age class array
-     integer :: iage     ! leaf age class index
-     integer :: norgans  ! size of the plant organ dimension
-     integer :: i, io    ! generic loop index and organ loop index
-
-     
-     integer, parameter,dimension(6) :: cnpflex_organs = &
-          [leaf_organ, fnrt_organ, sapw_organ, store_organ, repro_organ, struct_organ]
-
-     
-     npft = size(prt_params%evergreen,1)
-
-     ! Prior to performing checks copy grperc to the 
-     ! organ dimensioned version
-
-     norgans = size(prt_params%nitr_stoich_p1,2)
-
-!     allocate(prt_params%grperc_organ(npft,norgans))
-!     do ipft = 1,npft
-!        prt_params%grperc_organ(ipft,1:norgans) = prt_params%grperc(ipft)
-!     end do
-
-     
-     if(.not.is_master) return
-
-     if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-
-        ! Check to see if either RD/ECA/MIC is turned on
-
-        if (.not.( (trim(hlm_nu_com).eq.'RD') .or. (trim(hlm_nu_com).eq.'ECA'))) then
-           write(fates_log(),*) 'FATES PARTEH with allometric flexible CNP must have'
-           write(fates_log(),*) 'a valid BGC model enabled: RD,ECA,MIC or SYN'
-           write(fates_log(),*) 'nu_comp: ',trim(hlm_nu_com)
-           write(fates_log(),*) 'Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-
-        ! If nitrogen is turned on, check to make sure there are valid ammonium
-        ! parameters
-        if(hlm_nitrogen_spec>0)then
-           if (trim(hlm_nu_com).eq.'ECA') then
-              
-              if(any(EDPftvarcon_inst%eca_km_nh4(:)<0._r8) ) then
-                 write(fates_log(),*) 'ECA with nitrogen is turned on'
-                 write(fates_log(),*) 'bad ECA km value(s) for nh4: ',EDPftvarcon_inst%eca_km_nh4(:)
-                 write(fates_log(),*) 'Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-              
-              if(hlm_nitrogen_spec==2)then
-                 if(any(EDPftvarcon_inst%eca_km_no3(:)<0._r8)) then
-                    write(fates_log(),*) 'ECA with nit/denitr is turned on'
-                    write(fates_log(),*) 'bad ECA km value(s) for no3: ',EDPftvarcon_inst%eca_km_no3(:)
-                    write(fates_log(),*) 'Aborting'
-                    call endrun(msg=errMsg(sourcefile, __LINE__))
-                 end if
-              end if
-
-           end if
-        end if
-        
-     elseif (parteh_mode .ne. prt_carbon_allom_hyp) then
-        
-        write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport has'
-        write(fates_log(),*) 'only 2 modules supported, allometric carbon and CNP.'
-        write(fates_log(),*) 'fates_parteh_mode must be set to 1 or 2 in the namelist'
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
-
-
-     if (norgans .ne. num_organ_types) then
-        write(fates_log(),*) 'The size of the organ dimension for PRT parameters'
-        write(fates_log(),*) 'as specified in the parameter file is incompatible.'
-        write(fates_log(),*) 'All currently acceptable hypothesese are using'
-        write(fates_log(),*) 'the full set of num_organ_types = ',num_organ_types
-        write(fates_log(),*) 'The parameter file listed ',norgans
-        write(fates_log(),*) 'Exiting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
-
-
-     
-     do ipft = 1,npft
-        
-        ! Check to see if evergreen, deciduous flags are mutually exclusive
-        ! ----------------------------------------------------------------------------------
-
-        if ( int(prt_params%evergreen(ipft) +    &
-                 prt_params%season_decid(ipft) + &
-                 prt_params%stress_decid(ipft)) .ne. 1 ) then
-           
-           write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
-           write(fates_log(),*) 'phenology habits, ie == 1'
-           write(fates_log(),*) 'stress_decid: ',prt_params%stress_decid(ipft)
-           write(fates_log(),*) 'season_decid: ',prt_params%season_decid(ipft)
-           write(fates_log(),*) 'evergreen: ',prt_params%evergreen(ipft)
-           write(fates_log(),*) 'Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-           
-        end if
-
-
-        ! Check to see if mature and base seed allocation is greater than 1
-        ! ----------------------------------------------------------------------------------
-        if ( ( prt_params%seed_alloc(ipft) + &
-               prt_params%seed_alloc_mature(ipft)) > 1.0_r8 ) then
-
-           write(fates_log(),*) 'The sum of seed allocation from base and mature trees may'
-           write(fates_log(),*) ' not exceed 1.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' seed_alloc: ',prt_params%seed_alloc(ipft)
-           write(fates_log(),*) ' seed_alloc_mature: ',prt_params%seed_alloc_mature(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-           
-        end if
-
-        ! Check if woody plants have a structural biomass (agb) intercept
-        ! ----------------------------------------------------------------------------------
-        if ( ( prt_params%allom_agb1(ipft) <= tiny(prt_params%allom_agb1(ipft)) ) .and. &
-             ( int(prt_params%woody(ipft)) .eq. 1 ) ) then
-
-           write(fates_log(),*) 'Woody plants are expected to have a non-zero intercept'
-           write(fates_log(),*) ' in the diameter to AGB allometry equations'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
-           write(fates_log(),*) ' woody: ',int(prt_params%woody(ipft))
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
-        end if
-
-        ! Check if non-woody plants have structural biomass (agb) intercept
-        ! ----------------------------------------------------------------------------------
-!        if ( ( prt_params%allom_agb1(ipft) > tiny(prt_params%allom_agb1(ipft)) ) .and. &
-!              ( int(prt_params%woody(ipft)) .ne. 1 ) ) then
-!
-!           write(fates_log(),*) 'Non-woody plants are expected to have a zero intercept'
-!           write(fates_log(),*) ' in the diameter to AGB allometry equations'
-!           write(fates_log(),*) ' This is because the definition of AGB (as far as allometry)'
-!           write(fates_log(),*) ' is concerned, ignores leaf and fine-roots, and only contains'
-!           write(fates_log(),*) ' woody tissues (sap and structural dead wood).'
-!           write(fates_log(),*) ' PFT#: ',ipft
-!           write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
-!           write(fates_log(),*) ' woody: ',int(prt_params%woody(ipft))
-!           write(fates_log(),*) ' Aborting'
-!           call endrun(msg=errMsg(sourcefile, __LINE__))
-!
-!        end if
-
-
-        ! Check if the fraction of storage used for flushing deciduous trees
-        ! is greater than zero, and less than or equal to 1.
-
-        if ( int(prt_params%evergreen(ipft)) .ne. 1 ) then 
-           if ( ( EDPftvarcon_inst%phenflush_fraction(ipft) < nearzero ) .or. &
-                ( EDPFtvarcon_inst%phenflush_fraction(ipft) > 1 ) ) then
-              
-              write(fates_log(),*) ' Deciduous plants must flush some storage carbon'
-              write(fates_log(),*) ' on bud-burst. If phenflush_fraction is not greater than 0'
-              write(fates_log(),*) ' it will not be able to put out any leaves. Plants need leaves.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(prt_params%evergreen(ipft))
-              write(fates_log(),*) ' phenflush_fraction: ', EDPFtvarcon_inst%phenflush_fraction(ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-
- 
-        ! Check if freezing tolerance is within reasonable bounds
-        ! ----------------------------------------------------------------------------------
-        
-        if ( ( EDPftvarcon_inst%freezetol(ipft) > 60.0_r8 ) .or. &
-             ( EDPFtvarcon_inst%freezetol(ipft) < -273.1_r8 ) ) then
-
-           write(fates_log(),*) 'Freezing tolerance was set to a strange value'
-           write(fates_log(),*) ' Units should be degrees celcius. It cannot'
-           write(fates_log(),*) ' be less than absolute zero, and we check to see'
-           write(fates_log(),*) ' if it is greater than 60C, which would be ludicrous as well'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' freezetol: ', EDPFtvarcon_inst%freezetol(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
-        end if
-
-        ! Check if leaf storage priority is between 0-1
-        ! ----------------------------------------------------------------------------------
-        
-        if ( ( prt_params%leaf_stor_priority(ipft) < 0.0_r8 ) .or. &
-             ( prt_params%leaf_stor_priority(ipft) > 1.0_r8 ) ) then
-
-           write(fates_log(),*) 'Prioritization of carbon allocation to leaf'
-           write(fates_log(),*) ' and root turnover replacement, must be between'
-           write(fates_log(),*) ' 0 and 1'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) 'leaf_stor_priority: ',prt_params%leaf_stor_priority(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
-        end if
-
-        ! Check if fraction of storage to reproduction is between 0-1
-        ! ----------------------------------------------------------------------------------
-        
-        if ( ( EDPftvarcon_inst%allom_frbstor_repro(ipft) < 0.0_r8 ) .or. &
-             ( EDPftvarcon_inst%allom_frbstor_repro(ipft) > 1.0_r8 ) ) then
-
-           write(fates_log(),*) 'fraction of storage to reproduction'
-           write(fates_log(),*) ' after plants die, must be between'
-           write(fates_log(),*) ' 0 and 1'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' allom_frbstor_repro: ',EDPftvarcon_inst%allom_frbstor_repro(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
-        end if
-
-        ! Check if photosynthetic pathway is neither C3/C4
-        ! ----------------------------------------------------------------------------------
-        
-        if ( ( EDPftvarcon_inst%c3psn(ipft) < 0.0_r8 ) .or. &
-             ( EDPftvarcon_inst%c3psn(ipft) > 1.0_r8 ) ) then
-
-           write(fates_log(),*) ' Two photosynthetic pathways are currently supported'
-           write(fates_log(),*) ' C4 plants have c3psn = 0'
-           write(fates_log(),*) ' C3 plants have c3psn = 1'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' c3psn(pft): ',EDPftvarcon_inst%c3psn(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
-        end if
-
-
-        ! Check re-translocations
-        ! Seems reasonable to assume that sapwood, structure and reproduction
-        ! should not be re-translocating mass upon turnover.
-        ! Note to advanced users. Feel free to remove these checks...
-        ! -------------------------------------------------------------------
-        
-        if ( (prt_params%turnover_carb_retrans(ipft,repro_organ) > nearzero) ) then
-           write(fates_log(),*) ' Retranslocation of reproductive tissues should be zero.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,repro_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,repro_organ) > nearzero) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,repro_organ) > nearzero) ) then
-              write(fates_log(),*) ' Retranslocation of reproductive tissues should be zero.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,repro_organ)
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,repro_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,repro_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-           
-        if ((prt_params%turnover_carb_retrans(ipft,sapw_organ) > nearzero)) then
-           write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,sapw_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,sapw_organ) > nearzero) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,sapw_organ) > nearzero) ) then
-              write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,sapw_organ)
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,sapw_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,sapw_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-
-        if ((prt_params%turnover_carb_retrans(ipft,struct_organ) > nearzero)) then
-           write(fates_log(),*) ' Retranslocation of structural(dead) tissues should be zero.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,struct_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,struct_organ) > nearzero) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,struct_organ) > nearzero) ) then
-              write(fates_log(),*) ' Retranslocation of structural(dead) tissues should be zero.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,struct_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,struct_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-        
-        ! Leaf retranslocation should be between 0 and 1
-        if ( (prt_params%turnover_carb_retrans(ipft,leaf_organ) > 1.0_r8) .or. & 
-             (prt_params%turnover_carb_retrans(ipft,leaf_organ) < 0.0_r8) ) then
-           write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,leaf_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,leaf_organ) > 1.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,leaf_organ) > 1.0_r8) .or. &
-               (prt_params%turnover_nitr_retrans(ipft,leaf_organ) < 0.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,leaf_organ) < 0.0_r8)) then
-              write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,leaf_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,leaf_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-        
-        ! Fineroot retranslocation should be between 0-1
-        if ((prt_params%turnover_carb_retrans(ipft,fnrt_organ) > 1.0_r8) .or. & 
-            (prt_params%turnover_carb_retrans(ipft,fnrt_organ) < 0.0_r8)) then
-           write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,fnrt_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,fnrt_organ) > 1.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,fnrt_organ) > 1.0_r8) .or. &
-               (prt_params%turnover_nitr_retrans(ipft,fnrt_organ) < 0.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,fnrt_organ) < 0.0_r8)) then
-              write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,fnrt_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,fnrt_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-
-        ! Storage retranslocation should be between 0-1 (storage retrans seems weird, but who knows)
-        if ((prt_params%turnover_carb_retrans(ipft,store_organ) > 1.0_r8) .or. & 
-            (prt_params%turnover_carb_retrans(ipft,store_organ) < 0.0_r8)) then
-           write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,store_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,store_organ) > 1.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,store_organ) > 1.0_r8) .or. &
-               (prt_params%turnover_nitr_retrans(ipft,store_organ) < 0.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,store_organ) < 0.0_r8)) then
-              write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,store_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,store_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-
-        ! Growth respiration
-        !        if (parteh_mode .eq. prt_carbon_allom_hyp) then
-        if ( ( prt_params%grperc(ipft) < 0.0_r8) .or. &
-             ( prt_params%grperc(ipft) > 1.0_r8 ) ) then
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',prt_params%grperc(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-!        elseif(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-!           if ( ( any(prt_params%grperc_organ(ipft,:) < 0.0_r8)) .or. &
-!                ( any(prt_params%grperc_organ(ipft,:) >= 1.0_r8)) ) then
-!              write(fates_log(),*) ' PFT#: ',ipft
-!              write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',prt_params%grperc_organ(ipft,:)
-!              write(fates_log(),*) ' Aborting'
-!              call endrun(msg=errMsg(sourcefile, __LINE__))
-!           end if
-!        end if
-
-
-        ! The first nitrogen stoichiometry is used in all cases
-        if ( (any(prt_params%nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
-             (any(prt_params%nitr_stoich_p1(ipft,:) >= 1.0_r8))) then
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' N per C stoichiometry must bet between 0-1'
-           write(fates_log(),*) prt_params%nitr_stoich_p1(ipft,:)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-
-
-        if(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-
-           do i = 1,size(cnpflex_organs,dim=1)
-              io = cnpflex_organs(i)
-              if ( (prt_params%nitr_stoich_p1(ipft,io) < 0._r8) .or. &
-                   (prt_params%nitr_stoich_p2(ipft,io) < 0._r8) .or. &
-                   (prt_params%phos_stoich_p1(ipft,io) < 0._r8) .or. &
-                   (prt_params%phos_stoich_p2(ipft,io) < 0._r8) .or. & 
-                   (prt_params%nitr_stoich_p1(ipft,io) > 1._r8) .or. &
-                   (prt_params%nitr_stoich_p2(ipft,io) > 1._r8) .or. &
-                   (prt_params%phos_stoich_p1(ipft,io) > 1._r8) .or. &
-                   (prt_params%phos_stoich_p2(ipft,io) > 1._r8) ) then
-                 write(fates_log(),*) 'When the C,N,P allocation hypothesis with flexible'
-                 write(fates_log(),*) 'stoichiometry is turned on (prt_cnp_flex_allom_hyp),'
-                 write(fates_log(),*) 'all stoichiometries must be greater than or equal to zero,'
-                 write(fates_log(),*) 'and less than 1 (probably way less than 1).'
-                 write(fates_log(),*) 'Setting both p1 and p2 parameters to zero will turn'
-                 write(fates_log(),*) 'off nutrient dynamics for the given species.'
-                 write(fates_log(),*) 'You specified an organ/pft less than zero.'
-                 write(fates_log(),*) 'PFT: ',ipft
-                 write(fates_log(),*) 'organ index (see head of PRTGenericMod): ',io
-                 write(fates_log(),*) 'nitr_stoich_p1: ',prt_params%nitr_stoich_p1(ipft,io)
-                 write(fates_log(),*) 'nitr_stoich_p2: ',prt_params%phos_stoich_p1(ipft,io)
-                 write(fates_log(),*) 'phos_stoich_p1: ',prt_params%nitr_stoich_p2(ipft,io)
-                 write(fates_log(),*) 'phos_stoich_p2: ',prt_params%phos_stoich_p2(ipft,io)
-                 write(fates_log(),*) 'Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-           end do
-
-           if ( any(prt_params%alloc_priority(ipft,:) < 0) .or. &
-                any(prt_params%alloc_priority(ipft,:) > 6) ) then
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' Allocation priorities should be 0-6 for CNP flex hypothesis'
-              write(fates_log(),*) prt_params%alloc_priority(ipft,:)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-
-           ! If any PFTs are specified as either prescribed N or P uptake
-           ! then they all must be !
-
-           if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero ) .or. &
-               any(EDPftvarcon_inst%prescribed_nuptake(:) > 10._r8 ) ) then
-              write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
-              write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
-              write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
-              write(fates_log(),*) 'Set to zero to turn off and use coupled nutrients.'
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
-              if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
-                 write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
-                 write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
-                 write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
-                 write(fates_log(),*) 'EDPftvarcon_inst%prescribed_nuptake(:):', &
-                      EDPftvarcon_inst%prescribed_nuptake(:)
-                 write(fates_log(),*) ' Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-              n_uptake_mode = prescribed_n_uptake
-           else
-              n_uptake_mode = coupled_n_uptake
-           end if
-
-           
-           ! Same for phosphorus
-           if (any(EDPftvarcon_inst%prescribed_puptake(:) < -nearzero ) .or. &
-               any(EDPftvarcon_inst%prescribed_puptake(:) > 10._r8 )) then
-              write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_puptake(:)'
-              write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
-              write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
-              write(fates_log(),*) 'Set to zero or unset to turn off and use coupled nutrients.'
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           elseif (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
-              if(.not.all(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
-                 write(fates_log(),*) 'If any PFTs are specified as having prescribed P'
-                 write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
-                 write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
-                 write(fates_log(),*) 'EDPftvarcon_inst%prescribed_puptake(:):', &
-                      EDPftvarcon_inst%prescribed_puptake(:)
-                 write(fates_log(),*) ' Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-              p_uptake_mode = prescribed_p_uptake
-           else
-              p_uptake_mode = coupled_p_uptake
-           end if
-
-
-
-
-           
-           
-        end if
-
-
-        
-
-        ! Check turnover time-scales
-        
-        nleafage = size(prt_params%leaf_long,dim=2)
-
-        do iage = 1, nleafage
-
-           if ( prt_params%leaf_long(ipft,iage)>nearzero ) then
-              
-              ! Check that leaf turnover doesn't exeed 1 day
-              if ( (years_per_day / prt_params%leaf_long(ipft,iage)) > 1._r8 ) then
-                 write(fates_log(),*) 'Leaf turnover time-scale is greater than 1 day!'
-                 write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
-                 write(fates_log(),*) 'leaf_long(ipft,iage): ',prt_params%leaf_long(ipft,iage),' [years]'
-                 write(fates_log(),*) 'Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-              
-              ! Check to make sure that all other age-classes for this PFT also
-              ! have non-zero entries, it wouldn't make sense otherwise
-              if ( any(prt_params%leaf_long(ipft,:) <= nearzero) ) then
-                 write(fates_log(),*) 'You specified a leaf_long that is zero or'
-                 write(fates_log(),*) 'invalid for a particular age class.'
-                 write(fates_log(),*) 'Yet, other age classes for this PFT are non-zero.'
-                 write(fates_log(),*) 'this doesnt make sense.'
-                 write(fates_log(),*) 'ipft = ',ipft
-                 write(fates_log(),*) 'leaf_long(ipft,:) =  ',prt_params%leaf_long(ipft,:)
-                 write(fates_log(),*) 'Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-
-           else
-              if (prt_params%evergreen(ipft) .eq. itrue) then
-                 write(fates_log(),*) 'You specified zero leaf turnover: '
-                 write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
-                 write(fates_log(),*) 'leaf_long(ipft,iage): ',prt_params%leaf_long(ipft,iage)
-                 write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
-                 write(fates_log(),*) 'that an evergreen would have leaf maintenance turnover'
-                 write(fates_log(),*) 'disable this error if you are ok with this'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-           end if
-
-        end do
-
-        ! Check the turnover rates on the senescing leaf pool
-        if ( prt_params%leaf_long(ipft,nleafage)>nearzero ) then
-           
-           ! Check that leaf turnover doesn't exeed 1 day
-           if ( (years_per_day / &
-                 (prt_params%leaf_long(ipft,nleafage) * &
-                  prt_params%senleaf_long_fdrought(ipft))) > 1._r8 ) then
-              write(fates_log(),*) 'Drought-senescent turnover time-scale is greater than 1 day!'
-              write(fates_log(),*) 'ipft: ',ipft
-              write(fates_log(),*) 'leaf_long(ipft,nleafage)*senleaf_long_fdrought: ', &
-                    prt_params%leaf_long(ipft,nleafage)*prt_params%senleaf_long_fdrought(ipft),' [years]'
-              write(fates_log(),*) 'Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-        
-        if ( prt_params%senleaf_long_fdrought(ipft)<nearzero .or. &
-             prt_params%senleaf_long_fdrought(ipft)>1._r8 ) then
-           write(fates_log(),*) 'senleaf_long_fdrought(ipft) must be greater than 0 '
-           write(fates_log(),*) 'or less than or equal to 1.'
-           write(fates_log(),*) 'Set this to 1 if you want no accelerated senescence turnover'
-           write(fates_log(),*) 'ipft = ',ipft
-           write(fates_log(),*) 'senleaf_long_fdrought(ipft) = ',prt_params%senleaf_long_fdrought(ipft)
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-           
-
-        if ( prt_params%root_long(ipft)>nearzero ) then
-           
-           ! Check that root turnover doesn't exeed 1 day
-           if ( (years_per_day / prt_params%root_long(ipft)) > 1._r8 ) then
-              write(fates_log(),*) 'Root turnover time-scale is greater than 1 day!'
-              write(fates_log(),*) 'ipft: ',ipft
-              write(fates_log(),*) 'root_long(ipft): ',prt_params%root_long(ipft),' [years]'
-              write(fates_log(),*) 'Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-           
-        else
-           if (prt_params%evergreen(ipft) .eq. itrue) then
-              write(fates_log(),*) 'You specified zero root turnover: '
-              write(fates_log(),*) 'ipft: ',ipft
-              write(fates_log(),*) 'root_long(ipft): ',prt_params%root_long(ipft)
-              write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
-              write(fates_log(),*) 'that an evergreen would have root maintenance turnover'
-              write(fates_log(),*) 'disable this error if you are ok with this'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-        
-        ! Check Branch turnover doesn't exceed one day
-        if ( prt_params%branch_long(ipft)>nearzero ) then
-           
-           ! Check that branch turnover doesn't exeed 1 day
-           if ( (years_per_day / prt_params%branch_long(ipft)) > 1._r8 ) then
-              write(fates_log(),*) 'Branch turnover time-scale is greater than 1 day!'
-              write(fates_log(),*) 'ipft: ',ipft
-              write(fates_log(),*) 'branch_long(ipft): ',prt_params%branch_long(ipft),' [years]'
-              write(fates_log(),*) 'Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-
-
-     end do
-
-
-     return
-  end subroutine FatesCheckParams
 
 
 end module FatesInterfaceMod

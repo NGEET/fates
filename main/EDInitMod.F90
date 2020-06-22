@@ -12,7 +12,7 @@ module EDInitMod
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
-  use FatesInterfaceMod         , only : hlm_is_restart
+  use FatesInterfaceTypesMod         , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
@@ -36,12 +36,14 @@ module EDInitMod
   use EDTypesMod                , only : phen_dstat_moistoff
   use EDTypesMod                , only : phen_cstat_notcold
   use EDTypesMod                , only : phen_dstat_moiston
-  use FatesInterfaceMod         , only : bc_in_type
-  use FatesInterfaceMod         , only : hlm_use_planthydro
-  use FatesInterfaceMod         , only : hlm_use_inventory_init
-  use FatesInterfaceMod         , only : numpft
-  use FatesInterfaceMod         , only : nleafage
-  use FatesInterfaceMod         , only : nlevsclass
+  use FatesInterfaceTypesMod         , only : bc_in_type
+  use FatesInterfaceTypesMod         , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
+  use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod         , only : numpft
+  use FatesInterfaceTypesMod         , only : nleafage
+  use FatesInterfaceTypesMod         , only : nlevsclass
+  use FatesInterfaceTypesMod         , only : nlevcoage
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
@@ -51,7 +53,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bdead_allom
   use FatesAllometryMod         , only : bstore_allom
 
-  use FatesInterfaceMod,      only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : prt_vartypes
@@ -82,6 +84,7 @@ module EDInitMod
   public  :: init_patches
   public  :: set_site_properties
   private :: init_cohorts
+
 
   ! ============================================================================
 
@@ -122,6 +125,9 @@ contains
     allocate(site_in%dz_soil(site_in%nlevsoil))
     allocate(site_in%z_soil(site_in%nlevsoil))
 
+    allocate(site_in%area_pft(1:numpft))
+    allocate(site_in%use_this_pft(1:numpft))
+
     do el=1,num_elements
         allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
@@ -138,7 +144,7 @@ contains
     site_in%zi_soil(:) = bc_in%zi_sisl(:)
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
-
+    
 
     !
     end subroutine init_site_vars
@@ -179,6 +185,7 @@ contains
 
     ! FIRE 
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
+    site_in%NF               = 0.0_r8     ! daily lightning strikes per km2 
     site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
 
     do el=1,num_elements
@@ -219,10 +226,12 @@ contains
     ! canopy spread
     site_in%spread = 0._r8
 
+    site_in%area_pft(:) = 0._r8
+    site_in%use_this_pft(:) = fates_unset_int
   end subroutine zero_site
 
   ! ============================================================================
-  subroutine set_site_properties( nsites, sites )
+  subroutine set_site_properties( nsites, sites,bc_in )
     !
     ! !DESCRIPTION:
     !
@@ -232,7 +241,7 @@ contains
 
     integer, intent(in)                        :: nsites
     type(ed_site_type) , intent(inout), target :: sites(nsites)
-
+    type(bc_in_type), intent(in)               :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
     integer  :: s
@@ -245,6 +254,7 @@ contains
     integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
     integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
+    integer  :: ft         ! PFT loop
     !----------------------------------------------------------------------
 
 
@@ -285,8 +295,26 @@ contains
           sites(s)%dstatus = dstat
           
           sites(s)%acc_NI     = acc_NI
+          sites(s)%NF         = 0.0_r8         
           sites(s)%frac_burnt = 0.0_r8
+         
+         ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE                                                                                   
+          if(hlm_use_fixed_biogeog.eq.itrue)then
+            do ft =  1,numpft
+              sites(s)%area_pft(ft) = bc_in(s)%pft_areafrac(ft)
+            end do
+          end if
 
+          do ft = 1,numpft
+           sites(s)%use_this_pft(ft) = itrue
+           if(hlm_use_fixed_biogeog.eq.itrue)then
+             if(sites(s)%area_pft(ft).gt.0.0_r8)then
+                sites(s)%use_this_pft(ft) = itrue
+             else
+                sites(s)%use_this_pft(ft) = ifalse
+             end if !area
+           end if !SBG
+          end do !ft
           
        end do
 
@@ -413,7 +441,7 @@ contains
      ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
      if (hlm_use_planthydro.eq.itrue) then 
         do s = 1, nsites
-	   sitep => sites(s)
+           sitep => sites(s)
            call updateSizeDepRhizHydProps(sitep, bc_in(s))
         end do
      end if
@@ -456,6 +484,7 @@ contains
     real(r8) :: m_sapw     ! Generic mass for sapwood [kg]
     real(r8) :: m_store    ! Generic mass for storage [kg]
     real(r8) :: m_repro    ! Generic mass for reproductive tissues [kg]
+    real(r8) :: stem_drop_fraction
 
     integer, parameter :: rstatus = 0
 
@@ -465,7 +494,7 @@ contains
     patch_in%shortest => null()
     
     do pft =  1,numpft
-
+     if(site_in%use_this_pft(pft).eq.itrue)then
        if(EDPftvarcon_inst%initd(pft)>1.0E-7) then
 
        allocate(temp_cohort) ! temporary cohort
@@ -473,6 +502,7 @@ contains
        temp_cohort%pft         = pft
        temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
+       
 
        ! Calculate the plant diameter from height
        call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
@@ -501,24 +531,40 @@ contains
        call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
 
        temp_cohort%laimemory = 0._r8
+       temp_cohort%sapwmemory = 0._r8
+       temp_cohort%structmemory = 0._r8
        cstatus = leaves_on
+       
+       stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
        
        if( prt_params%season_decid(pft) == itrue .and. &
             any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-          temp_cohort%laimemory = c_leaf
-          c_leaf = 0._r8
-          cstatus = leaves_off
+          
+         temp_cohort%laimemory = c_leaf
+         temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
+         temp_cohort%structmemory = c_struct * stem_drop_fraction
+         c_leaf = 0._r8
+         c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+         c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
+         cstatus = leaves_off
        endif
 
        if ( prt_params%stress_decid(pft) == itrue .and. &
             any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
           temp_cohort%laimemory = c_leaf
+          temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
+          temp_cohort%structmemory = c_struct * stem_drop_fraction
           c_leaf = 0._r8
+          c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+          c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
           cstatus = leaves_off
        endif
 
        if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
+       temp_cohort%coage = 0.0_r8
+       
+       
        ! --------------------------------------------------------------------------------
        ! Initialize the mass of every element in every organ of the organ
        ! --------------------------------------------------------------------------------
@@ -586,13 +632,14 @@ contains
        call prt_obj%CheckInitialConditions()
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-             temp_cohort%dbh, prt_obj, temp_cohort%laimemory, cstatus, rstatus,        &
+            temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%laimemory, &
+            temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
              temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 
        endif
-
+     endif !use_this_pft
     enddo !numpft
 
     ! Zero the mass flux pools of the new cohorts

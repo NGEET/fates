@@ -128,22 +128,6 @@ module FatesAllometryMod
   character(len=*), parameter :: sourcefile = __FILE__
 
   
-  ! The code will call the wrapper routine "set_root_fraction"
-  ! in at least two different context.  In one context it will query
-  ! set_root_fraction to describe the depth profile of hydraulicly
-  ! active roots.  In the other context, it will ask the wrapper
-  ! to define the profile of roots as litter.  We allow these
-  ! two contexts to differ.  While not fully implemented, the use
-  ! will have control parameters to choose from different relationships
-  ! in these two contexts.  The calling function, therefore
-  ! has to tell the wrapper function which context (water or biomass)
-  ! is being querried.  So that we don't have to do messy string
-  ! parsing, we have two pre-defined flags.
-
-  integer, parameter, public :: i_hydro_rootprof_context  = 1
-  integer, parameter, public :: i_biomass_rootprof_context = 2
-
-
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
   ! bdead pool.  But newer allometries are providing total agb
@@ -309,7 +293,7 @@ contains
                 allom_hmode => prt_params%allom_hmode(ipft))
 
       select case(int(allom_hmode))
-      case (1) ! Obrien et al. 199X BCI
+      case (1) ! O'Brien et al 1995, BCI
          call h2d_obrien(h,p1,p2,d,dddh)
       case (2)  ! poorter 2006
          call h2d_poorter2006(h,p1,p2,p3,d,dddh)
@@ -805,9 +789,7 @@ contains
 
     select case(int(prt_params%allom_smode(ipft)))
        ! ---------------------------------------------------------------------
-       ! Currently both sapwood area proportionality methods use the same
-       ! machinery.  The only differences are related to the parameter
-       ! checking at the beginning.  For constant proportionality, the slope
+       ! Currently only one sapwood allometry model. the slope
        ! of the la:sa to diameter line is zero.
        ! ---------------------------------------------------------------------
     case(1) ! linearly related to leaf area based on target leaf biomass
@@ -1979,7 +1961,8 @@ contains
   
   ! =========================================================================
 
-  subroutine set_root_fraction(root_fraction, ft, zi, icontext )
+  subroutine set_root_fraction(root_fraction, ft, zi)
+
     !
     ! !DESCRIPTION:
     !  Calculates the fractions of the root biomass in each layer for each pft. 
@@ -1993,8 +1976,7 @@ contains
     ! !ARGUMENTS
     real(r8),intent(inout) :: root_fraction(:) ! Normalized profile
     integer, intent(in)    :: ft               ! functional typpe
-    real(r8),intent(in)    :: zi(0:)           ! Center of depth [m]
-    integer,intent(in)     :: icontext
+    real(r8),intent(in)    :: zi(0:)            ! Center of depth [m]
 
     ! locals
     real(r8) :: a_par  ! local temporary for "a" parameter
@@ -2015,8 +1997,8 @@ contains
     ! exponential.
     ! All methods return a normalized profile.
 
-    integer, parameter :: exponential_1p_profile_type = 1
-    integer, parameter :: jackson_beta_profile_type   = 2
+    integer, parameter :: jackson_beta_profile_type   = 1
+    integer, parameter :: exponential_1p_profile_type = 2
     integer, parameter :: exponential_2p_profile_type = 3
 
     integer :: root_profile_type
@@ -2033,42 +2015,21 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    if(icontext == i_hydro_rootprof_context) then
-       
-       root_profile_type = exponential_2p_profile_type
-       a_par = prt_params%fnrt_prof_a(ft)
-       b_par = prt_params%fnrt_prof_b(ft)
-       
-    else if(icontext == i_biomass_rootprof_context) then
-
-       root_profile_type = jackson_beta_profile_type
-       a_par = prt_params%rootprof_beta(ft,1)
-       
-    else
-       write(fates_log(),*) 'An undefined context for calculating root profiles was provided'
-       write(fates_log(),*) 'There are only two contexts, hydraulic and biomass, pick one.'
-       write(fates_log(),*) 'Aborting'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
-
-    select case(root_profile_type)
+    select case(nint(EDPftvarcon_inst%fnrt_prof_mode(ft)))
     case ( exponential_1p_profile_type ) 
-       call exponential_1p_root_profile(root_fraction, a_par, zi) 
+       call exponential_1p_root_profile(root_fraction, zi, EDPftvarcon_inst%fnrt_prof_a(ft)) 
     case ( jackson_beta_profile_type )
-       call jackson_beta_root_profile(root_fraction, a_par, zi)
+       call jackson_beta_root_profile(root_fraction, zi, EDPftvarcon_inst%fnrt_prof_a(ft))
     case ( exponential_2p_profile_type ) 
-       call exponential_2p_root_profile(root_fraction, a_par, b_par, zi)
+       call exponential_2p_root_profile(root_fraction, zi, & 
+             EDPftvarcon_inst%fnrt_prof_a(ft),EDPftvarcon_inst%fnrt_prof_b(ft))
+
     case default
        write(fates_log(),*) 'An undefined root profile type was specified'
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
 
-!    if( abs(sum(root_fraction)-1.0_r8) > 1.e-9_r8 ) then
-!        write(fates_log(),*) 'Root fractions should add up to 1'
-!        write(fates_log(),*) root_fraction
-!        call endrun(msg=errMsg(sourcefile, __LINE__))
-!    end if
 
     correction = 1._r8 - sum(root_fraction)
     corr_id = maxloc(root_fraction)
@@ -2081,25 +2042,50 @@ contains
 
   ! =====================================================================================
     
-  subroutine exponential_2p_root_profile(root_fraction, a_par, b_par, zi )
+  subroutine exponential_2p_root_profile(root_fraction, zi, a, b)
+
     !
     ! !ARGUMENTS
     real(r8),intent(out) :: root_fraction(:)
-    real(r8),intent(in)  :: a_par
-    real(r8),intent(in)  :: b_par
     real(r8),intent(in)  :: zi(0:)
+    real(r8),intent(in)  :: a     ! Exponential shape parameter a
+    real(r8),intent(in)  :: b     ! Exponential shape parameter b
 
     ! Locals
     integer  :: nlevsoil    ! Number of soil layers
     integer  :: lev         ! soil layer index
     real(r8) :: sum_rootfr  ! sum of root fraction for normalization
-    
+
+
+    ! Original default parameters: 
+    !
+    ! broadleaf_evergreen_tropical_tree
+    ! needleleaf_evergreen_extratrop_tree
+    ! needleleaf_colddecid_extratrop_tree
+    ! broadleaf_evergreen_extratrop_tree
+    ! broadleaf_hydrodecid_tropical_tree
+    ! broadleaf_colddecid_extratrop_tree
+    ! broadleaf_evergreen_extratrop_shrub
+    ! broadleaf_hydrodecid_extratrop_shrub
+    ! broadleaf_colddecid_extratrop_shrub
+    ! arctic_c3_grass
+    ! cool_c3_grass
+    ! c4_grass
+    !
+    ! a = 7, 7, 7, 7, 6, 6, 7, 7, 7, 11, 11, 11 ;
+    ! b = 1, 2, 2, 1, 2, 2, 1.5, 1.5, 1.5, 2, 2, 2 ;
+
+
     nlevsoil = ubound(zi,1)
 
     sum_rootfr = 0.0_r8
     do lev = 1, nlevsoil
-       root_fraction(lev) = .5_r8*( exp(-a_par * zi(lev-1)) + exp(-b_par * zi(lev-1))  &
-                                  - exp(-a_par * zi(lev)) - exp(-b_par * zi(lev)))
+       root_fraction(lev) = .5_r8*( &
+             exp(-a * zi(lev-1))  &
+             + exp(-b * zi(lev-1))  &
+             - exp(-a * zi(lev))    &
+             - exp(-b * zi(lev)))
+
        sum_rootfr = sum_rootfr + root_fraction(lev)
     end do
 
@@ -2111,14 +2097,14 @@ contains
 
   ! =====================================================================================
   
-  subroutine exponential_1p_root_profile(root_fraction, a_par, zi)
+  subroutine exponential_1p_root_profile(root_fraction, zi, a)
 
     !
     ! !ARGUMENTS
     real(r8),intent(out) :: root_fraction(:)
-    real(r8),intent(in)  :: a_par
     real(r8),intent(in)  :: zi(0:)
-    
+    real(r8),intent(in)  :: a     ! Exponential shape parameter a
+
     !
     ! LOCAL VARIABLES:
     integer :: lev         ! soil depth layer index
@@ -2126,7 +2112,8 @@ contains
     real(r8) :: depth      ! Depth to middle of layer [m]
     real(r8) :: sum_rootfr ! sum of rooting profile for normalization
 
-    ! real(r8), parameter :: a_par  = 3.  ! how steep profile is
+    ! Typical default parameter is a = 3.  
+    ! how steep profile is
     ! for root C inputs (1/ e-folding depth) (1/m)
     
     nlevsoil = ubound(zi,1)
@@ -2134,7 +2121,7 @@ contains
     ! define rooting profile from exponential parameters
     sum_rootfr = 0.0_r8
     do lev = 1,  nlevsoil
-       root_fraction(lev) = exp(-a_par * 0.5*(zi(lev)+zi(lev-1)) )
+       root_fraction(lev) = exp(-a * 0.5*(zi(lev)+zi(lev-1)) )
        sum_rootfr = sum_rootfr + root_fraction(lev)
     end do
     
@@ -2147,28 +2134,31 @@ contains
     
   ! =====================================================================================
 
-  subroutine jackson_beta_root_profile(root_fraction, a_par, zi)
+  subroutine jackson_beta_root_profile(root_fraction, zi, a)
 
-
+    ! -----------------------------------------------------------------------------------
     ! use beta distribution parameter from Jackson et al., 1996
-     
+    ! -----------------------------------------------------------------------------------
     ! !ARGUMENTS
     real(r8),intent(out) :: root_fraction(:) ! fraction of root mass in each soil layer
-    real(r8),intent(in)  :: a_par            ! parameter controling depth function
     real(r8),intent(in)  :: zi(0:)           ! depth of layer interfaces 0-nlevsoil
-    
+    real(r8),intent(in)  :: a                ! Exponential shape parameter a
+
     !
     ! LOCAL VARIABLES:
     integer :: lev         ! soil depth layer index
     integer :: nlevsoil    ! number of soil layers
     real(r8) :: sum_rootfr ! sum of rooting profile, for normalization 
     
-    nlevsoil = ubound(zi,1)
 
+    ! Original defaults in fates, a = 0.976 (all Pfts)
+
+    nlevsoil = ubound(zi,1)
+   
     sum_rootfr = 0.0_r8
     do lev = 1, nlevsoil
        root_fraction(lev) = &
-            (a_par**( zi(lev-1)*100._r8) - a_par**( zi(lev)*100._r8))
+             ( a ** ( zi(lev-1)*100._r8) - a ** ( zi(lev)*100._r8) )
        sum_rootfr = sum_rootfr + root_fraction(lev)
     end do
     
