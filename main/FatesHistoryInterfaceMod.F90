@@ -2062,28 +2062,28 @@ end subroutine flush_hvars
          end if
 
          ! error in primary lands from patch fusion
-         hio_primaryland_fusion_error_si = sites(s)%primary_land_patchfusion_error
+         hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error
 
          ! output site-level disturbance rates
-         hio_disturbance_rate_p2p_si = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES))
-         hio_disturbance_rate_p2s_si = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES))
-         hio_disturbance_rate_s2s_si = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES))
+         hio_disturbance_rate_p2p_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES))
+         hio_disturbance_rate_p2s_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES))
+         hio_disturbance_rate_s2s_si(io_si) = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES))
 
-         hio_fire_disturbance_rate_si = sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
+         hio_fire_disturbance_rate_si(io_si) = sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
               sites(s)%disturbance_rates_primary_to_secondary(dtype_ifire) + &
               sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifire)
 
-         hio_logging_disturbance_rate_si = sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
+         hio_logging_disturbance_rate_si(io_si) = sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
               sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) + &
               sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)
 
-         hio_fall_disturbance_rate_si = sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
+         hio_fall_disturbance_rate_si(io_si) = sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
               sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) + &
               sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)
 
-         hio_potential_disturbance_rate_si = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES))
+         hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES))
 
-         hio_harvest_carbonflux_si = sites(s)%harvest_carbon_flux
+         hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
 
          ipa = 0
          cpatch => sites(s)%oldest_patch
