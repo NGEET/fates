@@ -1058,7 +1058,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(in), target  :: currentSite 
+    type(ed_site_type), intent(inout), target  :: currentSite
     !
     ! !LOCAL VARIABLES:
     real(r8)                     :: areatot

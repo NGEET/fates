@@ -210,6 +210,7 @@ contains
     class(wrf_type)     :: this
     real(r8),intent(in) :: psi
     real(r8)            :: th
+    th = 0._r8
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
@@ -219,6 +220,7 @@ contains
     class(wrf_type)     :: this
     real(r8),intent(in) :: th
     real(r8)            :: psi
+    psi = 0._r8
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
@@ -228,6 +230,7 @@ contains
     class(wrf_type)     :: this
     real(r8),intent(in) :: th
     real(r8)            :: dpsidth
+    dpsidth = 0._r8
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
@@ -237,6 +240,7 @@ contains
     class(wkf_type)     :: this
     real(r8),intent(in) :: psi
     real(r8)            :: ftc
+    ftc = 0._r8
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
@@ -246,6 +250,7 @@ contains
     class(wkf_type)     :: this
     real(r8),intent(in) :: psi
     real(r8)            :: dftcdpsi
+    dftcdpsi = 0._r8
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
