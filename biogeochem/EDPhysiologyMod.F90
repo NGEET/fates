@@ -566,7 +566,8 @@ contains
                 endif
 
                 ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
-                ! if a least nll leaf layers are present in the current cohort
+                ! if at least nll leaf layers are present in the current cohort and only for the bottom nll 
+                ! leaf layers.
                 if (currentCohort%nv > nll .and. currentCohort%nv - z < nll) then 
 
                   ! Build the A matrix for the LHS of the linear system. A = [n  sum(x); sum(x)  sum(x^2)]
