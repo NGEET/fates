@@ -2436,6 +2436,8 @@ contains
     inv_sum_area = 1.0_r8/(dp%area + rp%area)
     
     rp%age = (dp%age * dp%area + rp%age * rp%area) * inv_sum_area
+    rp%age_since_anthro_disturbance = (dp%age_since_anthro_disturbance * dp%area &
+         + rp%age_since_anthro_disturbance * rp%area) * inv_sum_area
 
     rp%age_class = get_age_class_index(rp%age)
     
