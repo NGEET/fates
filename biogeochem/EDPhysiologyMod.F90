@@ -371,28 +371,28 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     type (ed_patch_type)  , pointer :: currentPatch
 
-    integer  :: z                ! leaf layer
-    integer  :: ipft             ! pft index
-    logical  :: trimmed          ! was this layer trimmed in this year? If not expand the canopy. 
-    real(r8) :: tar_bl           ! target leaf biomass       (leaves flushed, trimmed)
-    real(r8) :: tar_bfr          ! target fine-root biomass  (leaves flushed, trimmed)
-    real(r8) :: bfr_per_bleaf    ! ratio of fine root per leaf biomass
-    real(r8) :: sla_levleaf      ! sla at leaf level z
-    real(r8) :: nscaler_levleaf  ! nscaler value at leaf level z
-    integer  :: cl               ! canopy layer index
-    real(r8) :: kn               ! nitrogen decay coefficient
-    real(r8) :: sla_max          ! Observational constraint on how large sla (m2/gC) can become
-    real(r8) :: leaf_c           ! leaf carbon [kg]
-    real(r8) :: sapw_c           ! sapwood carbon [kg]
-    real(r8) :: store_c          ! storage carbon [kg]
-    real(r8) :: struct_c         ! structure carbon [kg]
-    real(r8) :: leaf_inc         ! LAI-only portion of the vegetation increment of dinc_ed
-    real(r8) :: lai_canopy_above ! the LAI in the canopy layers above the layer of interest
-    real(r8) :: lai_layers_above ! the LAI in the leaf layers, within the current canopy, 
-                                 ! above the leaf layer of interest
-    real(r8) :: lai_current      ! the LAI in the current leaf layer
-    real(r8) :: cumulative_lai   ! the cumulative LAI, top down, to the leaf layer of interest
-    real(r8) :: cohort_cumulative_lai ! cumulative LAI within the current cohort
+    integer  :: z                     ! leaf layer
+    integer  :: ipft                  ! pft index
+    logical  :: trimmed               ! was this layer trimmed in this year? If not expand the canopy. 
+    real(r8) :: tar_bl                ! target leaf biomass       (leaves flushed, trimmed)
+    real(r8) :: tar_bfr               ! target fine-root biomass  (leaves flushed, trimmed)
+    real(r8) :: bfr_per_bleaf         ! ratio of fine root per leaf biomass
+    real(r8) :: sla_levleaf           ! sla at leaf level z
+    real(r8) :: nscaler_levleaf       ! nscaler value at leaf level z
+    integer  :: cl                    ! canopy layer index
+    real(r8) :: kn                    ! nitrogen decay coefficient
+    real(r8) :: sla_max               ! Observational constraint on how large sla (m2/gC) can become
+    real(r8) :: leaf_c                ! leaf carbon [kg]
+    real(r8) :: sapw_c                ! sapwood carbon [kg]
+    real(r8) :: store_c               ! storage carbon [kg]
+    real(r8) :: struct_c              ! structure carbon [kg]
+    real(r8) :: leaf_inc              ! LAI-only portion of the vegetation increment of dinc_ed
+    real(r8) :: lai_canopy_above      ! the LAI in the canopy layers above the layer of interest
+    real(r8) :: lai_layers_above      ! the LAI in the leaf layers, within the current canopy, 
+                                      ! above the leaf layer of interest
+    real(r8) :: lai_current           ! the LAI in the current leaf layer
+    real(r8) :: cumulative_lai        ! whole canopy cumulative LAI, top down, to the leaf layer of interest
+    real(r8) :: cumulative_lai_cohort ! cumulative LAI within the current cohort only
 
     ! Temporary diagnostic ouptut
     integer :: ipatch
@@ -499,12 +499,12 @@ contains
                    currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
              
              ! Now calculate the cumulative top-down lai of the current layer's midpoint
-             lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
              lai_layers_above  = leaf_inc * (z-1)
              lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
-             cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current
-             cohort_cumulative_lai = lai_layers_above + 0.5*lai_current
-             
+             cumulative_lai_cohort = lai_layers_above + 0.5*lai_current
+             lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
+             cumulative_lai    = lai_canopy_above + cumulative_lai_cohort
+
              !there was activity this year in this leaf layer.  This should only occur for bottom most leaf layer
              if (currentCohort%year_net_uptake(z) /= 999._r8)then 
                    
@@ -562,8 +562,8 @@ contains
                   nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(z) - currentCohort%leaf_cost
                   nnu_clai_a(2,1) = nnu_clai_a(1,2)
                   nnu_clai_a(2,2) = nnu_clai_a(2,2) + (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost)**2
-                  nnu_clai_b(1,1) = nnu_clai_b(1,1) + cohort_cumulative_lai
-                  nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cohort_cumulative_lai * & 
+                  nnu_clai_b(1,1) = nnu_clai_b(1,1) + cumulative_lai_cohort
+                  nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cumulative_lai_cohort * & 
                                     (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost))
                 end if
 
@@ -619,13 +619,13 @@ contains
                write(fates_log(),*) 'LLSF optimium LAI (intercept,slope):', nnu_clai_b
                write(fates_log(),*) 'LLSF optimium LAI:', nnu_clai_b(1,1)
                write(fates_log(),*) 'LLSF optimium LAI info:', info
-               write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cohort_cumulative_lai
+               write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cumulative_lai_cohort
             endif
 
             ! Calculate the optimum trim based on the initial canopy trim value
-            if (cohort_cumulative_lai > 0._r8) then  ! Sometime cumulative_lai comes in at 0.0?
-               optimum_trim = (nnu_clai_b(1,1) / cohort_cumulative_lai) * initial_trim
-               optimum_laimem = (nnu_clai_b(1,1) / cohort_cumulative_lai) * initial_laimem
+            if (cumulative_lai_cohort > 0._r8) then  ! Sometime cumulative_lai comes in at 0.0?
+               optimum_trim = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_trim
+               optimum_laimem = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_laimem
 
                ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
                if (optimum_trim > 0. .and. optimum_trim < 1.) then
