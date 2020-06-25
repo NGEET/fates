@@ -398,8 +398,15 @@ contains
     integer :: ipatch
     integer :: icohort
 
-    ! LAPACK least squares fit variables (A*X = B)
-    integer :: nll = 4                    ! Number of leaf layers to fit a regression to for calculating the optimum lai
+    ! LAPACK linear least squares fit variables
+    ! The standard equation for a linear fit, y = mx + b, is converted to a linear system, AX=B and has
+    ! the form: [n  sum(x); sum(x)  sum(x^2)] * [b; m]  = [sum(y); sum(x*y)] where 
+    ! n is the number of leaf layers 
+    ! x is yearly_net_uptake minus the leaf cost aka the net-net uptake
+    ! y is the cumulative lai for the current cohort
+    ! b is the y-intercept i.e. the cumulative lai that has zero net-net uptake
+    ! m is the slope of the linear fit
+    integer :: nll = 3                    ! Number of leaf layers to fit a regression to for calculating the optimum lai
     character(1) :: trans = 'N'           ! Input matrix is not transposed
     
     integer, parameter :: m = 2, n = 2    ! Number of rows and columns, respectively, in matrix A
@@ -410,8 +417,8 @@ contains
     integer :: lwork                      ! Dimension of work array
     integer :: info                       ! Procedure diagnostic ouput
     
-    real(r8) :: nnu_clai_a(m,n)           ! LHS of linear least squares fit
-    real(r8) :: nnu_clai_b(m,nrhs)        ! RHS of linear least squares fit
+    real(r8) :: nnu_clai_a(m,n)           ! LHS of linear least squares fit, A matrix
+    real(r8) :: nnu_clai_b(m,nrhs)        ! RHS of linear least squares fit, B matrix
     real(r8) :: work(workmax)             ! work array
 
     real(r8) :: initial_trim              ! Initial trim
@@ -498,14 +505,16 @@ contains
              leaf_inc    = dinc_ed * &
                    currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
              
-             ! Now calculate the cumulative top-down lai of the current layer's midpoint
-             lai_layers_above  = leaf_inc * (z-1)
-             lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
+             ! Now calculate the cumulative top-down lai of the current layer's midpoint within the current cohort
+             lai_layers_above      = leaf_inc * (z-1)
+             lai_current           = min(leaf_inc, currentCohort%treelai - lai_layers_above)
              cumulative_lai_cohort = lai_layers_above + 0.5*lai_current
+
+             ! Now add in the lai above the current cohort for calculating the sla leaf level
              lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
              cumulative_lai    = lai_canopy_above + cumulative_lai_cohort
 
-             !there was activity this year in this leaf layer.  This should only occur for bottom most leaf layer
+             ! There was activity this year in this leaf layer.  This should only occur for bottom most leaf layer
              if (currentCohort%year_net_uptake(z) /= 999._r8)then 
                    
                 ! Calculate sla_levleaf following the sla profile with overlying leaf area
@@ -557,11 +566,18 @@ contains
                 endif
 
                 ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
-                if (currentCohort%nv > nll .and. currentCohort%nv - z < nll) then  ! Only for nll layers
+                ! if a least nll leaf layers are present in the current cohort
+                if (currentCohort%nv > nll .and. currentCohort%nv - z < nll) then 
+
+                  ! Build the A matrix for the LHS of the linear system. A = [n  sum(x); sum(x)  sum(x^2)]
+                  ! where n = nll and x = yearly_net_uptake-leafcost
                   nnu_clai_a(1,1) = nnu_clai_a(1,1) + 1 ! Increment for each layer used
                   nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(z) - currentCohort%leaf_cost
                   nnu_clai_a(2,1) = nnu_clai_a(1,2)
                   nnu_clai_a(2,2) = nnu_clai_a(2,2) + (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost)**2
+
+                  ! Build the B matrix for the RHS of the linear system. B = [sum(y); sum(x*y)]
+                  ! where x = yearly_net_uptake-leafcost and y = cumulative_lai_cohort
                   nnu_clai_b(1,1) = nnu_clai_b(1,1) + cumulative_lai_cohort
                   nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cumulative_lai_cohort * & 
                                     (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost))
@@ -607,7 +623,11 @@ contains
             !    write(fates_log(),*) 'LLSF lwork output (info, lwork):', info, lwork
             ! endif
 
-            ! Compute the minimum of 2-norm of b-Ax
+            ! Compute the minimum of 2-norm of of the least squares fit to solve for X
+            ! Note that dgels returns the solution by overwriting the nnu_clai_b array.  
+            ! The result has the form: X = [b; m]
+            ! where b = y-intercept (i.e. the cohort lai that has zero yearly net-net uptake)
+            ! and m is the slope of the linear fit
             call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
 
             if (info < 0) then
@@ -624,6 +644,8 @@ contains
 
             ! Calculate the optimum trim based on the initial canopy trim value
             if (cumulative_lai_cohort > 0._r8) then  ! Sometime cumulative_lai comes in at 0.0?
+
+               ! 
                optimum_trim = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_trim
                optimum_laimem = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_laimem
 
