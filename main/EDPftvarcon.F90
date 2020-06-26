@@ -7,6 +7,7 @@ module EDPftvarcon
   !
   ! !USES:
   use EDTypesMod  ,   only : maxSWb, ivis, inir
+  use EDTypesMod  ,   only : n_uptake_mode, p_uptake_mode
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : itrue, ifalse
@@ -17,7 +18,15 @@ module EDPftvarcon
   use PRTGenericMod,  only : num_organ_types
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
-
+  use PRTGenericMod,  only : prt_cnp_flex_allom_hyp,prt_carbon_allom_hyp
+  use FatesInterfaceTypesMod, only : hlm_nitrogen_spec, hlm_phosphorus_spec
+  use FatesInterfaceTypesMod, only : hlm_parteh_mode
+  use FatesInterfaceTypesMod, only : hlm_nu_com
+  use FatesConstantsMod   , only : prescribed_p_uptake
+  use FatesConstantsMod   , only : prescribed_n_uptake
+  use FatesConstantsMod   , only : coupled_p_uptake
+  use FatesConstantsMod   , only : coupled_n_uptake
+  
 
    ! CIME Globals
   use shr_log_mod ,   only : errMsg => shr_log_errMsg
@@ -157,14 +166,7 @@ module EDPftvarcon
      !real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1
      !real(r8), allocatable :: nfix2(:)   ! nitrogen fixation parameter 2
 
-     ! Nutrient Aquisition parameters
-
-     real(r8), allocatable :: prescribed_nuptake(:)     ! Nitrogen uptake flux per unit crown area 
-                                                        ! (negative implies fraction of NPP) kgN/m2/yr
-
-     real(r8), allocatable :: prescribed_puptake(:)     ! Phosphorus uptake flux per unit crown area 
-                                                        ! (negative implies fraction of NPP) kgP/m2/yr
-
+     
      ! Turnover related things
 
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
@@ -174,12 +176,13 @@ module EDPftvarcon
      real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Fraction of stem dropped/senescened for decidious 
                                                           ! non-woody (grass) plants		
 
+     ! Nutrient Aquisition parameters
      real(r8), allocatable :: prescribed_nuptake(:)   ! If there is no soil BGC model active,
-                                                      ! prescribe an uptake rate for nitrogen
+                                                      ! prescribe an uptake rate for nitrogen, this is the fraction of plant demand 
 
      real(r8), allocatable :: prescribed_puptake(:)   ! If there is no soil BGC model active,
                                                       ! prescribe an uptake rate for phosphorus
-
+                                                      ! This is the fraction of plant demand
      
      ! Parameters dimensioned by PFT and leaf age
      real(r8), allocatable :: vcmax25top(:,:)             ! maximum carboxylation rate of Rub. at 25C, 
@@ -228,6 +231,7 @@ module EDPftvarcon
   !
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: FatesReportPFTParams
+  public :: FatesCheckParams
   public :: GetDecompyFrac
   !-----------------------------------------------------------------------
 
@@ -897,15 +901,6 @@ contains
 	  	 
     name = 'fates_phen_cold_size_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%phen_cold_size_threshold)
-	 
-    name = 'fates_phen_stem_drop_fraction'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%phen_stem_drop_fraction)	 
-	 
-
-    name = 'fates_phen_cold_size_threshold'
-    call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%phen_cold_size_threshold)
     
     name = 'fates_phen_stem_drop_fraction'
@@ -1400,7 +1395,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine EDCheckParams(is_master, parteh_mode)
+  subroutine FatesCheckParams(is_master)
 
      ! ----------------------------------------------------------------------------------
      !
@@ -1416,7 +1411,6 @@ contains
     
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
-     integer, intent(in) :: parteh_mode  ! argument for nl flag hlm_parteh_mode
 
      character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
 
@@ -1429,6 +1423,104 @@ contains
      npft = size(EDPftvarcon_inst%freezetol,1)
 
      if(.not.is_master) return
+
+
+     if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        
+        ! Check to see if either RD/ECA/MIC is turned on
+        
+        if (.not.( (trim(hlm_nu_com).eq.'RD') .or. (trim(hlm_nu_com).eq.'ECA'))) then
+           write(fates_log(),*) 'FATES PARTEH with allometric flexible CNP must have'
+           write(fates_log(),*) 'a valid BGC model enabled: RD,ECA,MIC or SYN'
+           write(fates_log(),*) 'nu_comp: ',trim(hlm_nu_com)
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+        
+        ! If nitrogen is turned on, check to make sure there are valid ammonium
+        ! parameters
+        if(hlm_nitrogen_spec>0)then
+           if (trim(hlm_nu_com).eq.'ECA') then
+              
+              if(any(EDpftvarcon_inst%eca_km_nh4(:)<0._r8) ) then
+                 write(fates_log(),*) 'ECA with nitrogen is turned on'
+                 write(fates_log(),*) 'bad ECA km value(s) for nh4: ',EDpftvarcon_inst%eca_km_nh4(:)
+                 write(fates_log(),*) 'Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+              
+              if(hlm_nitrogen_spec==2)then
+                 if(any(EDpftvarcon_inst%eca_km_no3(:)<0._r8)) then
+                    write(fates_log(),*) 'ECA with nit/denitr is turned on'
+                    write(fates_log(),*) 'bad ECA km value(s) for no3: ',EDpftvarcon_inst%eca_km_no3(:)
+                    write(fates_log(),*) 'Aborting'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                 end if
+              end if
+
+           end if
+        end if
+        
+     elseif (hlm_parteh_mode .ne. prt_carbon_allom_hyp) then
+        
+        write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport has'
+        write(fates_log(),*) 'only 2 modules supported, allometric carbon and CNP.'
+        write(fates_log(),*) 'fates_parteh_mode must be set to 1 or 2 in the namelist'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
+     ! If any PFTs are specified as either prescribed N or P uptake
+     ! then they all must be !
+     
+     if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero ) .or. &
+          any(EDPftvarcon_inst%prescribed_nuptake(:) > 10._r8 ) ) then
+        write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
+        write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
+        write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
+        write(fates_log(),*) 'Set to zero to turn off and use coupled nutrients.'
+        write(fates_log(),*) ' Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+        if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+           write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
+           write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
+           write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
+           write(fates_log(),*) 'EDPftvarcon_inst%prescribed_nuptake(:):', &
+                EDPftvarcon_inst%prescribed_nuptake(:)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+        n_uptake_mode = prescribed_n_uptake
+     else
+        n_uptake_mode = coupled_n_uptake
+     end if
+     
+     
+     ! Same for phosphorus
+     if (any(EDPftvarcon_inst%prescribed_puptake(:) < -nearzero ) .or. &
+          any(EDPftvarcon_inst%prescribed_puptake(:) > 10._r8 )) then
+        write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_puptake(:)'
+        write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
+        write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
+        write(fates_log(),*) 'Set to zero or unset to turn off and use coupled nutrients.'
+        write(fates_log(),*) ' Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     elseif (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
+        if(.not.all(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
+           write(fates_log(),*) 'If any PFTs are specified as having prescribed P'
+           write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
+           write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
+           write(fates_log(),*) 'EDPftvarcon_inst%prescribed_puptake(:):', &
+                EDPftvarcon_inst%prescribed_puptake(:)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+        p_uptake_mode = prescribed_p_uptake
+     else
+        p_uptake_mode = coupled_p_uptake
+     end if
+     
 
      
      do ipft = 1,npft
@@ -1496,7 +1588,7 @@ contains
               write(fates_log(),*) ' on bud-burst. If phenflush_fraction is not greater than 0'
               write(fates_log(),*) ' it will not be able to put out any leaves. Plants need leaves.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(EDPftvarcon_inst%evergreen(ipft))
+              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(prt_params%evergreen(ipft))
               write(fates_log(),*) ' phenflush_fraction: ', EDPFtvarcon_inst%phenflush_fraction(ipft)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1506,7 +1598,7 @@ contains
               write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
               write(fates_log(),*) ' during the deciduous period.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(EDPftvarcon_inst%evergreen(ipft))
+              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(prt_params%evergreen(ipft))
               write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1532,6 +1624,25 @@ contains
         end if
 
 
+        
+
+        ! Check if fraction of storage to reproduction is between 0-1
+        ! ----------------------------------------------------------------------------------
+        
+        if ( ( EDPftvarcon_inst%allom_frbstor_repro(ipft) < 0.0_r8 ) .or. &
+             ( EDPftvarcon_inst%allom_frbstor_repro(ipft) > 1.0_r8 ) ) then
+
+           write(fates_log(),*) 'fraction of storage to reproduction'
+           write(fates_log(),*) ' after plants die, must be between'
+           write(fates_log(),*) ' 0 and 1'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' allom_frbstor_repro: ',EDPftvarcon_inst%allom_frbstor_repro(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if
+        
+
         ! Check if photosynthetic pathway is neither C3/C4
         ! ----------------------------------------------------------------------------------
         
@@ -1548,7 +1659,7 @@ contains
 
         end if
 
-    end do
+     end do
 
 !!    ! Checks for HYDRO
 !!    if( hlm_use_planthydro == itrue ) then
@@ -1573,7 +1684,7 @@ contains
 
 
      return
-  end subroutine EDCheckParams
+  end subroutine FatesCheckParams
 
 
   ! =====================================================================================

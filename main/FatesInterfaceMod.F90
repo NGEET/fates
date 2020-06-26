@@ -62,6 +62,7 @@ module FatesInterfaceMod
    use PRTGenericMod             , only : leaf_organ, fnrt_organ, store_organ
    use PRTGenericMod             , only : sapw_organ, struct_organ, repro_organ
    use PRTParametersMod          , only : prt_params
+   use PRTInitParamsFatesMod     , only : PRTCheckParams
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
 
@@ -244,24 +245,24 @@ contains
     ! Fates -> BGC fragmentation mass fluxes
     select case(hlm_parteh_mode) 
     case(prt_carbon_allom_hyp)
-       this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
-       this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
-       this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
     case(prt_cnp_flex_allom_hyp) 
        
-       this%bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
-       this%bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
-       this%bc_out(s)%source_p(:)           = 0._r8
-       this%bc_out(s)%source_nh4(:)         = 0._r8
-       this%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
-       this%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
-       this%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
-       this%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
-       this%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
-       this%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
-       this%bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
-       this%bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
-       this%bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
+       fates%bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
+       fates%bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
+       fates%bc_out(s)%source_p(:)           = 0._r8
+       fates%bc_out(s)%source_nh4(:)         = 0._r8
+       fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
        
     case default
        write(fates_log(), *) 'An unknown parteh hypothesis was passed'
@@ -1590,8 +1591,8 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
-      call EDCheckParams(masterproc)
-      call PRTCheckParams(masterproc)
+      call FatesCheckParams(masterproc)    ! Check general fates parameters
+      call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
 
       return

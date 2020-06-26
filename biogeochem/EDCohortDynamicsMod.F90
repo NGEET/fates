@@ -1233,7 +1233,7 @@ contains
                                          currentCohort%dbh = (currentCohort%n*currentCohort%dbh         &
                                               + nextc%n*nextc%dbh)/newn
 
-                                         if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
+                                         if( prt_params%woody(currentCohort%pft) == itrue ) then
 
                                             call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
                                                  currentCohort%dbh, currentCohort%hite, &
@@ -1271,7 +1271,7 @@ contains
                                       ! we then just let the carbon pools grow to fill out allometry)
                                       ! -----------------------------------------------------------------
                                       !
-                                      if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
+                                      if( prt_params%woody(currentCohort%pft) == itrue ) then
                                          call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
                                               currentCohort%dbh, currentCohort%hite, &
                                               bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))

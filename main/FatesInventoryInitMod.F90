@@ -45,7 +45,7 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : phen_dstat_timeoff
    use EDTypesMod       , only : phen_dstat_moistoff
    use PRTParametersMod , only : prt_params
-   use EDPftvarconMod   , only : EDPftvarcon_inst
+   use EDPftvarcon      , only : EDPftvarcon_inst
    use FatesInterfaceTypesMod, only : hlm_parteh_mode
    use EDCohortDynamicsMod,    only : InitPRTObject
    use PRTGenericMod,          only : prt_carbon_allom_hyp

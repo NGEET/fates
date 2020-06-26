@@ -2015,14 +2015,14 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    select case(nint(EDPftvarcon_inst%fnrt_prof_mode(ft)))
+    select case(nint(prt_params%fnrt_prof_mode(ft)))
     case ( exponential_1p_profile_type ) 
-       call exponential_1p_root_profile(root_fraction, zi, EDPftvarcon_inst%fnrt_prof_a(ft)) 
+       call exponential_1p_root_profile(root_fraction, zi, prt_params%fnrt_prof_a(ft)) 
     case ( jackson_beta_profile_type )
-       call jackson_beta_root_profile(root_fraction, zi, EDPftvarcon_inst%fnrt_prof_a(ft))
+       call jackson_beta_root_profile(root_fraction, zi, prt_params%fnrt_prof_a(ft))
     case ( exponential_2p_profile_type ) 
        call exponential_2p_root_profile(root_fraction, zi, & 
-             EDPftvarcon_inst%fnrt_prof_a(ft),EDPftvarcon_inst%fnrt_prof_b(ft))
+             prt_params%fnrt_prof_a(ft),prt_params%fnrt_prof_b(ft))
 
     case default
        write(fates_log(),*) 'An undefined root profile type was specified'

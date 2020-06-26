@@ -14,12 +14,14 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_current_year
   use FatesInterfaceTypesMod        , only : hlm_current_month
   use FatesInterfaceTypesMod        , only : hlm_current_day 
-  use FatesInterfaceTypesMod        , only : hlm_use_planthydro 
+  use FatesInterfaceTypesMod        , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod        , only : hlm_parteh_mode
   use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod        , only : hlm_reference_date
   use FatesInterfaceTypesMod        , only : hlm_use_ed_prescribed_phys
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3 
   use FatesInterfaceTypesMod        , only : bc_in_type
+  use FatesInterfaceTypesMod        , only : bc_out_type
   use FatesInterfaceTypesMod        , only : hlm_masterproc
   use FatesInterfaceTypesMod        , only : numpft
   use PRTGenericMod            , only : prt_carbon_allom_hyp

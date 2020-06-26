@@ -2256,10 +2256,6 @@ end subroutine flush_hvars
                      this%hvars(ih_totvegc_si)%r81d(io_si) = &
                           this%hvars(ih_totvegc_si)%r81d(io_si)+ n_perm2 * total_m * g_per_kg
 
-                     this%hvars(ih_agb_pa)%r81d(io_pa)     = &
-                          this%hvars(ih_agb_pa)%r81d(io_pa)+ n_density * g_per_kg * &
-                          ( leaf_m + (sapw_m + struct_m + store_m) * prt_params%allom_agb_frac(ccohort%pft) )
-                     
                   elseif(element_list(el).eq.nitrogen_element)then
 
                      this%hvars(ih_storen_si)%r81d(io_si)  = &
@@ -2295,17 +2291,17 @@ end subroutine flush_hvars
                      
                end do
 
-               hio_bleaf_si(io_si)     = hio_bleaf_si(io_si)  + n_perm2 * leaf_c  * g_per_kg
-               hio_bstore_si(io_si)    = hio_bstore_si(io_si) + n_perm2 * store_c * g_per_kg
-               hio_bdead_si(io_si)     = hio_bdead_si(io_si)  + n_perm2 * struct_c * g_per_kg
-               hio_balive_si(io_si)    = hio_balive_si(io_si) + n_perm2 * alive_c * g_per_kg
+               hio_bleaf_si(io_si)     = hio_bleaf_si(io_si)  + n_perm2 * leaf_m  * g_per_kg
+               hio_bstore_si(io_si)    = hio_bstore_si(io_si) + n_perm2 * store_m * g_per_kg
+               hio_bdead_si(io_si)     = hio_bdead_si(io_si)  + n_perm2 * struct_m * g_per_kg
+               hio_balive_si(io_si)    = hio_balive_si(io_si) + n_perm2 * alive_m * g_per_kg
 
-               hio_bsapwood_si(io_si)  = hio_bsapwood_si(io_si)   + n_perm2 * sapw_c  * g_per_kg
-               hio_bfineroot_si(io_si) = hio_bfineroot_si(io_si) + n_perm2 * fnrt_c * g_per_kg
-               hio_btotal_si(io_si)    = hio_btotal_si(io_si) + n_perm2 * total_c * g_per_kg
+               hio_bsapwood_si(io_si)  = hio_bsapwood_si(io_si)   + n_perm2 * sapw_m  * g_per_kg
+               hio_bfineroot_si(io_si) = hio_bfineroot_si(io_si) + n_perm2 * fnrt_m * g_per_kg
+               hio_btotal_si(io_si)    = hio_btotal_si(io_si) + n_perm2 * total_m * g_per_kg
 
                hio_agb_si(io_si)       = hio_agb_si(io_si) + n_perm2 * g_per_kg * &
-                    ( leaf_c + (sapw_c + struct_c + store_c) * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) )
+                    ( leaf_m + (sapw_m + struct_m + store_m) * prt_params%allom_agb_frac(ccohort%pft) )
 
                
                ! Update PFT partitioned biomass components

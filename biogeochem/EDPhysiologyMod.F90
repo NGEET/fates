@@ -31,6 +31,7 @@ module EDPhysiologyMod
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
   use FatesInterfaceTypesMod, only    : bc_in_type
+  use FatesInterfaceTypesMod, only    : bc_out_type
   use EDCohortDynamicsMod , only : zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use EDCohortDynamicsMod , only : InitPRTObject
@@ -1003,7 +1004,7 @@ contains
                      store_c_transfer_frac =  min((EDPftvarcon_inst%phenflush_fraction(ipft)* &
                      currentCohort%laimemory)/store_c,(1.0_r8-carbon_store_buffer))
 
-                     if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+                     if(prt_params%woody(ipft).ne.itrue)then
                         totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
                         store_c_transfer_frac = min((EDPftvarcon_inst%phenflush_fraction(ipft)* &
                                                 totalmemory)/store_c, (1.0_r8-carbon_store_buffer))
@@ -1015,7 +1016,7 @@ contains
 
                    ! This call will request that storage carbon will be transferred to 
                    ! leaf tissues. It is specified as a fraction of the available storage
-                  if(EDPftvarcon_inst%woody(ipft) == itrue) then
+                  if(prt_params%woody(ipft) == itrue) then
 
                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, store_c_transfer_frac)
                      currentCohort%laimemory = 0.0_r8		   
@@ -1057,7 +1058,7 @@ contains
 
 		            ! leaf off occur on individuals bigger than specific size for grass
                   if (currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) &
-                  .or. EDPftvarcon_inst%woody(ipft)==itrue) then 
+                  .or. prt_params%woody(ipft)==itrue) then 
                      
                      ! This sets the cohort to the "leaves off" flag
                      currentCohort%status_coh  = leaves_off
@@ -1074,7 +1075,7 @@ contains
                      call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                         leaf_organ, leaf_drop_fraction)
          
-                     if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+                     if(prt_params%woody(ipft).ne.itrue)then
                
                            currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
                
@@ -1114,7 +1115,7 @@ contains
                      store_c_transfer_frac = &
                             min(EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory, store_c)/store_c
 
-                     if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+                     if(prt_params%woody(ipft).ne.itrue)then
                      
                         totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
                         store_c_transfer_frac = min(EDPftvarcon_inst%phenflush_fraction(ipft)* &
@@ -1128,7 +1129,7 @@ contains
                    
                    ! This call will request that storage carbon will be transferred to 
                    ! leaf tissues. It is specified as a fraction of the available storage
-                  if(EDPftvarcon_inst%woody(ipft) == itrue) then
+                  if(prt_params%woody(ipft) == itrue) then
                   
                      call PRTPhenologyFlush(currentCohort%prt, ipft, &
                         leaf_organ, store_c_transfer_frac)
@@ -1179,7 +1180,7 @@ contains
                   call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                         leaf_organ, leaf_drop_fraction)
 			 
-                  if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+                  if(prt_params%woody(ipft).ne.itrue)then
             
                      currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
                      currentCohort%structmemory   = struct_c * stem_drop_fraction			 
@@ -1530,7 +1531,7 @@ contains
          c_leaf = 0.0_r8
 
          ! If plant is not woody then set sapwood and structural biomass as well
-         if (EDPftvarcon_inst%woody(ft).ne.itrue) then
+         if (prt_params%woody(ft).ne.itrue) then
             temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
             temp_cohort%structmemory = c_struct * stem_drop_fraction
             c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw 
@@ -1548,7 +1549,7 @@ contains
          c_leaf = 0.0_r8
 
          ! If plant is not woody then set sapwood and structural biomass as well
-         if(EDPftvarcon_inst%woody(ft).ne.itrue)then
+         if(prt_params%woody(ft).ne.itrue)then
             temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
             temp_cohort%structmemory = c_struct * stem_drop_fraction
             c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw 

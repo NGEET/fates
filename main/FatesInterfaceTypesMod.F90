@@ -50,7 +50,7 @@ module FatesInterfaceTypesMod
                                                     ! This string sets which filter is enacted.
 
 
-   character(len=16), public, protected :: hlm_nu_com ! This string defines which soil
+   character(len=16), public :: hlm_nu_com ! This string defines which soil
                                                       ! nutrient competition scheme is in use.
                                                       ! current options with
                                                       ! E3SM: RD, ECA
@@ -59,13 +59,13 @@ module FatesInterfaceTypesMod
                                                       ! NORESM: ?
    
 
-   integer, public, protected :: hlm_nitrogen_spec   ! This flag signals which nitrogen
+   integer, public :: hlm_nitrogen_spec   ! This flag signals which nitrogen
                                                      ! species are active if any:
                                                      ! 0: none
                                                      ! 1: nh4 only
                                                      ! 2: nh4 and no3
 
-   integer, public, protected :: hlm_phosphorus_spec ! Signals if phosphorous is turned on in the HLM
+   integer, public :: hlm_phosphorus_spec ! Signals if phosphorous is turned on in the HLM
                                                      ! 0: none
                                                      ! 1: p is on
 
@@ -179,7 +179,7 @@ module FatesInterfaceTypesMod
                                                            ! associated with one cohort
 
 
-   integer, public, protected :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
+   integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
                                                            ! competitors that will be generated on each site
    
    ! -------------------------------------------------------------------------------------

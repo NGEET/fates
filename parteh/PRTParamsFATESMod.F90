@@ -3,14 +3,19 @@ module PRTInitParamsFatesMod
   ! This is a FATES specific module for loading parametes through
   ! the CLM/ELM module system.
 
-  
-  use PRTParametersMod, only: prt_params
-  use PRTGenericMod,  only : num_organ_types
-  use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
-  use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
-  use FatesGlobals     , only : endrun => fates_endrun
-  use FatesGlobals     , only : fates_log 
-  use shr_log_mod      , only : errMsg => shr_log_errMsg
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : itrue,ifalse
+  use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : years_per_day
+  use FatesInterfaceTypesMod, only : hlm_parteh_mode
+  use PRTParametersMod,  only : prt_params
+  use PRTGenericMod,     only : num_organ_types
+  use PRTGenericMod,     only : leaf_organ, fnrt_organ, store_organ
+  use PRTGenericMod,     only : sapw_organ, struct_organ, repro_organ
+  use FatesGlobals,      only : endrun => fates_endrun
+  use FatesGlobals,      only : fates_log 
+  use shr_log_mod,       only : errMsg => shr_log_errMsg
+  use PRTGenericMod,     only : prt_cnp_flex_allom_hyp,prt_carbon_allom_hyp
   
   !
   ! !PUBLIC TYPES:
@@ -27,6 +32,7 @@ module PRTInitParamsFatesMod
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: PRTRegisterParams
   public :: PRTReceiveParams
+  public :: PRTCheckParams
   !-----------------------------------------------------------------------
 
 contains
@@ -767,7 +773,7 @@ contains
 
   ! =====================================================================================
   
-  subroutine PRTCheckParams(is_master, parteh_mode)
+  subroutine PRTCheckParams(is_master)
 
      ! ----------------------------------------------------------------------------------
      !
@@ -782,7 +788,6 @@ contains
 
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
-     integer, intent(in) :: parteh_mode  ! argument for nl flag hlm_parteh_mode
 
      character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
 
@@ -807,50 +812,7 @@ contains
 
      if(.not.is_master) return
 
-     if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
 
-        ! Check to see if either RD/ECA/MIC is turned on
-
-        if (.not.( (trim(hlm_nu_com).eq.'RD') .or. (trim(hlm_nu_com).eq.'ECA'))) then
-           write(fates_log(),*) 'FATES PARTEH with allometric flexible CNP must have'
-           write(fates_log(),*) 'a valid BGC model enabled: RD,ECA,MIC or SYN'
-           write(fates_log(),*) 'nu_comp: ',trim(hlm_nu_com)
-           write(fates_log(),*) 'Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-
-        ! If nitrogen is turned on, check to make sure there are valid ammonium
-        ! parameters
-        if(hlm_nitrogen_spec>0)then
-           if (trim(hlm_nu_com).eq.'ECA') then
-              
-              if(any(EDPftvarcon_inst%eca_km_nh4(:)<0._r8) ) then
-                 write(fates_log(),*) 'ECA with nitrogen is turned on'
-                 write(fates_log(),*) 'bad ECA km value(s) for nh4: ',EDPftvarcon_inst%eca_km_nh4(:)
-                 write(fates_log(),*) 'Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-              
-              if(hlm_nitrogen_spec==2)then
-                 if(any(EDPftvarcon_inst%eca_km_no3(:)<0._r8)) then
-                    write(fates_log(),*) 'ECA with nit/denitr is turned on'
-                    write(fates_log(),*) 'bad ECA km value(s) for no3: ',EDPftvarcon_inst%eca_km_no3(:)
-                    write(fates_log(),*) 'Aborting'
-                    call endrun(msg=errMsg(sourcefile, __LINE__))
-                 end if
-              end if
-
-           end if
-        end if
-        
-     elseif (parteh_mode .ne. prt_carbon_allom_hyp) then
-        
-        write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport has'
-        write(fates_log(),*) 'only 2 modules supported, allometric carbon and CNP.'
-        write(fates_log(),*) 'fates_parteh_mode must be set to 1 or 2 in the namelist'
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
 
 
      if (norgans .ne. num_organ_types) then
@@ -933,43 +895,6 @@ contains
 !
 !        end if
 
-
-        ! Check if the fraction of storage used for flushing deciduous trees
-        ! is greater than zero, and less than or equal to 1.
-
-        if ( int(prt_params%evergreen(ipft)) .ne. 1 ) then 
-           if ( ( EDPftvarcon_inst%phenflush_fraction(ipft) < nearzero ) .or. &
-                ( EDPFtvarcon_inst%phenflush_fraction(ipft) > 1 ) ) then
-              
-              write(fates_log(),*) ' Deciduous plants must flush some storage carbon'
-              write(fates_log(),*) ' on bud-burst. If phenflush_fraction is not greater than 0'
-              write(fates_log(),*) ' it will not be able to put out any leaves. Plants need leaves.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(prt_params%evergreen(ipft))
-              write(fates_log(),*) ' phenflush_fraction: ', EDPFtvarcon_inst%phenflush_fraction(ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-
- 
-        ! Check if freezing tolerance is within reasonable bounds
-        ! ----------------------------------------------------------------------------------
-        
-        if ( ( EDPftvarcon_inst%freezetol(ipft) > 60.0_r8 ) .or. &
-             ( EDPFtvarcon_inst%freezetol(ipft) < -273.1_r8 ) ) then
-
-           write(fates_log(),*) 'Freezing tolerance was set to a strange value'
-           write(fates_log(),*) ' Units should be degrees celcius. It cannot'
-           write(fates_log(),*) ' be less than absolute zero, and we check to see'
-           write(fates_log(),*) ' if it is greater than 60C, which would be ludicrous as well'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' freezetol: ', EDPFtvarcon_inst%freezetol(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
-        end if
-
         ! Check if leaf storage priority is between 0-1
         ! ----------------------------------------------------------------------------------
         
@@ -981,38 +906,6 @@ contains
            write(fates_log(),*) ' 0 and 1'
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) 'leaf_stor_priority: ',prt_params%leaf_stor_priority(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
-        end if
-
-        ! Check if fraction of storage to reproduction is between 0-1
-        ! ----------------------------------------------------------------------------------
-        
-        if ( ( EDPftvarcon_inst%allom_frbstor_repro(ipft) < 0.0_r8 ) .or. &
-             ( EDPftvarcon_inst%allom_frbstor_repro(ipft) > 1.0_r8 ) ) then
-
-           write(fates_log(),*) 'fraction of storage to reproduction'
-           write(fates_log(),*) ' after plants die, must be between'
-           write(fates_log(),*) ' 0 and 1'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' allom_frbstor_repro: ',EDPftvarcon_inst%allom_frbstor_repro(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
-        end if
-
-        ! Check if photosynthetic pathway is neither C3/C4
-        ! ----------------------------------------------------------------------------------
-        
-        if ( ( EDPftvarcon_inst%c3psn(ipft) < 0.0_r8 ) .or. &
-             ( EDPftvarcon_inst%c3psn(ipft) > 1.0_r8 ) ) then
-
-           write(fates_log(),*) ' Two photosynthetic pathways are currently supported'
-           write(fates_log(),*) ' C4 plants have c3psn = 0'
-           write(fates_log(),*) ' C3 plants have c3psn = 1'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' c3psn(pft): ',EDPftvarcon_inst%c3psn(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
@@ -1032,7 +925,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
            if ((prt_params%turnover_nitr_retrans(ipft,repro_organ) > nearzero) .or.  & 
                (prt_params%turnover_phos_retrans(ipft,repro_organ) > nearzero) ) then
               write(fates_log(),*) ' Retranslocation of reproductive tissues should be zero.'
@@ -1052,7 +945,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
            if ((prt_params%turnover_nitr_retrans(ipft,sapw_organ) > nearzero) .or.  & 
                (prt_params%turnover_phos_retrans(ipft,sapw_organ) > nearzero) ) then
               write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
@@ -1072,7 +965,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
            if ((prt_params%turnover_nitr_retrans(ipft,struct_organ) > nearzero) .or.  & 
                (prt_params%turnover_phos_retrans(ipft,struct_organ) > nearzero) ) then
               write(fates_log(),*) ' Retranslocation of structural(dead) tissues should be zero.'
@@ -1093,7 +986,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
            if ((prt_params%turnover_nitr_retrans(ipft,leaf_organ) > 1.0_r8) .or.  & 
                (prt_params%turnover_phos_retrans(ipft,leaf_organ) > 1.0_r8) .or. &
                (prt_params%turnover_nitr_retrans(ipft,leaf_organ) < 0.0_r8) .or.  & 
@@ -1116,7 +1009,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
            if ((prt_params%turnover_nitr_retrans(ipft,fnrt_organ) > 1.0_r8) .or.  & 
                (prt_params%turnover_phos_retrans(ipft,fnrt_organ) > 1.0_r8) .or. &
                (prt_params%turnover_nitr_retrans(ipft,fnrt_organ) < 0.0_r8) .or.  & 
@@ -1139,7 +1032,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        if (parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
            if ((prt_params%turnover_nitr_retrans(ipft,store_organ) > 1.0_r8) .or.  & 
                (prt_params%turnover_phos_retrans(ipft,store_organ) > 1.0_r8) .or. &
                (prt_params%turnover_nitr_retrans(ipft,store_organ) < 0.0_r8) .or.  & 
@@ -1184,7 +1077,7 @@ contains
         end if
 
 
-        if(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
 
            do i = 1,size(cnpflex_organs,dim=1)
               io = cnpflex_organs(i)
@@ -1223,62 +1116,6 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
 
-           ! If any PFTs are specified as either prescribed N or P uptake
-           ! then they all must be !
-
-           if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero ) .or. &
-               any(EDPftvarcon_inst%prescribed_nuptake(:) > 10._r8 ) ) then
-              write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
-              write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
-              write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
-              write(fates_log(),*) 'Set to zero to turn off and use coupled nutrients.'
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
-              if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
-                 write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
-                 write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
-                 write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
-                 write(fates_log(),*) 'EDPftvarcon_inst%prescribed_nuptake(:):', &
-                      EDPftvarcon_inst%prescribed_nuptake(:)
-                 write(fates_log(),*) ' Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-              n_uptake_mode = prescribed_n_uptake
-           else
-              n_uptake_mode = coupled_n_uptake
-           end if
-
-           
-           ! Same for phosphorus
-           if (any(EDPftvarcon_inst%prescribed_puptake(:) < -nearzero ) .or. &
-               any(EDPftvarcon_inst%prescribed_puptake(:) > 10._r8 )) then
-              write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_puptake(:)'
-              write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
-              write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
-              write(fates_log(),*) 'Set to zero or unset to turn off and use coupled nutrients.'
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           elseif (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
-              if(.not.all(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
-                 write(fates_log(),*) 'If any PFTs are specified as having prescribed P'
-                 write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
-                 write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
-                 write(fates_log(),*) 'EDPftvarcon_inst%prescribed_puptake(:):', &
-                      EDPftvarcon_inst%prescribed_puptake(:)
-                 write(fates_log(),*) ' Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-              p_uptake_mode = prescribed_p_uptake
-           else
-              p_uptake_mode = coupled_p_uptake
-           end if
-
-
-
-
-           
-           
         end if
 
 
@@ -1396,7 +1233,7 @@ contains
 
 
      return
-  end subroutine FatesCheckParams
+   end subroutine PRTCheckParams
 
   
-end module PRTInitParamsFatesMod
+ end module PRTInitParamsFatesMod
