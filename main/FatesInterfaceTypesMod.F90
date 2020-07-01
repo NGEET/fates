@@ -97,7 +97,7 @@ module FatesInterfaceTypesMod
                                                          ! If 1 or 2, it automatically sets
                                                          ! hlm_use_logging to 1
 
-   integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories
+   integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories (e.g. primary forest harvest, secondary young forest harvest, etc.)
                                                          ! this is the first dimension of:
                                                          ! harvest_rates in dynHarvestMod
                                                          ! bc_in%hlm_harvest and bc_in%hlm_harvest_catnames
