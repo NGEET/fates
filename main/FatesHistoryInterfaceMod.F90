@@ -4290,7 +4290,7 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_logging_disturbance_rate_si )
 
-    call this%set_history_var(vname='DISTURBANCE_RATE_FALL', units='m2 m-2 d-1',                   &
+    call this%set_history_var(vname='DISTURBANCE_RATE_TREEFALL', units='m2 m-2 d-1',                   &
          long='Disturbance rate from treefall',  use_default='active',     &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fall_disturbance_rate_si )

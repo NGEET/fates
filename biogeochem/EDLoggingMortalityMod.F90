@@ -87,8 +87,8 @@ module EDLoggingMortalityMod
    public :: logging_time
    public :: IsItLoggingTime
    public :: get_harvest_rate_area
-   integer, parameter, public :: hlm_harvest_area_fraction = 1
-   integer, parameter, public :: hlm_harvest_carbon = 2
+   integer, parameter, public :: hlm_harvest_area_fraction = 1 ! Code for harvesting by area
+   integer, parameter, public :: hlm_harvest_carbon = 2 ! Code for harvesting based on carbon extracted. 
 
 contains
 
@@ -225,19 +225,20 @@ contains
             harvest_rate = 1._r8
             
          else if (hlm_use_lu_harvest == hlm_harvest_area_fraction) then
+            ! We are harvesting based on areal fraction, not carbon/biomass terms. 
             ! 1=use area fraction from hlm
             ! combine forest and non-forest fracs and then apply:
             ! primary and secondary area fractions to the logging rates, which are fates parameters
             
             ! Definitions of the underlying harvest land category variables
             ! these are hardcoded to match the LUH input data via landuse.timseries file (see dynHarvestMod)
-            ! these are fraction of vegetated area harvested, split into five land category variables
+            ! these are fractions of vegetated area harvested, split into five land category variables
             ! HARVEST_VH1 = harvest from primary forest
             ! HARVEST_VH2 = harvest from primary non-forest
             ! HARVEST_SH1 = harvest from secondary mature forest
             ! HARVEST_SH2 = harvest from secondary young forest
             ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
-      
+      ! Get the area-based harvest rates based on info passed to FATES from the bioundary condition
             call get_harvest_rate_area (use_history, hlm_harvest_catnames, hlm_harvest, &
                  frac_site_primary, secondary_age, harvest_rate)
 
@@ -255,7 +256,7 @@ contains
             if (dbh >= logging_dbhmin .and. .not. &
                  ((logging_dbhmax < fates_check_param_set) .and. (dbh < logging_dbhmax )) ) then
                lmort_direct = harvest_rate * logging_direct_frac
-               l_degrad = harvest_rate * (1._r8 - logging_direct_frac)
+               l_degrad = harvest_rate * (1._r8 - logging_direct_frac) ! fraction passed to 'degraded' forest. 
             else
                lmort_direct = 0.0_r8
                l_degrad = harvest_rate
@@ -323,7 +324,7 @@ contains
       ! Parameters
       real(r8), parameter :: months_per_year = 12.0
 
-     ! determine the annual hlm harvest rate for the current cohort based on patch info
+     !  Loop around harvest categories to determine the annual hlm harvest rate for the current cohort based on patch history info
      harvest_rate = 0._r8
      do h_index = 1,hlm_num_lu_harvest_cats
         if (use_history .eq. primaryforest) then
@@ -345,8 +346,8 @@ contains
         endif
      end do
 
-     ! normalize by site-level fractio primary or secondary forest fraction
-     ! since harvest_rate is specified in fraction of the gridcell
+     !  Normalize by site-level primary or secondary forest fraction
+     !  since harvest_rate is specified as a fraction of the gridcell
      ! also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
      if (use_history .eq. primaryforest) then
         if (frac_site_primary .gt. fates_tiny) then

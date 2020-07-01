@@ -247,7 +247,7 @@ contains
     ! zero the diagnostic disturbance rate fields
     site_in%potential_disturbance_rates(1:N_DIST_TYPES) = 0._r8
 
-    ! summarize how open the canopy is prior to resolving the disturbance
+    ! Recalculate total canopy area prior to resolving the disturbance
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))
        currentPatch%total_canopy_area = 0._r8
@@ -309,14 +309,14 @@ contains
        ! equivalent to the fradction loged to account for transfer of interstitial ground area to new secondary lands
        if ( logging_time .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
-
+! The canopy is NOT closed. 
           call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, bc_in%hlm_harvest, &
                  frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
        endif
-
+! Sum of disturbance rates for different classes of disturbance across all patches in this site. 
        do i_dist = 1,N_DIST_TYPES
           site_in%potential_disturbance_rates(i_dist) = site_in%potential_disturbance_rates(i_dist) + &
                currentPatch%disturbance_rates(i_dist) * currentPatch%area * AREA_INV
@@ -1120,7 +1120,7 @@ contains
                 currentSite%oldest_patch   => new_patch_primary
              endif
           else
-             ! the case where there are no secondary patches at the start of the LL (prior logic)
+             ! the case where there are no secondary patches at the start of the linked list (prior logic)
              new_patch_primary%older    => currentPatch
              new_patch_primary%younger  => null()
              currentPatch%younger       => new_patch_primary
@@ -2634,6 +2634,7 @@ contains
                    if (count_cycles .gt. 0) then
                       ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
+                      ! and then allow them to fuse together. 
                       currentPatch%anthro_disturbance_label = olderPatch%anthro_disturbance_label
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
                       gotfused = .true.
@@ -2905,4 +2906,3 @@ contains
  end subroutine get_frac_site_primary
 
  end module EDPatchDynamicsMod
-
