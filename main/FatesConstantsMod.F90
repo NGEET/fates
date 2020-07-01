@@ -137,7 +137,10 @@ module FatesConstantsMod
   ! Conversion: years per day. assume HLM uses 365 day calendar.  
   ! If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
   real(fates_r8), parameter, public :: years_per_day = 1.0_fates_r8/365.00_fates_r8
-  
+
+  ! Conversion: months per year
+  real(fates_r8), parameter, public :: months_per_year = 12.0_fates_r8
+
   ! Physical constants
 
   ! universal gas constant [J/K/kmol]

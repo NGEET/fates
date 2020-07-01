@@ -60,6 +60,7 @@ module EDLoggingMortalityMod
    use FatesAllometryMod , only : set_root_fraction
    use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
    use FatesConstantsMod , only : fates_tiny
+   use FatesConstantsMod , only : months_per_year
    use FatesConstantsMod, only : fates_check_param_set
 
    implicit none
@@ -185,17 +186,17 @@ contains
 
    subroutine LoggingMortality_frac( pft_i, dbh, canopy_layer, lmort_direct, &
                                      lmort_collateral,lmort_infra, l_degrad, &
-                                     hlm_harvest, hlm_harvest_catnames, &
-                                     use_history, secondary_age, &
+                                     hlm_harvest_rates, hlm_harvest_catnames, &
+                                     patch_anthro_disturbance_label, secondary_age, &
                                      frac_site_primary)
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
       integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort
-      real(r8), intent(in) :: hlm_harvest(:)       ! annual harvest rate per hlm category
+      real(r8), intent(in) :: hlm_harvest_rates(:) ! annual harvest rate per hlm category
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
-      integer, intent(in) :: use_history        ! patch level anthro_disturbance_label
+      integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
@@ -239,8 +240,8 @@ contains
             ! HARVEST_SH2 = harvest from secondary young forest
             ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
       ! Get the area-based harvest rates based on info passed to FATES from the bioundary condition
-            call get_harvest_rate_area (use_history, hlm_harvest_catnames, hlm_harvest, &
-                 frac_site_primary, secondary_age, harvest_rate)
+            call get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, &
+                 hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
 
          else if (hlm_use_lu_harvest == hlm_harvest_carbon) then
             ! 2=use carbon from hlm
@@ -299,7 +300,7 @@ contains
 
    ! ============================================================================
 
-   subroutine get_harvest_rate_area (use_history, hlm_harvest_catnames, hlm_harvest, &
+   subroutine get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, hlm_harvest_rates, &
                  frac_site_primary, secondary_age, harvest_rate)
 
 
@@ -310,9 +311,9 @@ contains
      !  assumes logging_time == true
 
       ! Arguments
-      real(r8), intent(in) :: hlm_harvest(:)       ! annual harvest rate per hlm category
+      real(r8), intent(in) :: hlm_harvest_rates(:) ! annual harvest rate per hlm category
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
-      integer, intent(in) :: use_history        ! patch level anthro_disturbance_label
+      integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: frac_site_primary
       real(r8), intent(out) :: harvest_rate
@@ -321,27 +322,24 @@ contains
       integer :: h_index   ! for looping over harvest categories
       integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
 
-      ! Parameters
-      real(r8), parameter :: months_per_year = 12.0
-
      !  Loop around harvest categories to determine the annual hlm harvest rate for the current cohort based on patch history info
      harvest_rate = 0._r8
      do h_index = 1,hlm_num_lu_harvest_cats
-        if (use_history .eq. primaryforest) then
+        if (patch_anthro_disturbance_label .eq. primaryforest) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
-              harvest_rate = harvest_rate + hlm_harvest(h_index)
+              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
-        else if (use_history .eq. secondaryforest .and. &
+        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
              secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
-              harvest_rate = harvest_rate + hlm_harvest(h_index)
+              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
-        else if (use_history .eq. secondaryforest .and. &
+        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
              secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
-              harvest_rate = harvest_rate + hlm_harvest(h_index)
+              harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
         endif
      end do
@@ -349,7 +347,7 @@ contains
      !  Normalize by site-level primary or secondary forest fraction
      !  since harvest_rate is specified as a fraction of the gridcell
      ! also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
-     if (use_history .eq. primaryforest) then
+     if (patch_anthro_disturbance_label .eq. primaryforest) then
         if (frac_site_primary .gt. fates_tiny) then
            harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
         else

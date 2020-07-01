@@ -100,7 +100,7 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories (e.g. primary forest harvest, secondary young forest harvest, etc.)
                                                          ! this is the first dimension of:
                                                          ! harvest_rates in dynHarvestMod
-                                                         ! bc_in%hlm_harvest and bc_in%hlm_harvest_catnames
+                                                         ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
 
    integer, public :: hlm_use_logging       ! This flag signals whether or not to use
                                                        ! the logging module
@@ -449,9 +449,7 @@ module FatesInterfaceTypesMod
       
       ! Land use
       ! ---------------------------------------------------------------------------------
-      logical :: hlm_do_harvest_today           ! denotes whether hlm harvest data
-                                                ! are available for today
-      real(r8),allocatable :: hlm_harvest(:)    ! annual harvest rate per cat from hlm for a site
+      real(r8),allocatable :: hlm_harvest_rates(:)    ! annual harvest rate per cat from hlm for a site
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
 
       ! Fixed biogeography mode 

@@ -213,7 +213,7 @@ contains
 
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
                 lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
-                bc_in%hlm_harvest, &
+                bc_in%hlm_harvest_rates, &
                 bc_in%hlm_harvest_catnames, &
                 currentPatch%anthro_disturbance_label, &
                 currentPatch%age_since_anthro_disturbance, &
@@ -310,8 +310,8 @@ contains
        if ( logging_time .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
 ! The canopy is NOT closed. 
-          call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, bc_in%hlm_harvest, &
-                 frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
+          call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
+               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area

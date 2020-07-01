@@ -363,7 +363,7 @@ contains
       ! harvest flag denote data from hlm,
       ! while the logging flag signifies only that logging is occurring (which could just be FATES logging)
       if (hlm_use_lu_harvest .gt. 0) then
-         allocate(bc_in%hlm_harvest(num_lu_harvest_cats))
+         allocate(bc_in%hlm_harvest_rates(num_lu_harvest_cats))
          allocate(bc_in%hlm_harvest_catnames(num_lu_harvest_cats))
       end if
 
