@@ -450,7 +450,10 @@ module FatesInterfaceTypesMod
       ! Land use
       ! ---------------------------------------------------------------------------------
       real(r8),allocatable :: hlm_harvest_rates(:)    ! annual harvest rate per cat from hlm for a site
+
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
+
+      integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
 
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  

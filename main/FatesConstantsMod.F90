@@ -37,6 +37,10 @@ module FatesConstantsMod
   real(fates_r8), parameter, public :: secondary_age_threshold = 94._fates_r8 ! less than this value is young secondary land
                                                             ! based on average age of global
                                                             ! secondary 1900s land in hurtt-2011
+
+  ! integer labels for specifying harvest units
+  integer, parameter, public :: hlm_harvest_area_fraction = 1 ! Code for harvesting by area
+  integer, parameter, public :: hlm_harvest_carbon = 2 ! Code for harvesting based on carbon extracted. 
   
   ! Error Tolerances
 

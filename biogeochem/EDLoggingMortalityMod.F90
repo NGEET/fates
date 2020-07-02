@@ -61,6 +61,8 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
    use FatesConstantsMod , only : fates_tiny
    use FatesConstantsMod , only : months_per_year
+   use FatesConstantsMod , only : hlm_harvest_area_fraction
+   use FatesConstantsMod , only : hlm_harvest_carbon
    use FatesConstantsMod, only : fates_check_param_set
 
    implicit none
@@ -88,8 +90,6 @@ module EDLoggingMortalityMod
    public :: logging_time
    public :: IsItLoggingTime
    public :: get_harvest_rate_area
-   integer, parameter, public :: hlm_harvest_area_fraction = 1 ! Code for harvesting by area
-   integer, parameter, public :: hlm_harvest_carbon = 2 ! Code for harvesting based on carbon extracted. 
 
 contains
 
@@ -187,6 +187,7 @@ contains
    subroutine LoggingMortality_frac( pft_i, dbh, canopy_layer, lmort_direct, &
                                      lmort_collateral,lmort_infra, l_degrad, &
                                      hlm_harvest_rates, hlm_harvest_catnames, &
+                                     hlm_harvest_units, &
                                      patch_anthro_disturbance_label, secondary_age, &
                                      frac_site_primary)
 
@@ -196,6 +197,7 @@ contains
       integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort
       real(r8), intent(in) :: hlm_harvest_rates(:) ! annual harvest rate per hlm category
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
+      integer, intent(in) :: hlm_harvest_units     ! unit type of hlm harvest rates: [area vs. mass]
       integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
@@ -220,12 +222,12 @@ contains
       if (logging_time) then 
          ! Pass logging rates to cohort level 
          
-         if (hlm_use_lu_harvest == 0) then
+         if (hlm_use_lu_harvest == ifalse) then
             ! 0=use fates logging parameters directly when logging_time == .true.
             ! this means harvest the whole cohort area
             harvest_rate = 1._r8
             
-         else if (hlm_use_lu_harvest == hlm_harvest_area_fraction) then
+         else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_area_fraction) then
             ! We are harvesting based on areal fraction, not carbon/biomass terms. 
             ! 1=use area fraction from hlm
             ! combine forest and non-forest fracs and then apply:
@@ -239,11 +241,12 @@ contains
             ! HARVEST_SH1 = harvest from secondary mature forest
             ! HARVEST_SH2 = harvest from secondary young forest
             ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
-      ! Get the area-based harvest rates based on info passed to FATES from the bioundary condition
+
+            ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
             call get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, &
                  hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
 
-         else if (hlm_use_lu_harvest == hlm_harvest_carbon) then
+         else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_carbon) then
             ! 2=use carbon from hlm
             ! not implemented yet
             write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
