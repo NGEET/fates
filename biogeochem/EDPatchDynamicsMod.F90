@@ -474,7 +474,7 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
-    logical  :: foundfirstprimary            ! logical for finding the first primary forest patch
+    logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -1091,18 +1091,19 @@ contains
 
       !*************************/
       !**  INSERT NEW PATCH(ES) INTO LINKED LIST    
-      !**********`***************/
+      !*************************/
        
       if ( site_areadis_primary .gt. nearzero) then
           currentPatch               => currentSite%youngest_patch
-          ! insert first primary patch after all the secondary patches, if there are any
+          ! insert new youngest primary patch after all the secondary patches, if there are any.
+          ! this requires first finding the current youngest primary to insert the new one ahead of
           if (currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
-             foundfirstprimary = .false.
-             do while(associated(currentPatch) .and. .not. foundfirstprimary) 
+             found_youngest_primary = .false.
+             do while(associated(currentPatch) .and. .not. found_youngest_primary) 
                 currentPatch => currentPatch%older
                 if (associated(currentPatch)) then
                    if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
-                      foundfirstprimary = .true.
+                      found_youngest_primary = .true.
                    endif
                 endif
              end do
@@ -1113,7 +1114,8 @@ contains
                 currentPatch%younger%older => new_patch_primary
                 currentPatch%younger       => new_patch_primary
              else
-                ! the case where we haven't, and are putting a primary patch at the oldest end of the 
+                ! the case where we haven't, because the patches are all secondaary, 
+                ! and are putting a primary patch at the oldest end of the 
                 ! linked list (not sure how this could happen, but who knows...)
                 new_patch_primary%older    => null()
                 new_patch_primary%younger  => currentSite%oldest_patch
