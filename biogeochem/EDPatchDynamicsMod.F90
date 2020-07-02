@@ -1452,6 +1452,7 @@ contains
           num_dead_trees  = (currentCohort%fire_mort * &
                 currentCohort%n*patch_site_areadis/currentPatch%area)
           call AccumulateMortalityWaterStorage(currentSite,currentCohort,num_dead_trees)
+          currentCohort => currentCohort%taller
        end do
     end if
 
