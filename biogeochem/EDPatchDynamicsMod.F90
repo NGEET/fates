@@ -2003,7 +2003,7 @@ contains
     if (label .eq. secondaryforest) then
        new_patch%age_since_anthro_disturbance = age
     else
-       new_patch%age_since_anthro_disturbance = -1._r8   ! replace with fates_unset_r8 when possible
+       new_patch%age_since_anthro_disturbance = fates_unset_r8
     endif
 
     ! This new value will be generated when the calculate disturbance
