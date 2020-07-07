@@ -2569,7 +2569,7 @@ contains
        
       delta_soil_storage  = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
             site_hydr%v_shell(:,:)) * denh2o * AREA_INV - prev_h2osoil
-       
+#if 0       
       if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-6_r8 ) then
           write(fates_log(),*) 'Site plant water balance does not close'
           write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
@@ -2589,7 +2589,7 @@ contains
                ' [kg/m2]'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
-
+#endif
 
        !-----------------------------------------------------------------------
        ! mass balance check and pass the total stored vegetation water to HLM
@@ -3918,6 +3918,15 @@ contains
                                                              ! conductivity is either governed
                                                              ! by the upstream node, or by both
                                                              ! with a harmonic average
+    real(r8) :: ftc_dnx         ! frac total cond (downstream) [-]
+    real(r8) :: ftc_upx         ! frac total cond (upstream)   [-]
+    real(r8) :: dftc_dpsi_dnx   ! derivative ftc / theta (downstream)
+    real(r8) :: dftc_dpsi_upx   ! derivative ftc / theta (upstream)
+
+    ftc_dnx = ftc_dn
+    ftc_upx = ftc_up
+    dftc_dpsi_dnx = dftc_dpsi_dn
+    dftc_dpsi_upx = dftc_dpsi_up
     ! Calculate difference in total potential over the path [MPa]
     h_diff  = h_up - h_dn
 
@@ -3947,7 +3956,10 @@ contains
 
     dk_dpsi_up = k_eff**2._r8  * kmax_up**(-1._r8) * ftc_up**(-2._r8) * dftc_dpsi_up
 
-    
+    ftc_dn = ftc_dnx
+    ftc_up = ftc_upx
+    dftc_dpsi_dn = dftc_dpsi_dnx
+    dftc_dpsi_up = dftc_dpsi_upx
 
     return
   end subroutine GetKAndDKDPsi
@@ -4449,7 +4461,7 @@ contains
     ! This is a convergence test.  This is the maximum difference
     ! allowed between the flux balance and the change in storage
     ! on a node. [kg/s] *Note, 1.e-9 = 1 ug/s
-    real(r8), parameter :: max_allowed_residual = 1.e-8_r8
+    real(r8), parameter :: max_allowed_residual = 1.e-10_r8
 
     ! Maximum number of times we re-try a round of Newton
     ! iterations, each time decreasing the time-step and
@@ -4506,8 +4518,10 @@ contains
 
       !for debug only
       nstep = get_nstep()
-      
-
+      if(nstep == 133) then
+        print *
+      endif 
+     
       ! This NaN's the scratch arrays
       call site_hydr%FlushSiteScratch()
 
@@ -4584,14 +4598,14 @@ contains
 
       tm      = 0
       nsteps  = 0
-
+      dtime = tmx - tm
       outerloop: do while(tm < tmx)
 
          ! If we are here, then we either are starting the solve,
          ! or, we just completed a solve but did not fully integrate
          ! the time.  Lets update the time-step to be the remainder
          ! of the step.
-         dtime = min(tmx*0.01,tmx-tm)
+         !dtime = min(tmx*0.01,tmx-tm)
           
          ! Relaxation factors are reset to starting point.
          rlfx_plnt = rlfx_plnt0
@@ -4701,6 +4715,7 @@ contains
 
             ! This will get the effective K, and may modify FTC depending
             ! on the flow direction
+       
 
             call GetKAndDKDPsi(kmax_dn(icnx), &
                                kmax_up(icnx), &
@@ -4730,16 +4745,16 @@ contains
             dqflx_dpsi_up =  k_eff + (h_node(id_up)-h_node(id_dn)) * dk_dpsi_up
 
             ! Down-stream node's contribution to the down-stream node's Jacobian
-            ajac(id_dn,id_dn) = ajac(id_dn,id_dn) + dqflx_dpsi_dn
+            ajac(id_dn,id_dn) = ajac(id_dn,id_dn) - dqflx_dpsi_dn
 
             ! Down-stream node's contribution to the up-stream node's Jacobian
-            ajac(id_up,id_dn) = ajac(id_up,id_dn) - dqflx_dpsi_dn
+            ajac(id_up,id_dn) = ajac(id_up,id_dn) + dqflx_dpsi_dn
 
             ! Up-stream node's contribution to the down-stream node's Jacobian
-            ajac(id_dn,id_up) = ajac(id_dn,id_up) + dqflx_dpsi_up
+            ajac(id_dn,id_up) = ajac(id_dn,id_up) - dqflx_dpsi_up
 
             ! Up-stream node's contribution to the up-stream node's Jacobian
-            ajac(id_up,id_up) = ajac(id_up,id_up) - dqflx_dpsi_up
+            ajac(id_up,id_up) = ajac(id_up,id_up) + dqflx_dpsi_up
 
             
          enddo
@@ -4785,7 +4800,7 @@ contains
          ! If the solution is balanced, none of the residuals
          ! should be very large, and we can ignore another
          ! solve attempt.
-         if( residual_amax < max_allowed_residual ) then
+         if( sum(residual(:)) < max_allowed_residual .and. residual_amax < max_allowed_residual ) then
 
              goto 201
 
@@ -4859,7 +4874,7 @@ contains
             !    singular, so the solution could not be computed.
             ! ---------------------------------------------------------------------------
             
-
+            residual(:) = -residual(:)
             call DGESV(site_hydr%num_nodes,1,ajac,site_hydr%num_nodes,ipiv,residual,site_hydr%num_nodes,info)
 
             
@@ -4888,10 +4903,8 @@ contains
                if(pm_node(k) == rhiz_p_media) then
                   psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
                   j = node_layer(k)
-             !     print*,'psi:',psi_node(k),residual(k),k,j
                   th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
                else
-           !       print*,'psi:',psi_node(k),residual(k),k
                   psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
                   th_node(k) = wrf_plant(pm_node(k),ft)%p%th_from_psi(psi_node(k))
                endif
@@ -4985,9 +4998,9 @@ contains
          ! Save the  max number of Newton iterations needed
          cohort_hydr%iterh2 = max(cohort_hydr%iterh2,real(nwtn_iter))
 
-         print*,'Completed a newton solve'
-         print*,psi_node(:)
-         stop
+!         print*,'Completed a newton solve'
+!         print*,psi_node(:)
+!         stop
 
          ! Save flux diagnostics
          ! ------------------------------------------------------
