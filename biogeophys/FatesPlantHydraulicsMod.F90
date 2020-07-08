@@ -4439,6 +4439,7 @@ contains
 
     real(r8) :: tm               ! Total time integrated after each substep [s]
     real(r8) :: dtime              ! Total time to be integrated this step [s]
+    real(r8) :: dtimeo              ! Original total time to be integrated this step [s]
     real(r8) :: w_tot_beg     ! total plant water prior to solve [kg]
     real(r8) :: w_tot_end     ! total plant water at end of solve [kg]
     
@@ -4461,7 +4462,7 @@ contains
     ! This is a convergence test.  This is the maximum difference
     ! allowed between the flux balance and the change in storage
     ! on a node. [kg/s] *Note, 1.e-9 = 1 ug/s
-    real(r8), parameter :: max_allowed_residual = 1.e-10_r8
+    real(r8), parameter :: max_allowed_residual = 1.e-7_r8
 
     ! Maximum number of times we re-try a round of Newton
     ! iterations, each time decreasing the time-step and
@@ -4514,7 +4515,6 @@ contains
               h_node       => site_hydr%h_node, &
               dftc_dpsi_node => site_hydr%dftc_dpsi_node, &
               ft           => cohort%pft)
-
 
       !for debug only
       nstep = get_nstep()
@@ -4599,6 +4599,7 @@ contains
       tm      = 0
       nsteps  = 0
       dtime = tmx - tm
+      dtimeo = dtime
       outerloop: do while(tm < tmx)
 
          ! If we are here, then we either are starting the solve,
@@ -4920,7 +4921,7 @@ contains
          if( icnv == icnv_fail_round ) then
 
             write(fates_log(),'(10x,a)') '---  Convergence Failure  ---'
-            write(fates_log(),'(4x,a,1pe11.4,2(a,i6),1pe11.4)') 'Equation Maximum Residual = ', &
+            write(fates_log(),'(4x,a,1pe11.4,2(a,i6),a,1pe11.4)') 'Equation Maximum Residual = ', &
                  residual_amax,' Node = ',nsd, 'pft = ',ft, 'qtop: ',qtop
 
             ! If we have not exceeded our max number
@@ -4943,8 +4944,8 @@ contains
                enddo
 
                ! Decrease the relaxation factors 
-               rlfx_plnt = rlfx_plnt0*(0.9_r8**real(nsteps,r8))
-               rlfx_soil = rlfx_soil0*(0.9_r8**real(nsteps,r8))
+!               rlfx_plnt = rlfx_plnt0*(0.9_r8**real(nsteps,r8))
+!               rlfx_soil = rlfx_soil0*(0.9_r8**real(nsteps,r8))
                
                !
                !---  Number of time step reductions failure: stop simulation  ---
@@ -4968,9 +4969,9 @@ contains
             ! THE RELAXATION FACTORS
             goto 200
 
-         elseif(icnv == icnv_pass_round) then
-            dth_node(:) = dth_node(:) + (th_node(:) - th_node_init(:))
-            goto 201
+!         elseif(icnv == icnv_pass_round) then
+!            dth_node(:) = dth_node(:) + (th_node(:) - th_node_init(:))
+!            goto 201
          elseif(icnv == icnv_complete_fail) then
              write(fates_log(),*) 'Newton hydraulics solve'
              write(fates_log(),*) 'could not converge on a solution.'
@@ -4991,6 +4992,8 @@ contains
          ! and need to continue the iteration.
 
 201      continue
+
+         dth_node(:) = dth_node(:) + (th_node(:) - th_node_init(:))
 
          ! Save the number of substeps needed
          cohort_hydr%iterh1 = cohort_hydr%iterh1 + 1
@@ -5056,7 +5059,7 @@ contains
       w_tot_end = sum(th_node(:)*v_node(:))*denh2o
       
       ! Mass error (flux - change) [kg/m2]
-      wb_err_plant = (qtop*dtime)-(w_tot_beg-w_tot_end)
+      wb_err_plant = (qtop*dtimeo)-(w_tot_beg-w_tot_end)
 
             
      end associate
