@@ -3905,6 +3905,15 @@ contains
                                                              ! conductivity is either governed
                                                              ! by the upstream node, or by both
                                                              ! with a harmonic average
+    real(r8) :: ftc_dnx         ! frac total cond (downstream) [-]
+    real(r8) :: ftc_upx         ! frac total cond (upstream)   [-]
+    real(r8) :: dftc_dpsi_dnx   ! derivative ftc / theta (downstream)
+    real(r8) :: dftc_dpsi_upx   ! derivative ftc / theta (upstream)
+
+    ftc_dnx = ftc_dn
+    ftc_upx = ftc_up
+    dftc_dpsi_dnx = dftc_dpsi_dn
+    dftc_dpsi_upx = dftc_dpsi_up
     ! Calculate difference in total potential over the path [MPa]
     h_diff  = h_up - h_dn
 
@@ -3933,6 +3942,11 @@ contains
     dk_dpsi_dn = k_eff**2._r8  * kmax_dn**(-1._r8) * ftc_dn**(-2._r8) * dftc_dpsi_dn
 
     dk_dpsi_up = k_eff**2._r8  * kmax_up**(-1._r8) * ftc_up**(-2._r8) * dftc_dpsi_up
+
+    ftc_dn = ftc_dnx
+    ftc_up = ftc_upx
+    dftc_dpsi_dn = dftc_dpsi_dnx
+    dftc_dpsi_up = dftc_dpsi_upx
 
     
 
@@ -4440,7 +4454,7 @@ contains
     ! This is a convergence test.  This is the maximum difference
     ! allowed between the flux balance and the change in storage
     ! on a node. [kg/s] *Note, 1.e-9 = 1 ug/s
-    real(r8), parameter :: max_allowed_residual = 1.e-8_r8
+    real(r8), parameter :: max_allowed_residual = 1.e-9_r8
 
     ! Maximum number of times we re-try a round of Newton
     ! iterations, each time decreasing the time-step and
@@ -4455,7 +4469,7 @@ contains
 
 
     ! Maximum number of Newton iterations in each round
-    integer, parameter :: max_newton_iter = 300
+    integer, parameter :: max_newton_iter = 200
 
     ! Flag definitions for convergence flag (icnv)
     ! icnv = 1 fail the round due to either wacky math, or
@@ -4476,7 +4490,8 @@ contains
                                          ! reduction factor for soil compartments
     real(r8), parameter :: rlfx_plnt_init = 0.5  !rlfx  0.6  ! Initial Pressure update
                                          ! reduction factor for plant comparmtents
-
+    real(r8), parameter :: scap = 0.1
+    real(r8), parameter :: pcap = 0.2
 
     associate(conn_up      => site_hydr%conn_up, &
               conn_dn      => site_hydr%conn_dn, &
@@ -4842,7 +4857,7 @@ contains
 
              else
 
-                 if( residual_amax < max_allowed_residual) then
+                 if( sum(residual(:)) < max_allowed_residual .and. residual_amax < max_allowed_residual ) then
                      
                      ! We have succesffully found a solution
                      ! in this newton iteration.
@@ -4934,21 +4949,36 @@ contains
 
                          if(pm_node(k) == rhiz_p_media) then
                              j = node_layer(k)
-                             psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
+                             !psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
+#if 1
+                             if(abs(residual(k)) < scap) then
+                               psi_node(k) = psi_node(k) + residual(k)
+                             else
+                               psi_node(k) = psi_node(k) + 2.0*sign(scap,residual(k)) - scap*scap/residual(k)
+                             endif
+#endif
                              th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
                          else
-                             psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
+                             !psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
+#if 1
+                             if(abs(residual(k)) < pcap) then
+                               psi_node(k) = psi_node(k) + residual(k)
+                             else
+                               psi_node(k) = psi_node(k) + 2.0*sign(pcap,residual(k)) - pcap*pcap/residual(k)
+                             endif
+#endif
                              th_node(k)  = wrf_plant(pm_node(k),ft)%p%th_from_psi(psi_node(k))
                          endif
 
                      enddo
                      
                      ! Increase relaxation factors for next round
+#if 0 
                      rlfx_plnt = min(1._r8,rlfx_plnt0 + & 
                            (1.0-rlfx_plnt0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
                      rlfx_soil = min(1._r8,rlfx_soil0 + & 
                            (1.0-rlfx_soil0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
-                     
+#endif                     
 
                  end if
              end if
