@@ -4612,6 +4612,8 @@ contains
 
           dtime = min(dtime,tmx-tm)
 
+          ! Advance time forward
+          tm = tm + dtime
           ! If we have not exceeded our max number
           ! of retrying rounds of Newton iterations, reduce
           ! time and try a new round
@@ -4622,7 +4624,8 @@ contains
               ! iterations with smaller timesteps
               
               do k=1,site_hydr%num_nodes
-
+#if 0
+! this is not how connections are set up
                   if(k<site_hydr%num_nodes) then
                       id_dn = k
                       id_up = k+1
@@ -4639,6 +4642,7 @@ contains
                             dk_dpsi_up, & 
                             k_eff)
                   end if
+#endif
 
                   if(pm_node(k) == rhiz_p_media) then
                       j = node_layer(k)
@@ -4646,14 +4650,18 @@ contains
                       psi_node(k) = site_hydr%wrf_soil(j)%p%psi_from_th(th_node_init(k))
                       h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
                       write(fates_log(),*) 'node: ',k,'h: ',h_node(k)
+#if 0
                       if(k<site_hydr%num_nodes) then
                           write(fates_log(),*) '        dh:',h_node(k+1)-h_node(k),'K: ',k_eff
                       end if
+#endif
                   else
                       psi_node(k) = wrf_plant(pm_node(k),ft)%p%psi_from_th(th_node_init(k))
                       h_node(k)   =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
                       write(fates_log(),*) 'node: ',k,'h: ',h_node(k)
+#if 0
                       write(fates_log(),*) '          dh:',h_node(k+1)-h_node(k),'K: ',k_eff
+#endif
                   end if
 
               end do
@@ -4843,8 +4851,8 @@ contains
                  ! contents to the starting amount.
 
                  nsteps             = nsteps + 1
+                 tm                 = tm - dtime
                  dtime              = dtime * dtime_rf
-                 tm                 = 0
                  th_node(:)         = th_node_init(:)
                  th_node_prev(:)    = th_node_init(:)
                  rlfx_plnt0         = rlfx_plnt_init*0.9**real(nsteps,r8)
@@ -5000,8 +5008,6 @@ contains
          ! the initial water content
          th_node_prev(:) = th_node(:)
          
-         ! Advance time forward
-         tm = tm + dtime
 
          ! Reset relaxation factors
          rlfx_plnt = rlfx_plnt0
