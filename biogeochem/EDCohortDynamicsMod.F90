@@ -1169,7 +1169,8 @@ contains
                                            nextc%c_area,inverse=.false.)
 
                                       currentCohort%c_area = currentCohort%c_area + nextc%c_area
-
+!Fang test
+                                      dbh = nextc%dbh
                                       !
                                       call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
                                            currentCohort%c_area,inverse=.true.)

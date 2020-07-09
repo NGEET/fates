@@ -207,7 +207,7 @@ module FatesPlantHydraulicsMod
 
   ! The maximum allowable water balance error over a plant-soil continuum
   ! for a given step [kgs] (0.1 mg)
-  real(r8), parameter :: max_wb_step_err = 1.e-7_r8 
+  real(r8), parameter :: max_wb_step_err = 1.e-9_r8 
 
   !
   ! !PUBLIC MEMBER FUNCTIONS:
@@ -4900,16 +4900,30 @@ contains
             ! we update matric potential as only a fraction of delta psi (residual)
             
             do k = 1, site_hydr%num_nodes
-               
                if(pm_node(k) == rhiz_p_media) then
-                  psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
+                  !psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
+!                    psi_node(k) = psi_node(k) + residual(k) 
+#if 1
+                  if(abs(residual(k)) < 0.1) then
+                    psi_node(k) = psi_node(k) + residual(k) 
+                  else
+                    psi_node(k) = psi_node(k) + 2*sign(0.1,residual(k)) - 0.1*0.1/residual(k)
+                  endif
+#endif
                   j = node_layer(k)
                   th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
                else
-                  psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
+                  !psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
+!                    psi_node(k) = psi_node(k) + residual(k) 
+#if 1
+                  if(abs(residual(k)) < 0.2) then 
+                    psi_node(k) = psi_node(k) + residual(k) 
+                  else
+                    psi_node(k) = psi_node(k) + 2*sign(0.2,residual(k)) - 0.2*0.2/residual(k)
+                  endif
+#endif
                   th_node(k) = wrf_plant(pm_node(k),ft)%p%th_from_psi(psi_node(k))
                endif
-               
             enddo
 
 !            stop

@@ -10,7 +10,7 @@ module FatesHydraulicsMemMod
    implicit none
    private
 
-   logical, parameter, public :: use_2d_hydrosolve = .false.
+   logical, parameter, public :: use_2d_hydrosolve = .true.
    
    
    ! Number of soil layers for indexing cohort fine root quanitities
@@ -63,7 +63,7 @@ module FatesHydraulicsMemMod
    real(r8), parameter, public                         :: fine_root_radius_const = 0.0001_r8
 
    ! Should we ignore the first soil layer and have root layers start on the second?
-   logical, parameter, public :: ignore_layer1=.true.
+   logical, parameter, public :: ignore_layer1=.false.
    
    
    ! Derived parameters
