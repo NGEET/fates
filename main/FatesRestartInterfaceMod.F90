@@ -152,6 +152,8 @@ module FatesRestartInterfaceMod
   integer :: ir_seed_bank_sift
   integer :: ir_spread_si
   integer :: ir_recrate_sift
+  integer :: ir_use_this_pft_sift
+  integer :: ir_area_pft_sift
   integer :: ir_fmortrate_cano_siscpf
   integer :: ir_fmortrate_usto_siscpf
   integer :: ir_imortrate_siscpf
@@ -176,7 +178,6 @@ module FatesRestartInterfaceMod
   integer :: ir_oldstock_mbal
   integer :: ir_errfates_mbal
   integer :: ir_prt_base     ! Base index for all PRT variables
-
 
   ! Hydraulic indices
   integer :: ir_hydro_th_ag_covec
@@ -1005,6 +1006,17 @@ contains
          units='indiv/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_recrate_sift)
 
+    call this%set_restart_var(vname='fates_use_this_pft', vtype=cohort_int, & !should this be cohort_int as above?
+         long_name='in fixed biogeog mode, is pft in gridcell?', &
+         units='0/1', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_use_this_pft_sift)
+
+    call this%set_restart_var(vname='fates_area_pft', vtype=cohort_r8, &
+         long_name='in fixed biogeog mode, what is pft area in gridcell?', &
+         units='0/1', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pft_sift)
+
+
     call this%set_restart_var(vname='fates_fmortrate_canopy', vtype=cohort_r8, &
          long_name='fates diagnostics on fire mortality canopy', &
          units='indiv/ha/year', flushval = flushzero, &
@@ -1533,6 +1545,8 @@ contains
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
            rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
            rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
+           rio_use_this_pft_sift       => this%rvars(ir_use_this_pft_sift)%int1d, &
+           rio_area_pft_sift           => this%rvars(ir_area_pft_sift)%r81d, &
            rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
            rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
            rio_imortrate_siscpf        => this%rvars(ir_imortrate_siscpf)%r81d, &
@@ -1587,6 +1601,14 @@ contains
           do i_pft = 1,numpft
              rio_recrate_sift(io_idx_co_1st+i_pft-1)   = sites(s)%recruitment_rate(i_pft)
           end do
+
+         do i_pft = 1,numpft
+             rio_use_this_pft_sift(io_idx_co_1st+i_pft-1)   = sites(s)%use_this_pft(i_pft)        
+         end do
+
+         do i_pft = 1,numpft
+              rio_area_pft_sift(io_idx_co_1st+i_pft-1)      = sites(s)%area_pft(i_pft)
+         end do
 
           do el = 1, num_elements
 
@@ -2270,6 +2292,8 @@ contains
           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
           rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
           rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
+          rio_use_this_pft_sift       => this%rvars(ir_use_this_pft_sift)%int1d, &
+          rio_area_pft_sift           => this%rvars(ir_area_pft_sift)%r81d,&
           rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
           rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
           rio_imortrate_siscpf        => this%rvars(ir_imortrate_siscpf)%r81d, &
@@ -2313,7 +2337,12 @@ contains
           do i_pft = 1,numpft 
              sites(s)%recruitment_rate(i_pft) = rio_recrate_sift(io_idx_co_1st+i_pft-1)
           enddo
-
+          
+         !variables for fixed biogeography mode. These are currently used in restart even when this is off. 
+          do i_pft = 1,numpft
+             sites(s)%use_this_pft(i_pft) = rio_use_this_pft_sift(io_idx_co_1st+i_pft-1)
+             sites(s)%area_pft(i_pft)     = rio_area_pft_sift(io_idx_co_1st+i_pft-1)
+          enddo
 
           ! Mass balance and diagnostics across elements at the site level
           do el = 1, num_elements

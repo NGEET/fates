@@ -3606,9 +3606,9 @@ contains
         end if
         
         ! Save the number of times we refined our sub-step counts (iterh1)
-        cohort_hydr%iterh1 = max(cohort_hydr%iterh1,real(iter))
+        cohort_hydr%iterh1 = max(cohort_hydr%iterh1,real(iter,r8))
         ! Save the number of sub-steps we ultimately used
-        cohort_hydr%iterh2 = max(cohort_hydr%iterh2,real(nsteps))
+        cohort_hydr%iterh2 = max(cohort_hydr%iterh2,real(nsteps,r8))
         
         ! Update water contents in the relevant plant compartments [m3/m3]
         ! -------------------------------------------------------------------------------
@@ -4974,7 +4974,7 @@ contains
          cohort_hydr%iterh1 = cohort_hydr%iterh1 + 1
 
          ! Save the  max number of Newton iterations needed
-         cohort_hydr%iterh2 = max(cohort_hydr%iterh2,real(nwtn_iter))
+         cohort_hydr%iterh2 = max(cohort_hydr%iterh2,real(nwtn_iter,r8))
 
          ! If there are any sub-steps left, we need to update
          ! the initial water content

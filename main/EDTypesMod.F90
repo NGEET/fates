@@ -32,7 +32,7 @@ module EDTypesMod
                                                           ! are not the top canopy layer)
 
   integer, parameter, public :: nlevleaf = 30             ! number of leaf layers in canopy layer
-  integer, parameter, public :: maxpft = 15               ! maximum number of PFTs allowed
+  integer, parameter, public :: maxpft = 16               ! maximum number of PFTs allowed
                                                           ! the parameter file may determine that fewer
                                                           ! are used, but this helps allocate scratch
                                                           ! space and output arrays.
@@ -657,7 +657,11 @@ module EDTypesMod
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
-     
+
+     ! Fixed Biogeography mode inputs
+     real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
+     integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
+ 
      ! Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)
