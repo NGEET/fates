@@ -2558,28 +2558,28 @@ contains
        
       delta_soil_storage  = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
             site_hydr%v_shell(:,:)) * denh2o * AREA_INV - prev_h2osoil
-#if 0       
-      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-4_r8 ) then
-          write(fates_log(),*) 'Site plant water balance does not close'
-          write(fates_log(),*) 'balance error: ',abs(delta_plant_storage - (root_flux - transp_flux))
-          write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
-          write(fates_log(),*) 'integrated root flux: ',root_flux,' [kg/m2]'
-          write(fates_log(),*) 'transpiration flux: ',transp_flux,' [kg/m2]'
-          write(fates_log(),*) 'end storage: ',site_hydr%h2oveg
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-      end if
+
+!      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-4_r8 ) then
+!          write(fates_log(),*) 'Site plant water balance does not close'
+!          write(fates_log(),*) 'balance error: ',abs(delta_plant_storage - (root_flux - transp_flux))
+!          write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
+!          write(fates_log(),*) 'integrated root flux: ',root_flux,' [kg/m2]'
+!          write(fates_log(),*) 'transpiration flux: ',transp_flux,' [kg/m2]'
+!          write(fates_log(),*) 'end storage: ',site_hydr%h2oveg
+!          call endrun(msg=errMsg(sourcefile, __LINE__))
+!      end if
       
-       if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-4_r8 ) then
-          write(fates_log(),*) 'Site soil water balance does not close'
-          write(fates_log(),*) 'delta soil storage: ',delta_soil_storage,' [kg/m2]'
-          write(fates_log(),*) 'integrated root flux (pos into root): ',root_flux,' [kg/m2]'
-          write(fates_log(),*) 'site runoff: ',site_runoff,' [kg/m2]'
-          write(fates_log(),*) 'end storage: ',sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
-               site_hydr%v_shell(:,:)) * denh2o * AREA_INV, & 
-               ' [kg/m2]'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-#endif
+!       if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-4_r8 ) then
+!          write(fates_log(),*) 'Site soil water balance does not close'
+!          write(fates_log(),*) 'delta soil storage: ',delta_soil_storage,' [kg/m2]'
+!          write(fates_log(),*) 'integrated root flux (pos into root): ',root_flux,' [kg/m2]'
+!          write(fates_log(),*) 'site runoff: ',site_runoff,' [kg/m2]'
+!          write(fates_log(),*) 'end storage: ',sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
+!               site_hydr%v_shell(:,:)) * denh2o * AREA_INV, & 
+!               ' [kg/m2]'
+!          call endrun(msg=errMsg(sourcefile, __LINE__))
+!       end if
+
 
        !-----------------------------------------------------------------------
        ! mass balance check and pass the total stored vegetation water to HLM
@@ -2606,13 +2606,12 @@ contains
 
        ! Now check on total error
        if( abs(wb_check_site) > 1.e-4_r8 ) then
-           write(fates_log(),*) 'FATES hydro water balance does not add up [kg/m2]'
+           write(fates_log(),*) 'FATES hydro water balance is not so great [kg/m2]'
            write(fates_log(),*) 'site_hydr%errh2o_hyd: ',wb_check_site
            write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
            write(fates_log(),*) 'delta_soil_storage: ',delta_soil_storage
            write(fates_log(),*) 'site_runoff: ',site_runoff
            write(fates_log(),*) 'transp_flux: ',transp_flux
-!           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
 
@@ -3883,38 +3882,45 @@ contains
     ! direction from "up"per (closer to atm) and "lo"wer (further from atm).
     ! -----------------------------------------------------------------------------
 
-    real(r8),intent(in)    :: kmax_dn        ! max conductance (downstream) [kg s-1 Mpa-1]
-    real(r8),intent(in)    :: kmax_up        ! max conductance (upstream)   [kg s-1 Mpa-1]
-    real(r8),intent(in)    :: h_dn           ! total potential (downstream) [MPa]
-    real(r8),intent(in)    :: h_up           ! total potential (upstream)   [Mpa]
-    real(r8),intent(inout) :: ftc_dn         ! frac total cond (downstream) [-]
-    real(r8),intent(inout) :: ftc_up         ! frac total cond (upstream)   [-]
-    real(r8),intent(inout) :: dftc_dpsi_dn   ! derivative ftc / theta (downstream)
-    real(r8),intent(inout) :: dftc_dpsi_up   ! derivative ftc / theta (upstream)
-    
-                                             ! of FTC wrt relative water content
-    real(r8),intent(out)   :: dk_dpsi_dn     ! change in effective conductance from the
-                                             ! downstream pressure node
-    real(r8),intent(out)   :: dk_dpsi_up     ! change in effective conductance from the
-                                             ! upstream pressure node
-    real(r8),intent(out)   :: k_eff          ! effective conductance over path [kg s-1 Mpa-1]
+    real(r8),intent(in)  :: kmax_dn      ! max conductance (downstream) [kg s-1 Mpa-1]
+    real(r8),intent(in)  :: kmax_up      ! max conductance (upstream)   [kg s-1 Mpa-1]
+    real(r8),intent(in)  :: h_dn         ! total potential (downstream) [MPa]
+    real(r8),intent(in)  :: h_up         ! total potential (upstream)   [Mpa]
+    real(r8),intent(in)  :: ftc_dn       ! frac total cond (downstream) [-]
+    real(r8),intent(in)  :: ftc_up       ! frac total cond (upstream)   [-]
+    real(r8),intent(in)  :: dftc_dpsi_dn ! derivative ftc / theta (downstream)
+    real(r8),intent(in)  :: dftc_dpsi_up ! derivative ftc / theta (upstream)
+                                         ! of FTC wrt relative water content
+    real(r8),intent(out) :: dk_dpsi_dn   ! change in effective conductance from the
+                                         ! downstream pressure node
+    real(r8),intent(out) :: dk_dpsi_up   ! change in effective conductance from the
+                                         ! upstream pressure node
+    real(r8),intent(out) :: k_eff        ! effective conductance over path [kg s-1 Mpa-1]
 
     ! Locals
-    real(r8)               :: h_diff                         ! Total potential difference [MPa]
-                 ! the effective fraction of total 
-                                                             ! conductivity is either governed
-                                                             ! by the upstream node, or by both
-                                                             ! with a harmonic average
-    real(r8) :: ftc_dnx         ! frac total cond (downstream) [-]
-    real(r8) :: ftc_upx         ! frac total cond (upstream)   [-]
-    real(r8) :: dftc_dpsi_dnx   ! derivative ftc / theta (downstream)
-    real(r8) :: dftc_dpsi_upx   ! derivative ftc / theta (upstream)
+    real(r8)               :: h_diff     ! Total potential difference [MPa]
+                                         ! the effective fraction of total 
+                                         ! conductivity is either governed
+                                         ! by the upstream node, or by both
+                                         ! with a harmonic average
+    real(r8) :: ftc_dnx                  ! frac total cond (downstream) [-]  (local copy)
+    real(r8) :: ftc_upx                  ! frac total cond (upstream)   [-]  (local copy)
+    real(r8) :: dftc_dpsi_dnx            ! derivative ftc / theta (downstream) (local copy)
+    real(r8) :: dftc_dpsi_upx            ! derivative ftc / theta (upstream)   (local copy)
 
+
+
+    ! We use the local copies of the FTC in our calculations
+    ! because we don't want to over-write the global values.  This prevents
+    ! us from overwriting FTC on nodes that have more than one connection
+    
     ftc_dnx = ftc_dn
     ftc_upx = ftc_up
     dftc_dpsi_dnx = dftc_dpsi_dn
     dftc_dpsi_upx = dftc_dpsi_up
+    
     ! Calculate difference in total potential over the path [MPa]
+    
     h_diff  = h_up - h_dn
 
     ! If we do enable "upstream K", then we are saying that 
@@ -3926,28 +3932,21 @@ contains
     if(do_upstream_k) then
 
        if (h_diff>0._r8) then
-          ftc_dn         = ftc_up
-          dftc_dpsi_dn = 0._r8
+          ftc_dnx       = ftc_up
+          dftc_dpsi_dnx = 0._r8
        else
-          ftc_up         = ftc_dn
-          dftc_dpsi_up = 0._r8
+          ftc_upx       = ftc_dn
+          dftc_dpsi_upx = 0._r8
        end if
 
     end if
 
     ! Calculate total effective conductance over path  [kg s-1 MPa-1]
-    k_eff = 1._r8/(1._r8/(ftc_up*kmax_up)+1._r8/(ftc_dn*kmax_dn))
+    k_eff = 1._r8/(1._r8/(ftc_upx*kmax_up)+1._r8/(ftc_dnx*kmax_dn))
 
-    
-    dk_dpsi_dn = k_eff**2._r8  * kmax_dn**(-1._r8) * ftc_dn**(-2._r8) * dftc_dpsi_dn
+    dk_dpsi_dn = k_eff**2._r8  * kmax_dn**(-1._r8) * ftc_dnx**(-2._r8) * dftc_dpsi_dnx
 
-    dk_dpsi_up = k_eff**2._r8  * kmax_up**(-1._r8) * ftc_up**(-2._r8) * dftc_dpsi_up
-
-    ftc_dn = ftc_dnx
-    ftc_up = ftc_upx
-    dftc_dpsi_dn = dftc_dpsi_dnx
-    dftc_dpsi_up = dftc_dpsi_upx
-
+    dk_dpsi_up = k_eff**2._r8  * kmax_up**(-1._r8) * ftc_upx**(-2._r8) * dftc_dpsi_upx
     
 
     return
@@ -4486,13 +4485,28 @@ contains
     
     real(r8), parameter :: dtime_rf = 0.2_r8
 
-    real(r8), parameter :: rlfx_soil_init = 1.0  !rlfx1 ! 0.1  ! Initial Pressure update
-                                         ! reduction factor for soil compartments
-    real(r8), parameter :: rlfx_plnt_init = 1.0  !rlfx  0.6  ! Initial Pressure update
-                                         ! reduction factor for plant comparmtents
-    real(r8), parameter :: scap = 0.2
-    real(r8), parameter :: pcap = 0.3
-
+    ! These are the initial relaxation factors at the beginning
+    ! of the large time-step. These may or may not shrink on
+    ! subsequent rounds, and may or may not grow over subsequent
+    ! iterations within rounds
+    real(r8), parameter :: rlfx_soil_init = 1.0   ! Initial Pressure update
+                                                  ! reduction factor for soil compartments
+    real(r8), parameter :: rlfx_plnt_init = 1.0   ! Initial Pressure update
+                                                  ! reduction factor for plant comparmtents
+    real(r8), parameter :: dpsi_scap = 0.2        ! Changes in psi (for soil) larger than this
+                                                  ! will be subject to a capping routine
+    real(r8), parameter :: dpsi_pcap = 0.3        ! Change sin psi (for plants) larger than this
+                                                  ! will be subject to a capping routine
+    real(r8), parameter :: rlfx_plnt_shrink = 1.0 ! Shrink the starting plant relaxtion factor
+                                                  ! by this multipliler each round
+    real(r8), parameter :: rlfx_soil_shrink = 1.0 ! Shrink the starting soil relaxtion factor
+                                                  ! by this multipliler each round
+    logical, parameter :: reset_on_fail = .false. ! If a round of Newton iterations is unable
+                                                  ! to find a solution, you can either reset
+                                                  ! to the beginning of the large timestep (true), or
+                                                  ! to the beginning of the current substep (false)
+    
+    
     associate(conn_up      => site_hydr%conn_up, &
               conn_dn      => site_hydr%conn_dn, &
               kmax_up      => site_hydr%kmax_up, &
@@ -4604,8 +4618,6 @@ contains
       rlfx_soil       = rlfx_soil0
 
       outerloop: do while( tm < tmx )
-        rlfx_plnt      = rlfx_plnt_init
-        rlfx_soil      = rlfx_soil_init
           
           ! The solve may reduce the time-step, the shorter
           ! time-steps may not be perfectly divisible into 
@@ -4624,49 +4636,6 @@ contains
               
               ! Complete failure to converge even with re-trying
               ! iterations with smaller timesteps
-              
-              do k=1,site_hydr%num_nodes
-#if 0
-! this is not how connections are set up
-                  if(k<site_hydr%num_nodes) then
-                      id_dn = k
-                      id_up = k+1
-                      icnx = k
-                      call GetKAndDKDPsi(kmax_dn(icnx), &
-                            kmax_up(icnx), &
-                            h_node(id_dn), &
-                            h_node(id_up), &
-                            ftc_node(id_dn), &
-                            ftc_node(id_up), &
-                            dftc_dpsi_node(id_dn), & 
-                            dftc_dpsi_node(id_up), & 
-                            dk_dpsi_dn, &
-                            dk_dpsi_up, & 
-                            k_eff)
-                  end if
-#endif
-
-                  if(pm_node(k) == rhiz_p_media) then
-                      j = node_layer(k)
-                      j_bc = j+site_hydr%i_rhiz_t-1
-                      psi_node(k) = site_hydr%wrf_soil(j)%p%psi_from_th(th_node_init(k))
-                      h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
-                      write(fates_log(),*) 'node: ',k,'h: ',h_node(k)
-#if 0
-                      if(k<site_hydr%num_nodes) then
-                          write(fates_log(),*) '        dh:',h_node(k+1)-h_node(k),'K: ',k_eff
-                      end if
-#endif
-                  else
-                      psi_node(k) = wrf_plant(pm_node(k),ft)%p%psi_from_th(th_node_init(k))
-                      h_node(k)   =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
-                      write(fates_log(),*) 'node: ',k,'h: ',h_node(k)
-#if 0
-                      write(fates_log(),*) '          dh:',h_node(k+1)-h_node(k),'K: ',k_eff
-#endif
-                  end if
-
-              end do
               
               write(fates_log(),*) 'Newton hydraulics solve'
               write(fates_log(),*) 'could not converge on a solution.'
@@ -4854,14 +4823,21 @@ contains
                  ! shorten the timstep (dtime) and re-initialize the water
                  ! contents to the starting amount.
 
+                 if(reset_on_fail) then
+                     tm  = 0._r8
+                     th_node(:)         = th_node_init(:)
+                     th_node_prev(:)    = th_node_init(:)
+                 else
+                     tm                 = tm - dtime
+                     th_node(:)         = th_node_prev(:)
+                     !* No need to update the th_node_prev, it is the
+                     !  same since we are just re-starting the current
+                     !  step
+                 end if
                  nsteps             = nsteps + 1
-                 tm                 = tm - dtime
                  dtime              = dtime * dtime_rf
-                 !th_node(:)         = th_node_init(:)
-                 !th_node_prev(:)    = th_node_init(:)
-                 th_node(:)         = th_node_prev(:)
-                 rlfx_plnt0         = rlfx_plnt_init*0.9**real(nsteps,r8)
-                 rlfx_soil0         = rlfx_soil_init*0.9**real(nsteps,r8)
+                 rlfx_plnt0         = rlfx_plnt_init*rlfx_plnt_shrink**real(nsteps,r8)
+                 rlfx_soil0         = rlfx_soil_init*rlfx_soil_shrink**real(nsteps,r8)
                  rlfx_plnt          = rlfx_plnt0
                  rlfx_soil          = rlfx_soil0 
                  cohort_hydr%iterh1 = 0
@@ -4962,38 +4938,28 @@ contains
 
                          if(pm_node(k) == rhiz_p_media) then
                              j = node_layer(k)
-                             !psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
-#if 1 
-                             if(abs(residual(k)) < scap) then
+                             if(abs(residual(k)) < dpsi_scap) then
                                psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
                              else
-!print *,'here soil', residual(k)
-                               psi_node(k) = psi_node(k) + 2*sign(scap,residual(k)) - scap*scap/residual(k)
+                               psi_node(k) = psi_node(k) + 2._r8*sign(dpsi_scap,residual(k)) - dpsi_scap*dpsi_scap/residual(k)
                              endif
-#endif
                              th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
                          else
-                             !psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
-#if 1 
-                             if(abs(residual(k)) < pcap) then
+                             if(abs(residual(k)) < dpsi_pcap) then
                                psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
                              else
-!print *,'here plant',residual(k)
-                               psi_node(k) = psi_node(k) + 2*sign(pcap,residual(k)) - pcap*pcap/residual(k)
+                               psi_node(k) = psi_node(k) + 2._r8*sign(dpsi_pcap,residual(k)) - dpsi_pcap*dpsi_pcap/residual(k)
                              endif
-#endif
                              th_node(k)  = wrf_plant(pm_node(k),ft)%p%th_from_psi(psi_node(k))
                          endif
 
                      enddo
                      
-                     ! Increase relaxation factors for next round
-#if 0 
+                     ! Increase relaxation factors for next iteration
                      rlfx_plnt = min(1._r8,rlfx_plnt0 + & 
                            (1.0-rlfx_plnt0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
                      rlfx_soil = min(1._r8,rlfx_soil0 + & 
                            (1.0-rlfx_soil0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
-#endif                     
 
                  end if
              end if
@@ -5022,7 +4988,7 @@ contains
      end do outerloop
 
      if(cohort_hydr%iterh1>1._r8) then
-         print*,"i1: ",cohort_hydr%iterh1,"i2: ",cohort_hydr%iterh2
+         write(fates_log(),*) "hydro solve info: i1: ",cohort_hydr%iterh1,"i2: ",cohort_hydr%iterh2
      end if
 
      ! Save flux diagnostics
