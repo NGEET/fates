@@ -460,11 +460,16 @@ contains
     !                   for transporting root node, match the lowest total potential
     !                   in absorbing roots
     integer, parameter :: init_mode = 2
-    
+    class(wrf_arr_type),pointer :: wrfa,wrft
+    class(wkf_arr_type),pointer :: wkfa,wkft
     
     site_hydr   => site%si_hydr
     cohort_hydr => cohort%co_hydr
     ft          =  cohort%pft
+    wrfa        => wrf_plant(aroot_p_media,ft)
+    wkfa        => wkf_plant(aroot_p_media,ft)
+    wrft        => wrf_plant(troot_p_media,ft)
+    wkft        => wkf_plant(troot_p_media,ft)
 
     ! Set abosrbing root
 
@@ -480,8 +485,8 @@ contains
           ! Calculate the mean total potential (include height) of absorbing roots
 !          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(j))
           
-          cohort_hydr%th_aroot(j) = wrf_plant(aroot_p_media,ft)%p%th_from_psi(cohort_hydr%psi_aroot(j))
-          cohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
+          cohort_hydr%th_aroot(j) = wrfa%p%th_from_psi(cohort_hydr%psi_aroot(j))
+          cohort_hydr%ftc_aroot(j) = wkfa%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
        end do
        
     else
@@ -490,8 +495,8 @@ contains
           cohort_hydr%psi_aroot(j) = psi_aroot_init
           ! Calculate the mean total potential (include height) of absorbing roots
 !          h_aroot_mean = h_aroot_mean + cohort_hydr%psi_aroot(j) + mpa_per_pa*denh2o*grav_earth*(-site_hydr%zi_rhiz(j))
-          cohort_hydr%th_aroot(j) = wrf_plant(aroot_p_media,ft)%p%th_from_psi(cohort_hydr%psi_aroot(j))
-          cohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
+          cohort_hydr%th_aroot(j) = wrfa%p%th_from_psi(cohort_hydr%psi_aroot(j))
+          cohort_hydr%ftc_aroot(j) = wkfa%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
        end do
     end if
     
@@ -510,8 +515,8 @@ contains
     cohort_hydr%psi_troot = h_aroot_mean - &
          mpa_per_pa*denh2o*grav_earth*cohort_hydr%z_node_troot - dh_dz
 
-    cohort_hydr%th_troot = wrf_plant(troot_p_media,ft)%p%th_from_psi(cohort_hydr%psi_troot)
-    cohort_hydr%ftc_troot = wkf_plant(troot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_troot)
+    cohort_hydr%th_troot = wrft%p%th_from_psi(cohort_hydr%psi_troot)
+    cohort_hydr%ftc_troot = wkft%p%ftc_from_psi(cohort_hydr%psi_troot)
 
 
     ! working our way up a tree, assigning water potentials that are in
