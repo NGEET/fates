@@ -4454,7 +4454,7 @@ contains
     ! This is a convergence test.  This is the maximum difference
     ! allowed between the flux balance and the change in storage
     ! on a node. [kg/s] *Note, 1.e-9 = 1 ug/s
-    real(r8), parameter :: max_allowed_residual = 1.e-7_r8
+    real(r8), parameter :: max_allowed_residual = 1.e-8_r8
 
     ! Maximum number of times we re-try a round of Newton
     ! iterations, each time decreasing the time-step and
@@ -4486,9 +4486,9 @@ contains
     
     real(r8), parameter :: dtime_rf = 0.2_r8
 
-    real(r8), parameter :: rlfx_soil_init = 0.5  !rlfx1 ! 0.1  ! Initial Pressure update
+    real(r8), parameter :: rlfx_soil_init = 1.0  !rlfx1 ! 0.1  ! Initial Pressure update
                                          ! reduction factor for soil compartments
-    real(r8), parameter :: rlfx_plnt_init = 0.5  !rlfx  0.6  ! Initial Pressure update
+    real(r8), parameter :: rlfx_plnt_init = 1.0  !rlfx  0.6  ! Initial Pressure update
                                          ! reduction factor for plant comparmtents
     real(r8), parameter :: scap = 0.2
     real(r8), parameter :: pcap = 0.3
@@ -4604,6 +4604,8 @@ contains
       rlfx_soil       = rlfx_soil0
 
       outerloop: do while( tm < tmx )
+        rlfx_plnt      = rlfx_plnt_init
+        rlfx_soil      = rlfx_soil_init
           
           ! The solve may reduce the time-step, the shorter
           ! time-steps may not be perfectly divisible into 
@@ -4827,9 +4829,9 @@ contains
                      nsd = k
                  endif
              enddo
-             if ( nwtn_iter > max_newton_iter ) then
+             if ( nwtn_iter > max_newton_iter) then
                 icnv = icnv_fail_round
-                write(fates_log(),*) 'Newton hydraulics solve failed',residual_amax
+                write(fates_log(),*) 'Newton hydraulics solve failed',residual_amax,nsd
              endif
 
              ! Three scenarios:
@@ -4868,13 +4870,13 @@ contains
 
              else
 
-                 if( sum(residual(:)) < 0.1*max_allowed_residual .and. residual_amax < max_allowed_residual ) then
+                 if ( nwtn_iter == max_newton_iter .and. residual_amax < 10*max_allowed_residual ) exit newtonloop
+                 if( sum(residual(:)) < max_allowed_residual .and. residual_amax < max_allowed_residual ) then
                      
                      ! We have succesffully found a solution
                      ! in this newton iteration.
                      exit newtonloop
                  else
-
                      ! Move ahead and calculate another solution
                      ! and continue the search. Residual isn't zero
                      ! but no reason not to continue searching
@@ -4963,7 +4965,7 @@ contains
                              !psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
 #if 1 
                              if(abs(residual(k)) < scap) then
-                               psi_node(k) = psi_node(k) + residual(k)
+                               psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
                              else
 !print *,'here soil', residual(k)
                                psi_node(k) = psi_node(k) + 2*sign(scap,residual(k)) - scap*scap/residual(k)
@@ -4972,9 +4974,9 @@ contains
                              th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
                          else
                              !psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
-#if 1
+#if 1 
                              if(abs(residual(k)) < pcap) then
-                               psi_node(k) = psi_node(k) + residual(k)
+                               psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
                              else
 !print *,'here plant',residual(k)
                                psi_node(k) = psi_node(k) + 2*sign(pcap,residual(k)) - pcap*pcap/residual(k)
@@ -4986,7 +4988,7 @@ contains
                      enddo
                      
                      ! Increase relaxation factors for next round
-#if 1 
+#if 0 
                      rlfx_plnt = min(1._r8,rlfx_plnt0 + & 
                            (1.0-rlfx_plnt0)*real(nwtn_iter,r8)/real(max_newton_iter-3,r8))
                      rlfx_soil = min(1._r8,rlfx_soil0 + & 
@@ -4995,7 +4997,6 @@ contains
 
                  end if
              end if
-             
 
          end do newtonloop
 
