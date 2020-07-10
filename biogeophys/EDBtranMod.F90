@@ -13,13 +13,12 @@ module EDBtranMod
                                   ed_cohort_type,     &
                                   maxpft
    use shr_kind_mod      , only : r8 => shr_kind_r8
-   use FatesInterfaceMod , only : bc_in_type, &
+   use FatesInterfaceTypesMod , only : bc_in_type, &
                                   bc_out_type, &
                                   numpft
-   use FatesInterfaceMod , only : hlm_use_planthydro
+   use FatesInterfaceTypesMod , only : hlm_use_planthydro
    use FatesGlobals      , only : fates_log
    use FatesAllometryMod , only : set_root_fraction
-   use FatesAllometryMod , only : i_hydro_rootprof_context
 
    !
    implicit none
@@ -140,8 +139,7 @@ contains
               
               do ft = 1,numpft
                   
-                  call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
-                      icontext = i_hydro_rootprof_context)
+                  call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil ) 
 
                  cpatch%btran_ft(ft) = 0.0_r8
                  do j = 1,bc_in(s)%nlevsoil

@@ -28,9 +28,9 @@ module FatesInventoryInitMod
    use FatesConstantsMod, only : itrue
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
-   use FatesInterfaceMod, only : bc_in_type
-   use FatesInterfaceMod, only : hlm_inventory_ctrl_file
-   use FatesInterfaceMod, only : nleafage
+   use FatesInterfaceTypesMod, only : bc_in_type
+   use FatesInterfaceTypesMod, only : hlm_inventory_ctrl_file
+   use FatesInterfaceTypesMod, only : nleafage
    use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
    use EDTypesMod       , only : ed_patch_type
@@ -45,7 +45,7 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : phen_dstat_timeoff
    use EDTypesMod       , only : phen_dstat_moistoff
    use EDPftvarcon      , only : EDPftvarcon_inst
-   use FatesInterfaceMod,      only : hlm_parteh_mode
+   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
    use EDCohortDynamicsMod,    only : InitPRTObject
    use PRTGenericMod,          only : prt_carbon_allom_hyp
    use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
@@ -862,7 +862,7 @@ contains
       use FatesAllometryMod         , only : bstore_allom
 
       use EDCohortDynamicsMod , only : create_cohort
-      use FatesInterfaceMod   , only : numpft
+      use FatesInterfaceTypesMod   , only : numpft
 
       ! Arguments
       type(ed_site_type),intent(inout), target    :: csite         ! current site

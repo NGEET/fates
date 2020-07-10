@@ -7,11 +7,11 @@
 
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : itrue, ifalse
-  use FatesInterfaceMod     , only : hlm_masterproc ! 1= master process, 0=not master process
+  use FatesInterfaceTypesMod     , only : hlm_masterproc ! 1= master process, 0=not master process
   use EDTypesMod            , only : numWaterMem
   use FatesGlobals          , only : fates_log
 
-  use FatesInterfaceMod     , only : bc_in_type
+  use FatesInterfaceTypesMod     , only : bc_in_type
 
   use EDPftvarcon           , only : EDPftvarcon_inst
 
@@ -21,7 +21,6 @@
   use EDtypesMod            , only : ed_cohort_type
   use EDtypesMod            , only : AREA
   use EDtypesMod            , only : DL_SF
-  use EDtypesMod            , only : FIRE_THRESHOLD
   use EDTypesMod            , only : TW_SF
   use EDtypesMod            , only : LB_SF
   use EDtypesMod            , only : LG_SF
@@ -40,7 +39,7 @@
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
-  use FatesInterfaceMod     , only : numpft
+  use FatesInterfaceTypesMod     , only : numpft
 
   implicit none
   private
@@ -70,7 +69,7 @@ contains
   ! ============================================================================
   subroutine fire_model( currentSite, bc_in)
 
-    use FatesInterfaceMod, only : hlm_use_spitfire
+    use FatesInterfaceTypesMod, only : hlm_use_spitfire
 
     type(ed_site_type)     , intent(inout), target :: currentSite
     type(bc_in_type)       , intent(in)            :: bc_in
@@ -419,7 +418,7 @@ contains
                              SF_val_miner_damp,  &
                              SF_val_fuel_energy
     
-    use FatesInterfaceMod, only : hlm_current_day, hlm_current_month
+    use FatesInterfaceTypesMod, only : hlm_current_day, hlm_current_month
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -662,12 +661,12 @@ contains
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
-    use FatesInterfaceMod, only : hlm_use_spitfire
+    use FatesInterfaceTypesMod, only : hlm_use_spitfire
     use EDParamsMod,       only : ED_val_nignitions
     use EDParamsMod,       only : cg_strikes    ! fraction of cloud-to-ground ligtning strikes
     use FatesConstantsMod, only : years_per_day
     use SFParamsMod,       only : SF_val_fdi_alpha,SF_val_fuel_energy, &
-         SF_val_max_durat, SF_val_durat_slope
+         SF_val_max_durat, SF_val_durat_slope, SF_val_fire_threshold
     
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type), pointer :: currentPatch
@@ -774,7 +773,7 @@ contains
          endif
 
          !'decide_fire' subroutine 
-         if (currentPatch%FI > fire_threshold) then !track fires greater than kW/m2 energy threshold
+         if (currentPatch%FI > SF_val_fire_threshold) then !track fires greater than kW/m energy threshold
             currentPatch%fire = 1 ! Fire...    :D
           
          else     

@@ -24,10 +24,10 @@ module EDCanopyStructureMod
   use EDTypesMod            , only : nlevleaf
   use EDtypesMod            , only : AREA
   use FatesGlobals          , only : endrun => fates_endrun
-  use FatesInterfaceMod     , only : hlm_days_per_year
-  use FatesInterfaceMod     , only : hlm_use_planthydro
-  use FatesInterfaceMod     , only : hlm_use_cohort_age_tracking
-  use FatesInterfaceMod     , only : numpft
+  use FatesInterfaceTypesMod     , only : hlm_days_per_year
+  use FatesInterfaceTypesMod     , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod     , only : numpft
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
   
@@ -121,7 +121,7 @@ contains
 
       use EDParamsMod, only : ED_val_comp_excln
       use EDTypesMod , only : min_patch_area
-      use FatesInterfaceMod, only : bc_in_type
+      use FatesInterfaceTypesMod, only : bc_in_type
       !
       ! !ARGUMENTS    
       type(ed_site_type) , intent(inout), target   :: currentSite
@@ -1256,8 +1256,8 @@ contains
      ! Much of this routine was once ed_clm_link minus all the IO and history stuff
      ! ---------------------------------------------------------------------------------
 
-    use FatesInterfaceMod    , only : bc_in_type
-    use FatesInterfaceMod    , only : hlm_use_cohort_age_tracking
+    use FatesInterfaceTypesMod    , only : bc_in_type
+    use FatesInterfaceTypesMod    , only : hlm_use_cohort_age_tracking
     use EDPatchDynamicsMod   , only : set_patchno
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
@@ -1874,7 +1874,7 @@ contains
 
      use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                     ed_site_type, AREA
-     use FatesInterfaceMod , only : bc_out_type
+     use FatesInterfaceTypesMod , only : bc_out_type
      use EDPftvarcon       , only : EDPftvarcon_inst
 
 
