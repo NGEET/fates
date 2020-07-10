@@ -2299,9 +2299,6 @@ contains
        site_hydr%rootuptake50_scpf(:,:)  = 0._r8
        site_hydr%rootuptake100_scpf(:,:) = 0._r8
 
-       print*,"Starting Hydro"
-
-       
        ! Initialize water mass balancing terms [kg h2o / m2]
        ! --------------------------------------------------------------------------------
        transp_flux          = 0._r8
@@ -2344,8 +2341,6 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
           
-!          print*,"--New step--"
-
           ccohort=>cpatch%tallest
           do while(associated(ccohort))
 
@@ -2783,9 +2778,6 @@ contains
          a_sapwood / z_upper
 
     ccohort_hydr%kmax_troot_upper = (1._r8/kmax_node - 1._r8/kmax_upper)**(-1._r8)
-
-    !print*,z_upper,z_node,kmax_upper,kmax_node,ccohort_hydr%kmax_troot_upper
-
 
     ! The maximum conductance between the center node of the transporting root
     ! compartment, and the center node of the absorbing root compartment, is calculated
