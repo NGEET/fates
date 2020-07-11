@@ -129,6 +129,7 @@ contains
     fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
 
     fates%bc_in(s)%lightning24(:)      = 0.0_r8
+    fates%bc_in(s)%pop_density(:)      = 0.0_r8
     fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%smp_sl(:)           = 0.0_r8
@@ -299,8 +300,9 @@ contains
       allocate(bc_in%decomp_id(nlevsoil_in))
       allocate(bc_in%dz_decomp_sisl(nlevdecomp_in))
 
-      ! Lightning or ignitions
+      ! Lightning (or successful ignitions) and population density
       allocate(bc_in%lightning24(maxPatchesPerSite))
+      allocate(bc_in%pop_density(maxPatchesPerSite))
 
       ! Vegetation Dynamics
       allocate(bc_in%t_veg24_pa(maxPatchesPerSite))

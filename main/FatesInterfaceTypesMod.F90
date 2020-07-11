@@ -86,7 +86,7 @@ module FatesInterfaceTypesMod
                                                    ! 1 = TRUE,  0 = FALSE
    
    integer, public :: hlm_spitfire_mode  ! Flag to signal SPITFIRE mode
-                                         ! 0 = no fire, 1 = global constant lightning value from fates_params file, 2 = Lightning dataset, 3 = Successful ignitions dataset
+                                         ! See namelist_definition_clm4_5.xml
 
 
    integer, public :: hlm_use_logging       ! This flag signals whether or not to use
@@ -286,6 +286,9 @@ module FatesInterfaceTypesMod
 
       ! 24-hour lightning or ignitions [#/km2/day]
       real(r8),allocatable :: lightning24(:)
+
+      ! Population density [#/km2]
+      real(r8),allocatable :: pop_density(:)
 
       ! Patch 24 hour vegetation temperature [K]
       real(r8),allocatable :: t_veg24_pa(:)  

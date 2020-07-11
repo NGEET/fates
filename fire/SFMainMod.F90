@@ -683,7 +683,10 @@ contains
     real(r8) size_of_fire !in m2
     real(r8) cloud_to_ground_strikes  ! [fraction] depends on hlm_spitfire_mode
     integer :: iofp  ! index of oldest fates patch
+    integer :: scalar_lightning = 1  ! value of scalar_lightning mode
     integer :: successful_ignitions = 3  ! value of successful_ignitions mode
+    integer :: anthro_ignitions = 4  ! value of anthro_ignitions mode
+    real(r8), parameter :: pot_hmn_ign_counts_alpha = 0.0035_r8  ! Potential human ignition counts (alpha in Li et. al. 2012) (#/person/month)
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
 
     !  ---initialize site parameters to zero--- 
@@ -702,11 +705,19 @@ contains
     
     !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
     iofp = currentSite%oldest_patch%patchno
-    currentSite%NF = bc_in%lightning24(iofp) * cloud_to_ground_strikes
+    if (hlm_spitfire_mode == scalar_lightning) then
+       currentSite%NF = ED_val_nignitions * years_per_day * cloud_to_ground_strikes
+    else
+       currentSite%NF = bc_in%lightning24(iofp) * cloud_to_ground_strikes
+    end if
 
     ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
     ! then there are 15 * 1/365 strikes/km2 each day 
  
+    ! Calculate and add anthropogenic ignitions to ignitions by lightning
+    if (hlm_spitfire_mode == anthro_ignitions) then
+       currentSite%NF = currentSite%NF + pot_hmn_ign_counts_alpha * 6.8_r8 * bc_in%pop_density(iofp)**0.43_r8 / 30._r8 / 24._r8  ! divides by hrs/day and by approximate days per month
+    end if
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
