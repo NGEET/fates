@@ -56,6 +56,9 @@
   public :: cambial_damage_kill
   public :: post_fire_mortality
 
+  ! The following parameter represents one of the values of hlm_spitfire_mode
+  ! and more of these appear in subroutine area_burnt_intensity below
+  ! NB. The same parameters are set in /src/biogeochem/CNFireFactoryMod
   integer, parameter :: no_fire = 0  ! value of the no_fire mode
   integer :: write_SF = 0     ! for debugging
   logical :: debug = .false.  ! for debugging
@@ -683,6 +686,8 @@ contains
     real(r8) size_of_fire !in m2
     real(r8) cloud_to_ground_strikes  ! [fraction] depends on hlm_spitfire_mode
     integer :: iofp  ! index of oldest fates patch
+    ! The following three parameters represent values of hlm_spitfire_mode
+    ! NB. The same parameters are set in /src/biogeochem/CNFireFactoryMod
     integer, parameter :: scalar_lightning = 1  ! value of scalar_lightning mode
     integer, parameter :: successful_ignitions = 3  ! value of successful_ignitions mode
     integer, parameter :: anthro_ignitions = 4  ! value of anthro_ignitions mode
