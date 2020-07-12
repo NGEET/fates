@@ -56,7 +56,7 @@
   public :: cambial_damage_kill
   public :: post_fire_mortality
 
-  integer :: no_fire = 0  ! value of the no_fire mode
+  integer, parameter :: no_fire = 0  ! value of the no_fire mode
   integer :: write_SF = 0     ! for debugging
   logical :: debug = .false.  ! for debugging
 
@@ -683,9 +683,9 @@ contains
     real(r8) size_of_fire !in m2
     real(r8) cloud_to_ground_strikes  ! [fraction] depends on hlm_spitfire_mode
     integer :: iofp  ! index of oldest fates patch
-    integer :: scalar_lightning = 1  ! value of scalar_lightning mode
-    integer :: successful_ignitions = 3  ! value of successful_ignitions mode
-    integer :: anthro_ignitions = 4  ! value of anthro_ignitions mode
+    integer, parameter :: scalar_lightning = 1  ! value of scalar_lightning mode
+    integer, parameter :: successful_ignitions = 3  ! value of successful_ignitions mode
+    integer, parameter :: anthro_ignitions = 4  ! value of anthro_ignitions mode
     real(r8), parameter :: pot_hmn_ign_counts_alpha = 0.0035_r8  ! Potential human ignition counts (alpha in Li et. al. 2012) (#/person/month)
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
 
