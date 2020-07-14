@@ -685,6 +685,7 @@ contains
     
     real(r8) size_of_fire !in m2
     real(r8) cloud_to_ground_strikes  ! [fraction] depends on hlm_spitfire_mode
+    real(r8) anthro_ign_count              ! anthropogenic ignition count/km2/day
     integer :: iofp  ! index of oldest fates patch
     ! The following three parameters represent values of hlm_spitfire_mode
     ! NB. The same parameters are set in /src/biogeochem/CNFireFactoryMod
@@ -702,7 +703,8 @@ contains
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
     if (hlm_spitfire_mode == successful_ignitions) then
        currentSite%FDI = 1.0_r8  ! READING "SUCCESSFUL IGNITION" DATA
-       cloud_to_ground_strikes = 1.0_r8
+                                  ! force ignition potential to be extreme
+       cloud_to_ground_strikes = 1.0_r8   ! cloud_to_ground = 1 = use 100% incoming observed ignitions
     else  ! USING LIGHTNING DATA
        currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
        cloud_to_ground_strikes = cg_strikes
@@ -712,7 +714,7 @@ contains
     iofp = currentSite%oldest_patch%patchno
     if (hlm_spitfire_mode == scalar_lightning) then
        currentSite%NF = ED_val_nignitions * years_per_day * cloud_to_ground_strikes
-    else
+    else    ! use external daily lightning ignition data
        currentSite%NF = bc_in%lightning24(iofp) * cloud_to_ground_strikes
     end if
 
@@ -722,7 +724,12 @@ contains
     ! Calculate anthropogenic ignitions according to Li et al. (2012)
     ! Add to ignitions by lightning
     if (hlm_spitfire_mode == anthro_ignitions) then
-       currentSite%NF = currentSite%NF + pot_hmn_ign_counts_alpha * 6.8_r8 * bc_in%pop_density(iofp)**0.43_r8 / 30._r8 / 24._r8  ! divides by hrs/day and by approximate days per month
+      ! anthropogenic ignitions (count/km2/day)
+      !           =  ignitions/person/month * 6.8 * population_density **0.43 /approximate days per month
+      anthro_ign_count = pot_hmn_ign_counts_alpha * 6.8_r8 * bc_in%pop_density(iofp)**0.43_r8 / 30._r8
+                           
+       currentSite%NF = currentSite%NF + anthro_ign_count
+
     end if
 
     currentPatch => currentSite%oldest_patch;  
