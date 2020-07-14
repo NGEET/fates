@@ -87,6 +87,7 @@ module FatesInterfaceTypesMod
    
    integer, public :: hlm_spitfire_mode  ! Flag to signal SPITFIRE mode
                                          ! See namelist_definition_clm4_5.xml
+                                         ! ignitions: 1=constant, >1=external data sources (lightning and/or anthropogenic)
 
 
    integer, public :: hlm_use_logging       ! This flag signals whether or not to use
