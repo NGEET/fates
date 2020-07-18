@@ -41,6 +41,9 @@
   use PRTGenericMod,          only : SetState
   use FatesInterfaceTypesMod     , only : numpft
 
+  use CNFireFactoryMod, only: no_fire, scalar_lightning, &
+          lightning_from_data, successful_ignitions, anthro_ignitions
+
   implicit none
   private
 
@@ -59,7 +62,6 @@
   ! The following parameter represents one of the values of hlm_spitfire_mode
   ! and more of these appear in subroutine area_burnt_intensity below
   ! NB. The same parameters are set in /src/biogeochem/CNFireFactoryMod
-  integer, parameter :: no_fire = 0  ! value of the no_fire mode
   integer :: write_SF = 0     ! for debugging
   logical :: debug = .false.  ! for debugging
 
@@ -685,13 +687,8 @@ contains
     
     real(r8) size_of_fire !in m2
     real(r8) cloud_to_ground_strikes  ! [fraction] depends on hlm_spitfire_mode
-    real(r8) anthro_ign_count              ! anthropogenic ignition count/km2/day
+    real(r8) anthro_ign_count  ! anthropogenic ignition count/km2/day
     integer :: iofp  ! index of oldest fates patch
-    ! The following three parameters represent values of hlm_spitfire_mode
-    ! NB. The same parameters are set in /src/biogeochem/CNFireFactoryMod
-    integer, parameter :: scalar_lightning = 1  ! value of scalar_lightning mode
-    integer, parameter :: successful_ignitions = 3  ! value of successful_ignitions mode
-    integer, parameter :: anthro_ignitions = 4  ! value of anthro_ignitions mode
     real(r8), parameter :: pot_hmn_ign_counts_alpha = 0.0035_r8  ! Potential human ignition counts (alpha in Li et al. 2012) (#/person/month)
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
 
