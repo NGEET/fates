@@ -35,7 +35,7 @@ module FatesHydroWTFMod
   ! and the volumetric residual and saturation "th_res" and "th_sat": (th-th_r)/(th_sat-th_res)
 
   real(r8), parameter :: min_sf_interp = 0.02 ! Linear interpolation below this saturated frac
-  real(r8), parameter :: max_sf_interp = 0.95 ! Linear interpolation above this saturated frac
+  real(r8), parameter :: max_sf_interp = 0.99 ! Linear interpolation above this saturated frac
 
   real(r8), parameter :: quad_a1 = 0.80_r8  ! smoothing factor "A" term
                                             ! in the capillary-elastic region
@@ -122,6 +122,8 @@ module FatesHydroWTFMod
      real(r8) :: beta     ! Clapp-Hornberger "beta" parameter           [-]
      real(r8) :: psi_max     ! psi where satfrac = max_sf_interp, and use linear
      real(r8) :: dpsidth_max ! deriv wrt theta for psi_max
+     real(r8) :: th_min      ! minimum theta of non-linear regime
+     real(r8) :: th_max      ! maximum theta of non-linear regime
    contains
      procedure :: th_from_psi     => th_from_psi_cch
      procedure :: psi_from_th     => psi_from_th_cch
@@ -161,7 +163,8 @@ module FatesHydroWTFMod
      real(r8) :: dpsidth_max ! dpsi_dth where we start linear interp
      real(r8) :: psi_min     ! psi matching min_sf_interp
      real(r8) :: dpsidth_min ! dpsi_dth where we start min interp
-
+     real(r8) :: th_min
+     real(r8) :: th_max
    contains
      procedure :: th_from_psi     => th_from_psi_tfs
      procedure :: psi_from_th     => psi_from_th_tfs
@@ -665,8 +668,6 @@ contains
 
     class(wrf_type_tfs)  :: this
     real(r8), intent(in) :: params_in(:)
-    real(r8) :: th_max
-    real(r8) :: th_min
 
     this%th_sat   = params_in(1)
     this%th_res   = params_in(2)
@@ -680,13 +681,12 @@ contains
 
     ! Set DERIVED constants
     ! used for interpolating in extreme ranges
-    th_max=max_sf_interp*(this%th_sat-this%th_res)+this%th_res-1.e-9_r8
-    th_min=min_sf_interp*(this%th_sat-this%th_res)+this%th_res+1.e-9_r8
-    this%psi_max     = this%psi_from_th(th_max)
-    this%dpsidth_max = this%dpsidth_from_th(th_max)
-    this%psi_min     = this%psi_from_th(th_min)
-    this%dpsidth_min = this%dpsidth_from_th(th_min)
-
+    this%th_max      = max_sf_interp*(this%th_sat-this%th_res)+this%th_res  !-1.e-9_r8
+    this%th_min      = min_sf_interp*(this%th_sat-this%th_res)+this%th_res  !1.e-9_r8
+    this%psi_max     = this%psi_from_th(this%th_max)
+    this%dpsidth_max = this%dpsidth_from_th(this%th_max)
+    this%psi_min     = this%psi_from_th(this%th_min)
+    this%dpsidth_min = this%dpsidth_from_th(this%th_min)
 
     return
   end subroutine set_wrf_param_tfs
@@ -715,19 +715,19 @@ contains
         th = this%th_res+max_sf_interp*(this%th_sat-this%th_res) + &
               (psi-this%psi_max)/this%dpsidth_max
 
-!    elseif(psi<this%psi_min) then
-!
-!        ! Linear range for extreme values
-!        th = this%th_res+min_sf_interp*(this%th_sat-this%th_res) + &
-!              (psi-this%psi_min)/this%dpsidth_min
+    elseif(psi<this%psi_min) then
+
+        ! Linear range for extreme values
+        th = this%th_res+min_sf_interp*(this%th_sat-this%th_res) + &
+              (psi-this%psi_min)/this%dpsidth_min
 
     else
 
        ! The bisection scheme performs a search via method of bisection,
        ! we need to define bounds with which to start
-       lower  = this%th_res+1.e-9_r8 !+min_sf_interp*(this%th_sat-this%th_res)-1.e-9_r8
+       lower  = this%th_min
 
-       upper  = 1.5_r8*this%th_sat !this%th_res+max_sf_interp*(this%th_sat-this%th_res)+1.e-9_r8
+       upper  = this%th_max !this%th_res+max_sf_interp*(this%th_sat-this%th_res)+1.e-9_r8
 
        call this%bisect_pv(lower, upper, psi, th)
        psi_check = this%psi_from_th(th)
@@ -761,18 +761,18 @@ contains
 
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
 
-    if(satfrac>max_sf_interp) then
+    if(th>this%th_max)then
 
        psi = this%psi_max + this%dpsidth_max * &
             (th-(max_sf_interp*(this%th_sat-this%th_res)+this%th_res))
-       
-!    elseif(satfrac<min_sf_interp) then
-!       
-!       psi = this%psi_min + this%dpsidth_min * &
-!              (th-(min_sf_interp*(this%th_sat-this%th_res)+this%th_res))
+
+       elseif(th<this%th_min)then
+        
+       psi = this%psi_min + this%dpsidth_min * &
+              (th-(min_sf_interp*(this%th_sat-this%th_res)+this%th_res))
        
     else
-       
+
        th_corr = th * this%cap_corr
        
        ! Perform two rounds of quadratic smoothing, 1st smooth
@@ -825,7 +825,6 @@ contains
 
     ! locals
     real(r8) :: th_corr        ! corrected vol wc [m3/m3]
-    real(r8) :: satfrac        ! saturated fraction (between res and sat)
     real(r8) :: psi_sol
     real(r8) :: psi_press
     real(r8) :: psi_elastic    ! press from elastic
@@ -841,14 +840,13 @@ contains
     real(r8) :: dcapelast_dth
     real(r8) :: dcav_dth
 
-    satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
-    if(satfrac>max_sf_interp) then
+    if(th > this%th_max) then
 
         dpsidth = this%dpsidth_max
 
-!    elseif(satfrac<min_sf_interp) then
-!
-!        dpsidth = this%dpsidth_min
+    elseif(th<this%th_min) then
+
+        dpsidth = this%dpsidth_min
 
     else
        th_corr = th*this%cap_corr

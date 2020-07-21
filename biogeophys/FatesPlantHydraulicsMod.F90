@@ -2554,26 +2554,26 @@ contains
       delta_soil_storage  = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
             site_hydr%v_shell(:,:)) * denh2o * AREA_INV - prev_h2osoil
 
-!      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-4_r8 ) then
-!          write(fates_log(),*) 'Site plant water balance does not close'
-!          write(fates_log(),*) 'balance error: ',abs(delta_plant_storage - (root_flux - transp_flux))
-!          write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
-!          write(fates_log(),*) 'integrated root flux: ',root_flux,' [kg/m2]'
-!          write(fates_log(),*) 'transpiration flux: ',transp_flux,' [kg/m2]'
-!          write(fates_log(),*) 'end storage: ',site_hydr%h2oveg
-!          call endrun(msg=errMsg(sourcefile, __LINE__))
-!      end if
+      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-3_r8 ) then
+          write(fates_log(),*) 'Site plant water balance does not close'
+          write(fates_log(),*) 'balance error: ',abs(delta_plant_storage - (root_flux - transp_flux))
+          write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
+          write(fates_log(),*) 'integrated root flux: ',root_flux,' [kg/m2]'
+          write(fates_log(),*) 'transpiration flux: ',transp_flux,' [kg/m2]'
+          write(fates_log(),*) 'end storage: ',site_hydr%h2oveg
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
       
-!       if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-4_r8 ) then
-!          write(fates_log(),*) 'Site soil water balance does not close'
-!          write(fates_log(),*) 'delta soil storage: ',delta_soil_storage,' [kg/m2]'
-!          write(fates_log(),*) 'integrated root flux (pos into root): ',root_flux,' [kg/m2]'
-!          write(fates_log(),*) 'site runoff: ',site_runoff,' [kg/m2]'
-!          write(fates_log(),*) 'end storage: ',sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
-!               site_hydr%v_shell(:,:)) * denh2o * AREA_INV, & 
-!               ' [kg/m2]'
-!          call endrun(msg=errMsg(sourcefile, __LINE__))
-!       end if
+       if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-3_r8 ) then
+          write(fates_log(),*) 'Site soil water balance does not close'
+          write(fates_log(),*) 'delta soil storage: ',delta_soil_storage,' [kg/m2]'
+          write(fates_log(),*) 'integrated root flux (pos into root): ',root_flux,' [kg/m2]'
+          write(fates_log(),*) 'site runoff: ',site_runoff,' [kg/m2]'
+          write(fates_log(),*) 'end storage: ',sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
+               site_hydr%v_shell(:,:)) * denh2o * AREA_INV, & 
+               ' [kg/m2]'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
 
 
        !-----------------------------------------------------------------------
@@ -4460,7 +4460,7 @@ contains
 
 
     ! Maximum number of Newton iterations in each round
-    integer, parameter :: max_newton_iter = 200
+    integer, parameter :: max_newton_iter = 100
 
     ! Flag definitions for convergence flag (icnv)
     ! icnv = 1 fail the round due to either wacky math, or
@@ -4475,7 +4475,7 @@ contains
     ! Timestep reduction factor when a round of
     ! newton iterations fail. 
     
-    real(r8), parameter :: dtime_rf = 0.2_r8
+    real(r8), parameter :: dtime_rf = 0.5_r8
 
     ! These are the initial relaxation factors at the beginning
     ! of the large time-step. These may or may not shrink on
@@ -4497,6 +4497,11 @@ contains
                                                   ! to find a solution, you can either reset
                                                   ! to the beginning of the large timestep (true), or
                                                   ! to the beginning of the current substep (false)
+    
+    logical, parameter :: allow_lenient_lastiter = .true. ! If this is true, when the newton iteration
+                                                           ! reaches its last allowed attempt, the
+                                                           ! error tolerance will be increased (the bar lowered) by 10x
+
     
     
     associate(conn_up      => site_hydr%conn_up, &
@@ -4792,7 +4797,7 @@ contains
              enddo
              if ( nwtn_iter > max_newton_iter) then
                 icnv = icnv_fail_round
-                write(fates_log(),*) 'Newton hydraulics solve failed',residual_amax,nsd
+                write(fates_log(),*) 'Newton hydraulics solve failed',residual_amax,nsd,tm
              endif
 
              ! Three scenarios:
@@ -4819,6 +4824,7 @@ contains
                      tm  = 0._r8
                      th_node(:)         = th_node_init(:)
                      th_node_prev(:)    = th_node_init(:)
+                     cohort_hydr%iterh1 = 0
                  else
                      tm                 = tm - dtime
                      th_node(:)         = th_node_prev(:)
@@ -4832,13 +4838,20 @@ contains
                  rlfx_soil0         = rlfx_soil_init*rlfx_soil_shrink**real(nsteps,r8)
                  rlfx_plnt          = rlfx_plnt0
                  rlfx_soil          = rlfx_soil0 
-                 cohort_hydr%iterh1 = 0
                  nwtn_iter          = 0
+                 cohort_hydr%iterh1 = cohort_hydr%iterh1 + 1
                  cycle outerloop
 
              else
 
-                 if ( nwtn_iter == max_newton_iter .and. residual_amax < 10*max_allowed_residual ) exit newtonloop
+                 ! On the last iteration, we temporarily lower the bar (if opted for)
+                 ! and allow a pass if the residual is within 10x of the typical allowed residual
+                 if ( allow_lenient_lastiter ) then
+                     if ( nwtn_iter == max_newton_iter .and. residual_amax < 10*max_allowed_residual ) then
+                         exit newtonloop
+                     end if
+                 end if
+                 
                  if( sum(residual(:)) < max_allowed_residual .and. residual_amax < max_allowed_residual ) then
                      
                      ! We have succesffully found a solution
@@ -4848,6 +4861,9 @@ contains
                      ! Move ahead and calculate another solution
                      ! and continue the search. Residual isn't zero
                      ! but no reason not to continue searching
+
+                     ! Record that we performed a solve (this is total iterations)
+                     cohort_hydr%iterh2 = cohort_hydr%iterh2 + 1
                      
                      ! ---------------------------------------------------------------------------
                      ! From Lapack documentation
@@ -4898,7 +4914,7 @@ contains
                      !    has been completed, but the factor U is exactly
                      !    singular, so the solution could not be computed.
                      ! ---------------------------------------------------------------------------
-                     
+                     !cohort_hydr%iterh2 = cohort_hydr%iterh2
                      
                      call DGESV(site_hydr%num_nodes,1,ajac,site_hydr%num_nodes,ipiv,residual,site_hydr%num_nodes,info)
 
@@ -4961,12 +4977,6 @@ contains
          ! If we are here, that means we succesfully finished
          ! a solve with minimal error. More substeps may be required though
          ! ------------------------------------------------------------------------------
-
-         ! Save the sub-step number
-         cohort_hydr%iterh1 = cohort_hydr%iterh1 + 1
-
-         ! Save the  max number of Newton iterations needed
-         cohort_hydr%iterh2 = max(cohort_hydr%iterh2,real(nwtn_iter,r8))
 
          ! If there are any sub-steps left, we need to update
          ! the initial water content

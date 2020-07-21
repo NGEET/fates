@@ -273,28 +273,37 @@ def main(argv):
     for ic in range(ncomp):
         ax1.plot(theta[ic,:],psi[ic,:],label='{}'.format(names[ic]))
 
-    #ax1.set_ylim((-30,5))
-    ax1.set_ylabel('Matric Potential [MPa]')
+    ax1.set_ylim((-10,1))
+    ax1.set_ylabel('Psi [MPa]')
     ax1.set_xlabel('VWC [m3/m3]')
     ax1.legend(loc='lower right')
 
     for ic in range(ncomp):
-        for i in range(npts-1):
+        for i in range(npts):
             dpsidth[ic,i]  = dpsidth_from_th(ci(ic+1),c8(theta[ic,i]))
+        for i in range(1,npts-1):
             cdpsidth[ic,i] = (psi[ic,i+1]-psi[ic,i-1])/(theta[ic,i+1]-theta[ic,i-1])
-
 
     # Theta vs dpsi_dth (also checks deriv versus explicit)
 
     fig1, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
-        ax1.plot(theta[ic,],dpsidth[0,:],label='func')
-        ax1.plot(theta[ic,],cdpsidth[0,:],label='check')
-    ax1.set_ylim((0,1000))
+        ax1.plot(theta[ic,],dpsidth[ic,],label='func')
+        ax1.plot(theta[ic,],cdpsidth[ic,],label='check')
+    #ax1.set_ylim((0,1000))
 
     ax1.set_ylabel('dPSI/dTh [MPa m3 m-3]')
     ax1.set_xlabel('VWC [m3/m3]')
     ax1.legend(loc='upper right')
+
+    fig11, ax1 = plt.subplots(1,1,figsize=(9,6))
+    for ic in range(ncomp):
+        ax1.plot(theta[ic,],1.0/dpsidth[ic,],label='{}'.format(names[ic]))
+
+    ax1.set_ylabel('dTh/dPSI/ [m3 m-3 MPa-1]')
+    ax1.set_xlabel('VWC [m3/m3]')
+    ax1.legend(loc='upper right')
+
 
     # Push parameters to WKF classes
     # -------------------------------------------------------------------------
@@ -308,13 +317,15 @@ def main(argv):
         for i in range(npts):
             ftc[ic,i] = ftc_from_psi(ci(ic+1),c8(psi[ic,i]))
 
+            if( (ftc[ic,i]>0.9) and (theta[ic,i]<0.4) ):
+                print('tpf: ',theta[ic,i],psi[ic,i],ftc[ic,i])
+
     for ic in range(ncomp):
-        for i in range(1,npts-1):
+        for i in range(npts):
             dftcdpsi[ic,i]  = dftcdpsi_from_psi(ci(ic+1),c8(psi[ic,i]))
+        for i in range(1,npts-1):
             cdftcdpsi[ic,i] = (ftc[ic,i+1]-ftc[ic,i-1])/(psi[ic,i+1]-psi[ic,i-1])
 
-
-    # FTC versus Psi
 
     fig2, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
@@ -322,7 +333,8 @@ def main(argv):
 
     ax1.set_ylabel('FTC')
     ax1.set_xlabel('Psi [MPa]')
-    ax1.set_xlim([-15,3])
+    ax1.set_xlim([-10,3])
+
     ax1.legend(loc='upper left')
 
 
@@ -341,11 +353,12 @@ def main(argv):
     fig3,ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
 #        ax1.plot(psi[ic,:],abs(dftcdpsi[ic,:]-cdftcdpsi[ic,:])/abs(cdftcdpsi[ic,:]),label='{}'.format(ic))
-        ax1.plot(psi[ic,:],cdftcdpsi[ic,:],label='check')
+        ax1.plot(psi[ic,:],dftcdpsi[ic,:],label='{}'.format(names[ic]))
 
     ax1.set_ylabel('dFTC/dPSI')
     ax1.set_xlabel('Psi [MPa]')
-#    ax1.set_xlim([-30,3])
+    ax1.set_xlim([-10,3])
+    ax1.set_ylim([0,2])
 #    ax1.set_ylim([0,10])
     ax1.legend(loc='upper right')
     plt.show()
