@@ -289,8 +289,7 @@ contains
 
          ! the area occupied by all plants in the canopy that aren't killed is still disturbed at the harvest rate
          if (canopy_layer .eq. 1) then
-            l_degrad = harvest_rate * (1._r8 - &
-                 (logging_direct_frac + logging_collateral_frac + logging_mechanical_frac)) ! fraction passed to 'degraded' forest.
+            l_degrad = harvest_rate - (lmort_direct + lmort_infra + lmort_collateral) ! fraction passed to 'degraded' forest.
          else
             l_degrad = 0._r8
          endif

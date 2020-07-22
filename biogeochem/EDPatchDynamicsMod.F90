@@ -301,22 +301,18 @@ contains
        ! equivalent to the fradction loged to account for transfer of interstitial ground area to new secondary lands
        if ( logging_time .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
-! The canopy is NOT closed. 
+          ! The canopy is NOT closed. 
+
           call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
                bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
 
-          ! Non-harvested part of the logging disturbance rate                                                                                                                                                                
+          ! Non-harvested part of the logging disturbance rate
           dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
        endif
-! Sum of disturbance rates for different classes of disturbance across all patches in this site. 
-       do i_dist = 1,N_DIST_TYPES
-          site_in%potential_disturbance_rates(i_dist) = site_in%potential_disturbance_rates(i_dist) + &
-               currentPatch%disturbance_rates(i_dist) * currentPatch%area * AREA_INV
-       end do
 
        ! fraction of the logging disturbance rate that is non-harvested
        if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
@@ -326,6 +322,12 @@ contains
 
        ! Fire Disturbance Rate
        currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
+
+       ! calculate a disgnostic sum of disturbance rates for different classes of disturbance across all patches in this site. 
+       do i_dist = 1,N_DIST_TYPES
+          site_in%potential_disturbance_rates(i_dist) = site_in%potential_disturbance_rates(i_dist) + &
+               currentPatch%disturbance_rates(i_dist) * currentPatch%area * AREA_INV
+       end do
 
        ! Fires can't burn the whole patch, as this causes /0 errors. 
        if (debug) then
