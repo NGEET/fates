@@ -257,41 +257,44 @@ contains
          ! l_degrad accounts for the affected area between logged crowns
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
             
+            ! direct logging rates, based on dbh min and max criteria
             if (dbh >= logging_dbhmin .and. .not. &
                  ((logging_dbhmax < fates_check_param_set) .and. (dbh < logging_dbhmax )) ) then
                lmort_direct = harvest_rate * logging_direct_frac
-               l_degrad = harvest_rate * (1._r8 - logging_direct_frac) ! fraction passed to 'degraded' forest. 
+
             else
                lmort_direct = 0.0_r8
-               l_degrad = harvest_rate
             end if
 
+            ! infrastructure (roads, skid trails, etc) mortality rates
             if (dbh >= logging_dbhmax_infra) then
                lmort_infra      = 0.0_r8
-               l_degrad         = l_degrad + harvest_rate * logging_mechanical_frac
             else
                lmort_infra      = harvest_rate * logging_mechanical_frac
             end if
-            !damage rates for size class < & > threshold_size need to be specified seperately
 
             ! Collateral damage to smaller plants below the direct logging size threshold
             ! will be applied via "understory_death" via the disturbance algorithm
-            ! Important: Degredation rates really only have an impact when
-            ! applied to the canopy layer. So we don't add to degredation
-            ! for collateral damage, even understory collateral damage.
-
             if (canopy_layer .eq. 1) then
                lmort_collateral = harvest_rate * logging_collateral_frac
             else
                lmort_collateral = 0._r8
             endif
 
-         else  ! non-woody plants in the canopy still become moved to secondary patch at same rate
+         else  ! non-woody plants still killed by infrastructure
             lmort_direct    = 0.0_r8
             lmort_collateral = 0.0_r8
             lmort_infra      = harvest_rate * logging_mechanical_frac
-            l_degrad         = harvest_rate
          end if
+
+         ! the area occupied by all plants in the canopy that aren't killed is still disturbed at the harvest rate
+         if (canopy_layer .eq. 1) then
+            l_degrad = harvest_rate * (1._r8 - &
+                 (logging_direct_frac + logging_collateral_frac + logging_mechanical_frac)) ! fraction passed to 'degraded' forest.
+         else
+            l_degrad = 0._r8
+         endif
+         
       else 
          lmort_direct    = 0.0_r8
          lmort_collateral = 0.0_r8

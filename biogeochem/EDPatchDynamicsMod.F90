@@ -297,15 +297,6 @@ contains
           currentCohort => currentCohort%taller
        enddo !currentCohort
 
-       ! fraction of the logging disturbance rate that is non-harvested
-       if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
-          currentPatch%fract_ldist_not_harvested = dist_rate_ldist_notharvested / &
-               currentPatch%disturbance_rates(dtype_ilog)
-       endif
-
-       ! Fire Disturbance Rate
-       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
-
        ! for non-closed-canopy areas subject to logging, add an additional increment of area disturbed
        ! equivalent to the fradction loged to account for transfer of interstitial ground area to new secondary lands
        if ( logging_time .and. &
@@ -316,12 +307,25 @@ contains
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
+
+          ! Non-harvested part of the logging disturbance rate                                                                                                                                                                
+          dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + &
+               (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
        endif
 ! Sum of disturbance rates for different classes of disturbance across all patches in this site. 
        do i_dist = 1,N_DIST_TYPES
           site_in%potential_disturbance_rates(i_dist) = site_in%potential_disturbance_rates(i_dist) + &
                currentPatch%disturbance_rates(i_dist) * currentPatch%area * AREA_INV
        end do
+
+       ! fraction of the logging disturbance rate that is non-harvested
+       if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
+          currentPatch%fract_ldist_not_harvested = dist_rate_ldist_notharvested / &
+               currentPatch%disturbance_rates(dtype_ilog)
+       endif
+
+       ! Fire Disturbance Rate
+       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
 
        ! Fires can't burn the whole patch, as this causes /0 errors. 
        if (debug) then
