@@ -1205,6 +1205,7 @@ contains
       integer,intent(in)                :: element_id
       real(r8)                          :: prt_val 
       
+      prt_val = 0._r8
       write(fates_log(),*)'Init must be extended by a child class.'
       call endrun(msg=errMsg(sourcefile, __LINE__))
       
