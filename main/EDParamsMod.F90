@@ -43,7 +43,6 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_patch_fusion_tol
    real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
    integer,protected, public  :: stomatal_model  !switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
-
    
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
@@ -192,12 +191,9 @@ contains
     stomatal_model                        = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
-
     hydr_psi0                             = nan
     hydr_psicap                           = nan
-    
     bgc_soil_salinity                     = nan
-
     logging_dbhmin                        = nan
     logging_dbhmax                        = nan
     logging_collateral_frac               = nan
@@ -451,7 +447,7 @@ contains
     call fates_params%RetreiveParameter(name=ED_name_stomatal_model, &
          data=tmpreal)
     stomatal_model = nint(tmpreal)
-    
+
     call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf1, &
           data=hydr_kmax_rsurf1)
 
@@ -556,7 +552,7 @@ contains
         write(fates_log(),fmt0) 'ED_val_cohort_age_fusion_tol = ',ED_val_cohort_age_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
-        write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model
+        write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model      
         write(fates_log(),fmt0) 'hydr_kmax_rsurf1 = ',hydr_kmax_rsurf1
         write(fates_log(),fmt0) 'hydr_kmax_rsurf2 = ',hydr_kmax_rsurf2  
         write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0
@@ -573,7 +569,7 @@ contains
         write(fates_log(),fmt0) 'q10_mr = ',q10_mr
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
         write(fates_log(),fmt0) 'cg_strikes = ',cg_strikes
-        write(fates_log(),'(a,L)') 'active_crown_fire = ',active_crown_fire
+        write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

@@ -67,8 +67,6 @@ module FatesInterfaceMod
    character(len=*), parameter :: sourcefile = &
         __FILE__
 
-   
-
    ! Make public necessary subroutines and functions
    public :: FatesInterfaceInit
    public :: set_fates_ctrlparms
@@ -131,6 +129,8 @@ contains
     fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8
     fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
 
+    fates%bc_in(s)%lightning24(:)      = 0.0_r8
+    fates%bc_in(s)%pop_density(:)      = 0.0_r8
     fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%smp_sl(:)           = 0.0_r8
@@ -301,6 +301,10 @@ contains
       allocate(bc_in%z_sisl(nlevsoil_in))
       allocate(bc_in%decomp_id(nlevsoil_in))
       allocate(bc_in%dz_decomp_sisl(nlevdecomp_in))
+
+      ! Lightning (or successful ignitions) and population density
+      allocate(bc_in%lightning24(maxPatchesPerSite))
+      allocate(bc_in%pop_density(maxPatchesPerSite))
 
       ! Vegetation Dynamics
       allocate(bc_in%t_veg24_pa(maxPatchesPerSite))
@@ -995,7 +999,7 @@ contains
          hlm_max_patch_per_site = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
-         hlm_use_spitfire  = unset_int
+         hlm_spitfire_mode = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
@@ -1212,9 +1216,9 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_spitfire .eq. unset_int) then
+         if(hlm_spitfire_mode .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_use_spitfire, exiting'
+               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_spitfire_mode, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1312,10 +1316,10 @@ contains
                   write(fates_log(),*) 'Transfering hlm_parteh_mode= ',ival,' to FATES'
                end if
 
-            case('use_spitfire')
-               hlm_use_spitfire = ival
+            case('spitfire_mode')
+               hlm_spitfire_mode = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_use_spitfire= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering hlm_spitfire_mode =',ival,' to FATES'
                end if
 
             case('use_fixed_biogeog')

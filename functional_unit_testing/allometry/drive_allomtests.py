@@ -3,12 +3,15 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib as mp
 import ctypes
+import importlib
 from ctypes import * #byref, cdll, c_int, c_double, c_char_p, c_long
 import xml.etree.ElementTree as ET
 import argparse
 import re              # This is a heftier string parser
 import code  # For development: code.interact(local=dict(globals(), **locals()))
-
+import sys
+sys.path.append('../shared/py_src')
+from PyF90Utils import c8, ci, cchar, c8_arr, ci_arr
 
 # =======================================================================================
 # Set some constants. If they are used as constant arguments to the F90 routines,
@@ -81,7 +84,7 @@ class parameter:
 def DiscreteCubeHelix(N):
 
     base = plt.cm.get_cmap('cubehelix')
-    np.random.seed(1)
+    np.random.seed(2)
     color_list = base(np.random.randint(0,high=255,size=N))
     cmap_name = base.name + str(N)
     return base.from_list(cmap_name, color_list, N)
@@ -228,25 +231,21 @@ for key, parm in parms.items():
 # Allocate fortran PFT arrays
 # ==============================================================================
 
-iret=f90_pftalloc(byref(c_int(numpft)))
+iret=f90_pftalloc(ci(numpft))
 
 # ==============================================================================
 # Populate the Fortran PFT structure
 # ==============================================================================
 
-# First set the arg types
-f90_pftset.argtypes = \
-    [POINTER(c_int),POINTER(c_double),POINTER(c_int),c_char_p,c_long]
-
 for ipft in range(numpft):
     for key, parm in parms.items():
-        #print 'py: sending to F90: {0} = {1}'.format(parm.symbol,parm.vals[ipft])
+        print('{} {} '.format(parm.symbol,parm.vals[ipft]))
         iret=f90_pftset(c_int(ipft+1), \
-                       c_double(parm.vals[ipft]), \
-                       c_int(0), \
-                       c_char_p(parm.symbol), \
-                       c_long(len(parm.symbol)))
-
+                        c_double(parm.vals[ipft]), \
+                        c_int(0), \
+                        c_char_p(parm.symbol.encode('utf-8')), \
+                        c_long(len(parm.symbol)))
+        
 
 # =========================================================================
 # Initialize Output Arrays
@@ -259,6 +258,9 @@ hi     = np.zeros((numpft,ndbh))
 hd     = np.zeros((numpft,ndbh))
 bagwi   = np.zeros((numpft,ndbh))
 bagwd   = np.zeros((numpft,ndbh))
+
+bagwr   = np.zeros((numpft,ndbh))
+
 dbh    = np.zeros((numpft,ndbh))
 bbgw    = np.zeros((numpft,ndbh))
 bsapi  = np.zeros((numpft,ndbh))
@@ -276,7 +278,7 @@ blmax_o_dbagwdd = np.zeros((numpft,ndbh))
 
 for ipft in range(numpft):
 
-    print 'py: Solving for pft: {}'.format(ipft+1)
+    print('py: Solving for pft: {}'.format(ipft+1))
 
     # Initialize Height   #(d,ipft,h,dhdd)
     ch_min = c_double(eparms['recruit_hgt_min'].vals[ipft])
@@ -316,18 +318,18 @@ for ipft in range(numpft):
     iret=f90_h(byref(cd),byref(cipft),byref(ch),byref(cdhdd))
     hi[ipft,0] = ch.value
     hd[ipft,0] = ch.value
-    print 'py: initialize h[{},0]={}'.format(ipft+1,ch.value)
+    print('py: initialize h[{},0]={}'.format(ipft+1,ch.value))
 
     # Initialize AGB      #(d,ipft,bagw,dbagwdd)
     iret=f90_bagw(byref(cd),byref(cipft),byref(cbagw),byref(cdbagwdd))
     bagwi[ipft,0] = cbagw.value
-    print 'py: initialize bagwi[{},0]={}'.format(ipft+1,cbagw.value)
+    print('py: initialize bagwi[{},0]={}'.format(ipft+1,cbagw.value))
 
     # Initialize bleaf    #(d,ipft,canopy_trim,bl,dbldd)
     iret=f90_bleaf(byref(cd),byref(cipft),byref(ccanopy_trim),byref(cblmax),byref(cdblmaxdd))
     blmaxi[ipft,0] = cblmax.value
     blmaxd[ipft,0] = cblmax.value
-    print 'py: initialize blmaxi[{},0]={}'.format(ipft+1,cblmax.value)
+    print('py: initialize blmaxi[{},0]={}'.format(ipft+1,cblmax.value))
 
     # Initialize bstore #(d,ipft,canopy_trim,bstore,dbstoredd)
     iret=f90_bstore(byref(cd),byref(cipft),byref(ccanopy_trim),byref(cbstore),byref(cdbstoredd))
@@ -338,8 +340,10 @@ for ipft in range(numpft):
     #              (dbh,      nplant,        site_spread,         ipft,       c_area,inverse)
     iret= f90_carea(byref(cd),byref(cnplant),byref(csite_spread),byref(cipft),byref(ccamin),byref(cdo_reverse))
     camin[ipft,0]  = ccamin.value
+    
+    
     ldense[ipft,0] = blmaxi[ipft,0]/camin[ipft,0]
-    print 'py: initialize careai[{},0]={}'.format(ipft+1,ccamin.value)
+    print('py: initialize careai[{},0]={}'.format(ipft+1,ccamin.value))
 
     #f90_treelai(leaf_c, pft, c_area, nplant, cl, canopy_lai, vcmax25top)
     cvcmax=c_double(eparms['vcmax25top'].vals[ipft])
@@ -350,13 +354,13 @@ for ipft in range(numpft):
     iret=f90_bfineroot(byref(cd),byref(cipft),byref(ccanopy_trim), \
                        byref(cbfrmax),byref(cdbfrmaxdd))
     bfrmax[ipft,0] = cbfrmax.value
-    print 'py: initialize bfrmax[{},0]={}'.format(ipft+1,cbfrmax.value)
+    print('py: initialize bfrmax[{},0]={}'.format(ipft+1,cbfrmax.value))
 
     # Initialize coarse roots #(d,ipft,bbgw,dbbgwdd)
     iret=f90_bbgw(byref(cd),byref(cipft),byref(c_double(1.0)), \
                  byref(cbbgw),byref(cdbbgwdd))
     bbgw[ipft,0] = cbbgw.value
-    print 'py: initialize bbgw[{},0]={}'.format(ipft+1,cbbgw.value)
+    print('py: initialize bbgw[{},0]={}'.format(ipft+1,cbbgw.value))
 
 
     # Initialize bsap  (d,ipft,canopy_trim,asapw,bsap,dbsapdd)
@@ -364,7 +368,7 @@ for ipft in range(numpft):
     bsapi[ipft,0] = cbsap.value
     bsapd[ipft,0] = cbsap.value
     asapd[ipft,0] = casapw.value
-    print 'py: initialize bsapi[{},0]={}'.format(ipft+1,cbsap.value)
+    print('py: initialize bsapi[{},0]={}'.format(ipft+1,cbsap.value))
 
     # bdead #(bagw,bbgw,bsap,ipft,bdead,dbagwdd,dbbgwdd,dbsapdd,dbdeaddd)
     iret=f90_bdead(byref(cbagw),byref(cbbgw),byref(cbsap),byref(cipft), \
@@ -372,8 +376,10 @@ for ipft in range(numpft):
                    byref(cdbsapdd),byref(cdbdeaddd))
 
     bdead[ipft,0] = cbdead.value
-    print 'py: initialize bdead[{},0]={}'.format(ipft+1,cbdead.value)
+    print('py: initialize bdead[{},0]={}'.format(ipft+1,cbdead.value))
 
+    bagwr[ipft,0] = (bdead[ipft,0]) * 0.6
+    
     # the metric that shan't be spoken
     blmax_o_dbagwdh[ipft,0]  = blmaxi[ipft,0]/(cdbagwdd.value/cdhdd.value)
 
@@ -410,7 +416,7 @@ for ipft in range(numpft):
         bagwi[ipft,idi] = bagwi[ipft,idi-1] + cdbagwdd.value*dd
 
         # diagnose bleaf #(d,ipft,blmax,dblmaxdd)
-        iret=f90_bleaf(byref(cdc),byref(cipft),byref(c_double(1.0)),byref(cblmax),byref(cdblmaxdd))
+        iret=f90_bleaf(byref(cdc),byref(cipft),byref(ccanopy_trim),byref(cblmax),byref(cdblmaxdd))
         blmaxd[ipft,idi] = cblmax.value
 
         # bstore #(d,ipft,canopy_trim,bstore,dbstoredd)
@@ -426,6 +432,9 @@ for ipft in range(numpft):
         treelai[ipft,idi]=f90_treelai(byref(cblmax),byref(cipft),byref(ccamin), \
                                 byref(cnplant),byref(cilayer),byref(ccanopy_lai),byref(cvcmax))
 
+
+        
+        
         # integrate bleaf #(d,ipft,blmax,dblmaxdd)
         iret=f90_bleaf(byref(cdp),byref(cipft),byref(c_double(1.0)),byref(cblmax),byref(cdblmaxdd))
         blmaxi[ipft,idi] = blmaxi[ipft,idi-1] + cdblmaxdd.value*dd
@@ -450,6 +459,9 @@ for ipft in range(numpft):
         iret=f90_bsap(byref(cdp),byref(cipft),byref(ccanopy_trim),byref(casapw),byref(cbsap),byref(cdbsapdd))
         bsapi[ipft,idi] = bsapi[ipft,idi-1] + cdbsapdd.value*dd
 
+
+        
+        
         # the metric that shan't be spoken
         # previous t-step derivatives are used for simplicity
         if cdhdd.value<0.000001:
@@ -463,15 +475,17 @@ for ipft in range(numpft):
 
         # Diagnose bdead (bagw,bbgw,bsap,ipft,bdead,dbagwdd,dbbgwdd,dbsapdd,dbdeaddd)
 
-        iret=f90_bdead(byref(c_double(bagwi[ipft,idi])), \
+        iret=f90_bdead(byref(c_double(bagwd[ipft,idi])), \
                        byref(c_double(bbgw[ipft,idi])), \
-                       byref(c_double(bsapi[ipft,idi])), \
+                       byref(c_double(bsapd[ipft,idi])), \
                        byref(cipft), byref(cbdead), \
                        byref(cdbagwdd),byref(cdbbgwdd), \
                        byref(cdbsapdd),byref(cdbdeaddd))
         bdead[ipft,idi] = cbdead.value
 
 
+        bagwr[ipft,idi] = (bdead[ipft,idi] + bsapd[ipft,idi]) * 0.6
+        
 # Create the appropriate number of line-styles, colors and widths
 linestyles_base = ['-', '--', '-.', ':']
 linestyles=[]
@@ -509,6 +523,18 @@ if(True):
     plt.close(fig0)
 
 
+
+if(False):
+    fig1_12 = plt.figure()
+    for ipft in range(numpft):
+        plt.plot(bagwd[ipft,:],bagwr[ipft,:],linestyle=linestyles[ipft],color=my_colors(ipft),linewidth=lwidth)
+    plt.xlabel('bagw [m]')
+    plt.ylabel('bagr [m]')
+    plt.title('')
+    plt.grid(True)
+    plt.savefig("plots/bagw_vs_bagwr.png")
+    
+
 if(True):
     fig1 = plt.figure()
     figleg = plt.figure()
@@ -520,17 +546,7 @@ if(True):
     plt.grid(True)
     plt.tight_layout()
 
-if(False):
-    fig1_0 = plt.figure()
-    for ipft in range(numpft):
-        plt.plot(dbh[ipft,0:15],hi[ipft,0:15],linestyle=linestyles[ipft],color=my_colors(ipft),linewidth=lwidth)
-    plt.xlabel('diameter [cm]')
-    plt.ylabel('height [m]')
-    plt.title('Integrated Heights')
-    plt.grid(True)
-    plt.tight_layout()
-
-if(False):
+if(True):
     fig1_1 = plt.figure()
     for ipft in range(numpft):
         plt.plot(hd[ipft,:],hi[ipft,:],linestyle=linestyles[ipft],color=my_colors(ipft),linewidth=lwidth)
@@ -662,7 +678,7 @@ if(True):
                  linestyle=linestyles[ipft],color=my_colors(ipft),linewidth=lwidth)
     ax.set_xlabel('diameter [cm]')
     ax.set_ylabel('[kgC/kgC]')
-    ax.set_title('Sapwood (fraction of total live)')
+    ax.set_title('Sapwood (fraction of live)')
     ax.grid(True)
     # Leaf
     ax = fig7_2.add_subplot(222)
@@ -671,7 +687,7 @@ if(True):
                  linestyle=linestyles[ipft],color=my_colors(ipft),linewidth=lwidth)
     ax.set_xlabel('diameter [cm]')
     ax.set_ylabel('[kgC/kgC]')
-    ax.set_title('Leaf (fraction of total live)')
+    ax.set_title('Leaf (fraction of live)')
     ax.grid(True)
     # Fine Root
     ax = fig7_2.add_subplot(223)
@@ -680,7 +696,7 @@ if(True):
                  linestyle=linestyles[ipft],color=my_colors(ipft),linewidth=lwidth)
     ax.set_xlabel('diameter [cm]')
     ax.set_ylabel('[kgC/kgC]')
-    ax.set_title('Fine-Root (fraction of total live)')
+    ax.set_title('Fine-Root (fraction of live)')
     ax.grid(True)
     # Storage
     ax = fig7_2.add_subplot(224)
@@ -689,7 +705,7 @@ if(True):
                  linestyle=linestyles[ipft],color=my_colors(ipft),linewidth=lwidth)
     ax.set_xlabel('diameter [cm]')
     ax.set_ylabel('[kgC/kgC]')
-    ax.set_title('Storage (fraction of total live)')
+    ax.set_title('Storage (fraction of live)')
     ax.grid(True)
 
     plt.tight_layout()
@@ -698,18 +714,17 @@ if(True):
 
 if(True):
     fig8=plt.figure()
+    ax = fig8.add_subplot(111)
     for ipft in range(numpft):
-        plt.semilogy(dbh[ipft,:],treelai[ipft,:],linestyle=linestyles[ipft],color=my_colors(ipft),linewidth=lwidth)
-    plt.xlabel('diameter [cm]')
-    plt.ylabel('[m2/m2]')
-    plt.title('In-Crown LAI')
-    plt.grid(True)
+        ax.plot(dbh[ipft,:],treelai[ipft,:],linestyle=linestyles[ipft],color=my_colors(ipft),linewidth=lwidth)
+    ax.ticklabel_format(style='plain')
+    ax.set_xlabel('diameter [cm]')
+    ax.set_ylabel('[m2/m2]')
+    ax.set_title('Untrimmed In-Crown LAI')
+    ax.grid(True)
     plt.tight_layout()
 
 
-#    print(blmaxi[2,:])
-#    print(bfrmax[2,:])
-#    print(bstore[2,:])
-#    print(bsapd[2,:])
+
 
 plt.show()
