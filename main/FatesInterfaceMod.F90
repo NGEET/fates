@@ -990,6 +990,10 @@ contains
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
          hlm_spitfire_mode = unset_int
+         hlm_sf_nofire_def = unset_int
+         hlm_sf_scalar_lightning_def = unset_int
+         hlm_sf_successful_ignitions_def = unset_int
+         hlm_sf_anthro_ignitions_def = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
@@ -1196,7 +1200,33 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
+         if(hlm_sf_nofire_def .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'definition of no-fire mode unset: hlm_sf_nofire_def, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if(hlm_sf_scalar_lightning_def .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'definition of scalar lightning mode unset: hlm_sf_scalltng_def, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if(hlm_sf_successful_ignitions_def .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'definition of successful ignition mode unset: hlm_sf_successful, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if(hlm_sf_anthro_ignitions_def .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'definition of anthro-ignition mode unset: hlm_sf_anthig_def, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
+ 
+         
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
@@ -1294,8 +1324,33 @@ contains
                hlm_spitfire_mode = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_spitfire_mode =',ival,' to FATES'
+              end if
+              
+           case('sf_nofire_def')
+               hlm_sf_nofire_def = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_sf_nofire_def =',ival,' to FATES'
                end if
 
+           case('sf_scalar_lightning_def')
+               hlm_sf_scalar_lightning_def = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_sf_scalar_lightning_def =',ival,' to FATES'
+               end if
+
+           case('sf_successful_ignitions_def')
+               hlm_sf_successful_ignitions_def = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_sf_successful_ignition_def =',ival,' to FATES'
+               end if
+
+           case('sf_anthro_ignitions_def')
+               hlm_sf_anthro_ignitions_def = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_sf_anthro_ignition_def =',ival,' to FATES'
+               end if
+
+               
             case('use_fixed_biogeog')
                 hlm_use_fixed_biogeog = ival
                if (fates_global_verbose()) then
