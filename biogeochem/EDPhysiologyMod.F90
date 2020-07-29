@@ -1308,32 +1308,32 @@ contains
        ! Loop over all patches again and disperse the mixed seeds into the input flux
        ! arrays 
 
-       ! If there is forced external seed rain, we calculate the input mass flux
-       ! from the different elements, usung the seed optimal stoichiometry
-       ! for non-carbon
-       select case(element_id)
-       case(carbon12_element)
-          seed_stoich = 1._r8
-       case(nitrogen_element)
-          seed_stoich = prt_params%nitr_stoich_p2(pft,repro_organ)
-       case(phosphorus_element)
-          seed_stoich = prt_params%phos_stoich_p2(pft,repro_organ)
-       case default
-          write(fates_log(), *) 'undefined element specified'
-          write(fates_log(), *) 'while defining forced external seed mass flux'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end select
-          
-
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
 
           litt => currentPatch%litter(el)
           do pft = 1,numpft
+
              if(currentSite%use_this_pft(pft).eq.itrue)then
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
+
+             ! If there is forced external seed rain, we calculate the input mass flux
+             ! from the different elements, usung the seed optimal stoichiometry
+             ! for non-carbon
+             select case(element_id)
+             case(carbon12_element)
+                 seed_stoich = 1._r8
+             case(nitrogen_element)
+                 seed_stoich = prt_params%nitr_stoich_p2(pft,repro_organ)
+             case(phosphorus_element)
+                 seed_stoich = prt_params%phos_stoich_p2(pft,repro_organ)
+             case default
+                 write(fates_log(), *) 'undefined element specified'
+                 write(fates_log(), *) 'while defining forced external seed mass flux'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+             end select
              
              ! Seed input from external sources (user param seed rain, or dispersal model)
              seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day
@@ -2550,8 +2550,6 @@ contains
                       ccohort%daily_n_uptake = ccohort%daily_n_uptake + &
                            sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
 
-!                      write(fates_log(),*) 'SETTING UPTAKE: ',sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
-                      
                    else
                       icomp = pft
                       ! Total fine-root carbon of the cohort [kgC/ha]

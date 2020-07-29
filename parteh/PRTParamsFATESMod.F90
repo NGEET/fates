@@ -102,13 +102,17 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
     !X!         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_roota_par'
+    name = 'fates_fnrt_prof_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_rootb_par'
+    name = 'fates_fnrt_prof_b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_fnrt_prof_mode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
     name = 'fates_woody'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -533,10 +537,6 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
     !X!         dimension_names=dim_names)
 
-    name = 'fates_rootprof_beta'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
   end subroutine Register_PFT_nvariants
 
   ! =====================================================================================
@@ -555,10 +555,6 @@ contains
     !X!    name = ''
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
-
-    name = 'fates_rootprof_beta'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%rootprof_beta)
 
   end subroutine Receive_PFT_nvariants
   
@@ -761,7 +757,6 @@ contains
         write(fates_log(),fmt0) 'roota_par = ',prt_params%fnrt_prof_a
         write(fates_log(),fmt0) 'rootb_par = ',prt_params%fnrt_prof_b
         write(fates_log(),fmt0) 'fnrt_prof_mode = ',prt_params%fnrt_prof_mode
-        write(fates_log(),fmt0) 'rootprof_beta = ',prt_params%rootprof_beta
         write(fates_log(),fmt0) 'turnover_carb_retrans = ',prt_params%turnover_carb_retrans
         write(fates_log(),fmt0) 'turnover_nitr_retrans = ',prt_params%turnover_nitr_retrans
         write(fates_log(),fmt0) 'turnover_phos_retrans = ',prt_params%turnover_phos_retrans

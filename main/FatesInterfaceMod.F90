@@ -1522,7 +1522,8 @@ contains
 
             case default
                if (fates_global_verbose()) then
-                  write(fates_log(), *) 'tag not recognized:',trim(tag)
+                   write(fates_log(), *) 'tag not recognized:',trim(tag)
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
                ! end_run
             end select

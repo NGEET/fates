@@ -69,9 +69,6 @@ module PRTParametersMod
      real(r8), allocatable :: fnrt_prof_a(:)              ! Fine root profile scaling parameter A
      real(r8), allocatable :: fnrt_prof_b(:)              ! Fine root profile scaling parameter B
 
-     real(r8), allocatable :: rootprof_beta(:,:)      ! Deprecating this (biomass rootprofile parameters)
-
-     
      real(r8), allocatable :: c2b(:)                        ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: wood_density(:)               ! wood density  g cm^-3  ...
      real(r8), allocatable :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
