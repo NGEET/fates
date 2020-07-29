@@ -2116,6 +2116,7 @@ contains
      ! -----------------------------------------------------------------------------------
     use FatesConstantsMod  , only : fates_check_param_set
     use FatesConstantsMod  , only : itrue, ifalse
+    use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac, logging_direct_frac
     
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
@@ -2170,7 +2171,13 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
-
+     ! logging parameters, make sure they make sense
+     if ( (logging_mechanical_frac + logging_collateral_frac + logging_direct_frac) .gt. 1._r8) then
+        write(fates_log(),*) 'the sum of logging_mechanical_frac + logging_collateral_frac + logging_direct_frac'
+        write(fates_log(),*) 'must be less than or equal to 1.'
+        write(fates_log(),*) 'Exiting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     endif
      
      do ipft = 1,npft
         

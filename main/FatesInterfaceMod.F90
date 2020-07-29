@@ -49,6 +49,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use CLMFatesParamInterfaceMod , only : FatesReadParameters
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
+   use decompMod             , only : bounds_type
 
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -233,7 +234,7 @@ contains
 
   ! ===========================================================================
 
-   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in)
+   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -243,8 +244,9 @@ contains
       type(bc_in_type), intent(inout) :: bc_in
       integer,intent(in)              :: nlevsoil_in
       integer,intent(in)              :: nlevdecomp_in
+      integer,intent(in)              :: num_lu_harvest_cats
+      
       ! Allocate input boundaries
-
 
       bc_in%nlevsoil   = nlevsoil_in
 
@@ -360,8 +362,16 @@ contains
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
 
-         allocate(bc_in%pft_areafrac(maxpft))
+      ! Land use
 
+      ! harvest flag denote data from hlm,
+      ! while the logging flag signifies only that logging is occurring (which could just be FATES logging)
+      if (hlm_use_lu_harvest .gt. 0) then
+         allocate(bc_in%hlm_harvest_rates(num_lu_harvest_cats))
+         allocate(bc_in%hlm_harvest_catnames(num_lu_harvest_cats))
+      end if
+
+      allocate(bc_in%pft_areafrac(maxpft))
 
       return
    end subroutine allocate_bcin
@@ -991,6 +1001,8 @@ contains
          hlm_parteh_mode   = unset_int
          hlm_spitfire_mode = unset_int
          hlm_use_planthydro = unset_int
+         hlm_use_lu_harvest   = unset_int
+         hlm_num_lu_harvest_cats   = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1042,6 +1054,20 @@ contains
                write(fates_log(), *) ' for more information.'
                write(fates_log(), *) ''
                write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+         end if
+
+         if ( (hlm_use_lu_harvest .lt. 0).or.(hlm_use_lu_harvest .gt. 2) ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES lu_harvest flag must be 0 or 1 or 2, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( (hlm_num_lu_harvest_cats .lt. 0) ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES number of hlm harvest cats must be >= 0, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
@@ -1316,13 +1342,24 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
                end if
 
+            case('use_lu_harvest')
+               hlm_use_lu_harvest = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_lu_harvest= ',ival,' to FATES'
+               end if
+
+            case('num_lu_harvest_cats')
+               hlm_num_lu_harvest_cats = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_num_lu_harvest_cats= ',ival,' to FATES'
+               end if
+
             case('use_cohort_age_tracking')
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
                end if
 
-               
             case('use_logging')
                hlm_use_logging = ival
                if (fates_global_verbose()) then
