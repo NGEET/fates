@@ -1058,7 +1058,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(in), target  :: currentSite 
+    type(ed_site_type), intent(inout), target  :: currentSite
     !
     ! !LOCAL VARIABLES:
     real(r8)                     :: areatot
@@ -1452,6 +1452,7 @@ contains
           num_dead_trees  = (currentCohort%fire_mort * &
                 currentCohort%n*patch_site_areadis/currentPatch%area)
           call AccumulateMortalityWaterStorage(currentSite,currentCohort,num_dead_trees)
+          currentCohort => currentCohort%taller
        end do
     end if
 
