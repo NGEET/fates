@@ -103,6 +103,13 @@ module FatesInterfaceTypesMod
                                                          ! harvest_rates in dynHarvestMod
                                                          ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
 
+
+   integer, public :: hlm_sf_nofire_def               ! Definition of a no-fire case for hlm_spitfire_mode
+   integer, public :: hlm_sf_scalar_lightning_def     ! Definition of a scalar-lightning case for hlm_spitfire_mode
+   integer, public :: hlm_sf_successful_ignitions_def ! Definition of a successful-ignition dataset case for hlm_spitfire_mode
+   integer, public :: hlm_sf_anthro_ignitions_def      ! Definition of an anthropogenic-ignition dataset case for hlm_spitfire_mode
+   
+
    integer, public :: hlm_use_logging       ! This flag signals whether or not to use
                                                        ! the logging module
                                                          ! If hlm_use_lu_harvest is zero,
