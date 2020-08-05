@@ -675,7 +675,7 @@ contains
                   currentCohort%canopy_trim = optimum_trim
 
                   ! If the cohort pft is not evergreen we reduce the laimemory as well
-                  if (EDPftvarcon_inst%evergreen(ipft) /= 1) then
+                  if (prt_params%evergreen(ipft) /= 1) then
                      currentCohort%laimemory = optimum_laimem
                   endif
 

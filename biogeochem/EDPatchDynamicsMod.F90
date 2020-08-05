@@ -231,7 +231,7 @@ contains
                   currentCohort%lmort_direct * currentCohort%n * &
                   ( currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
                   currentCohort%prt%GetState(struct_organ, all_carbon_elements)) * &
-                  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                  prt_params%allom_agb_frac(currentCohort%pft) * &
                   SF_val_CWD_frac(ncwd) * logging_export_frac
           endif
 
