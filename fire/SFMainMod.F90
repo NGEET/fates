@@ -10,9 +10,13 @@
   use FatesInterfaceTypesMod     , only : hlm_masterproc ! 1= master process, 0=not master process
   use EDTypesMod            , only : numWaterMem
   use FatesGlobals          , only : fates_log
-
-  use FatesInterfaceTypesMod     , only : bc_in_type
-
+  use FatesInterfaceTypesMod, only : hlm_spitfire_mode
+  use FatesInterfaceTypesMod, only : hlm_sf_nofire_def
+  use FatesInterfaceTypesMod, only : hlm_sf_scalar_lightning_def
+  use FatesInterfaceTypesMod, only : hlm_sf_successful_ignitions_def
+  use FatesInterfaceTypesMod, only : hlm_sf_anthro_ignitions_def
+  use FatesInterfaceTypesMod, only : bc_in_type
+  
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
   
@@ -41,9 +45,6 @@
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
   use FatesInterfaceTypesMod     , only : numpft
-
-  use CNFireFactoryMod, only: no_fire, scalar_lightning, &
-          lightning_from_data, successful_ignitions, anthro_ignitions
 
   implicit none
   private
@@ -76,7 +77,7 @@ contains
   ! ============================================================================
   subroutine fire_model( currentSite, bc_in)
 
-    use FatesInterfaceTypesMod, only : hlm_spitfire_mode
+    
 
     type(ed_site_type)     , intent(inout), target :: currentSite
     type(bc_in_type)       , intent(in)            :: bc_in
@@ -96,7 +97,7 @@ contains
        write(fates_log(),*) 'spitfire_mode', hlm_spitfire_mode
     endif
 
-    if( hlm_spitfire_mode > no_fire )then
+    if( hlm_spitfire_mode > hlm_sf_nofire_def )then
        call fire_danger_index(currentSite, bc_in)
        call wind_effect(currentSite, bc_in) 
        call charecteristics_of_fuel(currentSite)
@@ -699,7 +700,7 @@ contains
     
     ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
-    if (hlm_spitfire_mode == successful_ignitions) then
+    if (hlm_spitfire_mode == hlm_sf_successful_ignitions_def) then
        currentSite%FDI = 1.0_r8  ! READING "SUCCESSFUL IGNITION" DATA
                                   ! force ignition potential to be extreme
        cloud_to_ground_strikes = 1.0_r8   ! cloud_to_ground = 1 = use 100% incoming observed ignitions
@@ -710,7 +711,7 @@ contains
     
     !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
     iofp = currentSite%oldest_patch%patchno
-    if (hlm_spitfire_mode == scalar_lightning) then
+    if (hlm_spitfire_mode == hlm_sf_scalar_lightning_def ) then
        currentSite%NF = ED_val_nignitions * years_per_day * cloud_to_ground_strikes
     else    ! use external daily lightning ignition data
        currentSite%NF = bc_in%lightning24(iofp) * cloud_to_ground_strikes
@@ -721,7 +722,7 @@ contains
  
     ! Calculate anthropogenic ignitions according to Li et al. (2012)
     ! Add to ignitions by lightning
-    if (hlm_spitfire_mode == anthro_ignitions) then
+    if (hlm_spitfire_mode == hlm_sf_anthro_ignitions_def) then
       ! anthropogenic ignitions (count/km2/day)
       !           =  ignitions/person/month * 6.8 * population_density **0.43 /approximate days per month
       anthro_ign_count = pot_hmn_ign_counts_alpha * 6.8_r8 * bc_in%pop_density(iofp)**0.43_r8 / 30._r8

@@ -35,6 +35,7 @@ module FatesConstantsMod
   integer, parameter, public :: primaryforest = 1
   integer, parameter, public :: secondaryforest = 2
 
+
   ! Flags specifying how phosphorous uptake and turnover interacts
   ! with the host model.
   integer, public, parameter :: prescribed_p_uptake = 1
@@ -58,6 +59,14 @@ module FatesConstantsMod
   ! nutrient competitors to the HLM's soil BGC model
   
   integer, public, parameter :: fates_ncomp_scaling = cohort_ncomp_scaling
+
+  real(fates_r8), parameter, public :: secondary_age_threshold = 94._fates_r8 ! less than this value is young secondary land
+                                                            ! based on average age of global
+                                                            ! secondary 1900s land in hurtt-2011
+
+  ! integer labels for specifying harvest units
+  integer, parameter, public :: hlm_harvest_area_fraction = 1 ! Code for harvesting by area
+  integer, parameter, public :: hlm_harvest_carbon = 2 ! Code for harvesting based on carbon extracted. 
 
   
   ! Error Tolerances
@@ -159,7 +168,10 @@ module FatesConstantsMod
   ! Conversion: years per day. assume HLM uses 365 day calendar.  
   ! If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
   real(fates_r8), parameter, public :: years_per_day = 1.0_fates_r8/365.00_fates_r8
-  
+
+  ! Conversion: months per year
+  real(fates_r8), parameter, public :: months_per_year = 12.0_fates_r8
+
   ! Physical constants
 
   ! universal gas constant [J/K/kmol]

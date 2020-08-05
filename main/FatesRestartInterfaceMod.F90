@@ -1081,7 +1081,7 @@ contains
 
     call this%set_restart_var(vname='fates_use_this_pft', vtype=cohort_int, & !should this be cohort_int as above?
          long_name='in fixed biogeog mode, is pft in gridcell?', &
-         units='0/1', flushval = flushzero, &
+         units='0/1', flushval = flushone, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_use_this_pft_sift)
 
     call this%set_restart_var(vname='fates_area_pft', vtype=cohort_r8, &

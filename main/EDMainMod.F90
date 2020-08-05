@@ -76,10 +76,11 @@ module EDMainMod
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
+  use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
-
+  use EDTypesMod               , only : AREA_INV
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -331,6 +332,10 @@ contains
 
     real(r8) :: current_npp           ! place holder for calculating npp each year in prescribed physiology mode
     !-----------------------------------------------------------------------
+    real(r8) :: frac_site_primary
+
+
+    call get_frac_site_primary(currentSite, frac_site_primary)
 
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -364,7 +369,7 @@ contains
           ft = currentCohort%pft
 
           ! Calculate the mortality derivatives
-          call Mortality_Derivative( currentSite, currentCohort, bc_in )
+          call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
 
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport

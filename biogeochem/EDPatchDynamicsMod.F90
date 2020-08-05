@@ -36,7 +36,10 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : lg_sf
   use EDTypesMod           , only : dl_sf
   use EDTypesMod           , only : dump_patch
+  use EDTypesMod           , only : N_DIST_TYPES
+  use EDTypesMod           , only : AREA_INV
   use FatesConstantsMod    , only : rsnbl_math_prec
+  use FatesConstantsMod    , only : fates_tiny
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : hlm_numSWb
   use FatesInterfaceTypesMod    , only : bc_in_type
@@ -50,6 +53,7 @@ module EDPatchDynamicsMod
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use EDLoggingMortalityMod, only : logging_litter_fluxes 
   use EDLoggingMortalityMod, only : logging_time
+  use EDLoggingMortalityMod, only : get_harvest_rate_area
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
@@ -77,6 +81,9 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+  use SFParamsMod,            only : SF_VAL_CWD_FRAC
+  use EDParamsMod,            only : logging_event_code
+  use EDParamsMod,            only : logging_export_frac
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -96,6 +103,7 @@ module EDPatchDynamicsMod
   public :: check_patch_area
   public :: set_patchno
   private:: fuse_2_patches
+  public :: get_frac_site_primary
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -168,12 +176,20 @@ contains
                                  ! secondary forest patch)
     real(r8) :: dist_rate_ldist_notharvested
     integer  :: threshold_sizeclass
+    integer  :: i_dist
+    real(r8) :: frac_site_primary
+    real(r8) :: harvest_rate
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
     !----------------------------------------------------------------------------------------------
     
+    ! first calculate the fractino of the site that is primary land
+    call get_frac_site_primary(site_in, frac_site_primary)
+ 
+    site_in%harvest_carbon_flux = 0._r8
+
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
 
@@ -196,13 +212,29 @@ contains
           currentCohort%asmort = asmort
 
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
-                lmort_direct,lmort_collateral,lmort_infra,l_degrad )
+                lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
+                bc_in%hlm_harvest_rates, &
+                bc_in%hlm_harvest_catnames, &
+                bc_in%hlm_harvest_units, &
+                currentPatch%anthro_disturbance_label, &
+                currentPatch%age_since_anthro_disturbance, &
+                frac_site_primary)
          
           currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
           currentCohort%lmort_infra      = lmort_infra
           currentCohort%l_degrad         = l_degrad
-          
+
+          ! estimate the wood product (trunk_product_site)
+          if (currentCohort%canopy_layer>=1) then
+             site_in%harvest_carbon_flux = site_in%harvest_carbon_flux + &
+                  currentCohort%lmort_direct * currentCohort%n * &
+                  ( currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
+                  currentCohort%prt%GetState(struct_organ, all_carbon_elements)) * &
+                  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                  SF_val_CWD_frac(ncwd) * logging_export_frac
+          endif
+
           currentCohort => currentCohort%taller
        end do
        currentPatch%disturbance_mode = fates_unset_int
@@ -212,6 +244,23 @@ contains
     ! ---------------------------------------------------------------------------------------------
     ! Calculate Disturbance Rates based on the mortality rates just calculated
     ! ---------------------------------------------------------------------------------------------
+
+    ! zero the diagnostic disturbance rate fields
+    site_in%potential_disturbance_rates(1:N_DIST_TYPES) = 0._r8
+
+    ! Recalculate total canopy area prior to resolving the disturbance
+    currentPatch => site_in%oldest_patch
+    do while (associated(currentPatch))
+       currentPatch%total_canopy_area = 0._r8
+       currentCohort => currentPatch%shortest
+       do while(associated(currentCohort))   
+          if(currentCohort%canopy_layer==1)then
+             currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
+          end if
+          currentCohort => currentCohort%taller
+       end do
+       currentPatch => currentPatch%younger
+    end do
 
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
@@ -248,6 +297,23 @@ contains
           currentCohort => currentCohort%taller
        enddo !currentCohort
 
+       ! for non-closed-canopy areas subject to logging, add an additional increment of area disturbed
+       ! equivalent to the fradction loged to account for transfer of interstitial ground area to new secondary lands
+       if ( logging_time .and. &
+            (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
+          ! The canopy is NOT closed. 
+
+          call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
+               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
+
+          currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
+               (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
+
+          ! Non-harvested part of the logging disturbance rate
+          dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + &
+               (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
+       endif
+
        ! fraction of the logging disturbance rate that is non-harvested
        if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
           currentPatch%fract_ldist_not_harvested = dist_rate_ldist_notharvested / &
@@ -255,9 +321,15 @@ contains
        endif
 
        ! Fire Disturbance Rate
-       ! Fires can't burn the whole patch, as this causes /0 errors. 
        currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
 
+       ! calculate a disgnostic sum of disturbance rates for different classes of disturbance across all patches in this site. 
+       do i_dist = 1,N_DIST_TYPES
+          site_in%potential_disturbance_rates(i_dist) = site_in%potential_disturbance_rates(i_dist) + &
+               currentPatch%disturbance_rates(i_dist) * currentPatch%area * AREA_INV
+       end do
+
+       ! Fires can't burn the whole patch, as this causes /0 errors. 
        if (debug) then
           if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
           write(fates_log(),*) 'very high fire areas', &
@@ -408,6 +480,7 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
+    logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -419,11 +492,17 @@ contains
     site_areadis_primary = 0.0_r8
     site_areadis_secondary = 0.0_r8    
 
+    ! zero the diagnostic disturbance rate fields
+    currentSite%disturbance_rates_primary_to_primary(1:N_DIST_TYPES) = 0._r8
+    currentSite%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES) = 0._r8
+    currentSite%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES) = 0._r8
+
     do while(associated(currentPatch))
 
     
        if(currentPatch%disturbance_rate>1.0_r8) then
           write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
+          call dump_patch(currentPatch)
           call endrun(msg=errMsg(sourcefile, __LINE__))          
        end if
 
@@ -444,8 +523,25 @@ contains
                 (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
              
              site_areadis_primary = site_areadis_primary + currentPatch%area * currentPatch%disturbance_rate
+
+             ! track disturbance rates to output to history
+             currentSite%disturbance_rates_primary_to_primary(currentPatch%disturbance_mode) = &
+                  currentSite%disturbance_rates_primary_to_primary(currentPatch%disturbance_mode) + &
+                  currentPatch%area * currentPatch%disturbance_rate * AREA_INV
           else
              site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate          
+
+             ! track disturbance rates to output to history
+             if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
+                currentSite%disturbance_rates_secondary_to_secondary(currentPatch%disturbance_mode) = &
+                     currentSite%disturbance_rates_secondary_to_secondary(currentPatch%disturbance_mode) + &
+                     currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+             else
+                currentSite%disturbance_rates_primary_to_secondary(currentPatch%disturbance_mode) = &
+                     currentSite%disturbance_rates_primary_to_secondary(currentPatch%disturbance_mode) + &
+                     currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+             endif
+
           endif
           
        end if
@@ -1001,16 +1097,47 @@ contains
 
       !*************************/
       !**  INSERT NEW PATCH(ES) INTO LINKED LIST    
-      !**********`***************/
+      !*************************/
        
       if ( site_areadis_primary .gt. nearzero) then
           currentPatch               => currentSite%youngest_patch
-          new_patch_primary%older    => currentPatch
-          new_patch_primary%younger  => null()
-          currentPatch%younger       => new_patch_primary
-          currentSite%youngest_patch => new_patch_primary
+          ! insert new youngest primary patch after all the secondary patches, if there are any.
+          ! this requires first finding the current youngest primary to insert the new one ahead of
+          if (currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+             found_youngest_primary = .false.
+             do while(associated(currentPatch) .and. .not. found_youngest_primary) 
+                currentPatch => currentPatch%older
+                if (associated(currentPatch)) then
+                   if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+                      found_youngest_primary = .true.
+                   endif
+                endif
+             end do
+             if (associated(currentPatch)) then
+                ! the case where we've found a youngest primary patch
+                new_patch_primary%older    => currentPatch
+                new_patch_primary%younger  => currentPatch%younger
+                currentPatch%younger%older => new_patch_primary
+                currentPatch%younger       => new_patch_primary
+             else
+                ! the case where we haven't, because the patches are all secondaary, 
+                ! and are putting a primary patch at the oldest end of the 
+                ! linked list (not sure how this could happen, but who knows...)
+                new_patch_primary%older    => null()
+                new_patch_primary%younger  => currentSite%oldest_patch
+                currentSite%oldest_patch%older   => new_patch_primary
+                currentSite%oldest_patch   => new_patch_primary
+             endif
+          else
+             ! the case where there are no secondary patches at the start of the linked list (prior logic)
+             new_patch_primary%older    => currentPatch
+             new_patch_primary%younger  => null()
+             currentPatch%younger       => new_patch_primary
+             currentSite%youngest_patch => new_patch_primary
+          endif
       endif
       
+      ! insert first secondary at the start of the list
       if ( site_areadis_secondary .gt. nearzero) then
           currentPatch               => currentSite%youngest_patch
           new_patch_secondary%older  => currentPatch
@@ -1883,7 +2010,7 @@ contains
     if (label .eq. secondaryforest) then
        new_patch%age_since_anthro_disturbance = age
     else
-       new_patch%age_since_anthro_disturbance = -1._r8   ! replace with fates_unset_r8 when possible
+       new_patch%age_since_anthro_disturbance = fates_unset_r8
     endif
 
     ! This new value will be generated when the calculate disturbance
@@ -2049,6 +2176,7 @@ contains
     integer  :: iterate     !switch of patch reduction iteration scheme. 1 to keep going, 0 to stop
     integer  :: fuse_flag   !do patches get fused (1) or not (0).
     integer  :: i_disttype  !iterator over anthropogenic disturbance categories
+    real(r8) :: primary_land_fraction_beforefusion,primary_land_fraction_afterfusion
     !
     !---------------------------------------------------------------------
 
@@ -2056,11 +2184,20 @@ contains
 
     profiletol = ED_val_patch_fusion_tol
 
+    primary_land_fraction_beforefusion = 0._r8
+    primary_land_fraction_afterfusion = 0._r8
+
     nopatches(1:n_anthro_disturbance_categories) = 0
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
        nopatches(currentPatch%anthro_disturbance_label) = &
             nopatches(currentPatch%anthro_disturbance_label) + 1
+       
+       if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+          primary_land_fraction_beforefusion = primary_land_fraction_beforefusion + &
+               currentPatch%area * AREA_INV
+       endif
+
        currentPatch => currentPatch%older
     enddo
 
@@ -2256,6 +2393,19 @@ contains
        enddo !do while nopatches>maxPatchesPerSite
 
     end do  ! i_disttype loop
+
+    currentPatch => currentSite%youngest_patch
+    do while(associated(currentPatch))
+
+       if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+          primary_land_fraction_afterfusion = primary_land_fraction_afterfusion + &
+               currentPatch%area * AREA_INV
+       endif
+
+       currentPatch => currentPatch%older
+    enddo
+
+    currentSite%primary_land_patchfusion_error = primary_land_fraction_afterfusion - primary_land_fraction_beforefusion
  
   end subroutine fuse_patches
 
@@ -2296,6 +2446,8 @@ contains
     inv_sum_area = 1.0_r8/(dp%area + rp%area)
     
     rp%age = (dp%age * dp%area + rp%age * rp%area) * inv_sum_area
+    rp%age_since_anthro_disturbance = (dp%age_since_anthro_disturbance * dp%area &
+         + rp%age_since_anthro_disturbance * rp%area) * inv_sum_area
 
     rp%age_class = get_age_class_index(rp%age)
     
@@ -2303,6 +2455,10 @@ contains
        call rp%litter(el)%FuseLitter(rp%area,dp%area,dp%litter(el))
     end do
 
+    if ( rp%anthro_disturbance_label .ne. dp%anthro_disturbance_label) then
+       write(fates_log(),*) 'trying to fuse patches with different anthro_disturbance_label values'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
     
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
@@ -2438,6 +2594,7 @@ contains
     integer, parameter           :: max_cycles = 10  ! After 10 loops through
                                                      ! You should had fused
     integer                      :: count_cycles
+    logical                      :: gotfused
 
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
     !---------------------------------------------------------------------
@@ -2458,6 +2615,8 @@ contains
           if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
                currentPatch%area <= min_patch_area_forced ) then
              
+             gotfused = .false.
+
              if(associated(currentPatch%older) )then
                 
                 if(debug) &
@@ -2469,25 +2628,53 @@ contains
                 ! it will be returned by the subroutine as de-referenced
                 
                 olderPatch => currentPatch%older
-                call fuse_2_patches(currentSite, olderPatch, currentPatch)
+
+                if (currentPatch%anthro_disturbance_label .eq. olderPatch%anthro_disturbance_label) then
+                   
+                   call fuse_2_patches(currentSite, olderPatch, currentPatch)
                 
-                ! The fusion process has updated the "older" pointer on currentPatch
-                ! for us.
+                   ! The fusion process has updated the "older" pointer on currentPatch
+                   ! for us.
                 
-                ! This logic checks to make sure that the younger patch is not the youngest
-                ! patch. As mentioned earlier, we try not to fuse it.
-                
-             elseif( associated(currentPatch%younger) ) then
+                   ! This logic checks to make sure that the younger patch is not the youngest
+                   ! patch. As mentioned earlier, we try not to fuse it.
+                   
+                   gotfused = .true.
+                else
+                   if (count_cycles .gt. 0) then
+                      ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
+                      ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
+                      ! and then allow them to fuse together. 
+                      currentPatch%anthro_disturbance_label = olderPatch%anthro_disturbance_label
+                      call fuse_2_patches(currentSite, olderPatch, currentPatch)
+                      gotfused = .true.
+                   endif
+                endif
+             endif
+
+             if( .not. gotfused .and. associated(currentPatch%younger) ) then
                 
                 if(debug) &
-                      write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
-                      currentPatch%area
+                     write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
+                     currentPatch%area
 
                 youngerPatch => currentPatch%younger
-                call fuse_2_patches(currentSite, youngerPatch, currentPatch)
-                
-                ! The fusion process has updated the "younger" pointer on currentPatch
-                
+
+                if (currentPatch%anthro_disturbance_label .eq. youngerPatch% anthro_disturbance_label) then
+                   
+                   call fuse_2_patches(currentSite, youngerPatch, currentPatch)
+                   
+                   ! The fusion process has updated the "younger" pointer on currentPatch
+                   
+                else
+                   if (count_cycles .gt. 0) then
+                      ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
+                      ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
+                      currentPatch%anthro_disturbance_label = youngerPatch%anthro_disturbance_label
+                      call fuse_2_patches(currentSite, youngerPatch, currentPatch)
+                      gotfused = .true.
+                   endif
+                endif
              endif
           endif
        endif
@@ -2698,5 +2885,34 @@ contains
     enddo
 
    end function countPatches
+
+  ! =====================================================================================
+
+ subroutine get_frac_site_primary(site_in, frac_site_primary)
+
+    !
+    ! !DESCRIPTION:
+    !  Calculate how much of a site is primary land
+    !
+    ! !USES:
+    use EDTypesMod , only : ed_site_type
+    !
+    ! !ARGUMENTS:
+    type(ed_site_type) , intent(in), target :: site_in
+    real(r8)           , intent(out)        :: frac_site_primary
+
+    ! !LOCAL VARIABLES:
+    type (ed_patch_type), pointer :: currentPatch
+
+   frac_site_primary = 0._r8
+   currentPatch => site_in%oldest_patch
+   do while (associated(currentPatch))   
+      if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+         frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
+      endif
+      currentPatch => currentPatch%younger
+   end do
+
+ end subroutine get_frac_site_primary
 
  end module EDPatchDynamicsMod
