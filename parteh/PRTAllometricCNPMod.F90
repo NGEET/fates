@@ -422,9 +422,9 @@ contains
     !  non-limited C allocaiton.
     
     c_gain_unl      = c_gain
-    n_gain_unl      = 1.e6_r8
+    n_gain_unl      = 10._r8*c_gain
     n_gain_unl0     = n_gain_unl
-    p_gain_unl      = 1.e6_r8
+    p_gain_unl      = 10._r8*c_gain
     p_gain_unl0     = p_gain_unl
     
     ! If more than 1 leaf age bin is present, this
@@ -457,7 +457,6 @@ contains
     target_c(repro_id) = 0._r8
     target_dcdd(repro_id) = 0._r8
 
-
     ! Initialize the the state, and keep a record of this state
     ! as we may actuall run the allocation process twice, and
     ! will need this state to both reset, and measure total
@@ -484,10 +483,13 @@ contains
        ! Step 1.  Prioritized allocation to replace tissues from turnover, and/or pay
        ! any un-paid maintenance respiration from storage.
        ! ===================================================================================
-        
+
        call this%CNPPrioritizedReplacement2(maint_r_def, c_gain_unl, n_gain_unl, p_gain_unl, &
             growth_r, state_c, state_n, state_p, target_c)
 
+       n_grow = n_gain_unl0 - n_gain_unl
+       p_grow = p_gain_unl0 - p_gain_unl
+       
        ! ===================================================================================
        ! Step 2. Grow out the stature of the plant by allocating to tissues beyond
        ! current targets. 
@@ -498,8 +500,8 @@ contains
        call this%CNPStatureGrowth(c_gain_unl, n_gain_unl, p_gain_unl, growth_r, &
             state_c, state_n, state_p, target_c, target_dcdd, cnp_limiter)
        
-       n_grow = n_gain_unl0 - n_gain_unl
-       p_grow = p_gain_unl0 - p_gain_unl
+       n_grow = max(0._r8,(n_gain_unl0 - n_gain_unl))
+       p_grow = max(0._r8,(p_gain_unl0 - p_gain_unl))
        
        ! ===================================================================================
        ! Step 3. 
@@ -509,10 +511,12 @@ contains
        
        call this%CNPAllocateRemainder(c_gain_unl, n_gain_unl, p_gain_unl, growth_r, &
             state_c, state_n, state_p, c_efflux, n_efflux, p_efflux)
-       
-       n_max = n_gain_unl0 - n_efflux
-       p_max = p_gain_unl0 - p_efflux
 
+       
+       n_max = max(n_gain_unl0 - n_efflux,0._r8)
+       p_max = max(p_gain_unl0 - p_efflux,0._r8)
+
+       
        ! We must now reset the state so that we can perform nutrient limited allocation
        do i_org = 1,num_organs
           
@@ -535,21 +539,15 @@ contains
        maint_r_def = maint_r_def0
        growth_r    = 0._r8
        dbh         = dbh0
-       
+
     end if
 
-    if(n_grow>nearzero .and. p_grow>nearzero) then
-       write(fates_log(),*) n_gain/n_grow,' of needed N'
-       write(fates_log(),*) p_gain/p_grow,' of needed P'
-    else
-       write(fates_log(),*) 'n_grow: ',n_grow,p_grow,dbh,c_gain
-    end if
+   
 
     ! ===================================================================================
     ! Step 1.  Prioritized allocation to replace tissues from turnover, and/or pay
     ! any un-paid maintenance respiration from storage.
     ! ===================================================================================
-    
     
     call this%CNPPrioritizedReplacement2(maint_r_def, c_gain, n_gain, p_gain, &
          growth_r, state_c, state_n, state_p, target_c)
@@ -1234,7 +1232,7 @@ contains
           
           ! Tax growth respiration
           growth_resp  = growth_resp + r_g(i)*c_flux/(1._r8 + r_g(i))
-          
+
           ! Remove from daily  carbon gain
           c_gain = c_gain - c_flux
 
@@ -1257,19 +1255,19 @@ contains
     else
 
        ! This is just a cap, no need to transfer more into storage than it needs
-       store_below_target     = max(target_c(store_id) - state_c(store_id)%p,0._r8)*(1._r8+r_g(store_id))
-
+       store_below_target     = (target_c(store_id) - state_c(store_id)%p)*(1._r8+r_g(store_id))
+       
        ! This is the desired need for carbon
-       store_target_fraction  = max(0._r8, state_c(store_id)%p/target_c(store_id))
+       store_target_fraction  = state_c(store_id)%p/target_c(store_id)
        store_demand           = (exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ))*(1._r8+r_g(store_id))
 
-       ! The flux is the minimum of all three 
-       store_c_flux = min(min(store_below_target,store_demand),c_gain)
+       ! The flux is the (positive) minimum of all three 
+       store_c_flux = max(min(min(store_below_target,store_demand),c_gain),0.)
        
        c_gain              = c_gain  - store_c_flux
        state_c(store_id)%p = state_c(store_id)%p + store_c_flux/(1._r8+r_g(store_id))
        growth_resp         = growth_resp + r_g(store_id)*store_c_flux/(1._r8+r_g(store_id))
-
+       
     end if
 
     
@@ -1351,6 +1349,7 @@ contains
        end if
        
        ! Determine nutrient demand and make tansfers
+       sum_n_deficit = 0._r8
        do i = 1, n_curpri_org
           
           i_org = curpri_org(i)
@@ -1359,6 +1358,8 @@ contains
           ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
           target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i_org),stoich_growth_min)
           deficit_n(i_org) = max(0.0_r8, target_n - state_n(i_org)%p )
+
+          sum_n_deficit = sum_n_deficit + deficit_n(i_org)
           
           ! Update the phosphorus deficits (which are based off of carbon actual..)
           ! Note that the phsophorus target is tied to the stoichiometry of thegrowing pool only (also)
@@ -2212,7 +2213,8 @@ contains
           deficit_m(i) = deficit_m(i) - flux
           gain_m      = gain_m - flux
           
-       end do
+      end do
+      
     end if
     
     if(debug) then
