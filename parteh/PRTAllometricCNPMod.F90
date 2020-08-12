@@ -51,6 +51,7 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : itrue
   use FatesConstantsMod   , only : fates_unset_r8
   use FatesConstantsMod   , only : fates_unset_int
+  use FatesConstantsMod   , only : sec_per_day
   use PRTParametersMod    , only : prt_params
   
   
@@ -431,7 +432,7 @@ contains
     ! call advances leaves in their age, but does
     ! not actually remove any biomass from the plant
     
-    call this%AgeLeaves(ipft)
+    call this%AgeLeaves(ipft,sec_per_day)
 
     
     ! Set all of the per-organ pointer arrays
@@ -487,8 +488,9 @@ contains
        call this%CNPPrioritizedReplacement2(maint_r_def, c_gain_unl, n_gain_unl, p_gain_unl, &
             growth_r, state_c, state_n, state_p, target_c)
 
-       n_grow = n_gain_unl0 - n_gain_unl
-       p_grow = p_gain_unl0 - p_gain_unl
+       ! Uncomment to see intermediate n and p needs
+       !n_grow = n_gain_unl0 - n_gain_unl
+       !p_grow = p_gain_unl0 - p_gain_unl
        
        ! ===================================================================================
        ! Step 2. Grow out the stature of the plant by allocating to tissues beyond
@@ -518,6 +520,8 @@ contains
 
        
        ! We must now reset the state so that we can perform nutrient limited allocation
+       ! Note: Even if there is more than 1 leaf pool, allocation only modifies
+       ! the first pool, so no need to reset the others
        do i_org = 1,num_organs
           
           i_var = prt_global%sp_organ_map(organ_list(i_org),carbon12_element)
@@ -542,8 +546,6 @@ contains
 
     end if
 
-   
-
     ! ===================================================================================
     ! Step 1.  Prioritized allocation to replace tissues from turnover, and/or pay
     ! any un-paid maintenance respiration from storage.
@@ -566,7 +568,6 @@ contains
        write(fates_log(),*) maint_r_def0-maint_r_def
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
-
     
     ! ===================================================================================
     ! Step 2. Grow out the stature of the plant by allocating to tissues beyond
@@ -670,6 +671,7 @@ contains
        end if
     end if
 
+    
     deallocate(state_c)
     deallocate(state_n)
     deallocate(state_p)
@@ -1253,20 +1255,20 @@ contains
        state_c(store_id)%p    = state_c(store_id)%p - store_c_flux
 
     else
-
-       ! This is just a cap, no need to transfer more into storage than it needs
-       store_below_target     = (target_c(store_id) - state_c(store_id)%p)*(1._r8+r_g(store_id))
        
        ! This is the desired need for carbon
-       store_target_fraction  = state_c(store_id)%p/target_c(store_id)
-       store_demand           = (exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ))*(1._r8+r_g(store_id))
+       store_target_fraction  = max(0.0_r8, state_c(store_id)%p/target_c(store_id))
+       store_demand           = c_gain*(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ))*(1._r8+r_g(store_id))
 
-       ! The flux is the (positive) minimum of all three 
-       store_c_flux = max(min(min(store_below_target,store_demand),c_gain),0.)
+       ! This is just a cap, don't fill up more than is needed (shouldn't even apply)
+       store_below_target     = (target_c(store_id) - state_c(store_id)%p)*(1._r8+r_g(store_id))
+
+       ! The flux is the (positive) minimum of all three
+       store_c_flux           = max(min(min(store_below_target,store_demand),c_gain),0.)
        
-       c_gain              = c_gain  - store_c_flux
-       state_c(store_id)%p = state_c(store_id)%p + store_c_flux/(1._r8+r_g(store_id))
-       growth_resp         = growth_resp + r_g(store_id)*store_c_flux/(1._r8+r_g(store_id))
+       c_gain                 = c_gain  - store_c_flux
+       state_c(store_id)%p    = state_c(store_id)%p + store_c_flux/(1._r8+r_g(store_id))
+       growth_resp            = growth_resp + r_g(store_id)*store_c_flux/(1._r8+r_g(store_id))
        
     end if
 
@@ -1278,7 +1280,6 @@ contains
 
     ! -----------------------------------------------------------------------------------
     ! Bring all pools, in priority order, up to allometric targets if possible
-    ! We have already done priority 1, so start with 2
     ! -----------------------------------------------------------------------------------
     
     do i_pri = 1, n_max_priority
@@ -1308,7 +1309,6 @@ contains
        ! before  we set the allometric targets for the nutrients
 
        n_curpri_org  = i
-
 
        ! The total amount of carbon needed to be replaced
        ! is the deficit and the growth respiration needed
@@ -1885,43 +1885,6 @@ contains
           
        end do
 
-       ! Determine the total flux from N&P pool, and perform a sanity check
-       ! ideally, this should be a pretty good match.
-       
-       if(debug) then
-!          if(sum_n_demand > 1.20*n_gain) then
-!             write(fates_log(),*) 'The prediction of N limitation was pretty bad...'
-!             write(fates_log(),*) 'The actualized demand on N to match C growth'
-!             write(fates_log(),*) 'is not within 20% of what we thought it would be'
-!             write(fates_log(),*) 'when we predicted N to limit C. This is likely'
-!             write(fates_log(),*) 'a result of using a linear interpolation to predict'
-!             write(fates_log(),*) 'an integration over non-linear equations'
-!             write(fates_log(),*) 'dbh: ',dbh
-!             write(fates_log(),*) 'pft: ',ipft
-!             write(fates_log(),*) 'total demanded (post stature C growth): ',sum_n_demand
-!             write(fates_log(),*) 'mask: ',state_mask(:)
-!             write(fates_log(),*) 'deficit per organ: ',deficit_n(:)
-!             write(fates_log(),*) 'target_dcdd: ',target_dcdd(:)
-!             write(fates_log(),*) 'available: ',n_gain
-!             write(fates_log(),*) 'frac_c: ',frac_c(:)
-!             write(fates_log(),*) 'grow_c_from_x: ',grow_c_from_c,grow_c_from_n,grow_c_from_p
-!             call endrun(msg=errMsg(sourcefile, __LINE__))
-!          end if
-          
-!          if(sum_p_demand > 1.20*p_gain) then
-!             write(fates_log(),*) 'The prediction of P limitation was pretty bad..'
-!             write(fates_log(),*) 'The actualized demand on P to match C growth'
-!             write(fates_log(),*) 'is not within 20% of what we thought it would be'
-!             write(fates_log(),*) 'when we predicted P to limit C. This is likely'
-!             write(fates_log(),*) 'a result of using a linear interpolation to predict'
-!             write(fates_log(),*) 'an integration over non-linear equations'
-!             write(fates_log(),*) 'dbh: ',dbh
-!             write(fates_log(),*) 'pft: ',ipft
-!             write(fates_log(),*) 'demanded (post stature C growth): ',sum_p_demand
-!             write(fates_log(),*) 'available: ',p_gain
-!             call endrun(msg=errMsg(sourcefile, __LINE__))
-!          end if
-       end if
        
        ! Nitrogen
        call ProportionalNutrAllocation(state_n,deficit_n, & 

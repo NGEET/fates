@@ -633,7 +633,6 @@ contains
     currentCohort%resp_m             = 0._r8
     currentCohort%resp_m_def         = 0._r8
     currentCohort%resp_g_tstep       = 0._r8
-    currentCohort%resp_g_daily       = 0._r8
     currentCohort%livestem_mr        = 0._r8
     currentCohort%livecroot_mr       = 0._r8
     currentCohort%froot_mr           = 0._r8

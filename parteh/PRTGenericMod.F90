@@ -26,6 +26,7 @@ module PRTGenericMod
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : calloc_abs_error
   use FatesConstantsMod, only : years_per_day
+  use FatesConstantsMod, only : days_per_sec
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log 
   use shr_log_mod      , only : errMsg => shr_log_errMsg
@@ -1318,11 +1319,12 @@ contains
 
    ! ====================================================================================
 
-   subroutine AgeLeaves(this,ipft)
+   subroutine AgeLeaves(this,ipft,period_sec)
 
      ! -----------------------------------------------------------------------------------
      ! If we have more than one leaf age classification, allow
      ! some leaf biomass to transition to the older classes.
+     ! It is assumed this routine is called once per day.
      ! Note that there is NO turnover or loss of mass on the plant in this routine.
      ! We are simply moving portions of leaves from a young bin to the next older, but
      ! we are not moving any mass out of the last (oldest) bin.
@@ -1330,6 +1332,8 @@ contains
 
      class(prt_vartypes)              :: this
      integer,intent(in)               :: ipft
+     real(r8),intent(in)              :: period_sec  ! Time period over which this routine
+                                                     ! is called [seconds] daily=86400
      integer                          :: nleafage
      integer                          :: i_age
      integer                          :: i_var
@@ -1356,8 +1360,9 @@ contains
           if(nleafage>1) then
              do i_age = 1,nleafage-1
                 if (prt_params%leaf_long(ipft,i_age)>nearzero) then
-                   
-                   leaf_age_flux_frac = years_per_day / prt_params%leaf_long(ipft,i_age)
+
+                   ! Units: [-] = [sec] * [day/sec] * [years/day] * [1/years]
+                   leaf_age_flux_frac = period_sec * days_per_sec * years_per_day / prt_params%leaf_long(ipft,i_age)
                    
                    leaf_m(i_age)    = leaf_m(i_age)   - leaf_m0(i_age) * leaf_age_flux_frac
                    leaf_m(i_age+1)  = leaf_m(i_age+1) + leaf_m0(i_age) * leaf_age_flux_frac
@@ -1378,7 +1383,7 @@ contains
         end associate
      end do
      
-   end subroutine AgeLeaves
+ end subroutine AgeLeaves
    
 
 end module PRTGenericMod
