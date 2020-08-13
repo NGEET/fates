@@ -1234,14 +1234,13 @@ contains
 
                   if(store_c>nearzero) then
 
-                     store_c_transfer_frac = &
-                            min(EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory, store_c)/store_c
-
+                     store_c_transfer_frac =  min((EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory)/store_c,(1.0_r8-carbon_store_buffer))
+                     
                      if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
                      
                         totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
-                        store_c_transfer_frac = min(EDPftvarcon_inst%phenflush_fraction(ipft)* &
-                                                totalmemory, store_c)/store_c
+                        store_c_transfer_frac = min(min(EDPftvarcon_inst%phenflush_fraction(ipft)* &
+                                                totalmemory, store_c)/store_c,(1.0_r8-carbon_store_buffer))
 
                      endif
 
