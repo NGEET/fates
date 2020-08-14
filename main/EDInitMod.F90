@@ -1,4 +1,181 @@
+module EDInitMod
 
+  ! ============================================================================
+  ! Contains all modules to set up the ED structure. 
+  ! ============================================================================
+
+  use FatesConstantsMod         , only : r8 => fates_r8
+  use FatesConstantsMod         , only : ifalse
+  use FatesConstantsMod         , only : itrue
+  use FatesConstantsMod         , only : fates_unset_int
+  use FatesConstantsMod         , only : primaryforest
+  use FatesGlobals              , only : endrun => fates_endrun
+  use EDTypesMod                , only : nclmax
+  use FatesGlobals              , only : fates_log
+  use FatesInterfaceTypesMod         , only : hlm_is_restart
+  use EDPftvarcon               , only : EDPftvarcon_inst
+  use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod       , only : InitPRTObject
+  use EDPatchDynamicsMod        , only : create_patch
+  use ChecksBalancesMod         , only : SiteMassStock
+  use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod                , only : numWaterMem
+  use EDTypesMod                , only : num_vegtemp_mem
+  use EDTypesMod                , only : maxpft
+  use EDTypesMod                , only : AREA
+  use EDTypesMod                , only : init_spread_near_bare_ground
+  use EDTypesMod                , only : init_spread_inventory
+  use EDTypesMod             , only : leaves_on
+  use EDTypesMod             , only : leaves_off
+  use EDTypesMod             , only : num_elements
+  use EDTypesMod             , only : element_list
+  use EDTypesMod             , only : phen_cstat_nevercold
+  use EDTypesMod             , only : phen_cstat_iscold
+  use EDTypesMod             , only : phen_dstat_timeoff
+  use EDTypesMod             , only : phen_dstat_moistoff
+  use EDTypesMod             , only : phen_cstat_notcold
+  use EDTypesMod             , only : phen_dstat_moiston
+  use FatesInterfaceTypesMod , only : hlm_day_of_year
+  use FatesInterfaceTypesMod , only : bc_in_type
+  use FatesInterfaceTypesMod , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod , only : hlm_use_inventory_init
+  use FatesInterfaceTypesMod , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod , only : numpft
+  use FatesInterfaceTypesMod , only : nleafage
+  use FatesInterfaceTypesMod , only : nlevsclass
+  use FatesInterfaceTypesMod , only : nlevcoage
+  use FatesAllometryMod      , only : h2d_allom
+  use FatesAllometryMod      , only : bagw_allom
+  use FatesAllometryMod      , only : bbgw_allom
+  use FatesAllometryMod      , only : bleaf
+  use FatesAllometryMod      , only : bfineroot
+  use FatesAllometryMod      , only : bsap_allom
+  use FatesAllometryMod      , only : bdead_allom
+  use FatesAllometryMod      , only : bstore_allom
+
+  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
+  use PRTGenericMod,          only : prt_carbon_allom_hyp
+  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,          only : prt_vartypes
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : fnrt_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : store_organ
+  use PRTGenericMod,          only : struct_organ
+  use PRTGenericMod,          only : repro_organ
+  use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : nitrogen_element
+  use PRTGenericMod,          only : phosphorus_element
+  use PRTGenericMod,          only : SetState
+
+  ! CIME GLOBALS
+  use shr_log_mod               , only : errMsg => shr_log_errMsg
+
+  implicit none
+  private
+
+  logical   ::  debug = .false.
+
+  character(len=*), parameter, private :: sourcefile = &
+        __FILE__
+
+  public  :: zero_site
+  public  :: init_site_vars
+  public  :: init_patches
+  public  :: set_site_properties
+  private :: init_cohorts
+
+
+  ! ============================================================================
+
+contains
+
+  ! ============================================================================
+
+  subroutine init_site_vars( site_in, bc_in )
+    !
+    ! !DESCRIPTION:
+    !
+    !
+    ! !ARGUMENTS    
+    type(ed_site_type), intent(inout) :: site_in
+    type(bc_in_type),intent(in)       :: bc_in
+    !
+    ! !LOCAL VARIABLES:
+    !----------------------------------------------------------------------
+    integer :: el
+
+    !
+    allocate(site_in%term_nindivs_canopy(1:nlevsclass,1:numpft))
+    allocate(site_in%term_nindivs_ustory(1:nlevsclass,1:numpft))
+    allocate(site_in%demotion_rate(1:nlevsclass))
+    allocate(site_in%promotion_rate(1:nlevsclass))
+    allocate(site_in%imort_rate(1:nlevsclass,1:numpft))
+    allocate(site_in%fmort_rate_canopy(1:nlevsclass,1:numpft))
+    allocate(site_in%fmort_rate_ustory(1:nlevsclass,1:numpft))
+    allocate(site_in%fmort_rate_cambial(1:nlevsclass,1:numpft))
+    allocate(site_in%fmort_rate_crown(1:nlevsclass,1:numpft))
+    allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
+    allocate(site_in%mass_balance(1:num_elements))
+    allocate(site_in%flux_diags(1:num_elements))
+   
+    site_in%nlevsoil   = bc_in%nlevsoil
+    allocate(site_in%rootfrac_scr(site_in%nlevsoil))
+    allocate(site_in%zi_soil(0:site_in%nlevsoil))
+    allocate(site_in%dz_soil(site_in%nlevsoil))
+    allocate(site_in%z_soil(site_in%nlevsoil))
+
+    allocate(site_in%area_pft(1:numpft))
+    allocate(site_in%use_this_pft(1:numpft))
+
+    do el=1,num_elements
+        allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
+        allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
+    end do
+
+    ! Initialize the static soil 
+    ! arrays from the boundary (initial) condition
+
+   
+    site_in%zi_soil(:) = bc_in%zi_sisl(:)
+    site_in%dz_soil(:) = bc_in%dz_sisl(:)
+    site_in%z_soil(:)  = bc_in%z_sisl(:)
+    
+
+    !
+    end subroutine init_site_vars
+
+  ! ============================================================================
+  subroutine zero_site( site_in )
+    !
+    ! !DESCRIPTION:
+    !
+    ! !USES:
+    use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
+    !
+    ! !ARGUMENTS    
+    type(ed_site_type), intent(inout) ::  site_in
+    !
+    ! !LOCAL VARIABLES:
+    integer :: el
+    !----------------------------------------------------------------------
+
+    site_in%oldest_patch     => null() ! pointer to oldest patch at the site
+    site_in%youngest_patch   => null() ! pointer to yngest patch at the site
+    
+
+    ! PHENOLOGY 
+
+    site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
+    site_in%dstatus          = fates_unset_int
+    site_in%grow_deg_days    = nan                ! growing degree days
+    site_in%nchilldays       = fates_unset_int
+    site_in%ncolddays        = fates_unset_int
+    site_in%cleafondate      = fates_unset_int
+    site_in%cleafoffdate     = fates_unset_int
+    site_in%dleafondate      = fates_unset_int
+    site_in%dleafoffdate     = fates_unset_int
+    site_in%water_memory(:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
     site_in%phen_model_date  = fates_unset_int
 
@@ -100,7 +277,6 @@
                                             ! immediately, so yes this
                                             ! is memory-less, but needed
                                             ! for first value in history file
-
           sites(s)%phen_model_date = 0
           sites(s)%cleafondate     = cleafon  - hlm_day_of_year
           sites(s)%cleafoffdate    = cleafoff - hlm_day_of_year
