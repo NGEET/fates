@@ -25,32 +25,33 @@ module EDInitMod
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
   use EDTypesMod                , only : init_spread_inventory
-  use EDTypesMod                , only : leaves_on
-  use EDTypesMod                , only : leaves_off
-  use EDTypesMod                , only : num_elements
-  use EDTypesMod                , only : element_list
-  use EDTypesMod                , only : phen_cstat_nevercold
-  use EDTypesMod                , only : phen_cstat_iscold
-  use EDTypesMod                , only : phen_dstat_timeoff
-  use EDTypesMod                , only : phen_dstat_moistoff
-  use EDTypesMod                , only : phen_cstat_notcold
-  use EDTypesMod                , only : phen_dstat_moiston
-  use FatesInterfaceTypesMod         , only : bc_in_type
-  use FatesInterfaceTypesMod         , only : hlm_use_planthydro
-  use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
-  use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod         , only : numpft
-  use FatesInterfaceTypesMod         , only : nleafage
-  use FatesInterfaceTypesMod         , only : nlevsclass
-  use FatesInterfaceTypesMod         , only : nlevcoage
-  use FatesAllometryMod         , only : h2d_allom
-  use FatesAllometryMod         , only : bagw_allom
-  use FatesAllometryMod         , only : bbgw_allom
-  use FatesAllometryMod         , only : bleaf
-  use FatesAllometryMod         , only : bfineroot
-  use FatesAllometryMod         , only : bsap_allom
-  use FatesAllometryMod         , only : bdead_allom
-  use FatesAllometryMod         , only : bstore_allom
+  use EDTypesMod             , only : leaves_on
+  use EDTypesMod             , only : leaves_off
+  use EDTypesMod             , only : num_elements
+  use EDTypesMod             , only : element_list
+  use EDTypesMod             , only : phen_cstat_nevercold
+  use EDTypesMod             , only : phen_cstat_iscold
+  use EDTypesMod             , only : phen_dstat_timeoff
+  use EDTypesMod             , only : phen_dstat_moistoff
+  use EDTypesMod             , only : phen_cstat_notcold
+  use EDTypesMod             , only : phen_dstat_moiston
+  use FatesInterfaceTypesMod , only : hlm_day_of_year
+  use FatesInterfaceTypesMod , only : bc_in_type
+  use FatesInterfaceTypesMod , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod , only : hlm_use_inventory_init
+  use FatesInterfaceTypesMod , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod , only : numpft
+  use FatesInterfaceTypesMod , only : nleafage
+  use FatesInterfaceTypesMod , only : nlevsclass
+  use FatesInterfaceTypesMod , only : nlevcoage
+  use FatesAllometryMod      , only : h2d_allom
+  use FatesAllometryMod      , only : bagw_allom
+  use FatesAllometryMod      , only : bbgw_allom
+  use FatesAllometryMod      , only : bleaf
+  use FatesAllometryMod      , only : bfineroot
+  use FatesAllometryMod      , only : bsap_allom
+  use FatesAllometryMod      , only : bdead_allom
+  use FatesAllometryMod      , only : bstore_allom
 
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp
@@ -167,16 +168,16 @@ contains
 
     site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
     site_in%dstatus          = fates_unset_int
-    site_in%grow_deg_days    = nan  ! growing degree days
+    site_in%grow_deg_days    = nan                ! growing degree days
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
-    site_in%cleafondate      = fates_unset_int  ! doy of leaf on
-    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off
-    site_in%dleafondate      = fates_unset_int  ! doy of leaf on drought
-    site_in%dleafoffdate     = fates_unset_int  ! doy of leaf on drought
+    site_in%cleafondate      = fates_unset_int
+    site_in%cleafoffdate     = fates_unset_int
+    site_in%dleafondate      = fates_unset_int
+    site_in%dleafoffdate     = fates_unset_int
     site_in%water_memory(:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
-
+    site_in%phen_model_date  = fates_unset_int
 
     ! FIRE 
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
@@ -277,6 +278,7 @@ contains
                                             ! is memory-less, but needed
                                             ! for first value in history file
 
+          sites(s)%phen_model_date = hlm_day_of_year
           sites(s)%cleafondate   = cleafon
           sites(s)%cleafoffdate  = cleafoff
           sites(s)%dleafoffdate  = dleafoff

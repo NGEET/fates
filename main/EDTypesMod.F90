@@ -690,7 +690,12 @@ module EDTypesMod
      integer  ::  cleafoffdate                                 ! model date (day integer) of leaf off (cold):-
      integer  ::  dleafondate                                  ! model date (day integer) of leaf on drought:-
      integer  ::  dleafoffdate                                 ! model date (day integer) of leaf off drought:-
+     integer  ::  phen_model_date                              ! current model date (day integer)
+                                                               ! this date stays continuous when
+                                                               ! in runs that are restarted, regardless of
+                                                               ! the conditions of restart
 
+     
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
 

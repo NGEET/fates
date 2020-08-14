@@ -744,8 +744,9 @@ contains
  
     ! This is the integer model day. The first day of the simulation is 1, and it
     ! continues monotonically, indefinitely
-    model_day_int = nint(hlm_model_day)
 
+    
+    model_day_int = currentSite%phen_model_date
 
     ! Use the following layer index to calculate drought conditions
     ilayer_swater = minloc(abs(bc_in%z_sisl(:)-dphen_soil_depth),dim=1)
@@ -1061,6 +1062,12 @@ contains
 
     call phenology_leafonoff(currentSite)
 
+    ! Advance the model day (this should be a global, no reason
+    ! for site level, but we don't have global scalars in the
+    ! restart file)
+    
+    currentSite%phen_model_date = currentSite%phen_model_date + 1
+    
   end subroutine phenology
 
   ! ============================================================================
@@ -1349,7 +1356,7 @@ contains
     ! !USES:
     use EDTypesMod, only : area
     use EDTypesMod, only : homogenize_seed_pfts
-    !use FatesInterfaceTypesMod,  only : hlm_use_fixed_biogeog    ! For future reduced complexity?
+
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
