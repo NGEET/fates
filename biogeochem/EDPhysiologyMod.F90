@@ -745,7 +745,7 @@ contains
     ! This is the integer model day. The first day of the simulation is 1, and it
     ! continues monotonically, indefinitely
 
-    
+    currentSite%phen_model_date = currentSite%phen_model_date + 1
     model_day_int = currentSite%phen_model_date
 
     ! Use the following layer index to calculate drought conditions
@@ -850,7 +850,7 @@ contains
     end if
 
     if (model_day_int < currentSite%cleafondate) then
-       dayssincecleafon = model_day_int - (currentSite%cleafondate-365)
+       dayssincecleafon = model_day_int - (currentSite%cleafondate - 365)
     else
        dayssincecleafon = model_day_int - currentSite%cleafondate
     end if
@@ -1066,7 +1066,7 @@ contains
     ! for site level, but we don't have global scalars in the
     ! restart file)
     
-    currentSite%phen_model_date = currentSite%phen_model_date + 1
+    
     
   end subroutine phenology
 

@@ -1695,7 +1695,6 @@ end subroutine flush_hvars
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
     integer  :: el           ! Loop index for elements
-    integer  :: model_day_int ! integer model day from reference 
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
 
@@ -1973,7 +1972,7 @@ end subroutine flush_hvars
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
                hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
-               hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
+               hio_dleafon_si                       => this%hvars(ih_dleafon_si)%r81d, &
                hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
@@ -1989,7 +1988,7 @@ end subroutine flush_hvars
       ! If we don't have dynamics turned on, we just abort these diagnostics
       if (hlm_use_ed_st3.eq.itrue) return
 
-      model_day_int = nint(hlm_model_day)
+     
 
       ! ---------------------------------------------------------------------------------
       ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -2034,12 +2033,12 @@ end subroutine flush_hvars
 
             
          hio_gdd_si(io_si)      = sites(s)%grow_deg_days
-         hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
-         hio_cleafon_si(io_si)  = real(model_day_int - sites(s)%cleafondate,r8)
-         hio_dleafoff_si(io_si) = real(model_day_int - sites(s)%dleafoffdate,r8)
-         hio_dleafon_si(io_si)  = real(model_day_int - sites(s)%dleafondate,r8)
-
-         if(model_day_int>numWaterMem)then
+         hio_cleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%cleafoffdate,r8)
+         hio_cleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%cleafondate,r8)
+         hio_dleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%dleafoffdate,r8)
+         hio_dleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%dleafondate,r8)
+         
+         if(sites(s)%phen_model_date>numWaterMem)then
             hio_meanliqvol_si(io_si) = &
                  sum(sites(s)%water_memory(1:numWaterMem))/real(numWaterMem,r8)
          end if
