@@ -71,6 +71,7 @@ module FatesHydroWTFMod
      procedure :: psi_from_th     => psi_from_th_base
      procedure :: dpsidth_from_th => dpsidth_from_th_base
      procedure :: set_wrf_param   => set_wrf_param_base
+     procedure :: get_thsat       => get_thsat_base
 
      ! All brands of WRFs have access to these tools to operate
      ! above and below sat and residual, should they want to
@@ -119,6 +120,7 @@ module FatesHydroWTFMod
      procedure :: psi_from_th     => psi_from_th_vg
      procedure :: dpsidth_from_th => dpsidth_from_th_vg
      procedure :: set_wrf_param   => set_wrf_param_vg
+     procedure :: get_thsat       => get_thsat_vg
   end type wrf_type_vg
 
   ! Water Conductivity Function
@@ -148,6 +150,7 @@ module FatesHydroWTFMod
      procedure :: psi_from_th     => psi_from_th_cch
      procedure :: dpsidth_from_th => dpsidth_from_th_cch
      procedure :: set_wrf_param   => set_wrf_param_cch
+     procedure :: get_thsat       => get_thsat_cch
   end type wrf_type_cch
 
   ! Water Conductivity Function
@@ -182,6 +185,7 @@ module FatesHydroWTFMod
      procedure :: psi_from_th     => psi_from_th_tfs
      procedure :: dpsidth_from_th => dpsidth_from_th_tfs
      procedure :: set_wrf_param   => set_wrf_param_tfs
+     procedure :: get_thsat       => get_thsat_tfs
      procedure :: bisect_pv
   end type wrf_type_tfs
 
@@ -297,6 +301,14 @@ contains
     write(fates_log(),*) 'check how the class pointer was setup'
     call endrun(msg=errMsg(sourcefile, __LINE__))
   end subroutine set_wrf_param_base
+  function get_thsat_base(this) result(th_sat)
+    class(wrf_type)     :: this
+    real(r8)            :: th_sat
+    write(fates_log(),*) 'The base thsat call'
+    write(fates_log(),*) 'should never be actualized'
+    write(fates_log(),*) 'check how the class pointer was setup'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end function get_thsat_base
   subroutine set_wkf_param_base(this,params_in)
     class(wkf_type)     :: this
     real(r8),intent(in) :: params_in(:)
@@ -393,6 +405,16 @@ contains
 
   ! =====================================================================================
 
+  function get_thsat_vg(this) result(th_sat)
+      class(wrf_type_vg)   :: this
+      real(r8) :: th_sat
+      
+      th_sat = this%th_sat
+      
+  end function get_thsat_vg
+  
+  ! =====================================================================================
+  
   function th_from_psi_vg(this,psi) result(th)
 
     ! Van Genuchten (1980) calculation of volumetric water content (theta)
@@ -654,6 +676,16 @@ contains
 
   ! =====================================================================================
 
+  function get_thsat_cch(this) result(th_sat)
+      class(wrf_type_cch)   :: this
+      real(r8) :: th_sat
+      
+      th_sat = this%th_sat
+      
+  end function get_thsat_cch
+  
+  ! =====================================================================================
+  
   function th_from_psi_cch(this,psi) result(th)
 
     class(wrf_type_cch)  :: this
@@ -786,6 +818,16 @@ contains
 
   ! =====================================================================================
 
+  function get_thsat_tfs(this) result(th_sat)
+      class(wrf_type_tfs)   :: this
+      real(r8) :: th_sat
+      
+      th_sat = this%th_sat
+      
+  end function get_thsat_tfs
+  
+  ! =====================================================================================
+  
   function th_from_psi_tfs(this,psi) result(th)
 
     class(wrf_type_tfs)  :: this

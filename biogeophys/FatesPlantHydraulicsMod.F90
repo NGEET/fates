@@ -163,6 +163,18 @@ module FatesPlantHydraulicsMod
 
 
 
+  ! These switches are for developers who which to understand if there simulations
+  ! are ever entering regimes where water contents go negative (yes physically impossible)
+  ! or water pressures exceed that at saturation (maybe, maybe not likely)
+  ! These situations are possible/likely due to the nature of the constant flux boundary condition
+  ! of transpiration, due to the loosely-coupled nature of the hydro-land-energy-photosynthesis
+  ! system
+  
+  logical, parameter :: trap_neg_wc = .false.
+  logical, parameter :: trap_supersat_psi = .false.
+
+  
+
   real(r8), parameter :: thsat_buff = 0.001_r8 ! Ensure that this amount of buffer
                                                ! is left between soil moisture and saturation [m3/m3]
                                                ! (if we are going to help purge super-saturation)
@@ -3489,14 +3501,17 @@ contains
                     error_code = 0
                 end if
 
-                ! Extra checks
-                if( any(th_node(:)<0._r8) ) then
-                    solution_found = .false.
-                    error_code = 3
-                    error_arr(:) = th_node(:)
-                    exit
+                ! If desired, check and trap water contents
+                ! that are negative
+                if(trap_neg_wc) then
+                    if( any(th_node(:)<0._r8) ) then
+                        solution_found = .false.
+                        error_code = 3
+                        error_arr(:) = th_node(:)
+                        exit
+                    end if
                 end if
-
+                
                 ! Calculate new psi for checks
                 do i = 1,n_hypool_plant
                     psi_node(i) = wrf_plant(pm_node(i),ft)%p%psi_from_th(th_node(i))
@@ -3505,6 +3520,25 @@ contains
                     psi_node(i) = site_hydr%wrf_soil(ilayer)%p%psi_from_th(th_node(i))
                 end do
 
+                ! If desired, check and trap pressures that are supersaturated
+                if(trap_supersat_psi) then
+                    do i = 1,n_hypool_plant
+                        if(psi_node(i)>wrf_plant(pm_node(i),ft)%p%get_thsat()) then
+                            solution_found = .false.
+                            error_code = 4
+                        end if
+                    end do
+                    do i = n_hypool_plant+1,n_hypool_tot
+                        if(psi_node(i)>site_hydr%wrf_soil(ilayer)%p%get_thsat()) then
+                            solution_found = .false.
+                            error_code = 4
+                        end if
+                    end do
+                    if(error_code==4) then
+                        error_arr(:) = th_node(:)
+                    end if
+                end if
+                
                 ! Accumulate the water balance error of the layer over the sub-steps
                 ! for diagnostic purposes
                 ! [kg/m2]
