@@ -556,7 +556,7 @@ contains
     ! respiration throttling logic
     !--------------------------------------------------------------------------------
 
-    real(r8),intent(in)    :: c_store_target  ! leaf carbon [kg]
+    real(r8),intent(in)    :: c_store_target  ! target storage carbon [kg]
     real(r8),intent(in)    :: c_store         ! storage carbon [kg]
     real(r8),intent(out)   :: frac
 
