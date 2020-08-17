@@ -85,12 +85,40 @@ module FatesInterfaceTypesMod
                                                    ! soil carbon
                                                    ! 1 = TRUE,  0 = FALSE
    
-   integer, public :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
-                                                   ! 1 = TRUE, 0 = FALSE
+   integer, public :: hlm_spitfire_mode  ! Flag to signal SPITFIRE mode
+                                         ! See namelist_definition_clm4_5.xml
+                                         ! ignitions: 1=constant, >1=external data sources (lightning and/or anthropogenic)
 
+   integer, public :: hlm_use_lu_harvest      ! This flag signals whether or not to use
+                                                         ! harvest area data from the hlm
+                                                         ! 0 = do not use lu harvest from hlm
+                                                         ! 1 = use area fraction of vegetated land
+                                                         ! from from hlm
+                                                         ! 2 = use carbon from hlm
+                                                         ! If 1 or 2, it automatically sets
+                                                         ! hlm_use_logging to 1
+
+   integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories (e.g. primary forest harvest, secondary young forest harvest, etc.)
+                                                         ! this is the first dimension of:
+                                                         ! harvest_rates in dynHarvestMod
+                                                         ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
+
+
+   integer, public :: hlm_sf_nofire_def               ! Definition of a no-fire case for hlm_spitfire_mode
+   integer, public :: hlm_sf_scalar_lightning_def     ! Definition of a scalar-lightning case for hlm_spitfire_mode
+   integer, public :: hlm_sf_successful_ignitions_def ! Definition of a successful-ignition dataset case for hlm_spitfire_mode
+   integer, public :: hlm_sf_anthro_ignitions_def      ! Definition of an anthropogenic-ignition dataset case for hlm_spitfire_mode
+   
 
    integer, public :: hlm_use_logging       ! This flag signals whether or not to use
                                                        ! the logging module
+                                                         ! If hlm_use_lu_harvest is zero,
+                                                         ! then logging is determined by
+                                                         ! the fates parameter file
+                                                         ! If hlm_use_lu_harvest is non-zero,
+                                                         ! then this flag is automatically
+                                                         ! set to 1 and logging is determined
+                                                         ! by the lu harvest input from the hlm
 
    integer, public :: hlm_use_planthydro    ! This flag signals whether or not to use
                                                        ! plant hydraulics (bchristo/xu methods)
@@ -284,6 +312,12 @@ module FatesInterfaceTypesMod
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
 
+      ! 24-hour lightning or ignitions [#/km2/day]
+      real(r8),allocatable :: lightning24(:)
+
+      ! Population density [#/km2]
+      real(r8),allocatable :: pop_density(:)
+
       ! Patch 24 hour vegetation temperature [K]
       real(r8),allocatable :: t_veg24_pa(:)  
       
@@ -426,7 +460,15 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-   
+      
+      ! Land use
+      ! ---------------------------------------------------------------------------------
+      real(r8),allocatable :: hlm_harvest_rates(:)    ! annual harvest rate per cat from hlm for a site
+
+      character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
+
+      integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
+
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
     

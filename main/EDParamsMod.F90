@@ -125,7 +125,6 @@ module EDParamsMod
 
    real(r8),protected,public :: logging_dbhmax              ! Maximum dbh at which logging is applied (cm)
                                                             ! Typically associated with fire suppression
-                                                            ! (THIS PARAMETER IS NOT USED YET)
    character(len=param_string_length),parameter,public :: logging_name_dbhmax = "fates_logging_dbhmax"
 
 

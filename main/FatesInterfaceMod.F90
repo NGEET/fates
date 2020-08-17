@@ -49,6 +49,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use CLMFatesParamInterfaceMod , only : FatesReadParameters
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
+   use decompMod             , only : bounds_type
 
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -66,7 +67,6 @@ module FatesInterfaceMod
    character(len=*), parameter :: sourcefile = &
         __FILE__
 
-   
    ! Make public necessary subroutines and functions
    public :: FatesInterfaceInit
    public :: set_fates_ctrlparms
@@ -129,6 +129,8 @@ contains
     fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8
     fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
 
+    fates%bc_in(s)%lightning24(:)      = 0.0_r8
+    fates%bc_in(s)%pop_density(:)      = 0.0_r8
     fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%smp_sl(:)           = 0.0_r8
@@ -232,7 +234,7 @@ contains
 
   ! ===========================================================================
 
-   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in)
+   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -242,8 +244,9 @@ contains
       type(bc_in_type), intent(inout) :: bc_in
       integer,intent(in)              :: nlevsoil_in
       integer,intent(in)              :: nlevdecomp_in
+      integer,intent(in)              :: num_lu_harvest_cats
+      
       ! Allocate input boundaries
-
 
       bc_in%nlevsoil   = nlevsoil_in
 
@@ -298,6 +301,10 @@ contains
       allocate(bc_in%z_sisl(nlevsoil_in))
       allocate(bc_in%decomp_id(nlevsoil_in))
       allocate(bc_in%dz_decomp_sisl(nlevdecomp_in))
+
+      ! Lightning (or successful ignitions) and population density
+      allocate(bc_in%lightning24(maxPatchesPerSite))
+      allocate(bc_in%pop_density(maxPatchesPerSite))
 
       ! Vegetation Dynamics
       allocate(bc_in%t_veg24_pa(maxPatchesPerSite))
@@ -355,8 +362,19 @@ contains
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
 
-         allocate(bc_in%pft_areafrac(maxpft))
+      ! Land use
 
+      ! harvest flag denote data from hlm,
+      ! while the logging flag signifies only that logging is occurring (which could just be FATES logging)
+      if (hlm_use_lu_harvest .gt. 0) then
+         allocate(bc_in%hlm_harvest_rates(num_lu_harvest_cats))
+         allocate(bc_in%hlm_harvest_catnames(num_lu_harvest_cats))
+      else ! LoggingMortality_frac needs these passed to it regardless of harvest
+         allocate(bc_in%hlm_harvest_rates(0))
+         allocate(bc_in%hlm_harvest_catnames(0))
+      end if
+
+      allocate(bc_in%pft_areafrac(maxpft))
 
       return
    end subroutine allocate_bcin
@@ -984,8 +1002,14 @@ contains
          hlm_max_patch_per_site = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
-         hlm_use_spitfire  = unset_int
+         hlm_spitfire_mode = unset_int
+         hlm_sf_nofire_def = unset_int
+         hlm_sf_scalar_lightning_def = unset_int
+         hlm_sf_successful_ignitions_def = unset_int
+         hlm_sf_anthro_ignitions_def = unset_int
          hlm_use_planthydro = unset_int
+         hlm_use_lu_harvest   = unset_int
+         hlm_num_lu_harvest_cats   = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1037,6 +1061,20 @@ contains
                write(fates_log(), *) ' for more information.'
                write(fates_log(), *) ''
                write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+         end if
+
+         if ( (hlm_use_lu_harvest .lt. 0).or.(hlm_use_lu_harvest .gt. 2) ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES lu_harvest flag must be 0 or 1 or 2, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( (hlm_num_lu_harvest_cats .lt. 0) ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES number of hlm harvest cats must be >= 0, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
@@ -1185,13 +1223,39 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_spitfire .eq. unset_int) then
+         if(hlm_spitfire_mode .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_use_spitfire, exiting'
+               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_spitfire_mode, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if(hlm_sf_nofire_def .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'definition of no-fire mode unset: hlm_sf_nofire_def, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if(hlm_sf_scalar_lightning_def .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'definition of scalar lightning mode unset: hlm_sf_scalltng_def, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if(hlm_sf_successful_ignitions_def .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'definition of successful ignition mode unset: hlm_sf_successful, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if(hlm_sf_anthro_ignitions_def .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'definition of anthro-ignition mode unset: hlm_sf_anthig_def, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+ 
+         
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
@@ -1285,12 +1349,37 @@ contains
                   write(fates_log(),*) 'Transfering hlm_parteh_mode= ',ival,' to FATES'
                end if
 
-            case('use_spitfire')
-               hlm_use_spitfire = ival
+            case('spitfire_mode')
+               hlm_spitfire_mode = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_use_spitfire= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering hlm_spitfire_mode =',ival,' to FATES'
+              end if
+              
+           case('sf_nofire_def')
+               hlm_sf_nofire_def = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_sf_nofire_def =',ival,' to FATES'
                end if
 
+           case('sf_scalar_lightning_def')
+               hlm_sf_scalar_lightning_def = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_sf_scalar_lightning_def =',ival,' to FATES'
+               end if
+
+           case('sf_successful_ignitions_def')
+               hlm_sf_successful_ignitions_def = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_sf_successful_ignition_def =',ival,' to FATES'
+               end if
+
+           case('sf_anthro_ignitions_def')
+               hlm_sf_anthro_ignitions_def = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_sf_anthro_ignition_def =',ival,' to FATES'
+               end if
+
+               
             case('use_fixed_biogeog')
                 hlm_use_fixed_biogeog = ival
                if (fates_global_verbose()) then
@@ -1311,13 +1400,24 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
                end if
 
+            case('use_lu_harvest')
+               hlm_use_lu_harvest = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_lu_harvest= ',ival,' to FATES'
+               end if
+
+            case('num_lu_harvest_cats')
+               hlm_num_lu_harvest_cats = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_num_lu_harvest_cats= ',ival,' to FATES'
+               end if
+
             case('use_cohort_age_tracking')
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
                end if
 
-               
             case('use_logging')
                hlm_use_logging = ival
                if (fates_global_verbose()) then

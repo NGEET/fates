@@ -24,6 +24,10 @@ module FatesHistoryInterfaceMod
   use EDTypesMod               , only : num_vegtemp_mem
   use EDTypesMod               , only : site_massbal_type
   use EDTypesMod               , only : element_list
+  use EDTypesMod               , only : N_DIST_TYPES
+  use EDTypesMod               , only : dtype_ifall
+  use EDTypesMod               , only : dtype_ifire
+  use EDTypesMod               , only : dtype_ilog
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesHistoryVariableType , only : fates_history_variable_type
@@ -186,6 +190,16 @@ module FatesHistoryInterfaceMod
   integer :: ih_gpp_understory_si
   integer :: ih_canopy_biomass_si
   integer :: ih_understory_biomass_si
+
+  integer :: ih_primaryland_fusion_error_si
+  integer :: ih_disturbance_rate_p2p_si
+  integer :: ih_disturbance_rate_p2s_si
+  integer :: ih_disturbance_rate_s2s_si
+  integer :: ih_fire_disturbance_rate_si
+  integer :: ih_logging_disturbance_rate_si
+  integer :: ih_fall_disturbance_rate_si
+  integer :: ih_potential_disturbance_rate_si
+  integer :: ih_harvest_carbonflux_si
 
   ! Indices to site by size-class by age variables
   integer :: ih_nplant_si_scag
@@ -419,7 +433,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_recruitment_si_pft
   integer :: ih_mortality_si_pft
   integer :: ih_crownarea_si_pft
-
+  integer :: ih_canopycrownarea_si_pft
 
   ! indices to (site x patch-age) variables
   integer :: ih_area_si_age
@@ -1738,6 +1752,7 @@ end subroutine flush_hvars
                hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
+               hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
                hio_nesterov_fire_danger_si => this%hvars(ih_nesterov_fire_danger_si)%r81d, &
                hio_spitfire_ros_si     => this%hvars(ih_spitfire_ros_si)%r81d, &
                hio_fire_ros_area_product_si=> this%hvars(ih_fire_ros_area_product_si)%r81d, &
@@ -1774,6 +1789,15 @@ end subroutine flush_hvars
                hio_agb_si              => this%hvars(ih_agb_si)%r81d, &
                hio_canopy_biomass_si   => this%hvars(ih_canopy_biomass_si)%r81d, &
                hio_understory_biomass_si   => this%hvars(ih_understory_biomass_si)%r81d, &
+               hio_primaryland_fusion_error_si    => this%hvars(ih_primaryland_fusion_error_si)%r81d, &
+               hio_disturbance_rate_p2p_si       => this%hvars(ih_disturbance_rate_p2p_si)%r81d, &
+               hio_disturbance_rate_p2s_si       => this%hvars(ih_disturbance_rate_p2s_si)%r81d, &
+               hio_disturbance_rate_s2s_si       => this%hvars(ih_disturbance_rate_s2s_si)%r81d, &
+               hio_fire_disturbance_rate_si      => this%hvars(ih_fire_disturbance_rate_si)%r81d, &
+               hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
+               hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
+               hio_potential_disturbance_rate_si => this%hvars(ih_potential_disturbance_rate_si)%r81d, &
+               hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
                hio_npp_totl_si_scpf    => this%hvars(ih_npp_totl_si_scpf)%r82d, &
                hio_npp_leaf_si_scpf    => this%hvars(ih_npp_leaf_si_scpf)%r82d, &
@@ -2037,6 +2061,30 @@ end subroutine flush_hvars
             this%hvars(ih_h2oveg_pheno_err_si)%r81d(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
          end if
 
+         ! error in primary lands from patch fusion
+         hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error
+
+         ! output site-level disturbance rates
+         hio_disturbance_rate_p2p_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES))
+         hio_disturbance_rate_p2s_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES))
+         hio_disturbance_rate_s2s_si(io_si) = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES))
+
+         hio_fire_disturbance_rate_si(io_si) = sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
+              sites(s)%disturbance_rates_primary_to_secondary(dtype_ifire) + &
+              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifire)
+
+         hio_logging_disturbance_rate_si(io_si) = sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
+              sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) + &
+              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)
+
+         hio_fall_disturbance_rate_si(io_si) = sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
+              sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) + &
+              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)
+
+         hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES))
+
+         hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
+
          ipa = 0
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -2198,6 +2246,12 @@ end subroutine flush_hvars
                ! Update PFT crown area
                hio_crownarea_si_pft(io_si, ft) = hio_crownarea_si_pft(io_si, ft) + &
                     ccohort%c_area 
+
+               if (ccohort%canopy_layer .eq. 1) then
+                  ! Update PFT canopy crown area
+                  hio_canopycrownarea_si_pft(io_si, ft) = hio_canopycrownarea_si_pft(io_si, ft) + &
+                       ccohort%c_area 
+               end if
 
                ! update total biomass per age bin
                hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
@@ -3935,6 +3989,11 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_crownarea_si_pft )
     
+    call this%set_history_var(vname='PFTcanopycrownarea',  units='m2/ha',            &
+         long='total PFT-level canopy-layer crown area', use_default='inactive',     &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_canopycrownarea_si_pft )
+    
     call this%set_history_var(vname='PFTnindivs',  units='indiv / m2',            &
          long='total PFT level number of individuals', use_default='active',       &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
@@ -4245,6 +4304,52 @@ end subroutine flush_hvars
          long='Biomass of understory plants',  use_default='active',                            &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_understory_biomass_si )
+
+    ! disturbance rates
+    call this%set_history_var(vname='PRIMARYLAND_PATCHFUSION_ERROR', units='m2 m-2 d-1',                   &
+         long='Error in total primary lands associated with patch fusion',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_primaryland_fusion_error_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_P2P', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from primary to primary lands',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_p2p_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_P2S', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from primary to secondary lands',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_p2s_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_S2S', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from secondary to secondary lands',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_s2s_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_FIRE', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from fire',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_disturbance_rate_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_LOGGING', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from logging',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_logging_disturbance_rate_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_TREEFALL', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from treefall',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fall_disturbance_rate_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_POTENTIAL', units='m2 m-2 d-1',                   &
+         long='Potential (i.e., including unresolved) disturbance rate',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_potential_disturbance_rate_si )
+
+    call this%set_history_var(vname='HARVEST_CARBON_FLUX', units='kg C m-2 d-1',                   &
+         long='Harvest carbon flux',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_harvest_carbonflux_si )
 
     ! Canopy Resistance 
 
