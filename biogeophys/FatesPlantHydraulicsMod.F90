@@ -2691,7 +2691,6 @@ contains
     real(r8) :: surfarea_aroot_layer ! Surface area of absorbing roots in each
                                      ! soil layer [m2]
     real(r8) :: sum_l_aroot          ! sum of plant's total root length
-    real(r8),parameter :: taper_exponent = 1._r8/3._r8 ! Savage et al. (2010) xylem taper exponent [-]
     real(r8),parameter :: min_pet_stem_dz = 0.00001_r8  ! Force at least a small difference
                                                        ! in the top of stem and petiole
 
@@ -2739,17 +2738,17 @@ contains
        ! If there is no height difference between the upper compartment edge and
        ! the petiole, at least give it some nominal amount to void FPE's
        kmax_upper = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-            xylemtaper(taper_exponent, z_upper) * &
+            xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_upper) * &
             a_sapwood / z_upper
 
        ! max conductance from node to mean petiole height
        kmax_node  = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-            xylemtaper(taper_exponent, z_node) * &
+            xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_node) * &
             a_sapwood / z_node
 
        ! max conductance from lower edge to mean petiole height
        kmax_lower = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-            xylemtaper(taper_exponent, z_lower) * &
+            xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_lower) * &
             a_sapwood / z_lower
 
        ! Max conductance over the path of the upper side of the compartment
@@ -2778,11 +2777,11 @@ contains
     z_node  = ccohort_hydr%z_lower_ag(n_hypool_leaf)-ccohort_hydr%z_node_troot
 
     kmax_node = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-         xylemtaper(taper_exponent, z_node) * &
+         xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_node) * &
          a_sapwood / z_node
 
     kmax_upper = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-         xylemtaper(taper_exponent, z_upper) * &
+         xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_upper) * &
          a_sapwood / z_upper
 
     ccohort_hydr%kmax_troot_upper = (1._r8/kmax_node - 1._r8/kmax_upper)**(-1._r8)
@@ -4195,7 +4194,7 @@ contains
   function xylemtaper(p, dz) result(chi_tapnotap)
 
     ! !ARGUMENTS:
-    real(r8) , intent(in) :: p      ! Savage et al. (2010) taper exponent                                                                [-]
+    real(r8) , intent(in) :: p      ! Taper exponent (see EDPftvar    hydr_p_taper)                                                                                  [-]
     real(r8) , intent(in) :: dz     ! hydraulic distance from petiole to node of interest                                                [m]
     !
     ! !LOCAL VARIABLES:
