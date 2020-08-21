@@ -2466,6 +2466,9 @@ contains
             repro_c*prt_params%phos_stoich_p2(pft,repro_organ)
 
        daily_x_demand2 = ccohort%daily_p_need2
+
+       !       daily_x_demand2 = (plant_max_x/plant_c)
+
        
     end if
 
@@ -2474,13 +2477,13 @@ contains
     ! Like saying, on average, the plant would like this amount of nutrient
     ! per unit carbon to spend all of its daily carbon gain (npp_acc_hold)
     
-!!    if(ccohort%isnew) then
-       ! If a cohort is new, we don't have a precedent of npp, so
-       ! we instead demand 1% of its total phosphorus for that first day of life
-!!       npp_demand = 0.01_r8*plant_max_x
-!!    else
-!!       npp_demand = (plant_max_x/plant_c)*ccohort%npp_acc_hold/real(hlm_days_per_year,r8)
-!!    end if
+!    if(ccohort%isnew) then
+!       ! If a cohort is new, we don't have a precedent of npp, so
+!       ! we instead demand 1% of its total phosphorus for that first day of life
+!       npp_demand = 0.1_r8*plant_max_x
+!    else
+!       npp_demand = (plant_max_x/plant_c)*ccohort%npp_acc_hold/real(hlm_days_per_year,r8)
+!    end if
 
     
     ! If this plant has flexible stoichiometry, then we also calculate
@@ -2833,7 +2836,8 @@ contains
     !
     integer, parameter :: cnp_scalar_method1 = 1     ! RK's modification for FATES
     integer, parameter :: cnp_scalar_method2 = 2     ! Q. Zhu's original formulation
-    integer, parameter :: cnp_scalar_method  = cnp_scalar_method1
+    integer, parameter :: cnp_scalar_method3 = 3     ! Force to be 1.0 all the time
+    integer, parameter :: cnp_scalar_method  = cnp_scalar_method3
 
 
     real(r8) :: comp_per_pft(numpft) ! Competitors per PFT, used for averaging
@@ -2969,32 +2973,40 @@ contains
                      (target_leaf_c+target_store_c)
                 
                 nc_actual = max(leaf_store_n/(target_leaf_c+target_store_c),rsnbl_math_prec)
+
+                select case(cnp_scalar_method)
+                case(cnp_scalar_method1)
+                   
+                    !x0 = 0.5*(nc_ideal+nc_min)
+                    
+                    ! Fit the logistic shape parameter so that 95%tile of
+                    ! nutrient concentration matches 95%tile of scalar
+                    ! 0.95 = 1._r8/(1._r8 + exp(-logi_k*(  0.95*(nc_ideal-x0) )))
+                    ! logi_k = -log(1._r8-0.95/0.95)/ (  0.95*(nc_ideal-x0) )
+                    
+                    !bc_out%cn_scalar(icomp) = 1._r8/(1._r8 + exp(-logi_k*(nc_actual-x0)))
+                    
+                    bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp) + & 
+                          min(1._r8,max(0._r8, & 
+                          (nc_ideal - nc_actual + cn_stoich_var*nc_min) / & 
+                          (nc_ideal - nc_min + cn_stoich_var*nc_min)))
+                    
+                case(cnp_scalar_method2)
+                    cn_ideal = 1._r8/nc_ideal
+                    cn_actual = 1._r8/nc_actual
+                    bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp) + & 
+                          min(1._r8,max(0._r8, & 
+                          (cn_actual - cn_ideal*(1._r8-cn_stoich_var))/(cn_ideal*cn_stoich_var)))
+                    
+                   
+                case(cnp_scalar_method3)
+                    ! Force cn_scalar to be maxed
+                    bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp) + 1.0_r8
+                case default
+                    write(fates_log(), *) 'undefined cnp_scalar mode'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                end select
                 
-                if(cnp_scalar_method.eq.cnp_scalar_method1)then
-                   
-                   !x0 = 0.5*(nc_ideal+nc_min)
-                   
-                   ! Fit the logistic shape parameter so that 95%tile of
-                   ! nutrient concentration matches 95%tile of scalar
-                   ! 0.95 = 1._r8/(1._r8 + exp(-logi_k*(  0.95*(nc_ideal-x0) )))
-                   ! logi_k = -log(1._r8-0.95/0.95)/ (  0.95*(nc_ideal-x0) )
-                   
-                   !bc_out%cn_scalar(icomp) = 1._r8/(1._r8 + exp(-logi_k*(nc_actual-x0)))
-                   
-                   bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp) + & 
-                        min(1._r8,max(0._r8, & 
-                        (nc_ideal - nc_actual + cn_stoich_var*nc_min) / & 
-                        (nc_ideal - nc_min + cn_stoich_var*nc_min)))
-
-                else
-                   cn_ideal = 1._r8/nc_ideal
-                   cn_actual = 1._r8/nc_actual
-                   bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp) + & 
-                        min(1._r8,max(0._r8, & 
-                        (cn_actual - cn_ideal*(1._r8-cn_stoich_var))/(cn_ideal*cn_stoich_var)))
-                   
-                end if
-
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -3044,19 +3056,30 @@ contains
                      (target_leaf_c+target_store_c)
                 
                 pc_actual = max(leaf_store_p/(target_leaf_c+target_store_c),rsnbl_math_prec)
-                
-                if(cnp_scalar_method.eq.cnp_scalar_method1)then
-                   bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp) + & 
-                        min(1._r8,max(0._r8, & 
-                        (pc_ideal - pc_actual + cp_stoich_var*pc_min) / & 
-                        (pc_ideal - pc_min + cp_stoich_var*pc_min)))
-                else
-                   cp_actual = 1._r8/pc_actual
-                   cp_ideal  = 1._r8/pc_ideal
-                   bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp) + & 
-                        min(1._r8,max(0._r8, & 
-                        (cp_actual - cp_ideal*(1._r8-cn_stoich_var))/(cp_ideal*cn_stoich_var)))
-                end if
+
+                select case(cnp_scalar_method)
+                case(cnp_scalar_method1)
+                    bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp) + & 
+                          min(1._r8,max(0._r8, & 
+                          (pc_ideal - pc_actual + cp_stoich_var*pc_min) / & 
+                          (pc_ideal - pc_min + cp_stoich_var*pc_min)))
+                    
+                case(cnp_scalar_method2)
+                    cp_actual = 1._r8/pc_actual
+                    cp_ideal  = 1._r8/pc_ideal
+                    bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp) + & 
+                          min(1._r8,max(0._r8, & 
+                          (cp_actual - cp_ideal*(1._r8-cn_stoich_var))/(cp_ideal*cn_stoich_var)))
+                    
+                case(cnp_scalar_method3)
+                    ! Force cn_scalar to be maxed
+                    bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp) + 1.0_r8
+                    
+                case default
+                    write(fates_log(), *) 'undefined cnp_scalar mode'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                end select
+
                 
                 ccohort => ccohort%shorter
              end do
@@ -3302,6 +3325,7 @@ contains
           if(p_uptake_mode.eq.prescribed_p_uptake) cycle
           
        end select
+
        
        currentPatch => csite%oldest_patch
        do while (associated(currentPatch))

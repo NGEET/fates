@@ -502,21 +502,6 @@ contains
                   currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needmax_scpf(iscpf) + &
                   currentCohort%daily_p_need2*currentCohort%n
 
-             
-
-             ! Don't zero out the efflux terms, they need to be written to restarts,
-             ! so that litter fluxes can be reconstructed.
-
-             ! If this was a flex CNP type run, we also need to update total autotrophic
-             ! respiration, because we just updated growth respiration (along with allocation)
-             currentCohort%resp_acc = currentCohort%resp_acc + currentCohort%resp_g_daily
-
-             ! Also update the "hold" diagnostics for history writing
-             currentCohort%npp_acc_hold  = currentCohort%npp_acc_hold - &
-                                           currentCohort%resp_g_daily*real(hlm_days_per_year,r8)
-             currentCohort%resp_acc_hold = currentCohort%resp_acc_hold +  &
-                                           currentCohort%resp_g_daily*real(hlm_days_per_year,r8)
-             
           end if
     
           ! And simultaneously add the input fluxes to mass balance accounting

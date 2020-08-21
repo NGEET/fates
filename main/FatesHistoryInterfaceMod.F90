@@ -3432,24 +3432,10 @@ end subroutine flush_hvars
                
                if ( .not. ccohort%isnew ) then
 
-                  ! Growth respiration is slightly different
-                  ! depending on our different allocation hypotheses
-                  if( hlm_parteh_mode.eq.prt_carbon_allom_hyp) then
-                     ! This is updated during photosynthesis
-                     npp    = ccohort%npp_tstep
-                     resp_g = ccohort%resp_g_tstep
-                     aresp  = ccohort%resp_tstep
-                  else
-                     ! If we impose growth respiration as a tax
-                     ! during growth, and not during photosyntheis
-                     ! we need to estimate growth respiration
-                     ! by using the previous day's mean, and passing
-                     ! that into npp and total autotrophic r
-                     resp_g = ccohort%resp_g_daily / (sec_per_day/dt_tstep)
-                     npp    = ccohort%npp_tstep-resp_g
-                     aresp  = ccohort%resp_tstep+resp_g
-                  end if
-                  
+                   npp    = ccohort%npp_tstep
+                   resp_g = ccohort%resp_g_tstep
+                   aresp  = ccohort%resp_tstep
+                                    
                   ! Calculate index for the scpf class
                   associate( scpf => ccohort%size_by_pft_class, &
                              scls => ccohort%size_class )
@@ -3457,6 +3443,7 @@ end subroutine flush_hvars
                   ! scale up cohort fluxes to the site level
                   hio_npp_si(io_si) = hio_npp_si(io_si) + &
                         npp * g_per_kg * n_perm2 * per_dt_tstep
+                  
                   hio_gpp_si(io_si) = hio_gpp_si(io_si) + &
                         ccohort%gpp_tstep * g_per_kg * n_perm2 * per_dt_tstep
                   hio_aresp_si(io_si) = hio_aresp_si(io_si) + &

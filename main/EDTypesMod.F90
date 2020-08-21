@@ -316,17 +316,7 @@ module EDTypesMod
      ! RESPIRATION COMPONENTS
      real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
 
-     ! These two respiration rates are mutually exclusive.  If we use:
-     ! parteh_mode = prt_carbon_allom_hyp, then growth respiration
-     !               is calculated during photosynthesis as a tax on (GPP-R_maint), 
-     !               and tracked with resp_g_tstep
-     ! if
-     ! parteh_mode = prt_cnp_flex_allom_hyp, then growth respiration
-     !               is calculated during during each allocation, and thus tracked
-     !               with resp_g_daily
-
      real(r8) ::  resp_g_tstep                           ! Growth respiration:  kgC/indiv/timestep
-     real(r8) ::  resp_g_daily                           !                      kgC/indiv/day
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
      real(r8) ::  resp_m_def                             ! Optional: (NOT IMPLEMENTED YET)
                                                          ! It may be possible to not respire at desired rate
@@ -1060,7 +1050,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
      write(fates_log(),*) 'co%resp_m_def             = ', ccohort%resp_m_def
      write(fates_log(),*) 'co%resp_g_tstep           = ', ccohort%resp_g_tstep
-     write(fates_log(),*) 'co%resp_g_daily           = ', ccohort%resp_g_daily
      write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr
      write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr
      write(fates_log(),*) 'co%froot_mr               = ', ccohort%froot_mr

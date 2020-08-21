@@ -106,7 +106,6 @@ module FatesRestartInterfaceMod
   integer :: ir_gpp_acc_hold_co
   integer :: ir_npp_acc_hold_co
   integer :: ir_resp_acc_hold_co
-  integer :: ir_resp_g_daily_co
   integer :: ir_resp_m_def_co
   integer :: ir_bmort_co
   integer :: ir_hmort_co
@@ -730,11 +729,6 @@ contains
          long_name='ed cohort - current step resp', &
          units='kgC/indiv/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_hold_co )
-
-    call this%set_restart_var(vname='fates_resp_g_daily', vtype=cohort_r8, &
-         long_name='ed cohort - daily growth respiration', &
-         units='kgC/indiv/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_g_daily_co )
 
     call this%set_restart_var(vname='fates_resp_m_def', vtype=cohort_r8, &
          long_name='ed cohort - maintenance respiration deficit', &
@@ -1593,7 +1587,6 @@ contains
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
            rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
            rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
-           rio_resp_g_daily_co         => this%rvars(ir_resp_g_daily_co)%r81d, &
            rio_resp_m_def_co           => this%rvars(ir_resp_m_def_co)%r81d, & 
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
@@ -1818,7 +1811,6 @@ contains
                 rio_resp_acc_hold_co(io_idx_co) = ccohort%resp_acc_hold
                 rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
 
-                rio_resp_g_daily_co(io_idx_co) = ccohort%resp_g_daily
                 rio_resp_m_def_co(io_idx_co)   = ccohort%resp_m_def
 
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
@@ -2362,7 +2354,6 @@ contains
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
           rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
           rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
-          rio_resp_g_daily_co         => this%rvars(ir_resp_g_daily_co)%r81d, &
           rio_resp_m_def_co           => this%rvars(ir_resp_m_def_co)%r81d, & 
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
@@ -2546,8 +2537,6 @@ contains
                 ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
                 ccohort%resp_acc_hold = rio_resp_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
-
-                ccohort%resp_g_daily = rio_resp_g_daily_co(io_idx_co)
                 ccohort%resp_m_def   = rio_resp_m_def_co(io_idx_co)
 
                 ccohort%bmort        = rio_bmort_co(io_idx_co)

@@ -93,7 +93,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdn, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_out_id_growresp
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_ngrow,acnp_bc_out_id_nmax
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pgrow,acnp_bc_out_id_pmax
  
@@ -405,7 +405,6 @@ contains
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_growresp, bc_rval = new_cohort%resp_g_daily)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_ngrow, bc_rval = new_cohort%daily_n_need1)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nmax, bc_rval = new_cohort%daily_n_need2)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pgrow, bc_rval = new_cohort%daily_p_need1)
@@ -578,7 +577,6 @@ contains
     currentCohort%livecroot_mr       = nan ! Coarse root maintenance respiration. kgC/indiv/s-1 
     currentCohort%froot_mr           = nan ! Fine root maintenance respiration. kgC/indiv/s-1 
     currentCohort%resp_g_tstep       = nan ! Growth respiration.       kGC/indiv/timestep
-    currentCohort%resp_g_daily       = nan ! Growth respiration.       kgC/indiv/day
 
 
     ! ALLOCATION
@@ -1402,15 +1400,10 @@ contains
                                       currentCohort%daily_p_need2 = (currentCohort%n*currentCohort%daily_p_need2 + & 
                                            nextc%n*nextc%daily_p_need2)/newn
 
-                                      
-                                      ! These two carbon variables need continuity from day to day, as resp_m_def
-                                      ! needs to hold mass and be conservative, and resp_g_daily needs to inform
-                                      ! diagnostics post fusion (during the next day's short timesteps)
+                                      ! This carbon variable needs continuity from day to day, as resp_m_def
+                                      ! needs to hold mass and be conservative
                                       currentCohort%resp_m_def = (currentCohort%n*currentCohort%resp_m_def + & 
                                            nextc%n*nextc%resp_m_def)/newn
-                                      currentCohort%resp_g_daily = (currentCohort%n*currentCohort%resp_g_daily+ & 
-                                           nextc%n*nextc%resp_g_daily)/newn
-
                                       
                                       ! logging mortality, Yi Xu
                                       currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &
@@ -1824,7 +1817,6 @@ contains
     n%resp_m          = o%resp_m
     n%resp_m_def      = o%resp_m_def
     n%resp_g_tstep    = o%resp_g_tstep
-    n%resp_g_daily    = o%resp_g_daily
     n%livestem_mr     = o%livestem_mr
     n%livecroot_mr    = o%livecroot_mr
     n%froot_mr        = o%froot_mr

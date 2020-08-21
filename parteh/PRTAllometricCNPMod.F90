@@ -159,13 +159,12 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_out_id_cefflux = 1  ! Daily exudation of C  [kg]
   integer, public, parameter :: acnp_bc_out_id_nefflux = 2  ! Daily exudation of N  [kg]
   integer, public, parameter :: acnp_bc_out_id_pefflux = 3  ! Daily exudation of P  [kg]
-  integer, public, parameter :: acnp_bc_out_id_growresp = 4 ! Daily growhth respiration [kg]
-  integer, public, parameter :: acnp_bc_out_id_ngrow    = 5 ! N needed to match C growth at low N/C
-  integer, public, parameter :: acnp_bc_out_id_nmax     = 6 ! N needed to match C growth at max N/C
-  integer, public, parameter :: acnp_bc_out_id_pgrow    = 7 ! P needed to match C growth at low P/C
-  integer, public, parameter :: acnp_bc_out_id_pmax     = 8 ! P needed to match C growth at max P/C
+  integer, public, parameter :: acnp_bc_out_id_ngrow    = 4 ! N needed to match C growth at low N/C
+  integer, public, parameter :: acnp_bc_out_id_nmax     = 5 ! N needed to match C growth at max N/C
+  integer, public, parameter :: acnp_bc_out_id_pgrow    = 6 ! P needed to match C growth at low P/C
+  integer, public, parameter :: acnp_bc_out_id_pmax     = 7 ! P needed to match C growth at max P/C
   
-  integer, parameter         :: num_bc_out                = 8  ! Total number of
+  integer, parameter         :: num_bc_out                = 7  ! Total number of
 
 
   ! -------------------------------------------------------------------------------------
@@ -395,7 +394,6 @@ contains
 
     
     ! Output only boundary conditions
-    growth_r    => this%bc_out(acnp_bc_out_id_growresp)%rval; growth_r = 0._r8
     c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
     n_efflux    => this%bc_out(acnp_bc_out_id_nefflux)%rval;  n_efflux = 0._r8
     p_efflux    => this%bc_out(acnp_bc_out_id_pefflux)%rval;  p_efflux = 0._r8
@@ -486,7 +484,7 @@ contains
        ! ===================================================================================
 
        call this%CNPPrioritizedReplacement2(maint_r_def, c_gain_unl, n_gain_unl, p_gain_unl, &
-            growth_r, state_c, state_n, state_p, target_c)
+            state_c, state_n, state_p, target_c)
 
        ! Uncomment to see intermediate n and p needs
        !n_grow = n_gain_unl0 - n_gain_unl
@@ -499,7 +497,7 @@ contains
        ! targets based on prioritized relative demand and allometry functions.
        ! ===================================================================================
        
-       call this%CNPStatureGrowth(c_gain_unl, n_gain_unl, p_gain_unl, growth_r, &
+       call this%CNPStatureGrowth(c_gain_unl, n_gain_unl, p_gain_unl,  &
             state_c, state_n, state_p, target_c, target_dcdd, cnp_limiter)
        
        n_grow = max(0._r8,(n_gain_unl0 - n_gain_unl))
@@ -511,7 +509,7 @@ contains
        ! Allocate the remaining resources, or as a last resort, efflux them.
        ! ===================================================================================
        
-       call this%CNPAllocateRemainder(c_gain_unl, n_gain_unl, p_gain_unl, growth_r, &
+       call this%CNPAllocateRemainder(c_gain_unl, n_gain_unl, p_gain_unl,  &
             state_c, state_n, state_p, c_efflux, n_efflux, p_efflux)
 
        
@@ -541,7 +539,6 @@ contains
        ! Reset the maintenance respiration deficit and the growth
        ! respiration 
        maint_r_def = maint_r_def0
-       growth_r    = 0._r8
        dbh         = dbh0
 
     end if
@@ -550,21 +547,21 @@ contains
     ! Step 1.  Prioritized allocation to replace tissues from turnover, and/or pay
     ! any un-paid maintenance respiration from storage.
     ! ===================================================================================
+
     
     call this%CNPPrioritizedReplacement2(maint_r_def, c_gain, n_gain, p_gain, &
-         growth_r, state_c, state_n, state_p, target_c)
-    
+             state_c, state_n, state_p, target_c)
+
     sum_c = 0._r8
     do i_org = 1,num_organs
        sum_c = sum_c+state_c(i_org)%p
     end do
     if( abs((c_gain0-c_gain) - &
-            (growth_r+sum_c-sum(state_c0(:),dim=1)+(maint_r_def0-maint_r_def))) >calloc_abs_error ) then
+            (sum_c-sum(state_c0(:),dim=1)+(maint_r_def0-maint_r_def))) >calloc_abs_error ) then
        write(fates_log(),*) 'Carbon not balancing I'
        do i_org = 1,num_organs
           write(fates_log(),*) 'state_c: ',state_c(i_org)%p,state_c0(i_org)
        end do
-       write(fates_log(),*) growth_r
        write(fates_log(),*) maint_r_def0-maint_r_def
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
@@ -576,7 +573,7 @@ contains
     ! targets based on prioritized relative demand and allometry functions.
     ! ===================================================================================
     
-    call this%CNPStatureGrowth(c_gain, n_gain, p_gain, growth_r, &
+    call this%CNPStatureGrowth(c_gain, n_gain, p_gain,  &
          state_c, state_n, state_p, target_c, target_dcdd, cnp_limiter)
     
     sum_c = 0._r8
@@ -584,12 +581,11 @@ contains
        sum_c = sum_c+state_c(i_org)%p
     end do
     if( abs((c_gain0-c_gain) - &
-            (growth_r+sum_c-sum(state_c0(:),dim=1)+(maint_r_def0-maint_r_def))) >calloc_abs_error ) then
+            (sum_c-sum(state_c0(:),dim=1)+(maint_r_def0-maint_r_def))) >calloc_abs_error ) then
        write(fates_log(),*) 'Carbon not balanceing II'
        do i_org = 1,num_organs
           write(fates_log(),*) 'state_c: ',state_c(i_org)%p,state_c0(i_org)
        end do
-       write(fates_log(),*) growth_r
        write(fates_log(),*) maint_r_def0-maint_r_def
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
@@ -605,7 +601,7 @@ contains
     ! Allocate the remaining resources, or as a last resort, efflux them.
     ! ===================================================================================
     
-    call this%CNPAllocateRemainder(c_gain, n_gain, p_gain, growth_r, &
+    call this%CNPAllocateRemainder(c_gain, n_gain, p_gain,  &
          state_c, state_n, state_p, c_efflux, n_efflux, p_efflux)
 
     ! Error Check: Make sure that the mass gains are completely used up
@@ -619,10 +615,8 @@ contains
        write(fates_log(),*) 'p_gain: ',p_gain
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
-
-
     
-    allocated_c = growth_r + (maint_r_def0-maint_r_def) + c_efflux
+    allocated_c = (maint_r_def0-maint_r_def) + c_efflux
     allocated_n = n_efflux
     allocated_p = p_efflux
     
@@ -666,7 +660,7 @@ contains
           do i_org = 1,num_organs
              write(fates_log(),*) i_org, state_c(i_org)%p-state_c0(i_org)
           end do
-          write(fates_log(),*) growth_r, (maint_r_def0-maint_r_def), c_efflux
+          write(fates_log(),*) (maint_r_def0-maint_r_def), c_efflux
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
@@ -682,7 +676,7 @@ contains
   ! =====================================================================================
   
   subroutine CNPPrioritizedReplacement1(this, & 
-       maint_r_deficit, c_gain, n_gain, p_gain, growth_resp, &
+       maint_r_deficit, c_gain, n_gain, p_gain, &
        state_c, state_n, state_p, target_c)
 
       
@@ -701,7 +695,6 @@ contains
     real(r8), intent(inout) :: c_gain
     real(r8), intent(inout) :: n_gain
     real(r8), intent(inout) :: p_gain
-    real(r8), intent(inout) :: growth_resp
     real(r8), intent(inout) :: maint_r_deficit
     type(parray_type) :: state_c(:)     ! State array for carbon, by organ [kg]
     type(parray_type) :: state_n(:)     ! State array for N, by organ [kg]
@@ -713,7 +706,6 @@ contains
     real(r8), dimension(num_organs) :: deficit_c ! Deficit to get to target from current    [kg]
     real(r8), dimension(num_organs) :: deficit_n ! Deficit to get to target from current    [kg]
     real(r8), dimension(num_organs) :: deficit_p ! Deficit to get to target from current    [kg]
-    real(r8), dimension(num_organs) :: r_g  ! Growth respiration rate [kgC/kgC]
     integer  :: i, ii, i_org             ! Loop indices (mostly for organs)
     integer  :: i_cvar                   ! variable index
     integer  :: i_pri                    ! loop index for priority
@@ -762,13 +754,6 @@ contains
     ipft            = this%bc_in(acnp_bc_in_id_pft)%ival
     canopy_trim     = this%bc_in(acnp_bc_in_id_ctrim)%rval
     
-    ! Choose growth respiration rates depending on hypothesis
-    r_g(leaf_id)       = prt_params%grperc(ipft)
-    r_g(fnrt_id)       = prt_params%grperc(ipft)
-    r_g(sapw_id)       = prt_params%grperc(ipft)
-    r_g(store_id)      = prt_params%grperc(ipft)
-    r_g(struct_id)     = prt_params%grperc(ipft)
-    r_g(repro_id)      = prt_params%grperc(ipft)
 
     ! In some model configurations, we may pass in a negative  carbon balance, a mode
     ! where we are not tracking maintenance respiration deficit, and instead, we are
@@ -853,7 +838,7 @@ contains
     sum_c_demand = 0._r8
     do ii = 1,n_curpri_org
        i = curpri_org(ii)
-       sum_c_demand = sum_c_demand + deficit_c(i)*(1._r8 + r_g(i))
+       sum_c_demand = sum_c_demand + deficit_c(i)
     end do
 
     ! The transferable storage to leaf/fine-root/maintenance is a linear function
@@ -906,20 +891,17 @@ contains
              !i_gorgan = prt_global%state_descriptor(i_cvar)%organ_id
              ! The total carbon drawn for this pool
              
-             c_flux   = sum_c_flux/sum_c_demand * deficit_c(i_org)*(1._r8+r_g(i_org))
+             c_flux   = sum_c_flux/sum_c_demand * deficit_c(i_org)
              
              ! Transfer the carbon into the pool
              ! Note* If this is a variable with age bins (ie leaves)
              ! we are also using bin 1 for all fluxes at this stage (growth bin)
              ! which is also "icd"
 
-             state_c(i_org)%p = state_c(i_org)%p + c_flux/(1.0_r8 + r_g(i_org))
+             state_c(i_org)%p = state_c(i_org)%p + c_flux
 
              ! Update the carbon deficit
-             deficit_c(i_org) = deficit_c(i_org) - c_flux/(1.0_r8 + r_g(i_org))
-             
-             ! Transfer the carbon into the pool growth respiration cost
-             growth_resp = growth_resp + c_flux * r_g(i_org)/(1.0_r8 + r_g(i_org))
+             deficit_c(i_org) = deficit_c(i_org) - c_flux
              
           end do
        end if
@@ -1021,8 +1003,7 @@ contains
        sum_c_demand = 0._r8
        do i=1,n_curpri_org
           i_org = curpri_org(i)
-          sum_c_demand = sum_c_demand + &
-               deficit_c(i_org) * (1._r8 + r_g(i_org))
+          sum_c_demand = sum_c_demand + deficit_c(i_org)
        end do
        
        sum_c_flux = min(c_gain, sum_c_demand)
@@ -1033,20 +1014,16 @@ contains
              
              i_org = curpri_org(i)
              
-             c_flux  =            sum_c_flux*deficit_c(i_org)/sum_c_demand
-             gr_flux = r_g(i_org)*sum_c_flux*deficit_c(i_org)/sum_c_demand
+             c_flux  = sum_c_flux*deficit_c(i_org)/sum_c_demand
              
              ! Update the carbon pool
              state_c(i_org)%p = state_c(i_org)%p + c_flux
              
              ! Update carbon pools deficit
              deficit_c(i_org) = max(0._r8,deficit_c(i_org) - c_flux)
-             
-             ! Estimate the growth respiration associated with this allocation
-             growth_resp = growth_resp + gr_flux
 
              ! Reduce the carbon gain
-             c_gain      = c_gain - (c_flux+gr_flux)
+             c_gain      = c_gain - c_flux
              
           end do
 
@@ -1085,7 +1062,7 @@ contains
   ! =====================================================================================
   
   subroutine CNPPrioritizedReplacement2(this, & 
-       maint_r_deficit, c_gain, n_gain, p_gain, growth_resp, &
+       maint_r_deficit, c_gain, n_gain, p_gain, &
        state_c, state_n, state_p, target_c)
 
       
@@ -1098,7 +1075,6 @@ contains
     real(r8), intent(inout) :: c_gain
     real(r8), intent(inout) :: n_gain
     real(r8), intent(inout) :: p_gain
-    real(r8), intent(inout) :: growth_resp
     real(r8), intent(inout) :: maint_r_deficit
     type(parray_type) :: state_c(:)     ! State array for carbon, by organ [kg]
     type(parray_type) :: state_n(:)     ! State array for N, by organ [kg]
@@ -1110,7 +1086,6 @@ contains
     real(r8), dimension(num_organs) :: deficit_c ! Deficit to get to target from current    [kg]
     real(r8), dimension(num_organs) :: deficit_n ! Deficit to get to target from current    [kg]
     real(r8), dimension(num_organs) :: deficit_p ! Deficit to get to target from current    [kg]
-    real(r8), dimension(num_organs) :: r_g  ! Growth respiration rate [kgC/kgC]
     integer  :: i, ii, i_org             ! Loop indices (mostly for organs)
     integer  :: i_cvar                   ! variable index
     integer  :: i_pri                    ! loop index for priority
@@ -1120,7 +1095,7 @@ contains
     real(r8) :: canopy_trim              ! trim factor for maximum leaf biomass
     real(r8) :: target_n                 ! Target mass of N for a given organ [kg]
     real(r8) :: target_p                 ! Target mass of P for a given organ [kg]
-    real(r8) :: n_gain0
+    real(r8) :: c_gain0
     integer  :: priority_code            ! Index for priority level of each organ
     real(r8) :: sum_c_demand            ! Carbon demanded to bring tissues up to allometry (kg)
     real(r8) :: sum_n_deficit            ! The nitrogen deficit of all pools for given priority level (kg)
@@ -1146,20 +1121,11 @@ contains
                                                            ! the specialized priority 1
 
 
-    n_gain0=n_gain
+    c_gain0=c_gain
     
     leaves_on       = this%bc_in(acnp_bc_in_id_leafon)%ival
     ipft            = this%bc_in(acnp_bc_in_id_pft)%ival
     canopy_trim     = this%bc_in(acnp_bc_in_id_ctrim)%rval
-    
-    ! Choose growth respiration rates depending on hypothesis
-    r_g(leaf_id)       = prt_params%grperc(ipft)
-    r_g(fnrt_id)       = prt_params%grperc(ipft)
-    r_g(sapw_id)       = prt_params%grperc(ipft)
-    r_g(store_id)      = prt_params%grperc(ipft)
-    r_g(struct_id)     = prt_params%grperc(ipft)
-    r_g(repro_id)      = prt_params%grperc(ipft)
-
     
     ! -----------------------------------------------------------------------------------
     ! Preferential transfer of available carbon and nutrients into the highest
@@ -1210,7 +1176,7 @@ contains
 
        i_cvar        = prt_global%sp_organ_map(organ_list(i),carbon12_element)
        sum_c_demand = sum_c_demand + prt_params%leaf_stor_priority(ipft) * &
-            sum(this%variables(i_cvar)%turnover(:))*(1._r8 + r_g(i))
+            sum(this%variables(i_cvar)%turnover(:))
           
     end do
 
@@ -1227,21 +1193,17 @@ contains
           
           i_cvar        = prt_global%sp_organ_map(organ_list(i),carbon12_element)
           c_flux = sum_c_flux*(prt_params%leaf_stor_priority(ipft) * &
-               sum(this%variables(i_cvar)%turnover(:))*(1._r8 + r_g(i))/sum_c_demand)
+               sum(this%variables(i_cvar)%turnover(:))/sum_c_demand)
 
           ! Add carbon to the pool
-          state_c(i)%p = state_c(i)%p + c_flux/(1._r8 + r_g(i))
+          state_c(i)%p = state_c(i)%p + c_flux
           
-          ! Tax growth respiration
-          growth_resp  = growth_resp + r_g(i)*c_flux/(1._r8 + r_g(i))
-
           ! Remove from daily  carbon gain
           c_gain = c_gain - c_flux
 
        end do
     end if
-
-
+    
     ! -----------------------------------------------------------------------------------
     ! IV. if carbon balance is negative, re-coup the losses from storage
     !       if it is positive, give some love to storage carbon
@@ -1251,27 +1213,27 @@ contains
 
        ! Storage will have to pay for any negative gains
        store_c_flux           = -c_gain
-       c_gain                 = c_gain  + store_c_flux
+       c_gain                 = c_gain              + store_c_flux
        state_c(store_id)%p    = state_c(store_id)%p - store_c_flux
-
+       
     else
        
        ! This is the desired need for carbon
        store_target_fraction  = max(0.0_r8, state_c(store_id)%p/target_c(store_id))
-       store_demand           = c_gain*(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ))*(1._r8+r_g(store_id))
+       store_demand           = c_gain*(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ))
 
        ! This is just a cap, don't fill up more than is needed (shouldn't even apply)
-       store_below_target     = (target_c(store_id) - state_c(store_id)%p)*(1._r8+r_g(store_id))
+       store_below_target     = (target_c(store_id) - state_c(store_id)%p)
 
        ! The flux is the (positive) minimum of all three
        store_c_flux           = max(min(min(store_below_target,store_demand),c_gain),0.)
        
        c_gain                 = c_gain  - store_c_flux
-       state_c(store_id)%p    = state_c(store_id)%p + store_c_flux/(1._r8+r_g(store_id))
-       growth_resp            = growth_resp + r_g(store_id)*store_c_flux/(1._r8+r_g(store_id))
+       state_c(store_id)%p    = state_c(store_id)%p +               store_c_flux
        
-    end if
-
+   
+   end if
+   
     
     ! -----------------------------------------------------------------------------------
     !  If carbon is still available, allocate to remaining high
@@ -1317,8 +1279,7 @@ contains
        sum_c_demand = 0._r8
        do i=1,n_curpri_org
           i_org = curpri_org(i)
-          sum_c_demand = sum_c_demand + &
-               deficit_c(i_org) * (1._r8 + r_g(i_org))
+          sum_c_demand = sum_c_demand + deficit_c(i_org)
        end do
        
        sum_c_flux = min(c_gain, sum_c_demand)
@@ -1330,7 +1291,6 @@ contains
              i_org = curpri_org(i)
              
              c_flux  =            sum_c_flux*deficit_c(i_org)/sum_c_demand
-             gr_flux = r_g(i_org)*sum_c_flux*deficit_c(i_org)/sum_c_demand
              
              ! Update the carbon pool
              state_c(i_org)%p = state_c(i_org)%p + c_flux
@@ -1338,14 +1298,10 @@ contains
              ! Update carbon pools deficit
              deficit_c(i_org) = max(0._r8,deficit_c(i_org) - c_flux)
              
-             ! Estimate the growth respiration associated with this allocation
-             growth_resp = growth_resp + gr_flux
-
              ! Reduce the carbon gain
-             c_gain      = c_gain - (c_flux+gr_flux)
+             c_gain      = c_gain - c_flux
              
           end do
-
        end if
        
        ! Determine nutrient demand and make tansfers
@@ -1377,8 +1333,7 @@ contains
        call ProportionalNutrAllocation(state_p, deficit_p, &
             p_gain, phosphorus_element, curpri_org(1:n_curpri_org))
        
-       
-       
+
     end do
     
     return
@@ -1387,7 +1342,7 @@ contains
   
   ! =====================================================================================
     
-  subroutine CNPStatureGrowth(this,c_gain, n_gain, p_gain, growth_resp, &
+  subroutine CNPStatureGrowth(this,c_gain, n_gain, p_gain,  &
                               state_c, state_n, state_p,           &
                               target_c, target_dcdd, cnp_limiter)
     
@@ -1396,7 +1351,6 @@ contains
     real(r8), intent(inout) :: c_gain
     real(r8), intent(inout) :: n_gain
     real(r8), intent(inout) :: p_gain
-    real(r8), pointer :: growth_resp
     real(r8), pointer :: maint_r_deficit
     type(parray_type) :: state_c(:)       ! State array for carbon, by organ [kg]
     type(parray_type) :: state_n(:)       ! State array for N, by organ [kg]
@@ -1475,7 +1429,13 @@ contains
     real(r8), parameter :: max_trunc_error = 1.0_r8        ! Maximum allowable truncation error
     integer,  parameter :: ODESolve = 2                    ! 1=RKF45,  2=Euler
     real(r8)            :: intgr_params(num_bc_in)
-    integer, parameter  :: grow_lim_type = 2
+
+    integer, parameter  :: grow_lim_type = 3 ! Dev flag for growth limitation algorithm
+                                             ! 1 = tries to calculate equivalent carbon
+                                             ! 2 = modification of 1
+                                             ! 3 = don't limit, and assume nutrient limitations will prevent calling
+                                             !     of this step on the next cycle if they exist
+    
     integer, parameter  :: c_limited = 1
     integer, parameter  :: n_limited = 2
     integer, parameter  :: p_limited = 3
@@ -1623,8 +1583,9 @@ contains
     end if
 
 
-    
-    if(grow_lim_type == 1) then
+    select case(grow_lim_type)
+    case(1)
+
     
        ! Calculate an approximation of the total amount of carbon that would be needed
        ! to match the amount of each nutrient used.  We also add in the amount of nutrient
@@ -1658,8 +1619,7 @@ contains
           write(fates_log(),*) 'Somehow grow_c_from_c is near zero',grow_c_from_c
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
-
-    else
+   case(2)
        
        n_match = 0._r8
        p_match = 0._r8
@@ -1681,13 +1641,15 @@ contains
           end if
        end if
        
- !      c_gstature = c_gain * np_limit
+       c_gstature = c_gain * np_limit
 
+    case(3)
+       
        ! HACK, ALLOW FULL C ALLOCATION AND LET REST OF ALGORITHM LIMIT
        c_gstature = c_gain
        
        
-    end if
+   end select
 
     
     if(c_gstature > nearzero) then
@@ -1789,7 +1751,6 @@ contains
                 
                 ! Track the growth respiration
                 c_flux = state_array(gresp_id)*c_flux_adj
-                growth_resp =  growth_resp + c_flux
                 
                 ! Remove the growth respiration flux from the gain
                 c_gain = c_gain - c_flux
@@ -1904,14 +1865,13 @@ contains
   
   ! =====================================================================================
 
-  subroutine CNPAllocateRemainder(this,c_gain, n_gain, p_gain, growth_resp, &
+  subroutine CNPAllocateRemainder(this,c_gain, n_gain, p_gain, &
                                   state_c, state_n, state_p, c_efflux, n_efflux, p_efflux)
 
     class(cnp_allom_prt_vartypes) :: this
     real(r8), intent(inout) :: c_gain
     real(r8), intent(inout) :: n_gain
     real(r8), intent(inout) :: p_gain
-    real(r8), pointer :: growth_resp
     type(parray_type) :: state_c(:)       ! State array for carbon, by organ [kg]
     type(parray_type) :: state_n(:)       ! State array for N, by organ [kg]
     type(parray_type) :: state_p(:)       ! State array for P, by organ [kg]
@@ -1928,7 +1888,6 @@ contains
     real(r8) :: total_c_flux     ! Total C flux from gains into storage and growth R [kgC]
     real(r8) :: growth_r_flux    ! Growth respiration for filling storage [kgC]
     real(r8) :: store_c_flux     ! Flux into storage [kgC]
-    real(r8), dimension(num_organs) :: r_g  ! Growth respiration rate [kgC/kgC]
     integer, dimension(num_organs),parameter :: all_organs = [1,2,3,4,5,6]
     real(r8), pointer :: dbh
     integer           :: ipft
@@ -1938,15 +1897,6 @@ contains
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
-    
-    ! Choose growth respiration rates depending on hypothesis
-    r_g(leaf_id)       = prt_params%grperc(ipft)
-    r_g(fnrt_id)       = prt_params%grperc(ipft)
-    r_g(sapw_id)       = prt_params%grperc(ipft)
-    r_g(store_id)      = prt_params%grperc(ipft)
-    r_g(struct_id)     = prt_params%grperc(ipft)
-    r_g(repro_id)      = prt_params%grperc(ipft)
-
     
     ! -----------------------------------------------------------------------------------
     ! If nutrients are still available, then we can bump up the values in the pools
@@ -1998,16 +1948,10 @@ contains
        ! Estimate the overflow
        store_c_target = store_c_target * (1.0_r8 + store_overflow_frac)
        
-       total_c_flux = min(c_gain,max(0.0, (store_c_target - state_c(store_id)%p)*(1._r8 + r_g(store_id))))
+       total_c_flux = min(c_gain,max(0.0, (store_c_target - state_c(store_id)%p)))
        
-       growth_r_flux   = r_g(store_id)/(1._r8+r_g(store_id))*total_c_flux
-       store_c_flux    =         1._r8/(1._r8+r_g(store_id))*total_c_flux
-
        ! Transfer excess carbon into storage overflow
-
-       state_c(store_id)%p = state_c(store_id)%p + store_c_flux
-       growth_resp         = growth_resp + growth_r_flux
-
+       state_c(store_id)%p = state_c(store_id)%p + total_c_flux
        c_gain              = c_gain - total_c_flux
 
 
@@ -2194,24 +2138,6 @@ contains
 
   ! =====================================================================================
 
-  function GrowthRespRateOrgan(organ_id,ipft) result(r_g)
-
-    integer,intent(in) :: organ_id
-    integer,intent(in) :: ipft
-    
-    real(r8) :: r_g   ! Growth respiration per unit carbon
-                      ! allocated [kgC/kgC]
-    
-    ! This is just a placeholder for when we have organ specific
-    ! or some other fancier growth respiration rate 
-    
-    r_g      = prt_params%grperc(ipft)
-
-  end function GrowthRespRateOrgan
-
-
-  ! =====================================================================================
-
 
   subroutine NAndPToMatchC(this,c_gain_org,dc_dd,ipft,organ_id,n_match,p_match)
 
@@ -2224,7 +2150,6 @@ contains
     real(r8), intent(inout) :: n_match    ! N needed to match C growth
     real(r8), intent(inout) :: p_match    ! P needed to match C growth
 
-    real(r8) :: r_g        ! Growth respiration rate [kg/kg]
     integer  :: c_var_id   ! Data array index of the carbon state variable
     integer  :: np_var_id  ! Data array index of the N and P states
     real(r8) :: grow_c     ! Amount of C that would go into the organs tissue
@@ -2237,14 +2162,8 @@ contains
     ! this routine is being called, the initial amount of carbon
     ! is the on-allometry value.
 
-    
-    r_g = GrowthRespRateOrgan(organ_id,ipft)
     c_var_id = prt_global%sp_organ_map(organ_id,carbon12_element)
     
-    ! Calculate what our carbon target would be
-    ! -----------------------------------------------------------------------------------
-    grow_c =  c_gain_org/(1.0_r8 + r_g)
-
     ! Save the current carbon and dbh state (we need dbh also
     ! because nutient targets may not queue off of current mass,
     ! but off of stature)
@@ -2253,13 +2172,13 @@ contains
     d0 = this%bc_inout(acnp_bc_inout_id_dbh)%rval
     
     ! Given the desired growth, imagine what the future C and dbh states are
-    this%variables(c_var_id)%val(1) = this%variables(c_var_id)%val(1)+grow_c
+    this%variables(c_var_id)%val(1) = this%variables(c_var_id)%val(1)+c_gain_org
 
     ! Reproductive tissues may not have an allometry curve, their
     ! target will be based off of actual C anyway
     if(dc_dd>nearzero) then
        this%bc_inout(acnp_bc_inout_id_dbh)%rval = &
-            this%bc_inout(acnp_bc_inout_id_dbh)%rval + grow_c/dc_dd
+            this%bc_inout(acnp_bc_inout_id_dbh)%rval + c_gain_org/dc_dd
     end if
     
     ! Calculate the nitrogen target at this future
@@ -2323,7 +2242,6 @@ contains
     real(r8),intent(inout)        :: grow_c_from_p
 
     ! Locals
-    real(r8) :: r_g             ! Growth respiration rate per C [kg/kg]
     real(r8) :: grow_c
     real(r8) :: c_from_n_headstart
     real(r8) :: c_from_n_gain
@@ -2336,13 +2254,9 @@ contains
     real(r8) :: n_target
     real(r8) :: p_target
     
-
-    r_g = GrowthRespRateOrgan(organ_id,ipft)
-    
-    
     ! Calculate gains from carbon
     ! -----------------------------------------------------------------------------------
-    grow_c =  carbon_gain*alloc_frac/(1.0_r8 + r_g)
+    grow_c =  carbon_gain*alloc_frac
 
     grow_c_from_c = grow_c_from_c + grow_c
     
@@ -2458,9 +2372,7 @@ contains
       real(r8) :: struct_dcdd_target    ! target structural biomass derivative wrt d, (kgC/cm)
       real(r8) :: total_dcdd_target     ! target total (not reproductive) biomass derivative wrt d, (kgC/cm)
       real(r8) :: repro_fraction        ! fraction of carbon balance directed towards reproduction (kgC/kgC)
-
       real(r8) :: total_dcostdd         ! carbon cost for non-reproductive pools per unit increment of dbh
-      real(r8), dimension(num_organs) :: r_g   ! Growth respiration rates per organ [kg/kg]
       
 
       associate( dbh         => l_state_array(dbh_id),      &
@@ -2491,14 +2403,6 @@ contains
                          agw_dcdd_target, bgw_dcdd_target, sapw_dcdd_target, struct_dcdd_target)
         call bstore_allom(dbh,ipft,canopy_trim,store_c_target,store_dcdd_target)
 
-        ! Choose growth respiration rates depending on hypothesis
-        r_g(leaf_id)       = prt_params%grperc(ipft)
-        r_g(fnrt_id)       = prt_params%grperc(ipft)
-        r_g(sapw_id)       = prt_params%grperc(ipft)
-        r_g(store_id)      = prt_params%grperc(ipft)
-        r_g(struct_id)     = prt_params%grperc(ipft)
-        r_g(repro_id)      = prt_params%grperc(ipft)
-
         if (mask_repro) then
            ! fraction of carbon going towards reproduction
            if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
@@ -2512,19 +2416,19 @@ contains
 
         total_dcostdd = 0._r8
         if (mask_struct) then
-           total_dcostdd = total_dcostdd + struct_dcdd_target * (1.0_r8 + r_g(struct_id))
+           total_dcostdd = total_dcostdd + struct_dcdd_target
         end if
         if (mask_leaf) then
-           total_dcostdd = total_dcostdd + leaf_dcdd_target * (1.0_r8 + r_g(leaf_id))
+           total_dcostdd = total_dcostdd + leaf_dcdd_target
         end if
         if (mask_fnrt) then
-           total_dcostdd = total_dcostdd + fnrt_dcdd_target * (1.0_r8 + r_g(fnrt_id))
+           total_dcostdd = total_dcostdd + fnrt_dcdd_target
         end if
         if (mask_sapw) then
-           total_dcostdd = total_dcostdd + sapw_dcdd_target * (1.0_r8 + r_g(sapw_id))
+           total_dcostdd = total_dcostdd + sapw_dcdd_target
         end if
         if (mask_store) then
-           total_dcostdd = total_dcostdd + store_dcdd_target * (1.0_r8 + r_g(store_id))
+           total_dcostdd = total_dcostdd + store_dcdd_target
         end if
 
         dCdx(:) = 0.0_r8
@@ -2537,32 +2441,21 @@ contains
 
            if (mask_struct) then
               dCdx(struct_id) =                  struct_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
-              dCdx(gresp_id)  = dCdx(gresp_id) + struct_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction) * r_g(struct_id)
            end if
-              
            if (mask_leaf) then
-              dCdx(leaf_id)  =                   leaf_dcdd_target/total_dcostdd *   (1.0_r8 - repro_fraction)
-              dCdx(gresp_id) = dCdx(gresp_id) + (leaf_dcdd_target/total_dcostdd) *  (1.0_r8 - repro_fraction) * r_g(leaf_id)
+              dCdx(leaf_id)  =                   leaf_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
            end if
-
            if (mask_fnrt) then
               dCdx(fnrt_id)  =                   fnrt_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
-              dCdx(gresp_id) = dCdx(gresp_id) + (fnrt_dcdd_target/total_dcostdd) * (1.0_r8 - repro_fraction) * r_g(fnrt_id)
            end if
-
            if (mask_sapw) then
               dCdx(sapw_id)  =                   sapw_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
-              dCdx(gresp_id) = dCdx(gresp_id) + (sapw_dcdd_target/total_dcostdd) * (1.0_r8 - repro_fraction) * r_g(sapw_id)
            end if
-
            if (mask_store) then
               dCdx(store_id) =                   store_dcdd_target/total_dcostdd * (1.0_r8 - repro_fraction)
-              dCdx(gresp_id) = dCdx(gresp_id) + (store_dcdd_target/total_dcostdd) * (1.0_r8 - repro_fraction) * r_g(store_id)
            end if
-
            if (mask_repro) then
-              dCdx(repro_id)  =                  repro_fraction / (1.0_r8 + r_g(repro_id) )
-              dCdx(gresp_id)  = dCdx(gresp_id) + repro_fraction * r_g(repro_id) / (1.0_r8 +  r_g(repro_id))
+              dCdx(repro_id)  =                  repro_fraction
            end if
 
            if( abs(sum(dCdx,dim=1)-1.0_r8)>rsnbl_math_prec ) then
