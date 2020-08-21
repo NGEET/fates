@@ -564,6 +564,8 @@ contains
     currentCohort%daily_n_need2 = nan
     currentCohort%daily_p_need1 = nan
     currentCohort%daily_p_need2 = nan
+    currentCohort%daily_n_demand = nan
+    currentCohort%daily_p_demand = nan
     
     
     currentCohort%c13disc_clm        = nan ! C13 discrimination, per mil at indiv/timestep
@@ -684,6 +686,10 @@ contains
     currentCohort%daily_p_need1 = 0._r8
     currentCohort%daily_p_need2 = 0._r8
 
+    ! Initialize these as negative
+    currentCohort%daily_p_demand = -9._r8
+    currentCohort%daily_n_demand = -9._r8
+    
     
   end subroutine zero_cohort
 
@@ -1383,6 +1389,11 @@ contains
                                            nextc%n*nextc%daily_n_uptake)/newn
                                       currentCohort%daily_p_uptake = (currentCohort%n*currentCohort%daily_p_uptake + & 
                                            nextc%n*nextc%daily_p_uptake)/newn
+
+                                      currentCohort%daily_p_demand = (currentCohort%n*currentCohort%daily_p_demand + & 
+                                           nextc%n*nextc%daily_p_demand)/newn
+                                      currentCohort%daily_n_demand = (currentCohort%n*currentCohort%daily_n_demand + & 
+                                           nextc%n*nextc%daily_n_demand)/newn
                                       
                                       currentCohort%daily_c_efflux = (currentCohort%n*currentCohort%daily_c_efflux + & 
                                            nextc%n*nextc%daily_c_efflux)/newn
@@ -1807,6 +1818,8 @@ contains
     n%daily_n_need2 = o%daily_n_need2
     n%daily_p_need1 = o%daily_p_need1
     n%daily_p_need2 = o%daily_p_need2
+    n%daily_n_demand = o%daily_n_demand
+    n%daily_p_demand = o%daily_p_demand
     
     ! C13 discrimination
     n%c13disc_clm   = o%c13disc_clm

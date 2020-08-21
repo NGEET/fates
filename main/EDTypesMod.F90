@@ -294,6 +294,17 @@ module EDTypesMod
      real(r8) :: daily_p_need1  ! Phosphorus needed to enable non-limited C growth (AllometricCNP hypothesis)
      real(r8) :: daily_p_need2  ! Phosphorus needed to bring P concentrations up to optimal
 
+     ! These two variables may use the previous "need" variables, by applying a smoothing function.
+     ! Or, its possible that the plant will use another method to calculate this, perhaps based
+     ! on storage.
+     ! These variables are used in two scenarios. 1) They work with the prescribed uptake fraction
+     ! in un-coupled mode, and 2) They are the plant's demand subbmitted to the Relative-Demand
+     ! type soil BGC scheme.
+     
+     real(r8) :: daily_n_demand ! The daily amount of N demanded by the plant [kgN]
+     real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN]
+
+     
      ! The following four biophysical rates are assumed to be
      ! at the canopy top, at reference temp 25C, and based on the 
      ! leaf age weighted average of the PFT parameterized values. The last
