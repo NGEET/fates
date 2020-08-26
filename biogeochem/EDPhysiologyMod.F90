@@ -17,16 +17,8 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
   use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
-  use FatesInterfaceTypesMod, only    : hlm_nu_com
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
-  use FatesConstantsMod, only    : g_per_kg
-  use FatesConstantsMod, only    : days_per_sec
-  use FatesConstantsMod, only    : fates_ncomp_scaling
-  use FatesConstantsMod, only    : cohort_ncomp_scaling
-  use FatesConstantsMod, only    : pft_ncomp_scaling
-  use FatesConstantsMod, only    : rsnbl_math_prec
-  use FatesConstantsMod, only    : kg_per_g
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
@@ -67,7 +59,6 @@ module EDPhysiologyMod
   use EDTypesMod          , only : phen_dstat_moistoff
   use EDTypesMod          , only : phen_dstat_moiston
   use EDTypesMod          , only : phen_dstat_timeon
-
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
@@ -76,7 +67,6 @@ module EDPhysiologyMod
   use EDParamsMod           , only : q10_froz
   use EDParamsMod           , only : logging_export_frac
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
-  
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : calloc_abs_error
   use FatesConstantsMod     , only : years_per_day

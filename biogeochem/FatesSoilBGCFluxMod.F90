@@ -1,5 +1,17 @@
 module FatesSoilBGCFluxMod
 
+  ! ============================================================================
+  ! This module contains the routines that handle nutrient and carbon fluxes
+  ! and states between the land-model's soil and FATES plants (uptake and plant
+  ! characteristics for aquisition), and sending fragmented litter in FATES to
+  ! the land-model's litter pool (which may include plant efflux).  
+  ! ============================================================================
+
+  use FatesConstantsMod, only    : r8 => fates_r8
+  use FatesConstantsMod, only    : nearzero
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
+  use FatesGlobals          , only : fates_log
+  use FatesGlobals          , only : endrun => fates_endrun
   use PRTGenericMod     , only : num_elements
   use PRTGenericMod     , only : element_list
   use PRTGenericMod     , only : element_pos
@@ -19,6 +31,7 @@ module FatesSoilBGCFluxMod
   use PRTGenericMod     , only : repro_organ
   use PRTGenericMod     , only : struct_organ
   use PRTGenericMod     , only : SetState
+  use FatesAllometryMod, only : set_root_fraction
   use FatesAllometryMod , only : h_allom
   use FatesAllometryMod , only : h2d_allom
   use FatesAllometryMod , only : bagw_allom
@@ -34,18 +47,31 @@ module FatesSoilBGCFluxMod
   use EDTypesMod          , only : ed_site_type
   use EDTypesMod          , only : ed_patch_type
   use EDTypesMod          , only : ed_cohort_type
+  use EDTypesMod          , only : AREA,AREA_INV
   use FatesInterfaceTypesMod, only    : bc_in_type
   use FatesInterfaceTypesMod, only    : bc_out_type
+  use FatesInterfaceTypesMod, only    : numpft
+  use FatesInterfaceTypesMod, only    : hlm_nu_com
+  use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesConstantsMod , only : prescribed_p_uptake
   use FatesConstantsMod , only : prescribed_n_uptake
   use FatesConstantsMod , only : coupled_p_uptake
   use FatesConstantsMod , only : coupled_n_uptake
+  use FatesConstantsMod, only    : days_per_sec
+  use FatesConstantsMod, only    : g_per_kg
+  use FatesConstantsMod, only    : kg_per_g
+  use FatesConstantsMod, only    : fates_ncomp_scaling
+  use FatesConstantsMod, only    : cohort_ncomp_scaling
+  use FatesConstantsMod, only    : pft_ncomp_scaling
+  use FatesConstantsMod, only    : rsnbl_math_prec
+  use FatesLitterMod,        only : litter_type
   use FatesLitterMod    , only : ncwd
   use FatesLitterMod    , only : ndcmpy
   use FatesLitterMod    , only : ilabile
   use FatesLitterMod    , only : ilignin
   use FatesLitterMod    , only : icellulose
-
+  use PRTParametersMod , only    : prt_params
+  use EDPftvarcon      , only    : EDPftvarcon_inst
   
   implicit none
   private
@@ -59,6 +85,8 @@ module FatesSoilBGCFluxMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
+
+contains
   
   ! =====================================================================================
 
@@ -82,7 +110,6 @@ module FatesSoilBGCFluxMod
     
     ! phosphorus_element
     real(r8)              :: plant_demand ! Nutrient demand per plant [kg]
-    real(r8)              :: plant_c      ! Total carbon across organs in list [kg]
     real(r8)              :: plant_x      ! Total mass for element of interest [kg]
     real(r8)              :: plant_max_x  ! Maximum mass for element of interest [kg]
     real(r8)              :: npp_demand
@@ -96,8 +123,15 @@ module FatesSoilBGCFluxMod
     integer               :: pft
     real(r8)              :: dbh
 
-    real(r8), parameter :: smth_fac = 0.8  ! Smoothing factor for updating
-                                           ! demand.  
+    real(r8), parameter :: smth_fac = 0.8_r8         ! Smoothing factor for updating
+                                                     ! demand.
+    real(r8), parameter :: init_demand_frac = 0.1_r8 ! Newly recruited plants
+                                                     ! will specify a demand
+                                                     ! based on their total nutrient
+                                                     ! because they have not history
+                                                     ! of need yet
+
+    
     
     pft = ccohort%pft
     dbh = ccohort%dbh
@@ -128,7 +162,7 @@ module FatesSoilBGCFluxMod
           
        end if
        
-       plant_demand = 0.1_r8*plant_max_x
+       plant_demand = init_demand_frac*plant_max_x
        return
     end if
        
@@ -147,8 +181,6 @@ module FatesSoilBGCFluxMod
        
     end if
 
-
-    return
   end function GetPlantDemand
 
   ! =====================================================================================
@@ -184,11 +216,6 @@ module FatesSoilBGCFluxMod
     type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
     type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
     real(r8) :: fnrt_c                             ! fine-root carbon [kg]
-    real(r8) :: plant_c
-    real(r8) :: plant_x
-    real(r8) :: plant_max_x
-    
-    integer  :: nlevdecomp
     integer  :: nlev_eff_soil                      ! we only operate over
                                                    ! the effective soil
                                                    ! layer because we
@@ -201,43 +228,32 @@ module FatesSoilBGCFluxMod
 
     nsites = size(sites,dim=1)
 
-    if(hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) then
-
-       ! Trivial solution for C-only model
-       do s = 1, nsites
-          cpatch => sites(s)%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                ccohort%daily_n_uptake = 0._r8
-                ccohort%daily_p_uptake = 0._r8
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
+    
+    ! Zero the uptake rates
+    do s = 1, nsites
+       cpatch => sites(s)%oldest_patch
+       do while (associated(cpatch))
+          ccohort => cpatch%tallest
+          do while (associated(ccohort))
+             ccohort%daily_n_uptake = 0._r8
+             ccohort%daily_p_uptake = 0._r8
+             ccohort => ccohort%shorter
           end do
-          ! These can now be zero'd
+          cpatch => cpatch%younger
+       end do
+       
+    end do
+    
+    ! We can exit if this is a c-only simulation
+    if(hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) then
+       ! These can now be zero'd
+       do s = 1, nsites
           bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
           bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
        end do
-       return   ! EXIT
+       return
     end if
 
-    if(hlm_parteh_mode.eq.prt_cnp_flex_allom_hyp) then
-
-       ! Zero the uptake rates
-       do s = 1, nsites
-          cpatch => sites(s)%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                ccohort%daily_n_uptake = 0._r8
-                ccohort%daily_p_uptake = 0._r8
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-       end do
-    end if
     
     do s = 1, nsites
 
@@ -282,11 +298,10 @@ module FatesSoilBGCFluxMod
        if(n_uptake_mode.eq.coupled_n_uptake .or. p_uptake_mode.eq.coupled_p_uptake)then
 
           nlev_eff_soil = max(bc_in(s)%max_rooting_depth_index_col, 1)
-          nlevdecomp    = bc_in(s)%nlevdecomp
           
           if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
              
-             allocate(rootfrac_pft_decomp(numpft,nlevdecomp))
+             allocate(rootfrac_pft_decomp(numpft,bc_in(s)%nlevdecomp))
              allocate(fnrt_c_pft(numpft))
              
              ! Construct the pft x decomp layer fine-root profile
@@ -335,9 +350,8 @@ module FatesSoilBGCFluxMod
                    pft   = ccohort%pft
                    if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
                       icomp = icomp+1
-                      ! N Uptake:  Convert g/m2/day -> kg/plant/day
-                      ! Note: this sum is over 1 index.
 
+                      ! N Uptake:  Convert g/m2/day -> kg/plant/day
                       ccohort%daily_n_uptake = ccohort%daily_n_uptake + &
                            sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
 
@@ -346,7 +360,7 @@ module FatesSoilBGCFluxMod
                       ! Total fine-root carbon of the cohort [kgC/ha]
                       fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
                       ! Loop through soil layers, add up the uptake this cohort gets from each layer
-                      do id = 1,nlevdecomp
+                      do id = 1,bc_in(s)%nlevdecomp
                          ccohort%daily_n_uptake = ccohort%daily_n_uptake + & 
                               bc_in(s)%plant_n_uptake_flux(icomp,id) * &
                               (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
@@ -367,8 +381,8 @@ module FatesSoilBGCFluxMod
                    pft   = ccohort%pft
                    if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
                       icomp = icomp+1
+
                       ! P Uptake:  Convert g/m2/day -> kg/plant/day
-                      ! Note: this sum is over 1 index.
                       ccohort%daily_p_uptake = ccohort%daily_p_uptake + &
                            sum(bc_in(s)%plant_p_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
                    else
@@ -376,7 +390,7 @@ module FatesSoilBGCFluxMod
                       ! Total fine-root carbon of the cohort [kgC/ha]
                       fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
                       ! Loop through soil layers, add up the uptake this cohort gets from each layer
-                      do id = 1,nlevdecomp
+                      do id = 1,bc_in(s)%nlevdecomp
                          ccohort%daily_p_uptake = ccohort%daily_p_uptake + & 
                               bc_in(s)%plant_p_uptake_flux(icomp,id) * &
                               (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
@@ -448,11 +462,6 @@ module FatesSoilBGCFluxMod
     real(r8) :: pc_leaf_min                        ! minimum leaf C:P ratio [kg/kg]
     real(r8) :: target_leaf_c                      ! maximum leaf C for this dbh [kg]
     real(r8) :: target_store_c                     ! maximum store C for this dbh [kg]
-    real(r8) :: plant_p                            ! total plant phosphorus content [kg]
-    real(r8) :: plant_max_p                        ! maximum phosphorus at current plant C  [kg]
-    real(r8) :: plant_n                            ! total plant nitrogen content [kg]
-    real(r8) :: plant_max_n                        ! maximum nitrogen at current plant C [kg]
-    real(r8) :: plant_c                            ! total plant carbon [kg]
     real(r8) :: npp_n_demand                       ! Nitrogen needed to keep up with NPP  [kgN]
     real(r8) :: npp_p_demand                       ! Phosphorus needed to keep up with NPP [kgP]
     real(r8) :: deficit_n_demand                   ! Nitrogen needed to get stoich back to
@@ -530,8 +539,8 @@ module FatesSoilBGCFluxMod
           ccohort => cpatch%tallest
           do while (associated(ccohort))
 
-             ccohort%plant_n_demand = GetPlantDemand(ccohort,nitrogen_element)
-             ccohort%plant_p_demand = GetPlantDemand(ccohort,phosphorus_element)
+             ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
+             ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
 
              ccohort => ccohort%shorter
           end do
@@ -796,7 +805,7 @@ module FatesSoilBGCFluxMod
                    icomp = pft
                 end if
                 bc_out%n_demand(icomp) = bc_out%n_demand(icomp) + &
-                     ccohort%plant_n_demand*ccohort%n*AREA_INV*g_per_kg*days_per_sec
+                     ccohort%daily_n_demand*ccohort%n*AREA_INV*g_per_kg*days_per_sec
                      
                 ccohort => ccohort%shorter
              end do
@@ -818,7 +827,7 @@ module FatesSoilBGCFluxMod
                    icomp = pft
                 end if
                 bc_out%p_demand(icomp) = bc_out%p_demand(icomp) + & 
-                     ccohort%plant_p_demand*ccohort%n*AREA_INV*g_per_kg*days_per_sec
+                     ccohort%daily_p_demand*ccohort%n*AREA_INV*g_per_kg*days_per_sec
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
