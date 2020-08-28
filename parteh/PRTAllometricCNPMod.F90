@@ -544,10 +544,25 @@ contains
     end if
 
     ! ===================================================================================
+    ! Step 0.  Transfer all stored nutrient into the daily uptake pool.
+    !          Storage in nutrients does not need to have a buffer like
+    !          carbon does, so we simply use it when we can use it, and then
+    !          anything left at the end is added back (CNPAllocateRemainder())
+    ! ===================================================================================
+
+    i_var = prt_global%sp_organ_map(store_organ,nitrogen_element)
+    n_gain = n_gain + sum(this%variables(i_var)%val(:))
+    this%variables(i_var)%val(:) = 0._r8
+
+    i_var = prt_global%sp_organ_map(store_organ,phosphorus_element)
+    p_gain = p_gain + sum(this%variables(i_var)%val(:))
+    this%variables(i_var)%val(:) = 0._r8
+    
+    
+    ! ===================================================================================
     ! Step 1.  Prioritized allocation to replace tissues from turnover, and/or pay
     ! any un-paid maintenance respiration from storage.
     ! ===================================================================================
-
     
     call this%CNPPrioritizedReplacement2(maint_r_def, c_gain, n_gain, p_gain, &
              state_c, state_n, state_p, target_c)
@@ -1191,7 +1206,7 @@ contains
        do ii = 1,n_curpri_org
           i = curpri_org(ii)
           
-          i_cvar        = prt_global%sp_organ_map(organ_list(i),carbon12_element)
+          i_cvar = prt_global%sp_organ_map(organ_list(i),carbon12_element)
           c_flux = sum_c_flux*(prt_params%leaf_stor_priority(ipft) * &
                sum(this%variables(i_cvar)%turnover(:))/sum_c_demand)
 
@@ -1203,6 +1218,41 @@ contains
 
        end do
     end if
+
+    ! Determine nutrient demand and make tansfers (ignore replacing storage)
+    do i = 1, n_curpri_org
+       
+       i_org = curpri_org(i)
+       
+       ! Update the nitrogen deficits
+       ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
+
+       if(organ_list(i_org).ne.store_organ)then
+          
+          target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i_org),stoich_growth_min)
+          deficit_n(i_org) = max(0.0_r8, target_n - state_n(i_org)%p )
+          
+          ! Update the phosphorus deficits (which are based off of carbon actual..)
+          ! Note that the phsophorus target is tied to the stoichiometry of thegrowing pool only (also)
+          target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i_org),stoich_growth_min)
+          deficit_p(i_org) = max(0.0_r8, target_p - state_p(i_org)%p )
+       else
+          deficit_n(i_org) = 0._r8
+          deficit_p(i_org) = 0._r8
+       end if
+
+    end do
+    
+    ! Allocate nutrients at this priority level
+    ! Nitrogen
+    call ProportionalNutrAllocation(state_n, deficit_n, &
+         n_gain, nitrogen_element, curpri_org(1:n_curpri_org))
+    
+    ! Phosphorus
+    call ProportionalNutrAllocation(state_p, deficit_p, &
+         p_gain, phosphorus_element, curpri_org(1:n_curpri_org))
+    
+
     
     ! -----------------------------------------------------------------------------------
     ! IV. if carbon balance is negative, re-coup the losses from storage
@@ -1305,25 +1355,25 @@ contains
        end if
        
        ! Determine nutrient demand and make tansfers
-       sum_n_deficit = 0._r8
        do i = 1, n_curpri_org
           
           i_org = curpri_org(i)
-          
-          ! Update the nitrogen deficits
-          ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
-          target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i_org),stoich_growth_min)
-          deficit_n(i_org) = max(0.0_r8, target_n - state_n(i_org)%p )
-
-          sum_n_deficit = sum_n_deficit + deficit_n(i_org)
-          
-          ! Update the phosphorus deficits (which are based off of carbon actual..)
-          ! Note that the phsophorus target is tied to the stoichiometry of thegrowing pool only (also)
-          target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i_org),stoich_growth_min)
-          deficit_p(i_org) = max(0.0_r8, target_p - state_p(i_org)%p )
+          if(organ_list(i_org).ne.store_organ)then
+             ! Update the nitrogen deficits
+             ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
+             target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i_org),stoich_growth_min)
+             deficit_n(i_org) = max(0.0_r8, target_n - state_n(i_org)%p )
+             
+             ! Update the phosphorus deficits (which are based off of carbon actual..)
+             ! Note that the phsophorus target is tied to the stoichiometry of thegrowing pool only (also)
+             target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i_org),stoich_growth_min)
+             deficit_p(i_org) = max(0.0_r8, target_p - state_p(i_org)%p )
+          else
+             deficit_n(i_org) = 0._r8
+             deficit_p(i_org) = 0._r8
+          end if
        end do
-       
-       
+          
        ! Allocate nutrients at this priority level
        ! Nitrogen
        call ProportionalNutrAllocation(state_n, deficit_n, &
@@ -1598,9 +1648,11 @@ contains
        
        do ii = 1, n_mask_organs
           i = mask_organs(ii)
-          call this%GrowEquivC(c_gain,n_gain,p_gain, &
-               frac_c(i),ipft,organ_list(i), &
-               grow_c_from_c,grow_c_from_n,grow_c_from_p)
+          if(organ_list(i).ne.store_organ)then
+             call this%GrowEquivC(c_gain,n_gain,p_gain, &
+                  frac_c(i),ipft,organ_list(i), &
+                  grow_c_from_c,grow_c_from_n,grow_c_from_p)
+          end if
        end do
        
        ! --------------------------------------------------------------------------------
@@ -1625,8 +1677,10 @@ contains
        p_match = 0._r8
        do ii = 1, n_mask_organs
           i = mask_organs(ii)
-          call this%NAndPToMatchC(c_gain*frac_c(i),target_dcdd(i), &
-               ipft,organ_list(i),n_match,p_match)
+          if(organ_list(i).ne.store_organ)then
+             call this%NAndPToMatchC(c_gain*frac_c(i),target_dcdd(i), &
+                  ipft,organ_list(i),n_match,p_match)
+          end if
        end do
 
        np_limit = min(min(1._r8, n_gain/n_match), min(1._r8, p_gain/p_match))
@@ -1831,19 +1885,23 @@ contains
        sum_p_demand = 0._r8   ! For error checking
        do ii = 1, n_mask_organs
           i = mask_organs(ii)
-
-          ! Update the nitrogen deficits (which are based off of carbon actual..)
-          ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
-          target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i),stoich_growth_min)
-          deficit_n(i) = this%GetDeficit(nitrogen_element,organ_list(i),target_n)
-          sum_n_demand = sum_n_demand+max(0._r8,deficit_n(i))
-          
-          ! Update the nitrogen deficits (which are based off of carbon actual..)
-          ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
-          target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i),stoich_growth_min)
-          deficit_p(i) = this%GetDeficit(phosphorus_element,organ_list(i),target_p)
-          sum_p_demand = sum_p_demand+max(0._r8,deficit_p(i))
-          
+          if(organ_list(i).ne.store_organ)then
+             ! Update the nitrogen deficits (which are based off of carbon actual..)
+             ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
+             target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i),stoich_growth_min)
+             deficit_n(i) = this%GetDeficit(nitrogen_element,organ_list(i),target_n)
+             sum_n_demand = sum_n_demand+max(0._r8,deficit_n(i))
+             
+             ! Update the nitrogen deficits (which are based off of carbon actual..)
+             ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
+             target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i),stoich_growth_min)
+             deficit_p(i) = this%GetDeficit(phosphorus_element,organ_list(i),target_p)
+             sum_p_demand = sum_p_demand+max(0._r8,deficit_p(i))
+          else
+             deficit_n(i) = 0._r8
+             deficit_p(i) = 0._r8
+          end if
+             
        end do
 
        
