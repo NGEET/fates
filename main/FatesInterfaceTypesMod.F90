@@ -90,12 +90,10 @@ module FatesInterfaceTypesMod
                                          ! ignitions: 1=constant, >1=external data sources (lightning and/or anthropogenic)
 
    integer, public :: hlm_use_lu_harvest      ! This flag signals whether or not to use
-                                                         ! harvest area data from the hlm
+                                                         ! harvest data from the hlm
                                                          ! 0 = do not use lu harvest from hlm
-                                                         ! 1 = use area fraction of vegetated land
-                                                         ! from from hlm
-                                                         ! 2 = use carbon from hlm
-                                                         ! If 1 or 2, it automatically sets
+                                                         ! 1 = use lu harvest from hlm  
+                                                         ! If 1, it automatically sets
                                                          ! hlm_use_logging to 1
 
    integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories (e.g. primary forest harvest, secondary young forest harvest, etc.)
