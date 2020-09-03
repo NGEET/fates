@@ -392,7 +392,6 @@ contains
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
 
-    
     ! Output only boundary conditions
     c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
     n_efflux    => this%bc_out(acnp_bc_out_id_nefflux)%rval;  n_efflux = 0._r8
@@ -421,9 +420,9 @@ contains
     !  non-limited C allocaiton.
     
     c_gain_unl      = c_gain
-    n_gain_unl      = 10._r8*c_gain
+    n_gain_unl      = abs(10._r8*c_gain)
     n_gain_unl0     = n_gain_unl
-    p_gain_unl      = 10._r8*c_gain
+    p_gain_unl      = abs(10._r8*c_gain)
     p_gain_unl0     = p_gain_unl
     
     ! If more than 1 leaf age bin is present, this

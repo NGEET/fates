@@ -373,6 +373,7 @@ contains
           end if
 
           if(p_uptake_mode.eq.coupled_p_uptake) then
+
              icomp = 0
              cpatch => sites(s)%oldest_patch
              do while (associated(cpatch))
@@ -385,10 +386,12 @@ contains
                       ! P Uptake:  Convert g/m2/day -> kg/plant/day
                       ccohort%daily_p_uptake = ccohort%daily_p_uptake + &
                            sum(bc_in(s)%plant_p_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                      
                    else
                       icomp = pft
                       ! Total fine-root carbon of the cohort [kgC/ha]
                       fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
+
                       ! Loop through soil layers, add up the uptake this cohort gets from each layer
                       do id = 1,bc_in(s)%nlevdecomp
                          ccohort%daily_p_uptake = ccohort%daily_p_uptake + & 
