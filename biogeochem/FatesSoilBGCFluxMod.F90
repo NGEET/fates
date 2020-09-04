@@ -139,7 +139,7 @@ contains
 
     ! If the cohort has not experienced a day of integration
     ! (and thus any allocation yet), we specify demand
-    ! base purely on a fraction of its starting nutrient content
+    ! based purely on a fraction of its starting nutrient content
     if(ccohort%isnew) then
 
        if(element_id.eq.nitrogen_element) then
