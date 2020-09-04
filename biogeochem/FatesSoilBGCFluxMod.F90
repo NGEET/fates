@@ -216,13 +216,6 @@ contains
     type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
     type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
     real(r8) :: fnrt_c                             ! fine-root carbon [kg]
-    integer  :: nlev_eff_soil                      ! we only operate over
-                                                   ! the effective soil
-                                                   ! layer because we
-                                                   ! assume no frozen uptake
-
-    real(r8), allocatable :: rootfrac_pft_decomp(:,:) ! fraction of root for each
-                                                      ! pft in each decomp layer
     real(r8), allocatable :: fnrt_c_pft(:)            ! total mass of root for each PFT [kgC]
 
 
@@ -257,8 +250,12 @@ contains
     
     do s = 1, nsites
 
-       ! If the plant's PFT has a non-zero positive prescribed rate,
-       ! use that instead of the fully coupled version.
+       ! If the plant is in "prescribed uptake mode"
+       ! then we are not coupling with the soil bgc model.
+       ! In this case, the bc_in structure is meaningless.
+       ! Instead, we give the plants a parameterized fraction
+       ! of their demand.  Routine GetPlantDemand() returns
+       ! the plant demand.
 
        if (n_uptake_mode.eq.prescribed_n_uptake) then
           cpatch => sites(s)%oldest_patch
@@ -295,33 +292,21 @@ contains
        ! and not as individual cohorts, we need to unravel the input
        ! boundary condition and send to cohort.  We do this downscaling
        ! by finding each cohort's fraction of total fine-root for the group
+       
        if(n_uptake_mode.eq.coupled_n_uptake .or. p_uptake_mode.eq.coupled_p_uptake)then
 
-          nlev_eff_soil = max(bc_in(s)%max_rooting_depth_index_col, 1)
+          ! Note there are two scaling methods.  Either competition for
+          ! N and/or P was performed by cohorts acting individually
+          ! (cohort_ncomp_scaling) , or as PFTs (pft_ncomp_scaling)
+          ! If we opt for the latter, then we assume that the nutrient
+          ! uptake share of the cohort, matches the fraction of root
+          ! mass it contributes to the group (PFT).
           
           if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
              
-             allocate(rootfrac_pft_decomp(numpft,bc_in(s)%nlevdecomp))
-             allocate(fnrt_c_pft(numpft))
+             ! *Currently, all cohorts in a PFT have the same root
+             ! fraction, so all we have to to is find its total mass fraction.
              
-             ! Construct the pft x decomp layer fine-root profile
-             ! USe the profile associated with hydraulic uptake! 
-             
-             do pft = 1, numpft
-                rootfrac_pft_decomp(pft,:) = 0._r8
-                call set_root_fraction(sites(s)%rootfrac_scr, pft, sites(s)%zi_soil)
-                
-                do j = 1,nlev_eff_soil
-                   id = bc_in(s)%decomp_id(j)  ! Map from soil layer to decomp layer    
-                   rootfrac_pft_decomp(pft,id) = rootfrac_pft_decomp(pft,id) + & 
-                        sites(s)%rootfrac_scr(j)
-                end do
-                
-             ! Make sure that the rootfrac profile sums to unity
-                rootfrac_pft_decomp(pft,:) = rootfrac_pft_decomp(pft,:)/sum(rootfrac_pft_decomp(pft,:))
-             end do
-             
-             ! Calculate the total fineroot mass for each PFT, so we can weight
              fnrt_c_pft(:) = 0._r8
              cpatch => sites(s)%oldest_patch
              do while (associated(cpatch))
@@ -334,6 +319,7 @@ contains
                 end do
                 cpatch => cpatch%younger
              end do
+             
           end if  ! end if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
           
           ! --------------------------------------------------------------------------------
@@ -359,11 +345,12 @@ contains
                       icomp = pft
                       ! Total fine-root carbon of the cohort [kgC/ha]
                       fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
+                      
                       ! Loop through soil layers, add up the uptake this cohort gets from each layer
                       do id = 1,bc_in(s)%nlevdecomp
                          ccohort%daily_n_uptake = ccohort%daily_n_uptake + & 
                               bc_in(s)%plant_n_uptake_flux(icomp,id) * &
-                              (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
+                              (fnrt_c/fnrt_c_pft(pft))*kg_per_g*AREA/ccohort%n
                       end do
                    end if
                    ccohort => ccohort%shorter
@@ -396,7 +383,7 @@ contains
                       do id = 1,bc_in(s)%nlevdecomp
                          ccohort%daily_p_uptake = ccohort%daily_p_uptake + & 
                               bc_in(s)%plant_p_uptake_flux(icomp,id) * &
-                              (fnrt_c/fnrt_c_pft(pft))*rootfrac_pft_decomp(pft,id)*kg_per_g*AREA/ccohort%n
+                              (fnrt_c/fnrt_c_pft(pft))*kg_per_g*AREA/ccohort%n
                       end do
                    end if
                    ccohort => ccohort%shorter
@@ -407,7 +394,6 @@ contains
           
           ! Free the temprorary arrays (if used)
           if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
-             deallocate(rootfrac_pft_decomp)
              deallocate(fnrt_c_pft)
           end if
           
