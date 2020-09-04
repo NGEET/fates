@@ -363,10 +363,14 @@ contains
   subroutine InitPRTBoundaryConditions(new_cohort)
     
     ! Set the boundary conditions that flow in an out of the PARTEH
-    ! allocation hypotheses.  These are pointers in the PRT objects that
-    ! point to values outside in the FATES model.
-    
-    ! Example:
+    ! allocation hypotheses.  Each of these calls to "RegsterBC" are simply
+    ! setting pointers.
+    ! For instance, if the hypothesis wants to know what
+    ! the DBH of the plant is, then we pass in the dbh as an argument (new_cohort%dbh),
+    ! and also tell it which boundary condition we are talking about (which is
+    ! defined by an integer index (ac_bc_inout_id_dbh)
+    !
+    ! Again, elaborated Example:
     ! "ac_bc_inout_id_dbh" is the unique integer that defines the object index
     ! for the allometric carbon "ac" boundary condition "bc" for DBH "dbh"
     ! that is classified as input and output "inout".
