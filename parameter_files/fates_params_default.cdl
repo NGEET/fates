@@ -326,8 +326,8 @@ variables:
 		fates_mort_bmort:units = "1/yr" ;
 		fates_mort_bmort:long_name = "background mortality rate" ;
 	double fates_mort_freezetol(fates_pft) ;
-		fates_mort_freezetol:units = "NA" ;
-		fates_mort_freezetol:long_name = "minimum temperature tolerance (NOT USED)" ;
+		fates_mort_freezetol:units = "degrees C" ;
+		fates_mort_freezetol:long_name = "minimum temperature tolerance" ;
 	double fates_mort_hf_flc_threshold(fates_pft) ;
 		fates_mort_hf_flc_threshold:units = "fraction" ;
 		fates_mort_hf_flc_threshold:long_name = "plant fractional loss of conductivity at which drought mortality begins for hydraulic model" ;

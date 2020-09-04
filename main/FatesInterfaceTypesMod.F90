@@ -85,8 +85,9 @@ module FatesInterfaceTypesMod
                                                    ! soil carbon
                                                    ! 1 = TRUE,  0 = FALSE
    
-   integer, public :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
-                                                   ! 1 = TRUE, 0 = FALSE
+   integer, public :: hlm_spitfire_mode  ! Flag to signal SPITFIRE mode
+                                         ! See namelist_definition_clm4_5.xml
+                                         ! ignitions: 1=constant, >1=external data sources (lightning and/or anthropogenic)
 
    integer, public :: hlm_use_lu_harvest      ! This flag signals whether or not to use
                                                          ! harvest area data from the hlm
@@ -101,6 +102,13 @@ module FatesInterfaceTypesMod
                                                          ! this is the first dimension of:
                                                          ! harvest_rates in dynHarvestMod
                                                          ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
+
+
+   integer, public :: hlm_sf_nofire_def               ! Definition of a no-fire case for hlm_spitfire_mode
+   integer, public :: hlm_sf_scalar_lightning_def     ! Definition of a scalar-lightning case for hlm_spitfire_mode
+   integer, public :: hlm_sf_successful_ignitions_def ! Definition of a successful-ignition dataset case for hlm_spitfire_mode
+   integer, public :: hlm_sf_anthro_ignitions_def      ! Definition of an anthropogenic-ignition dataset case for hlm_spitfire_mode
+   
 
    integer, public :: hlm_use_logging       ! This flag signals whether or not to use
                                                        ! the logging module
@@ -303,6 +311,12 @@ module FatesInterfaceTypesMod
 
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
+
+      ! 24-hour lightning or ignitions [#/km2/day]
+      real(r8),allocatable :: lightning24(:)
+
+      ! Population density [#/km2]
+      real(r8),allocatable :: pop_density(:)
 
       ! Patch 24 hour vegetation temperature [K]
       real(r8),allocatable :: t_veg24_pa(:)  

@@ -1169,6 +1169,7 @@ contains
                                       currentCohort%c_area = currentCohort%c_area + nextc%c_area
 
                                       !
+                                      dbh = currentCohort%dbh
                                       call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
                                            currentCohort%c_area,inverse=.true.)
                                       !
