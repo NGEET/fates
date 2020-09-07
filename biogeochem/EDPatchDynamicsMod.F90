@@ -2402,9 +2402,6 @@ contains
        enddo !do while nopatches>maxPatchesPerSite
 
     end do  ! i_disttype loop
-||||||| merged common ancestors
- 
-=======
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
@@ -2419,7 +2416,6 @@ contains
 
     currentSite%primary_land_patchfusion_error = primary_land_fraction_afterfusion - primary_land_fraction_beforefusion
  
->>>>>>> charlie_repo/fates_harvest_offmaster
   end subroutine fuse_patches
 
   ! ============================================================================
