@@ -511,7 +511,7 @@ contains
          newp => sites(s)%oldest_patch
          do while (associated(newp))
            tota=tota+newp%area
-           write(*,*) 'test links',s,newp%nocomp_pft_label,tota
+             if ( debug ) write(fates_log(),*)  'test links',s,newp%nocomp_pft_label,tota
            newp=>newp%younger
          end do
          if(abs(tota-area).gt.nearzero)then
@@ -527,10 +527,9 @@ contains
           end do
 
           call set_patchno(sites(s))
-!          deallocate(recall_older_patch)
+!          deallocate(recall_older_patch) !leaving this as a potential fix for memory leak in multipatch nocomp mode
 
         enddo !s
-        write(*,*)'end init'
      end if
 
      ! This sets the rhizosphere shells based on the plant initialization
