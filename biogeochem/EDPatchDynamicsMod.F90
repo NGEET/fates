@@ -2607,7 +2607,7 @@ contains
     type(ed_patch_type), pointer :: oldercPatch
     type(ed_patch_type), pointer :: youngerPatch
     type(ed_patch_type), pointer :: fusingPatch 
-    integer, parameter           :: max_cycles = 1<<<<0  ! After 10 loops through
+    integer, parameter           :: max_cycles = 10  ! After 10 loops through
                                                      ! You should had fused
     integer                      :: count_cycles
     integer                      :: is_youngest
@@ -2683,7 +2683,7 @@ contains
                      currentPatch%area
 
                 youngerPatch => currentPatch%younger
-<<<<<<< HEAD
+
                 if (currentPatch%anthro_disturbance_label .eq. youngerPatch% anthro_disturbance_label) then
                    
                    call fuse_2_patches(currentSite, youngerPatch, currentPatch)

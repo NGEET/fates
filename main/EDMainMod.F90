@@ -247,6 +247,9 @@ contains
       do_patch_dynamics = ifalse
     end if
     if(hlm_use_nocomp.eq.itrue)then
+      ! n.b. the this is currently set to false to get around a memory leak that occurs
+      ! when we have multiple patches for each PFT. 
+      ! when this is fixed, we will need another option for 'one patch per PFT' vs 'multiple patches per PFT'
       do_patch_dynamics = ifalse
     end if 
     ! make new patches from disturbed land
