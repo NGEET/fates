@@ -562,7 +562,7 @@ contains
           allocate(new_patch_primary)
 
           call create_patch(currentSite, new_patch_primary, age, &
-                site_areadis_primary, primaryforest)
+                site_areadis_primary, primaryforest,fates_unset_int)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -585,7 +585,7 @@ contains
        if ( site_areadis_secondary .gt. nearzero) then
           allocate(new_patch_secondary)
           call create_patch(currentSite, new_patch_secondary, age, &
-                site_areadis_secondary, secondaryforest)
+                site_areadis_secondary, secondaryforest,fates_unset_int)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
