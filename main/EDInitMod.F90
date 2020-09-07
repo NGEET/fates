@@ -305,6 +305,8 @@ contains
           if(hlm_use_fixed_biogeog.eq.itrue)then  
            ! MAPPING OF FATES PFTs on to HLM_PFTs
             ! add up the area associated with each FATES PFT
+            ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
+            ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
             sites(s)%area_pft(1:numpft) = 0._r8
             do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
                do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts        
