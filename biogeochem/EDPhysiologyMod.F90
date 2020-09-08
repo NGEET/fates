@@ -1351,7 +1351,40 @@ contains
    ! determine what 'n' should be from the canopy height. 
 
    currentPatch => currentSite%oldest_patch
- do while (associated(currentPatch))
+   do while (associated(currentPatch))
+
+          if(hlm_use_fixed_biogeog.eq.itrue)then  
+           ! WEIGHTING OF FATES PFTs on to HLM_PFTs
+            ! add up the area associated with each FATES PFT
+            ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
+            ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
+
+            currentSite%sp_tlai(1:numpft) = 0._r8
+            currentSite%sp_tsai(1:numpft) = 0._r8
+            currentSite%sp_htop(1:numpft) = 0._r8
+
+! weight each fates PFT target for lai, sai and htop by the area of the 
+! contrbuting HLM PFTs. 
+            do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
+               do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts        
+                 !leaf area index
+                 currentSite%sp_tlai(fates_pft) = currentSite%sp_tlai(fates_pft) + &
+                        bc_in(s)%hlm_sp_tlai(hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
+                 !stem area index
+                 currentSite%sp_tsai(fates_pft) = currentSite%sp_tsai(fates_pft) + &
+      		        bc_in(s)%hlm_sp_tsai(hlm_pft) *	bc_in(s)%pft_areafrac(hlm_pft)      		       
+                 ! canopy height
+                 currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) + &
+                        bc_in(s)%hlm_sp_htop(hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
+
+                
+               end do
+            end do !hlm_pft
+
+ sumarea = sum(sites(s)%area_pft(1:numpft))
+!** RENORMALIZE FOR TOTAL PFT AREA ACCOUNTING FOR DELETED TINY PACHES
+
+
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
       if(associated(currentCohort%shorter)
