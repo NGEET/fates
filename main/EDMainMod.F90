@@ -33,6 +33,7 @@ module EDMainMod
   use EDPatchDynamicsMod       , only : spawn_patches
   use EDPatchDynamicsMod       , only : terminate_patches
   use EDPhysiologyMod          , only : phenology
+  use EDPhysiologyMod          , only : satellite_phenology
   use EDPhysiologyMod          , only : recruitment
   use EDPhysiologyMod          , only : trim_canopy
   use EDPhysiologyMod          , only : SeedIn
@@ -171,8 +172,12 @@ contains
     ! We do not allow phenology while in ST3 mode either, it is hypothetically
     ! possible to allow this, but we have not plugged in the litter fluxes
     ! of flushing or turning over leaves for non-dynamics runs
-    if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.false) then
-       call phenology(currentSite, bc_in )
+    if (hlm_use_ed_st3.eq.ifalse) then
+      if(hlm_use_sp.eq.false)
+        call phenology(currentSite, bc_in )
+      else 
+        call satellite_phenology(currentSite, bc_in )
+      end if ! SP phenology
     end if
 
 
