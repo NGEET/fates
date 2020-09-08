@@ -326,18 +326,18 @@ contains
               endif
             end do
 
-           sumarea = sum(sites(s)%area_pft(1:numpft))
+            sumarea = sum(sites(s)%area_pft(1:numpft))
            do ft =  1,numpft
              if(sumarea.gt.0._r8)then
-               sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
+                sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
              else
-               sites(s)%area_pft(ft)= 1.0_r8/numpft
-               write(*,*) 'setting totally bare patch to all pfts.',s,sumarea,sites(s)%area_pft(ft)
-            end if
-          end do !ft
-          end if
+                sites(s)%area_pft(ft)= 1.0_r8/numpft
+                write(*,*) 'setting totally bare patch to all pfts.',s,sumarea,sites(s)%area_pft(ft)
+             end if
+           end do !ft
+         end if !fixed biogeog
 
-          do ft = 1,numpft
+         do ft = 1,numpft
            sites(s)%use_this_pft(ft) = itrue
            if(hlm_use_fixed_biogeog.eq.itrue)then
              if(sites(s)%area_pft(ft).gt.0.0_r8)then
@@ -346,11 +346,9 @@ contains
                 sites(s)%use_this_pft(ft) = ifalse
              end if !area
            end if !SBG
-          end do !ft
-          
-       end do
-
-    end if
+         end do !ft
+       end do !site loop
+     end if !restart
 
     return
   end subroutine set_site_properties
