@@ -378,9 +378,9 @@ contains
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
-        allocate(bc_in%sp_tlai(maxPatchesPerSite))
-        allocate(bc_in%sp_tsai(maxPatchesPerSite))     
-        allocate(bc_in%sp_htop(maxPatchesPerSite))
+        allocate(bc_in%hlm_sp_tlai(maxpft))
+        allocate(bc_in%hlm_sp_tsai(maxpft))     
+        allocate(bc_in%hlm_sp_htop(maxpft))
       end if 
       return
    end subroutine allocate_bcin
