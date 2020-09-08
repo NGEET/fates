@@ -1260,8 +1260,6 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-
- 
          
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
@@ -1285,7 +1283,6 @@ contains
 	       call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'switch for cohort_age_tracking  unset: hlm_use_cohort_age_tracking, exiting'
@@ -1293,6 +1290,10 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
+            write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
          
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
