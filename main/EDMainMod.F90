@@ -133,6 +133,7 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     integer :: el              ! Loop counter for elements
     integer :: do_patch_dynamics ! for some modes, we turn off patch dynamics
+
     !-----------------------------------------------------------------------
 
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
@@ -170,12 +171,12 @@ contains
     ! We do not allow phenology while in ST3 mode either, it is hypothetically
     ! possible to allow this, but we have not plugged in the litter fluxes
     ! of flushing or turning over leaves for non-dynamics runs
-    if (hlm_use_ed_st3.eq.ifalse) then
+    if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.false) then
        call phenology(currentSite, bc_in )
     end if
 
 
-    if (hlm_use_ed_st3.eq.ifalse) then   ! Bypass if ST3
+    if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.false) then   ! Bypass if ST3
        call fire_model(currentSite, bc_in) 
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
@@ -183,7 +184,7 @@ contains
        call disturbance_rates(currentSite, bc_in)
     end if
 
-    if (hlm_use_ed_st3.eq.ifalse) then
+    if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.false) then
        ! Integrate state variables from annual rates to daily timestep
        call ed_integrate_state_variables(currentSite, bc_in ) 
     else
@@ -201,7 +202,7 @@ contains
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organization 
     !******************************************************************************
 
-    if(hlm_use_ed_st3.eq.ifalse) then 
+    if(hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.false) then 
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))                 
           
@@ -215,7 +216,7 @@ contains
        
     call TotalBalanceCheck(currentSite,1)
 
-    if( hlm_use_ed_st3.eq.ifalse ) then 
+    if( hlm_use_ed_st3.eq.ifalse .and.hlm_use_sp.eq.false ) then 
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
           
@@ -253,6 +254,10 @@ contains
       ! when this is fixed, we will need another option for 'one patch per PFT' vs 'multiple patches per PFT'
       do_patch_dynamics = ifalse
     end if
+
+    if(hlm_use_sp.eq.itrue) ! cover for potential changes in nocomp logic above.  
+       do_patch_dynamics = ifalse
+    end if
  
     if(hlm_use_sp.eq.itrue)then 
     ! if we want to assert LAI
@@ -280,15 +285,19 @@ contains
        end if
     end if
 
-    call TotalBalanceCheck(currentSite,4)
+    ! SP has changes in leaf carbon but we don't expect them to be in balance. 
+    if(hlm_use_sp.eq.ifalse)then
+      call TotalBalanceCheck(currentSite,4)
+    end if
 
     ! kill patches that are too small
     if ( do_patch_dynamics.eq.itrue ) then
        call terminate_patches(currentSite)   
     end if
-   
-    call TotalBalanceCheck(currentSite,5)
 
+    if(hlm_use_sp.eq.ifalse)then
+      call TotalBalanceCheck(currentSite,5)
+    endif
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
