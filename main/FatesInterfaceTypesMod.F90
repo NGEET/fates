@@ -478,6 +478,12 @@ module FatesInterfaceTypesMod
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
     
+     ! Satellite Phenology (SP) input variables.  (where each patch only has one PFT)
+     ! ---------------------------------------------------------------------------------
+     real(r8),allocatable :: sp_tlai(:)  ! Interpolated daily total LAI (leaf area index) input from HLM per patch/pft 
+     real(r8),allocatable :: sp_tsai(:)  ! Interpolated sailt total SAI (stem area index) input from HLM per patch/pft
+     real(r8),allocatable :: sp_htop(:)  ! Interpolated daily canopy vegetation height    input from HLM per patch/pft
+
    end type bc_in_type
 
 
