@@ -376,6 +376,12 @@ contains
 
       allocate(bc_in%pft_areafrac(maxpft))
 
+      ! Variables for SP mode. 
+      if(hlm_use_sp.eq.itrue) then
+        allocate(bc_in%sp_tlai(maxPatchesPerSite))
+        allocate(bc_in%sp_tsai(maxPatchesPerSite))     
+        allocate(bc_in%sp_htop(maxPatchesPerSite))
+      end if 
       return
    end subroutine allocate_bcin
 
@@ -1015,7 +1021,8 @@ contains
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_fixed_biogeog = unset_int
-         !hlm_use_nocomp = unset_int    ! future reduced complexity mode
+         hlm_use_nocomp = unset_int    ! future reduced complexity mode
+         hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
