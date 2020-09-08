@@ -132,6 +132,11 @@ contains
     allocate(site_in%area_pft(1:numpft))
     allocate(site_in%use_this_pft(1:numpft))
 
+    ! SP mode
+    allocate(site_in%sp_tlai(1:numpft))
+    allocate(site_in%sp_tsai(1:numpft))
+    allocate(site_in%sp_htop(1:numpft))
+
     do el=1,num_elements
         allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
