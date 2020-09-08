@@ -107,6 +107,7 @@ module EDPhysiologyMod
 
   public :: trim_canopy
   public :: phenology
+  public :: satellite_phenology
   public :: recruitment
   public :: ZeroLitterFluxes
   public :: FluxIntoLitterPools
@@ -1063,6 +1064,7 @@ contains
 
   end subroutine phenology
 
+
   ! ============================================================================
   subroutine phenology_leafonoff(currentSite)
     !
@@ -1329,7 +1331,45 @@ contains
 
   end subroutine phenology_leafonoff
 
+  ! =====================================================================================
 
+  subroutine satellite_phenology
+
+   ! -----------------------------------------------------------------------------------
+   ! Takes the daily inputs of leaf area index, stem area index and canopy height and 
+   ! translates them into a FATES structure with one patch and one cohort per PFT
+   ! The leaf area of the cohort is modified each day to match that asserted by the HLM 
+   ! -----------------------------------------------------------------------------------
+
+   ! To Do in this routine.
+   ! Get access to HLM input varialbes. 
+   ! Weight them by PFT
+   ! Loop around patches, and for each single cohort in each patch 
+   ! determine what 'n'	  should be from the canopy height.
+   ! determine the leaf biomass that it should have. 
+   ! figure out how this will interact with the canopy_structure routines. 
+   ! determine what 'n' should be from the canopy height. 
+
+   currentPatch => currentSite%oldest_patch
+ do while (associated(currentPatch))
+    currentCohort => currentPatch%tallest
+    do while (associated(currentCohort))
+      if(associated(currentCohort%shorter)
+        write(*,*) "there is more than one cohort in SP mode.'
+      end if
+
+      ft =currentCohort%pft
+      if(ft.ne.currentPatch%nocomp_pft)then
+       write(*,*) 'wrong PFT label in cohort in SP mode',ft,currentPatch%nocomp_pft
+      end if
+
+      currentCohort => currentCohort%shorter
+    end do !cohort loop
+
+    currentPatch => currentPatch%younger
+ end do ! patch loop     
+
+  end subroutine satellite_phenology
   ! =====================================================================================
 
   subroutine SeedIn( currentSite, bc_in )
