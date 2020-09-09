@@ -1353,38 +1353,53 @@ contains
    currentPatch => currentSite%oldest_patch
    do while (associated(currentPatch))
 
-          if(hlm_use_fixed_biogeog.eq.itrue)then  
-           ! WEIGHTING OF FATES PFTs on to HLM_PFTs
-            ! add up the area associated with each FATES PFT
-            ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
-            ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
+     if(hlm_use_fixed_biogeog.eq.itrue)then  
+       ! WEIGHTING OF FATES PFTs on to HLM_PFTs
+       ! add up the area associated with each FATES PFT
+       ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
+       ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
-            currentSite%sp_tlai(1:numpft) = 0._r8
-            currentSite%sp_tsai(1:numpft) = 0._r8
-            currentSite%sp_htop(1:numpft) = 0._r8
+       currentSite%sp_tlai(1:numpft) = 0._r8
+       currentSite%sp_tsai(1:numpft) = 0._r8
+       currentSite%sp_htop(1:numpft) = 0._r8
 
-! weight each fates PFT target for lai, sai and htop by the area of the 
-! contrbuting HLM PFTs. 
-            do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
-               do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts        
-                 !leaf area index
-                 currentSite%sp_tlai(fates_pft) = currentSite%sp_tlai(fates_pft) + &
-                        bc_in(s)%hlm_sp_tlai(hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
-                 !stem area index
-                 currentSite%sp_tsai(fates_pft) = currentSite%sp_tsai(fates_pft) + &
-      		        bc_in(s)%hlm_sp_tsai(hlm_pft) *	bc_in(s)%pft_areafrac(hlm_pft)      		       
-                 ! canopy height
+       ! weight each fates PFT target for lai, sai and htop by the area of the 
+       ! contrbuting HLM PFTs. 
+       do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
+         do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts        
+           if(sites(s)%area_pft(ft).gt.0.0_r8)then
+             !leaf area index
+             currentSite%sp_tlai(fates_pft) = currentSite%sp_tlai(fates_pft) + &
+                    bc_in(s)%hlm_sp_tlai(hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
+             !stem area index
+             currentSite%sp_tsai(fates_pft) = currentSite%sp_tsai(fates_pft) + &
+                    bc_in(s)%hlm_sp_tsai(hlm_pft) *	bc_in(s)%pft_areafrac(hlm_pft)      		       
+             ! canopy height
                  currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) + &
-                        bc_in(s)%hlm_sp_htop(hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
+                    bc_in(s)%hlm_sp_htop(hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
+           end if ! there is some area in this patch
+         end do
+       end do !hlm_pft
 
-                
-               end do
-            end do !hlm_pft
-
- sumarea = sum(sites(s)%area_pft(1:numpft))
-!** RENORMALIZE FOR TOTAL PFT AREA ACCOUNTING FOR DELETED TINY PACHES
-
-
+       ! weight for total area in each fates_pft
+       do fates_pft = 1,numpft
+         if(sites(s)%area_pft(ft).gt.0.0_r8)then 
+           currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) &
+             /sites(s)%area_pft(ft)
+           currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) &
+             /sites(s)%area_pft(ft)
+           currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) &
+             /sites(s)%area_pft(ft)
+         endif
+      enddo !fates_pft
+  
+    ! ------------------------------------------------------------
+    ! now we have the target lai, sai and htop for each PFT/patch
+    ! find properties of the cohort that go along with that
+    ! 1. Find canopy area from HTOP (height)
+    ! 2. Find 'n' associated with canopy area, given a closed canopy
+    ! 3. Find 'bleaf' associated with TLAI and canopy area. 
+    ! ------------------------------------------------------------ 
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
       if(associated(currentCohort%shorter)
