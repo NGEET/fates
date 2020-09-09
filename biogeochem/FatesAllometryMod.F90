@@ -123,6 +123,7 @@ module FatesAllometryMod
   public :: CrownDepth
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
                                ! root profiles
+  public :: leafc_from_treelai ! Calculate target leaf carbon for a given treelai for SP mode
 
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
@@ -756,6 +757,101 @@ contains
     return
   end function tree_sai
   
+! =====================================================================================
+ 
+  real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, canopy_lai, vcmax25top)
+ 
+    ! -----------------------------------------------------------------------------------
+    ! LAI of individual trees is a function of the total leaf area and the total
+    ! canopy area.
+    ! ----------------------------------------------------------------------------------
+ 
+    ! !ARGUMENTS
+    real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, canopy_lai, vcmax25top)
+ 
+    real(r8), intent(in) :: treelai                    ! desired tree lai m2/m2
+    integer, intent(in)  :: pft                       ! Plant Functional Type index
+    real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
+    real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
+    integer, intent(in)  :: cl                        ! canopy layer index
+    real(r8), intent(in) :: canopy_lai(nclmax)        ! total leaf area index of
+                                                      ! each canopy layer
+    real(r8), intent(in) :: vcmax25top                ! maximum carboxylation rate at canopy
+                                                      ! top, ref 25C
+ 
+    ! !LOCAL VARIABLES:
+    real(r8), :: leaf_c                    ! plant leaf carbon [kg]
+    real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
+    real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
+    real(r8) :: canopy_lai_above   ! total LAI of canopy layer overlying this tree
+    real(r8) :: vai_per_lai        ! ratio of vegetation area index (ie. sai+lai)
+                                   ! to lai for individual tree
+    real(r8) :: kn                 ! coefficient for exponential decay of 1/sla and
+                                   ! vcmax with canopy depth
+    real(r8) :: sla_max            ! Observational constraint on how large sla
+                                   ! (m2/gC) can become
+    real(r8) :: leafc_slamax       ! Leafc_per_unitarea at which sla_max is reached
+    real(r8) :: clim               ! Upper limit for leafc_per_unitarea in exponential
+                                   ! tree_lai function
+    real(r8) :: tree_lai_at_slamax ! lai at which we reach the maximum sla value.
+ 
+    !----------------------------------------------------------------------
+ 
+    if( treelai  < 0._r8.or. pft  ==  0 ) then
+       write(fates_log(),*) 'negative tree lai in leafc_from_treelai?'
+       write(fates_log(),*) 'or.. pft was zero?'
+       write(fates_log(),*) 'problem in leafc_from_treelai',treelai,pft
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+ 
+    if(cl>1)then
+      write(fates_log(),*) 'in sub-canopy layer in leafc_from_treelai'
+      write(fates_log(),*) 'this is not set up to work for lower canopy layers.'
+      write(fates_log(),*) 'problem in leafc_from_treelai',cl,pft
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+ 
+    slat = g_per_kg * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg
+    leafc_per_unitarea = leaf_c/(c_area/nplant) !KgC/m2
+ 
+    if(treelai > 0.0_r8)then
+       ! Coefficient for exponential decay of 1/sla with canopy depth:
+       kn = decay_coeff_kn(pft,vcmax25top)
+ 
+       ! take PFT-level maximum SLA value, even if under a thick canopy (which has units of m2/gC),
+       ! and put into units of m2/kgC
+       sla_max = g_per_kg *EDPftvarcon_inst%slamax(pft)
+ 
+       ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
+       leafc_slamax = max(0.0_r8,(slat - sla_max) / (-1.0_r8 * kn * slat * sla_max))
+ 
+       ! treelai at which we reach maximum sla.
+       tree_lai_at_slamax = (log( 1.0_r8- kn * slat * leafc_slamax)) / (-1.0_r8 * kn)
+       if(treelai > tree_lai_at_slamax)then
+         ! Inversion of the exponential phase calculation of treelai for a given leafc_per_unitarea
+         leafc_per_unitarea = (1.0_r8-exp(treelai*(-1.0_r8 * kn)))/(kn*slat)
+       else ! we exceed the maxumum sla
+ 
+        ! Add exponential and linear portions of tree_lai
+        ! Exponential term for leafc = leafc_slamax;
+         leafc_linear_phase = (treelai-tree_lai_at_slamax)/sla_max
+         leafc_per_unitarea = leafc_slamax + leafc_linear_phase
+       end if
+ 
+    else
+       leafc_from_treelai = 0.0_r8 
+    endif ! (leafc_per_unitarea > 0.0_r8)
+ 
+    return
+  end function leafc_from_treelai
+ 
+  ! =====================================================================================
+
+
+
+
+
+
   ! ============================================================================
   ! Generic sapwood biomass interface
   ! ============================================================================
