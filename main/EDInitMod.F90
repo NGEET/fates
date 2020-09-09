@@ -320,16 +320,17 @@ contains
                end do
             end do !hlm_pft
 
-           ! re-normalize PFT area to ensure it sums to one.
-           ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM) 
-           ! the bare ground will no longer be proscribed and should emerge from FATES
-
             do ft =  1,numpft
               if(sites(s)%area_pft(ft).lt.0.01_r8)then
                  sites(s)%area_pft(ft)=0.0_r8 !remove tiny patches to prevent numerical errors in terminate patches
                write(*,*) 'removing small pft patches',sites(s)%lon,sites(s)%lat,ft,sites(s)%area_pft(ft)
               endif
             end do
+
+           ! re-normalize PFT area to ensure it sums to one.
+           ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM)
+           ! the bare ground will no longer be proscribed and should emerge from FATES
+           ! this may or may not be the right way to deal with this?
 
             sumarea = sum(sites(s)%area_pft(1:numpft))
            do ft =  1,numpft
