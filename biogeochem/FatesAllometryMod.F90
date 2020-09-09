@@ -759,7 +759,7 @@ contains
   
 ! =====================================================================================
  
-  real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, canopy_lai, vcmax25top)
+  real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, vcmax25top)
  
     ! -----------------------------------------------------------------------------------
     ! LAI of individual trees is a function of the total leaf area and the total
@@ -767,15 +767,11 @@ contains
     ! ----------------------------------------------------------------------------------
  
     ! !ARGUMENTS
-    real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, canopy_lai, vcmax25top)
- 
     real(r8), intent(in) :: treelai                    ! desired tree lai m2/m2
     integer, intent(in)  :: pft                       ! Plant Functional Type index
     real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
     real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
     integer, intent(in)  :: cl                        ! canopy layer index
-    real(r8), intent(in) :: canopy_lai(nclmax)        ! total leaf area index of
-                                                      ! each canopy layer
     real(r8), intent(in) :: vcmax25top                ! maximum carboxylation rate at canopy
                                                       ! top, ref 25C
  
@@ -783,7 +779,6 @@ contains
     real(r8), :: leaf_c                    ! plant leaf carbon [kg]
     real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
     real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
-    real(r8) :: canopy_lai_above   ! total LAI of canopy layer overlying this tree
     real(r8) :: vai_per_lai        ! ratio of vegetation area index (ie. sai+lai)
                                    ! to lai for individual tree
     real(r8) :: kn                 ! coefficient for exponential decay of 1/sla and
