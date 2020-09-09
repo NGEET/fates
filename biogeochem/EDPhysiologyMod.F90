@@ -1417,8 +1417,30 @@ contains
       currentCohort => currentCohort%shorter
     end do !cohort loop
 
+    !------------------------------------------
+    !  Calculate dbh from input height, and c_area from dbh
+    !------------------------------------------
+    currentCohort%hite = currentPatch%sp_htop
+    call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+    currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
+    call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,currentCohort%c_area)
+
+    !------------------------------------------
+    !  Calculate canopy N assuming patch area is full
+    !------------------------------------------
+    currentCohort%n = currentPatch%area / currentCohort%c_area
+
+    ! ------------------------------------------
+    ! Calculate leaf carbon from target treelai
+    ! ------------------------------------------
+    currentCohort%treelai = currentPatch%sp_tlai
     leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
                   currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
+
+    ! assert sai
+    currentCohort%treesai = currentPatch%sp_tsai
+
+    !NB these will need to be put through the canopy_structure routine in order to figure out exposed lai and sai
 
     currentPatch => currentPatch%younger
   end do ! patch loop     
