@@ -27,6 +27,7 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : InitPRTObject
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
+  use FatesAllometryMod   , only : leafc_from_treelai
   use FatesAllometryMod   , only : decay_coeff_kn
   use FatesLitterMod      , only : litter_type
   use EDTypesMod          , only : site_massbal_type
@@ -1402,20 +1403,25 @@ contains
     ! ------------------------------------------------------------ 
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
+      
+      ! Do some checks 
       if(associated(currentCohort%shorter)
         write(*,*) "there is more than one cohort in SP mode.'
       end if
 
       ft =currentCohort%pft
       if(ft.ne.currentPatch%nocomp_pft)then
-       write(*,*) 'wrong PFT label in cohort in SP mode',ft,currentPatch%nocomp_pft
+        write(*,*) 'wrong PFT label in cohort in SP mode',ft,currentPatch%nocomp_pft
       end if
 
       currentCohort => currentCohort%shorter
     end do !cohort loop
 
+    leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
+                  currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
+
     currentPatch => currentPatch%younger
- end do ! patch loop     
+  end do ! patch loop     
 
   end subroutine satellite_phenology
   ! =====================================================================================
