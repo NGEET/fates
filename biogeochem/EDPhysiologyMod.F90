@@ -1444,6 +1444,7 @@ contains
 
     ! assert sai
     currentCohort%treesai = currentPatch%sp_tsai
+    call SetState(prt,leaf_organ, element_id,leaf_c,1)
 
     !NB these will need to be put through the canopy_structure routine in order to figure out exposed lai and sai
 
