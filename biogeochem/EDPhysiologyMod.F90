@@ -1342,6 +1342,8 @@ contains
    ! The leaf area of the cohort is modified each day to match that asserted by the HLM 
    ! -----------------------------------------------------------------------------------
 
+   real(r8) ::  spread     ! need to send a fixed value of patch spread to carea_allom
+
    ! To Do in this routine.
    ! Get access to HLM input varialbes. 
    ! Weight them by PFT
@@ -1423,6 +1425,9 @@ contains
     currentCohort%hite = currentPatch%sp_htop
     call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
     currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
+    spread = 0.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
+                     ! n.b. the value of this will only affect 'n', which isn't/shouldn't be a diagnostic in 
+                     ! SP mode. 
     call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,currentCohort%c_area)
 
     !------------------------------------------
