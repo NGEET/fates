@@ -2619,7 +2619,6 @@ contains
     !---------------------------------------------------------------------
  
     count_cycles = 0
-!write(*,*) 'start terminate patches',currentSite%lat,currentSite%lon
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
@@ -2837,7 +2836,7 @@ contains
     
     !check area is not exceeded
     call check_patch_area( currentSite )
-!   write(*,*) 'leaving terminate patches',currentSite%lat,currentSite%lon
+
     return
   end subroutine terminate_patches
 
