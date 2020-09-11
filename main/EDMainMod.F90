@@ -19,6 +19,7 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_reference_date
   use FatesInterfaceTypesMod        , only : hlm_use_ed_prescribed_phys
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3 
+  use FatesInterfaceTypesMod        , only : hlm_use_sp
   use FatesInterfaceTypesMod        , only : bc_in_type
   use FatesInterfaceTypesMod        , only : hlm_masterproc
   use FatesInterfaceTypesMod        , only : numpft
@@ -172,8 +173,8 @@ contains
     ! We do not allow phenology while in ST3 mode either, it is hypothetically
     ! possible to allow this, but we have not plugged in the litter fluxes
     ! of flushing or turning over leaves for non-dynamics runs
-    if (hlm_use_ed_st3.eq.ifalse) then
-      if(hlm_use_sp.eq.false)
+    if (hlm_use_ed_st3.eq.ifalse)then
+      if(hlm_use_sp.eq.ifalse) then
         call phenology(currentSite, bc_in )
       else 
         call satellite_phenology(currentSite, bc_in )
@@ -181,7 +182,7 @@ contains
     end if
 
 
-    if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.false) then   ! Bypass if ST3
+    if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse) then   ! Bypass if ST3
        call fire_model(currentSite, bc_in) 
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
@@ -189,7 +190,7 @@ contains
        call disturbance_rates(currentSite, bc_in)
     end if
 
-    if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.false) then
+    if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse) then
        ! Integrate state variables from annual rates to daily timestep
        call ed_integrate_state_variables(currentSite, bc_in ) 
     else
@@ -207,7 +208,7 @@ contains
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organization 
     !******************************************************************************
 
-    if(hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.false) then 
+    if(hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse) then 
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))                 
           
@@ -221,7 +222,7 @@ contains
        
     call TotalBalanceCheck(currentSite,1)
 
-    if( hlm_use_ed_st3.eq.ifalse .and.hlm_use_sp.eq.false ) then 
+    if( hlm_use_ed_st3.eq.ifalse .and.hlm_use_sp.eq.ifalse ) then 
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
           
@@ -260,15 +261,10 @@ contains
       do_patch_dynamics = ifalse
     end if
 
-    if(hlm_use_sp.eq.itrue) ! cover for potential changes in nocomp logic above.  
+    if(hlm_use_sp.eq.itrue)then ! cover for potential changes in nocomp logic above.  
        do_patch_dynamics = ifalse
     end if
  
-    if(hlm_use_sp.eq.itrue)then 
-    ! if we want to assert LAI
-      do_patch_dynamics = ifalse 
-    end if
-
     ! make new patches from disturbed land
     if (do_patch_dynamics.eq.itrue ) then
        call spawn_patches(currentSite, bc_in)
