@@ -1402,12 +1402,17 @@ contains
                    write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
                end if
             
-            ! Future reduced complexity mode   
             case('use_nocomp')
                 hlm_use_nocomp = ival
                if (fates_global_verbose()) then
                    write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
                end if
+
+            case('use_sp')
+            hlm_use_sp = ival
+            if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
+            end if
 
 
             case('use_planthydro')
