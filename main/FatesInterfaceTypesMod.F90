@@ -480,9 +480,9 @@ module FatesInterfaceTypesMod
     
      ! Satellite Phenology (SP) input variables.  (where each patch only has one PFT)
      ! ---------------------------------------------------------------------------------
-     real(r8),allocatable :: sp_tlai(:)  ! Interpolated daily total LAI (leaf area index) input from HLM per patch/pft 
-     real(r8),allocatable :: sp_tsai(:)  ! Interpolated sailt total SAI (stem area index) input from HLM per patch/pft
-     real(r8),allocatable :: sp_htop(:)  ! Interpolated daily canopy vegetation height    input from HLM per patch/pft
+     real(r8),allocatable :: hlm_sp_tlai(:)  ! Interpolated daily total LAI (leaf area index) input from HLM per patch/pft 
+     real(r8),allocatable :: hlm_sp_tsai(:)  ! Interpolated sailt total SAI (stem area index) input from HLM per patch/pft
+     real(r8),allocatable :: hlm_sp_htop(:)  ! Interpolated daily canopy vegetation height    input from HLM per patch/pft
 
    end type bc_in_type
 
