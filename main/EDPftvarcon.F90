@@ -920,7 +920,7 @@ contains
 
     ! adding the hlm_pft_map variable with two dimensions - FATES PFTno and HLM PFTno
     pftmap_dim_names(1) = dimension_name_pft 
-    pftmap_dim_names(2) = dimension_name_hlm_pftno xs
+    pftmap_dim_names(2) = dimension_name_hlm_pftno 
 
     name = 'fates_hlm_pft_map'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &                                           dimension_names=pftmap_dim_names, lower_bounds=dim_lower_bound)
