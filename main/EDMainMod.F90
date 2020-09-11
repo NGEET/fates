@@ -219,8 +219,9 @@ contains
        enddo
     end if
     
-       
-    call TotalBalanceCheck(currentSite,1)
+    if(hlm_use_sp.eq.ifalse)then   
+      call TotalBalanceCheck(currentSite,1)
+    end if
 
     if( hlm_use_ed_st3.eq.ifalse .and.hlm_use_sp.eq.ifalse ) then 
        currentPatch => currentSite%oldest_patch
@@ -242,9 +243,10 @@ contains
           currentPatch => currentPatch%younger
        enddo
     end if
-       
-    call TotalBalanceCheck(currentSite,2)
 
+    if(hlm_use_sp.eq.ifalse)then    
+      call TotalBalanceCheck(currentSite,2)
+    end if
     !*********************************************************************************
     ! Patch dynamics sub-routines: fusion, new patch creation (spwaning), termination.
     !*********************************************************************************
