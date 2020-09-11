@@ -112,14 +112,6 @@ contains
     real(r8)              :: plant_demand ! Nutrient demand per plant [kg]
     real(r8)              :: plant_x      ! Total mass for element of interest [kg]
     real(r8)              :: plant_max_x  ! Maximum mass for element of interest [kg]
-    real(r8)              :: npp_demand
-    real(r8)              :: deficit_demand
-    real(r8)              :: leaf_c, fnrt_c, sapw_c, store_c, struct_c, repro_c
-    real(r8)              :: leaf_c_trgt, fnrt_c_trgt, sapw_c_trgt, struct_c_trgt, store_c_trgt
-    real(r8)              :: leaf_dcdd,fnrt_dcdd,sapw_dcdd,store_dcdd,struct_dcdd
-    real(r8)              :: agw_c,bgw_c,agw_dcdd,bgw_dcdd
-    real(r8)              :: leaf_c_deficit
-    real(r8)              :: daily_x_demand2
     integer               :: pft
     real(r8)              :: dbh
 
@@ -144,24 +136,24 @@ contains
 
        if(element_id.eq.nitrogen_element) then
           plant_max_x = & 
-               leaf_c*prt_params%nitr_stoich_p2(pft,leaf_organ) + & 
-               fnrt_c*prt_params%nitr_stoich_p2(pft,fnrt_organ) + & 
-               store_c*prt_params%nitr_stoich_p2(pft,store_organ) + & 
-               sapw_c*prt_params%nitr_stoich_p2(pft,sapw_organ) + & 
-               struct_c*prt_params%nitr_stoich_p2(pft,struct_organ) + &
-               repro_c*prt_params%nitr_stoich_p2(pft,repro_organ)
+               ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,leaf_organ) + & 
+               ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,fnrt_organ) + & 
+               ccohort%prt%GetState(store_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,store_organ) + & 
+               ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,sapw_organ) + & 
+               ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,struct_organ) + &
+               ccohort%prt%GetState(repro_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,repro_organ)
        
        elseif(element_id.eq.phosphorus_element) then
           plant_max_x = &
-               leaf_c*prt_params%phos_stoich_p2(pft,leaf_organ) + & 
-               fnrt_c*prt_params%phos_stoich_p2(pft,fnrt_organ) + & 
-               store_c*prt_params%phos_stoich_p2(pft,store_organ) + & 
-               sapw_c*prt_params%phos_stoich_p2(pft,sapw_organ) + & 
-               struct_c*prt_params%phos_stoich_p2(pft,struct_organ) + &
-               repro_c*prt_params%phos_stoich_p2(pft,repro_organ)
+               ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,leaf_organ) + & 
+               ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,fnrt_organ) + & 
+               ccohort%prt%GetState(store_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,store_organ) + & 
+               ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,sapw_organ) + & 
+               ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,struct_organ) + &
+               ccohort%prt%GetState(repro_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,repro_organ)
           
        end if
-       
+
        plant_demand = init_demand_frac*plant_max_x
        return
     end if

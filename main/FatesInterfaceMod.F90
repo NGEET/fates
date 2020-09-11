@@ -23,6 +23,7 @@ module FatesInterfaceMod
    use EDTypesMod                , only : numlevsoil_max
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
+   use FatesConstantsMod         , only : nearzero
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -1417,7 +1418,15 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
- 
+         if(trim(hlm_name).eq.'CLM' .and. hlm_parteh_mode .eq. 2) then
+            if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:)))<nearzero .and. &
+                sum(abs(EDPftvarcon_inst%prescribed_nuptake(:)))<nearzero) then
+               write(fates_log(), *) 'PARTEH hypothesis 2 is only viable with forced'
+               write(fates_log(), *) 'boundary conditions for CLM (currently).'
+               write(fates_log(), *) 'prescribed_puptake or prescribed_nuptake must > 0'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+         end if
          
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then

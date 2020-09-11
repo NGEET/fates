@@ -633,7 +633,7 @@ contains
     ! left to allocate, and thus it must be on allometry when its not.
     ! -----------------------------------------------------------------------------------
     
-    if( carbon_balance > calloc_abs_error ) then
+    if_stature_growth: if( carbon_balance > calloc_abs_error ) then
        
        ! This routine checks that actual carbon is not below that targets. It does
        ! allow actual pools to be above the target, and in these cases, it sends
@@ -711,7 +711,7 @@ contains
           this%ode_opt_step = totalC
        end if
        
-       do while( ierr .ne. 0 )
+       do_solve_check: do while( ierr .ne. 0 )
           
           deltaC = min(totalC,this%ode_opt_step)
           if(ODESolve == 1) then
@@ -777,7 +777,7 @@ contains
   
           ! At that point, update the actual states
           ! --------------------------------------------------------------------------------
-          if( (totalC < calloc_abs_error) .and. (step_pass) )then
+          if_step_pass: if( (totalC < calloc_abs_error) .and. (step_pass) )then
 
              ierr           = 0
              leaf_c_flux    = c_pool(leaf_c_id)   - sum(leaf_c(1:nleafage))
@@ -819,11 +819,6 @@ contains
              
              dbh            = c_pool(dbh_id)
 
-             ! THESE HAVE TO BE SET OUTSIDE OF THIS ROUTINE
-             !!          cohort%seed_prod = cohort%seed_prod + brepro_flux / hlm_freq_day
-             !!          cohort%dhdt      = (h_sub-cohort%hite)/hlm_freq_day
-             !!          cohort%ddbhdt    = (dbh_sub-dbh_in)/hlm_freq_day
-             
              if( abs(carbon_balance)>calloc_abs_error ) then
                 write(fates_log(),*) 'carbon conservation error while integrating pools'
                 write(fates_log(),*) 'along alometric curve'
@@ -832,9 +827,11 @@ contains
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
              
-          end if
-       end do
-    end if
+          end if if_step_pass
+
+       end do do_solve_check
+       
+    end if if_stature_growth
 
     ! Track the net allocations and transport from this routine
     ! (the AgeLeaves() routine handled tracking allocation through aging)
