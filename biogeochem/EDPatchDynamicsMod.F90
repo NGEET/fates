@@ -2726,6 +2726,13 @@ contains
             enddo !fusing patch
 
            is_oldest = itrue !try and find a younger same-PFT patch                                                 
+           !--------------------------------------------------
+           ! n.b. The following code is to figure out how to 
+           ! terminate small patches in nocomp mode 
+           ! It was written in the context of the multi-patch version 
+           ! which is currently inactive and may or may not be needed in the
+           ! single patch version. 
+           !--------------------------------------------------  
            ! discover if this is the youngest patch of its PFT                                                   
            fusingPatch => currentPatch%older !if it's the youngest overall then it's defacto youngest of PFT   
            do while(associated(fusingPatch).and.is_oldest.eq.itrue)
