@@ -776,7 +776,7 @@ contains
                                                       ! top, ref 25C
  
     ! !LOCAL VARIABLES:
-    real(r8), :: leaf_c                    ! plant leaf carbon [kg]
+    real(r8) :: leaf_c                    ! plant leaf carbon [kg]
     real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
     real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
     real(r8) :: vai_per_lai        ! ratio of vegetation area index (ie. sai+lai)
@@ -789,7 +789,9 @@ contains
     real(r8) :: clim               ! Upper limit for leafc_per_unitarea in exponential
                                    ! tree_lai function
     real(r8) :: tree_lai_at_slamax ! lai at which we reach the maximum sla value.
- 
+    real(r8) :: leafc_linear_phase ! amount of leaf carbon needed to get to the target treelai
+                                   ! when the slamax value has been reached (i.e. deep layers with unchanging sla)
+
     !----------------------------------------------------------------------
  
     if( treelai  < 0._r8.or. pft  ==  0 ) then
