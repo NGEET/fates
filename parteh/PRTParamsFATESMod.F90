@@ -1,6 +1,6 @@
 module PRTInitParamsFatesMod
 
-  ! This is a FATES specific module for loading parametes through
+  ! This is a FATES specific module for loading parameters through
   ! the CLM/ELM module system.
 
   use FatesConstantsMod, only : r8 => fates_r8
