@@ -168,8 +168,9 @@ contains
     call ZeroLitterFluxes(currentSite)
 
     ! Zero mass balance 
-    call TotalBalanceCheck(currentSite, 0)
-
+    if(hlm_use_sp.eq.ifalse)then
+      call TotalBalanceCheck(currentSite, 0)
+    end if
     ! We do not allow phenology while in ST3 mode either, it is hypothetically
     ! possible to allow this, but we have not plugged in the litter fluxes
     ! of flushing or turning over leaves for non-dynamics runs
@@ -271,8 +272,10 @@ contains
     if (do_patch_dynamics.eq.itrue ) then
        call spawn_patches(currentSite, bc_in)
     end if
-   
-    call TotalBalanceCheck(currentSite,3)
+
+    if(hlm_use_sp.eq.ifalse)then   
+      call TotalBalanceCheck(currentSite,3)
+    end if
 
     ! fuse on the spawned patches.
     if ( do_patch_dynamics.eq.itrue ) then
@@ -569,12 +572,16 @@ contains
     !-----------------------------------------------------------------------
 
     call canopy_spread(currentSite)
-
-    call TotalBalanceCheck(currentSite,6)
+ 
+    if(hlm_use_sp.eq.ifalse)then
+      call TotalBalanceCheck(currentSite,6)
+    end if
 
     call canopy_structure(currentSite, bc_in)
 
-    call TotalBalanceCheck(currentSite,final_check_id)
+    if(hlm_use_sp.eq.ifalse)then
+      call TotalBalanceCheck(currentSite,final_check_id)
+    end if 
 
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
