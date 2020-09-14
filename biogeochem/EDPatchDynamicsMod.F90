@@ -2604,15 +2604,10 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
     type(ed_patch_type), pointer :: olderPatch
-    type(ed_patch_type), pointer :: oldercPatch
     type(ed_patch_type), pointer :: youngerPatch
-    type(ed_patch_type), pointer :: fusingPatch 
     integer, parameter           :: max_cycles = 10  ! After 10 loops through
                                                      ! You should had fused
     integer                      :: count_cycles
-    integer                      :: is_youngest
-    integer                      :: is_oldest
-    integer                      :: found_fusion_patch
     logical                      :: gotfused
 
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
@@ -2622,10 +2617,9 @@ contains
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
-       oldercpatch => currentPatch%older       
+
        if(currentPatch%area <= min_patch_area)then
 
-         if(hlm_use_nocomp.eq.ifalse)then !just fuse to older or younger patch
          
           ! Even if the patch area is small, avoid fusing it into its neighbor
           ! if it is the youngest of all patches. We do this in attempts to maintain
@@ -2703,96 +2697,6 @@ contains
              endif ! older or younder patch
           endif ! very small area
 
-        else !nocomp. We cannot fuse to patches with a different PFT identity in no competition mode. 
-          
-           ! Each patch has a PFT identity, and so cannot simply fuse to the older or younger patch
-           ! For each small current patch, we must first search older patch candidates, and then younger 
-           ! patch candidates. 
-           ! need to think about the youngest of PFT logic later. 
-
-           is_youngest = itrue !try and find a younger same-PFT patch
-           ! discover if this is the youngest patch of its PFT
-            fusingPatch => currentPatch%younger !if it's the youngest overall then it's defacto youngest of PFT
-            do while(associated(fusingPatch).and.is_youngest.eq.itrue)
-              if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
-                is_youngest = ifalse ! we found a yonger patch, so this isn't the youngest one. 
-              endif ! PFT
-              if(associated(fusingpatch%younger))then
-                if(fusingpatch%patchno.eq.fusingpatch%younger%patchno)then
-                 write(*,*) 'is_youngest patch list error',fusingpatch%patchno,fusingpatch%younger%patchno
-                endif
-               endif
-              fusingPatch => fusingPatch%younger 
-            enddo !fusing patch
-
-           is_oldest = itrue !try and find a younger same-PFT patch                                                 
-           !--------------------------------------------------
-           ! n.b. The following code is to figure out how to 
-           ! terminate small patches in nocomp mode 
-           ! It was written in the context of the multi-patch version 
-           ! which is currently inactive and may or may not be needed in the
-           ! single patch version. 
-           !--------------------------------------------------  
-           ! discover if this is the youngest patch of its PFT                                                   
-           fusingPatch => currentPatch%older !if it's the youngest overall then it's defacto youngest of PFT   
-           do while(associated(fusingPatch).and.is_oldest.eq.itrue)
-              if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
-                 is_oldest = ifalse ! we found a yonger patch, so this isn't the youngest one.                 
-              endif ! PFT             
-                fusingPatch => fusingPatch%older
-            enddo !fusing patch  
-
-            if (is_youngest.eq.ifalse .or. currentPatch%area <= min_patch_area_forced ) then
-               found_fusion_patch = ifalse
-
-               fusingPatch => currentPatch%older
-               do while(associated(fusingPatch).and.found_fusion_patch.eq.ifalse )
-                  olderPatch => fusingPatch%older
-               if(associated(fusingpatch%younger))then
-                if(fusingpatch%patchno.eq.fusingpatch%younger%patchno)then
-                 write(*,*) 'fuse older patch list error',fusingpatch%patchno,fusingpatch%younger%patchno
-                endif
-               endif
-                   if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
-                     if(debug) &
-                        write(fates_log(),*) 'fusing to older patch of same PFT - this one is too small',&
-                        currentPatch%area,   fusingPatch%area, &
-                        currentPatch%nocomp_pft_label, fusingPatch%nocomp_pft_label, &
-                        currentPatch%patchno, fusingPatch%patchno
-                     call fuse_2_patches(currentSite, currentPatch, fusingPatch)
-                        currentPatch => fusingPatch !redirect rest of main loop back to this cp
-                        found_fusion_patch=itrue
-                  endif ! PFT
-                  fusingPatch => olderPatch
-               enddo !fusing patch
-
-               if(associated(currentPatch).and.found_fusion_patch.eq.ifalse)then
-               ! if no older patches, search younger ones. 
-               fusingPatch => currentPatch%younger
-               do while(associated(fusingPatch).and.found_fusion_patch.eq.ifalse )
-                  olderPatch => fusingPatch%older
-                  
-                  if(fusingPatch%nocomp_pft_label.eq.currentPatch%nocomp_pft_label)then
-                     if(debug) &
-                       write(fates_log(),*) 'fusing to younger patch of same PFT - this one is too small',&
-                       currentPatch%area,   fusingPatch%area , &
-                       currentPatch%nocomp_pft_label, fusingPatch%nocomp_pft_label, &
-                        currentPatch%patchno, fusingPatch%patchno,&
-                        is_youngest,is_oldest
-                    call fuse_2_patches(currentSite, currentPatch, fusingPatch)
-                      currentPatch => fusingPatch
-                    found_fusion_patch=itrue
-                  endif ! PFT 
-                  fusingPatch => olderPatch
-               enddo !fusing patch
-             endif !current patch exists.
-
-
-             endif ! not youngest, or is very small patch
-          endif !nocomp
-       endif ! small area
-       
-        
        ! It is possible that an incredibly small patch just fused into another incredibly
        ! small patch, resulting in an incredibly small patch.  It is also possible that this
        ! resulting incredibly small patch is the oldest patch.  If this was true than
@@ -2810,11 +2714,6 @@ contains
        end if
 
        if(count_cycles > max_cycles) then
-        if(is_oldest.eq.itrue.and.is_youngest.eq.itrue.and.hlm_use_nocomp)then 
-          write(fates_log(),*) 'this is the only patch of this PFT',currentPatch%area
-          currentPatch => currentPatch%older
-          count_cycles = 0
-        else !not the only patch
           write(fates_log(),*) 'FATES is having difficulties fusing very small patches.'
           write(fates_log(),*) 'It is possible that a either a secondary or primary'
           write(fates_log(),*) 'patch has become the only patch of its kind, and it is'
@@ -2822,17 +2721,13 @@ contains
           write(fates_log(),*) 'disabling the endrun statement following this message.'
           write(fates_log(),*) 'FATES may or may not continue to operate within error'
           write(fates_log(),*) 'tolerances, but will generate another fail if it does not.' 
-         
-          write(fates_log(),*) 'cp pft',currentPatch%nocomp_pft_label,currentPatch%area
-
           call endrun(msg=errMsg(sourcefile, __LINE__))
           
           ! Note to user. If you DO decide to remove the end-run above this line
           ! Make sure that you keep the pointer below this line, or you will get
           ! an infinite loop.
-          currentPatch => oldercPatch
+          currentPatch => currentPatch%older
           count_cycles = 0
-        end if !only patch
        end if  !count cycles
       call set_patchno(currentSite) !redo patch numbering for every potential termination. 
       !n.b. could put filter in here for actual terminations to save time. 
