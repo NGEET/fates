@@ -591,7 +591,7 @@ contains
     patch_in%tallest  => null()
     patch_in%shortest => null()
 
-    ! Manage interactions of ixed biogeg (site level filter) and 
+    ! Manage interactions of fixed biogeog (site level filter) and 
     ! nocomp (patch level filter) 
     ! Need to cover all potential biogeog x nocomp combinations 
     ! 1. biogeog = false. nocomp = false: all PFTs on (DEFAULT)
