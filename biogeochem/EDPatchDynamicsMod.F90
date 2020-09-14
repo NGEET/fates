@@ -2518,7 +2518,7 @@ contains
           else
              snull = 1
              rp%shortest => currentCohort
-          Endif
+          endif
 
           call insert_cohort(currentCohort, rp%tallest, rp%shortest, tnull, snull, storebigcohort, storesmallcohort)
 
