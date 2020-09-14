@@ -2056,6 +2056,7 @@ contains
              ! create patch
              allocate(newp)    
              nocomp_pft = fates_unset_int             
+             ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
              call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest, nocomp_pft )
 
@@ -2421,7 +2422,7 @@ contains
                       ccohort%prt%variables(i_var)%net_alloc(i_pos) = &
                             this%rvars(ir_prt_var)%r81d(io_idx_co)
 
-                      ir_prt_var = ir_prt_var + 1
+                     ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%burned(i_pos) = &
                             this%rvars(ir_prt_var)%r81d(io_idx_co)                      
                    end do

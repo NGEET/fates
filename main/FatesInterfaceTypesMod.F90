@@ -169,7 +169,6 @@ module FatesInterfaceTypesMod
 
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
-
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs

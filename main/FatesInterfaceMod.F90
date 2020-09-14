@@ -1021,7 +1021,7 @@ contains
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_fixed_biogeog = unset_int
-         hlm_use_nocomp = unset_int    ! future reduced complexity mode
+         hlm_use_nocomp = unset_int   
          hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
@@ -1268,7 +1268,6 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-        ! Future reduced complexity mode   
         if(hlm_use_nocomp.eq.unset_int) then
               if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for no competition mode. '
@@ -1413,7 +1412,6 @@ contains
             if (fates_global_verbose()) then
                    write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
             end if
-
 
             case('use_planthydro')
                hlm_use_planthydro = ival

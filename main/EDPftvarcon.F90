@@ -2774,11 +2774,9 @@ contains
            end if
         end if
 
-
     end do !ipft
-    
+
     ! check that the host-fates PFT map adds to one in both dimension
-      
     do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
       sumarea = sum(EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_oft))
       if(abs(sumarea-1.0_r8).gt.  )then
