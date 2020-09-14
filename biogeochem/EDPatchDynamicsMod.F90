@@ -2690,13 +2690,11 @@ contains
                       currentPatch%anthro_disturbance_label = youngerPatch%anthro_disturbance_label
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                       gotfused = .true.
-                   endif
-                endif               
-                ! The fusion process has updated the "younger" pointer on currentPatch
-                
-             endif ! older or younder patch
-          endif ! very small area
-
+                   endif ! count cycles
+                 endif     ! anthro labels
+             endif ! has an older patch
+          endif ! is not the youngest patch  
+       endif ! very small patch
        ! It is possible that an incredibly small patch just fused into another incredibly
        ! small patch, resulting in an incredibly small patch.  It is also possible that this
        ! resulting incredibly small patch is the oldest patch.  If this was true than
@@ -2704,9 +2702,8 @@ contains
        ! Think this is impossible? No, this really happens, especially when we have fires.
        ! So, we don't move forward until we have merged enough area into this thing.
 
-
        if(currentPatch%area > min_patch_area_forced)then
-          currentPatch => oldercPatch
+          currentPatch => currentPatch%older
          
           count_cycles = 0
        else
