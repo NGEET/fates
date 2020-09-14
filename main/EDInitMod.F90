@@ -449,7 +449,7 @@ contains
            if(hlm_use_nocomp.eq.itrue)then
              nocomp_pft = n
            else
-             nocomp_pft = 999
+             nocomp_pft = fates_unset_int
            end if 
 
            if(hlm_use_nocomp.eq.itrue)then 
@@ -591,7 +591,7 @@ contains
     patch_in%tallest  => null()
     patch_in%shortest => null()
 
-    ! Manage interactions of ixed biogeg (site level filter) and 
+    ! Manage interactions of fixed biogeog (site level filter) and 
     ! nocomp (patch level filter) 
     ! Need to cover all potential biogeog x nocomp combinations 
     ! 1. biogeog = false. nocomp = false: all PFTs on (DEFAULT)
@@ -620,7 +620,7 @@ contains
       
     do pft =  1,numpft
      if(use_pft_local(pft).eq.itrue)then
-       if(EDPftvarcon_inst%initd(pft)>1.0E-7) then
+       if(EDPftvarcon_inst%initd(pft)>nearzero) then
 
        allocate(temp_cohort) ! temporary cohort
 
