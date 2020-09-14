@@ -449,7 +449,7 @@ contains
            if(hlm_use_nocomp.eq.itrue)then
              nocomp_pft = n
            else
-             nocomp_pft = 999
+             nocomp_pft = fates_unset_int
            end if 
 
            if(hlm_use_nocomp.eq.itrue)then 
