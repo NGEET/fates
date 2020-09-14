@@ -2663,7 +2663,7 @@ contains
                    ! patch. As mentioned earlier, we try not to fuse it.
                    
                    gotfused = .true.
-                else !anthro label
+                else !anthro labels of two patches are not the same
                    if (count_cycles .gt. 0) then
                       ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
