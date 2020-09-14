@@ -1015,7 +1015,7 @@ contains
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_fixed_biogeog = unset_int
-         hlm_use_nocomp = unset_int    ! future reduced complexity mode
+         hlm_use_nocomp = unset_int   
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
