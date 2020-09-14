@@ -2719,8 +2719,6 @@ contains
           currentPatch => currentPatch%older
           count_cycles = 0
        end if  !count cycles
-      call set_patchno(currentSite) !redo patch numbering for every potential termination. 
-      !n.b. could put filter in here for actual terminations to save time. 
 
     enddo ! current patch loop
     
