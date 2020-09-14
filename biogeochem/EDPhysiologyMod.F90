@@ -1362,6 +1362,9 @@ contains
     integer  ::   hlm_pft      ! host land model pft number for weighting loop.
     integer ::   s             ! site index
 
+
+   real(r8) ::  spread     ! need to send a fixed value of patch spread to carea_allom
+
    ! To Do in this routine.
    ! Get access to HLM input varialbes. 
    ! Weight them by PFT
@@ -1431,32 +1434,35 @@ contains
         write(*,*) 'wrong PFT label in cohort in SP mode',fates_pft,currentPatch%nocomp_pft_label
       end if
 
-      !------------------------------------------
-      !  Calculate dbh from input height, and c_area from dbh
-      !------------------------------------------
-      currentCohort%hite = currentSite%sp_htop(fates_pft)
-      call h2d_allom(currentCohort%hite,currentCohort%pft,currentCohort%dbh)
-      currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
-      spread = 0.0_r8 
-      call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,currentCohort%c_area)
+    !------------------------------------------
+    !  Calculate dbh from input height, and c_area from dbh
+    !------------------------------------------
+    currentCohort%hite = currentPatch%sp_htop
+    call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+    currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
+    spread = 0.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
+                     ! n.b. the value of this will only affect 'n', which isn't/shouldn't be a diagnostic in 
+                     ! SP mode. 
+    call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,currentCohort%c_area)
 
-      !------------------------------------------
-      !  Calculate canopy N assuming patch area is full
-      !------------------------------------------
-      currentCohort%n = currentPatch%area / currentCohort%c_area
+    !------------------------------------------
+    !  Calculate canopy N assuming patch area is full
+    !------------------------------------------
+    currentCohort%n = currentPatch%area / currentCohort%c_area
 
-      ! ------------------------------------------
-      ! Calculate leaf carbon from target treelai
-      ! ------------------------------------------
-      currentCohort%treelai = currentSite%sp_tlai(fates_pft)
-      leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
+    ! ------------------------------------------
+    ! Calculate leaf carbon from target treelai
+    ! ------------------------------------------
+    currentCohort%treelai = currentPatch%sp_tlai
+    leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
                   currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
+
       call SetState(currentCohort%prt,leaf_organ,1,leaf_c,1)
       
       ! assert sai
       currentCohort%treesai = currentSite%sp_tsai(fates_pft)
 
-      !NB these will need to be put through the canopy_structure routine in order to figure out exposed lai and sai
+    !NB these will need to be put through the canopy_structure routine in order to figure out exposed lai and sai
 
       currentCohort => currentCohort%shorter
     end do !cohort loop
