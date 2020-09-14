@@ -2137,6 +2137,7 @@ contains
     use FatesConstantsMod  , only : fates_check_param_set
     use FatesConstantsMod  , only : itrue, ifalse
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac, logging_direct_frac
+    use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
     
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
@@ -2149,6 +2150,10 @@ contains
      integer :: nleafage ! size of the leaf age class array
      integer :: iage     ! leaf age class index
      integer :: norgans  ! size of the plant organ dimension
+     integer  :: hlm_pft    ! used in fixed biogeog mode
+     integer  :: fates_pft  ! used in fixed biogeog mode
+
+     real(r8) :: sumarea    ! area of PFTs in nocomp mode.
 
      npft = size(EDPftvarcon_inst%evergreen,1)
 
@@ -2704,7 +2709,7 @@ contains
               end if
            end if
 
-        end do
+        end do ! iage
 
         ! Check the turnover rates on the senescing leaf pool
         if ( EDPftvarcon_inst%leaf_long(ipft,nleafage)>nearzero ) then
@@ -2770,8 +2775,21 @@ contains
         end if
 
 
-    end do
-
+    end do !ipft
+    
+    ! check that the host-fates PFT map adds to one in both dimension
+      
+    do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
+      sumarea = sum(EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_oft))
+      if(abs(sumarea-1.0_r8).gt.  )then
+          write(fates_log(),*) 'The distribution of this host land model PFT :',hlm_pft
+          write(fates_log(),*) 'into FATES PFTs, does not add up to 1.0.'
+          write(fates_log(),*) 'Error is:',sumarea-1.0_r8
+          write(fates_log(),*) 'and the hlm_pft_map is:', EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_oft)  
+         write(fates_log(),*) 'Aborting'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+    end do !ipft
+   
 !!    ! Checks for HYDRO
 !!    if( hlm_use_planthydro == itrue ) then
 !!     
