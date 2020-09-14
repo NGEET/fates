@@ -42,6 +42,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : hlm_use_planthydro
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
   use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod         , only : hlm_use_sp
   use FatesInterfaceTypesMod         , only : numpft
   use FatesInterfaceTypesMod         , only : nleafage
   use FatesInterfaceTypesMod         , only : nlevsclass
@@ -341,10 +342,10 @@ contains
                   sites(s)%area_pft(ft)= 1.0_r8/numpft
                   write(*,*) 'setting totally bare patch to all pfts.',s,sumarea,sites(s)%area_pft(ft)
                 end if
+               end do !ft
               else ! for sp mode, assert a bare ground patch
                 sites(s)%area_bareground = 1.0_r8 - sumarea
               end if !sp mode
-             end do !ft
            
          end if !fixed biogeog
 

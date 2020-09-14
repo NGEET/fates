@@ -666,6 +666,8 @@ module EDTypesMod
      real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
      real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
      real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
+     
+     real(r8) :: area_bareground                               ! in SP mode we assert a bare ground fraction
 
      ! Mass Balance (allocation for each element)
 

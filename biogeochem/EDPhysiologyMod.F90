@@ -1363,8 +1363,6 @@ contains
     integer ::   s             ! site index
 
 
-   real(r8) ::  spread     ! need to send a fixed value of patch spread to carea_allom
-
    ! To Do in this routine.
    ! Get access to HLM input varialbes. 
    ! Weight them by PFT
@@ -1437,8 +1435,8 @@ contains
     !------------------------------------------
     !  Calculate dbh from input height, and c_area from dbh
     !------------------------------------------
-    currentCohort%hite = currentPatch%sp_htop
-    call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+    currentCohort%hite = currentSite%sp_htop(fates_pft)
+    call h2d_allom(currentCohort%hite,fates_pft,currentCohort%dbh)
     currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
     spread = 0.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
                      ! n.b. the value of this will only affect 'n', which isn't/shouldn't be a diagnostic in 
@@ -1453,7 +1451,8 @@ contains
     ! ------------------------------------------
     ! Calculate leaf carbon from target treelai
     ! ------------------------------------------
-    currentCohort%treelai = currentPatch%sp_tlai
+    currentCohort%treelai = currentSite%sp_tlai(fates_pft)
+
     leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
                   currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
 
