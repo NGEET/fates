@@ -2780,14 +2780,15 @@ contains
     ! check that the host-fates PFT map adds to one in both dimension
       
     do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
-      sumarea = sum(EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_oft))
-      if(abs(sumarea-1.0_r8).gt.  )then
+      sumarea = sum(EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_pft))
+      if(abs(sumarea-1.0_r8).gt. nearzero )then
           write(fates_log(),*) 'The distribution of this host land model PFT :',hlm_pft
           write(fates_log(),*) 'into FATES PFTs, does not add up to 1.0.'
           write(fates_log(),*) 'Error is:',sumarea-1.0_r8
-          write(fates_log(),*) 'and the hlm_pft_map is:', EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_oft)  
+          write(fates_log(),*) 'and the hlm_pft_map is:', EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_pft)  
          write(fates_log(),*) 'Aborting'
          call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
     end do !ipft
    
 !!    ! Checks for HYDRO
