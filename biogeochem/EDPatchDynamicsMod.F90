@@ -2555,14 +2555,9 @@ contains
        youngerp => null()
     end if
 
-
-
-
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
     call dealloc_patch(dp)
-   
     deallocate(dp)
-
 
     if(associated(youngerp))then
        ! Update the younger patch's new older patch (because it isn't dp anymore)
@@ -2627,8 +2622,6 @@ contains
           ! However, if the patch to be fused is excessivlely small, then fuse
           ! at all costs.  If it is not fused, it will make
 
-          ! the current patch is NOT the youngest. Or is it very very small. 
-          ! so, skip merging if it is the youngest, unless the youngest is tiny. 
           if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
                currentPatch%area <= min_patch_area_forced ) then
              
@@ -2728,8 +2721,6 @@ contains
        end if  !count cycles
       call set_patchno(currentSite) !redo patch numbering for every potential termination. 
       !n.b. could put filter in here for actual terminations to save time. 
-
-    fusingpatch => currentSite%oldest_patch
 
     enddo ! current patch loop
     
