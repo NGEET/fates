@@ -620,7 +620,7 @@ contains
       
     do pft =  1,numpft
      if(use_pft_local(pft).eq.itrue)then
-       if(EDPftvarcon_inst%initd(pft)>1.0E-7) then
+       if(EDPftvarcon_inst%initd(pft)>nearzero) then
 
        allocate(temp_cohort) ! temporary cohort
 
