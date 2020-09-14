@@ -332,15 +332,20 @@ contains
            ! the bare ground will no longer be proscribed and should emerge from FATES
            ! this may or may not be the right way to deal with this?
 
-            sumarea = sum(sites(s)%area_pft(1:numpft))
-           do ft =  1,numpft
-             if(sumarea.gt.0._r8)then
-                sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
-             else
-                sites(s)%area_pft(ft)= 1.0_r8/numpft
-                write(*,*) 'setting totally bare patch to all pfts.',s,sumarea,sites(s)%area_pft(ft)
-             end if
-           end do !ft
+            if(hlm_use_sp.eq.ifalse)then
+              sumarea = sum(sites(s)%area_pft(1:numpft))
+              do ft =  1,numpft
+                if(sumarea.gt.0._r8)then
+                  sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
+                else
+                  sites(s)%area_pft(ft)= 1.0_r8/numpft
+                  write(*,*) 'setting totally bare patch to all pfts.',s,sumarea,sites(s)%area_pft(ft)
+                end if
+              else ! for sp mode, assert a bare ground patch
+                sites(s)%area_bareground = 1.0_r8 - sumarea
+              end if !sp mode
+             end do !ft
+           
          end if !fixed biogeog
 
          do ft = 1,numpft
@@ -441,6 +446,9 @@ contains
            sites(s)%spread     = init_spread_near_bare_ground
           if(hlm_use_nocomp.eq.itrue)then
            no_new_patches = numpft
+           if(hlm_use_sp.eq.itrue)then
+             no_new_patches = numpft + 1 ! bare ground patch in SP mode. 
+           endif
 !           allocate(newppft(numpft))
           else
            no_new_patches = 1
@@ -467,7 +475,12 @@ contains
               end if 
            else  ! The default case is initialized w/ one patch with the area of the whole site. 
              newparea = area       
-           end if 
+           end if  !nocomp mode
+
+           if(hlm_use_sp.eq.itrue.and.n.gt.numpft)then
+              newparea = sites(s)%area_bareground
+              nocomp_pft = 0
+           end if
 
            if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode 
               allocate(newp)
@@ -506,7 +519,9 @@ contains
              end do
 
               sitep => sites(s)
-              call init_cohorts(sitep, newp, bc_in(s))
+              if(hlm_use_sp.eq.ifalse.and.nocomp_pft.eq.0)then !don't initialize cohorts for SP bare ground patch
+                call init_cohorts(sitep, newp, bc_in(s))
+              end if
             end if 
          end do !no new patches
          
