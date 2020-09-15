@@ -313,6 +313,7 @@ contains
             ! add up the area associated with each FATES PFT
             ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
             ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
+
             sites(s)%area_pft(1:numpft) = 0._r8
             do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
                do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts        
@@ -321,10 +322,11 @@ contains
                end do
             end do !hlm_pft
 
+            sumarea = sum(sites(s)%area_pft(1:numpft))
             do ft =  1,numpft
-              if(sites(s)%area_pft(ft).lt.0.01_r8)then
+              if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
+                  if ( debug ) write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
                  sites(s)%area_pft(ft)=0.0_r8 !remove tiny patches to prevent numerical errors in terminate patches
-               write(*,*) 'removing small pft patches',sites(s)%lon,sites(s)%lat,ft,sites(s)%area_pft(ft)
               endif
             end do
 
@@ -340,10 +342,11 @@ contains
                   sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
                 else
                   sites(s)%area_pft(ft)= 1.0_r8/numpft
-                  write(*,*) 'setting totally bare patch to all pfts.',s,sumarea,sites(s)%area_pft(ft)
                 end if
                end do !ft
               else ! for sp mode, assert a bare ground patch
+                sumarea = sum(sites(s)%area_pft(1:numpft)) 
+                ! here we subsume the destroyed tiny patches into the bare ground fraction. 
                 sites(s)%area_bareground = 1.0_r8 - sumarea
               end if !sp mode
            
@@ -479,7 +482,7 @@ contains
            end if  !nocomp mode
 
            if(hlm_use_sp.eq.itrue.and.n.gt.numpft)then
-              newparea = sites(s)%area_bareground
+              newparea = sites(s)%area_bareground * area
               nocomp_pft = 0
            end if
 
@@ -534,13 +537,12 @@ contains
              if ( debug ) write(fates_log(),*)  'test links',s,newp%nocomp_pft_label,tota
            newp=>newp%younger
          end do
-         if(abs(tota-area).gt.nearzero)then
-             write(*,*) 'error in assigning areas in init patch',s,tota-area
+         if(abs(tota-area).gt.nearzero*area)then
+             write(*,*) 'error in assigning areas in init patch',s,sites(s)%lat,tota-area,tota
          endif 
 
           ! For carbon balance checks, we need to initialize the 
           ! total carbon stock
-         write(*,*) 'calling sitemassstock',s
           do el=1,num_elements
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                    biomass_stock,litter_stock,seed_stock)
