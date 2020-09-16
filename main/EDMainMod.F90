@@ -168,9 +168,8 @@ contains
     call ZeroLitterFluxes(currentSite)
 
     ! Zero mass balance 
-    if(hlm_use_sp.eq.ifalse)then
-      call TotalBalanceCheck(currentSite, 0)
-    end if
+    call TotalBalanceCheck(currentSite, 0)
+
     ! We do not allow phenology while in ST3 mode either, it is hypothetically
     ! possible to allow this, but we have not plugged in the litter fluxes
     ! of flushing or turning over leaves for non-dynamics runs
@@ -220,9 +219,8 @@ contains
        enddo
     end if
     
-    if(hlm_use_sp.eq.ifalse)then   
-      call TotalBalanceCheck(currentSite,1)
-    end if
+    call TotalBalanceCheck(currentSite,1)
+
 
     if( hlm_use_ed_st3.eq.ifalse .and.hlm_use_sp.eq.ifalse ) then 
        currentPatch => currentSite%oldest_patch
@@ -245,9 +243,8 @@ contains
        enddo
     end if
 
-    if(hlm_use_sp.eq.ifalse)then    
-      call TotalBalanceCheck(currentSite,2)
-    end if
+    call TotalBalanceCheck(currentSite,2)
+
     !*********************************************************************************
     ! Patch dynamics sub-routines: fusion, new patch creation (spwaning), termination.
     !*********************************************************************************
@@ -273,9 +270,7 @@ contains
        call spawn_patches(currentSite, bc_in)
     end if
 
-    if(hlm_use_sp.eq.ifalse)then   
-      call TotalBalanceCheck(currentSite,3)
-    end if
+    call TotalBalanceCheck(currentSite,3)
 
     ! fuse on the spawned patches.
     if ( do_patch_dynamics.eq.itrue ) then
@@ -292,18 +287,15 @@ contains
     end if
 
     ! SP has changes in leaf carbon but we don't expect them to be in balance. 
-    if(hlm_use_sp.eq.ifalse)then
-      call TotalBalanceCheck(currentSite,4)
-    end if
+    call TotalBalanceCheck(currentSite,4)
 
     ! kill patches that are too small
     if ( do_patch_dynamics.eq.itrue ) then
        call terminate_patches(currentSite)   
     end if
 
-    if(hlm_use_sp.eq.ifalse)then
-      call TotalBalanceCheck(currentSite,5)
-    endif
+    call TotalBalanceCheck(currentSite,5)
+ 
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
@@ -570,18 +562,15 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch   
     !-----------------------------------------------------------------------
-
-    call canopy_spread(currentSite)
- 
     if(hlm_use_sp.eq.ifalse)then
-      call TotalBalanceCheck(currentSite,6)
+      call canopy_spread(currentSite)
     end if
+
+    call TotalBalanceCheck(currentSite,6)
 
     call canopy_structure(currentSite, bc_in)
 
-    if(hlm_use_sp.eq.ifalse)then
-      call TotalBalanceCheck(currentSite,final_check_id)
-    end if 
+    call TotalBalanceCheck(currentSite,final_check_id)
 
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
@@ -656,6 +645,8 @@ contains
                                                     ! to print cohort data
                                                     ! upon fail (lots of text)
     !-----------------------------------------------------------------------
+
+  if(hlm_use_sp.eq.ifalse)then
 
     change_in_stock = 0.0_r8
 
@@ -768,7 +759,7 @@ contains
       end if
 
    end do
-    
+  end if ! not SP mode    
   end subroutine TotalBalanceCheck
  
   ! =====================================================================================
