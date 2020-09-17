@@ -810,21 +810,21 @@ contains
  
     slat = g_per_kg * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg
     leafc_per_unitarea = leaf_c/(c_area/nplant) !KgC/m2
- 
+
     if(treelai > 0.0_r8)then
        ! Coefficient for exponential decay of 1/sla with canopy depth:
        kn = decay_coeff_kn(pft,vcmax25top)
- 
        ! take PFT-level maximum SLA value, even if under a thick canopy (which has units of m2/gC),
        ! and put into units of m2/kgC
        sla_max = g_per_kg *EDPftvarcon_inst%slamax(pft)
  
        ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
        leafc_slamax = max(0.0_r8,(slat - sla_max) / (-1.0_r8 * kn * slat * sla_max))
- 
+
        ! treelai at which we reach maximum sla.
        tree_lai_at_slamax = (log( 1.0_r8- kn * slat * leafc_slamax)) / (-1.0_r8 * kn)
-       if(treelai > tree_lai_at_slamax)then
+
+       if(treelai < tree_lai_at_slamax)then
          ! Inversion of the exponential phase calculation of treelai for a given leafc_per_unitarea
          leafc_per_unitarea = (1.0_r8-exp(treelai*(-1.0_r8 * kn)))/(kn*slat)
        else ! we exceed the maxumum sla
@@ -834,7 +834,7 @@ contains
          leafc_linear_phase = (treelai-tree_lai_at_slamax)/sla_max
          leafc_per_unitarea = leafc_slamax + leafc_linear_phase
        end if
- 
+       leafc_from_treelai = leafc_per_unitarea*(c_area/nplant)
     else
        leafc_from_treelai = 0.0_r8 
     endif ! (leafc_per_unitarea > 0.0_r8)
