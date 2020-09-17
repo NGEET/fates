@@ -9,6 +9,7 @@ module EDCohortDynamicsMod
   use FatesInterfaceTypesMod     , only : hlm_freq_day
   use FatesInterfaceTypesMod     , only : bc_in_type
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
@@ -226,7 +227,7 @@ contains
     new_cohort%laimemory    = laimemory
     new_cohort%sapwmemory   = sapwmemory
     new_cohort%structmemory = structmemory
-
+    write(*,*) 'createing cohort', pft, nn, clayer
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
     call UpdateCohortBioPhysRates(new_cohort)
@@ -1663,6 +1664,11 @@ contains
 
     o => currentCohort
     n => copyc
+
+    if(hlm_use_sp.eq.itrue)then
+      write(fates_log(),*) 'copying cohort shouldnt happen in SP mode'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
 
     n%indexnumber     = fates_unset_int
     
