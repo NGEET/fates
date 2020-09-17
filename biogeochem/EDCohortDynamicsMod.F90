@@ -89,7 +89,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_leafon, acnp_bc_inout_id_dbh
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdn, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
@@ -398,7 +398,7 @@ contains
 
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pft,bc_ival = new_cohort%pft)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_leafon,bc_ival = new_cohort%status_coh)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdn, bc_rval = new_cohort%daily_n_uptake)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
@@ -1373,6 +1373,12 @@ contains
                                       currentCohort%gpp_acc_hold   = &
                                            (currentCohort%n*currentCohort%gpp_acc_hold + &
                                            nextc%n*nextc%gpp_acc_hold)/newn
+                                      
+                                      ! This carbon variable needs continuity from day to day, as resp_m_def
+                                      ! needs to hold mass and be conservative
+                                      
+                                      currentCohort%resp_m_def = (currentCohort%n*currentCohort%resp_m_def + & 
+                                           nextc%n*nextc%resp_m_def)/newn
 
                                       currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                            nextc%n*nextc%dmort)/newn
@@ -1415,10 +1421,7 @@ contains
                                       currentCohort%daily_p_need2 = (currentCohort%n*currentCohort%daily_p_need2 + & 
                                            nextc%n*nextc%daily_p_need2)/newn
 
-                                      ! This carbon variable needs continuity from day to day, as resp_m_def
-                                      ! needs to hold mass and be conservative
-                                      currentCohort%resp_m_def = (currentCohort%n*currentCohort%resp_m_def + & 
-                                           nextc%n*nextc%resp_m_def)/newn
+                                      
                                       
                                       ! logging mortality, Yi Xu
                                       currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &

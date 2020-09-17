@@ -625,13 +625,30 @@ contains
                                    ! generate maintenance fluxes from the last
                                    ! senescing class; all other cases this 
                                    ! is assumed to be 1.
-      
-      real(r8) :: turnover         ! Actual turnover removed from each
+      integer  :: store_var_id     ! Variable id of the storage pool
+      integer  :: i_store_pos      ! Position index for storage
+      real(r8) :: turnover_mass    ! Actual turnover removed from each
                                    ! pool [kg]
-      real(r8) :: retrans          ! A temp for the actual re-translocated mass
+      real(r8) :: retrans_frac     ! A temp for the retranslocated fraction
+      real(r8) :: retrans_mass     ! The mass re-translocated [kg]
 
       ! A temp for the actual turnover removed from pool
       real(r8), dimension(num_organ_types) :: base_turnover   
+
+
+      if(prt_global%hyp_id .le. 2) then
+         i_store_pos = 1             ! hypothesis 1&2 only have
+                                     ! 1 storage pool
+      else
+         write(fates_log(),*) 'You picked a hypothesis that has not defined'
+         write(fates_log(),*) ' how and where turnover re-absorption interacts'
+         write(fates_log(),*) ' with the storage pool. specifically, '
+         write(fates_log(),*) ' if this hypothesis has multiple storage pools'
+         write(fates_log(),*) ' to pull carbon/resources from'
+         write(fates_log(),*) 'Exiting'
+         call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+
       
       ! -----------------------------------------------------------------------------------
       ! Calculate the turnover rates (maybe this should be done once in the parameter
@@ -695,11 +712,11 @@ contains
          element_id = prt_global%state_descriptor(i_var)%element_id
 
          if ( any(element_id == carbon_elements_list) ) then
-            retrans = prt_params%turnover_carb_retrans(ipft,organ_id)
+            retrans_frac = prt_params%turnover_carb_retrans(ipft,organ_id)
          else if( element_id == nitrogen_element ) then
-            retrans = prt_params%turnover_nitr_retrans(ipft,organ_id)
+            retrans_frac = prt_params%turnover_nitr_retrans(ipft,organ_id)
          else if( element_id == phosphorus_element ) then
-            retrans = prt_params%turnover_phos_retrans(ipft,organ_id)
+            retrans_frac = prt_params%turnover_phos_retrans(ipft,organ_id)
          else
             write(fates_log(),*) 'Please add a new re-translocation clause to your '
             write(fates_log(),*) ' organ x element combination'
@@ -718,10 +735,10 @@ contains
          end if
          ! Loop over all of the coordinate ids
 
-         if(retrans<0.0 .or. retrans>1.0) then
+         if(retrans_frac<0.0 .or. retrans_frac>1.0) then
             write(fates_log(),*) 'Unacceptable retranslocation calculated'
             write(fates_log(),*) ' organ: ',organ_id,' element: ',element_id
-            write(fates_log(),*) ' retranslocation fraction: ',retrans
+            write(fates_log(),*) ' retranslocation fraction: ',retrans_frac
             write(fates_log(),*) 'Exiting'
             call endrun(msg=errMsg(__FILE__, __LINE__))
          end if
@@ -740,14 +757,36 @@ contains
             ipos_1 = 1
          end if
 
+         
+         store_var_id = prt_global%sp_organ_map(store_organ,element_id)
+         
          do i_pos = ipos_1, prt_global%state_descriptor(i_var)%num_pos 
             
-            turnover = (1.0_r8 - retrans) * base_turnover(organ_id) * prt%variables(i_var)%val(i_pos)
-      
-            prt%variables(i_var)%turnover(i_pos) = prt%variables(i_var)%turnover(i_pos) + turnover
-            
-            prt%variables(i_var)%val(i_pos) = prt%variables(i_var)%val(i_pos)           - turnover
+            turnover_mass = (1.0_r8 - retrans_frac) * base_turnover(organ_id) * prt%variables(i_var)%val(i_pos)
 
+            ! Remove mass from turnover from the organ of interest
+            
+            prt%variables(i_var)%turnover(i_pos) = prt%variables(i_var)%turnover(i_pos) + turnover_mass
+            
+            prt%variables(i_var)%val(i_pos)      = prt%variables(i_var)%val(i_pos)      - turnover_mass
+
+            ! If any mass is re-absorbed, send it to storage
+            
+            retrans_mass = retrans_frac * base_turnover(organ_id) * prt%variables(i_var)%val(i_pos)
+
+            prt%variables(i_var)%net_alloc(i_pos)  = &
+                 prt%variables(i_var)%net_alloc(i_pos) - retrans_mass
+            
+            prt%variables(i_var)%val(i_pos) = prt%variables(i_var)%val(i_pos) - retrans_mass
+            
+            prt%variables(store_var_id)%net_alloc(i_store_pos)  = &
+                 prt%variables(store_var_id)%net_alloc(i_store_pos) + retrans_mass
+            
+            prt%variables(store_var_id)%val(i_store_pos)  = &
+                  prt%variables(store_var_id)%val(i_store_pos) + retrans_mass
+            
+            
+            
          end do
 
       end do
