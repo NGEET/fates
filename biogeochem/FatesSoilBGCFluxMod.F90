@@ -60,9 +60,9 @@ module FatesSoilBGCFluxMod
   use FatesConstantsMod, only    : days_per_sec
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : kg_per_g
-  use FatesConstantsMod, only    : fates_ncomp_scaling
-  use FatesConstantsMod, only    : cohort_ncomp_scaling
-  use FatesConstantsMod, only    : pft_ncomp_scaling
+  use FatesConstantsMod, only    : fates_np_comp_scaling
+  use FatesConstantsMod, only    : cohort_np_comp_scaling
+  use FatesConstantsMod, only    : pft_np_comp_scaling
   use FatesConstantsMod, only    : rsnbl_math_prec
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod    , only : ncwd
@@ -107,8 +107,8 @@ contains
     
     type(ed_cohort_type),intent(in) :: ccohort
     integer,intent(in)              :: element_id      ! Should match nitrogen_element or
+                                                       ! phosphorus_element
     
-    ! phosphorus_element
     real(r8)              :: plant_demand ! Nutrient demand per plant [kg]
     real(r8)              :: plant_x      ! Total mass for element of interest [kg]
     real(r8)              :: plant_max_x  ! Maximum mass for element of interest [kg]
@@ -230,7 +230,7 @@ contains
     end do
     
     ! We can exit if this is a c-only simulation
-    if(hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp) then
+    if(hlm_parteh_mode.eq.prt_carbon_allom_hyp) then
        ! These can now be zero'd
        do s = 1, nsites
           bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
@@ -289,12 +289,12 @@ contains
 
           ! Note there are two scaling methods.  Either competition for
           ! N and/or P was performed by cohorts acting individually
-          ! (cohort_ncomp_scaling) , or as PFTs (pft_ncomp_scaling)
+          ! (cohort_np_comp_scaling) , or as PFTs (pft_np_comp_scaling)
           ! If we opt for the latter, then we assume that the nutrient
           ! uptake share of the cohort, matches the fraction of root
           ! mass it contributes to the group (PFT).
           
-          if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+          if(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
              
              ! *Currently, all cohorts in a PFT have the same root
              ! fraction, so all we have to to is find its total mass fraction.
@@ -312,7 +312,7 @@ contains
                 cpatch => cpatch%younger
              end do
              
-          end if  ! end if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+          end if  ! end if(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
           
           ! --------------------------------------------------------------------------------
           ! Now that we have the arrays ready for downscaling (if needed)
@@ -326,7 +326,7 @@ contains
                 ccohort => cpatch%tallest
                 do while (associated(ccohort))
                    pft   = ccohort%pft
-                   if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                   if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
                       icomp = icomp+1
 
                       ! N Uptake:  Convert g/m2/day -> kg/plant/day
@@ -359,7 +359,7 @@ contains
                 ccohort => cpatch%tallest
                 do while (associated(ccohort))
                    pft   = ccohort%pft
-                   if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                   if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
                       icomp = icomp+1
 
                       ! P Uptake:  Convert g/m2/day -> kg/plant/day
@@ -385,7 +385,7 @@ contains
           end if
           
           ! Free the temprorary arrays (if used)
-          if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+          if(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
              deallocate(fnrt_c_pft)
           end if
           
@@ -553,7 +553,7 @@ contains
              
              pft   = ccohort%pft
              
-             if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+             if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
                 icomp = icomp+1
              else
                 icomp = pft
@@ -584,7 +584,7 @@ contains
           cpatch => cpatch%younger
        end do
        
-       if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+       if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
           bc_out%n_plant_comps = icomp
        else
           bc_out%n_plant_comps = numpft
@@ -607,7 +607,7 @@ contains
              do while (associated(ccohort))
 
                 pft   = ccohort%pft
-                if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
                    icomp = icomp+1
                 else
                    icomp = pft
@@ -673,7 +673,7 @@ contains
 
           ! Normalize the sum to a mean, if this is a PFT scale
           ! boundary flux
-          if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+          if(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
              do icomp = 1, numpft
                 bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp)/real(comp_per_pft(icomp),r8)
              end do
@@ -692,7 +692,7 @@ contains
              do while (associated(ccohort))
 
                 pft   = ccohort%pft
-                if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
                    icomp = icomp+1
                 else
                    icomp = pft
@@ -746,7 +746,7 @@ contains
              cpatch => cpatch%younger
           end do
           
-          if(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+          if(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
              do icomp = 1, numpft
                 bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp)/real(comp_per_pft(icomp),r8)
              end do
@@ -780,7 +780,7 @@ contains
              do while (associated(ccohort))
                 pft   = ccohort%pft
                 dbh   = ccohort%dbh
-                if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
                    icomp = icomp+1
                 else
                    icomp = pft
@@ -802,7 +802,7 @@ contains
              do while (associated(ccohort))
                 pft   = ccohort%pft
                 dbh   = ccohort%dbh
-                if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+                if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
                    icomp = icomp+1
                 else
                    icomp = pft
@@ -817,7 +817,7 @@ contains
 
        if( (n_uptake_mode.eq.coupled_p_uptake) .or. &
            (p_uptake_mode.eq.coupled_p_uptake)) then
-          if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+          if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
              bc_out%n_plant_comps = icomp
           else
              bc_out%n_plant_comps = numpft

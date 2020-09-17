@@ -47,18 +47,18 @@ module FatesConstantsMod
   integer, public, parameter :: coupled_n_uptake    = 2
 
   
-  integer, public, parameter :: cohort_ncomp_scaling = 1  ! This flag definition indicates that EVERY cohort on
+  integer, public, parameter :: cohort_np_comp_scaling = 1  ! This flag definition indicates that EVERY cohort on
                                                           ! the column should compete independently in the soil
-                                                          ! BGC acquisition scheme.
+                                                          ! BGC nitrogen and phosphorus acquisition scheme.
 
-  integer, public, parameter :: pft_ncomp_scaling    = 2  ! This flag definition indicates that cohorts should
+  integer, public, parameter :: pft_np_comp_scaling    = 2  ! This flag definition indicates that cohorts should
                                                           ! be grouped into PFTs, and each PFT will be represented
-                                                          ! as the competitor
+                                                          ! as the competitor, in the BGC N and P acquisition scheme
 
   ! This flag specifies the scaling of how we present
   ! nutrient competitors to the HLM's soil BGC model
   
-  integer, public, parameter :: fates_ncomp_scaling = cohort_ncomp_scaling
+  integer, public, parameter :: fates_np_comp_scaling = cohort_np_comp_scaling
 
   real(fates_r8), parameter, public :: secondary_age_threshold = 94._fates_r8 ! less than this value is young secondary land
                                                             ! based on average age of global

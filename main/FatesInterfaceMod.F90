@@ -47,9 +47,9 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : prescribed_n_uptake
    use FatesConstantsMod         , only : coupled_p_uptake
    use FatesConstantsMod         , only : coupled_n_uptake
-   use FatesConstantsMod         , only : fates_ncomp_scaling
-   use FatesConstantsMod         , only : cohort_ncomp_scaling
-   use FatesConstantsMod         , only : pft_ncomp_scaling
+   use FatesConstantsMod         , only : fates_np_comp_scaling
+   use FatesConstantsMod         , only : cohort_np_comp_scaling
+   use FatesConstantsMod         , only : pft_np_comp_scaling
    use PRTGenericMod             , only : num_elements
    use PRTGenericMod             , only : element_list
    use PRTGenericMod             , only : element_pos
@@ -176,7 +176,7 @@ contains
     bc_pconst%eca_alpha_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
     bc_pconst%eca_lambda_ptase(1:numpft) = EDPftvarcon_inst%eca_lambda_ptase(1:numpft)
     bc_pconst%eca_plant_escalar          = eca_plant_escalar
-    if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+    if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
        bc_pconst%j_uptake(1:nlevdecomp)    = 1
     else
        do j=1,nlevdecomp
@@ -380,7 +380,7 @@ contains
       ! Allocating differently could save a lot of memory and time
 
       if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-         if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+         if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
             allocate(bc_in%plant_n_uptake_flux(max_comp_per_site,1))
             allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
          else
@@ -708,9 +708,9 @@ contains
          ! present, we still need to allocate things when no nutrients
 
          if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
-            if(fates_ncomp_scaling.eq.cohort_ncomp_scaling) then
+            if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
                max_comp_per_site = fates_maxElementsPerSite
-            elseif(fates_ncomp_scaling.eq.pft_ncomp_scaling) then
+            elseif(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
                max_comp_per_site = numpft
             else
                write(fates_log(), *) 'An unknown nutrient competitor scaling method was chosen?'
