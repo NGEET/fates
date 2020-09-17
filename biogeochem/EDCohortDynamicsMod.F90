@@ -227,7 +227,7 @@ contains
     new_cohort%laimemory    = laimemory
     new_cohort%sapwmemory   = sapwmemory
     new_cohort%structmemory = structmemory
-    write(*,*) 'createing cohort', pft, nn, clayer
+
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
     call UpdateCohortBioPhysRates(new_cohort)
