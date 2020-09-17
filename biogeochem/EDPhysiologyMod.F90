@@ -35,6 +35,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed, area_inv
+  use EDTypesMod                , only : AREA
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
   use FatesLitterMod      , only : ilabile
@@ -1357,7 +1358,8 @@ contains
 
     real(r8) ::  spread        ! dummy value of canopy spread to estimate c_area
     real(r8) ::  leaf_c        ! leaf carbon estimated to generate target tlai
-
+    real(r8) ::  sumarea
+    real(r8) :: check_treelai
     integer ::   fates_pft     ! fates pft numer for weighting loop
     integer  ::   hlm_pft      ! host land model pft number for weighting loop.
     integer ::   s             ! site index
@@ -1372,44 +1374,51 @@ contains
    ! figure out how this will interact with the canopy_structure routines. 
    ! determine what 'n' should be from the canopy height. 
 
-  currentPatch => currentSite%oldest_patch
-  do while (associated(currentPatch))
+
+   currentSite%sp_tlai(1:numpft) = 0._r8
+   currentSite%sp_tsai(1:numpft) = 0._r8
+   currentSite%sp_htop(1:numpft) = 0._r8
+
+   currentPatch => currentSite%oldest_patch
+   do while (associated(currentPatch))
 
        ! WEIGHTING OF FATES PFTs on to HLM_PFTs
        ! add up the area associated with each FATES PFT
        ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
        ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
-       currentSite%sp_tlai(1:numpft) = 0._r8
-       currentSite%sp_tsai(1:numpft) = 0._r8
-       currentSite%sp_htop(1:numpft) = 0._r8
-
        ! weight each fates PFT target for lai, sai and htop by the area of the 
        ! contrbuting HLM PFTs.
        ! we only need to do this for the patch/fates_pft we are currently in
        fates_pft = currentPatch%nocomp_pft_label
+
+       sumarea = 0.0_r8
        do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
-         if(bc_in%pft_areafrac(hlm_pft).gt.0.0_r8)then
-           !leaf area index
+         if(bc_in%pft_areafrac(hlm_pft) * EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft).gt.0.0_r8)then
+            sumarea = sumarea + bc_in%pft_areafrac(hlm_pft)*EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft)
+            !leaf area index
             currentSite%sp_tlai(fates_pft) = currentSite%sp_tlai(fates_pft) + &
-                    bc_in%hlm_sp_tlai(hlm_pft) * bc_in%pft_areafrac(hlm_pft)
+                    bc_in%hlm_sp_tlai(hlm_pft) * bc_in%pft_areafrac(hlm_pft) &
+                    * EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) 
            !stem area index
            currentSite%sp_tsai(fates_pft) = currentSite%sp_tsai(fates_pft) + &
-                 bc_in%hlm_sp_tsai(hlm_pft) *	bc_in%pft_areafrac(hlm_pft)      		       
+                 bc_in%hlm_sp_tsai(hlm_pft) *	bc_in%pft_areafrac(hlm_pft) &      		       
+               * EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft)
            ! canopy height
            currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) + &
-                 bc_in%hlm_sp_htop(hlm_pft) * bc_in%pft_areafrac(hlm_pft)
+                 bc_in%hlm_sp_htop(hlm_pft) * bc_in%pft_areafrac(hlm_pft) &
+               * EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft)
          end if ! there is some area in this patch
        end do !hlm_pft
 
        ! weight for total area in each patch/fates_pft
        if(currentPatch%area.gt.0.0_r8)then 
+         currentSite%sp_tlai(fates_pft) = currentSite%sp_tlai(fates_pft) &
+             /(currentPatch%area/area)
+         currentSite%sp_tsai(fates_pft) = currentSite%sp_tsai(fates_pft) &
+             /(currentPatch%area/area)
          currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) &
-             /currentPatch%area
-          currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) &
-             /currentPatch%area
-           currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) &
-             /currentPatch%area
+             /(currentPatch%area/area)
         endif
   
     ! ------------------------------------------------------------
@@ -1424,12 +1433,16 @@ contains
       
       ! Do some checks 
       if(associated(currentCohort%shorter))then
-        write(*,*) "there is more than one cohort in SP mode"
+        write(fates_log(),*) 'SP mode has >1 cohort'
+        write(fates_log(),*) "SP mode >1 cohort: PFT",currentCohort%pft, currentCohort%shorter%pft
+        write(fates_log(),*) "SP mode >1 cohort: CL",currentCohort%canopy_layer, currentCohort%shorter%canopy_layer
+          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
       fates_pft =currentCohort%pft
       if(fates_pft.ne.currentPatch%nocomp_pft_label)then
-        write(*,*) 'wrong PFT label in cohort in SP mode',fates_pft,currentPatch%nocomp_pft_label
+        write(fates_log(),*) 'wrong PFT label in cohort in SP mode',fates_pft,currentPatch%nocomp_pft_label
+          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
     !------------------------------------------
@@ -1437,11 +1450,13 @@ contains
     !------------------------------------------
     currentCohort%hite = currentSite%sp_htop(fates_pft)
     call h2d_allom(currentCohort%hite,fates_pft,currentCohort%dbh)
-    currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
-    spread = 0.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
+
+   currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
+    spread = 1.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
                      ! n.b. the value of this will only affect 'n', which isn't/shouldn't be a diagnostic in 
                      ! SP mode. 
     call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,currentCohort%c_area)
+
 
     !------------------------------------------
     !  Calculate canopy N assuming patch area is full
@@ -1453,9 +1468,21 @@ contains
     ! ------------------------------------------
     currentCohort%treelai = currentSite%sp_tlai(fates_pft)
 
+    ! correct c_area for the new nplant
+    currentCohort%c_area = currentCohort%c_area * currentCohort%n
+
     leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
                   currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
 
+    !check reverse - maybe can delete eventually
+    check_treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
+                                           currentCohort%n, currentCohort%canopy_layer,               &
+                                           currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
+ 
+      if( abs(currentCohort%treelai-check_treelai).gt.nearzero)then
+        write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%pft
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
       call SetState(currentCohort%prt,leaf_organ,1,leaf_c,1)
       
       ! assert sai
@@ -1979,7 +2006,6 @@ contains
            ! -----------------------------------------------------------------------------------
            
            call prt%CheckInitialConditions()
-           
            ! This initializes the cohort
            call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, & 
                 temp_cohort%hite, temp_cohort%coage, temp_cohort%dbh, prt, & 
