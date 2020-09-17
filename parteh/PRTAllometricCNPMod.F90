@@ -1696,7 +1696,7 @@ contains
     implicit none
     class(cnp_allom_prt_vartypes) :: this     ! this class
 
-    ! This routine does nothing, becaues
+    ! This routine does nothing, because
     ! we currently don't have any fast-timestep processes
     ! Think of this as a stub.
 
@@ -2275,24 +2275,6 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
    end subroutine TargetAllometryCheck
-
-   ! =====================================================================================
-
-   subroutine FastPRTAC(this)
-
-      implicit none
-      class(cnp_allom_prt_vartypes) :: this     ! this class
-
-      ! This routine does nothing, because in the carbon only allometric RT model
-      ! we currently don't have any fast-timestep processes
-      ! Think of this as a stub.
-
-
-
-
-
-      return
-    end subroutine FastPRTAC
 
 
 end module PRTAllometricCNPMod
