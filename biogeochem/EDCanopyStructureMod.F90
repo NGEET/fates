@@ -1333,7 +1333,6 @@ contains
           
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                   currentCohort%pft,currentCohort%c_area)
-
              currentCohort%treelai = tree_lai(leaf_c,             &
                   currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                   currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
@@ -1346,7 +1345,10 @@ contains
                    currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
                 endif
              endif
-             
+             if(currentPatch%nocomp_pft_label.eq.0)then
+                write(*,*) 'cohorts in barepatch',currentPatch%total_canopy_area,currentPatch%nocomp_pft_label,currentCohort%c_area
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end if
              ! Check for erroneous zero values. 
              if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
                 write(fates_log(),*) 'FATES: dbh or n is zero in canopy_summarization', &
@@ -1964,7 +1966,6 @@ contains
            ! Calculate area indices for output boundary to HLM
            ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
            ! have been updated (ie ed_leaf_area_profile has been called since dynamics has been called)
-
            bc_out(s)%elai_pa(ifp) = calc_areaindex(currentPatch,'elai')
            bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
            bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
@@ -2062,6 +2063,7 @@ contains
                     cpatch%tlai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
            enddo
         enddo
+
      elseif (trim(ai_type) == 'esai') then
          do cl = 1,cpatch%NCL_p
            do ft = 1,numpft
