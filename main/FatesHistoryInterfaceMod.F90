@@ -273,6 +273,7 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_nesterov_fire_danger_si
   integer :: ih_fire_nignitions_si
+  integer :: ih_fire_fdi_si
   integer :: ih_fire_intensity_area_product_si
   integer :: ih_spitfire_ros_si
   integer :: ih_fire_ros_area_product_si
@@ -1756,6 +1757,7 @@ end subroutine flush_hvars
                hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
                hio_nesterov_fire_danger_si => this%hvars(ih_nesterov_fire_danger_si)%r81d, &
                hio_fire_nignitions_si => this%hvars(ih_fire_nignitions_si)%r81d, &
+               hio_fire_fdi_si => this%hvars(ih_fire_fdi_si)%r81d, &
                hio_spitfire_ros_si     => this%hvars(ih_spitfire_ros_si)%r81d, &
                hio_fire_ros_area_product_si=> this%hvars(ih_fire_ros_area_product_si)%r81d, &
                hio_tfc_ros_si          => this%hvars(ih_tfc_ros_si)%r81d, &
@@ -2053,6 +2055,7 @@ end subroutine flush_hvars
          ! site-level fire variables
          hio_nesterov_fire_danger_si(io_si) = sites(s)%acc_NI
          hio_fire_nignitions_si(io_si) = sites(s)%NF
+         hio_fire_fdi_si(io_si) = sites(s)%FDI
 
          ! If hydraulics are turned on, track the error terms
          ! associated with dynamics
@@ -4107,6 +4110,11 @@ end subroutine flush_hvars
          long='number of ignitions', use_default='active',               &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_nignitions_si)
+
+    call this%set_history_var(vname='FIRE_FDI', units='none',       &
+         long='probability that an ignition will lead to a fire', use_default='active',               &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_fdi_si)
 
     call this%set_history_var(vname='FIRE_ROS', units='m/min',                 &
          long='fire rate of spread m/min', use_default='active',                &
