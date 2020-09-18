@@ -1666,7 +1666,8 @@ contains
     n => copyc
 
     if(hlm_use_sp.eq.itrue)then
-      write(fates_log(),*) 'copying cohort shouldnt happen in SP mode'
+      write(fates_log(),*) 'copying cohort shouldnt happen in SP mode,area,pft',o%c_area,o%pft
+      
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 

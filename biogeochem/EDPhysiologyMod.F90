@@ -1479,8 +1479,8 @@ contains
                                            currentCohort%n, currentCohort%canopy_layer,               &
                                            currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
  
-      if( abs(currentCohort%treelai-check_treelai).gt.nearzero)then
-        write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%pft
+      if( abs(currentCohort%treelai-check_treelai).gt.1.0e-12)then !this is not as precise as nearzerio (10^-16 typically)
+        write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%treelai-check_treelai
         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
       call SetState(currentCohort%prt,leaf_organ,1,leaf_c,1)
