@@ -47,7 +47,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
-   use CLMFatesParamInterfaceMod , only : FatesReadParameters
+   use ELMFatesParamInterfaceMod , only : FatesReadParameters
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use decompMod             , only : bounds_type
 
