@@ -1131,7 +1131,7 @@ contains
          call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
               temp_cohort%coage, temp_cohort%dbh, &
               prt_obj, temp_cohort%laimemory,temp_cohort%sapwmemory, temp_cohort%structmemory, &
-              cstatus, rstatus, temp_cohort%canopy_trim, &
+              cstatus, rstatus, temp_cohort%canopy_trim,temp_cohort%c_area, &
               1, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort
