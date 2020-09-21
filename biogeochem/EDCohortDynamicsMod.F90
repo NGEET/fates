@@ -136,7 +136,7 @@ contains
     
   subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
                            prt, laimemory, sapwmemory, structmemory, &
-                           status, recruitstatus,ctrim, clayer, spread, bc_in)
+                           status, recruitstatus,ctrim, carea, clayer, spread, bc_in)
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -179,6 +179,7 @@ contains
                                                   ! leaf biomass that we are targeting?
     real(r8), intent(in)      :: spread           ! The community assembly effects how 
                                                   ! spread crowns are in horizontal space
+    real(r8), intent(in)       ::  carea          ! area of cohort NLY USED IN SP MODE.
     type(bc_in_type), intent(in) :: bc_in         ! External boundary conditions
 
      
@@ -255,8 +256,11 @@ contains
     endif
 
     ! Assign canopy extent and depth
-    call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft,new_cohort%c_area)
-
+    if(hlm_use_sp.eq.ifalse)then
+      call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft,new_cohort%c_area)
+    else
+      new_cohort%c_area = carea ! set this from previously precision-controlled value
+    endif
     ! Query PARTEH for the leaf carbon [kg]
     leaf_c = new_cohort%prt%GetState(leaf_organ,carbon12_element)
 
