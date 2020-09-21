@@ -111,6 +111,7 @@ module EDPhysiologyMod
   public :: trim_canopy
   public :: phenology
   public :: satellite_phenology
+  public :: assign_cohort_SP_properties
   public :: recruitment
   public :: ZeroLitterFluxes
   public :: FluxIntoLitterPools
@@ -1430,14 +1431,6 @@ contains
     ! ------------------------------------------------------------ 
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
-      
-      ! Do some checks 
-      if(associated(currentCohort%shorter))then
-        write(fates_log(),*) 'SP mode has >1 cohort'
-        write(fates_log(),*) "SP mode >1 cohort: PFT",currentCohort%pft, currentCohort%shorter%pft
-        write(fates_log(),*) "SP mode >1 cohort: CL",currentCohort%canopy_layer, currentCohort%shorter%canopy_layer
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-      end if
 
       fates_pft =currentCohort%pft
       if(fates_pft.ne.currentPatch%nocomp_pft_label)then
@@ -1445,10 +1438,55 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
+      call assign_cohort_SP_properties(currentCohort, currentSite%sp_htop(fates_pft), currentSite%sp_tlai(fates_pft)     , currentSite%sp_tsai(fates_pft),currentPatch%area,ifalse,leaf_c)
+
+      currentCohort => currentCohort%shorter
+    end do !cohort loop
+    currentPatch => currentPatch%younger
+  end do ! patch loop
+
+  end subroutine satellite_phenology
+
+! =====================================================================================
+
+  subroutine assign_cohort_SP_properties(currentCohort,htop,tlai,tsai,parea,init,leaf_c)
+
+   ! Takes the daily inputs of leaf area index, stem area index and canopy height and
+   ! translates them into a FATES structure with one patch and one cohort per PFT
+   ! The leaf area of the cohort is modified each day to match that asserted by the HLM
+   ! -----------------------------------------------------------------------------------!
+     use EDTypesMod       , only : nclmax
+ 
+    type(ed_cohort_type), intent(inout), target :: currentCohort
+
+    real(r8), intent(in) :: tlai ! target leaf area index from SP inputs
+    real(r8), intent(in) :: tsai ! target stem area index from SP inputs
+    real(r8), intent(in) :: htop ! target tree height from SP inputs
+    real(r8), intent(in) :: parea ! patch area for this PFT
+    integer, intent(in)  :: init ! are we in the initialization routine? if so do not set leaf_c
+    real(r8), intent(out) ::  leaf_c        ! leaf carbon estimated to generate target tlai
+
+    integer ::   fates_pft     ! fates pft numer for weighting loop
+    real(r8) ::  spread        ! dummy value of canopy spread to estimate c_area
+    real(r8) ::  sumarea
+    real(r8) :: check_treelai
+    real(r8) :: canopylai(1:nclmax)
+    real(r8) :: fracerr
+    real(r8) :: oldcarea 
+
+      ! Do some checks 
+      if(associated(currentCohort%shorter))then
+        write(fates_log(),*) 'SP mode has >1 cohort'
+        write(fates_log(),*) "SP mode >1 cohort: PFT",currentCohort%pft, currentCohort%shorter%pft
+        write(fates_log(),*) "SP mode >1 cohort: CL",currentCohort%canopy_layer, currentCohort%shorter%canopy_layer
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
     !------------------------------------------
     !  Calculate dbh from input height, and c_area from dbh
     !------------------------------------------
-    currentCohort%hite = currentSite%sp_htop(fates_pft)
+    currentCohort%hite = htop
+    fates_pft = currentCohort%pft
     call h2d_allom(currentCohort%hite,fates_pft,currentCohort%dbh)
 
    currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
@@ -1461,41 +1499,54 @@ contains
     !------------------------------------------
     !  Calculate canopy N assuming patch area is full
     !------------------------------------------
-    currentCohort%n = currentPatch%area / currentCohort%c_area
+    currentCohort%n = parea / currentCohort%c_area
+
+    ! correct c_area for the new nplant
+    call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,currentCohort%c_area)
 
     ! ------------------------------------------
     ! Calculate leaf carbon from target treelai
     ! ------------------------------------------
-    currentCohort%treelai = currentSite%sp_tlai(fates_pft)
-
-    ! correct c_area for the new nplant
-    currentCohort%c_area = currentCohort%c_area * currentCohort%n
-
+    currentCohort%treelai = tlai
+    canopylai(:) = 0._r8
     leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
                   currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
 
     !check reverse - maybe can delete eventually
     check_treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                                            currentCohort%n, currentCohort%canopy_layer,               &
-                                           currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
+                                           canopylai,currentCohort%vcmax25top )
  
       if( abs(currentCohort%treelai-check_treelai).gt.1.0e-12)then !this is not as precise as nearzerio (10^-16 typically)
         write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%treelai-check_treelai
         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
-      call SetState(currentCohort%prt,leaf_organ,1,leaf_c,1)
+      
+     ! the carea_allom routine sometimes generates precision-tolerance level errors in the canopy area 
+     if(abs(currentCohort%c_area-parea).gt.nearzero)then
+       if(abs(currentCohort%c_area-parea).lt.10.e-9)then !correct this if it's a very sall error
+       oldcarea = currentCohort%c_area
+       !generate new cohort area
+       currentCohort%c_area = currentCohort%c_area - (currentCohort%c_area- parea)
+       currentCohort%n = currentCohort%n * (currentCohort%c_area/oldcarea)
+         if(abs(currentCohort%c_area-parea).gt.nearzero)then
+           write(fates_log(),*) 'SPassign, c_area still broken',currentCohort%c_area-parea,currentCohort%c_area-oldcarea
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+       else 
+         write(fates_log(),*) 'SPassign, big error in c_area',currentCohort%c_area-parea,currentCohort%pft
+       end if ! still broken
+     end if !small error
+
+     if(init.eq.ifalse)then
+       call SetState(currentCohort%prt,leaf_organ,1,leaf_c,1) 
+     endif
       
       ! assert sai
-      currentCohort%treesai = currentSite%sp_tsai(fates_pft)
+      currentCohort%treesai = tsai
 
-    !NB these will need to be put through the canopy_structure routine in order to figure out exposed lai and sai
+  end subroutine assign_cohort_SP_properties
 
-      currentCohort => currentCohort%shorter
-    end do !cohort loop
-    currentPatch => currentPatch%younger
-  end do ! patch loop     
-
-  end subroutine satellite_phenology
   ! =====================================================================================
 
   subroutine SeedIn( currentSite, bc_in )
@@ -2011,7 +2062,8 @@ contains
                 temp_cohort%hite, temp_cohort%coage, temp_cohort%dbh, prt, & 
                 temp_cohort%laimemory, temp_cohort%sapwmemory, temp_cohort%structmemory, &
                 cohortstatus, recruitstatus, &
-                temp_cohort%canopy_trim, currentPatch%NCL_p, currentSite%spread, bc_in)
+                temp_cohort%canopy_trim,temp_cohort%c_area, &
+                currentPatch%NCL_p, currentSite%spread, bc_in)
            
            ! Note that if hydraulics is on, the number of cohorts may had
            ! changed due to hydraulic constraints.
