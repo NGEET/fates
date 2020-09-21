@@ -94,7 +94,7 @@ module FatesPlantHydraulicsMod
   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
 
-  use clm_time_manager  , only : get_step_size, get_nstep
+  use elm_time_manager  , only : get_step_size, get_nstep
 
   use EDPftvarcon, only : EDPftvarcon_inst
 
