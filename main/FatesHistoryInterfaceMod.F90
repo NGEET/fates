@@ -3724,15 +3724,17 @@ end subroutine update_history_hifrq
     integer  :: io_si     ! The site index of the IO array
     integer  :: ipa      ! The local "I"ndex of "PA"tches 
     integer  :: ft               ! functional type index
-    integer  :: scpf
 !    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     real(r8) :: ncohort_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
+    ! should be "hio_nplant_si_scpf"
+    real(r8) :: nplant_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
                                                    ! should be "hio_nplant_si_scpf"
     real(r8) :: number_fraction
     real(r8) :: number_fraction_rate
     real(r8) :: mean_aroot
     integer  :: ipa2     ! patch incrementer
+    integer  :: ix       ! histogram x (count) bin index
     integer  :: iscpf    ! index of the scpf group
     integer  :: ipft     ! index of the pft loop
     integer  :: iscls    ! index of the size-class loop
@@ -3749,6 +3751,7 @@ end subroutine update_history_hifrq
     real(r8) :: vwc              ! volumetric water content of layer [m3/m3] = theta
     real(r8) :: vwc_sat          ! saturated water content of layer [m3/m3]
     real(r8) :: psi              ! matric potential of soil layer
+    character(2) :: fmt_char
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
@@ -3757,9 +3760,16 @@ end subroutine update_history_hifrq
     real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
     real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
 
+    integer,  parameter :: iterh2_nhist = 50
+    real(r8), parameter :: iterh2_dx    = 1._r8
+    real(r8)            ::  iterh2_histx(iterh2_nhist)
+    real(r8)            ::  iterh2_histy(iterh2_nhist)
+    
+    logical, parameter :: print_iterations = .false.
     
     if(hlm_use_planthydro.eq.ifalse) return
 
+    
     associate( hio_errh2o_scpf  => this%hvars(ih_errh2o_scpf)%r82d, &
           hio_tran_scpf         => this%hvars(ih_tran_scpf)%r82d, &
           hio_sapflow_scpf      => this%hvars(ih_sapflow_scpf)%r82d, &
@@ -3798,7 +3808,12 @@ end subroutine update_history_hifrq
 
       ! Flush the relevant history variables 
       call this%flush_hvars(nc,upfreq_in=4)
-      
+
+      if(print_iterations) then
+          do iscpf = 1,iterh2_nhist
+              iterh2_histx(iscpf) = iterh2_dx*real(iscpf-1,r8)
+          end do
+      end if
       do s = 1,nsites
 
          site_hydr => sites(s)%si_hydr
@@ -3811,10 +3826,7 @@ end subroutine update_history_hifrq
          hio_h2oveg_si(io_si)              = site_hydr%h2oveg
          hio_h2oveg_hydro_err_si(io_si)    = site_hydr%h2oveg_hydro_err
 
-         ncohort_scpf(:) = 0.0_r8  ! Counter for normalizing weighting 
-                                   ! factors for cohort mean propoerties
-                                   ! This is actually used as a check
-                                   ! on hio_nplant_si_scpf
+        
          
          ! Get column means of some soil diagnostics, these are weighted
          ! by the amount of fine-root surface area in each layer
@@ -3851,7 +3863,10 @@ end subroutine update_history_hifrq
          hio_rootuptake_sl(io_si,:) = 0._r8
          hio_rootuptake_sl(io_si,jr1:jr2) = site_hydr%rootuptake_sl(1:nlevrhiz)
          hio_rootuptake_si(io_si) = sum(site_hydr%sapflow_scpf)
-         
+
+         ! Normalization counters
+         nplant_scpf(:) = 0._r8
+         ncohort_scpf(:) = 0._r8
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
             ccohort => cpatch%shortest
@@ -3859,13 +3874,32 @@ end subroutine update_history_hifrq
                if ( .not. ccohort%isnew ) then
                   ! Calculate index for the scpf class
                   iscpf = ccohort%size_by_pft_class
-                  ncohort_scpf(iscpf) = ncohort_scpf(iscpf) + ccohort%n
+                  nplant_scpf(iscpf) = nplant_scpf(iscpf) + ccohort%n
+                  ncohort_scpf(iscpf) = ncohort_scpf(iscpf) + 1._r8
                end if
                ccohort => ccohort%taller
             enddo ! cohort loop
             cpatch => cpatch%younger
          end do !patch loop
 
+
+         ! Generate a histogram of the the iteration counts
+         if(print_iterations) then
+             iterh2_histy(:) = 0._r8
+             cpatch => sites(s)%oldest_patch
+             do while(associated(cpatch))
+                 ccohort => cpatch%shortest
+                 do while(associated(ccohort))
+                     ccohort_hydr => ccohort%co_hydr
+                     ix = count((iterh2_histx(:)-0.00001_r8) < ccohort_hydr%iterh2 )
+                     iterh2_histy(ix) = iterh2_histy(ix) + 1
+                     ccohort => ccohort%taller
+                 enddo ! cohort loop
+                 cpatch => cpatch%younger
+             end do !patch loop                     
+         end if
+
+         
          do ipft = 1, numpft
             do iscls = 1,nlevsclass
                iscpf = (ipft-1)*nlevsclass + iscls
@@ -3874,6 +3908,8 @@ end subroutine update_history_hifrq
                hio_rootuptake10_scpf(io_si,iscpf)  = site_hydr%rootuptake10_scpf(iscls,ipft)
                hio_rootuptake50_scpf(io_si,iscpf)  = site_hydr%rootuptake50_scpf(iscls,ipft)
                hio_rootuptake100_scpf(io_si,iscpf) = site_hydr%rootuptake100_scpf(iscls,ipft)
+               hio_iterh1_scpf(io_si,iscpf) = 0._r8
+               hio_iterh2_scpf(io_si,iscpf) = 0._r8
             end do
          end do
 
@@ -3892,10 +3928,10 @@ end subroutine update_history_hifrq
                   iscpf = ccohort%size_by_pft_class
                   
                   ! scale up cohort fluxes to their sites
-                  number_fraction_rate = (ccohort%n / ncohort_scpf(iscpf))/dt_tstep
+                  number_fraction_rate = (ccohort%n / nplant_scpf(iscpf))/dt_tstep
                   
                   ! scale cohorts to mean quantity
-                  number_fraction = (ccohort%n / ncohort_scpf(iscpf))
+                  number_fraction = (ccohort%n / nplant_scpf(iscpf))
                   
                   hio_errh2o_scpf(io_si,iscpf) = hio_errh2o_scpf(io_si,iscpf) + &
                         ccohort_hydr%errh2o * number_fraction_rate ! [kg/indiv/s]
@@ -3904,11 +3940,11 @@ end subroutine update_history_hifrq
                         (ccohort_hydr%qtop) * number_fraction_rate ! [kg/indiv/s]
                   
                   hio_iterh1_scpf(io_si,iscpf)          = hio_iterh1_scpf(io_si,iscpf) + &
-                        ccohort_hydr%iterh1  * number_fraction             ! [-]
+                        ccohort_hydr%iterh1/ncohort_scpf(iscpf)
                   
                   hio_iterh2_scpf(io_si,iscpf)          = hio_iterh2_scpf(io_si,iscpf) + &
-                        ccohort_hydr%iterh2 * number_fraction             ! [-]
-
+                        ccohort_hydr%iterh2/ncohort_scpf(iscpf)
+                  
                   mean_aroot = sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)) / &
                        sum(ccohort_hydr%v_aroot_layer(:))
                   
@@ -3965,20 +4001,30 @@ end subroutine update_history_hifrq
          end do !patch loop
 
          if(hlm_use_ed_st3.eq.ifalse) then
-            do scpf=1,nlevsclass*numpft
-               if( abs(hio_nplant_si_scpf(io_si, scpf)-ncohort_scpf(scpf)) > 1.0E-8_r8 ) then
+            do iscpf=1,nlevsclass*numpft
+               if( abs(hio_nplant_si_scpf(io_si, iscpf)-nplant_scpf(iscpf)) > 1.0E-8_r8 ) then
                   write(fates_log(),*) 'numpft:',numpft
                   write(fates_log(),*) 'nlevsclass:',nlevsclass
-                  write(fates_log(),*) 'scpf:',scpf
+                  write(fates_log(),*) 'scpf:',iscpf
                   write(fates_log(),*) 'io_si:',io_si
-                  write(fates_log(),*) 'hio_nplant_si_scpf:',hio_nplant_si_scpf(io_si, scpf)
-                  write(fates_log(),*) 'ncohort_scpf:',ncohort_scpf(scpf)
+                  write(fates_log(),*) 'hio_nplant_si_scpf:',hio_nplant_si_scpf(io_si, iscpf)
+                  write(fates_log(),*) 'nplant_scpf:',nplant_scpf(iscpf)
                   write(fates_log(),*) 'nplant check on hio_nplant_si_scpf fails during hydraulics history updates'
                   call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
             end do
          end if
 
+         if(print_iterations) then
+!             print*,' Mean solves: ',sum(hio_iterh2_scpf(io_si,:))/real(count(ncohort_scpf(:)>0._r8),r8), &
+!                   ' Mean failures: ',sum(hio_iterh1_scpf(io_si,:))/real(count(ncohort_scpf(:)>0._r8),r8)
+             write(fmt_char,'(I2)') iterh2_nhist
+             write(fates_log(),fmt='(A,'//fmt_char//'I5)') 'Solves: ',int(iterh2_histy(:))
+             !write(*,*) 'Histogram: ',int(iterh2_histy(:))
+         end if
+
+
+         
       enddo ! site loop
 
     end associate
@@ -5988,15 +6034,15 @@ end subroutine update_history_hifrq
 
        
        call this%set_history_var(vname='FATES_ITERH1_SCPF', units='count/indiv/step', &
-             long='number of outer iterations required to achieve tolerable water balance error', &
+             long='water balance error iteration diagnostic 1', &
              use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_iterh1_scpf )
        
        call this%set_history_var(vname='FATES_ITERH2_SCPF', units='count/indiv/step', &
-             long='number of inner iterations required to achieve tolerable water balance error', &
+             long='water balance error iteration diagnostic 2', &
              use_default='inactive', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_iterh2_scpf )
        
        call this%set_history_var(vname='FATES_ATH_SCPF', units='m3 m-3', &
