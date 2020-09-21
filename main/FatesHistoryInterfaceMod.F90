@@ -2906,8 +2906,8 @@ end subroutine flush_hvars
             
             cpatch => cpatch%younger
          end do
-         
 
+         
          ! ------------------------------------------------------------------------------
          ! Diagnostics discretized by element type
          ! ------------------------------------------------------------------------------

@@ -12,7 +12,7 @@ dimensions:
 	fates_prt_organs = 6 ;
 	fates_string_length = 60 ;
 	fates_variants = 2 ;
-        fates_hlm_pftno = 12 ;        
+        fates_hlm_pftno = 14 ;        
 
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
@@ -1228,8 +1228,9 @@ data:
  0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 
  0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 
  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 
- 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1; 
-
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1;
 
 
  fates_fire_FBD = 15.4, 16.8, 19.6, 999, 4, 4 ;

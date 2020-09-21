@@ -27,9 +27,11 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : numpft
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
+  use shr_infnan_mod        , only : isnan => shr_infnan_isnan
   
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
@@ -149,7 +151,7 @@ contains
       
 
       !----------------------------------------------------------------------
-
+    if(hlm_use_sp.eq.ifalse)then
       currentPatch => currentSite%oldest_patch    
       ! 
       ! zero site-level demotion / promotion tracking info
@@ -321,7 +323,7 @@ contains
          
          currentPatch => currentPatch%younger
       enddo !patch
-
+   end if ! SP mode
       return
    end subroutine canopy_structure
 
@@ -364,11 +366,10 @@ contains
       real(r8) :: total_crownarea_of_tied_cohorts
 
       ! First, determine how much total canopy area we have in this layer
-
       call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
 
       demote_area = arealayer - currentPatch%area
-      
+
       if ( demote_area > area_target_precision ) then
          
          ! Is this layer currently over-occupied? 
@@ -378,10 +379,9 @@ contains
          sumweights  = 0.0_r8
          currentCohort => currentPatch%shortest
          do while (associated(currentCohort))
-            
             call carea_allom(currentCohort%dbh,currentCohort%n, &
                  currentSite%spread,currentCohort%pft,currentCohort%c_area)
-
+             
             if(debug) then
                if(currentCohort%c_area<0._r8)then
                   write(fates_log(),*) 'negative c_area stage 1d: ',currentCohort%dbh,i_lyr,currentCohort%n, &
@@ -655,7 +655,7 @@ contains
                   ! remains in the upper-story.  The original is the one
                   ! demoted to the understory
 
-                  
+                                    
                   allocate(copyc)
 
                   ! Initialize the PARTEH object and point to the
@@ -1330,9 +1330,10 @@ contains
              call coagetype_class_index(currentCohort%coage,currentCohort%pft, &
                   currentCohort%coage_class,currentCohort%coage_by_pft_class)
           end if
-          
+          if(hlm_use_sp.eq.ifalse)then
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                   currentCohort%pft,currentCohort%c_area)
+          endif
              currentCohort%treelai = tree_lai(leaf_c,             &
                   currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                   currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
@@ -1346,9 +1347,17 @@ contains
                 endif
              endif
              if(currentPatch%nocomp_pft_label.eq.0)then
-                write(*,*) 'cohorts in barepatch',currentPatch%total_canopy_area,currentPatch%nocomp_pft_label,currentCohort%c_area
+                write(fates_log(),*) 'cohorts in barepatch',currentPatch%total_canopy_area,currentPatch%nocomp_pft_label,currentCohort%c_area
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
+              if(hlm_use_sp.eq.itrue.and.associated(currentPatch%tallest%shorter))then
+                write(fates_log(),*) 'morethanonecohort',s,currentPatch%nocomp_pft_label
+              endif
+             if(currentPatch%total_canopy_area-currentPatch%area.gt.1.0e-16)then
+               write(fates_log(),*) 'canopy area too large in summarization1,s,pft,error:',s,currentPatch%nocomp_pft_label,currentPatch%total_canopy_area-currentPatch%area,&
+                 currentPatch%area,currentPatch%tallest%c_area
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+             end if 
              ! Check for erroneous zero values. 
              if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
                 write(fates_log(),*) 'FATES: dbh or n is zero in canopy_summarization', &
@@ -1371,9 +1380,11 @@ contains
           enddo ! ends 'do while(associated(currentCohort))
           
           if ( currentPatch%total_canopy_area>currentPatch%area ) then
-             if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
+             if ( currentPatch%total_canopy_area-currentPatch%area > 1.0e-16_r8 ) then
                 write(fates_log(),*) 'FATES: canopy area bigger than area', &
-                     currentPatch%total_canopy_area ,currentPatch%area
+                     currentPatch%total_canopy_area ,currentPatch%area, &
+                     currentPatch%total_canopy_area -currentPatch%area,&
+                     currentPatch%nocomp_pft_label
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
              currentPatch%total_canopy_area = currentPatch%area
@@ -1955,14 +1966,17 @@ contains
            
            bc_out(s)%canopy_fraction_pa(ifp) = &
                 min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
-
+           if(isnan(bc_out(s)%canopy_fraction_pa(ifp)))then
+                write(*,*) 'nan canopy_fraction_pa in canopystructure, ifp, canopy area,patch area:',ifp,currentPatch%total_canopy_area,currentPatch%area
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if 
            bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
                 (currentPatch%area/AREA)
            
            total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
    
            total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
- 
+
            ! Calculate area indices for output boundary to HLM
            ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
            ! have been updated (ie ed_leaf_area_profile has been called since dynamics has been called)
@@ -1970,7 +1984,6 @@ contains
            bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
            bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
            bc_out(s)%tsai_pa(ifp) = calc_areaindex(currentPatch,'tsai')
-
            ! Fraction of vegetation free of snow. This is used to flag those
            ! patches which shall under-go photosynthesis
            ! INTERF-TODO: we may want to stop using frac_veg_nosno_alb and let
@@ -2045,7 +2058,7 @@ contains
      real(r8) :: ai
      ! TODO: THIS MIN LAI IS AN ARTIFACT FROM TESTING LONG-AGO AND SHOULD BE REMOVED
      ! THIS HAS BEEN KEPT THUS FAR TO MAINTAIN B4B IN TESTING OTHER COMMITS
-     real(r8),parameter :: ai_min = 0.1_r8
+     real(r8) :: ai_min = 0.1_r8
      real(r8),pointer   :: ai_profile
 
      ai = 0._r8
@@ -2167,6 +2180,10 @@ contains
         ! If so we need to make another layer.
         if(arealayer > currentPatch%area)then
            z = z + 1
+           if(hlm_use_sp)then
+              write(*,*) 'SPmode, canopy_layer full:',arealayer,currentPatch%area
+           end if
+          
         endif
      end if
      
