@@ -465,6 +465,9 @@ contains
       if (hlm_use_lu_harvest .gt. 0) then
          allocate(bc_in%hlm_harvest_rates(num_lu_harvest_cats))
          allocate(bc_in%hlm_harvest_catnames(num_lu_harvest_cats))
+      else ! LoggingMortality_frac needs these passed to it regardless of harvest
+         allocate(bc_in%hlm_harvest_rates(0))
+         allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
       allocate(bc_in%pft_areafrac(maxpft))
