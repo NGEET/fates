@@ -507,6 +507,7 @@ module FatesHistoryInterfaceMod
   ! indices to (site x fuel class) variables
   integer :: ih_litter_moisture_si_fuel
   integer :: ih_burnt_frac_litter_si_fuel
+  integer :: ih_fuel_amount_si_fuel
 
   ! indices to (site x cwd size class) variables
   integer :: ih_cwd_ag_si_cwdsc
@@ -1951,6 +1952,7 @@ end subroutine flush_hvars
                hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
                hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
                hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
+               hio_fuel_amount_si_fuel            => this%hvars(ih_fuel_amount_si_fuel)%r82d, &
                hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
                hio_leaf_height_dist_si_height     => this%hvars(ih_leaf_height_dist_si_height)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
@@ -2686,6 +2688,9 @@ end subroutine flush_hvars
             do i_fuel = 1,nfsc
                hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
                     cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
+
+               hio_fuel_amount_si_fuel(io_si, i_fuel) = hio_fuel_amount_si_fuel(io_si, i_fuel) + &
+                    cpatch%fuel_frac(i_fuel) * cpatch%sum_fuels * cpatch%area * AREA_INV
 
                hio_burnt_frac_litter_si_fuel(io_si, i_fuel) = hio_burnt_frac_litter_si_fuel(io_si, i_fuel) + &
                     cpatch%burnt_frac_litter(i_fuel) * cpatch%frac_burnt * cpatch%area * AREA_INV
@@ -4187,6 +4192,11 @@ end subroutine flush_hvars
          long='spitfire size-resolved fuel moisture', use_default='active',       &
          avgflag='A', vtype=site_fuel_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_litter_moisture_si_fuel )
+
+    call this%set_history_var(vname='FUEL_AMOUNT_BY_NFSC', units='kg C / m2',                &
+         long='spitfire size-resolved fuel quantity', use_default='active',       &
+         avgflag='A', vtype=site_fuel_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fuel_amount_si_fuel )
 
     call this%set_history_var(vname='AREA_BURNT_BY_PATCH_AGE', units='m2/m2', &
          long='spitfire area burnt by patch age (divide by patch_area_by_age to get burnt fraction by age)', &
