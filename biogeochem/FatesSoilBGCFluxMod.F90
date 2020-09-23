@@ -847,7 +847,7 @@ contains
           end do
        end if
 
-       if( (n_uptake_mode.eq.coupled_p_uptake) .or. &
+       if( (n_uptake_mode.eq.coupled_n_uptake) .or. &
            (p_uptake_mode.eq.coupled_p_uptake)) then
           if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
              bc_out%n_plant_comps = icomp
