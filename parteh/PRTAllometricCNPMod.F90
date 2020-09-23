@@ -465,15 +465,15 @@ contains
     do i_org = 1,num_organs
 
        i_var = prt_global%sp_organ_map(organ_list(i_org),carbon12_element)
-       state_c(i_org)%p => this%variables(i_var)%val(1)
+       state_c(i_org)%ptr => this%variables(i_var)%val(1)
        state_c0(i_org)  = this%variables(i_var)%val(1)
 
        i_var = prt_global%sp_organ_map(organ_list(i_org),nitrogen_element)
-       state_n(i_org)%p => this%variables(i_var)%val(1)
+       state_n(i_org)%ptr => this%variables(i_var)%val(1)
        state_n0(i_org)  = this%variables(i_var)%val(1)
 
        i_var = prt_global%sp_organ_map(organ_list(i_org),phosphorus_element)
-       state_p(i_org)%p => this%variables(i_var)%val(1)
+       state_p(i_org)%ptr => this%variables(i_var)%val(1)
        state_p0(i_org)  =  this%variables(i_var)%val(1)
        
     end do
@@ -526,15 +526,15 @@ contains
           
           i_var = prt_global%sp_organ_map(organ_list(i_org),carbon12_element)
           this%variables(i_var)%val(1) = state_c0(i_org)
-          state_c(i_org)%p   => this%variables(i_var)%val(1)
+          state_c(i_org)%ptr   => this%variables(i_var)%val(1)
           
           i_var = prt_global%sp_organ_map(organ_list(i_org),nitrogen_element)
           this%variables(i_var)%val(1) = state_n0(i_org)
-          state_n(i_org)%p   => this%variables(i_var)%val(1)
+          state_n(i_org)%ptr   => this%variables(i_var)%val(1)
           
           i_var = prt_global%sp_organ_map(organ_list(i_org),phosphorus_element)
           this%variables(i_var)%val(1) = state_p0(i_org)
-          state_p(i_org)%p   => this%variables(i_var)%val(1)
+          state_p(i_org)%ptr   => this%variables(i_var)%val(1)
           
        end do
 
@@ -571,13 +571,13 @@ contains
 
     sum_c = 0._r8
     do i_org = 1,num_organs
-       sum_c = sum_c+state_c(i_org)%p
+       sum_c = sum_c+state_c(i_org)%ptr
     end do
     if( abs((c_gain0-c_gain) - &
             (sum_c-sum(state_c0(:),dim=1)+(maint_r_def0-maint_r_def))) >calloc_abs_error ) then
        write(fates_log(),*) 'Carbon not balancing I'
        do i_org = 1,num_organs
-          write(fates_log(),*) 'state_c: ',state_c(i_org)%p,state_c0(i_org)
+          write(fates_log(),*) 'state_c: ',state_c(i_org)%ptr,state_c0(i_org)
        end do
        write(fates_log(),*) maint_r_def0-maint_r_def
        call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -595,13 +595,13 @@ contains
     
     sum_c = 0._r8
     do i_org = 1,num_organs
-       sum_c = sum_c+state_c(i_org)%p
+       sum_c = sum_c+state_c(i_org)%ptr
     end do
     if( abs((c_gain0-c_gain) - &
             (sum_c-sum(state_c0(:),dim=1)+(maint_r_def0-maint_r_def))) >calloc_abs_error ) then
        write(fates_log(),*) 'Carbon not balanceing II'
        do i_org = 1,num_organs
-          write(fates_log(),*) 'state_c: ',state_c(i_org)%p,state_c0(i_org)
+          write(fates_log(),*) 'state_c: ',state_c(i_org)%ptr,state_c0(i_org)
        end do
        write(fates_log(),*) maint_r_def0-maint_r_def
        call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -643,21 +643,21 @@ contains
        
        i_var = prt_global%sp_organ_map(organ_list(i_org),carbon12_element)
        this%variables(i_var)%net_alloc(1) = &
-            this%variables(i_var)%net_alloc(1) + (state_c(i_org)%p - state_c0(i_org))
+            this%variables(i_var)%net_alloc(1) + (state_c(i_org)%ptr - state_c0(i_org))
 
-       allocated_c = allocated_c + (state_c(i_org)%p - state_c0(i_org))
+       allocated_c = allocated_c + (state_c(i_org)%ptr - state_c0(i_org))
        
        i_var = prt_global%sp_organ_map(organ_list(i_org),nitrogen_element)
        this%variables(i_var)%net_alloc(1) = &
-            this%variables(i_var)%net_alloc(1) + (state_n(i_org)%p - state_n0(i_org))
+            this%variables(i_var)%net_alloc(1) + (state_n(i_org)%ptr - state_n0(i_org))
 
-       allocated_n = allocated_n + (state_n(i_org)%p - state_n0(i_org))
+       allocated_n = allocated_n + (state_n(i_org)%ptr - state_n0(i_org))
        
        i_var = prt_global%sp_organ_map(organ_list(i_org),phosphorus_element)
        this%variables(i_var)%net_alloc(1) = &
-            this%variables(i_var)%net_alloc(1) + (state_p(i_org)%p - state_p0(i_org))
+            this%variables(i_var)%net_alloc(1) + (state_p(i_org)%ptr - state_p0(i_org))
 
-       allocated_p = allocated_p + (state_p(i_org)%p - state_p0(i_org))
+       allocated_p = allocated_p + (state_p(i_org)%ptr - state_p0(i_org))
        
     end do
 
@@ -676,7 +676,7 @@ contains
           write(fates_log(),*) 'p_gain0: ',p_gain0,' allocated_p: ',allocated_p
 
           do i_org = 1,num_organs
-             write(fates_log(),*) i_org, state_c(i_org)%p-state_c0(i_org)
+             write(fates_log(),*) i_org, state_c(i_org)%ptr-state_c0(i_org)
           end do
           write(fates_log(),*) (maint_r_def0-maint_r_def), c_efflux
           call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -812,7 +812,7 @@ contains
     end do
 
 
-    sum_c_flux = max(0._r8,min(sum_c_demand,state_c(store_id)%p+c_gain))
+    sum_c_flux = max(0._r8,min(sum_c_demand,state_c(store_id)%ptr+c_gain))
     
     if (sum_c_flux> nearzero ) then
        
@@ -826,7 +826,7 @@ contains
 
           if(reproduce_conly) then
              c_flux = min(prt_params%leaf_stor_priority(ipft)*sum(this%variables(i_cvar)%turnover(:)), &
-                  max(0.0_r8, (state_c(store_id)%p+c_gain)* &
+                  max(0.0_r8, (state_c(store_id)%ptr+c_gain)* &
                   (prt_params%leaf_stor_priority(ipft)*sum(this%variables(i_cvar)%turnover(:))/sum_c_demand) ))
           else
              c_flux = sum_c_flux*(prt_params%leaf_stor_priority(ipft) * &
@@ -834,7 +834,7 @@ contains
           end if
 
           ! Add carbon to the pool
-          state_c(i)%p = state_c(i)%p + c_flux
+          state_c(i)%ptr = state_c(i)%ptr + c_flux
           
           ! Remove from daily  carbon gain
           c_gain = c_gain - c_flux
@@ -853,12 +853,12 @@ contains
        if(organ_list(i_org).ne.store_organ)then
           
           target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i_org),stoich_growth_min)
-          deficit_n(i_org) = max(0.0_r8, target_n - state_n(i_org)%p )
+          deficit_n(i_org) = max(0.0_r8, target_n - state_n(i_org)%ptr )
           
           ! Update the phosphorus deficits (which are based off of carbon actual..)
           ! Note that the phsophorus target is tied to the stoichiometry of thegrowing pool only (also)
           target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i_org),stoich_growth_min)
-          deficit_p(i_org) = max(0.0_r8, target_p - state_p(i_org)%p )
+          deficit_p(i_org) = max(0.0_r8, target_p - state_p(i_org)%ptr )
        else
           deficit_n(i_org) = 0._r8
           deficit_p(i_org) = 0._r8
@@ -887,15 +887,15 @@ contains
        ! Storage will have to pay for any negative gains
        store_c_flux           = -c_gain
        c_gain                 = c_gain              + store_c_flux
-       state_c(store_id)%p    = state_c(store_id)%p - store_c_flux
+       state_c(store_id)%ptr    = state_c(store_id)%ptr - store_c_flux
        
     else
 
        ! This is just a cap, don't fill up more than is needed (shouldn't even apply)
-       store_below_target     = max(target_c(store_id) - state_c(store_id)%p,0._r8)
+       store_below_target     = max(target_c(store_id) - state_c(store_id)%ptr,0._r8)
        
        ! This is the desired need for carbon
-       store_target_fraction  = max(state_c(store_id)%p/target_c(store_id),0._r8)
+       store_target_fraction  = max(state_c(store_id)%ptr/target_c(store_id),0._r8)
        
        store_demand           = max(c_gain*(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 )),0._r8)
 
@@ -905,7 +905,7 @@ contains
        store_c_flux           = min(store_below_target,store_demand)
        
        c_gain                 = c_gain  - store_c_flux
-       state_c(store_id)%p    = state_c(store_id)%p +               store_c_flux
+       state_c(store_id)%ptr    = state_c(store_id)%ptr +               store_c_flux
        
    
    end if
@@ -974,7 +974,7 @@ contains
              end if
              
              ! Update the carbon pool
-             state_c(i_org)%p = state_c(i_org)%p + c_flux
+             state_c(i_org)%ptr = state_c(i_org)%ptr + c_flux
              
              ! Update carbon pools deficit
              deficit_c(i_org) = max(0._r8,deficit_c(i_org) - c_flux)
@@ -1004,7 +1004,7 @@ contains
              c_flux  =            sum_c_flux*deficit_c(i_org)/sum_c_demand
              
              ! Update the carbon pool
-             state_c(i_org)%p = state_c(i_org)%p + c_flux
+             state_c(i_org)%ptr = state_c(i_org)%ptr + c_flux
              
              ! Update carbon pools deficit
              deficit_c(i_org) = max(0._r8,deficit_c(i_org) - c_flux)
@@ -1026,12 +1026,12 @@ contains
              ! Update the nitrogen deficits
              ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
              target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i_org),stoich_growth_min)
-             deficit_n(i_org) = max(0.0_r8, target_n - state_n(i_org)%p )
+             deficit_n(i_org) = max(0.0_r8, target_n - state_n(i_org)%ptr )
              
              ! Update the phosphorus deficits (which are based off of carbon actual..)
              ! Note that the phsophorus target is tied to the stoichiometry of thegrowing pool only (also)
              target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i_org),stoich_growth_min)
-             deficit_p(i_org) = max(0.0_r8, target_p - state_p(i_org)%p )
+             deficit_p(i_org) = max(0.0_r8, target_p - state_p(i_org)%ptr )
           else
              deficit_n(i_org) = 0._r8
              deficit_p(i_org) = 0._r8
@@ -1206,7 +1206,7 @@ contains
           write(fates_log(),*) 'organ: ',i
           write(fates_log(),*) 'carbon gain: ',c_gain
           write(fates_log(),*) 'leaves status:', leaf_status
-          write(fates_log(),*) cdeficit, target_c(i), state_c(i)%p
+          write(fates_log(),*) cdeficit, target_c(i), state_c(i)%ptr
           call endrun(msg=errMsg(sourcefile, __LINE__))
        elseif( (-cdeficit) > calloc_abs_error ) then
           ! In this case, we are above our target (ie negative deficit (fusion?))
@@ -1239,7 +1239,7 @@ contains
           write(fates_log(),*) 'plants, and roots in grasses are not allowed above target.'
           write(fates_log(),*) 'pft: ',ipft
           write(fates_log(),*) 'dbh: ',dbh
-          write(fates_log(),*) 'c state1 : ',state_c(1)%p
+          write(fates_log(),*) 'c state1 : ',state_c(1)%ptr
           write(fates_log(),*) 'c targets: ',target_c(1:num_organs)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
@@ -1388,7 +1388,7 @@ contains
       
       ! Fill the state array with element masses for each organ
       do i = 1, num_organs
-         state_array(i) = state_c(i)%p
+         state_array(i) = state_c(i)%ptr
       end do
       
       state_mask(dbh_id)       = .true.
@@ -1460,7 +1460,7 @@ contains
             sum_c_flux = 0.0_r8
             do ii = 1, n_mask_organs
                i = mask_organs(ii)
-               sum_c_flux = sum_c_flux + (state_array(i) - state_c(i)%p)
+               sum_c_flux = sum_c_flux + (state_array(i) - state_c(i)%ptr)
             end do
             
             ! This is a correction factor that forces
@@ -1472,10 +1472,10 @@ contains
                i = mask_organs(ii)
                
                ! Calculate adjusted flux
-               c_flux   = (state_array(i) - state_c(i)%p)*c_flux_adj
+               c_flux   = (state_array(i) - state_c(i)%ptr)*c_flux_adj
                
                ! update the carbon pool (in all pools flux goes into the first pool)
-               state_c(i)%p = state_c(i)%p + c_flux
+               state_c(i)%ptr = state_c(i)%ptr + c_flux
                
                ! Remove carbon from the daily gain
                c_gain = c_gain - c_flux
@@ -1523,7 +1523,7 @@ contains
                write(fates_log(),*) 'sapw_c: ',sapwc_tp1, sapw_c_target_tp1 ,sapwc_tp1- sapw_c_target_tp1
                write(fates_log(),*) 'store_c: ',storec_tp1, store_c_target_tp1,storec_tp1- store_c_target_tp1
                write(fates_log(),*) 'struct_c: ',structc_tp1, struct_c_target_tp1,structc_tp1- struct_c_target_tp1
-               write(fates_log(),*) 'sapw_c_t0: ',state_c(sapw_id)%p, target_c(sapw_id)
+               write(fates_log(),*) 'sapw_c_t0: ',state_c(sapw_id)%ptr, target_c(sapw_id)
                
                call endrun(msg=errMsg(sourcefile, __LINE__))
 
@@ -1662,10 +1662,10 @@ contains
        ! Estimate the overflow
        store_c_target = store_c_target * (1.0_r8 + store_overflow_frac)
        
-       total_c_flux = min(c_gain,max(0.0, (store_c_target - state_c(store_id)%p)))
+       total_c_flux = min(c_gain,max(0.0, (store_c_target - state_c(store_id)%ptr)))
        
        ! Transfer excess carbon into storage overflow
-       state_c(store_id)%p = state_c(store_id)%p + total_c_flux
+       state_c(store_id)%ptr = state_c(store_id)%ptr + total_c_flux
        c_gain              = c_gain - total_c_flux
 
 
@@ -1831,7 +1831,7 @@ contains
           i = list(ii)
           
           flux        = sum_flux * max(0._r8,deficit_m(i))/sum_deficit
-          state_m(i)%p  = state_m(i)%p + flux
+          state_m(i)%ptr  = state_m(i)%ptr + flux
           deficit_m(i) = deficit_m(i) - flux
           gain_m      = gain_m - flux
           
