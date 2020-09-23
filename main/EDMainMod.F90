@@ -140,20 +140,11 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     integer :: el              ! Loop counter for elements
 
-    integer,save :: counter = 0
-    
     !-----------------------------------------------------------------------
 
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
-    
-    counter = counter + 1
-
-    if(counter==24) then
-!       stop
-    end if
-    
     ! Consider moving this towards the end, because some of these 
     ! are being integrated over the short time-step
     
@@ -508,7 +499,7 @@ contains
                 currentCohort%gpp_acc * currentCohort%n
           site_cmass%aresp_acc = site_cmass%aresp_acc + &
                 currentCohort%resp_acc * currentCohort%n
-
+          
           call currentCohort%prt%CheckMassConservation(ft,5)
 
           ! Update the leaf biophysical rates based on proportion of leaf
