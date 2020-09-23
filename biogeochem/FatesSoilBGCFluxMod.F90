@@ -613,7 +613,7 @@ contains
 
        ! ECA, in coupled mode affinity is diagnosed
 
-       if(n_uptake_mode.eq.coupled_n_uptake) then
+       coupled_n_if: if(n_uptake_mode.eq.coupled_n_uptake) then
           icomp = 0
           cpatch => csite%oldest_patch
           do while (associated(cpatch))
@@ -693,9 +693,9 @@ contains
              end do
           end if
           
-       end if
+       end if coupled_n_if
        
-       if(p_uptake_mode.eq.coupled_p_uptake) then
+       coupled_p_if: if(p_uptake_mode.eq.coupled_p_uptake) then
 
           
           ! ECA, in coupled mode affinity for P is diagnosed
@@ -766,7 +766,7 @@ contains
              end do
           end if
           
-       end if
+       end if coupled_p_if
        
     elseif(trim(hlm_nu_com).eq.'RD') then
 
