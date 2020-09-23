@@ -255,9 +255,10 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 pft = ccohort%pft
-                ccohort%daily_n_uptake = &
-                     EDPftvarcon_inst%prescribed_nuptake(pft) * &
-                     GetPlantDemand(ccohort,nitrogen_element)
+
+                ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
+                ccohort%daily_n_uptake = EDPftvarcon_inst%prescribed_nuptake(pft) * ccohort%daily_n_demand
+
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -270,9 +271,10 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 pft = ccohort%pft
-                ccohort%daily_p_uptake = &
-                     EDPftvarcon_inst%prescribed_puptake(pft) * &
-                     GetPlantDemand(ccohort,phosphorus_element)
+                
+                ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
+                ccohort%daily_p_uptake = EDPftvarcon_inst%prescribed_puptake(pft) * ccohort%daily_p_demand
+                
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -285,7 +287,7 @@ contains
        ! boundary condition and send to cohort.  We do this downscaling
        ! by finding each cohort's fraction of total fine-root for the group
        
-       if(n_uptake_mode.eq.coupled_n_uptake .or. p_uptake_mode.eq.coupled_p_uptake)then
+       n_or_p_coupled_if: if(n_uptake_mode.eq.coupled_n_uptake .or. p_uptake_mode.eq.coupled_p_uptake)then
 
           ! Note there are two scaling methods.  Either competition for
           ! N and/or P was performed by cohorts acting individually
@@ -389,7 +391,7 @@ contains
              deallocate(fnrt_c_pft)
           end if
           
-       end if
+       end if n_or_p_coupled_if
        
        ! These can now be zero'd
        bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
@@ -480,8 +482,7 @@ contains
 
     ! Run the trivial case where we do not have a nutrient model
     ! running in fates, send zero demands to the BGC model
-    if((hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp)) then! .or. &
-!         (n_uptake_mode.eq.prescribed_n_uptake .and. p_uptake_mode.eq.prescribed_p_uptake)) then
+    if((hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp)) then
        bc_out%n_plant_comps  = 1
        if(trim(hlm_nu_com).eq.'ECA')then
           bc_out%ft_index(1)    = 1
@@ -508,28 +509,43 @@ contains
     ! bc_out(s)%source_p(:) = 0._r8
 
     
-    ! If we are using either un-coupled nutrient uptake, or RD competition
+    ! If we are using coupled nutrient uptake and RD competition
     ! in the soil BGC model, we must update the plant's demand
+    ! (if this is un-coupled, the demand is handled completely in
+    ! the UnPack code)
     ! -----------------------------------------------------------------------------------
     
-    if( (trim(hlm_nu_com).eq.'RD') .or. &
-        (n_uptake_mode .eq. prescribed_n_uptake) ) then
+    if( trim(hlm_nu_com).eq.'RD') then
 
-       cpatch => csite%oldest_patch
-       do while (associated(cpatch))
-          ccohort => cpatch%tallest
-          do while (associated(ccohort))
-
-             ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
-             ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
-
-             ccohort => ccohort%shorter
+       if(n_uptake_mode .eq. coupled_n_uptake ) then
+          cpatch => csite%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
           end do
-          
-          cpatch => cpatch%younger
-       end do
+       end if
+       
+       if(p_uptake_mode .eq. coupled_p_uptake ) then
+          cpatch => csite%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+       end if
+       
     end if
-
+       
+       
+    
+    
     
     ! ECA Specific Parameters
     ! --------------------------------------------------------------------------------
@@ -599,7 +615,7 @@ contains
 
        ! ECA, in coupled mode affinity is diagnosed
 
-       if(n_uptake_mode.eq.coupled_n_uptake) then
+       coupled_n_if: if(n_uptake_mode.eq.coupled_n_uptake) then
           icomp = 0
           cpatch => csite%oldest_patch
           do while (associated(cpatch))
@@ -679,9 +695,9 @@ contains
              end do
           end if
           
-       end if
+       end if coupled_n_if
        
-       if(p_uptake_mode.eq.coupled_p_uptake) then
+       coupled_p_if: if(p_uptake_mode.eq.coupled_p_uptake) then
 
           
           ! ECA, in coupled mode affinity for P is diagnosed
@@ -752,7 +768,7 @@ contains
              end do
           end if
           
-       end if
+       end if coupled_p_if
        
     elseif(trim(hlm_nu_com).eq.'RD') then
 

@@ -140,20 +140,11 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     integer :: el              ! Loop counter for elements
 
-    integer,save :: counter = 0
-    
     !-----------------------------------------------------------------------
 
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
-    
-    counter = counter + 1
-
-    if(counter==24) then
-!       stop
-    end if
-    
     ! Consider moving this towards the end, because some of these 
     ! are being integrated over the short time-step
     
@@ -502,13 +493,13 @@ contains
                   currentCohort%daily_p_need2*currentCohort%n
 
           end if
-    
+
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &
                 currentCohort%gpp_acc * currentCohort%n
           site_cmass%aresp_acc = site_cmass%aresp_acc + &
                 currentCohort%resp_acc * currentCohort%n
-
+          
           call currentCohort%prt%CheckMassConservation(ft,5)
 
           ! Update the leaf biophysical rates based on proportion of leaf
@@ -747,10 +738,10 @@ contains
 
     do el = 1, num_elements
        
+       site_mass => currentSite%mass_balance(el)
+
        call SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
 
-       site_mass => currentSite%mass_balance(el)
-       
        change_in_stock = total_stock - site_mass%old_stock
 
        flux_in  = site_mass%seed_in + & 
@@ -769,13 +760,14 @@ contains
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)   
 
+
        if(change_in_stock>0.0)then
           error_frac      = error/abs(total_stock)
        else
           error_frac      = 0.0_r8
        end if
 
-       if ( error_frac > 10e-6_r8 ) then
+       if ( error_frac > 10e-6_r8 .or. (error /= error) ) then
           write(fates_log(),*) 'mass balance error detected'
           write(fates_log(),*) 'element type (see PRTGenericMod.F90): ',element_list(el)
           write(fates_log(),*) 'error fraction relative to biomass stock: ',error_frac
@@ -841,6 +833,8 @@ contains
                         elseif(element_list(el).eq.phosphorus_element) then
                            write(fates_log(),*) 'P uptake: ',currentCohort%daily_p_uptake*currentCohort%n
                            write(fates_log(),*) 'P efflux: ',currentCohort%daily_p_efflux*currentCohort%n
+                        elseif(element_list(el).eq.carbon12_element) then
+                           write(fates_log(),*) 'C efflux: ',currentCohort%daily_c_efflux*currentCohort%n
                         end if
 
                            

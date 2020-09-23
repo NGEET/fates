@@ -2024,8 +2024,8 @@ end subroutine flush_hvars
 
          ! Total model error [kg/day -> mg/day]  (all elements)
          do el = 1, num_elements
-             site_mass => sites(s)%mass_balance(el)
-             hio_err_fates_si(io_si,el) = site_mass%err_fates * mg_per_kg
+
+             hio_err_fates_si(io_si,el) = sites(s)%mass_balance(el)%err_fates * mg_per_kg
 
              ! Total element lost to atmosphere from burning (kg/site/day -> g/m2/s)
              hio_burn_flux_elem(io_si,el) = &
