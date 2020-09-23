@@ -447,9 +447,6 @@ contains
 
     ! Note that "leaf" in this context may contain the storage along with it
 
-    real(r8) :: leaf_c                             ! leaf carbon [kg]
-    real(r8) :: leaf_p                             ! leaf phosphorus [kg]
-    real(r8) :: leaf_n                             ! leaf nitrogen [kg]
     real(r8) :: leaf_store_n
     real(r8) :: leaf_store_p
     real(r8) :: veg_rootc                          ! fine root carbon in each layer [g/m3]
@@ -646,9 +643,6 @@ contains
                    icomp = pft
                 end if
                 
-!                leaf_c = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, all_carbon_elements) + &
-!                                             ccohort%prt%GetState(store_organ, all_carbon_elements))
-
                 ! Target leaf biomass according to allometry and trimming
                 call bleaf(ccohort%dbh,pft,ccohort%canopy_trim,target_leaf_c)
                 call bstore_allom(ccohort%dbh,pft,ccohort%canopy_trim,target_store_c)
@@ -668,17 +662,15 @@ contains
 
                 select case(cnp_scalar_method)
                 case(cnp_scalar_method1)
+
+                   ! To-do: Add a logistic function here, with a
+                   ! shape parameter so that 95%tile of
+                   ! nutrient concentration matches 95%tile of scalar
+                   ! 0.95 = 1._r8/(1._r8 + exp(-logi_k*(  0.95*(nc_ideal-x0) )))
+                   ! logi_k = -log(1._r8-0.95/0.95)/ (  0.95*(nc_ideal-x0) )
+                   ! bc_out%cn_scalar(icomp) = 1._r8/(1._r8 + exp(-logi_k*(nc_actual-x0)))
                    
-                    !x0 = 0.5*(nc_ideal+nc_min)
-                    
-                    ! Fit the logistic shape parameter so that 95%tile of
-                    ! nutrient concentration matches 95%tile of scalar
-                    ! 0.95 = 1._r8/(1._r8 + exp(-logi_k*(  0.95*(nc_ideal-x0) )))
-                    ! logi_k = -log(1._r8-0.95/0.95)/ (  0.95*(nc_ideal-x0) )
-                    
-                    !bc_out%cn_scalar(icomp) = 1._r8/(1._r8 + exp(-logi_k*(nc_actual-x0)))
-                    
-                    bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp) + & 
+                   bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp) + & 
                           min(1._r8,max(0._r8, & 
                           (nc_ideal - nc_actual + cn_stoich_var*nc_min) / & 
                           (nc_ideal - nc_min + cn_stoich_var*nc_min)))
