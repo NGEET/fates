@@ -255,9 +255,10 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 pft = ccohort%pft
-                ccohort%daily_n_uptake = &
-                     EDPftvarcon_inst%prescribed_nuptake(pft) * &
-                     GetPlantDemand(ccohort,nitrogen_element)
+
+                ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
+                ccohort%daily_n_uptake = EDPftvarcon_inst%prescribed_nuptake(pft) * ccohort%daily_n_demand
+
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -270,9 +271,10 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 pft = ccohort%pft
-                ccohort%daily_p_uptake = &
-                     EDPftvarcon_inst%prescribed_puptake(pft) * &
-                     GetPlantDemand(ccohort,phosphorus_element)
+                
+                ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
+                ccohort%daily_p_uptake = EDPftvarcon_inst%prescribed_puptake(pft) * ccohort%daily_p_demand
+                
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
