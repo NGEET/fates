@@ -767,7 +767,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     
-    curpri_org(:) = -9    ! reset "current-priority" organ ids
+    curpri_org(:) = fates_unset_int    ! reset "current-priority" organ ids
     i = 0
     do ii = 1, num_organs
 
@@ -922,7 +922,7 @@ contains
     
     do i_pri = 1, n_max_priority
        
-       curpri_org(:) = -9    ! "current-priority" organ indices
+       curpri_org(:) = fates_unset_int    ! "current-priority" organ indices
 
        i = 0
        do ii = 1, num_organs
@@ -1177,7 +1177,7 @@ contains
     end if
     
        
-    intgr_params(:)                    = -9.9e32_r8
+    intgr_params(:)                   = fates_unset_r8
     intgr_params(acnp_bc_in_id_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
     intgr_params(acnp_bc_in_id_pft)   = real(this%bc_in(acnp_bc_in_id_pft)%ival)
     
