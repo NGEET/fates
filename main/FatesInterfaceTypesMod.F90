@@ -590,7 +590,7 @@ module FatesInterfaceTypesMod
       !  will point to these arrays)
       ! ---------------------------------------------------------------------------------
 
-      integer               :: n_plant_comps ! Number of unique competitors
+      integer               :: num_plant_comps ! Number of unique competitors
 
       real(r8), allocatable :: source_nh4(:) ! FATES generated source of ammonium to the mineralized N pool
                                              ! in the BGC model [gN/m3]

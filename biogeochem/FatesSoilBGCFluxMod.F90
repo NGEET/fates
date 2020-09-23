@@ -185,7 +185,7 @@ contains
     ! boundary conditions, and parse those fluxes out to the cohorts.
     !
     ! This routine should be called before FATES dynamics, particularly before
-    ! any of the PARTEH code is called.  It is assumed that these utpake fluxes
+    ! any of the PARTEH code is called.  It is assumed that these uptake fluxes
     ! are being incremented each short-BGC timestep over the course of the day, and
     ! thus should be an integrated quantity, total nutrient uptake, over 1 day.
     ! At the end of this routine, after we have parsed the uptake to the cohorts,
@@ -504,7 +504,7 @@ contains
     ! Run the trivial case where we do not have a nutrient model
     ! running in fates, send zero demands to the BGC model
     if((hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp)) then
-       bc_out%n_plant_comps  = 1
+       bc_out%num_plant_comps  = 1
        if(trim(hlm_nu_com).eq.'ECA')then
           bc_out%ft_index(1)    = 1
           bc_out%veg_rootc(1,:) = 0._r8
@@ -530,39 +530,7 @@ contains
     ! bc_out(s)%source_p(:) = 0._r8
 
     
-    ! If we are using coupled nutrient uptake and RD competition
-    ! in the soil BGC model, we must update the plant's demand
-    ! (if this is un-coupled, the demand is handled completely in
-    ! the UnPack code)
-    ! -----------------------------------------------------------------------------------
-    
-    if( trim(hlm_nu_com).eq.'RD') then
 
-       if(n_uptake_mode .eq. coupled_n_uptake ) then
-          cpatch => csite%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-       end if
-       
-       if(p_uptake_mode .eq. coupled_p_uptake ) then
-          cpatch => csite%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-       end if
-       
-    end if
        
        
     
@@ -622,9 +590,9 @@ contains
        end do
        
        if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-          bc_out%n_plant_comps = icomp
+          bc_out%num_plant_comps = icomp
        else
-          bc_out%n_plant_comps = numpft
+          bc_out%num_plant_comps = numpft
        end if
 
        ! We calculate the decomposer microbial biomass by weighting with the
@@ -788,6 +756,37 @@ contains
        
     elseif(trim(hlm_nu_com).eq.'RD') then
 
+       ! If we are using coupled nutrient uptake and RD competition
+       ! in the soil BGC model, we must update the plant's demand
+       ! (if this is un-coupled, the demand is handled completely in
+       ! the UnPack code)
+       ! -----------------------------------------------------------------------------------
+       
+       if(n_uptake_mode .eq. coupled_n_uptake ) then
+          cpatch => csite%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+       end if
+       
+       if(p_uptake_mode .eq. coupled_p_uptake ) then
+          cpatch => csite%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+       end if
+       
+    
        ! RD Specific Parameters
        ! --------------------------------------------------------------------------------
        ! --------------------------------------------------------------------
@@ -850,13 +849,13 @@ contains
        if( (n_uptake_mode.eq.coupled_n_uptake) .or. &
            (p_uptake_mode.eq.coupled_p_uptake)) then
           if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-             bc_out%n_plant_comps = icomp
+             bc_out%num_plant_comps = icomp
           else
-             bc_out%n_plant_comps = numpft
+             bc_out%num_plant_comps = numpft
           end if
           
        else
-          bc_out%n_plant_comps = 1
+          bc_out%num_plant_comps = 1
           
        end if
        
