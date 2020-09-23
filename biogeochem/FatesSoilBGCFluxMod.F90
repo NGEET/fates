@@ -208,7 +208,7 @@ contains
     type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
     type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
     real(r8) :: fnrt_c                             ! fine-root carbon [kg]
-    real(r8), allocatable :: fnrt_c_pft(:)            ! total mass of root for each PFT [kgC]
+    real(r8) :: fnrt_c_pft(numpft)                ! total mass of root for each PFT [kgC]
 
 
     nsites = size(sites,dim=1)
@@ -300,7 +300,7 @@ contains
              
              ! *Currently, all cohorts in a PFT have the same root
              ! fraction, so all we have to to is find its total mass fraction.
-             
+
              fnrt_c_pft(:) = 0._r8
              cpatch => sites(s)%oldest_patch
              do while (associated(cpatch))
@@ -322,75 +322,92 @@ contains
           ! --------------------------------------------------------------------------------
 
           if(n_uptake_mode.eq.coupled_n_uptake) then
-             icomp = 0
-             cpatch => sites(s)%oldest_patch
-             do while (associated(cpatch))
-                ccohort => cpatch%tallest
-                do while (associated(ccohort))
-                   pft   = ccohort%pft
-                   if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-                      icomp = icomp+1
 
+             if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
+
+                icomp = 0
+                cpatch => sites(s)%oldest_patch
+                do while (associated(cpatch))
+                   ccohort => cpatch%tallest
+                   do while (associated(ccohort))
+                      icomp = icomp+1
                       ! N Uptake:  Convert g/m2/day -> kg/plant/day
                       ccohort%daily_n_uptake = ccohort%daily_n_uptake + &
                            sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                      ccohort => ccohort%shorter
+                   end do
+                   cpatch => cpatch%younger
+                end do
+                
+             else
 
-                   else
-                      icomp = pft
+                cpatch => sites(s)%oldest_patch
+                do while (associated(cpatch))
+                   ccohort => cpatch%tallest
+                   do while (associated(ccohort))
+                      pft   = ccohort%pft
+
                       ! Total fine-root carbon of the cohort [kgC/ha]
                       fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
                       
                       ! Loop through soil layers, add up the uptake this cohort gets from each layer
                       do id = 1,bc_in(s)%nlevdecomp
                          ccohort%daily_n_uptake = ccohort%daily_n_uptake + & 
-                              bc_in(s)%plant_n_uptake_flux(icomp,id) * &
+                              bc_in(s)%plant_n_uptake_flux(pft,id) * &
                               (fnrt_c/fnrt_c_pft(pft))*kg_per_g*AREA/ccohort%n
                       end do
-                   end if
-                   ccohort => ccohort%shorter
+
+                      ccohort => ccohort%shorter
+                   end do
+                   cpatch => cpatch%younger
                 end do
-                cpatch => cpatch%younger
-             end do
+                
+             end if
+             
           end if
 
           if(p_uptake_mode.eq.coupled_p_uptake) then
 
-             icomp = 0
-             cpatch => sites(s)%oldest_patch
-             do while (associated(cpatch))
-                ccohort => cpatch%tallest
-                do while (associated(ccohort))
-                   pft   = ccohort%pft
-                   if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-                      icomp = icomp+1
+             if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
 
+                icomp = 0
+                cpatch => sites(s)%oldest_patch
+                do while (associated(cpatch))
+                   ccohort => cpatch%tallest
+                   do while (associated(ccohort))
+                      icomp = icomp+1
                       ! P Uptake:  Convert g/m2/day -> kg/plant/day
                       ccohort%daily_p_uptake = ccohort%daily_p_uptake + &
                            sum(bc_in(s)%plant_p_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
-                      
-                   else
-                      icomp = pft
+                      ccohort => ccohort%shorter
+                   end do
+                   cpatch => cpatch%younger
+                end do
+
+             else
+
+                cpatch => sites(s)%oldest_patch
+                do while (associated(cpatch))
+                   ccohort => cpatch%tallest
+                   do while (associated(ccohort))
+                      pft   = ccohort%pft
                       ! Total fine-root carbon of the cohort [kgC/ha]
                       fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
-
                       ! Loop through soil layers, add up the uptake this cohort gets from each layer
                       do id = 1,bc_in(s)%nlevdecomp
                          ccohort%daily_p_uptake = ccohort%daily_p_uptake + & 
-                              bc_in(s)%plant_p_uptake_flux(icomp,id) * &
+                              bc_in(s)%plant_p_uptake_flux(pft,id) * &
                               (fnrt_c/fnrt_c_pft(pft))*kg_per_g*AREA/ccohort%n
                       end do
-                   end if
-                   ccohort => ccohort%shorter
+                      ccohort => ccohort%shorter
+                   end do
+                   cpatch => cpatch%younger
                 end do
-                cpatch => cpatch%younger
-             end do
+                
+             end if
+
           end if
-          
-          ! Free the temprorary arrays (if used)
-          if(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
-             deallocate(fnrt_c_pft)
-          end if
-          
+             
        end if n_or_p_coupled_if
        
        ! These can now be zero'd
