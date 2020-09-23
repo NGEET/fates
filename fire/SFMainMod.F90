@@ -872,7 +872,7 @@ contains
           enddo !end cohort loop
 
           do i_pft=1,numpft
-             if (tree_ag_biomass > 0.0_r8  .and. prt_params%woody(i_pft) == 1) then 
+             if (tree_ag_biomass > 0.0_r8  .and. int(prt_params%woody(i_pft)) == itrue) then 
                 
                 !Equation 16 in Thonicke et al. 2010 !Van Wagner 1973 EQ8 !2/3 Byram (1959)
                 currentPatch%Scorch_ht(i_pft) = EDPftvarcon_inst%fire_alpha_SH(i_pft) * (currentPatch%FI**0.667_r8)
