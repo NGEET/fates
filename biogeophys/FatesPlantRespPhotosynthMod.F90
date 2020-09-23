@@ -461,9 +461,13 @@ contains
                               case (prt_cnp_flex_allom_hyp)
 
                                  leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
-                                 lnc_top = leaf_n / (slatop(ft) * leaf_c )
-
+                                 if( (leaf_c*slatop(ft)) > nearzero) then
+                                    leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
+                                    lnc_top = leaf_n / (slatop(ft) * leaf_c )
+                                 else
+                                    lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 end if
+                                    
                                  ! If one wants to break coupling with dynamic N conentrations,
                                  ! use the stoichiometry parameter
                                  ! lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
