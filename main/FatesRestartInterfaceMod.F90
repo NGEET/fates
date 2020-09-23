@@ -121,8 +121,8 @@ module FatesRestartInterfaceMod
   integer :: ir_daily_p_efflux_co
   integer :: ir_daily_n_demand_co
   integer :: ir_daily_p_demand_co
-  integer :: ir_daily_n_need2_co
-  integer :: ir_daily_p_need2_co
+  integer :: ir_daily_n_need_co
+  integer :: ir_daily_p_need_co
   
   !Logging
   integer :: ir_lmort_direct_co
