@@ -483,11 +483,18 @@ contains
     real(r8), parameter :: cp_stoich_var=0.4    ! variability of CP ratio (ECA)
 
     ! ECA: We are still testing different plant "neediness" functions, thus
-    ! two methods
+    ! three methods. Methods 1 and 2 are subtly different, but both increase neediness
+    ! as a plants NC or PC ratio decreases, and vice versa.  The variance
+    ! parameter acts as a buffer on the steepness of the relationship.
+    ! Method 3 simply turns off neediness and sets it to 1 (always fully needy)
     !
-    integer, parameter :: cnp_scalar_method1 = 1     ! RK's modification for FATES
-    integer, parameter :: cnp_scalar_method2 = 2     ! Q. Zhu's original formulation
-    integer, parameter :: cnp_scalar_method3 = 3     ! Force to be 1.0 all the time
+    ! method 1: cn_scalar =  (nc_ideal - nc_actual + variance*nc_min)/(nc_ideal - nc_min + variance*nc_min)
+    !
+    ! method 2: cn_scalar = (1/nc_actual - (1-variance)/nc_ideal)/(variance/nc_ideal)
+    
+    integer, parameter :: cnp_scalar_method1 = 1
+    integer, parameter :: cnp_scalar_method2 = 2
+    integer, parameter :: cnp_scalar_method3 = 3
     integer, parameter :: cnp_scalar_method  = cnp_scalar_method3
 
 
