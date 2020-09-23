@@ -738,7 +738,7 @@ contains
                                                    ccohort%prt%GetState(store_organ, phosphorus_element))
 
                 
-                ! Calculate the ideal CN ratio for leaves and storage organs
+                ! Calculate the ideal CP ratio for leaves and storage organs
                 pc_ideal = ((target_leaf_c*prt_params%phos_stoich_p2(pft,leaf_organ)) + &
                      (target_store_c*prt_params%phos_stoich_p2(pft,store_organ))) / & 
                      (target_leaf_c+target_store_c)
