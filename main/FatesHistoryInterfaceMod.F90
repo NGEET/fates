@@ -2157,7 +2157,7 @@ end subroutine flush_hvars
                  cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV
 
             hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) + &
-                 cpatch%sum_fuel * cpatch%area * AREA_INV
+                 cpatch%sum_fuel * g_per_kg * cpatch%area * AREA_INV
              
             if(associated(cpatch%tallest))then
                hio_trimming_si(io_si) = hio_trimming_si(io_si) + cpatch%tallest%canopy_trim * cpatch%area * AREA_INV
