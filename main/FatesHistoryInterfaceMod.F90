@@ -4282,6 +4282,7 @@ end subroutine update_history_hifrq
     else
        tempstring = 'inactive'
     endif
+    
     call this%set_history_var(vname='ZSTAR_BY_AGE', units='m',                   &
          long='product of zstar and patch area by age bin (divide by PATCH_AREA_BY_AGE to get mean zstar)', &
          use_default=trim(tempstring),                     &
@@ -4534,7 +4535,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cefflux_si )
     
 
-    if(any(element_list(:)==nitrogen_element)) then
+    nitrogen_active_if: if(any(element_list(:)==nitrogen_element)) then
        call this%set_history_var(vname='STOREN', units='kgN ha-1',                      &
             long='Total nitrogen in live plant storage', use_default='active',          &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
@@ -4585,10 +4586,10 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
             ivar=ivar, initialize=initialize_variables, index = ih_nneedmax_si )
        
-    end if
+    end if nitrogen_active_if
 
     
-    if(any(element_list(:)==phosphorus_element)) then
+    phosphorus_active_if: if(any(element_list(:)==phosphorus_element)) then
        call this%set_history_var(vname='STOREP', units='kgP ha-1',                      &
             long='Total phosphorus in live plant storage', use_default='active',          &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
@@ -4640,7 +4641,7 @@ end subroutine update_history_hifrq
             ivar=ivar, initialize=initialize_variables, index = ih_pneedmax_si )
        
        
-    end if
+    end if phosphorus_active_if
 
 
     ! Consider deprecating the "ED_" variables  (RGK 08-2020)
@@ -5867,7 +5868,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cefflux_scpf )
 
     ! NITROGEN
-    if(any(element_list(:)==nitrogen_element)) then
+    nitrogen_active_if2: if(any(element_list(:)==nitrogen_element)) then
        call this%set_history_var(vname='TOTVEGN_SCPF', units='kgN/ha', &
             long='total (live) vegetation nitrogen mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
@@ -5919,10 +5920,10 @@ end subroutine update_history_hifrq
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nneedmax_scpf )
        
        
-    end if
+    end if nitrogen_active_if2
 
     ! PHOSPHORUS
-    if(any(element_list(:)==phosphorus_element))then
+    phosphorus_active_if2: if(any(element_list(:)==phosphorus_element))then
        call this%set_history_var(vname='TOTVEGP_SCPF', units='kgP/ha', &
             long='total (live) vegetation phosphorus mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
@@ -5973,8 +5974,7 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_pneedmax_scpf )
        
-       
-    end if
+    end if phosphorus_active_if2
 
     ! organ-partitioned NPP / allocation fluxes
     call this%set_history_var(vname='NPP_LEAF', units='kgC/m2/yr',       &
@@ -6010,7 +6010,7 @@ end subroutine update_history_hifrq
 
     ! PLANT HYDRAULICS
 
-    if(hlm_use_planthydro.eq.itrue) then
+    hydro_active_if: if(hlm_use_planthydro.eq.itrue) then
        
        call this%set_history_var(vname='FATES_ERRH2O_SCPF', units='kg/indiv/s', &
              long='mean individual water balance error', use_default='inactive', &
@@ -6199,7 +6199,7 @@ end subroutine update_history_hifrq
              long='cumulative net borrowed (+) from plant_stored_h2o due to plant hydrodynamics', use_default='inactive',   &
              avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_hydro_err_si )
-    end if
+    end if hydro_active_if 
 
     ! Must be last thing before return
     this%num_history_vars_ = ivar
