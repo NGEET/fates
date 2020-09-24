@@ -192,7 +192,7 @@ module PRTAllometricCNPMod
   ! Array of pointers are difficult in F90
   ! This structure is a necessary intermediate 
   type :: parray_type
-     real(r8), pointer :: p
+     real(r8), pointer :: ptr
   end type parray_type
 
   ! -------------------------------------------------------------------------------------
