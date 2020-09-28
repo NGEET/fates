@@ -457,6 +457,10 @@ contains
 
         allocate(recall_older_patch)
         do s = 1, nsites
+          sites(s)%sp_tlai(:) = 0._r8
+          sites(s)%sp_tsai(:) = 0._r8
+          sites(s)%sp_htop(:) = 0._r8
+
            ! Initialize the site-level crown area spread factor (0-1)
            ! It is likely that closed canopy forest inventories
            ! have smaller spread factors than bare ground (they are crowded)
@@ -486,10 +490,9 @@ contains
 
          if(abs(tota-area).gt.1.0e-16_r8)then
            if(abs(tota-area).lt.1.0e-10_r8)then
-             write(*,*) 'error in assigning areas in init patch BEF',s,sites(s)%lat,tota-area,tota
              if(sites(s)%area_bareground.gt.nearzero.and.sites(s)%area_bareground.gt.tota-area)then 
              !modify area of bare ground if thre is a bare ground patch and it is big enough
-                write(fates_log(),*) 'fixing patch precision in bg patch', sites(s)%area_bareground , tota-area,sites(s)%area_bareground - (tota-area)
+                write(fates_log(),*) 'fixing patch precision in bg patch', sites(s)%area_bareground , tota-area
                sites(s)%area_bareground = sites(s)%area_bareground - (tota-area) !units of m2
              else !no bare ground
                do n = 0, no_new_patches
@@ -572,6 +575,7 @@ contains
 
               sitep => sites(s)
               if(hlm_use_sp.eq.itrue)then
+
                 if(nocomp_pft.ne.0)then !don't initialize cohorts for SP bare ground patch
                   call init_cohorts(sitep, newp, bc_in(s))
                 end if
