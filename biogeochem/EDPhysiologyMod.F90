@@ -1376,9 +1376,9 @@ contains
    ! determine what 'n' should be from the canopy height. 
 
 
-   currentSite%sp_tlai(1:numpft) = 0._r8
-   currentSite%sp_tsai(1:numpft) = 0._r8
-   currentSite%sp_htop(1:numpft) = 0._r8
+   currentSite%sp_tlai(:) = 0._r8
+   currentSite%sp_tsai(:) = 0._r8
+   currentSite%sp_htop(:) = 0._r8
 
    currentPatch => currentSite%oldest_patch
    do while (associated(currentPatch))
@@ -1391,10 +1391,13 @@ contains
        ! weight each fates PFT target for lai, sai and htop by the area of the 
        ! contrbuting HLM PFTs.
        ! we only need to do this for the patch/fates_pft we are currently in
-       fates_pft = currentPatch%nocomp_pft_label
+     fates_pft = currentPatch%nocomp_pft_label
+     if(fates_pft.ne.0)then 
 
        sumarea = 0.0_r8
+
        do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
+
          if(bc_in%pft_areafrac(hlm_pft) * EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft).gt.0.0_r8)then
             sumarea = sumarea + bc_in%pft_areafrac(hlm_pft)*EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft)
             !leaf area index
@@ -1421,7 +1424,14 @@ contains
          currentSite%sp_htop(fates_pft) = currentSite%sp_htop(fates_pft) &
              /(currentPatch%area/area)
         endif
-  
+
+
+   end if ! bare patch
+    currentPatch => currentPatch%younger
+  end do ! patch loop                                                                                             
+  currentPatch => currentSite%oldest_patch
+   do while (associated(currentPatch))
+
     ! ------------------------------------------------------------
     ! now we have the target lai, sai and htop for each PFT/patch
     ! find properties of the cohort that go along with that
@@ -1438,6 +1448,10 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
+      if(fates_pft.eq.0)then
+          write(fates_log(),*) 'PFT0 in SP mode'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
       call assign_cohort_SP_properties(currentCohort, currentSite%sp_htop(fates_pft), currentSite%sp_tlai(fates_pft)     , currentSite%sp_tsai(fates_pft),currentPatch%area,ifalse,leaf_c)
 
       currentCohort => currentCohort%shorter
@@ -1486,6 +1500,7 @@ contains
     !  Calculate dbh from input height, and c_area from dbh
     !------------------------------------------
     currentCohort%hite = htop
+
     fates_pft = currentCohort%pft
     call h2d_allom(currentCohort%hite,fates_pft,currentCohort%dbh)
 
@@ -1521,6 +1536,7 @@ contains
         write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%treelai-check_treelai
         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
+
       
      ! the carea_allom routine sometimes generates precision-tolerance level errors in the canopy area 
      if(abs(currentCohort%c_area-parea).gt.nearzero)then
