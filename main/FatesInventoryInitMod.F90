@@ -38,14 +38,15 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : area
    use EDTypesMod       , only : leaves_on
    use EDTypesMod       , only : leaves_off
-   use EDTypesMod       , only : num_elements
-   use EDTypesMod       , only : element_list
+   use PRTGenericMod    , only : num_elements
+   use PRTGenericMod    , only : element_list
    use EDTypesMod       , only : phen_cstat_nevercold
    use EDTypesMod       , only : phen_cstat_iscold
    use EDTypesMod       , only : phen_dstat_timeoff
    use EDTypesMod       , only : phen_dstat_moistoff
+   use PRTParametersMod , only : prt_params
    use EDPftvarcon      , only : EDPftvarcon_inst
-   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
+   use FatesInterfaceTypesMod, only : hlm_parteh_mode
    use EDCohortDynamicsMod,    only : InitPRTObject
    use PRTGenericMod,          only : prt_carbon_allom_hyp
    use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
@@ -1042,7 +1043,7 @@ contains
          
 	 stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
-         if( EDPftvarcon_inst%season_decid(temp_cohort%pft) == itrue .and. &
+         if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
             temp_cohort%laimemory = b_leaf
             temp_cohort%sapwmemory = b_sapw * stem_drop_fraction
@@ -1053,7 +1054,7 @@ contains
             cstatus = leaves_off
          endif
 
-         if ( EDPftvarcon_inst%stress_decid(temp_cohort%pft) == itrue .and. &
+         if ( prt_params%stress_decid(temp_cohort%pft) == itrue .and. &
               any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
             temp_cohort%laimemory = b_leaf
             temp_cohort%sapwmemory = b_sapw * stem_drop_fraction
@@ -1068,59 +1069,59 @@ contains
          call InitPRTObject(prt_obj)
 
          do el = 1,num_elements
-
-            element_id = element_list(el)
-
-            ! If this is carbon12, then the initialization is straight forward
-            ! otherwise, we use stoichiometric ratios
-            select case(element_id)
-            case(carbon12_element)
-
-               m_struct = b_struct
-               m_leaf   = b_leaf
-               m_fnrt   = b_fnrt
-               m_sapw   = b_sapw
-               m_store  = b_store
-               m_repro  = 0._r8
-
-            case(nitrogen_element)
-
-               m_struct = b_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,struct_organ)
-               m_leaf   = b_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,leaf_organ)
-               m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,fnrt_organ)
-               m_sapw   = b_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,sapw_organ)
-               m_store  = b_store*EDPftvarcon_inst%prt_nitr_stoich_p1(temp_cohort%pft,store_organ)
-               m_repro  = 0._r8
-
-            case(phosphorus_element)
-
-               m_struct = b_struct*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,struct_organ)
-               m_leaf   = b_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,leaf_organ)
-               m_fnrt   = b_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,fnrt_organ)
-               m_sapw   = b_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,sapw_organ)
-               m_store  = b_store*EDPftvarcon_inst%prt_phos_stoich_p1(temp_cohort%pft,store_organ)
-               m_repro  = 0._r8
-            end select
-
-            select case(hlm_parteh_mode)
-            case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
-
-               ! Equally distribute leaf mass into available age-bins
-               do iage = 1,nleafage
-                  call SetState(prt_obj,leaf_organ, element_id,m_leaf/real(nleafage,r8),iage)
-               end do
-
-               call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
-               call SetState(prt_obj,sapw_organ, element_id, m_sapw)
-               call SetState(prt_obj,store_organ, element_id, m_store)
-               call SetState(prt_obj,struct_organ, element_id, m_struct)
-               call SetState(prt_obj,repro_organ, element_id, m_repro)
-
-            case default
-               write(fates_log(),*) 'Unspecified PARTEH module during inventory intitialization'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end select
-
+             
+             element_id = element_list(el)
+             
+             ! If this is carbon12, then the initialization is straight forward
+             ! otherwise, we use stoichiometric ratios
+             select case(element_id)
+             case(carbon12_element)
+                 
+                 m_struct = b_struct
+                 m_leaf   = b_leaf
+                 m_fnrt   = b_fnrt
+                 m_sapw   = b_sapw
+                 m_store  = b_store
+                 m_repro  = 0._r8
+                 
+             case(nitrogen_element)
+                 
+                 m_struct = b_struct*prt_params%nitr_stoich_p1(temp_cohort%pft,struct_organ)
+                 m_leaf   = b_leaf*prt_params%nitr_stoich_p1(temp_cohort%pft,leaf_organ)
+                 m_fnrt   = b_fnrt*prt_params%nitr_stoich_p1(temp_cohort%pft,fnrt_organ)
+                 m_sapw   = b_sapw*prt_params%nitr_stoich_p1(temp_cohort%pft,sapw_organ)
+                 m_store  = b_store*prt_params%nitr_stoich_p1(temp_cohort%pft,store_organ)
+                 m_repro  = 0._r8
+                 
+             case(phosphorus_element)
+                 
+                 m_struct = b_struct*prt_params%phos_stoich_p1(temp_cohort%pft,struct_organ)
+                 m_leaf   = b_leaf*prt_params%phos_stoich_p1(temp_cohort%pft,leaf_organ)
+                 m_fnrt   = b_fnrt*prt_params%phos_stoich_p1(temp_cohort%pft,fnrt_organ)
+                 m_sapw   = b_sapw*prt_params%phos_stoich_p1(temp_cohort%pft,sapw_organ)
+                 m_store  = b_store*prt_params%phos_stoich_p1(temp_cohort%pft,store_organ)
+                 m_repro  = 0._r8
+             end select
+             
+             select case(hlm_parteh_mode)
+             case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+                 
+                 ! Equally distribute leaf mass into available age-bins
+                 do iage = 1,nleafage
+                     call SetState(prt_obj,leaf_organ, element_id,m_leaf/real(nleafage,r8),iage)
+                 end do
+                 
+                 call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
+                 call SetState(prt_obj,sapw_organ, element_id, m_sapw)
+                 call SetState(prt_obj,store_organ, element_id, m_store)
+                 call SetState(prt_obj,struct_organ, element_id, m_struct)
+                 call SetState(prt_obj,repro_organ, element_id, m_repro)
+                 
+             case default
+                 write(fates_log(),*) 'Unspecified PARTEH module during inventory intitialization'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+             end select
+             
          end do
 
          call prt_obj%CheckInitialConditions()

@@ -48,6 +48,27 @@ module FatesInterfaceTypesMod
                                                     ! ATS, ALM and CLM will only want variables 
                                                     ! specficially packaged for them.
                                                     ! This string sets which filter is enacted.
+
+
+   character(len=16), public :: hlm_nu_com ! This string defines which soil
+                                                      ! nutrient competition scheme is in use.
+                                                      ! current options with
+                                                      ! E3SM: RD, ECA
+                                                      ! CESM: NONE
+                                                      ! ATS: ?
+                                                      ! NORESM: ?
+   
+
+   integer, public :: hlm_nitrogen_spec   ! This flag signals which nitrogen
+                                                     ! species are active if any:
+                                                     ! 0: none
+                                                     ! 1: nh4 only
+                                                     ! 2: nh4 and no3
+
+   integer, public :: hlm_phosphorus_spec ! Signals if phosphorous is turned on in the HLM
+                                                     ! 0: none
+                                                     ! 1: p is on
+
    
   
    real(r8), public :: hlm_hio_ignore_val  ! This value can be flushed to history 
@@ -190,6 +211,10 @@ module FatesInterfaceTypesMod
                                                            ! data as some fields are arrays where each array is
                                                            ! associated with one cohort
 
+
+   integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
+                                                           ! competitors that will be generated on each site
+   
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
    ! CLM/ALM have limited support for multi-dimensional history output arrays.
@@ -202,8 +227,6 @@ module FatesInterfaceTypesMod
    real(r8), public, allocatable :: fates_hdim_levcoage(:)         ! cohort age class lower bound dimension
    integer , public, allocatable :: fates_hdim_pfmap_levcapf(:)    ! map of pfts into cohort age class x pft dimension
    integer , public, allocatable :: fates_hdim_camap_levcapf(:)    ! map of cohort age class into cohort age x pft dimension
-  
-
    real(r8), public, allocatable :: fates_hdim_levsclass(:)        ! plant size class lower bound dimension
    integer , public, allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
    integer , public, allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
@@ -347,6 +370,18 @@ module FatesInterfaceTypesMod
       ! Downwelling diffuse (I-ndirect) radiation (patch,radiation-band) [W/m2]
       real(r8), allocatable :: solai_parb(:,:)
 
+      
+      ! Nutrient input fluxes (these are integrated fluxes over the day, most
+      !                        likely calculated over shorter dynamics steps,
+      !                        and then incremented until the end of the day)
+      !
+      ! Note 1: If these are indexed by COHORT, they don't also need to be indexed
+      !         by decomposition layer. So it is allocated with 2nd dim=1.
+      ! Note 2: Has it's own zero'ing call
+      real(r8), pointer :: plant_n_uptake_flux(:,:)   ! Nitrogen input flux for
+                                                      ! each competitor [gN/m2/day]
+      real(r8), pointer :: plant_p_uptake_flux(:,:)   ! Phosphorus input flux for
+                                                      ! each competitor [gP/m2/day]
 
 
       ! Photosynthesis variables
@@ -559,6 +594,48 @@ module FatesInterfaceTypesMod
       real(r8), allocatable :: litt_flux_cel_p_si(:) ! cellulose phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignan phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
+
+
+      ! Nutrient competition boundary conditions
+      ! (These are all pointer allocations, this is because the host models
+      !  will point to these arrays)
+      ! ---------------------------------------------------------------------------------
+
+      integer               :: num_plant_comps ! Number of unique competitors
+
+      real(r8), allocatable :: source_nh4(:) ! FATES generated source of ammonium to the mineralized N pool
+                                             ! in the BGC model [gN/m3]
+      real(r8), allocatable :: source_p(:)   ! FATES generated source of phosphorus to mineralized P
+                                             ! pool in the BGC model [gP/m3]
+      
+      real(r8), pointer :: veg_rootc(:,:)    ! Total fine-root carbon of each competitor
+                                             ! [gC/m3 of site area]  
+                                             ! (maxcohort_per_site x nlevdecomp)
+      real(r8), pointer :: decompmicc(:)     ! Microbial decomposer biomass [gc/m3] 
+                                             ! (numpft x nledecomp_full)
+      integer, pointer :: ft_index(:)        ! functional type index of each competitor
+                                             ! (maxcohort_per_site)
+      real(r8), pointer :: cn_scalar(:)      ! C:N scaling factor for root n uptake 
+                                             ! kinetics (exact meaning differs between
+                                             ! soil BGC hypotheses)
+      real(r8), pointer :: cp_scalar(:)      ! C:P scaling factor for root p uptake
+                                             ! kinetics (exact meaning differs between
+                                             ! soil BGC hypotheses)
+
+
+
+
+      ! CTC/RD Nutrient Boundary Conditions
+      ! ---------------------------------------------------------------------------------
+
+      real(r8), pointer :: n_demand(:)       ! Nitrogen demand from each competitor
+                                             ! for use in ELMs CTC/RD [g/m2/s] 
+      real(r8), pointer :: p_demand(:)       ! Phosophorus demand from each competitor
+                                             ! for use in ELMs CTC/RD [g/m2/s] 
+
+
+      
+
       
       ! Canopy Structure
 
@@ -607,6 +684,38 @@ module FatesInterfaceTypesMod
    end type bc_out_type
 
 
+   ! This type holds parameter constants
+   ! These parameter constants only need to specified once, and never modified again.
+   ! After re-factoring this module to split the procedures from the data-types
+   ! we can then set the datatypes as protected.
+
+   type, public :: bc_pconst_type
+
+       ! Nutrient competition boundary conditions for ECA hypothesis
+       ! Note, these "could" be stored globaly for each machine, saving them on
+       ! each column is inefficient. Each of these are dimensioned by PFT.
+       
+       integer           :: max_plant_comps
+       real(r8), pointer :: eca_km_nh4(:)
+       real(r8), pointer :: eca_vmax_nh4(:)
+       real(r8), pointer :: eca_km_no3(:)
+       real(r8), pointer :: eca_vmax_no3(:)
+       real(r8), pointer :: eca_km_p(:)     
+       real(r8), pointer :: eca_vmax_p(:)
+       real(r8), pointer :: eca_km_ptase(:)     
+       real(r8), pointer :: eca_vmax_ptase(:)
+       real(r8), pointer :: eca_alpha_ptase(:)
+       real(r8), pointer :: eca_lambda_ptase(:)
+       real(r8)          :: eca_plant_escalar
+
+       integer, pointer  :: j_uptake(:)         ! Mapping between decomposition
+                                                ! layers and the uptake layers
+                                                ! in FATES (is either incrementally
+                                                ! increasing, or all 1s)
+
+   end type bc_pconst_type
+   
+
    type, public :: fates_interface_type
       
       ! This is the root of the ED/FATES hierarchy of instantaneous state variables
@@ -632,6 +741,14 @@ module FatesInterfaceTypesMod
       
       type(bc_out_type), allocatable  :: bc_out(:)
 
+
+      ! These are parameter constants that FATES may need to provide a host model
+      ! We have other methods of reading in input parameters. Since these
+      ! are parameter constants, we don't need them allocated over every site,one
+      ! instance is fine.
+      
+      type(bc_pconst_type) :: bc_pconst
+      
 
    end type fates_interface_type
 

@@ -97,6 +97,8 @@ module FatesPlantHydraulicsMod
   use clm_time_manager  , only : get_step_size, get_nstep
 
   use EDPftvarcon, only : EDPftvarcon_inst
+  use PRTParametersMod, only : prt_params
+
 
   use FatesHydroWTFMod, only : wrf_arr_type
   use FatesHydroWTFMod, only : wkf_arr_type
@@ -672,8 +674,8 @@ contains
     ! Crown Nodes
     ! in special case where n_hypool_leaf = 1, the node height of the canopy
     ! water pool is 1/2 the distance from the bottom of the canopy to the top of the tree
-    roota                      = EDPftvarcon_inst%fnrt_prof_a(ft)
-    rootb                      = EDPftvarcon_inst%fnrt_prof_b(ft)
+    roota                      = prt_params%fnrt_prof_a(ft)
+    rootb                      = prt_params%fnrt_prof_b(ft)
     nlevrhiz                   = csite_hydr%nlevrhiz
     call CrownDepth(plant_height,crown_depth)
 
@@ -835,8 +837,8 @@ contains
     fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
     struct_c = ccohort%prt%GetState(struct_organ, all_carbon_elements)
 
-    roota    = EDPftvarcon_inst%fnrt_prof_a(ft)
-    rootb    = EDPftvarcon_inst%fnrt_prof_b(ft)
+    roota    = prt_params%fnrt_prof_a(ft)
+    rootb    = prt_params%fnrt_prof_b(ft)
 
     ! Leaf Volumes
     ! -----------------------------------------------------------------------------------
@@ -845,10 +847,10 @@ contains
     ! but that may not be so forever. ie sla = slatop (RGK-082017)
     ! m2/gC * cm2/m2 -> cm2/gC
     
-    sla                        = EDPftvarcon_inst%slatop(ft) * cm2_per_m2 
+    sla                        = prt_params%slatop(ft) * cm2_per_m2 
     
     ! empirical regression data from leaves at Caxiuana (~ 8 spp)
-    denleaf                    = -2.3231_r8*sla/EDPftvarcon_inst%c2b(ft) + 781.899_r8    
+    denleaf                    = -2.3231_r8*sla/prt_params%c2b(ft) + 781.899_r8    
  
     ! Leaf volumes
     ! Note: Leaf volumes of zero is problematic for two reasons.  Zero volumes create
@@ -866,7 +868,6 @@ contains
     
     ! [kgC] * [kg/kgC] / [kg/m3] -> [m3]
 
-
     ! Get the target, or rather, maximum leaf carrying capacity of plant
     ! Lets also avoid super-low targets that have very low trimming functions
 
@@ -874,7 +875,7 @@ contains
 
     if( (ccohort%status_coh == leaves_on) .or. ccohort_hydr%is_newly_recruited ) then
        ccohort_hydr%v_ag(1:n_hypool_leaf) = max(leaf_c,min_leaf_frac*leaf_c_target) * &
-            EDPftvarcon_inst%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
+            prt_params%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
     end if
     
     ! Step sapwood volume
@@ -882,7 +883,8 @@ contains
 
     ! BOC...may be needed for testing/comparison w/ v_sapwood 
     ! kg  / ( g cm-3 * cm3/m3 * kg/g ) -> m3    
-    ! v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(ft) * kg_per_g * cm3_per_m3 ) 
+    ! v_stem       = b_stem_biom / (prt_params%wood_density(ft) * kg_per_g * cm3_per_m3 ) 
+
 
     ! calculate the sapwood cross-sectional area
     call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
@@ -904,17 +906,17 @@ contains
     ! leaf, fine root) biomass then subtract out the fine root biomass to get 
     ! coarse (transporting) root biomass
 
-    woody_bg_c = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(ft)) * (sapw_c + struct_c)
+    woody_bg_c = (1.0_r8-prt_params%allom_agb_frac(ft)) * (sapw_c + struct_c)
     
-    v_troot                    = woody_bg_c * EDPftvarcon_inst%c2b(ft) / & 
-          (EDPftvarcon_inst%wood_density(ft)*kg_per_g*cm3_per_m3)
+    v_troot                    = woody_bg_c * prt_params%c2b(ft) / & 
+          (prt_params%wood_density(ft)*kg_per_g*cm3_per_m3)
     
     
     ! Estimate absorbing root total length (all layers)
     ! SRL is in m/g
     ! [m] = [kgC]*1000[g/kg]*[kg/kgC]*[m/g]
     ! ------------------------------------------------------------------------------
-    l_aroot_tot        = fnrt_c*g_per_kg*EDPftvarcon_inst%c2b(ft)*EDPftvarcon_inst%hydr_srl(ft)
+    l_aroot_tot        = fnrt_c*g_per_kg*prt_params%c2b(ft)*EDPftvarcon_inst%hydr_srl(ft)
     
     
     ! Estimate absorbing root volume (all layers)

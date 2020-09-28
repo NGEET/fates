@@ -28,8 +28,9 @@ module EDLoggingMortalityMod
    use EDTypesMod        , only : dtype_ifire
    use EDPftvarcon       , only : EDPftvarcon_inst
    use EDPftvarcon       , only : GetDecompyFrac
-   use EDTypesMod        , only : num_elements
-   use EDTypesMod        , only : element_list
+   use PRTParametersMod  , only : prt_params
+   use PRTGenericMod     , only : num_elements
+   use PRTGenericMod     , only : element_list
    use EDParamsMod       , only : logging_export_frac
    use EDParamsMod       , only : logging_event_code
    use EDParamsMod       , only : logging_dbhmin
@@ -220,6 +221,7 @@ contains
       ! todo: implement harvested carbon inputs
       
       if (logging_time) then 
+
          ! Pass logging rates to cohort level 
          
          if (hlm_use_lu_harvest == ifalse) then
@@ -255,7 +257,7 @@ contains
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
-         if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
+         if(int(prt_params%woody(pft_i)) == 1)then ! only set logging rates for trees
             
             ! direct logging rates, based on dbh min and max criteria
             if (dbh >= logging_dbhmin .and. .not. &
@@ -534,7 +536,7 @@ contains
                ! plants that were impacted. Thus, no direct dead can occur
                ! here, and indirect are impacts.
 
-               if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+               if(int(prt_params%woody(pft)) == itrue) then
                   direct_dead   = 0.0_r8
                   indirect_dead = logging_coll_under_frac * &
                        (1._r8-currentPatch%fract_ldist_not_harvested) * currentCohort%n * &
@@ -565,9 +567,9 @@ contains
             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
          
             ag_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
-                  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+                  prt_params%allom_agb_frac(currentCohort%pft)
             bg_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
-                  (1._r8 - EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+                  (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
          
             do c = 1,ncwd-1
                
@@ -608,9 +610,9 @@ contains
             ! ----------------------------------------------------------------------------------------
             
             ag_wood = indirect_dead * (struct_m + sapw_m ) * &
-                  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+                  prt_params%allom_agb_frac(currentCohort%pft)
             bg_wood = indirect_dead * (struct_m + sapw_m ) * &
-                  (1._r8 - EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+                  (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
 
             new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
                   SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
@@ -646,7 +648,7 @@ contains
             ! ----------------------------------------------------------------------------------------
             
             bg_wood = direct_dead * (struct_m + sapw_m ) * SF_val_CWD_frac(ncwd) * &
-                  (1._r8 - EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+                  (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
 
             do ilyr = 1,nlevsoil
                 new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
@@ -671,7 +673,7 @@ contains
             ! ----------------------------------------------------------------------------------------
 
             ag_wood = direct_dead * (struct_m + sapw_m ) * &
-                  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                  prt_params%allom_agb_frac(currentCohort%pft) * &
                   SF_val_CWD_frac(ncwd)
 
             trunk_product_site = trunk_product_site + &
