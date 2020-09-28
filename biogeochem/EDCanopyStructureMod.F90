@@ -1933,7 +1933,6 @@ contains
            endif
            
            bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
-
            ! Use leaf area weighting for all cohorts in the patch to define the characteristic
            ! leaf width used by the HLM
            ! ----------------------------------------------------------------------------
@@ -1957,7 +1956,6 @@ contains
            bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
            bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
 
-
            ! We are assuming here that grass is all located underneath tree canopies. 
            ! The alternative is to assume it is all spatial distinct from tree canopies.
            ! In which case, the bare area would have to be reduced by the grass area...
@@ -1967,7 +1965,7 @@ contains
            bc_out(s)%canopy_fraction_pa(ifp) = &
                 min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
            if(isnan(bc_out(s)%canopy_fraction_pa(ifp)))then
-                write(*,*) 'nan canopy_fraction_pa in canopystructure, ifp, canopy area,patch area:',ifp,currentPatch%total_canopy_area,currentPatch%area
+                write(fates_log(),*) 'nan canopy_fraction_pa in canopystructure:',ifp
                 call endrun(msg=errMsg(sourcefile, __LINE__))
            end if 
            bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
