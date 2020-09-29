@@ -702,8 +702,9 @@ contains
     ! If this is the second to last day of the year, then perform trimming
     if( hlm_day_of_year == hlm_days_per_year-1) then
 
-       write(fates_log(),*) 'calling trim canopy' 
-       call trim_canopy(currentSite)  
+     if(hlm_use_sp.eq.ifalse)then
+       call trim_canopy(currentSite)    
+     endif
     endif
 
   end subroutine ed_update_site
