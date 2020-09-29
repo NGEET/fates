@@ -808,7 +808,7 @@ contains
       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
  
-    slat = g_per_kg * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg
+    slat = g_per_kg * prt_params%slatop(pft)
     leafc_per_unitarea = leaf_c/(c_area/nplant) !KgC/m2
 
     if(treelai > 0.0_r8)then
@@ -816,7 +816,7 @@ contains
        kn = decay_coeff_kn(pft,vcmax25top)
        ! take PFT-level maximum SLA value, even if under a thick canopy (which has units of m2/gC),
        ! and put into units of m2/kgC
-       sla_max = g_per_kg *EDPftvarcon_inst%slamax(pft)
+       sla_max = g_per_kg * prt_params%slamax(pft)
  
        ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
        leafc_slamax = max(0.0_r8,(slat - sla_max) / (-1.0_r8 * kn * slat * sla_max))
