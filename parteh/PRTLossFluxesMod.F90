@@ -1,6 +1,6 @@
 module PRTLossFluxesMod
 
-  use EDPftvarcon,   only : EDPftvarcon_inst
+
   use PRTGenericMod, only : prt_vartypes
   use PRTGenericMod, only : leaf_organ
   use PRTGenericMod, only : fnrt_organ
@@ -27,8 +27,9 @@ module PRTLossFluxesMod
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log 
   use shr_log_mod      , only : errMsg => shr_log_errMsg
-
+  use PRTParametersMod  , only : prt_params
   
+
   implicit none
   private
 
@@ -55,7 +56,7 @@ module PRTLossFluxesMod
   ! is however likely that an event like fire will kill a portion of a population,
   ! and damage the remaining population, these routines will assist in the latter.
   !
-  ! EDPftvarcon_inst%turnover_retrans_mode
+  ! prt_params%turnover_retrans_mode
   ! -------------------------------------------------------------------------------------
 
   public :: PRTDeciduousTurnover
@@ -108,7 +109,7 @@ contains
      ! those parameters and clauses need to be added
 
      !if(organ_id .ne. leaf_organ) then
-     if(organ_id .ne. leaf_organ .AND. EDPftvarcon_inst%woody(ipft) == itrue) then
+     if(organ_id .ne. leaf_organ .AND. prt_params%woody(ipft) == itrue) then
         write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
         write(fates_log(),*) ' organ: ',organ_id
@@ -221,9 +222,9 @@ contains
              ! Calculate the stoichiometry with C for this element
              
              if( element_id == nitrogen_element ) then
-                target_stoich = EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,organ_id)
+                target_stoich = prt_params%nitr_stoich_p1(ipft,organ_id)
              else if( element_id == phosphorus_element ) then
-                target_stoich = EDPftvarcon_inst%prt_phos_stoich_p1(ipft,organ_id)
+                target_stoich = prt_params%phos_stoich_p1(ipft,organ_id)
              else
                   write(fates_log(),*) ' Trying to calculate nutrient flushing target'
                   write(fates_log(),*) ' for element that DNE'
@@ -366,12 +367,6 @@ contains
          call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
 
-      if (element_id .ne. carbon12_element) then
-         write(fates_log(),*) 'Reproductive tissue releases were called for a element other than c12'
-         write(fates_log(),*) 'Only carbon seed masses are curently handled.'
-         call endrun(msg=errMsg(__FILE__, __LINE__))
-      end if
-
       ! This is the total number of state variables associated
       ! with this particular organ
 
@@ -421,7 +416,7 @@ contains
      ! those parameters and clauses need to be added
      
      !if(organ_id .ne. leaf_organ) then
-     if(organ_id .ne. leaf_organ .AND. EDPftvarcon_inst%woody(ipft) == itrue) then
+     if(organ_id .ne. leaf_organ .AND. prt_params%woody(ipft) == itrue) then
         write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
         write(fates_log(),*) ' organ: ',organ_id
@@ -430,12 +425,12 @@ contains
      end if
 
      
-     if ( int(EDPftvarcon_inst%turnover_retrans_mode(ipft)) == 1 ) then
+     if ( int(prt_params%turnover_retrans_mode(ipft)) == 1 ) then
         call DeciduousTurnoverSimpleRetranslocation(prt,ipft,organ_id,mass_fraction)
      else
         write(fates_log(),*) 'A retranslocation mode was specified for deciduous drop'
         write(fates_log(),*) 'that is unknown.'
-        write(fates_log(),*) 'turnover_retrans_mode= ',EDPftvarcon_inst%turnover_retrans_mode(ipft)
+        write(fates_log(),*) 'turnover_retrans_mode= ',prt_params%turnover_retrans_mode(ipft)
         write(fates_log(),*) 'pft = ',ipft
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if
@@ -482,7 +477,7 @@ contains
           (organ_id == struct_organ) .or. & 
           (organ_id == sapw_organ)) then	   
            
-          if (EDPftvarcon_inst%woody(ipft) == itrue) then        
+          if (prt_params%woody(ipft) == itrue) then        
               write(fates_log(),*) 'Deciduous turnover (leaf drop, etc)'
               write(fates_log(),*) ' was specified for an unexpected organ'
               write(fates_log(),*) ' organ: ',organ_id
@@ -493,7 +488,7 @@ contains
        end if
 
        if(prt_global%hyp_id .le. 2) then
-          i_store_pos = 1             ! hypothesis 1/2 only have
+          i_store_pos = 1             ! hypothesis 1&2 only have
                                       ! 1 storage pool
        else
           write(fates_log(),*) 'You picked a hypothesis that has not defined'
@@ -512,11 +507,11 @@ contains
           element_id = prt_global%state_descriptor(i_var)%element_id
           
           if ( any(element_id == carbon_elements_list) ) then
-             retrans = EDPftvarcon_inst%turnover_carb_retrans(ipft,organ_id)
+             retrans = prt_params%turnover_carb_retrans(ipft,organ_id)
           else if( element_id == nitrogen_element ) then
-             retrans = EDPftvarcon_inst%turnover_nitr_retrans(ipft,organ_id)
+             retrans = prt_params%turnover_nitr_retrans(ipft,organ_id)
           else if( element_id == phosphorus_element ) then
-             retrans = EDPftvarcon_inst%turnover_phos_retrans(ipft,organ_id)
+             retrans = prt_params%turnover_phos_retrans(ipft,organ_id)
           else
              write(fates_log(),*) 'Please add a new re-translocation clause to your '
              write(fates_log(),*) ' organ x element combination'
@@ -580,12 +575,12 @@ contains
       logical,intent(in)  :: is_drought  ! Is this plant/cohort operating in a drought
                                          ! stress context?
       
-      if ( int(EDPftvarcon_inst%turnover_retrans_mode(ipft)) == 1 ) then
+      if ( int(prt_params%turnover_retrans_mode(ipft)) == 1 ) then
          call MaintTurnoverSimpleRetranslocation(prt,ipft,is_drought)
       else
          write(fates_log(),*) 'A maintenance/retranslocation mode was specified'
          write(fates_log(),*) 'that is unknown.'
-         write(fates_log(),*) 'turnover_retrans_mode= ',EDPftvarcon_inst%turnover_retrans_mode(ipft)
+         write(fates_log(),*) 'turnover_retrans_mode= ',prt_params%turnover_retrans_mode(ipft)
          write(fates_log(),*) 'pft = ',ipft
          call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
@@ -630,13 +625,30 @@ contains
                                    ! generate maintenance fluxes from the last
                                    ! senescing class; all other cases this 
                                    ! is assumed to be 1.
-      
-      real(r8) :: turnover         ! Actual turnover removed from each
+      integer  :: store_var_id     ! Variable id of the storage pool
+      integer  :: i_store_pos      ! Position index for storage
+      real(r8) :: turnover_mass    ! Actual turnover removed from each
                                    ! pool [kg]
-      real(r8) :: retrans          ! A temp for the actual re-translocated mass
+      real(r8) :: retrans_frac     ! A temp for the retranslocated fraction
+      real(r8) :: retrans_mass     ! The mass re-translocated [kg]
 
       ! A temp for the actual turnover removed from pool
       real(r8), dimension(num_organ_types) :: base_turnover   
+
+
+      if(prt_global%hyp_id .le. 2) then
+         i_store_pos = 1             ! hypothesis 1&2 only have
+                                     ! 1 storage pool
+      else
+         write(fates_log(),*) 'You picked a hypothesis that has not defined'
+         write(fates_log(),*) ' how and where turnover re-absorption interacts'
+         write(fates_log(),*) ' with the storage pool. specifically, '
+         write(fates_log(),*) ' if this hypothesis has multiple storage pools'
+         write(fates_log(),*) ' to pull carbon/resources from'
+         write(fates_log(),*) 'Exiting'
+         call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+
       
       ! -----------------------------------------------------------------------------------
       ! Calculate the turnover rates (maybe this should be done once in the parameter
@@ -645,14 +657,14 @@ contains
 
       base_turnover(:) = un_initialized
 
-      ! All plants can have branch turnover, if branchfall is nonz-ero,
+      ! All plants can have branch turnover, if branchfall is non-zero,
       ! which will reduce sapwood, structure and storage.
       ! -----------------------------------------------------------------------------------
       
-      if ( EDPftvarcon_inst%branch_turnover(ipft) > nearzero ) then
-         base_turnover(sapw_organ)   = years_per_day / EDPftvarcon_inst%branch_turnover(ipft)
-         base_turnover(struct_organ) = years_per_day / EDPftvarcon_inst%branch_turnover(ipft)
-         base_turnover(store_organ)  = years_per_day / EDPftvarcon_inst%branch_turnover(ipft)
+      if ( prt_params%branch_long(ipft) > nearzero ) then
+         base_turnover(sapw_organ)   = years_per_day / prt_params%branch_long(ipft)
+         base_turnover(struct_organ) = years_per_day / prt_params%branch_long(ipft)
+         base_turnover(store_organ)  = years_per_day / prt_params%branch_long(ipft)
       else
          base_turnover(sapw_organ)   = 0.0_r8
          base_turnover(struct_organ) = 0.0_r8
@@ -662,8 +674,9 @@ contains
       ! All plants are allowed to have fine-root turnover if a non-zero
       ! life-span is selected
       ! ---------------------------------------------------------------------------------
-      if ( EDPftvarcon_inst%root_long(ipft) > nearzero ) then
-         base_turnover(fnrt_organ) = years_per_day / EDPftvarcon_inst%root_long(ipft)
+
+      if ( prt_params%root_long(ipft) > nearzero ) then
+         base_turnover(fnrt_organ) = years_per_day / prt_params%root_long(ipft)
       else
          base_turnover(fnrt_organ) = 0.0_r8
       end if
@@ -671,21 +684,21 @@ contains
 
       ! The last index of the leaf longevity array contains the turnover
       ! timescale for the senescent pool.
-      aclass_sen_id = size(EDPftvarcon_inst%leaf_long(ipft,:))
+      aclass_sen_id = size(prt_params%leaf_long(ipft,:))
       
       ! Only evergreens have maintenance turnover (must also change trimming logic
       ! if we want to change this)
       ! -------------------------------------------------------------------------------------
-      if ( (EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id) > nearzero ) .and. &
-           (EDPftvarcon_inst%evergreen(ipft) == itrue) ) then
+      if ( (prt_params%leaf_long(ipft,aclass_sen_id) > nearzero ) .and. &
+           int(prt_params%evergreen(ipft))==itrue ) then
 
          if(is_drought) then
             base_turnover(leaf_organ) = years_per_day / &
-                  (EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id) * &
-                  EDPftvarcon_inst%senleaf_long_fdrought(ipft) ) 
+                  (prt_params%leaf_long(ipft,aclass_sen_id) * &
+                  prt_params%senleaf_long_fdrought(ipft) ) 
          else
             base_turnover(leaf_organ) = years_per_day / &
-                  EDPftvarcon_inst%leaf_long(ipft,aclass_sen_id)
+                  prt_params%leaf_long(ipft,aclass_sen_id)
          end if
       else
          base_turnover(leaf_organ) = 0.0_r8
@@ -699,11 +712,11 @@ contains
          element_id = prt_global%state_descriptor(i_var)%element_id
 
          if ( any(element_id == carbon_elements_list) ) then
-            retrans = EDPftvarcon_inst%turnover_carb_retrans(ipft,organ_id)
+            retrans_frac = prt_params%turnover_carb_retrans(ipft,organ_id)
          else if( element_id == nitrogen_element ) then
-            retrans = EDPftvarcon_inst%turnover_nitr_retrans(ipft,organ_id)
+            retrans_frac = prt_params%turnover_nitr_retrans(ipft,organ_id)
          else if( element_id == phosphorus_element ) then
-            retrans = EDPftvarcon_inst%turnover_phos_retrans(ipft,organ_id)
+            retrans_frac = prt_params%turnover_phos_retrans(ipft,organ_id)
          else
             write(fates_log(),*) 'Please add a new re-translocation clause to your '
             write(fates_log(),*) ' organ x element combination'
@@ -722,10 +735,10 @@ contains
          end if
          ! Loop over all of the coordinate ids
 
-         if(retrans<0.0 .or. retrans>1.0) then
+         if(retrans_frac<0.0 .or. retrans_frac>1.0) then
             write(fates_log(),*) 'Unacceptable retranslocation calculated'
             write(fates_log(),*) ' organ: ',organ_id,' element: ',element_id
-            write(fates_log(),*) ' retranslocation fraction: ',retrans
+            write(fates_log(),*) ' retranslocation fraction: ',retrans_frac
             write(fates_log(),*) 'Exiting'
             call endrun(msg=errMsg(__FILE__, __LINE__))
          end if
@@ -744,14 +757,36 @@ contains
             ipos_1 = 1
          end if
 
+         
+         store_var_id = prt_global%sp_organ_map(store_organ,element_id)
+         
          do i_pos = ipos_1, prt_global%state_descriptor(i_var)%num_pos 
             
-            turnover = (1.0_r8 - retrans) * base_turnover(organ_id) * prt%variables(i_var)%val(i_pos)
-      
-            prt%variables(i_var)%turnover(i_pos) = prt%variables(i_var)%turnover(i_pos) + turnover
-            
-            prt%variables(i_var)%val(i_pos) = prt%variables(i_var)%val(i_pos)           - turnover
+            turnover_mass = (1.0_r8 - retrans_frac) * base_turnover(organ_id) * prt%variables(i_var)%val(i_pos)
 
+            ! Remove mass from turnover from the organ of interest
+            
+            prt%variables(i_var)%turnover(i_pos) = prt%variables(i_var)%turnover(i_pos) + turnover_mass
+            
+            prt%variables(i_var)%val(i_pos)      = prt%variables(i_var)%val(i_pos)      - turnover_mass
+
+            ! If any mass is re-absorbed, send it to storage
+            
+            retrans_mass = retrans_frac * base_turnover(organ_id) * prt%variables(i_var)%val(i_pos)
+
+            prt%variables(i_var)%net_alloc(i_pos)  = &
+                 prt%variables(i_var)%net_alloc(i_pos) - retrans_mass
+            
+            prt%variables(i_var)%val(i_pos) = prt%variables(i_var)%val(i_pos) - retrans_mass
+            
+            prt%variables(store_var_id)%net_alloc(i_store_pos)  = &
+                 prt%variables(store_var_id)%net_alloc(i_store_pos) + retrans_mass
+            
+            prt%variables(store_var_id)%val(i_store_pos)  = &
+                  prt%variables(store_var_id)%val(i_store_pos) + retrans_mass
+            
+            
+            
          end do
 
       end do

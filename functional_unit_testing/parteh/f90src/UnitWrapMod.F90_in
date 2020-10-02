@@ -1,0 +1,219 @@
+
+! =======================================================================================
+!
+! This file is an alternative to key files in the fates
+! filesystem. Noteably, we replace fates_r8 and fates_in
+! with types that work with "ctypes".  This is
+! a key step in working with python
+!
+! We also wrap FatesGlobals to reduce the dependancy
+! cascade that it pulls in from shr_log_mod.
+!
+! =======================================================================================
+
+module shr_log_mod
+
+   use iso_c_binding, only : c_char
+   use iso_c_binding, only : c_int
+
+   contains
+
+   function shr_log_errMsg(source, line) result(ans)
+      character(kind=c_char,len=*), intent(in) :: source
+      integer(c_int), intent(in) :: line
+      character(kind=c_char,len=128) :: ans
+
+      ans = "source: " // trim(source) // " line: "
+   end function shr_log_errMsg
+
+end module shr_log_mod
+
+
+module FatesGlobals
+
+   contains
+
+   integer function fates_log()
+      fates_log = 11
+   end function fates_log
+
+   subroutine fates_endrun(msg)
+
+      implicit none
+      character(len=*), intent(in) :: msg    ! string to be printed
+
+      stop
+
+   end subroutine fates_endrun
+
+end module FatesGlobals
+
+
+module EDTypesMod
+
+   use iso_c_binding, only : r8 => c_double
+
+  integer, parameter  :: nclmax = 2
+  integer, parameter  :: nlevleaf = 30
+  real(r8), parameter :: dinc_ed = 1.0_r8
+
+end module EDTypesMod
+
+
+module PRTParamsGeneric
+
+   use iso_c_binding, only : r8 => c_double
+   use iso_c_binding, only : i4 => c_int
+   use iso_c_binding, only : c_char
+   use PRTParametersMod, only : prt_params
+
+   integer,parameter :: SHR_KIND_CS = 80                     ! short char
+
+
+  type ptr_var1
+     real(r8), dimension(:), pointer :: var_rp
+     integer(i4), dimension(:), pointer :: var_ip
+     character(len=shr_kind_cs) :: var_name
+     integer :: vtype
+  end type ptr_var1
+
+  type ptr_var2
+     real(r8), dimension(:,:), pointer :: var_rp
+     integer(i4), dimension(:,:), pointer :: var_ip
+     character(len=shr_kind_cs) :: var_name
+     integer :: vtype
+  end type ptr_var2
+
+
+  type prt_params_ptr_type
+     type(ptr_var1), allocatable :: var1d(:)
+     type(ptr_var2), allocatable :: var2d(:)
+  end type prt_params_ptr_type
+
+  type(prt_params_ptr_type),  public :: prt_params_ptr
+
+  integer :: numparm1d ! Number of different PFT parameters
+  integer :: numparm2d
+  integer :: numpft
+  logical, parameter ::  debug = .true.
+
+contains
+
+
+   subroutine PRTParamsPySet(rval,ival,indx1,indx2,name)
+
+      implicit none
+      ! Arguments
+      character(kind=c_char,len=*), intent(in) :: name
+      real(r8),intent(in) :: rval
+      integer(i4),intent(in) :: ival
+	  integer(i4),intent(in) :: indx1
+	  integer(i4),intent(in) :: indx2
+      ! Locals
+      logical :: npfound
+      integer :: ip
+      integer :: namelen
+
+      namelen = len(trim(name))
+
+      	  if(debug) print*,"F90: ARGS: ",trim(name)," IPFT: ",indx1," D2: ",indx2," RVAL: ",rval," IVAL: ",ival
+
+      ip=0
+      npfound = .false.
+      do ip=1,numparm1d
+
+         if (trim(name) == trim(prt_params_ptr%var1d(ip)%var_name ) ) then
+            print*,"F90: Found ",trim(name)," in lookup table"
+            npfound = .true.
+            if(prt_params_ptr%var1d(ip)%vtype == 1) then ! real
+               prt_params_ptr%var1d(ip)%var_rp(indx1) = rval
+            elseif(prt_params_ptr%var1d(ip)%vtype == 2) then ! integer
+               prt_params_ptr%var1d(ip)%var_ip(indx1) = ival
+            else
+               print*,"F90: STRANGE TYPE"
+               stop
+            end if
+         end if
+      end do
+
+      do ip=1,numparm2d
+         if (trim(name) == trim(prt_params_ptr%var2d(ip)%var_name ) ) then
+            print*,"F90: Found ",trim(name)," in lookup table"
+            npfound = .true.
+            if(prt_params_ptr%var2d(ip)%vtype == 1) then ! real
+               prt_params_ptr%var2d(ip)%var_rp(indx1,indx2) = rval
+            elseif(prt_params_ptr%var2d(ip)%vtype == 2) then ! integer
+               prt_params_ptr%var2d(ip)%var_ip(indx1,indx2) = ival
+            else
+               print*,"F90: STRANGE TYPE"
+               stop
+            end if
+         end if
+      end do
+
+
+
+      if(.not.npfound)then
+         print*,"F90: The parameter you loaded DNE: ",name(:)
+         stop
+      end if
+
+
+	  ! Perform a check to see if the target array is being filled
+      if (trim(name) == 'fates_allom_d2h1') then
+         if (prt_params%allom_d2h1(indx1) == rval) then
+            print*,"F90: POINTER CHECK PASSES:",rval," = ",prt_params%allom_d2h1(indx1)
+         else
+            print*,"F90: POINTER CHECK FAILS:",rval," != ",prt_params%allom_d2h1(indx1)
+            stop
+         end if
+      end if
+
+      if (trim(name) == 'fates_wood_density' ) then
+         if (prt_params%wood_density(indx1) == rval) then
+            print*,"F90: POINTER CHECK PASSES:",rval," = ",prt_params%wood_density(indx1)
+         else
+            print*,"F90: POINTER CHECK FAILS:",rval," != ",prt_params%wood_density(indx1)
+            stop
+         end if
+      end if
+
+      return
+  end subroutine PRTParamsPySet
+
+
+  subroutine PRTParamsAlloc(ARGUMENT_IN1)
+    !
+    use FatesConstantsMod, only : fates_unset_r8
+
+	implicit none
+
+    ! ARGUMENT_DEF1
+
+
+    ! LOCALS:
+    integer                    :: iv1   ! The parameter incrementer
+    integer                    :: iv2
+    !------------------------------------------------------------------------
+
+    allocate( prt_params_ptr%var1d(100)) ! Make this plenty large
+	allocate( prt_params_ptr%var2d(100))
+	iv1=0
+	iv2=0
+
+	! POINTER-SPECIFICATION-HERE (DO NOT REMOVE THIS LINE, OR MOVE IT)
+
+
+        numparm1d = iv1
+	numparm2d = iv2
+
+        print*,"F90: ALLOCATED ",numparm1d," 1D PARAMETERS"
+        print*,"F90: ALLOCATED ",numparm2d," 2D PARAMETERS"
+        print*,"FOR ",fates_pft," PFTs"
+
+	numpft = fates_pft
+
+    return
+ end subroutine PRTParamsAlloc
+
+end module PRTParamsGeneric
