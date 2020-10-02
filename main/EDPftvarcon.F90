@@ -923,7 +923,8 @@ contains
     pftmap_dim_names(2) = dimension_name_hlm_pftno 
 
     name = 'fates_hlm_pft_map'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &                                           dimension_names=pftmap_dim_names, lower_bounds=dim_lower_bound)
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=pftmap_dim_names, lower_bounds=dim_lower_bound)
 
   end subroutine Register_PFT
 
