@@ -47,7 +47,6 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
-   use CLMFatesParamInterfaceMod , only : FatesReadParameters
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use decompMod             , only : bounds_type
 
@@ -521,9 +520,6 @@ contains
       
       if (use_fates) then
          
-         ! first read the non-PFT parameters
-         call FatesReadParameters()
-
          ! Identify the number of PFTs by evaluating a pft array
          ! Using wood density as that is not expected to be deprecated any time soon
 
