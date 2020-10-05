@@ -1086,20 +1086,20 @@ contains
 
             case(nitrogen_element)
 
-               m_struct = c_struct*prt_params%prt_nitr_stoich_p1(temp_cohort%pft,struct_organ)
-               m_leaf   = c_leaf*prt_params%prt_nitr_stoich_p1(temp_cohort%pft,leaf_organ)
-               m_fnrt   = c_fnrt*prt_params%prt_nitr_stoich_p1(temp_cohort%pft,fnrt_organ)
-               m_sapw   = c_sapw*prt_params%prt_nitr_stoich_p1(temp_cohort%pft,sapw_organ)
-               m_store  = c_store*prt_params%prt_nitr_stoich_p1(temp_cohort%pft,store_organ)
+               m_struct = c_struct*prt_params%nitr_stoich_p1(temp_cohort%pft,struct_organ)
+               m_leaf   = c_leaf*prt_params%nitr_stoich_p1(temp_cohort%pft,leaf_organ)
+               m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(temp_cohort%pft,fnrt_organ)
+               m_sapw   = c_sapw*prt_params%nitr_stoich_p1(temp_cohort%pft,sapw_organ)
+               m_store  = c_store*prt_params%nitr_stoich_p1(temp_cohort%pft,store_organ)
                m_repro  = 0._r8
 
             case(phosphorus_element)
 
-               m_struct = c_struct*prt_params%prt_phos_stoich_p1(temp_cohort%pft,struct_organ)
-               m_leaf   = c_leaf*prt_params%prt_phos_stoich_p1(temp_cohort%pft,leaf_organ)
-               m_fnrt   = c_fnrt*prt_params%prt_phos_stoich_p1(temp_cohort%pft,fnrt_organ)
-               m_sapw   = c_sapw*prt_params%prt_phos_stoich_p1(temp_cohort%pft,sapw_organ)
-               m_store  = c_store*prt_params%prt_phos_stoich_p1(temp_cohort%pft,store_organ)
+               m_struct = c_struct*prt_params%phos_stoich_p1(temp_cohort%pft,struct_organ)
+               m_leaf   = c_leaf*prt_params%phos_stoich_p1(temp_cohort%pft,leaf_organ)
+               m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(temp_cohort%pft,fnrt_organ)
+               m_sapw   = c_sapw*prt_params%phos_stoich_p1(temp_cohort%pft,sapw_organ)
+               m_store  = c_store*prt_params%phos_stoich_p1(temp_cohort%pft,store_organ)
                m_repro  = 0._r8
             end select
 
