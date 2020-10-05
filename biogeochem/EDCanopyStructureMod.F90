@@ -1972,6 +1972,8 @@ contains
            total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
    
            total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
+      
+           bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
 
            ! Calculate area indices for output boundary to HLM
            ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
