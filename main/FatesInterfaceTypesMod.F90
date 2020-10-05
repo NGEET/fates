@@ -336,6 +336,10 @@ module FatesInterfaceTypesMod
                                                  ! be equivalent (ie integer ascending)
                                                  ! Or, all will be 1.
       
+     integer,allocatable   :: sp_patch_index(:)  ! in SP mode, we need to map the p values for each patch
+                                                 !  back onto the 'IFP' order i ED. So this is the number of e                                                 ! ach patch in the site. It does not correspond to PFT, more
+                                                 ! to the number of occupied PFTs before it in the array.
+
 
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
@@ -393,7 +397,7 @@ module FatesInterfaceTypesMod
       ! 2 = patch is currently marked for photosynthesis
       ! 3 = patch has been called for photosynthesis at least once
       integer, allocatable  :: filter_photo_pa(:)
-
+     
       ! atmospheric pressure (Pa)
       real(r8)              :: forc_pbot             
 
@@ -660,7 +664,9 @@ module FatesInterfaceTypesMod
                                                         ! vegetation in the patch is exposed.
                                                         ! [0,1]
 
-      ! FATES Hydraulics
+     integer, allocatable :: nocomp_pft_label_pa(:) ! in nocomp and SP mode, each patch has a PFT identity. 
+
+       ! FATES Hydraulics
 
 
       

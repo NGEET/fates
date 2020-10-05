@@ -295,7 +295,8 @@ contains
     fates%bc_out(s)%displa_pa(:) = 0.0_r8
     fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
     fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
-    
+    fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
+
     fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
     
@@ -391,6 +392,7 @@ contains
          allocate(bc_in%plant_n_uptake_flux(1,1))
          allocate(bc_in%plant_p_uptake_flux(1,1))
       end if
+
 
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
@@ -586,6 +588,8 @@ contains
 
       allocate(bc_out%canopy_fraction_pa(maxPatchesPerSite))
       allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
+     
+      allocate(bc_out%nocomp_pft_label_pa(maxPatchesPerSite))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
