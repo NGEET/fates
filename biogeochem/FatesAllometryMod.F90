@@ -548,19 +548,20 @@ contains
   
   ! =====================================================================================
 
-  subroutine storage_fraction_of_target(b_leaf, bstore, frac)
+  subroutine storage_fraction_of_target(c_store_target, c_store, frac)
 
     !--------------------------------------------------------------------------------
     ! returns the storage pool as a fraction of its target (only if it is below its target)
-    ! used in both the carbon starvation mortlaity scheme as wella s the optional respiration throttling logic
+    ! used in both the carbon starvation mortlaity scheme as well as the optional
+    ! respiration throttling logic
     !--------------------------------------------------------------------------------
 
-    real(r8),intent(in)    :: b_leaf
-    real(r8),intent(in)    :: bstore
+    real(r8),intent(in)    :: c_store_target  ! target storage carbon [kg]
+    real(r8),intent(in)    :: c_store         ! storage carbon [kg]
     real(r8),intent(out)   :: frac
 
-    if( b_leaf > 0._r8 .and. bstore <= b_leaf )then
-       frac = bstore/ b_leaf
+    if( c_store_target > 0._r8 .and. c_store <= c_store_target )then
+       frac = c_store/ c_store_target
     else
        frac = 1._r8
     endif

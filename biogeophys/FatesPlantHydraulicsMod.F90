@@ -883,8 +883,7 @@ contains
 
     ! BOC...may be needed for testing/comparison w/ v_sapwood 
     ! kg  / ( g cm-3 * cm3/m3 * kg/g ) -> m3    
-    ! v_stem       = b_stem_biom / (prt_params%wood_density(ft) * kg_per_g * cm3_per_m3 ) 
-
+    ! v_stem       = c_stem_biom / (prt_params%wood_density(ft) * kg_per_g * cm3_per_m3 )
 
     ! calculate the sapwood cross-sectional area
     call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
