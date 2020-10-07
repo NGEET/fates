@@ -343,6 +343,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_meanliqvol_si
 
   integer :: ih_nesterov_fire_danger_si
+  integer :: ih_fire_nignitions_si
+  integer :: ih_fire_fdi_si
   integer :: ih_fire_intensity_area_product_si
   integer :: ih_spitfire_ros_si
   integer :: ih_fire_ros_area_product_si
@@ -356,6 +358,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_fire_fuel_sav_si
   integer :: ih_fire_fuel_mef_si
   integer :: ih_sum_fuel_si
+  integer :: ih_fragmentation_scaler_si
 
   integer :: ih_nplant_si_scpf
   integer :: ih_gpp_si_scpf
@@ -573,6 +576,7 @@ module FatesHistoryInterfaceMod
   ! indices to (site x fuel class) variables
   integer :: ih_litter_moisture_si_fuel
   integer :: ih_burnt_frac_litter_si_fuel
+  integer :: ih_fuel_amount_si_fuel
 
   ! indices to (site x cwd size class) variables
   integer :: ih_cwd_ag_si_cwdsc
@@ -1767,6 +1771,8 @@ end subroutine flush_hvars
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
                hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
                hio_nesterov_fire_danger_si => this%hvars(ih_nesterov_fire_danger_si)%r81d, &
+               hio_fire_nignitions_si => this%hvars(ih_fire_nignitions_si)%r81d, &
+               hio_fire_fdi_si => this%hvars(ih_fire_fdi_si)%r81d, &
                hio_spitfire_ros_si     => this%hvars(ih_spitfire_ros_si)%r81d, &
                hio_fire_ros_area_product_si=> this%hvars(ih_fire_ros_area_product_si)%r81d, &
                hio_tfc_ros_si          => this%hvars(ih_tfc_ros_si)%r81d, &
@@ -1780,6 +1786,7 @@ end subroutine flush_hvars
                hio_fire_fuel_sav_si    => this%hvars(ih_fire_fuel_sav_si)%r81d, &
                hio_fire_fuel_mef_si    => this%hvars(ih_fire_fuel_mef_si)%r81d, &
                hio_sum_fuel_si         => this%hvars(ih_sum_fuel_si)%r81d,  &
+               hio_fragmentation_scaler_si  => this%hvars(ih_fragmentation_scaler_si)%r81d,  &
                hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
                hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
                hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
@@ -1959,6 +1966,7 @@ end subroutine flush_hvars
                hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
                hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
                hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
+               hio_fuel_amount_si_fuel            => this%hvars(ih_fuel_amount_si_fuel)%r82d, &
                hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
                hio_leaf_height_dist_si_height     => this%hvars(ih_leaf_height_dist_si_height)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
@@ -2062,6 +2070,8 @@ end subroutine flush_hvars
          
          ! site-level fire variables
          hio_nesterov_fire_danger_si(io_si) = sites(s)%acc_NI
+         hio_fire_nignitions_si(io_si) = sites(s)%NF
+         hio_fire_fdi_si(io_si) = sites(s)%FDI
 
          ! If hydraulics are turned on, track the error terms
          ! associated with dynamics
@@ -2159,7 +2169,7 @@ end subroutine flush_hvars
                  cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV
 
             hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) + &
-                 cpatch%sum_fuel * cpatch%area * AREA_INV
+                 cpatch%sum_fuel * g_per_kg * cpatch%area * AREA_INV
              
             if(associated(cpatch%tallest))then
                hio_trimming_si(io_si) = hio_trimming_si(io_si) + cpatch%tallest%canopy_trim * cpatch%area * AREA_INV
@@ -2760,10 +2770,14 @@ end subroutine flush_hvars
             hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel_sav * cpatch%area * AREA_INV
             hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel_mef * cpatch%area * AREA_INV
             hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%sum_fuel * g_per_kg * cpatch%area * AREA_INV
+            hio_fragmentation_scaler_si(io_si) = hio_fragmentation_scaler_si(io_si) + cpatch%fragmentation_scaler * cpatch%area * AREA_INV
             
             do i_fuel = 1,nfsc
                hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
                     cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
+
+               hio_fuel_amount_si_fuel(io_si, i_fuel) = hio_fuel_amount_si_fuel(io_si, i_fuel) + &
+                    cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * cpatch%area * AREA_INV
 
                hio_burnt_frac_litter_si_fuel(io_si, i_fuel) = hio_burnt_frac_litter_si_fuel(io_si, i_fuel) + &
                     cpatch%burnt_frac_litter(i_fuel) * cpatch%frac_burnt * cpatch%area * AREA_INV
@@ -4343,6 +4357,16 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_nesterov_fire_danger_si)
 
+    call this%set_history_var(vname='FIRE_IGNITIONS', units='number/km2/day',       &
+         long='number of ignitions', use_default='active',               &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_nignitions_si)
+
+    call this%set_history_var(vname='FIRE_FDI', units='none',       &
+         long='probability that an ignition will lead to a fire', use_default='active',               &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_fdi_si)
+
     call this%set_history_var(vname='FIRE_ROS', units='m/min',                 &
          long='fire rate of spread m/min', use_default='active',                &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
@@ -4410,10 +4434,21 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_sum_fuel_si )
 
+    call this%set_history_var(vname='FRAGMENTATION_SCALER', units='unitless (0-1)',                &
+         long='factor by which litter/cwd fragmentation proceeds relative to max rate',          & 
+         use_default='active',                                                  & 
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fragmentation_scaler_si )
+
     call this%set_history_var(vname='FUEL_MOISTURE_NFSC', units='-',                &
          long='spitfire size-resolved fuel moisture', use_default='active',       &
          avgflag='A', vtype=site_fuel_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_litter_moisture_si_fuel )
+
+    call this%set_history_var(vname='FUEL_AMOUNT_BY_NFSC', units='kg C / m2',                &
+         long='spitfire size-resolved fuel quantity', use_default='active',       &
+         avgflag='A', vtype=site_fuel_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fuel_amount_si_fuel )
 
     call this%set_history_var(vname='AREA_BURNT_BY_PATCH_AGE', units='m2/m2', &
          long='spitfire area burnt by patch age (divide by patch_area_by_age to get burnt fraction by age)', &
