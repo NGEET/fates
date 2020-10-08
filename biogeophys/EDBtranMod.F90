@@ -133,6 +133,7 @@ contains
            ifp = 0
            cpatch => sites(s)%oldest_patch
            do while (associated(cpatch))                 
+             if(cpatch%nocomp_pft_label.gt.0)then ! only for veg patches
               ifp=ifp+1
               
               ! THIS SHOULD REALLY BE A COHORT LOOP ONCE WE HAVE rootfr_ft FOR COHORTS (RGK)
@@ -234,7 +235,7 @@ contains
                     bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j)/temprootr
                  enddo
               end if
-              
+              endif ! not bare ground              
               cpatch => cpatch%younger
            end do
           

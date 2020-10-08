@@ -89,6 +89,7 @@ contains
            ifp = 0
            currentpatch => sites(s)%oldest_patch
            do while (associated(currentpatch))  
+             if(currentpatch%nocomp_pft_label.gt.0)then
               ifp = ifp+1
               
               currentPatch%f_sun      (:,:,:) = 0._r8
@@ -148,6 +149,7 @@ contains
                  endif ! is there vegetation? 
                  
               end if    ! if the vegetation and zenith filter is active
+             endif ! not bare ground
               currentPatch => currentPatch%younger
            end do       ! Loop linked-list patches
         enddo           ! Loop Sites
@@ -1061,7 +1063,7 @@ contains
        cpatch => sites(s)%oldest_patch
 
        do while (associated(cpatch))                 
-          
+          if(cpatch%nocomp_pft_label.gt.0)then !only for veg patches
           ifp=ifp+1
           
           if( debug ) write(fates_log(),*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft
@@ -1199,7 +1201,7 @@ contains
                     cpatch%nrmlzd_parprof_dif_z(idiffuse,CL,iv))
             end do    ! iv
          end do       ! CL
-         
+         endif ! not bareground patch         
          cpatch => cpatch%younger
       enddo
       

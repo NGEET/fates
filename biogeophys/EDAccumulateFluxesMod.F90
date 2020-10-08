@@ -64,6 +64,7 @@ contains
 
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
+         if(cpatch%nocomp_pft_label.gt.0)then
           ifp = ifp+1
 
           if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
@@ -104,6 +105,7 @@ contains
                 ccohort => ccohort%taller
              enddo ! while(associated(ccohort))
           end if
+          end if ! not bare ground
           cpatch => cpatch%younger
        end do  ! while(associated(cpatch))
     end do

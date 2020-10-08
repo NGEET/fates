@@ -2332,6 +2332,7 @@ contains
        ifp = 0
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))
+         if(cpatch%nocomp_pft_label.gt.0)then
           ifp = ifp + 1
 
           ! ----------------------------------------------------------------------------
@@ -2495,7 +2496,7 @@ contains
 
              ccohort => ccohort%shorter
           enddo !cohort 
-
+          endif ! not barground patch
           cpatch => cpatch%younger
       enddo !patch
 

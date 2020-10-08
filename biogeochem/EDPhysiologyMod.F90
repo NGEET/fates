@@ -2493,7 +2493,7 @@ contains
     catanf_30 = catanf(30._r8)
     
     ifp = currentPatch%patchno 
-
+    if(currentPatch%nocomp_pft_label.gt.0)then
     if ( .not. use_century_tfunc ) then
     !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
     !are assigned for non-moisture limiting conditions at 25C.
@@ -2517,7 +2517,8 @@ contains
     w_scalar = sum(currentPatch%btran_ft(1:numpft))/real(numpft,r8)
 
     currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,t_scalar * w_scalar))
-    
+    endif ! not bare ground
+
   end subroutine fragmentation_scaler
   
   ! ============================================================================
