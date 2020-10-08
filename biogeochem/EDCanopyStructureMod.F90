@@ -1275,7 +1275,7 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     integer  :: s
     integer  :: ft               ! plant functional type
-    integer  :: ifp
+    integer  :: ifp              ! the number of the vegeted patch (1,2,3). In SP mode bareground patch is 0
     integer  :: patchn           ! identification number for each patch. 
     real(r8) :: canopy_leaf_area ! total amount of leaf area in the vegetated area. m2.  
     real(r8) :: leaf_c           ! leaf carbon [kg]
@@ -1915,8 +1915,9 @@ contains
         currentPatch => sites(s)%oldest_patch
         c = fcolumn(s)
         do while(associated(currentPatch))
+          if(currentPatch%nocomp_pft_label.gt.0)then ! only set values for vegetated patches in fixed modes
            ifp = ifp+1
-
+         endif ! stay with ifp=0 for bareground patch. 
            if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
               write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
               currentPatch%total_canopy_area = currentPatch%area
@@ -1959,9 +1960,13 @@ contains
            ! In which case, the bare area would have to be reduced by the grass area...
            ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
            ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
-           
+           if(currentPatch%area.gt.0.0_r8)then
            bc_out(s)%canopy_fraction_pa(ifp) = &
                 min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
+           else
+           bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
+           endif
+
            if(isnan(bc_out(s)%canopy_fraction_pa(ifp)))then
                 write(fates_log(),*) 'nan canopy_fraction_pa in canopystructure:',ifp
                 call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1995,7 +2000,6 @@ contains
            else
               bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
            end if
-           
            currentPatch => currentPatch%younger
         end do
 
@@ -2018,8 +2022,14 @@ contains
            currentPatch => sites(s)%oldest_patch
            ifp = 0
            do while(associated(currentPatch))
+            if(.not.hlm_use_sp.or.currentPatch%nocomp_pft_label.gt.0)then
               ifp = ifp+1
               bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
+             else ! when it is both SP mode and the bareground patch
+              bc_out(s)%canopy_fraction_pa(ifp) =0.0_r8
+             endif ! veg patch
+
+
               currentPatch => currentPatch%younger
            end do
            
