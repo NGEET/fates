@@ -45,6 +45,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : bc_in_type
   use FatesInterfaceTypesMod    , only : hlm_days_per_year
   use FatesInterfaceTypesMod    , only : numpft
+  use FatesInterfaceTypesMod    , only : hlm_use_sp
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
   use FatesGlobals         , only : endrun => fates_endrun
@@ -1273,6 +1274,22 @@ contains
        patchno = patchno + 1
        currentPatch => currentPatch%younger
     enddo
+
+    if(hlm_use_sp)then
+      patchno = 1
+      currentPatch => currentSite%oldest_patch
+      do while(associated(currentPatch))
+        if(currentPatch%nocomp_pft_label.eq.0)then
+         ! for bareground patch, we make the patch number 0
+         ! we also do not count this in the veg. patch numbering scheme.
+          currentPatch%patchno = 0
+        else
+         currentPatch%patchno = patchno
+         patchno = patchno + 1
+        endif
+        currentPatch => currentPatch%younger
+       enddo
+    endif
 
   end subroutine set_patchno
 
