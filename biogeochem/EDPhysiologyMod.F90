@@ -2247,7 +2247,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     logical  :: use_century_tfunc = .false.
-    logical  :: use_hlm_scalar = .true.      ! Use hlm input decomp fraction scalars
+    logical  :: use_hlm_soil_scalar = .true. ! Use hlm input decomp fraction scalars
     integer  :: j
     integer  :: ifp                          ! Index of a FATES Patch "ifp"
     real(r8) :: t_scalar                     ! temperature scalar
@@ -2255,7 +2255,7 @@ contains
     real(r8) :: catanf                       ! hyperbolic temperature function from CENTURY
     real(r8) :: catanf_30                    ! hyperbolic temperature function from CENTURY
     real(r8) :: t1                           ! temperature argument
-    real(r8) :: i_decomp                     ! decomp layer index
+    !real(r8) :: i_decomp                     ! decomp layer index
     !----------------------------------------------------------------------
 
     catanf(t1) = 11.75_r8 +(29.7_r8 / pi) * atan( pi * 0.031_r8  * ( t1 - 15.4_r8 ))
@@ -2264,12 +2264,15 @@ contains
     ifp = currentPatch%patchno 
 
     ! Use the hlm temp and moisture decomp fractions by default
-    if ( use_hlm_scalar ) then
+    if ( use_hlm_soil_scalar ) then
       
-      i_decomp = 1                              ! Temporary hardcode
-      t_scalar = bc_in%t_scalar_sisl(i_decomp)
-      w_scalar = bc_in%w_scalar_sisl(i_decomp)
+      !i_decomp = 1                              ! Temporary hardcode
+      !t_scalar = bc_in%t_scalar_sisl(:)
+      !w_scalar = bc_in%w_scalar_sisl(:)
     
+      ! Calculate the fragmentation_scaler
+      currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,bc_in%t_scalar_sisl * bc_in%t_scalar_sisl))
+
     else
     
       if ( .not. use_century_tfunc ) then
@@ -2294,10 +2297,12 @@ contains
       !litter decomp is proportional to water limitation on average... 
       w_scalar = sum(currentPatch%btran_ft(1:numpft))/real(numpft,r8)
 
+    ! Calculate the fragmentation_scaler
+      allocate(currentPatch%fragmentation_scaler(size(bc_in%t_scalar_sisl)))
+      currentPatch%fragmentation_scaler(:) =  min(1.0_r8,max(0.0_r8,t_scalar * w_scalar))
+
    endif
    
-    ! Calculate the fragmentation_scaler
-    currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,t_scalar * w_scalar))
     
   end subroutine fragmentation_scaler
   
@@ -2316,7 +2321,7 @@ contains
     ! !ARGUMENTS    
     type(litter_type),intent(inout),target     :: litt
     
-    real(r8),intent(in)                        :: fragmentation_scaler
+    real(r8),intent(in)                        :: fragmentation_scaler(:)
 
     ! This is not necessarily every soil layer, this is the number
     ! of effective layers that are active and can be sent
@@ -2334,12 +2339,12 @@ contains
     do c = 1,ncwd  
 
        litt%ag_cwd_frag(c)   = litt%ag_cwd(c) * SF_val_max_decomp(c) * &
-             years_per_day * fragmentation_scaler
+             years_per_day * fragmentation_scaler(1)
        
        do ilyr = 1,nlev_eff_decomp
            
            litt%bg_cwd_frag(c,ilyr) = litt%bg_cwd(c,ilyr) * SF_val_max_decomp(c) * &
-                years_per_day * fragmentation_scaler
+                years_per_day * fragmentation_scaler(ilyr)
 
        enddo
     end do
@@ -2352,11 +2357,11 @@ contains
     do dcmpy = 1,ndcmpy
 
        litt%leaf_fines_frag(dcmpy) = litt%leaf_fines(dcmpy) * &
-             years_per_day * SF_val_max_decomp(dl_sf) * fragmentation_scaler
+             years_per_day * SF_val_max_decomp(dl_sf) * fragmentation_scaler(1)
        
        do ilyr = 1,nlev_eff_decomp
            litt%root_fines_frag(dcmpy,ilyr) = litt%root_fines(dcmpy,ilyr) * &
-                 years_per_day *  SF_val_max_decomp(dl_sf) * fragmentation_scaler
+                 years_per_day *  SF_val_max_decomp(dl_sf) * fragmentation_scaler(ilyr)
        end do
     enddo
 

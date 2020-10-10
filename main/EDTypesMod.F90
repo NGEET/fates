@@ -526,7 +526,7 @@ module EDTypesMod
 
      type(litter_type), pointer :: litter(:)  ! Litter (leaf,fnrt,CWD and seeds) for different elements
 
-     real(r8) :: fragmentation_scaler          ! Scale rate of litter fragmentation. 0 to 1.
+     real(r8),allocatable :: fragmentation_scaler(:)            ! Scale rate of litter fragmentation. 0 to 1.
 
      real(r8) ::  repro(maxpft)                                 ! allocation to reproduction per PFT : KgC/m2
 
