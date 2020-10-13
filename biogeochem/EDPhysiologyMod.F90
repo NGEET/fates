@@ -2255,7 +2255,6 @@ contains
     real(r8) :: catanf                       ! hyperbolic temperature function from CENTURY
     real(r8) :: catanf_30                    ! hyperbolic temperature function from CENTURY
     real(r8) :: t1                           ! temperature argument
-    !real(r8) :: i_decomp                     ! decomp layer index
     !----------------------------------------------------------------------
 
     catanf(t1) = 11.75_r8 +(29.7_r8 / pi) * atan( pi * 0.031_r8  * ( t1 - 15.4_r8 ))
@@ -2266,10 +2265,6 @@ contains
     ! Use the hlm temp and moisture decomp fractions by default
     if ( use_hlm_soil_scalar ) then
       
-      !i_decomp = 1                              ! Temporary hardcode
-      !t_scalar = bc_in%t_scalar_sisl(:)
-      !w_scalar = bc_in%w_scalar_sisl(:)
-    
       ! Calculate the fragmentation_scaler
       currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,bc_in%t_scalar_sisl * bc_in%t_scalar_sisl))
 
@@ -2333,7 +2328,6 @@ contains
     integer :: c
     integer :: ilyr
     integer :: dcmpy
-    integer :: numlevsoil
     !----------------------------------------------------------------------
 
     do c = 1,ncwd  
