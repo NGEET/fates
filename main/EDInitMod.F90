@@ -390,8 +390,8 @@ contains
      real(r8) :: biomass_stock
      real(r8) :: litter_stock
      real(r8) :: seed_stock
-     integer  :: n
-     integer  :: no_new_patches
+     integer  :: n ! counter for patches in nocomp mode
+     integer  :: num_new_patches ! nuber of new patches at coldstart.. Usually 1 but >1 in nocomp mode. 
      integer  :: nocomp_pft     
      real(r8) :: newparea
      real(r8) :: tota !check on area
@@ -441,14 +441,14 @@ contains
            ! have smaller spread factors than bare ground (they are crowded)
            sites(s)%spread     = init_spread_near_bare_ground
           if(hlm_use_nocomp.eq.itrue)then
-           no_new_patches = numpft
+           num_new_patches = numpft
 !           allocate(newppft(numpft))
           else
-           no_new_patches = 1
+           num_new_patches = 1
            newparea = area
           end if
-          is_first_patch = 1
-          do n = 1, no_new_patches
+          is_first_patch = itrue
+          do n = 1, num_new_patches
 
            ! set the PFT index for patches if in nocomp mode. 
            if(hlm_use_nocomp.eq.itrue)then
@@ -475,14 +475,14 @@ contains
 
               call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
              
-              if(is_first_patch.eq.1)then !is this the first patch?
+              if(is_first_patch.eq.itrue)then !is this the first patch?
                 ! set poointers for first patch (or only patch, if nocomp is false)
                 newp%patchno = 1
                 newp%younger => null()
                 newp%older   => null()
                 sites(s)%youngest_patch => newp
                 sites(s)%oldest_patch   => newp
-                is_first_patch = 0
+                is_first_patch = ifalse
               else ! the new patch is the 'oldest' one, arbitrarily. 
                 ! Set pointers for N>1 patches. Note this only happens when nocomp mode s on. 
                 ! The new patch is the 'youngest' one, arbitrarily.
@@ -521,11 +521,11 @@ contains
          end do
          if(abs(tota-area).gt.nearzero)then
              write(*,*) 'error in assigning areas in init patch',s,tota-area
+             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif 
 
           ! For carbon balance checks, we need to initialize the 
           ! total carbon stock
-         write(*,*) 'calling sitemassstock',s
           do el=1,num_elements
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                    biomass_stock,litter_stock,seed_stock)
