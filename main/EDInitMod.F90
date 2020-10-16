@@ -320,27 +320,21 @@ contains
                end do
             end do !hlm_pft
 
-           ! re-normalize PFT area to ensure it sums to one.
-           ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM) 
-           ! the bare ground will no longer be proscribed and should emerge from FATES
-
             do ft =  1,numpft
               if(sites(s)%area_pft(ft).lt.0.01_r8)then
-                 sites(s)%area_pft(ft)=0.0_r8 !remove tiny patches to prevent numerical errors in terminate patches
-               write(*,*) 'removing small pft patches',sites(s)%lon,sites(s)%lat,ft,sites(s)%area_pft(ft)
+                 sites(s)%area_pft(ft) = 0.0_r8 !remove tiny patches to prevent numerical errors in terminate patches
+               write(fates_log(),*) 'removing small pft patches',sites(s)%lon,sites(s)%lat,ft,sites(s)%area_pft(ft)
               endif
             end do
 
+           ! re-normalize PFT area to ensure it sums to one after removal of small patches.
            sumarea = sum(sites(s)%area_pft(1:numpft))
            do ft =  1,numpft
-             if(sumarea.gt.0._r8)then
+             if(sumarea.gt.0._r8)then ! this doesn't need to happen if the sumarea is 0
                sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
-             else
-               sites(s)%area_pft(ft)= 1.0_r8/numpft
-               write(*,*) 'setting totally bare patch to all pfts.',s,sumarea,sites(s)%area_pft(ft)
-            end if
-          end do !ft
-          end if
+             end if
+           end do !ft
+          end if ! fixed biogeog
 
           do ft = 1,numpft
            sites(s)%use_this_pft(ft) = itrue
