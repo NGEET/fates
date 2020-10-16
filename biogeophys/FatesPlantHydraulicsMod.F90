@@ -94,8 +94,6 @@ module FatesPlantHydraulicsMod
   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
 
-  use clm_time_manager  , only : get_step_size, get_nstep
-
   use EDPftvarcon, only : EDPftvarcon_inst
   use PRTParametersMod, only : prt_params
 
@@ -1462,10 +1460,6 @@ contains
     type(ed_site_hydr_type), pointer :: csite_hydr
     integer :: s
     real(r8) :: balive_patch
-    integer :: nstep !number of time steps
-
-    !for debug only
-    nstep = get_nstep()
 
     do s = 1,nsites
        bc_out(s)%plant_stored_h2o_si = 0.0_r8
@@ -4565,10 +4559,6 @@ contains
               dftc_dpsi_node => site_hydr%dftc_dpsi_node, &
               ft           => cohort%pft)
 
-
-      !for debug only
-      nstep = get_nstep()
-      
 
       ! This NaN's the scratch arrays
       call site_hydr%FlushSiteScratch()

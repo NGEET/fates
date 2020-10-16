@@ -647,9 +647,6 @@ contains
       
       if (use_fates) then
          
-         ! first read the non-PFT parameters
-         call FatesReadParameters()
-
          ! Identify the number of PFTs by evaluating a pft array
          ! Using wood density as that is not expected to be deprecated any time soon
 
