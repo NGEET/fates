@@ -636,6 +636,7 @@ contains
                                       ! to compensate (otherwise runs are very hard to compare)
                                       ! this multiplies it by the number of PFTs there would have been in
                                       ! the single shared patch in competition mode.          
+                                      ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
           temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
        endif
 
