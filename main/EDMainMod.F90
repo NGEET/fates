@@ -30,7 +30,7 @@ module EDMainMod
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use PRTGenericMod            , only : nitrogen_element
   use PRTGenericMod            , only : phosphorus_element
->>>>>>> origin
+
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
