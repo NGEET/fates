@@ -25,10 +25,12 @@ module PRTGenericMod
   use FatesConstantsMod, only : i4 => fates_int
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : calloc_abs_error
+  use FatesConstantsMod, only : years_per_day
+  use FatesConstantsMod, only : days_per_sec
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log 
   use shr_log_mod      , only : errMsg => shr_log_errMsg
- 
+  use PRTParametersMod , only : prt_params
   
   implicit none
   private ! Modules are private by default
@@ -139,6 +141,12 @@ module PRTGenericMod
   integer, parameter, dimension(3), public :: carbon_elements_list   = &
        [carbon12_element, carbon13_element, carbon14_element]
 
+
+
+  ! This is the maximum number of leaf age pools allowed on each plant
+  ! (used for allocating scratch space)
+  integer, parameter, public :: max_nleafage = 4
+
   
   ! -------------------------------------------------------------------------------------
   !
@@ -167,7 +175,7 @@ module PRTGenericMod
 
   type, public :: prt_vartype
      
-     real(r8),allocatable :: val(:)       ! Instantaneous state variable           [kg]
+     real(r8),pointer :: val(:)       ! Instantaneous state variable           [kg]
      real(r8),allocatable :: val0(:)      ! State variable at the beginning 
                                           ! of the control period                  [kg]
      real(r8),allocatable :: net_alloc(:)   ! Net change due to allocation/transport [kg]
@@ -253,10 +261,27 @@ module PRTGenericMod
      procedure, non_overridable :: DeallocatePRTVartypes
      procedure, non_overridable :: WeightedFusePRTVartypes
      procedure, non_overridable :: CopyPRTVartypes
+
+     procedure :: AgeLeaves  ! This routine may be used generically
+                             ! but also leaving the door open for over-rides
+     
+
+     
   end type prt_vartypes
 
+  
+  ! Global identifiers for which elements we are using (apply mostly to litter)
 
+  integer, public              :: num_elements          ! This is the number of elements in this simulation
+                                                        ! e.g. (C,N,P,K, etc)
+  integer, allocatable, public :: element_list(:)       ! This vector holds the list of global element identifiers
+                                                        ! examples are carbon12_element
+                                                        ! nitrogen_element, etc.
 
+  integer, public :: element_pos(num_organ_types)       ! This is the reverse lookup
+                                                        ! for element types. Pick an element
+                                                        ! global index, and it gives you
+                                                        ! the position in the element_list
 
   ! -------------------------------------------------------------------------------------
   ! This next section contains the objects that describe the mapping for each specific
@@ -1294,5 +1319,71 @@ contains
 
    ! ====================================================================================
 
+   subroutine AgeLeaves(this,ipft,period_sec)
+
+     ! -----------------------------------------------------------------------------------
+     ! If we have more than one leaf age classification, allow
+     ! some leaf biomass to transition to the older classes.
+     ! It is assumed this routine is called once per day.
+     ! Note that there is NO turnover or loss of mass on the plant in this routine.
+     ! We are simply moving portions of leaves from a young bin to the next older, but
+     ! we are not moving any mass out of the last (oldest) bin.
+     ! -----------------------------------------------------------------------------------
+
+     class(prt_vartypes)              :: this
+     integer,intent(in)               :: ipft
+     real(r8),intent(in)              :: period_sec  ! Time period over which this routine
+                                                     ! is called [seconds] daily=86400
+     integer                          :: nleafage
+     integer                          :: i_age
+     integer                          :: i_var
+     integer                          :: el
+     integer                          :: element_id
+     real(r8)                         :: leaf_age_flux_frac
+     real(r8),dimension(max_nleafage) :: leaf_m0
+
+
+     do el = 1, num_elements
+
+        element_id = element_list(el)
+
+        ! Global position of leaf variable
+        i_var = prt_global%sp_organ_map(leaf_organ,element_id)
+
+        ! Size of the leaf carbon variable (number of age bins)
+        nleafage = prt_global%state_descriptor(i_var)%num_pos ! Number of leaf age class
+
+        associate(leaf_m => this%variables(i_var)%val(:))
+          
+          leaf_m0(1:nleafage) = leaf_m(1:nleafage)
+          
+          if(nleafage>1) then
+             do i_age = 1,nleafage-1
+                if (prt_params%leaf_long(ipft,i_age)>nearzero) then
+
+                   ! Units: [-] = [sec] * [day/sec] * [years/day] * [1/years]
+                   leaf_age_flux_frac = period_sec * days_per_sec * years_per_day / prt_params%leaf_long(ipft,i_age)
+                   
+                   leaf_m(i_age)    = leaf_m(i_age)   - leaf_m0(i_age) * leaf_age_flux_frac
+                   leaf_m(i_age+1)  = leaf_m(i_age+1) + leaf_m0(i_age) * leaf_age_flux_frac
+                   
+                end if
+             end do
+          end if
+
+          
+          ! Update the diagnostic on daily rate of change
+          do i_age = 1,nleafage
+             this%variables(i_var)%net_alloc(i_age) = &
+                  this%variables(i_var)%net_alloc(i_age) + &
+                  (leaf_m(i_age) - leaf_m0(i_age))
+          end do
+
+
+        end associate
+     end do
+     
+ end subroutine AgeLeaves
+   
 
 end module PRTGenericMod

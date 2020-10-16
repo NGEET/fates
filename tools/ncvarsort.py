@@ -41,7 +41,6 @@ def main():
     (u'fates_pft', u'fates_string_length'):4,
     (u'fates_prt_organs', u'fates_string_length'):5,
     (u'fates_pft',):6,
-    (u'fates_variants', u'fates_pft'):6,
     (u'fates_hydr_organs', u'fates_pft'):6,
     (u'fates_leafage_class', u'fates_pft'):6,
     (u'fates_prt_organs', u'fates_pft'):6,
@@ -50,7 +49,7 @@ def main():
     ():9}
     #
     # go through each of the variables and assign it to one of the sub-lists based on its dimensionality
-    for v_name, varin in dsin.variables.iteritems():
+    for v_name, varin in dsin.variables.items():
         sortorder = dimtype_sortorder_dict[varin.dimensions]
         # if a KeyError, it means that the parameter has a dimension which isn't in dimtype_sortorder_dict. need to add it.
         varnames_list[sortorder].append(v_name)
@@ -78,11 +77,11 @@ def main():
     dsout = nc.Dataset(args.fnameout,  "w")
     #
     #Copy dimensions
-    for dname, the_dim in dsin.dimensions.iteritems():
-        print dname, the_dim.size
+    for dname, the_dim in dsin.dimensions.items():
+        print(dname, the_dim.size)
         dsout.createDimension(dname, the_dim.size )
     #
-    print
+    print()
     #
     try:
         dsout.history = dsin.history
@@ -96,7 +95,7 @@ def main():
         v_name = varnames_list_sorted[i]
         varin = dsin.variables[v_name]
         outVar = dsout.createVariable(v_name, varin.datatype, varin.dimensions)
-        print v_name
+        print(v_name)
         #
         outVar.setncatts({k: varin.getncattr(k) for k in varin.ncattrs()})
         outVar[:] = varin[:]
