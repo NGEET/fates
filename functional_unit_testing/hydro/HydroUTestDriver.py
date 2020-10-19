@@ -191,7 +191,7 @@ def main(argv):
 #    avuln   = [2.0, 2.0, 2.5, 2.5]
 #    p50     = [-1.5, -1.5, -2.25, -2.25]
 
-    ncomp= 3
+    ncomp= 4
 
     rwc_fd  = [1.0,0.958,0.958,0.958]
     rwccap  = [1.0,0.947,0.947,0.947]
@@ -227,80 +227,105 @@ def main(argv):
 #    cch_wrf(3,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
 #    tfs_wkf(3,p50=-2.25, avuln=2.0)
 
-    names=['Soil','ARoot','Leaf']
+    names=['Soil','ARoot','Stem','Leaf']
 
-    # Absorving root
-    tfs_wrf(2,th_sat=0.75,th_res=0.15,pinot=-1.043478, \
+    theta_sat = [0.55,0.65,0.65,0.75]
+    theta_res = [0.15,0.16,0.21,0.11]
+
+    # Absorbing root
+    tfs_wrf(2,th_sat=theta_sat[1],th_res=theta_res[1],pinot=-1.043478, \
             epsil=8,rwc_fd=rwc_fd[3],cap_corr=cap_corr[3], \
             cap_int=cap_int[3],cap_slp=cap_slp[3],pmedia=4)
     tfs_wkf(2,p50=-2.25, avuln=2.0)
 
+    # Stem
+    tfs_wrf(3,th_sat=theta_sat[2],th_res=theta_res[2],pinot=-1.22807, \
+            epsil=10,rwc_fd=rwc_fd[2],cap_corr=cap_corr[2], \
+            cap_int=cap_int[2],cap_slp=cap_slp[2],pmedia=2)
+    tfs_wkf(3,p50=-2.25, avuln=4.0)
+
     # Leaf
-    tfs_wrf(3,th_sat=0.65,th_res=0.25,pinot=-1.47, \
+    tfs_wrf(4,th_sat=theta_sat[3],th_res=theta_res[3],pinot=-1.465984, \
             epsil=12,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
             cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1)
-    tfs_wkf(3,p50=-2.25, avuln=2.0)
+    tfs_wkf(4,p50=-2.25, avuln=2.0)
 
     print('initialized WRF')
 
-    theta = np.linspace(0.10, 0.7, num=npts)
-    psi   = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
-    dpsidth = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
-    cdpsidth = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
+#    theta = np.linspace(0.10, 0.7, num=npts)
+
+    theta = np.full(shape=(ncomp,npts),dtype=np.float64,fill_value=np.nan)
+    psi   = np.full(shape=(ncomp,npts),dtype=np.float64,fill_value=np.nan)
+    dpsidth = np.full(shape=(ncomp,npts),dtype=np.float64,fill_value=np.nan)
+    cdpsidth = np.full(shape=(ncomp,npts),dtype=np.float64,fill_value=np.nan)
+
+
 
     for ic in range(ncomp):
-        for i,th in enumerate(theta):
-            psi[ic,i] = psi_from_th(ci(ic+1),c8(th))
+        theta[ic,:] = np.linspace(theta_res[ic], 1.2*theta_sat[ic], num=npts)
+        for i in range(npts):
+            psi[ic,i] = psi_from_th(ci(ic+1),c8(theta[ic,i]))
 
 
     # Theta vs psi plots
 
     fig0, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
-        ax1.plot(theta,psi[ic,:],label='{}'.format(names[ic]))
+        ax1.plot(theta[ic,:],psi[ic,:],label='{}'.format(names[ic]))
 
-    ax1.set_ylim((-30,5))
-    ax1.set_ylabel('Matric Potential [MPa]')
+    ax1.set_ylim((-10,1))
+    ax1.set_ylabel('Psi [MPa]')
     ax1.set_xlabel('VWC [m3/m3]')
     ax1.legend(loc='lower right')
 
     for ic in range(ncomp):
-        for i in range(1,len(theta)-1):
-            dpsidth[ic,i]  = dpsidth_from_th(ci(ic+1),c8(theta[i]))
-            cdpsidth[ic,i] = (psi[ic,i+1]-psi[ic,i-1])/(theta[i+1]-theta[i-1])
-
+        for i in range(npts):
+            dpsidth[ic,i]  = dpsidth_from_th(ci(ic+1),c8(theta[ic,i]))
+        for i in range(1,npts-1):
+            cdpsidth[ic,i] = (psi[ic,i+1]-psi[ic,i-1])/(theta[ic,i+1]-theta[ic,i-1])
 
     # Theta vs dpsi_dth (also checks deriv versus explicit)
 
     fig1, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
-        ax1.plot(theta,dpsidth[0,:],label='func')
-        ax1.plot(theta,cdpsidth[0,:],label='check')
-    ax1.set_ylim((0,1000))
+        ax1.plot(theta[ic,],dpsidth[ic,],label='func')
+        ax1.plot(theta[ic,],cdpsidth[ic,],label='check')
+    #ax1.set_ylim((0,1000))
 
     ax1.set_ylabel('dPSI/dTh [MPa m3 m-3]')
     ax1.set_xlabel('VWC [m3/m3]')
     ax1.legend(loc='upper right')
 
+    fig11, ax1 = plt.subplots(1,1,figsize=(9,6))
+    for ic in range(ncomp):
+        ax1.plot(theta[ic,],1.0/dpsidth[ic,],label='{}'.format(names[ic]))
+
+    ax1.set_ylabel('dTh/dPSI/ [m3 m-3 MPa-1]')
+    ax1.set_xlabel('VWC [m3/m3]')
+    ax1.legend(loc='upper right')
+
+
     # Push parameters to WKF classes
     # -------------------------------------------------------------------------
     # Generic VGs
 
-    ftc   = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
-    dftcdpsi = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
-    cdftcdpsi = np.full(shape=(ncomp,len(theta)),dtype=np.float64,fill_value=np.nan)
+    ftc   = np.full(shape=(ncomp,npts),dtype=np.float64,fill_value=np.nan)
+    dftcdpsi = np.full(shape=(ncomp,npts),dtype=np.float64,fill_value=np.nan)
+    cdftcdpsi = np.full(shape=(ncomp,npts),dtype=np.float64,fill_value=np.nan)
 
     for ic in range(ncomp):
-        for i in range(0,len(theta)):
+        for i in range(npts):
             ftc[ic,i] = ftc_from_psi(ci(ic+1),c8(psi[ic,i]))
 
+            if( (ftc[ic,i]>0.9) and (theta[ic,i]<0.4) ):
+                print('tpf: ',theta[ic,i],psi[ic,i],ftc[ic,i])
+
     for ic in range(ncomp):
-        for i in range(1,len(theta)-1):
+        for i in range(npts):
             dftcdpsi[ic,i]  = dftcdpsi_from_psi(ci(ic+1),c8(psi[ic,i]))
+        for i in range(1,npts-1):
             cdftcdpsi[ic,i] = (ftc[ic,i+1]-ftc[ic,i-1])/(psi[ic,i+1]-psi[ic,i-1])
 
-
-    # FTC versus Psi
 
     fig2, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
@@ -308,30 +333,32 @@ def main(argv):
 
     ax1.set_ylabel('FTC')
     ax1.set_xlabel('Psi [MPa]')
-    ax1.set_xlim([-5,0])
-    ax1.legend(loc='upper right')
+    ax1.set_xlim([-10,3])
+
+    ax1.legend(loc='upper left')
 
 
     # FTC versus theta
 
     fig4, ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
-        ax1.plot(theta,ftc[ic,:],label='{}'.format(names[ic]))
+        ax1.plot(theta[ic,:],ftc[ic,:],label='{}'.format(names[ic]))
 
     ax1.set_ylabel('FTC')
     ax1.set_xlabel('Theta [m3/m3]')
-    ax1.legend(loc='lower right')
+    ax1.legend(loc='upper left')
 
     # dFTC/dPSI
 
     fig3,ax1 = plt.subplots(1,1,figsize=(9,6))
     for ic in range(ncomp):
 #        ax1.plot(psi[ic,:],abs(dftcdpsi[ic,:]-cdftcdpsi[ic,:])/abs(cdftcdpsi[ic,:]),label='{}'.format(ic))
-        ax1.plot(psi[ic,:],cdftcdpsi[ic,:],label='check')
+        ax1.plot(psi[ic,:],dftcdpsi[ic,:],label='{}'.format(names[ic]))
 
     ax1.set_ylabel('dFTC/dPSI')
     ax1.set_xlabel('Psi [MPa]')
-#    ax1.set_xlim([-30,3])
+    ax1.set_xlim([-10,3])
+    ax1.set_ylim([0,2])
 #    ax1.set_ylim([0,10])
     ax1.legend(loc='upper right')
     plt.show()

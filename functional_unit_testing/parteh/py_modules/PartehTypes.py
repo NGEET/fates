@@ -16,45 +16,26 @@ import time
 os.environ['TZ'] = 'UTC'
 time.tzset()
 
-time_precision = 1.0e-10  # Acceptable time error for the 
+time_precision = 1.0e-10  # Acceptable time error for the
                           # adaptive time-stepper
 
-class param_type:
+
+# The following class holds the parameters that define how this unit testing framework
+# will be conducted. These do not hold the PFT type parameters found in the FATES-PARTEH
+# fortran code.
+
+
+# These unit tests need to be able to provide and external boundary
+# condition to the plants. Most of the PFT level information on these plants is provided
+# in the standard FATES parameter file. However, some information that is specific to the driver
+# is not available.
+
+class driver_param_type:
 
     def __init__(self):
 
-        # Initialize the list of parameters
-
-        self.hypothesis = ""
-
-        self.boundary_method = ""
-
-        # These are passed to the PARTEH Fortran code
-        # This is a list
-        self.parteh_pfts = []
-
-        # This is a list of the organ names
-        # These names must be consistent
-        # with the indices provided in the parameter file
-        # and that those indices should match the global
-        # indices in PRTGenericMod.F90
-        self.parteh_organs = []
-
-        # These are used in the boundary conditions
-        self.boundary_pfts = []
-
-        # Save the number of pfts (as a convencience)
-        self.numpfts = -9
-        
-        # Add other parameter groups as we go
-
-class pft_type:
-
-    def __init__(self,pft_name):
-
         # Initialize a dictionary of parameters for any pft
-        self.name      = pft_name
-        self.param_dic = {}
+        self.param_vals = []
 
 
 class diagnostics_type:
@@ -68,19 +49,19 @@ class diagnostics_type:
         self.fnrt_c   = []
         self.sapw_c   = []
         self.store_c  = []
-        self.struct_c = [] 
+        self.struct_c = []
         self.repro_c  = []
         self.leaf_cturn   = []
         self.fnrt_cturn   = []
         self.sapw_cturn   = []
         self.store_cturn  = []
         self.struct_cturn = []
-        
+
         self.leaf_n   = []
         self.fnrt_n   = []
         self.sapw_n   = []
         self.store_n  = []
-        self.struct_n = [] 
+        self.struct_n = []
         self.repro_n  = []
         self.leaf_nturn   = []
         self.fnrt_nturn   = []
@@ -92,7 +73,7 @@ class diagnostics_type:
         self.fnrt_p   = []
         self.sapw_p   = []
         self.store_p  = []
-        self.struct_p = [] 
+        self.struct_p = []
         self.repro_p  = []
         self.leaf_pturn   = []
         self.fnrt_pturn   = []
@@ -139,11 +120,11 @@ class timetype:
         self.datetime       = self.datetime_start
         self.dt_fullstep    = float(timestep_str)
         self.sim_complete   = False
-   
+
         # Maximum allowable truncation error on iterator
         self.max_err        = float(max_trunc_err_str)
-        
-        
+
+
         # Timing for the integrator
         # -------------------------------------------------------------------------------
         self.id_substep  = 0
@@ -163,7 +144,7 @@ class timetype:
         self.datetime += np.timedelta64(int(self.dt_fullstep),'s')
         if(self.datetime >= self.datetime_stop):
             self.sim_complete = True
-            
+
     def CheckFullStepTime(self,targettime):
         if(np.abs(self.datetime-targettime)>time_precision):
             print('The adaptive time-stepper finished')
@@ -175,10 +156,8 @@ class timetype:
             exit(2)
         else:
             self.datetime = targettime
-            
+
 
 
     def UpdatePartialTime(self,dt_seconds):
         self.datetime += np.timedelta64(int(dt_seconds),'s')
-
-        
