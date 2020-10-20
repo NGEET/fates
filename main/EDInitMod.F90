@@ -4,31 +4,32 @@ module EDInitMod
   ! Contains all modules to set up the ED structure. 
   ! ============================================================================
 
-  use FatesConstantsMod         , only : r8 => fates_r8
-  use FatesConstantsMod         , only : ifalse
-  use FatesConstantsMod         , only : itrue
-  use FatesConstantsMod         , only : fates_unset_int
-  use FatesConstantsMod         , only : primaryforest
-  use FatesGlobals              , only : endrun => fates_endrun
-  use EDTypesMod                , only : nclmax
-  use FatesGlobals              , only : fates_log
-  use FatesInterfaceTypesMod         , only : hlm_is_restart
-  use EDPftvarcon               , only : EDPftvarcon_inst
-  use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
-  use EDCohortDynamicsMod       , only : InitPRTObject
-  use EDPatchDynamicsMod        , only : create_patch
-  use ChecksBalancesMod         , only : SiteMassStock
-  use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod                , only : numWaterMem
-  use EDTypesMod                , only : num_vegtemp_mem
-  use EDTypesMod                , only : maxpft
-  use EDTypesMod                , only : AREA
-  use EDTypesMod                , only : init_spread_near_bare_ground
-  use EDTypesMod                , only : init_spread_inventory
+  use FatesConstantsMod      , only : r8 => fates_r8
+  use FatesConstantsMod      , only : ifalse
+  use FatesConstantsMod      , only : itrue
+  use FatesConstantsMod      , only : fates_unset_int
+  use FatesConstantsMod      , only : primaryforest
+  use FatesGlobals           , only : endrun => fates_endrun
+  use EDTypesMod             , only : nclmax
+  use FatesGlobals           , only : fates_log
+  use FatesInterfaceTypesMod , only : hlm_is_restart
+  use EDPftvarcon            , only : EDPftvarcon_inst
+  use PRTParametersMod       , only : prt_params
+  use EDCohortDynamicsMod    , only : create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod    , only : InitPRTObject
+  use EDPatchDynamicsMod     , only : create_patch
+  use ChecksBalancesMod      , only : SiteMassStock
+  use EDTypesMod             , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod             , only : numWaterMem
+  use EDTypesMod             , only : num_vegtemp_mem
+  use EDTypesMod             , only : maxpft
+  use EDTypesMod             , only : AREA
+  use EDTypesMod             , only : init_spread_near_bare_ground
+  use EDTypesMod             , only : init_spread_inventory
   use EDTypesMod             , only : leaves_on
   use EDTypesMod             , only : leaves_off
-  use EDTypesMod             , only : num_elements
-  use EDTypesMod             , only : element_list
+  use PRTGenericMod          , only : num_elements
+  use PRTGenericMod          , only : element_list
   use EDTypesMod             , only : phen_cstat_nevercold
   use EDTypesMod             , only : phen_cstat_iscold
   use EDTypesMod             , only : phen_dstat_timeoff
@@ -52,21 +53,20 @@ module EDInitMod
   use FatesAllometryMod      , only : bsap_allom
   use FatesAllometryMod      , only : bdead_allom
   use FatesAllometryMod      , only : bstore_allom
-
-  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
-  use PRTGenericMod,          only : prt_carbon_allom_hyp
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
-  use PRTGenericMod,          only : prt_vartypes
-  use PRTGenericMod,          only : leaf_organ
-  use PRTGenericMod,          only : fnrt_organ
-  use PRTGenericMod,          only : sapw_organ
-  use PRTGenericMod,          only : store_organ
-  use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : repro_organ
-  use PRTGenericMod,          only : carbon12_element
-  use PRTGenericMod,          only : nitrogen_element
-  use PRTGenericMod,          only : phosphorus_element
-  use PRTGenericMod,          only : SetState
+  use FatesInterfaceTypesMod , only : hlm_parteh_mode
+  use PRTGenericMod          , only : prt_carbon_allom_hyp
+  use PRTGenericMod          , only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod          , only : prt_vartypes
+  use PRTGenericMod          , only : leaf_organ
+  use PRTGenericMod          , only : fnrt_organ
+  use PRTGenericMod          , only : sapw_organ
+  use PRTGenericMod          , only : store_organ
+  use PRTGenericMod          , only : struct_organ
+  use PRTGenericMod          , only : repro_organ
+  use PRTGenericMod          , only : carbon12_element
+  use PRTGenericMod          , only : nitrogen_element
+  use PRTGenericMod          , only : phosphorus_element
+  use PRTGenericMod          , only : SetState
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -131,6 +131,10 @@ contains
     do el=1,num_elements
         allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
+        allocate(site_in%flux_diags(el)%nutrient_efflux_scpf(nlevsclass*numpft))
+        allocate(site_in%flux_diags(el)%nutrient_uptake_scpf(nlevsclass*numpft))
+        allocate(site_in%flux_diags(el)%nutrient_needgrow_scpf(nlevsclass*numpft))
+        allocate(site_in%flux_diags(el)%nutrient_needmax_scpf(nlevsclass*numpft))
     end do
 
     ! Initialize the static soil 
@@ -533,8 +537,9 @@ contains
        
        stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
        
-       if( EDPftvarcon_inst%season_decid(pft) == itrue .and. &
+       if( prt_params%season_decid(pft) == itrue .and. &
             any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
+          
          temp_cohort%laimemory = c_leaf
          temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
          temp_cohort%structmemory = c_struct * stem_drop_fraction
@@ -544,7 +549,7 @@ contains
          cstatus = leaves_off
        endif
 
-       if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. &
+       if ( prt_params%stress_decid(pft) == itrue .and. &
             any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
           temp_cohort%laimemory = c_leaf
           temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
@@ -585,26 +590,26 @@ contains
              
           case(nitrogen_element)
              
-             m_struct = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*EDPftvarcon_inst%prt_nitr_stoich_p2(pft,store_organ)
+             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,struct_organ)
+             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,leaf_organ)
+             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,fnrt_organ)
+             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,sapw_organ)
+             m_store  = c_store*prt_params%nitr_stoich_p2(pft,store_organ)
              m_repro  = 0._r8
              
           case(phosphorus_element)
 
-             m_struct = c_struct*EDPftvarcon_inst%prt_phos_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*EDPftvarcon_inst%prt_phos_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*EDPftvarcon_inst%prt_phos_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*EDPftvarcon_inst%prt_phos_stoich_p2(pft,store_organ)
+             m_struct = c_struct*prt_params%phos_stoich_p2(pft,struct_organ)
+             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,leaf_organ)
+             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,fnrt_organ)
+             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,sapw_organ)
+             m_store  = c_store*prt_params%phos_stoich_p2(pft,store_organ)
              m_repro  = 0._r8
           end select
 
           select case(hlm_parteh_mode)
           case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
-             
+
              ! Put all of the leaf mass into the first bin
              call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
              do iage = 2,nleafage

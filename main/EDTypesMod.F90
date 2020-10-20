@@ -10,6 +10,9 @@ module EDTypesMod
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,         only : all_carbon_elements
+  use PRTGenericMod,         only : num_organ_types
+  use PRTGenericMod,         only : num_elements
+  use PRTGenericMod,         only : element_list
   use PRTGenericMod,         only : num_element_types
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod,        only : ncwd
@@ -37,8 +40,7 @@ module EDTypesMod
                                                           ! are used, but this helps allocate scratch
                                                           ! space and output arrays.
                                                   
-  integer, parameter, public :: max_nleafage = 4          ! This is the maximum number of leaf age pools, 
-                                                          ! used for allocating scratch space
+  
 
 
   ! -------------------------------------------------------------------------------------
@@ -178,20 +180,15 @@ module EDTypesMod
   logical, parameter, public :: homogenize_seed_pfts  = .false.
 
   
+  ! Global identifier of how nutrients interact with the host land model
+  ! either they are fully coupled, or they generate uptake rates synthetically
+  ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
+  ! BGC N and P pools, and there is also none removed.
 
-  ! Global identifiers for which elements we are using (apply mostly to litter)
-
-  integer, public              :: num_elements          ! This is the number of elements in this simulation
-                                                        ! e.g. (C,N,P,K, etc)
-  integer, allocatable, public :: element_list(:)       ! This vector holds the element ids that are found
-                                                        ! in PRTGenericMod.F90. examples are carbon12_element
-                                                        ! nitrogen_element, etc.
-
-  integer, public :: element_pos(num_element_types)       ! This is the reverse lookup
-                                                        ! for element types. Pick an element
-                                                        ! global index, and it gives you
-                                                        ! the position in the element_list
-
+  integer, public :: n_uptake_mode
+  integer, public :: p_uptake_mode
+  
+  
   !************************************
   !** COHORT type structure          **
   !************************************
@@ -283,7 +280,31 @@ module EDTypesMod
      real(r8) ::  c13disc_clm         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/timestep
      real(r8) ::  c13disc_acc         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/day, at the end of a day
 
+     ! Nutrient Fluxes (if N, P, etc. are turned on)
 
+     real(r8) :: daily_n_uptake   ! integrated daily uptake of mineralized N through competitive acquisition in soil [kg N / plant/ day]
+     real(r8) :: daily_p_uptake   ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
+
+     real(r8) :: daily_c_efflux   ! daily mean efflux of excess carbon from roots into labile pool [kg C/plant/day]
+     real(r8) :: daily_n_efflux   ! daily mean efflux of excess nitrogen from roots into labile pool [kg N/plant/day]
+     real(r8) :: daily_p_efflux   ! daily mean efflux of excess phophorus from roots into labile pool [kg P/plant/day]
+
+     real(r8) :: daily_n_need1  ! Nitrogen needed to enable non-limited C growth (AllometricCNP hypothesis)
+     real(r8) :: daily_n_need2  ! Nitrogen needed to bring N concentrations up to optimal
+     real(r8) :: daily_p_need1  ! Phosphorus needed to enable non-limited C growth (AllometricCNP hypothesis)
+     real(r8) :: daily_p_need2  ! Phosphorus needed to bring P concentrations up to optimal
+
+     ! These two variables may use the previous "need" variables, by applying a smoothing function.
+     ! Or, its possible that the plant will use another method to calculate this, perhaps based
+     ! on storage.
+     ! These variables are used in two scenarios. 1) They work with the prescribed uptake fraction
+     ! in un-coupled mode, and 2) They are the plant's demand subbmitted to the Relative-Demand
+     ! type soil BGC scheme.
+     
+     real(r8) :: daily_n_demand ! The daily amount of N demanded by the plant [kgN]
+     real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN]
+
+     
      ! The following four biophysical rates are assumed to be
      ! at the canopy top, at reference temp 25C, and based on the 
      ! leaf age weighted average of the PFT parameterized values. The last
@@ -305,8 +326,13 @@ module EDTypesMod
 
      ! RESPIRATION COMPONENTS
      real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
-     real(r8) ::  resp_g                                 ! Growth respiration:  kgC/indiv/timestep
+
+     real(r8) ::  resp_g_tstep                           ! Growth respiration:  kgC/indiv/timestep
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
+     real(r8) ::  resp_m_def                             ! Optional: (NOT IMPLEMENTED YET)
+                                                         ! It may be possible to not respire at desired rate
+                                                         ! because of low carbon stores, and thus build
+                                                         ! up a deficit. This tracks that deficit. kgC/indiv
      real(r8) ::  livestem_mr                            ! Live stem        maintenance respiration: kgC/indiv/s
                                                          ! (Above ground)
      real(r8) ::  livecroot_mr                           ! Live stem        maintenance respiration: kgC/indiv/s
@@ -573,6 +599,11 @@ module EDTypesMod
      real(r8) :: cwd_bg_input(1:ncwd)               
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
+
+     real(r8),allocatable :: nutrient_uptake_scpf(:)
+     real(r8),allocatable :: nutrient_efflux_scpf(:)
+     real(r8),allocatable :: nutrient_needgrow_scpf(:)
+     real(r8),allocatable :: nutrient_needmax_scpf(:)
      
    contains
 
@@ -726,6 +757,13 @@ module EDTypesMod
                                               ! NOTE: THIS SCRATCH SPACE WOULD NOT BE THREAD-SAFE
                                               ! IF WE FORK ON PATCHES
 
+
+     ! Mineralized nutrient flux from veg to the soil, via multiple mechanisms
+     ! inluding symbiotic fixation, or other 
+
+     !real(r8) :: allocatable :: minn_flux_out  ! kg/ha/day
+     !real(r8) :: allocatable :: minp_flux_out  ! kg/ha/day
+
      
      ! DIAGNOSTICS
 
@@ -800,6 +838,10 @@ module EDTypesMod
       this%cwd_bg_input(:)      = 0._r8
       this%leaf_litter_input(:) = 0._r8
       this%root_litter_input(:) = 0._r8
+      this%nutrient_uptake_scpf(:) = 0._r8
+      this%nutrient_efflux_scpf(:) = 0._r8
+      this%nutrient_needgrow_scpf(:) = 0._r8
+      this%nutrient_needmax_scpf(:)  = 0._r8
       
       return
     end subroutine ZeroFluxDiags
@@ -1022,7 +1064,8 @@ module EDTypesMod
      write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
-     write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g
+     write(fates_log(),*) 'co%resp_m_def             = ', ccohort%resp_m_def
+     write(fates_log(),*) 'co%resp_g_tstep           = ', ccohort%resp_g_tstep
      write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr
      write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr
      write(fates_log(),*) 'co%froot_mr               = ', ccohort%froot_mr

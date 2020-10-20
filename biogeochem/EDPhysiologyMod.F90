@@ -15,13 +15,15 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : nleafage
   use FatesInterfaceTypesMod, only    : hlm_use_planthydro
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
+  use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
+  use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
-  use FatesConstantsMod, only    : g_per_kg
-  use FatesConstantsMod, only    : days_per_sec
   use EDPftvarcon      , only    : EDPftvarcon_inst
+  use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
   use FatesInterfaceTypesMod, only    : bc_in_type
+  use FatesInterfaceTypesMod, only    : bc_out_type
   use EDCohortDynamicsMod , only : zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use EDCohortDynamicsMod , only : InitPRTObject
@@ -38,6 +40,7 @@ module EDPhysiologyMod
   use FatesLitterMod      , only : ilabile
   use FatesLitterMod      , only : ilignin
   use FatesLitterMod      , only : icellulose
+  use EDTypesMod          , only : AREA,AREA_INV
   use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
@@ -45,9 +48,9 @@ module EDPhysiologyMod
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
   use EDTypesMod          , only : min_n_safemath
-  use EDTypesMod          , only : num_elements
-  use EDTypesMod          , only : element_list
-  use EDTypesMod          , only : element_pos
+  use PRTGenericMod       , only : num_elements
+  use PRTGenericMod       , only : element_list
+  use PRTGenericMod       , only : element_pos
   use EDTypesMod          , only : site_fluxdiags_type
   use EDTypesMod          , only : phen_cstat_nevercold
   use EDTypesMod          , only : phen_cstat_iscold
@@ -56,7 +59,6 @@ module EDPhysiologyMod
   use EDTypesMod          , only : phen_dstat_moistoff
   use EDTypesMod          , only : phen_dstat_moiston
   use EDTypesMod          , only : phen_dstat_timeon
-
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
@@ -65,7 +67,6 @@ module EDPhysiologyMod
   use EDParamsMod           , only : q10_froz
   use EDParamsMod           , only : logging_export_frac
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
-  
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : calloc_abs_error
   use FatesConstantsMod     , only : years_per_day
@@ -81,7 +82,6 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod, only : set_root_fraction
-  
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : prt_cnp_flex_allom_hyp
   use PRTGenericMod, only : prt_vartypes
@@ -102,25 +102,27 @@ module EDPhysiologyMod
   use PRTLossFluxesMod, only : PRTDeciduousTurnover
   use PRTLossFluxesMod, only : PRTReproRelease
 
-  implicit none
-  private
+  
 
   public :: trim_canopy
   public :: phenology
   public :: recruitment
   public :: ZeroLitterFluxes
-  public :: FluxIntoLitterPools
+  
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
   public :: PreDisturbanceIntegrateLitter  
   public :: SeedIn
-  
+    
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
   integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter 
 
+
+
+  
   ! ============================================================================
 
 contains
@@ -480,7 +482,7 @@ contains
 
           call bleaf(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bl)
 
-          if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+          if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
              ! only query fine root biomass if using a fine root allometric model that takes leaf trim into account
              call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
              bfr_per_bleaf = tar_bfr/tar_bl
@@ -490,7 +492,7 @@ contains
           cl = currentCohort%canopy_layer
           
           ! PFT-level maximum SLA value, even if under a thick canopy (same units as slatop)
-          sla_max = EDPftvarcon_inst%slamax(ipft)
+          sla_max = prt_params%slamax(ipft)
 
           ! Initialize nnu_clai_a
           nnu_clai_a(:,:) = 0._r8
@@ -522,7 +524,7 @@ contains
                 ! Nscaler value at leaf level z
                 nscaler_levleaf = exp(-kn * cumulative_lai)
                 ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
-                sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf
+                sla_levleaf = prt_params%slatop(ipft)/nscaler_levleaf
 
                 if(sla_levleaf > sla_max)then
                    sla_levleaf = sla_max
@@ -530,38 +532,38 @@ contains
                    
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
-                if (EDPftvarcon_inst%season_decid(ipft) ==  itrue .or. &
-                     EDPftvarcon_inst%stress_decid(ipft) == itrue )then 
+                if (prt_params%season_decid(ipft) ==  itrue .or. &
+                     prt_params%stress_decid(ipft) == itrue )then 
 
                    ! Leaf cost at leaf level z accounting for sla profile (kgC/m2)
                    currentCohort%leaf_cost =  1._r8/(sla_levleaf*1000.0_r8)
 
-                   if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+                   if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
                       currentCohort%leaf_cost = currentCohort%leaf_cost + &
                            1.0_r8/(sla_levleaf*1000.0_r8) * &
-                           bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                           bfr_per_bleaf / prt_params%root_long(ipft)
                    endif
 
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
-                         (EDPftvarcon_inst%grperc(ipft) + 1._r8)
+                         (prt_params%grperc(ipft) + 1._r8)
                 else !evergreen costs
 
                    ! Leaf cost at leaf level z accounting for sla profile
                    currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
-                        sum(EDPftvarcon_inst%leaf_long(ipft,:))*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
+                        sum(prt_params%leaf_long(ipft,:))*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    
                    
-                   if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+                   if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
                       currentCohort%leaf_cost = currentCohort%leaf_cost + &
                            1.0_r8/(sla_levleaf*1000.0_r8) * &
-                           bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                           bfr_per_bleaf / prt_params%root_long(ipft)
                    endif
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
-                         (EDPftvarcon_inst%grperc(ipft) + 1._r8)
+                         (prt_params%grperc(ipft) + 1._r8)
                 endif
 
                 ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
@@ -597,8 +599,7 @@ contains
                       if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft)) then
                          currentCohort%canopy_trim = currentCohort%canopy_trim - &
                                EDPftvarcon_inst%trim_inc(ipft)
-
-                         if (EDPftvarcon_inst%evergreen(ipft) /= 1) then
+                         if (prt_params%evergreen(ipft) /= 1)then
                             currentCohort%laimemory = currentCohort%laimemory * &
                                   (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
@@ -654,7 +655,7 @@ contains
                   currentCohort%canopy_trim = optimum_trim
 
                   ! If the cohort pft is not evergreen we reduce the laimemory as well
-                  if (EDPftvarcon_inst%evergreen(ipft) /= 1) then
+                  if (prt_params%evergreen(ipft) /= 1) then
                      currentCohort%laimemory = optimum_laimem
                   endif
 
@@ -1120,7 +1121,7 @@ contains
           ! The site level flags signify that it is no-longer too cold
           ! for leaves. Time to signal flushing
 
-          if (EDPftvarcon_inst%season_decid(ipft) == itrue)then
+          if (prt_params%season_decid(ipft) == itrue)then
              if ( currentSite%cstatus == phen_cstat_notcold  )then                ! we have just moved to leaves being on . 
                 if (currentCohort%status_coh == leaves_off)then ! Are the leaves currently off?        
                    currentCohort%status_coh = leaves_on         ! Leaves are on, so change status to 
@@ -1133,7 +1134,7 @@ contains
                      store_c_transfer_frac =  min((EDPftvarcon_inst%phenflush_fraction(ipft)* &
                      currentCohort%laimemory)/store_c,(1.0_r8-carbon_store_buffer))
 
-                     if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+                     if(prt_params%woody(ipft).ne.itrue)then
                         totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
                         store_c_transfer_frac = min((EDPftvarcon_inst%phenflush_fraction(ipft)* &
                                                 totalmemory)/store_c, (1.0_r8-carbon_store_buffer))
@@ -1145,7 +1146,7 @@ contains
 
                    ! This call will request that storage carbon will be transferred to 
                    ! leaf tissues. It is specified as a fraction of the available storage
-                  if(EDPftvarcon_inst%woody(ipft) == itrue) then
+                  if(prt_params%woody(ipft) == itrue) then
 
                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, store_c_transfer_frac)
                      currentCohort%laimemory = 0.0_r8		   
@@ -1187,7 +1188,7 @@ contains
 
 		            ! leaf off occur on individuals bigger than specific size for grass
                   if (currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) &
-                  .or. EDPftvarcon_inst%woody(ipft)==itrue) then 
+                  .or. prt_params%woody(ipft)==itrue) then 
                      
                      ! This sets the cohort to the "leaves off" flag
                      currentCohort%status_coh  = leaves_off
@@ -1204,7 +1205,7 @@ contains
                      call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                         leaf_organ, leaf_drop_fraction)
          
-                     if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+                     if(prt_params%woody(ipft).ne.itrue)then
                
                            currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
                
@@ -1226,7 +1227,7 @@ contains
           ! Site level flag indicates it is no longer in drought condition
           ! deciduous plants can flush
 
-          if (EDPftvarcon_inst%stress_decid(ipft) == itrue )then
+          if (prt_params%stress_decid(ipft) == itrue )then
              
             if (currentSite%dstatus == phen_dstat_moiston .or. &
                  currentSite%dstatus == phen_dstat_timeon )then 
@@ -1244,7 +1245,7 @@ contains
                      store_c_transfer_frac = &
                             min(EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory, store_c)/store_c
 
-                     if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+                     if(prt_params%woody(ipft).ne.itrue)then
                      
                         totalmemory=currentCohort%laimemory+currentCohort%sapwmemory+currentCohort%structmemory
                         store_c_transfer_frac = min(EDPftvarcon_inst%phenflush_fraction(ipft)* &
@@ -1258,7 +1259,7 @@ contains
                    
                    ! This call will request that storage carbon will be transferred to 
                    ! leaf tissues. It is specified as a fraction of the available storage
-                  if(EDPftvarcon_inst%woody(ipft) == itrue) then
+                  if(prt_params%woody(ipft) == itrue) then
                   
                      call PRTPhenologyFlush(currentCohort%prt, ipft, &
                         leaf_organ, store_c_transfer_frac)
@@ -1309,7 +1310,7 @@ contains
                   call PRTDeciduousTurnover(currentCohort%prt,ipft, &
                         leaf_organ, leaf_drop_fraction)
 			 
-                  if(EDPftvarcon_inst%woody(ipft).ne.itrue)then
+                  if(prt_params%woody(ipft).ne.itrue)then
             
                      currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
                      currentCohort%structmemory   = struct_c * stem_drop_fraction			 
@@ -1437,32 +1438,32 @@ contains
        ! Loop over all patches again and disperse the mixed seeds into the input flux
        ! arrays 
 
-       ! If there is forced external seed rain, we calculate the input mass flux
-       ! from the different elements, usung the seed optimal stoichiometry
-       ! for non-carbon
-       select case(element_id)
-       case(carbon12_element)
-          seed_stoich = 1._r8
-       case(nitrogen_element)
-          seed_stoich = EDPftvarcon_inst%prt_nitr_stoich_p2(pft,repro_organ)
-       case(phosphorus_element)
-          seed_stoich = EDPftvarcon_inst%prt_phos_stoich_p2(pft,repro_organ)
-       case default
-          write(fates_log(), *) 'undefined element specified'
-          write(fates_log(), *) 'while defining forced external seed mass flux'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end select
-          
-
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
 
           litt => currentPatch%litter(el)
           do pft = 1,numpft
+
              if(currentSite%use_this_pft(pft).eq.itrue)then
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
+
+             ! If there is forced external seed rain, we calculate the input mass flux
+             ! from the different elements, usung the seed optimal stoichiometry
+             ! for non-carbon
+             select case(element_id)
+             case(carbon12_element)
+                 seed_stoich = 1._r8
+             case(nitrogen_element)
+                 seed_stoich = prt_params%nitr_stoich_p2(pft,repro_organ)
+             case(phosphorus_element)
+                 seed_stoich = prt_params%phos_stoich_p2(pft,repro_organ)
+             case default
+                 write(fates_log(), *) 'undefined element specified'
+                 write(fates_log(), *) 'while defining forced external seed mass flux'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+             end select
              
              ! Seed input from external sources (user param seed rain, or dispersal model)
              seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day
@@ -1553,11 +1554,11 @@ contains
        
        !set the germination only under the growing season...c.xu
 
-       if ((EDPftvarcon_inst%season_decid(pft) == itrue ) .and. &
+       if ((prt_params%season_decid(pft) == itrue ) .and. &
              (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
            litt%seed_germ_in(pft) = 0.0_r8
        endif
-       if ((EDPftvarcon_inst%stress_decid(pft) == itrue ) .and. &
+       if ((prt_params%stress_decid(pft) == itrue ) .and. &
              (any(drought_stat == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
            litt%seed_germ_in(pft) = 0.0_r8
        end if
@@ -1654,13 +1655,13 @@ contains
        
        ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
        ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
-       if ((EDPftvarcon_inst%season_decid(ft) == itrue) .and. &
+       if ((prt_params%season_decid(ft) == itrue) .and. &
              (any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]))) then
          temp_cohort%laimemory = c_leaf
          c_leaf = 0.0_r8
 
          ! If plant is not woody then set sapwood and structural biomass as well
-         if (EDPftvarcon_inst%woody(ft).ne.itrue) then
+         if (prt_params%woody(ft).ne.itrue) then
             temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
             temp_cohort%structmemory = c_struct * stem_drop_fraction
             c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw 
@@ -1672,13 +1673,13 @@ contains
        ! Or.. if the plant is drought deciduous, and the site status is flagged as 
        ! "in a drought", then likewise, set the cohort's status to leaves_off, and remember leaf
        ! biomass
-       if ((EDPftvarcon_inst%stress_decid(ft) == itrue) .and. &
+       if ((prt_params%stress_decid(ft) == itrue) .and. &
              (any(currentSite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
          temp_cohort%laimemory = c_leaf
          c_leaf = 0.0_r8
 
          ! If plant is not woody then set sapwood and structural biomass as well
-         if(EDPftvarcon_inst%woody(ft).ne.itrue)then
+         if(prt_params%woody(ft).ne.itrue)then
             temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
             temp_cohort%structmemory = c_struct * stem_drop_fraction
             c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw 
@@ -1706,19 +1707,19 @@ contains
                
                case(nitrogen_element)
                
-                  mass_demand = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,struct_organ) + &
-                                 c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ) + &
-                                 c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ) + & 
-                                 c_store*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,store_organ)
+                  mass_demand = c_struct*prt_params%nitr_stoich_p1(ft,struct_organ) + &
+                                 c_leaf*prt_params%nitr_stoich_p1(ft,leaf_organ) + &
+                                 c_fnrt*prt_params%nitr_stoich_p1(ft,fnrt_organ) + & 
+                                 c_sapw*prt_params%nitr_stoich_p1(ft,sapw_organ) + & 
+                                 c_store*prt_params%nitr_stoich_p1(ft,store_organ)
                
                case(phosphorus_element)
                
-                  mass_demand = c_struct*EDPftvarcon_inst%prt_phos_stoich_p1(ft,struct_organ) + &
-                                 c_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(ft,leaf_organ) + &
-                                 c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(ft,sapw_organ)  + & 
-                                 c_store*EDPftvarcon_inst%prt_phos_stoich_p1(ft,store_organ)
+                  mass_demand = c_struct*prt_params%phos_stoich_p1(ft,struct_organ) + &
+                                 c_leaf*prt_params%phos_stoich_p1(ft,leaf_organ) + &
+                                 c_fnrt*prt_params%phos_stoich_p1(ft,fnrt_organ) + & 
+                                 c_sapw*prt_params%phos_stoich_p1(ft,sapw_organ)  + & 
+                                 c_store*prt_params%phos_stoich_p1(ft,store_organ)
                
                case default
                    write(fates_log(),*) 'Undefined element type in recruitment'
@@ -1772,20 +1773,20 @@ contains
 
               case(nitrogen_element)
 
-                 m_struct = c_struct*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,struct_organ)
-                 m_leaf   = c_leaf*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)
-                 m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ)
-                 m_sapw   = c_sapw*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
-                 m_store  = c_store*EDPftvarcon_inst%prt_nitr_stoich_p1(ft,store_organ)
+                 m_struct = c_struct*prt_params%nitr_stoich_p1(ft,struct_organ)
+                 m_leaf   = c_leaf*prt_params%nitr_stoich_p1(ft,leaf_organ)
+                 m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(ft,fnrt_organ)
+                 m_sapw   = c_sapw*prt_params%nitr_stoich_p1(ft,sapw_organ)
+                 m_store  = c_store*prt_params%nitr_stoich_p1(ft,store_organ)
                  m_repro  = 0._r8
 
               case(phosphorus_element)
 
-                 m_struct = c_struct*EDPftvarcon_inst%prt_phos_stoich_p1(ft,struct_organ)
-                 m_leaf   = c_leaf*EDPftvarcon_inst%prt_phos_stoich_p1(ft,leaf_organ)
-                 m_fnrt   = c_fnrt*EDPftvarcon_inst%prt_phos_stoich_p1(ft,fnrt_organ)
-                 m_sapw   = c_sapw*EDPftvarcon_inst%prt_phos_stoich_p1(ft,sapw_organ)
-                 m_store  = c_store*EDPftvarcon_inst%prt_phos_stoich_p1(ft,store_organ)
+                 m_struct = c_struct*prt_params%phos_stoich_p1(ft,struct_organ)
+                 m_leaf   = c_leaf*prt_params%phos_stoich_p1(ft,leaf_organ)
+                 m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(ft,fnrt_organ)
+                 m_sapw   = c_sapw*prt_params%phos_stoich_p1(ft,sapw_organ)
+                 m_store  = c_store*prt_params%phos_stoich_p1(ft,store_organ)
                  m_repro  = 0._r8
 
               end select
@@ -2006,15 +2007,15 @@ contains
          litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
               (sapw_m_turnover + struct_m_turnover) * &
               SF_val_CWD_frac(c) * plant_dens * &
-              EDPftvarcon_inst%allom_agb_frac(pft)
+              prt_params%allom_agb_frac(pft)
 
          flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                (struct_m_turnover + sapw_m_turnover) * SF_val_CWD_frac(c) * &
-               EDPftvarcon_inst%allom_agb_frac(pft) * currentCohort%n
+               prt_params%allom_agb_frac(pft) * currentCohort%n
 
          bg_cwd_tot = (sapw_m_turnover + struct_m_turnover) * &
               SF_val_CWD_frac(c) * plant_dens * & 
-              (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
+              (1.0_r8-prt_params%allom_agb_frac(pft))
 
          do ilyr = 1, numlevsoil
             litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + &
@@ -2095,7 +2096,7 @@ contains
          
          bg_cwd_tot = (struct_m + sapw_m) * & 
               SF_val_CWD_frac(c) * dead_n * &
-              (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
+              (1.0_r8-prt_params%allom_agb_frac(pft))
          
          do ilyr = 1, numlevsoil
             litt%bg_cwd_in(c,ilyr) = litt%bg_cwd_in(c,ilyr) + &
@@ -2114,7 +2115,7 @@ contains
 
             trunk_wood =  (struct_m + sapw_m) * &
                  SF_val_CWD_frac(c) * dead_n_dlogging * &
-                 EDPftvarcon_inst%allom_agb_frac(pft) 
+                 prt_params%allom_agb_frac(pft) 
             
             site_mass%wood_product = site_mass%wood_product + &
                  trunk_wood * currentPatch%area * logging_export_frac
@@ -2132,21 +2133,21 @@ contains
 
             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * & 
                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
-                 EDPftvarcon_inst%allom_agb_frac(pft)
+                 prt_params%allom_agb_frac(pft)
 
             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                   SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * &
-                  currentPatch%area * EDPftvarcon_inst%allom_agb_frac(pft)
+                  currentPatch%area * prt_params%allom_agb_frac(pft)
 
          else
 
             litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * & 
                  SF_val_CWD_frac(c) * dead_n  * &
-                 EDPftvarcon_inst%allom_agb_frac(pft)
+                 prt_params%allom_agb_frac(pft)
 
             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                   SF_val_CWD_frac(c) * dead_n * (struct_m + sapw_m) * &
-                  currentPatch%area * EDPftvarcon_inst%allom_agb_frac(pft)
+                  currentPatch%area * prt_params%allom_agb_frac(pft)
             
          end if
          
@@ -2353,227 +2354,5 @@ contains
     enddo
 
   end subroutine CWDOut
-
-  ! =====================================================================================
-
-  subroutine FluxIntoLitterPools(nsites, sites, bc_in, bc_out)
-    
-    ! -----------------------------------------------------------------------------------
-    ! Created by Charlie Koven and Rosie Fisher, 2014-2015
-    ! take the flux out of the fragmenting litter pools and port into the decomposing 
-    ! litter pools. 
-    ! in this implementation, decomposing pools are assumed to be humus and non-flammable, 
-    ! whereas fragmenting pools are assumed to be physically fragmenting but not 
-    ! respiring. This is a simplification, but allows us to 
-    !
-    ! a) reconcile the need to track both chemical fractions (lignin, cellulose, labile) 
-    !    and size fractions (trunk, branch, etc.)
-    ! b) to impose a realistic delay on the surge of nutrients into the litter pools 
-    !    when large CWD is added to the system via mortality
-    !
-    ! Because of the different subgrid structure, this subroutine includes the functionality
-    ! that in the big-leaf BGC model, is calculated in SoilBiogeochemVerticalProfileMod
-    !
-    ! The ED code is resolved at a daily timestep, but all of the CN-BGC fluxes are passed 
-    ! in as derivatives per second, and then accumulated in the CNStateUpdate routines.  
-    ! One way of doing this is to pass back the CN fluxes per second, and keep them 
-    ! constant for the whole day (making sure they are not overwritten.  This means that 
-    ! the carbon gets passed back and forth between the photosynthesis code 
-    ! (fast timestepping) to the ED code (slow timestepping), back to the BGC code 
-    ! (fast timestepping).  This means that the state update for the litter pools and 
-    ! for the CWD pools occurs at different timescales. 
-    ! -----------------------------------------------------------------------------------
-
-    use EDTypesMod, only : AREA
-    use FatesConstantsMod, only : sec_per_day
-    use FatesInterfaceTypesMod, only : bc_in_type, bc_out_type
-    use FatesInterfaceTypesMod, only : hlm_use_vertsoilc
-    use FatesInterfaceTypesMod, only : hlm_numlevgrnd
-    use FatesConstantsMod, only : itrue
-    use FatesGlobals, only : endrun => fates_endrun
-    use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
-   
-    
-
-    implicit none   
-
-    ! !ARGUMENTS    
-    integer            , intent(in)            :: nsites
-    type(ed_site_type) , intent(inout)         :: sites(nsites)
-    type(bc_in_type)   , intent(in)            :: bc_in(:)
-    type(bc_out_type)  , intent(inout), target :: bc_out(:)
-
-    ! !LOCAL VARIABLES:
-    type (ed_patch_type),  pointer :: currentPatch
-    type (ed_cohort_type), pointer :: currentCohort
-    real(r8), pointer              :: flux_cel_si(:)
-    real(r8), pointer              :: flux_lab_si(:)
-    real(r8), pointer              :: flux_lig_si(:)
-    type(litter_type), pointer     :: litt
-     
-    real(r8) :: surface_prof(1:hlm_numlevgrnd) ! this array is used to distribute
-                                               ! fragmented litter on the surface
-                                               ! into the soil/decomposition
-                                               ! layers. It exponentially decays
-    real(r8) :: surface_prof_tot ! normalizes the surface_prof array
-    integer  :: ft               ! PFT number
-    integer  :: nlev_eff_soil    ! number of effective soil layers
-    integer  :: nlev_eff_decomp  ! number of effective decomp layers
-    real(r8) :: area_frac        ! fraction of site's area of current patch
-    real(r8) :: z_decomp         ! Used for calculating depth midpoints of decomp layers
-    integer  :: s                ! Site index
-    integer  :: el               ! Element index (C,N,P,etc)
-    integer  :: j                ! Soil layer index
-    integer  :: id               ! Decomposition layer index
-    integer  :: ic               ! CWD type index
-
-    ! NOTE(rgk, 201705) this parameter was brought over from SoilBiogeochemVerticalProfile
-    ! how steep profile is for surface components (1/ e_folding depth) (1/m) 
-    real(r8),  parameter :: surfprof_exp  = 10.
-
-    do s = 1,nsites
-
-       ! This is the number of effective soil layers to transfer from
-       nlev_eff_soil   = max(bc_in(s)%max_rooting_depth_index_col, 1)
-
-       ! The decomposition layers are most likely the exact same layers
-       ! as the soil layers (same depths also), unless it is a simplified
-       ! single layer case, where nlevdecomp = 1
-
-       nlev_eff_decomp = min(bc_in(s)%nlevdecomp,nlev_eff_soil)
-
-       ! define a single shallow surface profile for surface additions 
-       ! (leaves, stems, and N deposition). This sends the above ground
-       ! mass into the soil pools using an exponential depth decay function.
-       ! Since it is sending an absolute mass [kg] into variable layer
-       ! widths, we multiply the profile by the layer width, so that
-       ! wider layers get proportionally more.  After the masses
-       ! are sent, each layer will normalize by depth.
-       
-       surface_prof(:) = 0._r8
-       z_decomp = 0._r8
-       do id = 1,nlev_eff_decomp
-          z_decomp = z_decomp+0.5*bc_in(s)%dz_decomp_sisl(id)
-          surface_prof(id) = exp(-surfprof_exp * z_decomp) *  bc_in(s)%dz_decomp_sisl(id)
-          z_decomp = z_decomp+0.5*bc_in(s)%dz_decomp_sisl(id)
-       end do
-       surface_prof_tot = sum(surface_prof)
-       do id = 1,nlev_eff_decomp
-          surface_prof(id) = surface_prof(id)/surface_prof_tot
-       end do
-
-       ! Loop over the different elements. 
-       do el = 1, num_elements
-
-          ! Zero out the boundary flux arrays
-          ! Make a pointer to the cellulose, labile and lignan
-          ! flux partitions.
-
-          select case (element_list(el))
-          case (carbon12_element)
-             bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
-             bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
-             bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
-             flux_cel_si => bc_out(s)%litt_flux_cel_c_si(:)
-             flux_lab_si => bc_out(s)%litt_flux_lab_c_si(:)
-             flux_lig_si => bc_out(s)%litt_flux_lig_c_si(:)
-          case (nitrogen_element) 
-             bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
-             bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
-             bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
-             flux_cel_si => bc_out(s)%litt_flux_cel_n_si(:)
-             flux_lab_si => bc_out(s)%litt_flux_lab_n_si(:)
-             flux_lig_si => bc_out(s)%litt_flux_lig_n_si(:)
-          case (phosphorus_element)
-             bc_out(s)%litt_flux_cel_p_si(:) = 0._r8
-             bc_out(s)%litt_flux_lig_p_si(:) = 0._r8
-             bc_out(s)%litt_flux_lab_p_si(:) = 0._r8
-             flux_cel_si => bc_out(s)%litt_flux_cel_p_si(:)
-             flux_lab_si => bc_out(s)%litt_flux_lab_p_si(:)
-             flux_lig_si => bc_out(s)%litt_flux_lig_p_si(:)
-          end select
-          
-          currentPatch => sites(s)%oldest_patch
-          do while (associated(currentPatch))
-             
-             ! Set a pointer to the litter object
-             ! for the current element on the current
-             ! patch
-             litt       => currentPatch%litter(el)
-             area_frac  = currentPatch%area/area
-             
-             do ic = 1, ncwd
-                
-                do id = 1,nlev_eff_decomp
-                   flux_cel_si(id) = flux_cel_si(id) + &
-                         litt%ag_cwd_frag(ic) * ED_val_cwd_fcel * area_frac * surface_prof(id)
-                   
-                   flux_lig_si(id) = flux_lig_si(id) + & 
-                         litt%ag_cwd_frag(ic) * ED_val_cwd_flig * area_frac * surface_prof(id)
-                end do
-                   
-                do j = 1, nlev_eff_soil
-                   
-                   id = bc_in(s)%decomp_id(j)  ! Map from soil layer to decomp layer
-                   
-                   flux_cel_si(id) = flux_cel_si(id) + &
-                         litt%bg_cwd_frag(ic,j) * ED_val_cwd_fcel * area_frac
-                   
-                   flux_lig_si(id) = flux_lig_si(id) + &
-                         litt%bg_cwd_frag(ic,j) * ED_val_cwd_flig * area_frac
-                   
-                end do
-             end do
-             
-             ! leaf and fine root fragmentation fluxes
-                
-             do id = 1,nlev_eff_decomp
-                   
-                 flux_lab_si(id) = flux_lab_si(id) + &
-                       litt%leaf_fines_frag(ilabile) * area_frac* surface_prof(id)
-                   
-                 flux_cel_si(id) = flux_cel_si(id) + &
-                       litt%leaf_fines_frag(icellulose) * area_frac* surface_prof(id)
-                 
-                 flux_lig_si(id) = flux_lig_si(id) + &
-                       litt%leaf_fines_frag(ilignin) * area_frac* surface_prof(id)
-                 
-             end do
-
-             do j = 1, nlev_eff_soil
-                 
-                 id = bc_in(s)%decomp_id(j)
-
-                 flux_lab_si(id) = flux_lab_si(id) + &
-                       litt%root_fines_frag(ilabile,j) * area_frac
-                 flux_cel_si(id) = flux_cel_si(id) + &
-                       litt%root_fines_frag(icellulose,j) * area_frac
-                 flux_lig_si(id) = flux_lig_si(id) + &
-                       litt%root_fines_frag(ilignin,j) * area_frac
-             enddo
-
-         
-             currentPatch => currentPatch%younger
-          end do
-          
-          ! Normalize all masses over the decomposition layer's depth
-          ! Convert from kg/m2/day -> g/m3/s
-
-          do id = 1,nlev_eff_decomp
-             flux_cel_si(id) = days_per_sec * g_per_kg * &
-                               flux_cel_si(id) / bc_in(s)%dz_decomp_sisl(id)
-             flux_lig_si(id) = days_per_sec * g_per_kg * &
-                               flux_lig_si(id) / bc_in(s)%dz_decomp_sisl(id)
-             flux_lab_si(id) = days_per_sec * g_per_kg * &
-                               flux_lab_si(id) / bc_in(s)%dz_decomp_sisl(id)
-          end do
-
-       end do  ! do elements
-       
-    end do  ! do sites(s)
-    return
-end subroutine FluxIntoLitterPools
-
-
 
 end module EDPhysiologyMod
