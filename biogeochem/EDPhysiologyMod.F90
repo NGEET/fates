@@ -2315,7 +2315,6 @@ contains
     !
     ! !ARGUMENTS    
     type(litter_type),intent(inout),target     :: litt
-    
     real(r8),intent(in)                        :: fragmentation_scaler(:)
 
     ! This is not necessarily every soil layer, this is the number
@@ -2329,6 +2328,11 @@ contains
     integer :: ilyr
     integer :: dcmpy
     !----------------------------------------------------------------------
+
+
+    ! Above ground litters are associated with the top soil layer temperature and
+    ! moisture scalars and as such the top-layer fragmentation scalar index of 1
+    ! is used for ag_cwd_frag and root_fines_frag calculations.
 
     do c = 1,ncwd  
 
