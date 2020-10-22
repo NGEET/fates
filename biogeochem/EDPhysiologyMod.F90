@@ -2247,7 +2247,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     logical  :: use_century_tfunc = .false.
-    logical  :: use_hlm_soil_scalar = .true. ! Use hlm input decomp fraction scalars
+    logical  :: use_hlm_soil_scalar = .false. ! Use hlm input decomp fraction scalars
     integer  :: j
     integer  :: ifp                          ! Index of a FATES Patch "ifp"
     real(r8) :: t_scalar                     ! temperature scalar
@@ -2293,7 +2293,6 @@ contains
       w_scalar = sum(currentPatch%btran_ft(1:numpft))/real(numpft,r8)
 
     ! Calculate the fragmentation_scaler
-      allocate(currentPatch%fragmentation_scaler(size(bc_in%t_scalar_sisl)))
       currentPatch%fragmentation_scaler(:) =  min(1.0_r8,max(0.0_r8,t_scalar * w_scalar))
 
    endif
