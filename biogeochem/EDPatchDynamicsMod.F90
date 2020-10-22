@@ -7,6 +7,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
+  use PRTParametersMod      , only : prt_params
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDCohortDynamicsMod  , only : DeallocateCohort
   use EDTypesMod           , only : area_site => area
@@ -30,9 +31,8 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
   use EDTypesMod           , only : ican_upper
-  use EDTypesMod           , only : num_elements
-  use EDTypesMod           , only : element_list
-  use EDTypesMod           , only : element_pos
+  use PRTGenericMod        , only : num_elements
+  use PRTGenericMod        , only : element_list
   use EDTypesMod           , only : lg_sf
   use EDTypesMod           , only : dl_sf
   use EDTypesMod           , only : dump_patch
@@ -231,7 +231,7 @@ contains
                   currentCohort%lmort_direct * currentCohort%n * &
                   ( currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
                   currentCohort%prt%GetState(struct_organ, all_carbon_elements)) * &
-                  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                  prt_params%allom_agb_frac(currentCohort%pft) * &
                   SF_val_CWD_frac(ncwd) * logging_export_frac
           endif
 
@@ -735,7 +735,7 @@ contains
                       
                    else
                       ! small trees 
-                      if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+                      if( int(prt_params%woody(currentCohort%pft)) == itrue)then
                          
                          
                          ! Survivorship of undestory woody plants.  Two step process.
@@ -875,7 +875,7 @@ contains
                    ! burned off.  Here, we remove that mass, and
                    ! tally it in the flux we sent to the atmosphere
                    
-                   if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+                   if(int(prt_params%woody(currentCohort%pft)) == itrue)then
                        leaf_burn_frac = currentCohort%fraction_crown_burned
                    else
 
@@ -892,7 +892,7 @@ contains
                        (currentCohort%fire_mort < 0._r8) .or. &
                        (currentCohort%fire_mort > 1._r8)) then
                        write(fates_log(),*) 'unexpected fire fractions'
-                       write(fates_log(),*) EDPftvarcon_inst%woody(currentCohort%pft)
+                       write(fates_log(),*) prt_params%woody(currentCohort%pft)
                        write(fates_log(),*) leaf_burn_frac
                        write(fates_log(),*) currentCohort%fire_mort
                        call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -953,7 +953,7 @@ contains
                       ! WHat to do with cohorts in the understory of a logging generated
                       ! disturbance patch?
                       
-                      if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+                      if(int(prt_params%woody(currentCohort%pft)) == itrue)then
                          
                          
                          ! Survivorship of undestory woody plants.  Two step process.
@@ -1684,7 +1684,7 @@ contains
                   (fnrt_m + store_m) * num_dead_trees
              
              ! coarse root biomass per tree
-             bcroot = (sapw_m + struct_m) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(pft) )
+             bcroot = (sapw_m + struct_m) * (1.0_r8 - prt_params%allom_agb_frac(pft) )
       
              ! below ground coarse woody debris from burned trees
              do c = 1,ncwd
@@ -1705,7 +1705,7 @@ contains
              end do
 
              ! stem biomass per tree
-             bstem  = (sapw_m + struct_m) * EDPftvarcon_inst%allom_agb_frac(pft)
+             bstem  = (sapw_m + struct_m) * prt_params%allom_agb_frac(pft)
 
              ! Above ground coarse woody debris from twigs and small branches
              ! a portion of this pool may burn
@@ -1831,7 +1831,7 @@ contains
              num_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
                    hlm_freq_day * fates_mortality_disturbance_fraction)
              
-          elseif(EDPftvarcon_inst%woody(pft) == itrue) then
+          elseif(int(prt_params%woody(pft)) == itrue) then
              
              ! Understorey trees. The total dead is based on their survivorship
              ! function, and the total area of disturbance.
@@ -1866,8 +1866,8 @@ contains
           end do
                  
           ! Pre-calculate Structural and sapwood, below and above ground, total mass [kg]
-          ag_wood = num_dead * (struct_m + sapw_m) * EDPftvarcon_inst%allom_agb_frac(pft)
-          bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(pft))
+          ag_wood = num_dead * (struct_m + sapw_m) * prt_params%allom_agb_frac(pft)
+          bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-prt_params%allom_agb_frac(pft))
           
           call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
 
