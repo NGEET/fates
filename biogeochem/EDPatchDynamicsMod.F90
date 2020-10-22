@@ -482,7 +482,7 @@ contains
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
     
-    real(r8), parameter :: disturb_tolerance = 1.0e-14_r8 ! Allow for a small precision errors.
+    real(r8), parameter :: disturb_tolerance = 1.0e-14_r8 ! Allow for small precision errors.
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
