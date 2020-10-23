@@ -745,6 +745,9 @@ contains
  
     ! This is the integer model day. The first day of the simulation is 1, and it
     ! continues monotonically, indefinitely
+    ! Advance it. (this should be a global, no reason
+    ! for site level, but we don't have global scalars in the
+    ! restart file)
 
     currentSite%phen_model_date = currentSite%phen_model_date + 1
     model_day_int = currentSite%phen_model_date
@@ -1063,12 +1066,7 @@ contains
 
     call phenology_leafonoff(currentSite)
 
-    ! Advance the model day (this should be a global, no reason
-    ! for site level, but we don't have global scalars in the
-    ! restart file)
-    
-    
-    
+    return
   end subroutine phenology
 
   ! ============================================================================
