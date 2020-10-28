@@ -2330,7 +2330,7 @@ contains
 
 
     ! Above ground litters are associated with the top soil layer temperature and
-    ! moisture scalars and as such the top-layer fragmentation scalar index of 1
+    ! moisture scalars and fragmentation scalar associated with specified index value
     ! is used for ag_cwd_frag and root_fines_frag calculations.
 
     do c = 1,ncwd  
