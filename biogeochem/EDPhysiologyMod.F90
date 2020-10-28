@@ -2354,7 +2354,7 @@ contains
     do dcmpy = 1,ndcmpy
 
        litt%leaf_fines_frag(dcmpy) = litt%leaf_fines(dcmpy) * &
-             years_per_day * SF_val_max_decomp(dl_sf) * fragmentation_scaler(1)
+             years_per_day * SF_val_max_decomp(dl_sf) * fragmentation_scaler(soil_layer_index)
        
        do ilyr = 1,nlev_eff_decomp
            litt%root_fines_frag(dcmpy,ilyr) = litt%root_fines(dcmpy,ilyr) * &
