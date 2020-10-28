@@ -2336,7 +2336,7 @@ contains
     do c = 1,ncwd  
 
        litt%ag_cwd_frag(c)   = litt%ag_cwd(c) * SF_val_max_decomp(c) * &
-             years_per_day * fragmentation_scaler(1)
+             years_per_day * fragmentation_scaler(soil_layer_index)
        
        do ilyr = 1,nlev_eff_decomp
            
