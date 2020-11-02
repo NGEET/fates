@@ -1975,6 +1975,7 @@ contains
     allocate(new_patch%fabi(hlm_numSWb))
     allocate(new_patch%sabs_dir(hlm_numSWb))
     allocate(new_patch%sabs_dif(hlm_numSWb))
+    allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
 
 
     ! Litter
@@ -2794,6 +2795,7 @@ contains
        deallocate(cpatch%fabi)
        deallocate(cpatch%sabs_dir)
        deallocate(cpatch%sabs_dif)
+       deallocate(cpatch%fragmentation_scaler)
       
     end if
 
