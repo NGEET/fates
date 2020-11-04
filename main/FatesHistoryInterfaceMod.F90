@@ -358,7 +358,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_fire_fuel_sav_si
   integer :: ih_fire_fuel_mef_si
   integer :: ih_sum_fuel_si
-  integer :: ih_fragmentation_scaler_si
+  integer :: ih_fragmentation_scaler_sl
 
   integer :: ih_nplant_si_scpf
   integer :: ih_gpp_si_scpf
@@ -1674,8 +1674,8 @@ end subroutine flush_hvars
     use FatesSizeAgeTypeIndicesMod, only : get_height_index
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
-    use EDTypesMod        , only : nlevleaf
-    use EDParamsMod,           only : ED_val_history_height_bin_edges
+    use EDTypesMod                , only : nlevleaf
+    use EDParamsMod               , only : ED_val_history_height_bin_edges
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -1692,6 +1692,7 @@ end subroutine flush_hvars
 
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
+    integer  :: ilyr      ! Soil index for nlevsoil
     integer  :: ipa, ipa2 ! The local "I"ndex of "PA"tches 
     integer  :: io_pa    ! The patch index of the IO array
     integer  :: io_pa1   ! The first patch index in the IO array for each site
@@ -1786,7 +1787,7 @@ end subroutine flush_hvars
                hio_fire_fuel_sav_si    => this%hvars(ih_fire_fuel_sav_si)%r81d, &
                hio_fire_fuel_mef_si    => this%hvars(ih_fire_fuel_mef_si)%r81d, &
                hio_sum_fuel_si         => this%hvars(ih_sum_fuel_si)%r81d,  &
-               hio_fragmentation_scaler_si  => this%hvars(ih_fragmentation_scaler_si)%r81d,  &
+               hio_fragmentation_scaler_sl  => this%hvars(ih_fragmentation_scaler_sl)%r82d,  & 
                hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
                hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
                hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
@@ -2770,7 +2771,10 @@ end subroutine flush_hvars
             hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel_sav * cpatch%area * AREA_INV
             hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel_mef * cpatch%area * AREA_INV
             hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%sum_fuel * g_per_kg * cpatch%area * AREA_INV
-            hio_fragmentation_scaler_si(io_si) = hio_fragmentation_scaler_si(io_si) + cpatch%fragmentation_scaler * cpatch%area * AREA_INV
+
+            do ilyr = 1,sites(s)%nlevsoil
+                 hio_fragmentation_scaler_sl(io_si,ilyr) = hio_fragmentation_scaler_sl(io_si,ilyr) + cpatch%fragmentation_scaler(ilyr) * cpatch%area * AREA_INV
+            end do
             
             do i_fuel = 1,nfsc
                hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
@@ -4434,11 +4438,11 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_sum_fuel_si )
 
-    call this%set_history_var(vname='FRAGMENTATION_SCALER', units='unitless (0-1)',                &
-         long='factor by which litter/cwd fragmentation proceeds relative to max rate',          & 
-         use_default='active',                                                  & 
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_fragmentation_scaler_si )
+    call this%set_history_var(vname='FRAGMENTATION_SCALER_SL', units='unitless (0-1)',   &
+         long='factor by which litter/cwd fragmentation proceeds relative to max rate by soil layer',  & 
+         use_default='active',                                                           & 
+         avgflag='A', vtype=site_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fragmentation_scaler_sl )
 
     call this%set_history_var(vname='FUEL_MOISTURE_NFSC', units='-',                &
          long='spitfire size-resolved fuel moisture', use_default='active',       &
