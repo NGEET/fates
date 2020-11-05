@@ -431,7 +431,8 @@ contains
 
   end subroutine disturbance_rates
   
-  ! ============================================================================
+    ! ============================================================================
+
   subroutine spawn_patches( currentSite, bc_in)
     !
     ! !DESCRIPTION:
@@ -2560,7 +2561,6 @@ contains
     ! Define some aliases for the donor patches younger and older neighbors
     ! which may or may not exist.  After we set them, we will remove the donor
     ! And then we will go about re-setting the map.
-
     if(associated(dp%older))then
        olderp => dp%older
     else
@@ -2575,6 +2575,7 @@ contains
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
     call dealloc_patch(dp)
     deallocate(dp)
+
 
     if(associated(youngerp))then
        ! Update the younger patch's new older patch (because it isn't dp anymore)
