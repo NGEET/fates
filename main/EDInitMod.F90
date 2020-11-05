@@ -417,7 +417,7 @@ contains
      real(r8) :: litter_stock
      real(r8) :: seed_stock
      integer  :: n
-     integer  :: no_new_patches
+     integer  :: num_new_patches
      integer  :: nocomp_pft     
      real(r8) :: newparea
      real(r8) :: tota !check on area
@@ -471,13 +471,13 @@ contains
            ! have smaller spread factors than bare ground (they are crowded)
            sites(s)%spread     = init_spread_near_bare_ground
           if(hlm_use_nocomp.eq.itrue)then
-           no_new_patches = numpft
+           num_new_patches = numpft
            if(hlm_use_sp.eq.itrue)then
-             no_new_patches = numpft + 1 ! bare ground patch in SP mode. 
+             num_new_patches = numpft + 1 ! bare ground patch in SP mode. 
            endif
 !           allocate(newppft(numpft))
           else
-           no_new_patches = 1
+           num_new_patches = 1
            newparea = area
           end if
 
@@ -514,7 +514,7 @@ contains
            end if ! too much patch area 
          end if ! SP
 
-         is_first_patch = 1
+         is_first_patch = itrue
           do n = 0, no_new_patches
 
            ! set the PFT index for patches if in nocomp mode. 
@@ -547,14 +547,14 @@ contains
 
               call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
 
-              if(is_first_patch.eq.1)then !is this the first patch?
+              if(is_first_patch.eq.itrue)then !is this the first patch?
                 ! set poointers for first patch (or only patch, if nocomp is false)
                 newp%patchno = 1
                 newp%younger => null()
                 newp%older   => null()
                 sites(s)%youngest_patch => newp
                 sites(s)%oldest_patch   => newp
-                is_first_patch = 0
+                is_first_patch = ifalse
               else ! the new patch is the 'oldest' one, arbitrarily. 
                 ! Set pointers for N>1 patches. Note this only happens when nocomp mode s on. 
                 ! The new patch is the 'youngest' one, arbitrarily.
@@ -722,6 +722,7 @@ contains
                                       ! to compensate (otherwise runs are very hard to compare)
                                       ! this multiplies it by the number of PFTs there would have been in
                                       ! the single shared patch in competition mode.          
+                                      ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
           temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
        endif
 
