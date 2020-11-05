@@ -1346,24 +1346,28 @@ contains
                    currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
                 endif
              endif
+
+             ! adding checks for SP and NOCOMP modes. 
              if(currentPatch%nocomp_pft_label.eq.0)then
-                write(fates_log(),*) 'cohorts in barepatch',currentPatch%total_canopy_area,currentPatch%nocomp_pft_label,currentCohort%c_area
-                call endrun(msg=errMsg(sourcefile, __LINE__))
+                write(fates_log(),*) 'cohorts in barepatch',currentPatch%total_canopy_area,currentPatch%nocomp_pft_label                call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
-              if(hlm_use_sp.eq.itrue.and.associated(currentPatch%tallest%shorter))then
-                write(fates_log(),*) 'morethanonecohort',s,currentPatch%nocomp_pft_label
-              endif
+
+             if(hlm_use_sp.eq.itrue.and.associated(currentPatch%tallest%shorter))then
+                write(fates_log(),*) 'more than one cohort in SP mode',s,currentPatch%nocomp_pft_label
+             endif
+
              if(currentPatch%total_canopy_area-currentPatch%area.gt.1.0e-16)then
-               write(fates_log(),*) 'canopy area too large in summarization1,s,pft,error:',s,currentPatch%nocomp_pft_label,currentPatch%total_canopy_area-currentPatch%area,&
-                 currentPatch%area,currentPatch%tallest%c_area
+               write(fates_log(),*) 'too much canopy in summary',s,currentPatch%total_canopy_area-currentPatch%area
                call endrun(msg=errMsg(sourcefile, __LINE__))
              end if 
+
              ! Check for erroneous zero values. 
              if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
                 write(fates_log(),*) 'FATES: dbh or n is zero in canopy_summarization', &
                       currentCohort%dbh,currentCohort%n
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
+
              if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
                 write(fates_log(),*) 'FATES: PFT or trim is zero in canopy_summarization', &
                       currentCohort%pft,currentCohort%canopy_trim
