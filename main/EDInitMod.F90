@@ -350,13 +350,16 @@ contains
            ! the bare ground will no longer be proscribed and should emerge from FATES
            ! this may or may not be the right way to deal with this?
 
-            if(hlm_use_sp.eq.ifalse)then
+            if(hlm_use_sp.eq.ifalse)then ! when not in SP mode, subsume bare ground evenly into the existing patches. 
+            !n.b. that it might be better if nocomp mode used the same bare groud logic as SP mode. 
               sumarea = sum(sites(s)%area_pft(1:numpft))
               do ft =  1,numpft
                 if(sumarea.gt.0._r8)then
-                  sites(s)%area_pft(ft) = sites(s)%area_pft(ft)/sumarea
+                  sites(s)%area_pft(ft) = area * sites(s)%area_pft(ft)/sumarea
                 else
-                  sites(s)%area_pft(ft)= 1.0_r8/numpft
+                  sites(s)%area_pft(ft) = area/numpft 
+                  ! in nocomp mode where there is only bare ground, we assign equal area to 
+                  ! all pfts and let the model figure out whether land should be bare or not. 
                 end if
                end do !ft
               else ! for sp mode, assert a bare ground patch
@@ -551,11 +554,10 @@ contains
 
               sitep => sites(s)
               if(hlm_use_sp.eq.itrue)then
-
                 if(nocomp_pft.ne.0)then !don't initialize cohorts for SP bare ground patch
                   call init_cohorts(sitep, newp, bc_in(s))
                 end if
-              else ! normal non SP case
+              else ! normal non SP case always call init cohorts
                  call init_cohorts(sitep, newp, bc_in(s))
               end if
             end if 
