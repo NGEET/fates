@@ -268,7 +268,7 @@ contains
     if(hlm_use_sp.eq.ifalse)then
       call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft,new_cohort%c_area)
     else
-      new_cohort%c_area = carea ! set this from previously precision-controlled value
+      new_cohort%c_area = carea ! set this from previously precision-controlled value in SP mode
     endif
     ! Query PARTEH for the leaf carbon [kg]
     leaf_c = new_cohort%prt%GetState(leaf_organ,carbon12_element)
@@ -1767,12 +1767,6 @@ contains
 
     o => currentCohort
     n => copyc
-
-    if(hlm_use_sp.eq.itrue)then
-      write(fates_log(),*) 'copying cohort shouldnt happen in SP mode,area,pft',o%c_area,o%pft
-      
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
 
     n%indexnumber     = fates_unset_int
     
