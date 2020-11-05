@@ -32,8 +32,6 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : numpft
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
-  use shr_infnan_mod        , only : isnan => shr_infnan_isnan
-  
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -1349,7 +1347,8 @@ contains
 
              ! adding checks for SP and NOCOMP modes. 
              if(currentPatch%nocomp_pft_label.eq.0)then
-                write(fates_log(),*) 'cohorts in barepatch',currentPatch%total_canopy_area,currentPatch%nocomp_pft_label                call endrun(msg=errMsg(sourcefile, __LINE__))
+                write(fates_log(),*) 'cohorts in barepatch',currentPatch%total_canopy_area,currentPatch%nocomp_pft_label
+                call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
 
              if(hlm_use_sp.eq.itrue.and.associated(currentPatch%tallest%shorter))then
@@ -1357,8 +1356,8 @@ contains
              endif
 
              if(currentPatch%total_canopy_area-currentPatch%area.gt.1.0e-16)then
-               write(fates_log(),*) 'too much canopy in summary',s,currentPatch%total_canopy_area-currentPatch%area
-               call endrun(msg=errMsg(sourcefile, __LINE__))
+                write(fates_log(),*) 'too much canopy in summary',s,currentPatch%total_canopy_area-currentPatch%area
+                call endrun(msg=errMsg(sourcefile, __LINE__))
              end if 
 
              ! Check for erroneous zero values. 
@@ -1971,10 +1970,6 @@ contains
            bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
            endif
 
-           if(isnan(bc_out(s)%canopy_fraction_pa(ifp)))then
-                write(fates_log(),*) 'nan canopy_fraction_pa in canopystructure:',ifp
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if 
            bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
                 (currentPatch%area/AREA)
            
@@ -1987,10 +1982,12 @@ contains
            ! Calculate area indices for output boundary to HLM
            ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
            ! have been updated (ie ed_leaf_area_profile has been called since dynamics has been called)
+
            bc_out(s)%elai_pa(ifp) = calc_areaindex(currentPatch,'elai')
            bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
            bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
            bc_out(s)%tsai_pa(ifp) = calc_areaindex(currentPatch,'tsai')
+
            ! Fraction of vegetation free of snow. This is used to flag those
            ! patches which shall under-go photosynthesis
            ! INTERF-TODO: we may want to stop using frac_veg_nosno_alb and let

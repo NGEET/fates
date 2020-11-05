@@ -484,7 +484,7 @@ contains
          !check if the total area adds to the same as site area                                                     
          if(hlm_use_sp.eq.itrue)then
            tota = 0.0_r8
-           do n = 0, no_new_patches
+           do n = 0, num_new_patches
              if(n.eq.0)then
                newparea = sites(s)%area_bareground
              else
@@ -500,7 +500,7 @@ contains
                 write(fates_log(),*) 'fixing patch precision in bg patch', sites(s)%area_bareground , tota-area
                sites(s)%area_bareground = sites(s)%area_bareground - (tota-area) !units of m2
              else !no bare ground
-               do n = 0, no_new_patches
+               do n = 0, num_new_patches
                  if(sites(s)%area_pft(n).gt.tota-area)then
                     sites(s)%area_pft(n) = sites(s)%area_pft(n) - (tota-area)
                     write(fates_log(),*) 'fixing patch precision in veg patch',n,sites(s)%area_pft(n), tota-area
@@ -515,7 +515,7 @@ contains
          end if ! SP
 
          is_first_patch = itrue
-          do n = 0, no_new_patches
+          do n = 0, num_new_patches
 
            ! set the PFT index for patches if in nocomp mode. 
            if(hlm_use_nocomp.eq.itrue)then
