@@ -2067,7 +2067,7 @@ contains
      real(r8) :: ai
      ! TODO: THIS MIN LAI IS AN ARTIFACT FROM TESTING LONG-AGO AND SHOULD BE REMOVED
      ! THIS HAS BEEN KEPT THUS FAR TO MAINTAIN B4B IN TESTING OTHER COMMITS
-     real(r8) :: ai_min = 0.1_r8
+     real(r8),parameter :: ai_min = 0.1_r8
      real(r8),pointer   :: ai_profile
 
      ai = 0._r8
@@ -2085,7 +2085,6 @@ contains
                     cpatch%tlai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
            enddo
         enddo
-
      elseif (trim(ai_type) == 'esai') then
          do cl = 1,cpatch%NCL_p
            do ft = 1,numpft
