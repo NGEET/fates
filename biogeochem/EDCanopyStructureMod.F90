@@ -1351,14 +1351,18 @@ contains
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
 
-             if(hlm_use_sp.eq.itrue.and.associated(currentPatch%tallest%shorter))then
-                write(fates_log(),*) 'more than one cohort in SP mode',s,currentPatch%nocomp_pft_label
-             endif
+             if(hlm_use_sp.eq.itrue)then
 
-             if(currentPatch%total_canopy_area-currentPatch%area.gt.1.0e-16)then
-                write(fates_log(),*) 'too much canopy in summary',s,currentPatch%total_canopy_area-currentPatch%area
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             end if 
+               if(associated(currentPatch%tallest%shorter))then
+                 write(fates_log(),*) 'more than one cohort in SP mode',s,currentPatch%nocomp_pft_label
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
+
+               if(currentPatch%total_canopy_area-currentPatch%area.gt.1.0e-16)then
+                 write(fates_log(),*) 'too much canopy in summary',s,currentPatch%total_canopy_area-currentPatch%area
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
+             end if  !sp mode
 
              ! Check for erroneous zero values. 
              if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
@@ -1383,7 +1387,7 @@ contains
           enddo ! ends 'do while(associated(currentCohort))
           
           if ( currentPatch%total_canopy_area>currentPatch%area ) then
-             if ( currentPatch%total_canopy_area-currentPatch%area > 1.0e-16_r8 ) then
+             if ( currentPatch%total_canopy_area-currentPatch%area > 1.0e-10_r8 ) then
                 write(fates_log(),*) 'FATES: canopy area bigger than area', &
                      currentPatch%total_canopy_area ,currentPatch%area, &
                      currentPatch%total_canopy_area -currentPatch%area,&
