@@ -417,6 +417,7 @@ contains
      real(r8) :: litter_stock
      real(r8) :: seed_stock
      integer  :: n
+     integer  :: start_patch
      integer  :: num_new_patches
      integer  :: nocomp_pft     
      real(r8) :: newparea
@@ -470,52 +471,22 @@ contains
            ! It is likely that closed canopy forest inventories
            ! have smaller spread factors than bare ground (they are crowded)
            sites(s)%spread     = init_spread_near_bare_ground
+
+          start_patch = 1   ! start at the first vegetated patch
           if(hlm_use_nocomp.eq.itrue)then
            num_new_patches = numpft
            if(hlm_use_sp.eq.itrue)then
              num_new_patches = numpft + 1 ! bare ground patch in SP mode. 
+             start_patch = 0 ! start at the bare ground patch
            endif
 !           allocate(newppft(numpft))
-          else
+          else !default
            num_new_patches = 1
            newparea = area
-          end if
+          end if !nocomp
 
-         !check if the total area adds to the same as site area                                                     
-         if(hlm_use_sp.eq.itrue)then
-           tota = 0.0_r8
-           do n = 0, num_new_patches
-             if(n.eq.0)then
-               newparea = sites(s)%area_bareground
-             else
-               newparea = sites(s)%area_pft(n) 
-             end if
-             tota=tota+newparea
-             end do !n
-
-         if(abs(tota-area).gt.1.0e-16_r8)then
-           if(abs(tota-area).lt.1.0e-10_r8)then
-             if(sites(s)%area_bareground.gt.nearzero.and.sites(s)%area_bareground.gt.tota-area)then 
-             !modify area of bare ground if thre is a bare ground patch and it is big enough
-                write(fates_log(),*) 'fixing patch precision in bg patch', sites(s)%area_bareground , tota-area
-               sites(s)%area_bareground = sites(s)%area_bareground - (tota-area) !units of m2
-             else !no bare ground
-               do n = 0, num_new_patches
-                 if(sites(s)%area_pft(n).gt.tota-area)then
-                    sites(s)%area_pft(n) = sites(s)%area_pft(n) - (tota-area)
-                    write(fates_log(),*) 'fixing patch precision in veg patch',n,sites(s)%area_pft(n), tota-area
-                 end if
-               end do
-             endif !area left in patches
-           else !this is a big error
-               write(fates_log(),*) 'error large', s,tota-area
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-             endif  ! big error 
-           end if ! too much patch area 
-         end if ! SP
-
-         is_first_patch = itrue
-          do n = 0, num_new_patches
+         is_first_patch = itrue 
+          do n = start_patch, num_new_patches
 
            ! set the PFT index for patches if in nocomp mode. 
            if(hlm_use_nocomp.eq.itrue)then
@@ -537,7 +508,7 @@ contains
              newparea = area       
            end if  !nocomp mode
 
-           if(hlm_use_sp.eq.itrue.and.n.eq.0)then
+           if(hlm_use_sp.eq.itrue.and.n.eq.0)then ! bare ground patch
               newparea = sites(s)%area_bareground 
               nocomp_pft = 0
            end if
@@ -608,6 +579,7 @@ contains
                 sites(s)%youngest_patch%area = sites(s)%oldest_patch%area - (tota-area)  
              endif                      
            else !this is a big error
+             write(*,*) 'issue with patch area in EDinit',tota-area,tota
              call endrun(msg=errMsg(sourcefile, __LINE__))
            endif  ! big error
          end if ! too much patch area
