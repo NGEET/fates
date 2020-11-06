@@ -1475,6 +1475,12 @@ contains
             write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
+
+
+         if(hlm_use_sp.eq.itrue.and.hlm_use_fixed_biogeog.eq.ifalse)then
+            write(fates_log(), *) 'SP cannot be on if fixed biogeog mode is off. Exiting. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
          
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
