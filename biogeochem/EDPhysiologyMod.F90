@@ -1371,32 +1371,27 @@ contains
    ! Get access to HLM input varialbes. 
    ! Weight them by PFT
    ! Loop around patches, and for each single cohort in each patch 
-   ! determine what 'n'	  should be from the canopy height.
-   ! determine the leaf biomass that it should have. 
-   ! figure out how this will interact with the canopy_structure routines. 
-   ! determine what 'n' should be from the canopy height. 
-
+   ! call assign_cohort_SP_properties to determine cohort height, dbh, 'n',  area, leafc from drivers.
 
    currentSite%sp_tlai(:) = 0._r8
    currentSite%sp_tsai(:) = 0._r8
    currentSite%sp_htop(:) = 0._r8
 
+   ! WEIGHTING OF FATES PFTs on to HLM_PFTs
+   ! 1. Add up the area associated with each FATES PFT 
+   ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
+   ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
+
+   ! 2. weight each fates PFT target for lai, sai and htop by the area of the 
+   ! contrbuting HLM PFTs.
+
    currentPatch => currentSite%oldest_patch
    do while (associated(currentPatch))
 
-       ! WEIGHTING OF FATES PFTs on to HLM_PFTs
-       ! add up the area associated with each FATES PFT
-       ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
-       ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
-
-       ! weight each fates PFT target for lai, sai and htop by the area of the 
-       ! contrbuting HLM PFTs.
-       ! we only need to do this for the patch/fates_pft we are currently in
      fates_pft = currentPatch%nocomp_pft_label
      if(fates_pft.ne.0)then 
 
        sumarea = 0.0_r8
-
        do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
 
          if(bc_in%pft_areafrac(hlm_pft) * EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft).gt.0.0_r8)then
@@ -1426,25 +1421,28 @@ contains
              /(currentPatch%area/area)
         endif
 
-
-   end if ! bare patch
+   end if ! not bare patch
     currentPatch => currentPatch%younger
   end do ! patch loop                                                                                             
+
+ ! ------------------------------------------------------------
+ ! now we have the target lai, sai and htop for each PFT/patch
+ ! find properties of the cohort that go along with that
+ ! 1. Find canopy area from HTOP (height)
+ ! 2. Find 'n' associated with canopy area, given a closed canopy
+ ! 3. Find 'bleaf' associated with TLAI and canopy area. 
+ ! These things happen in  the catchily titled "assign_cohort_SP_properties" routine.
+ ! ------------------------------------------------------------ 
+
   currentPatch => currentSite%oldest_patch
    do while (associated(currentPatch))
 
-    ! ------------------------------------------------------------
-    ! now we have the target lai, sai and htop for each PFT/patch
-    ! find properties of the cohort that go along with that
-    ! 1. Find canopy area from HTOP (height)
-    ! 2. Find 'n' associated with canopy area, given a closed canopy
-    ! 3. Find 'bleaf' associated with TLAI and canopy area. 
-    ! ------------------------------------------------------------ 
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
 
+      ! FIRST SOME CHECKS. 
       fates_pft =currentCohort%pft
-      if(fates_pft.ne.currentPatch%nocomp_pft_label)then
+      if(fates_pft.ne.currentPatch%nocomp_pft_label)then ! does this cohort belong in this PFT patch?
         write(fates_log(),*) 'wrong PFT label in cohort in SP mode',fates_pft,currentPatch%nocomp_pft_label
           call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
@@ -1453,6 +1451,8 @@ contains
           write(fates_log(),*) 'PFT0 in SP mode'
           call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
+
+     ! Call routine to invert SP drivers into cohort properites. 
       call assign_cohort_SP_properties(currentCohort, currentSite%sp_htop(fates_pft), currentSite%sp_tlai(fates_pft)     , currentSite%sp_tsai(fates_pft),currentPatch%area,ifalse,leaf_c)
 
       currentCohort => currentCohort%shorter
@@ -1466,6 +1466,7 @@ contains
 
   subroutine assign_cohort_SP_properties(currentCohort,htop,tlai,tsai,parea,init,leaf_c)
 
+   ! -----------------------------------------------------------------------------------!
    ! Takes the daily inputs of leaf area index, stem area index and canopy height and
    ! translates them into a FATES structure with one patch and one cohort per PFT
    ! The leaf area of the cohort is modified each day to match that asserted by the HLM
@@ -1506,11 +1507,10 @@ contains
     call h2d_allom(currentCohort%hite,fates_pft,currentCohort%dbh)
 
    currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
-    spread = 1.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
+   spread = 1.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
                      ! n.b. the value of this will only affect 'n', which isn't/shouldn't be a diagnostic in 
                      ! SP mode. 
     call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,currentCohort%c_area)
-
 
     !------------------------------------------
     !  Calculate canopy N assuming patch area is full
@@ -1528,19 +1528,24 @@ contains
     leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
                   currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
 
-    !check reverse - maybe can delete eventually
+    !check that the inverse calculation of leafc from treelai is the same as the 
+    ! standard calculation of treelai from leafc. Maybe can delete eventually?
+
     check_treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                                            currentCohort%n, currentCohort%canopy_layer,               &
                                            canopylai,currentCohort%vcmax25top )
  
-      if( abs(currentCohort%treelai-check_treelai).gt.1.0e-12)then !this is not as precise as nearzerio (10^-16 typically)
+      if( abs(currentCohort%treelai-check_treelai).gt.1.0e-12)then !this is not as precise as nearzero
         write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%treelai-check_treelai
         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
-
       
      ! the carea_allom routine sometimes generates precision-tolerance level errors in the canopy area 
-     if(abs(currentCohort%c_area-parea).gt.nearzero)then
+     ! these mean that the canopy area does not exactly add up to the patch area, which causes chaos in 
+     ! the radiation routines.  Correct both the area and the 'n' to remove error, and don't use 
+    !! carea_allom in SP mode after this point. 
+
+     if(abs(currentCohort%c_area-parea).gt.nearzero)then ! there is an error
        if(abs(currentCohort%c_area-parea).lt.10.e-9)then !correct this if it's a very sall error
        oldcarea = currentCohort%c_area
        !generate new cohort area
