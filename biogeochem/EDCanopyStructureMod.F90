@@ -1653,7 +1653,6 @@ contains
              
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))   
-                
                 ft = currentCohort%pft 
                 cl = currentCohort%canopy_layer
                 
@@ -1922,7 +1921,7 @@ contains
         currentPatch => sites(s)%oldest_patch
         c = fcolumn(s)
         do while(associated(currentPatch))
-          if(currentPatch%nocomp_pft_label.gt.0)then ! only set values for vegetated patches in fixed modes
+          if(currentPatch%nocomp_pft_label.ne.0)then ! only increase ifp for veg patches not BG (in SP mode)
            ifp = ifp+1
          endif ! stay with ifp=0 for bareground patch. 
            if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
@@ -2027,11 +2026,11 @@ contains
            currentPatch => sites(s)%oldest_patch
            ifp = 0
            do while(associated(currentPatch))
-            if(.not.hlm_use_sp.or.currentPatch%nocomp_pft_label.gt.0)then
+            if(currentPatch%nocomp_pft_label.ne.0)then ! for vegetated patches only
               ifp = ifp+1
               bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
-             else ! when it is both SP mode and the bareground patch
-              bc_out(s)%canopy_fraction_pa(ifp) =0.0_r8
+             else ! for the bareground patch (in SP mode). 
+               bc_out(s)%canopy_fraction_pa(ifp) =0.0_r8
              endif ! veg patch
 
 
@@ -2089,6 +2088,7 @@ contains
                     cpatch%tlai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
            enddo
         enddo
+
      elseif (trim(ai_type) == 'esai') then
          do cl = 1,cpatch%NCL_p
            do ft = 1,numpft
@@ -2193,7 +2193,7 @@ contains
         if(arealayer > currentPatch%area)then
            z = z + 1
            if(hlm_use_sp)then
-              write(*,*) 'SPmode, canopy_layer full:',arealayer,currentPatch%area
+              write(fates_log(),*) 'SPmode, canopy_layer full:',arealayer,currentPatch%area
            end if
           
         endif

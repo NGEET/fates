@@ -278,7 +278,7 @@ contains
          ifp = 0
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))  
-            if(currentpatch%nocomp_pft_label.gt.0)then
+            if(currentpatch%nocomp_pft_label.ne.0)then
             ifp   = ifp+1
             NCL_p = currentPatch%NCL_p
             

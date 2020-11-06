@@ -89,7 +89,7 @@ contains
            ifp = 0
            currentpatch => sites(s)%oldest_patch
            do while (associated(currentpatch))  
-             if(currentpatch%nocomp_pft_label.gt.0)then
+             if(currentpatch%nocomp_pft_label.ne.0)then
               ifp = ifp+1
               
               currentPatch%f_sun      (:,:,:) = 0._r8
@@ -1063,7 +1063,7 @@ contains
        cpatch => sites(s)%oldest_patch
 
        do while (associated(cpatch))                 
-          if(cpatch%nocomp_pft_label.gt.0)then !only for veg patches
+          if(cpatch%nocomp_pft_label.ne.0)then !only for veg patches
           ifp=ifp+1
           
           if( debug ) write(fates_log(),*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft

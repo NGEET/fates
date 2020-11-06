@@ -64,7 +64,7 @@ contains
 
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
-         if(cpatch%nocomp_pft_label.gt.0)then
+         if(cpatch%nocomp_pft_label.ne.0)then
           ifp = ifp+1
 
           if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
