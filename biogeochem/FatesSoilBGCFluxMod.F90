@@ -63,7 +63,7 @@ module FatesSoilBGCFluxMod
   use FatesConstantsMod, only    : fates_np_comp_scaling
   use FatesConstantsMod, only    : cohort_np_comp_scaling
   use FatesConstantsMod, only    : pft_np_comp_scaling
-  use FatesCosntantsMod, only    : trivial_np_comp_scaling
+  use FatesConstantsMod, only    : trivial_np_comp_scaling
   use FatesConstantsMod, only    : rsnbl_math_prec
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod    , only : ncwd
@@ -510,7 +510,7 @@ contains
              ! competitor with plant root biomass, but no
              ! uptake affinity
              
-             if(comp_scaling.eq.trivial_comp_scaling) then
+             if(comp_scaling.eq.trivial_np_comp_scaling) then
                 icomp = 1
                 bc_out%ft_index(icomp) = 1  ! Trivial (not used)
              elseif(comp_scaling.eq.cohort_np_comp_scaling) then
@@ -539,10 +539,10 @@ contains
                 ! The parameter EDPftvarcon_inst%decompmicc(pft) is the maximum amount found at depth
                 ! decompmicc_zmax, and the profile attenuates with strength lambda
                 
-                decompmic_layer = EDPftvarcon_inst%decompmicc(pft) * &
+                decompmicc_layer = EDPftvarcon_inst%decompmicc(pft) * &
                      exp(-decompmicc_lambda*abs(csite%z_soil(j)-decompmicc_zmax))
                 
-                bc_out%decompmicc(id) = bc_out%decompmicc(id) + decompmic_layer * veg_rootc
+                bc_out%decompmicc(id) = bc_out%decompmicc(id) + decompmicc_layer * veg_rootc
              end do
 
              ccohort => ccohort%shorter
