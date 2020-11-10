@@ -2143,6 +2143,7 @@ contains
     currentPatch%zstar                      = 0.0_r8
     currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
     currentPatch%c_lblayer                  = 0.0_r8
+    currentPatch%fragmentation_scaler(:)    = 0.0_r8
 
     currentPatch%solar_zenith_flag          = .false.
     currentPatch%solar_zenith_angle         = nan
