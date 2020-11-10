@@ -63,6 +63,7 @@ module FatesSoilBGCFluxMod
   use FatesConstantsMod, only    : fates_np_comp_scaling
   use FatesConstantsMod, only    : cohort_np_comp_scaling
   use FatesConstantsMod, only    : pft_np_comp_scaling
+  use FatesCosntantsMod, only    : trivial_np_comp_scaling
   use FatesConstantsMod, only    : rsnbl_math_prec
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod    , only : ncwd
@@ -239,7 +240,6 @@ contains
        return
     end if
 
-    
     do s = 1, nsites
 
        ! If the plant is in "prescribed uptake mode"
@@ -453,24 +453,33 @@ contains
     real(r8) :: deficit_p_demand                   ! Phosphorus needed to get stoich back to
                                                    ! optimal [kgP]
     real(r8) :: comp_per_pft(numpft) ! Competitors per PFT, used for averaging
+    real(r8) :: decompmicc_layer     ! Microbial dedcomposer biomass for current layer
+    integer :: comp_scaling          ! Flag that defines the boundary condition scaling method (includes trivial)
+    
+    real(r8), parameter :: decompmicc_lambda = 2.5_r8  ! Depth attenuation exponent for decomposer biomass
+    real(r8), parameter :: decompmicc_zmax   = 7.0e-2_r8  ! Depth of maximum decomposer biomass
 
 
-    ! Run the trivial case where we do not have a nutrient model
-    ! running in fates, send zero demands to the BGC model
-    if((hlm_parteh_mode.ne.prt_cnp_flex_allom_hyp)) then
+
+    ! Determine the scaling approach
+    if((hlm_parteh_mode.eq.prt_cnp_flex_allom_hyp) .and. & 
+         ((n_uptake_mode.eq.coupled_n_uptake) .or. &
+          (p_uptake_mode.eq.coupled_p_uptake))) then
+       comp_scaling = fates_np_comp_scaling
+    else
+       comp_scaling = trivial_np_comp_scaling
        bc_out%num_plant_comps  = 1
        if(trim(hlm_nu_com).eq.'ECA')then
           bc_out%ft_index(1)    = 1
-          bc_out%veg_rootc(1,:) = 0._r8
           bc_out%cn_scalar(1)   = 0._r8
           bc_out%cp_scalar(1)   = 0._r8
-          bc_out%decompmicc(1)  = 0._r8
        elseif(trim(hlm_nu_com).eq.'RD') then
           bc_out%n_demand(1) = 0._r8
           bc_out%p_demand(1) = 0._r8
+          return 
        end if
-       return
     end if
+
     
     ! This is the number of effective soil layers to transfer from
     nlev_eff_soil   = max(bc_in%max_rooting_depth_index_col, 1)
@@ -480,8 +489,6 @@ contains
     if(trim(hlm_nu_com).eq.'ECA')then
        
          bc_out%veg_rootc(:,:) = 0._r8  ! Zero this, it will be incremented
-         bc_out%cn_scalar(:)   = 0._r8
-         bc_out%cp_scalar(:)   = 0._r8
          bc_out%decompmicc(:)  = 0._r8
          bc_out%ft_index(:)    = -1
          
@@ -497,12 +504,22 @@ contains
           do while (associated(ccohort))
              
              pft   = ccohort%pft
+
+             ! If we are not coupling plant uptake
+             ! with ECA, then we send 1 token
+             ! competitor with plant root biomass, but no
+             ! uptake affinity
              
-             if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
+             if(comp_scaling.eq.trivial_comp_scaling) then
+                icomp = 1
+                bc_out%ft_index(icomp) = 1  ! Trivial (not used)
+             elseif(comp_scaling.eq.cohort_np_comp_scaling) then
                 icomp = icomp+1
+                bc_out%ft_index(icomp) = pft
              else
                 icomp = pft
                 comp_per_pft(pft) = comp_per_pft(pft) + 1
+                bc_out%ft_index(icomp) = pft
              end if
              
              call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil)
@@ -517,23 +534,22 @@ contains
                 id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer     
                 veg_rootc = fnrt_c * ccohort%n * csite%rootfrac_scr(j) * AREA_INV * g_per_kg / csite%dz_soil(j)
                 bc_out%veg_rootc(icomp,id) = bc_out%veg_rootc(icomp,id) + veg_rootc
-                bc_out%decompmicc(id) = bc_out%decompmicc(id) + &
-                     EDPftvarcon_inst%decompmicc(pft) * veg_rootc
+
+                ! We use a 3 parameter exponential attenuation function to estimate decomposer biomass
+                ! The parameter EDPftvarcon_inst%decompmicc(pft) is the maximum amount found at depth
+                ! decompmicc_zmax, and the profile attenuates with strength lambda
+                
+                decompmic_layer = EDPftvarcon_inst%decompmicc(pft) * &
+                     exp(-decompmicc_lambda*abs(csite%z_soil(j)-decompmicc_zmax))
+                
+                bc_out%decompmicc(id) = bc_out%decompmicc(id) + decompmic_layer * veg_rootc
              end do
-             
-             bc_out%ft_index(icomp) = pft
 
              ccohort => ccohort%shorter
           end do
           
           cpatch => cpatch%younger
        end do
-       
-       if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-          bc_out%num_plant_comps = icomp
-       else
-          bc_out%num_plant_comps = numpft
-       end if
 
        ! We calculate the decomposer microbial biomass by weighting with the
        ! root biomass. This is just the normalization step
@@ -541,6 +557,18 @@ contains
           bc_out%decompmicc(id) = bc_out%decompmicc(id) / &
                max(nearzero,sum(bc_out%veg_rootc(:,id),dim=1))
        end do
+
+       
+       if(comp_scaling.eq.cohort_np_comp_scaling) then
+          bc_out%num_plant_comps = icomp
+       elseif(comp_scaling.eq.pft_np_comp_scaling) then
+          bc_out%num_plant_comps = numpft
+       else
+          bc_out%num_plant_comps = 1
+          bc_out%cn_scalar(:) = 0._r8
+          bc_out%cp_scalar(:) = 0._r8
+          return
+       end if
 
        coupled_n_if: if(n_uptake_mode.eq.coupled_n_uptake) then
           icomp = 0
@@ -571,6 +599,12 @@ contains
                 bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp)/real(comp_per_pft(icomp),r8)
              end do
           end if
+
+       else
+
+          ! If we are not coupling N, then make sure to set affinity of plants to 0
+          ! (it is possible to be here if P is coupled but N is not)
+          bc_out%cn_scalar(:) = 0._r8
           
        end if coupled_n_if
 
@@ -603,6 +637,11 @@ contains
                 bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp)/real(comp_per_pft(icomp),r8)
              end do
           end if
+       else
+          
+          ! If we are not coupling P, then make sure to set affinity of plants to 0
+          ! (it is possible to be here if N is coupled but P is not)
+          bc_out%cp_scalar(:) = 0._r8
           
        end if coupled_p_if
        
@@ -624,6 +663,7 @@ contains
              end do
              cpatch => cpatch%younger
           end do
+          
        end if
        
        if(p_uptake_mode .eq. coupled_p_uptake ) then
@@ -690,17 +730,12 @@ contains
           end do
        end if
 
-       if( (n_uptake_mode.eq.coupled_n_uptake) .or. &
-           (p_uptake_mode.eq.coupled_p_uptake)) then
-          if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-             bc_out%num_plant_comps = icomp
-          else
-             bc_out%num_plant_comps = numpft
-          end if
-          
+       if(comp_scaling.eq.cohort_np_comp_scaling) then
+          bc_out%num_plant_comps = icomp
+       elseif(comp_scaling.eq.pft_np_comp_scaling) then
+          bc_out%num_plant_comps = numpft
        else
           bc_out%num_plant_comps = 1
-          
        end if
        
     end if
@@ -787,7 +822,6 @@ contains
     ! how steep profile is for surface components (1/ e_folding depth) (1/m) 
     real(r8),  parameter :: surfprof_exp  = 10.
 
-
     ! This is the number of effective soil layers to transfer from
     nlev_eff_soil   = max(bc_in%max_rooting_depth_index_col, 1)
     
@@ -841,11 +875,6 @@ contains
           flux_lab_si => bc_out%litt_flux_lab_n_si(:)
           flux_lig_si => bc_out%litt_flux_lig_n_si(:)
 
-          ! If we have prescribed boundary conditions
-          ! we do not take N out of the BGC model's
-          ! stores, so nor do we send any back
-          if(n_uptake_mode.eq.prescribed_n_uptake) cycle
-          
        case (phosphorus_element)
           bc_out%litt_flux_cel_p_si(:) = 0._r8
           bc_out%litt_flux_lig_p_si(:) = 0._r8
@@ -854,11 +883,6 @@ contains
           flux_lab_si => bc_out%litt_flux_lab_p_si(:)
           flux_lig_si => bc_out%litt_flux_lig_p_si(:)
 
-          ! If we have prescribed boundary conditions
-          ! we do not take N out of the BGC model's
-          ! stores, so nor do we send any back
-          if(p_uptake_mode.eq.prescribed_p_uptake) cycle
-          
        end select
 
        
@@ -956,7 +980,6 @@ contains
           flux_lab_si(id) = days_per_sec * g_per_kg * &
                flux_lab_si(id) / bc_in%dz_decomp_sisl(id)
        end do
-
 
     end do  ! do elements
 
