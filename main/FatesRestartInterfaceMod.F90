@@ -1881,8 +1881,8 @@ contains
 
                 rio_daily_n_demand_co(io_idx_co) = ccohort%daily_n_demand
                 rio_daily_p_demand_co(io_idx_co) = ccohort%daily_p_demand
-                rio_daily_n_need_co(io_idx_co)   = ccohort%daily_n_need2
-                rio_daily_p_need_co(io_idx_co)   = ccohort%daily_p_need2
+                rio_daily_n_need_co(io_idx_co)   = ccohort%daily_n_need
+                rio_daily_p_need_co(io_idx_co)   = ccohort%daily_p_need
                  
                 !Logging
                 rio_lmort_direct_co(io_idx_co)       = ccohort%lmort_direct
@@ -2628,8 +2628,8 @@ contains
                 
                 ccohort%daily_n_demand = rio_daily_n_demand_co(io_idx_co) 
                 ccohort%daily_p_demand = rio_daily_p_demand_co(io_idx_co)
-                ccohort%daily_n_need2  = rio_daily_n_need_co(io_idx_co)
-                ccohort%daily_p_need2  = rio_daily_p_need_co(io_idx_co)
+                ccohort%daily_n_need   = rio_daily_n_need_co(io_idx_co)
+                ccohort%daily_p_need   = rio_daily_p_need_co(io_idx_co)
 
                 !Logging
                 ccohort%lmort_direct       = rio_lmort_direct_co(io_idx_co)

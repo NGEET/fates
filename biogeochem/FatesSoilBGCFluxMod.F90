@@ -166,11 +166,11 @@ contains
 
     if(element_id.eq.nitrogen_element) then
 
-       plant_demand = smth_fac*ccohort%daily_n_demand + (1._r8-smth_fac)*ccohort%daily_n_need2
+       plant_demand = smth_fac*ccohort%daily_n_demand + (1._r8-smth_fac)*ccohort%daily_n_need
        
     elseif(element_id.eq.phosphorus_element) then
  
-       plant_demand = smth_fac*ccohort%daily_p_demand + (1._r8-smth_fac)*ccohort%daily_p_need2
+       plant_demand = smth_fac*ccohort%daily_p_demand + (1._r8-smth_fac)*ccohort%daily_p_need
        
     end if
 

@@ -159,12 +159,10 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_out_id_cefflux = 1  ! Daily exudation of C  [kg]
   integer, public, parameter :: acnp_bc_out_id_nefflux = 2  ! Daily exudation of N  [kg]
   integer, public, parameter :: acnp_bc_out_id_pefflux = 3  ! Daily exudation of P  [kg]
-  integer, public, parameter :: acnp_bc_out_id_ngrow    = 4 ! N needed to match C growth at low N/C
-  integer, public, parameter :: acnp_bc_out_id_nmax     = 5 ! N needed to match C growth at max N/C
-  integer, public, parameter :: acnp_bc_out_id_pgrow    = 6 ! P needed to match C growth at low P/C
-  integer, public, parameter :: acnp_bc_out_id_pmax     = 7 ! P needed to match C growth at max P/C
+  integer, public, parameter :: acnp_bc_out_id_nneed   = 4  ! N need (algorithm dependent [kgN]
+  integer, public, parameter :: acnp_bc_out_id_pneed   = 5  ! P need (algorithm dependent [kgP]
   
-  integer, parameter         :: num_bc_out                = 7  ! Total number of
+  integer, parameter         :: num_bc_out                = 5  ! Total number of
 
 
   ! -------------------------------------------------------------------------------------
@@ -337,10 +335,8 @@ contains
     real(r8),pointer :: c_efflux   ! Total plant efflux of carbon (kgC)
     real(r8),pointer :: n_efflux   ! Total plant efflux of nitrogen (kgN)
     real(r8),pointer :: p_efflux   ! Total plant efflux of phosphorus (kgP)
-    real(r8),pointer :: n_grow     ! N needed to match C stature growth (kgN)
-    real(r8),pointer :: n_max      ! N needed to reach max stoich at final C (kgN)
-    real(r8),pointer :: p_grow     ! P needed to match C stature growth (kgP)
-    real(r8),pointer :: p_max      ! P needed to reach max stoich at final C (kgP)
+    real(r8),pointer :: n_need     ! N need (algorithm dependent) (kgN)
+    real(r8),pointer :: p_need     ! P need (algorithm dependent) (KgP)
     real(r8),pointer :: growth_r   ! Total plant growth respiration this step (kgC)
 
     ! These are pointers to the state variables, rearranged in organ dimensioned
@@ -488,10 +484,6 @@ contains
        call this%CNPPrioritizedReplacement(maint_r_def, c_gain_unl, n_gain_unl, p_gain_unl, &
             state_c, state_n, state_p, target_c)
 
-       ! Uncomment to see intermediate n and p needs
-       !n_grow = n_gain_unl0 - n_gain_unl
-       !p_grow = p_gain_unl0 - p_gain_unl
-       
        ! ===================================================================================
        ! Step 2. Grow out the stature of the plant by allocating to tissues beyond
        ! current targets. 
@@ -501,9 +493,6 @@ contains
        
        call this%CNPStatureGrowth(c_gain_unl, n_gain_unl, p_gain_unl,  &
             state_c, state_n, state_p, target_c, target_dcdd, cnp_limiter)
-       
-       n_grow = max(0._r8,(n_gain_unl0 - n_gain_unl))
-       p_grow = max(0._r8,(p_gain_unl0 - p_gain_unl))
        
        ! ===================================================================================
        ! Step 3. 
@@ -515,8 +504,8 @@ contains
             state_c, state_n, state_p, c_efflux, n_efflux, p_efflux)
 
        
-       n_max = max(n_gain_unl0 - n_efflux,0._r8)
-       p_max = max(p_gain_unl0 - p_efflux,0._r8)
+       n_need = max(n_gain_unl0 - n_efflux,0._r8)
+       p_need = max(p_gain_unl0 - p_efflux,0._r8)
 
        
        ! We must now reset the state so that we can perform nutrient limited allocation

@@ -409,10 +409,8 @@ contains
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_ngrow, bc_rval = new_cohort%daily_n_need1)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nmax, bc_rval = new_cohort%daily_n_need2)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pgrow, bc_rval = new_cohort%daily_p_need1)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pmax, bc_rval = new_cohort%daily_p_need2)
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nneed, bc_rval = new_cohort%daily_n_need)
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pneed, bc_rval = new_cohort%daily_p_need)
        
        
     case DEFAULT
@@ -564,10 +562,8 @@ contains
     currentCohort%daily_c_efflux = nan
     currentCohort%daily_n_efflux = nan
     currentCohort%daily_p_efflux = nan
-    currentCohort%daily_n_need1 = nan
-    currentCohort%daily_n_need2 = nan
-    currentCohort%daily_p_need1 = nan
-    currentCohort%daily_p_need2 = nan
+    currentCohort%daily_n_need   = nan
+    currentCohort%daily_p_need   = nan
     currentCohort%daily_n_demand = nan
     currentCohort%daily_p_demand = nan
     
@@ -685,10 +681,8 @@ contains
     currentCohort%daily_n_efflux = 0._r8
     currentCohort%daily_p_efflux = 0._r8
     
-    currentCohort%daily_n_need1 = 0._r8
-    currentCohort%daily_n_need2 = 0._r8
-    currentCohort%daily_p_need1 = 0._r8
-    currentCohort%daily_p_need2 = 0._r8
+    currentCohort%daily_n_need = 0._r8
+    currentCohort%daily_p_need = 0._r8
 
     ! Initialize these as negative
     currentCohort%daily_p_demand = -9._r8
@@ -1413,15 +1407,10 @@ contains
                                       currentCohort%daily_p_efflux = (currentCohort%n*currentCohort%daily_p_efflux + & 
                                            nextc%n*nextc%daily_p_efflux)/newn
                                       
-                                      currentCohort%daily_n_need1 = (currentCohort%n*currentCohort%daily_n_need1 + & 
-                                           nextc%n*nextc%daily_n_need1)/newn
-                                      currentCohort%daily_n_need2 = (currentCohort%n*currentCohort%daily_n_need2 + & 
-                                           nextc%n*nextc%daily_n_need2)/newn
-                                      currentCohort%daily_p_need1 = (currentCohort%n*currentCohort%daily_p_need1 + & 
-                                           nextc%n*nextc%daily_p_need1)/newn
-                                      currentCohort%daily_p_need2 = (currentCohort%n*currentCohort%daily_p_need2 + & 
-                                           nextc%n*nextc%daily_p_need2)/newn
-
+                                      currentCohort%daily_n_need = (currentCohort%n*currentCohort%daily_n_need + & 
+                                           nextc%n*nextc%daily_n_need)/newn
+                                      currentCohort%daily_p_need = (currentCohort%n*currentCohort%daily_p_need + & 
+                                           nextc%n*nextc%daily_p_need)/newn
                                       
                                       
                                       ! logging mortality, Yi Xu
@@ -1822,10 +1811,8 @@ contains
     n%daily_c_efflux = o%daily_c_efflux
     n%daily_n_efflux = o%daily_n_efflux
     n%daily_p_efflux = o%daily_p_efflux
-    n%daily_n_need1 = o%daily_n_need1
-    n%daily_n_need2 = o%daily_n_need2
-    n%daily_p_need1 = o%daily_p_need1
-    n%daily_p_need2 = o%daily_p_need2
+    n%daily_n_need   = o%daily_n_need
+    n%daily_p_need   = o%daily_p_need
     n%daily_n_demand = o%daily_n_demand
     n%daily_p_demand = o%daily_p_demand
     

@@ -476,21 +476,13 @@ contains
                   currentCohort%daily_c_efflux*currentCohort%n
 
              ! Diagnostics on plant nutrient need
-             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needgrow_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needgrow_scpf(iscpf) + &
-                  currentCohort%daily_n_need1*currentCohort%n
+             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_need_scpf(iscpf) = &
+                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_need_scpf(iscpf) + &
+                  currentCohort%daily_n_need*currentCohort%n
 
-             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needmax_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needmax_scpf(iscpf) + &
-                  currentCohort%daily_n_need2*currentCohort%n
-
-             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needgrow_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needgrow_scpf(iscpf) + &
-                  currentCohort%daily_p_need1*currentCohort%n
-
-             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needmax_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needmax_scpf(iscpf) + &
-                  currentCohort%daily_p_need2*currentCohort%n
+             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_need_scpf(iscpf) = &
+                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_need_scpf(iscpf) + &
+                  currentCohort%daily_p_need*currentCohort%n
 
           end if
 
