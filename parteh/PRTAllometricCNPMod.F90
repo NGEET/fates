@@ -159,8 +159,8 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_out_id_cefflux = 1  ! Daily exudation of C  [kg]
   integer, public, parameter :: acnp_bc_out_id_nefflux = 2  ! Daily exudation of N  [kg]
   integer, public, parameter :: acnp_bc_out_id_pefflux = 3  ! Daily exudation of P  [kg]
-  integer, public, parameter :: acnp_bc_out_id_nneed   = 4  ! N need (algorithm dependent [kgN]
-  integer, public, parameter :: acnp_bc_out_id_pneed   = 5  ! P need (algorithm dependent [kgP]
+  integer, public, parameter :: acnp_bc_out_id_nneed   = 4  ! N need [kgN]
+  integer, public, parameter :: acnp_bc_out_id_pneed   = 5  ! P need [kgP]
   
   integer, parameter         :: num_bc_out                = 5  ! Total number of
 
@@ -335,8 +335,8 @@ contains
     real(r8),pointer :: c_efflux   ! Total plant efflux of carbon (kgC)
     real(r8),pointer :: n_efflux   ! Total plant efflux of nitrogen (kgN)
     real(r8),pointer :: p_efflux   ! Total plant efflux of phosphorus (kgP)
-    real(r8),pointer :: n_need     ! N need (algorithm dependent) (kgN)
-    real(r8),pointer :: p_need     ! P need (algorithm dependent) (KgP)
+    real(r8),pointer :: n_need     ! N need (algorithm dependant) (kgN)
+    real(r8),pointer :: p_need     ! P need (algorithm dependant) (kgP)
     real(r8),pointer :: growth_r   ! Total plant growth respiration this step (kgC)
 
     ! These are pointers to the state variables, rearranged in organ dimensioned
@@ -382,7 +382,10 @@ contains
     real(r8) :: allocated_p
 
     real(r8) :: sum_c ! error checking sum
-    logical, parameter :: prt_assess_nutr_need = .true.
+
+    integer, parameter :: unrstr_cgrow_nutr_need = 1
+    integer, parameter :: refill_store_nutr_need = 2
+    integer, parameter :: nutr_need_mode = refill_store_nutr_need
 
     
     ! integrator variables
@@ -402,10 +405,9 @@ contains
     c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
     n_efflux    => this%bc_out(acnp_bc_out_id_nefflux)%rval;  n_efflux = 0._r8
     p_efflux    => this%bc_out(acnp_bc_out_id_pefflux)%rval;  p_efflux = 0._r8
-    n_grow      => this%bc_out(acnp_bc_out_id_ngrow)%rval;    n_grow = fates_unset_r8
-    n_max       => this%bc_out(acnp_bc_out_id_nmax)%rval;     n_max  = fates_unset_r8
-    p_grow      => this%bc_out(acnp_bc_out_id_pgrow)%rval;    p_grow = fates_unset_r8
-    p_max       => this%bc_out(acnp_bc_out_id_pmax)%rval;     p_max  = fates_unset_r8
+    n_need      => this%bc_out(acnp_bc_out_id_nneed)%rval;    n_need = fates_unset_r8
+    p_need      => this%bc_out(acnp_bc_out_id_pneed)%rval;    p_need = fates_unset_r8
+
     
     ! In/out boundary conditions
     maint_r_def => this%bc_inout(acnp_bc_inout_id_rmaint_def)%rval; maint_r_def0 = maint_r_def
@@ -474,7 +476,7 @@ contains
        
     end do
 
-    assess_need_if: if(prt_assess_nutr_need) then
+    assess_need_if: if(nutr_need_mode.eq.unrstr_cgrow_nutr_need) then
     
        ! ===================================================================================
        ! Step 1.  Prioritized allocation to replace tissues from turnover, and/or pay
@@ -484,6 +486,10 @@ contains
        call this%CNPPrioritizedReplacement(maint_r_def, c_gain_unl, n_gain_unl, p_gain_unl, &
             state_c, state_n, state_p, target_c)
 
+       ! Uncomment to see intermediate n and p needs
+       !n_grow = n_gain_unl0 - n_gain_unl
+       !p_grow = p_gain_unl0 - p_gain_unl
+       
        ! ===================================================================================
        ! Step 2. Grow out the stature of the plant by allocating to tissues beyond
        ! current targets. 
@@ -503,10 +509,8 @@ contains
        call this%CNPAllocateRemainder(c_gain_unl, n_gain_unl, p_gain_unl,  &
             state_c, state_n, state_p, c_efflux, n_efflux, p_efflux)
 
-       
        n_need = max(n_gain_unl0 - n_efflux,0._r8)
        p_need = max(p_gain_unl0 - p_efflux,0._r8)
-
        
        ! We must now reset the state so that we can perform nutrient limited allocation
        ! Note: Even if there is more than 1 leaf pool, allocation only modifies
@@ -650,7 +654,17 @@ contains
        
     end do
 
-  
+    ! Alternative need hypothesis, need is based simply on storage deficit
+    ! at end of time-step
+    if(nutr_need_mode.eq.refill_store_nutr_need) then
+       call bstore_allom(dbh,ipft,canopy_trim, store_c_target)
+       store_n_target = store_c_target*prt_params%nitr_stoich_p2(ipft,store_organ)
+       store_p_target = store_c_target*prt_params%phos_stoich_p2(ipft,store_organ)
+       n_need = max(store_n_target-state_n(store_id)%ptr,0._r8)
+       p_need = max(store_p_target-state_p(store_id)%ptr,0._r8)
+    end if
+    
+    
     if(debug) then
 
        ! Error Check: Do a final balance between how much mass
