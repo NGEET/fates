@@ -1387,7 +1387,7 @@ contains
           enddo ! ends 'do while(associated(currentCohort))
           
           if ( currentPatch%total_canopy_area>currentPatch%area ) then
-             if ( currentPatch%total_canopy_area-currentPatch%area > 1.0e-10_r8 ) then
+             if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
                 write(fates_log(),*) 'FATES: canopy area bigger than area', &
                      currentPatch%total_canopy_area ,currentPatch%area, &
                      currentPatch%total_canopy_area -currentPatch%area,&
