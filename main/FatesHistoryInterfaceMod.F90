@@ -2071,7 +2071,7 @@ end subroutine flush_hvars
          
          ! site-level fire variables
          hio_nesterov_fire_danger_si(io_si) = sites(s)%acc_NI
-         hio_fire_nignitions_si(io_si) = sites(s)%NF
+         hio_fire_nignitions_si(io_si) = sites(s)%NF_successful
          hio_fire_fdi_si(io_si) = sites(s)%FDI
 
          ! If hydraulics are turned on, track the error terms
@@ -4362,7 +4362,7 @@ end subroutine update_history_hifrq
          ivar=ivar, initialize=initialize_variables, index = ih_nesterov_fire_danger_si)
 
     call this%set_history_var(vname='FIRE_IGNITIONS', units='number/km2/day',       &
-         long='number of ignitions', use_default='active',               &
+         long='number of successful ignitions', use_default='active',               &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_nignitions_si)
 

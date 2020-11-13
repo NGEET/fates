@@ -696,7 +696,7 @@ contains
 
     !  ---initialize site parameters to zero--- 
     currentSite%frac_burnt = 0.0_r8  
-
+    currentSite%NF_successful = 0._r8
     
     ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
@@ -810,7 +810,9 @@ contains
          !'decide_fire' subroutine 
          if (currentPatch%FI > SF_val_fire_threshold) then !track fires greater than kW/m energy threshold
             currentPatch%fire = 1 ! Fire...    :D
-          
+            !
+            currentSite%NF_successful = currentSite%NF_successful + &
+                 currentSite%NF * currentSite%FDI * currentPatch%area / area
          else     
             currentPatch%fire       = 0 ! No fire... :-/
             currentPatch%FD         = 0.0_r8
