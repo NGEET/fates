@@ -800,8 +800,8 @@ contains
          W     = currentPatch%TFC_ROS / 0.45_r8 !kgC/m2 to kgbiomass/m2          
 
          ! EQ 15 Thonicke et al 2010
-         !units of fire intensity = (kJ/kg)*(kgBiomass/m2)*(m/min)*unitless_fraction
-         currentPatch%FI = SF_val_fuel_energy * W * ROS * currentPatch%frac_burnt !kj/m/s, or kW/m
+         !units of fire intensity = (kJ/kg)*(kgBiomass/m2)*(m/min)
+         currentPatch%FI = SF_val_fuel_energy * W * ROS !kj/m/s, or kW/m
        
          if(write_sf == itrue)then
              if( hlm_masterproc == itrue ) write(fates_log(),*) 'fire_intensity',currentPatch%fi,W,currentPatch%ROS_front
