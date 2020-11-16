@@ -94,8 +94,8 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdn, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_ngrow,acnp_bc_out_id_nmax
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pgrow,acnp_bc_out_id_pmax
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_nneed
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pneed
  
   
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  

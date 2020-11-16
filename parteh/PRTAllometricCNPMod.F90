@@ -353,7 +353,7 @@ contains
     real(r8) :: bgw_c_target,bgw_dcdd_target
     real(r8) :: sapw_area
     integer  :: cnp_limiter
-    
+    real(r8) :: max_store_n
     ! These arrays hold various support variables dimensioned by organ
     ! Zero suffix indicates the initial state values at the beginning of the routine
     ! _unl suffix indicates values used for tracking nutrient need (ie unlimited)
@@ -380,7 +380,7 @@ contains
     real(r8) :: allocated_c
     real(r8) :: allocated_n
     real(r8) :: allocated_p
-
+    real(r8) :: target_n,target_p
     real(r8) :: sum_c ! error checking sum
 
     integer, parameter :: unrstr_cgrow_nutr_need = 1
@@ -553,7 +553,6 @@ contains
     p_gain = p_gain + sum(this%variables(i_var)%val(:))
     this%variables(i_var)%val(:) = 0._r8
     
-    
     ! ===================================================================================
     ! Step 1.  Prioritized allocation to replace tissues from turnover, and/or pay
     ! any un-paid maintenance respiration from storage.
@@ -654,15 +653,7 @@ contains
        
     end do
 
-    ! Alternative need hypothesis, need is based simply on storage deficit
-    ! at end of time-step
-    if(nutr_need_mode.eq.refill_store_nutr_need) then
-       call bstore_allom(dbh,ipft,canopy_trim, store_c_target)
-       store_n_target = store_c_target*prt_params%nitr_stoich_p2(ipft,store_organ)
-       store_p_target = store_c_target*prt_params%phos_stoich_p2(ipft,store_organ)
-       n_need = max(store_n_target-state_n(store_id)%ptr,0._r8)
-       p_need = max(store_p_target-state_p(store_id)%ptr,0._r8)
-    end if
+ 
     
     
     if(debug) then
@@ -686,6 +677,31 @@ contains
        end if
     end if
 
+    ! Alternative need hypothesis, need is based simply on storage deficit
+    ! at end of time-step
+    if(nutr_need_mode.eq.refill_store_nutr_need) then
+
+       target_n = this%GetNutrientTarget(nitrogen_element,store_organ,stoich_max)
+       target_p = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_max)
+       
+       n_need = max(target_n - state_n(store_id)%ptr,0._r8)
+       p_need = max(target_p - state_p(store_id)%ptr,0._r8)
+
+!       print*,"================"
+!       allocated_n = (state_n(leaf_id)%ptr - state_n0(leaf_id)) + & 
+!            (state_n(fnrt_id)%ptr - state_n0(fnrt_id)) + & 
+!            (state_n(sapw_id)%ptr - state_n0(sapw_id)) + & 
+!            (state_n(repro_id)%ptr - state_n0(repro_id)) + & 
+!            (state_n(struct_id)%ptr - state_n0(struct_id))
+
+!       print*,"dbh: ",dbh
+!       print*,"need:",n_need
+!       print*,"max storage:",target_n
+!       print*,"allocated: ",allocated_n
+!       print*,"alloc/max: ",allocated_n/target_n
+       
+       
+    end if
     
     deallocate(state_c)
     deallocate(state_n)
@@ -1621,18 +1637,14 @@ contains
     ! -----------------------------------------------------------------------------------
 
     do i = 1, num_organs
-
-       ! Update the nitrogen deficits (which are based off of carbon actual..)
-       ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
+       
+       ! Update the nitrogen and phosphorus deficits
        target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i),stoich_max)
        deficit_n(i) = max(0._r8,this%GetDeficit(nitrogen_element,organ_list(i),target_n))
        
-       
-       ! Update the nitrogen deficits (which are based off of carbon actual..)
-       ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
        target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i),stoich_max)
        deficit_p(i) = max(0._r8,this%GetDeficit(phosphorus_element,organ_list(i),target_p))
-
+          
     end do
 
     ! -----------------------------------------------------------------------------------
@@ -1749,6 +1761,11 @@ contains
     real(r8)         :: canopy_trim
     integer          :: ipft
     integer          :: i_cvar
+    real(r8)         :: sapw_area
+    real(r8)         :: leaf_c_target,fnrt_c_target
+    real(r8)         :: sapw_c_target,agw_c_target
+    real(r8)         :: bgw_c_target,struct_c_target
+    
     
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
@@ -1756,11 +1773,37 @@ contains
     i_cvar      = prt_global%sp_organ_map(organ_id,carbon12_element)
     
     ! Storage of nutrients are assumed to have different compartments than
-    ! for carbon, and thus their targets are not associated with the current amount of carbon
-    ! but the plant's carrying capacity
+    ! for carbon, and thus their targets are not associated with a tissue
+    ! but is more represented as a fraction of the maximum amount of nutrient
+    ! that can be bound in non-reproductive tissues
     
     if(organ_id == store_organ) then
-       call bstore_allom(dbh,ipft,canopy_trim, target_c)
+
+       call bleaf(dbh,ipft,canopy_trim,leaf_c_target)
+       call bfineroot(dbh,ipft,canopy_trim,fnrt_c_target)
+       call bsap_allom(dbh,ipft,canopy_trim,sapw_area,sapw_c_target)
+       call bagw_allom(dbh,ipft,agw_c_target)
+       call bbgw_allom(dbh,ipft,bgw_c_target)
+       call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target)
+
+       ! Target for storage is a fraction of the sum target of all
+       ! non-reproductive organs
+
+       if( element_id == nitrogen_element) then
+          target_c = & 
+               leaf_c_target*prt_params%nitr_stoich_p2(ipft,leaf_organ)+ & 
+               fnrt_c_target*prt_params%nitr_stoich_p2(ipft,fnrt_organ)+ & 
+               sapw_c_target*prt_params%nitr_stoich_p2(ipft,sapw_organ)+ &
+               struct_c_target*prt_params%nitr_stoich_p2(ipft,struct_organ)
+       else
+          target_c = & 
+               leaf_c_target*prt_params%phos_stoich_p2(ipft,leaf_organ)+ & 
+               fnrt_c_target*prt_params%phos_stoich_p2(ipft,fnrt_organ)+ & 
+               sapw_c_target*prt_params%phos_stoich_p2(ipft,sapw_organ)+ &
+               struct_c_target*prt_params%phos_stoich_p2(ipft,struct_organ)
+          
+       end if
+       
     else
        ! In all cases, we want the first index because for non-leaves
        ! that is the only index, and for leaves, that is the newly

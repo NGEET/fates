@@ -1701,19 +1701,20 @@ contains
                
                case(nitrogen_element)
                
-                  mass_demand = c_struct*prt_params%nitr_stoich_p1(ft,struct_organ) + &
-                                 c_leaf*prt_params%nitr_stoich_p1(ft,leaf_organ) + &
-                                 c_fnrt*prt_params%nitr_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapw*prt_params%nitr_stoich_p1(ft,sapw_organ) + & 
-                                 c_store*prt_params%nitr_stoich_p1(ft,store_organ)
-               
+                  mass_demand = (1._r8 + prt_params%nitr_stoich_p1(ft,store_organ)) * &
+                       (c_struct*prt_params%nitr_stoich_p1(ft,struct_organ) + &
+                       c_leaf*prt_params%nitr_stoich_p1(ft,leaf_organ) + &
+                       c_fnrt*prt_params%nitr_stoich_p1(ft,fnrt_organ) + & 
+                       c_sapw*prt_params%nitr_stoich_p1(ft,sapw_organ))
+                  
                case(phosphorus_element)
-               
-                  mass_demand = c_struct*prt_params%phos_stoich_p1(ft,struct_organ) + &
-                                 c_leaf*prt_params%phos_stoich_p1(ft,leaf_organ) + &
-                                 c_fnrt*prt_params%phos_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapw*prt_params%phos_stoich_p1(ft,sapw_organ)  + & 
-                                 c_store*prt_params%phos_stoich_p1(ft,store_organ)
+                  
+                  mass_demand = (1._r8 + prt_params%phos_stoich_p1(ft,store_organ)) * &
+                       (c_struct*prt_params%phos_stoich_p1(ft,struct_organ) + &
+                       c_leaf*prt_params%phos_stoich_p1(ft,leaf_organ) + &
+                       c_fnrt*prt_params%phos_stoich_p1(ft,fnrt_organ) + & 
+                       c_sapw*prt_params%phos_stoich_p1(ft,sapw_organ))
+                       
                
                case default
                    write(fates_log(),*) 'Undefined element type in recruitment'
@@ -1771,7 +1772,8 @@ contains
                  m_leaf   = c_leaf*prt_params%nitr_stoich_p1(ft,leaf_organ)
                  m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(ft,fnrt_organ)
                  m_sapw   = c_sapw*prt_params%nitr_stoich_p1(ft,sapw_organ)
-                 m_store  = c_store*prt_params%nitr_stoich_p1(ft,store_organ)
+                 m_store  = prt_params%nitr_stoich_p1(ft,store_organ) * &
+                            (m_struct+m_leaf+m_fnrt+m_sapw)
                  m_repro  = 0._r8
 
               case(phosphorus_element)
@@ -1780,7 +1782,8 @@ contains
                  m_leaf   = c_leaf*prt_params%phos_stoich_p1(ft,leaf_organ)
                  m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(ft,fnrt_organ)
                  m_sapw   = c_sapw*prt_params%phos_stoich_p1(ft,sapw_organ)
-                 m_store  = c_store*prt_params%phos_stoich_p1(ft,store_organ)
+                 m_store  = prt_params%phos_stoich_p1(ft,store_organ) * &
+                            (m_struct+m_leaf+m_fnrt+m_sapw)
                  m_repro  = 0._r8
 
               end select

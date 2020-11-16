@@ -850,7 +850,7 @@ contains
     do id = 1,nlev_eff_decomp
        surface_prof(id) = surface_prof(id)/surface_prof_tot
     end do
-    
+
     ! Loop over the different elements. 
     do el = 1, num_elements
        
@@ -874,7 +874,7 @@ contains
           flux_cel_si => bc_out%litt_flux_cel_n_si(:)
           flux_lab_si => bc_out%litt_flux_lab_n_si(:)
           flux_lig_si => bc_out%litt_flux_lig_n_si(:)
-
+          
        case (phosphorus_element)
           bc_out%litt_flux_cel_p_si(:) = 0._r8
           bc_out%litt_flux_lig_p_si(:) = 0._r8
@@ -882,7 +882,7 @@ contains
           flux_cel_si => bc_out%litt_flux_cel_p_si(:)
           flux_lab_si => bc_out%litt_flux_lab_p_si(:)
           flux_lig_si => bc_out%litt_flux_lig_p_si(:)
-
+          
        end select
 
        
@@ -902,9 +902,13 @@ contains
                 elseif(element_list(el).eq.phosphorus_element) then
                    efflux_ptr => currentCohort%daily_p_efflux
                 end if
+
+                ! Unit conversion
+                ! kg/plant/day * plant/ha * ha/m2 -> kg/m2/day
+                
                 do id = 1,nlev_eff_decomp
                    flux_lab_si(id) = flux_lab_si(id) + &
-                        efflux_ptr*currentCohort%n* AREA_INV * surface_prof(id)
+                        efflux_ptr * currentCohort%n* AREA_INV * surface_prof(id)
                 end do
              end if
              currentCohort => currentCohort%shorter
