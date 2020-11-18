@@ -328,6 +328,10 @@ module FatesInterfaceTypesMod
                                                  ! soil layer maps to. This will either
                                                  ! be equivalent (ie integer ascending)
                                                  ! Or, all will be 1.
+
+      ! Decomposition fractions
+      real(r8),allocatable :: w_scalar_sisl(:)   ! fraction by which decomposition is limited by moisture availability
+      real(r8),allocatable :: t_scalar_sisl(:)   ! fraction by which decomposition is limited by temperature
       
 
       ! Vegetation Dynamics
