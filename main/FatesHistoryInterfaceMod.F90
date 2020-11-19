@@ -624,7 +624,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_fabi_sha_top_si_can
   integer :: ih_crownarea_si_can
 
-  ! indices to (patch age x fuel class) variables
+  ! indices to (patch age x fuel size class) variables
   integer :: ih_fuel_amount_age_fuel
 
   ! The number of variable dim/kind types we have defined (static)
@@ -4152,7 +4152,7 @@ end subroutine update_history_hifrq
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_coage_pft_r8, site_coage_r8
-    use FatesIOVariableKindMod, only : site_height_r8
+    use FatesIOVariableKindMod, only : site_height_r8, site_agenfsc_r8
     use FatesInterfaceTypesMod     , only : hlm_use_planthydro
     
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
