@@ -27,7 +27,7 @@ module FatesIODimensionsMod
     character(*), parameter, public  :: levcan = 'fates_levcan'        ! matches histFileMod
     character(*), parameter, public  :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
     character(*), parameter, public  :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
-    character(*), parameter, public  :: levagenfsc = 'fates_levagenfsc' ! matches histFileMod
+    character(*), parameter, public  :: levagefuel = 'fates_levagefuel' ! matches histFileMod
     
     character(*), parameter, public  :: levelem =  'fates_levelem'
     character(*), parameter, public  :: levelpft = 'fates_levelpft'
@@ -90,7 +90,7 @@ module FatesIODimensionsMod
     ! levagepft = This is a strcture that records the boundaries for the 
     ! number of patch age x pft
 
-    ! levagenfsc = This is a strcture that records the boundaries for the 
+    ! levagefuel = This is a strcture that records the boundaries for the 
     ! number of patch age x fuel size class
 
     ! levelem  = This records the boundaries for the number of elements
@@ -146,8 +146,8 @@ module FatesIODimensionsMod
        integer :: elcwd_end
        integer :: elage_begin
        integer :: elage_end
-       integer :: agenfsc_begin
-       integer :: agenfsc_end
+       integer :: agefuel_begin
+       integer :: agefuel_end
     end type fates_bounds_type
     
 

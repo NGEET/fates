@@ -242,8 +242,8 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_pftmap_levscagpft(:)    ! map of pft into size-class x patch age x pft dimension
    integer , public, allocatable :: fates_hdim_agmap_levagepft(:)      ! map of patch-age into patch age x pft dimension
    integer , public, allocatable :: fates_hdim_pftmap_levagepft(:)     ! map of pft into patch age x pft dimension
-   integer , public, allocatable :: fates_hdim_agmap_levagenfsc(:)     ! map of patch-age into patch age x fsc dimension
-   integer , public, allocatable :: fates_hdim_fscmap_levagenfsc(:)    ! map of patch-age into patch age x fsc dimension
+   integer , public, allocatable :: fates_hdim_agmap_levagefuel(:)     ! map of patch-age into patch age x fsc dimension
+   integer , public, allocatable :: fates_hdim_fscmap_levagefuel(:)    ! map of patch-age into patch age x fsc dimension
    
    integer , public, allocatable :: fates_hdim_elmap_levelpft(:)       ! map of elements in the element x pft dimension
    integer , public, allocatable :: fates_hdim_elmap_levelcwd(:)       ! map of elements in the element x cwd dimension
