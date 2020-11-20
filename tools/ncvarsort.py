@@ -45,9 +45,10 @@ def main():
     (u'fates_hydr_organs', u'fates_pft'):6,
     (u'fates_leafage_class', u'fates_pft'):6,
     (u'fates_prt_organs', u'fates_pft'):6,
-    (u'fates_litterclass',):7,
-    (u'fates_NCWD',):8,
-    ():9}
+    (u'fates_hlm_pftno', u'fates_pft'):7,
+    (u'fates_litterclass',):8,
+    (u'fates_NCWD',):9,
+    ():10}
     #
     # go through each of the variables and assign it to one of the sub-lists based on its dimensionality
     for v_name, varin in dsin.variables.iteritems():
