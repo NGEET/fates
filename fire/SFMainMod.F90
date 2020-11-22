@@ -816,7 +816,7 @@ contains
             !
             ! accumulate frac_burnt % at site level
             currentSite%frac_burnt(currentPatch%age_class) = currentSite%frac_burnt(currentPatch%age_class) + &
-                 currentPatch%frac_burnt    
+                 currentPatch%frac_burnt * currentPatch%area / area
             !
          else     
             currentPatch%fire       = 0 ! No fire... :-/
