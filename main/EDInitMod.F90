@@ -44,6 +44,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nleafage
   use FatesInterfaceTypesMod         , only : nlevsclass
   use FatesInterfaceTypesMod         , only : nlevcoage
+  use FatesInterfaceTypesMod         , only : nlevage
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
@@ -119,6 +120,8 @@ contains
     allocate(site_in%mass_balance(1:num_elements))
     allocate(site_in%flux_diags(1:num_elements))
    
+    allocate(site_in%frac_burnt(1:nlevage))
+
     site_in%nlevsoil   = bc_in%nlevsoil
     allocate(site_in%rootfrac_scr(site_in%nlevsoil))
     allocate(site_in%zi_soil(0:site_in%nlevsoil))
@@ -187,7 +190,7 @@ contains
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%NF               = 0.0_r8     ! daily lightning strikes per km2 
     site_in%NF_successful    = 0.0_r8     ! daily successful iginitions per km2
-    site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
+    site_in%frac_burnt(:)    = 0.0_r8     ! burn area
 
     do el=1,num_elements
        ! Zero the state variables used for checking mass conservation

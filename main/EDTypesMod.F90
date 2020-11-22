@@ -555,7 +555,7 @@ module EDTypesMod
 
      ! FIRE EFFECTS     
      real(r8) ::  scorch_ht(maxpft)                                ! scorch height: m 
-     real(r8) ::  frac_burnt                                       ! fraction burnt: frac gridcell/day  
+     real(r8) ::  frac_burnt                                       ! fraction burnt: frac patch/day  
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
 
@@ -731,7 +731,7 @@ module EDTypesMod
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  NF                                           ! daily ignitions in km2
      real(r8) ::  NF_successful                                ! daily ignitions in km2 that actually lead to fire
-     real(r8) ::  frac_burnt                                   ! fraction of area burnt in this day.
+     real(r8), allocatable ::  frac_burnt(:)                   ! fraction of gridcell area burnt in this day. indexed by patch age bins
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr

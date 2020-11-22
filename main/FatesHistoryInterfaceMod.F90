@@ -522,6 +522,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_agesince_anthrodist_si_age
   integer :: ih_secondaryforest_area_si_age
   integer :: ih_area_burnt_si_age
+  integer :: ih_area_burnt2_si_age
   ! integer :: ih_fire_rate_of_spread_front_si_age
   integer :: ih_fire_intensity_si_age
   integer :: ih_fire_sum_fuel_si_age
@@ -2001,6 +2002,7 @@ end subroutine flush_hvars
                hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
                hio_secondaryforest_area_si_age    => this%hvars(ih_secondaryforest_area_si_age)%r82d, &
                hio_area_burnt_si_age              => this%hvars(ih_area_burnt_si_age)%r82d, &
+               hio_area_burnt2_si_age             => this%hvars(ih_area_burnt2_si_age)%r82d, &
                ! hio_fire_rate_of_spread_front_si_age  => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
                hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
                hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
@@ -2873,6 +2875,9 @@ end subroutine flush_hvars
                hio_lai_si_age(io_si, ipa2) = 0._r8
                hio_ncl_si_age(io_si, ipa2) = 0._r8
             endif
+
+            hio_area_burnt2_si_age(io_si,ipa2) =  sites(s)%frac_burnt(ipa2)
+
          end do
 
          ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
@@ -4508,6 +4513,12 @@ end subroutine update_history_hifrq
          use_default='active', &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_area_burnt_si_age )
+
+    call this%set_history_var(vname='AREA_BURNT2_BY_PATCH_AGE', units='m2/m2', &
+         long='spitfire area burnt by patch age (divide by patch_area_by_age to get burnt fraction by age)', &
+         use_default='active', &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_area_burnt2_si_age )
 
     call this%set_history_var(vname='FIRE_INTENSITY_BY_PATCH_AGE', units='kJ/m/2', &
          long='product of fire intensity and burned area, resolved by patch age (so divide by AREA_BURNT_BY_PATCH_AGE to get burned-area-weighted-average intensity', &
