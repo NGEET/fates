@@ -1359,7 +1359,8 @@ contains
                end if
 
                if(currentPatch%total_canopy_area-currentPatch%area.gt.1.0e-16)then
-                 write(fates_log(),*) 'too much canopy in summary',s,currentPatch%total_canopy_area-currentPatch%area
+                 write(fates_log(),*) 'too much canopy in summary',s, &
+		 currentPatch%nocomp_pft_label, currentPatch%total_canopy_area-currentPatch%area
                  call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
              end if  !sp mode
