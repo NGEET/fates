@@ -1970,7 +1970,7 @@ contains
               bc_out(s)%canopy_fraction_pa(ifp) = &
                 min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
            else
-           bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
+              bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
            endif
 
            bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
