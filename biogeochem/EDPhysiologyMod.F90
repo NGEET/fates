@@ -1546,7 +1546,7 @@ contains
     !! carea_allom in SP mode after this point. 
 
      if(abs(currentCohort%c_area-parea).gt.nearzero)then ! there is an error
-       if(abs(currentCohort%c_area-parea).lt.10.e-9)then !correct this if it's a very sall error
+       if(abs(currentCohort%c_area-parea).lt.10.e-9)then !correct this if it's a very small error
        oldcarea = currentCohort%c_area
        !generate new cohort area
        currentCohort%c_area = currentCohort%c_area - (currentCohort%c_area- parea)
