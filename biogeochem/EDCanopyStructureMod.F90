@@ -1967,7 +1967,7 @@ contains
            ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
            ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
            if(currentPatch%area.gt.0.0_r8)then
-           bc_out(s)%canopy_fraction_pa(ifp) = &
+              bc_out(s)%canopy_fraction_pa(ifp) = &
                 min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
            else
            bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
