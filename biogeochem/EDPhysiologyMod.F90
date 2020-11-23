@@ -1450,7 +1450,7 @@ contains
       if(fates_pft.eq.0)then
           write(fates_log(),*) 'PFT0 in SP mode'
           call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
+      end if
 
      ! Call routine to invert SP drivers into cohort properites. 
       call assign_cohort_SP_properties(currentCohort, currentSite%sp_htop(fates_pft), currentSite%sp_tlai(fates_pft)     , currentSite%sp_tsai(fates_pft),currentPatch%area,ifalse,leaf_c)
