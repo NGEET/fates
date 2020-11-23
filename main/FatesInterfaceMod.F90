@@ -1443,14 +1443,14 @@ contains
          end if
 
          
-        if(hlm_use_fixed_biogeog.eq.unset_int) then
+         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
            end if
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-        if(hlm_use_nocomp.eq.unset_int) then
+         if(hlm_use_nocomp.eq.unset_int) then
               if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for no competition mode. '
             end if
