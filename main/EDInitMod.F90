@@ -301,7 +301,7 @@ contains
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8         
           sites(s)%NF_successful  = 0.0_r8
-          sites(s)%frac_burnt = 0.0_r8
+          sites(s)%frac_burnt(:)  = 0.0_r8
          
          ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE                                                                                   
           if(hlm_use_fixed_biogeog.eq.itrue)then
