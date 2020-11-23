@@ -668,7 +668,9 @@ contains
 
     call TotalBalanceCheck(currentSite,6)
 
-    call canopy_structure(currentSite, bc_in)
+    if(hlm_use_sp.eq.ifalse)then
+       call canopy_structure(currentSite, bc_in)
+    endif
 
     call TotalBalanceCheck(currentSite,final_check_id)
 

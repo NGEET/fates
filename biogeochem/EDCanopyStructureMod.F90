@@ -150,7 +150,6 @@ contains
       
 
       !----------------------------------------------------------------------
-    if(hlm_use_sp.eq.ifalse)then
       currentPatch => currentSite%oldest_patch    
       ! 
       ! zero site-level demotion / promotion tracking info
@@ -322,7 +321,7 @@ contains
          
          currentPatch => currentPatch%younger
       enddo !patch
-   end if ! SP mode
+
       return
    end subroutine canopy_structure
 
@@ -1328,6 +1327,7 @@ contains
              call coagetype_class_index(currentCohort%coage,currentCohort%pft, &
                   currentCohort%coage_class,currentCohort%coage_by_pft_class)
           end if
+
           if(hlm_use_sp.eq.ifalse)then
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                   currentCohort%pft,currentCohort%c_area)
