@@ -1482,9 +1482,10 @@ contains
     integer, intent(in)  :: init ! are we in the initialization routine? if so do not set leaf_c
     real(r8), intent(out) ::  leaf_c        ! leaf carbon estimated to generate target tlai
 
-    integer ::   fates_pft     ! fates pft numer for weighting loop
-    real(r8) ::  spread        ! dummy value of canopy spread to estimate c_area
-    real(r8) ::  sumarea
+    real(r8) :: dummy_n       ! set cohort n to a dummy value of 1.0   
+    integer  :: fates_pft     ! fates pft numer for weighting loop
+    real(r8) :: spread        ! dummy value of canopy spread to estimate c_area
+    real(r8) :: sumarea
     real(r8) :: check_treelai
     real(r8) :: canopylai(1:nclmax)
     real(r8) :: fracerr
@@ -1506,11 +1507,11 @@ contains
     fates_pft = currentCohort%pft
     call h2d_allom(currentCohort%hite,fates_pft,currentCohort%dbh)
 
-   currentCohort%n = 1.0_r8 ! make n=1 to get area of one tree.
+   dummy_n = 1.0_r8 ! make n=1 to get area of one tree.
    spread = 1.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
                      ! n.b. the value of this will only affect 'n', which isn't/shouldn't be a diagnostic in 
                      ! SP mode. 
-    call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,currentCohort%c_area)
+    call carea_allom(currentCohort%dbh,dummy_n,spread,currentCohort%pft,currentCohort%c_area)
 
     !------------------------------------------
     !  Calculate canopy N assuming patch area is full
