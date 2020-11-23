@@ -1273,7 +1273,7 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     integer  :: s
     integer  :: ft               ! plant functional type
-    integer  :: ifp              ! the number of the vegeted patch (1,2,3). In SP mode bareground patch is 0
+    integer  :: ifp              ! the number of the vegetated patch (1,2,3). In SP mode bareground patch is 0
     integer  :: patchn           ! identification number for each patch. 
     real(r8) :: canopy_leaf_area ! total amount of leaf area in the vegetated area. m2.  
     real(r8) :: leaf_c           ! leaf carbon [kg]
