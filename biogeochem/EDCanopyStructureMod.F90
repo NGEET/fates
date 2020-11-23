@@ -1272,7 +1272,7 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     integer  :: s
     integer  :: ft               ! plant functional type
-    integer  :: ifp              ! the number of the vegeted patch (1,2,3). In SP mode bareground patch is 0
+    integer  :: ifp              ! the number of the vegetated patch (1,2,3). In SP mode bareground patch is 0
     integer  :: patchn           ! identification number for each patch. 
     real(r8) :: canopy_leaf_area ! total amount of leaf area in the vegetated area. m2.  
     real(r8) :: leaf_c           ! leaf carbon [kg]
@@ -1359,7 +1359,8 @@ contains
                end if
 
                if(currentPatch%total_canopy_area-currentPatch%area.gt.1.0e-16)then
-                 write(fates_log(),*) 'too much canopy in summary',s,currentPatch%total_canopy_area-currentPatch%area
+                 write(fates_log(),*) 'too much canopy in summary',s, &
+		 currentPatch%nocomp_pft_label, currentPatch%total_canopy_area-currentPatch%area
                  call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
              end if  !sp mode
@@ -1967,10 +1968,10 @@ contains
            ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
            ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
            if(currentPatch%area.gt.0.0_r8)then
-           bc_out(s)%canopy_fraction_pa(ifp) = &
+              bc_out(s)%canopy_fraction_pa(ifp) = &
                 min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
            else
-           bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
+              bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
            endif
 
            bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
