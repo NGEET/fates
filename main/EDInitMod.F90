@@ -335,15 +335,12 @@ contains
                  sites(s)%area_pft(ft)=0.0_r8 
                  ! remove tiny patches to prevent numerical errors in terminate patches
                 endif
-           end do
-! change units to m2 from fractions
-            do ft =  1,numpft
-             sites(s)%area_pft(ft)= sites(s)%area_pft(ft) * AREA ! rescale units to m2. 
              if(sites(s)%area_pft(ft).lt.0._r8)then
                write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
                call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
-            end do
+             sites(s)%area_pft(ft)= sites(s)%area_pft(ft) * AREA ! rescale units to m2.      
+           end do
 
            ! re-normalize PFT area to ensure it sums to one.
            ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM)
