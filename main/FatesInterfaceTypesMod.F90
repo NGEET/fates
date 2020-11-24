@@ -336,10 +336,6 @@ module FatesInterfaceTypesMod
                                                  ! be equivalent (ie integer ascending)
                                                  ! Or, all will be 1.
       
-     integer,allocatable   :: sp_patch_index(:)  ! in SP mode, we need to map the p values for each patch
-                                                 !  back onto the 'IFP' order i ED. So this is the number of e                                                 ! ach patch in the site. It does not correspond to PFT, more
-                                                 ! to the number of occupied PFTs before it in the array.
-
 
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
