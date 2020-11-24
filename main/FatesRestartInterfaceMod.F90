@@ -2588,7 +2588,7 @@ contains
                       ccohort%prt%variables(i_var)%net_alloc(i_pos) = &
                             this%rvars(ir_prt_var)%r81d(io_idx_co)
 
-                     ir_prt_var = ir_prt_var + 1
+                      ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%burned(i_pos) = &
                             this%rvars(ir_prt_var)%r81d(io_idx_co)                      
                    end do
