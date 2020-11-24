@@ -1360,7 +1360,6 @@ contains
 
     real(r8) ::  spread        ! dummy value of canopy spread to estimate c_area
     real(r8) ::  leaf_c        ! leaf carbon estimated to generate target tlai
-    real(r8) ::  sumarea
     real(r8) :: check_treelai
     integer ::   fates_pft     ! fates pft numer for weighting loop
     integer  ::   hlm_pft      ! host land model pft number for weighting loop.
@@ -1391,11 +1390,9 @@ contains
      fates_pft = currentPatch%nocomp_pft_label
      if(fates_pft.ne.0)then 
 
-       sumarea = 0.0_r8
        do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
 
          if(bc_in%pft_areafrac(hlm_pft) * EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft).gt.0.0_r8)then
-            sumarea = sumarea + bc_in%pft_areafrac(hlm_pft)*EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft)
             !leaf area index
             currentSite%sp_tlai(fates_pft) = currentSite%sp_tlai(fates_pft) + &
                     bc_in%hlm_sp_tlai(hlm_pft) * bc_in%pft_areafrac(hlm_pft) &
@@ -1485,7 +1482,6 @@ contains
     real(r8) :: dummy_n       ! set cohort n to a dummy value of 1.0   
     integer  :: fates_pft     ! fates pft numer for weighting loop
     real(r8) :: spread        ! dummy value of canopy spread to estimate c_area
-    real(r8) :: sumarea
     real(r8) :: check_treelai
     real(r8) :: canopylai(1:nclmax)
     real(r8) :: fracerr
