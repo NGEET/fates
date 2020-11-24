@@ -571,13 +571,15 @@ contains
          if(abs(tota-area).gt.nearzero*area)then
            if(abs(tota-area).lt.1.0e-10_r8)then ! this is a precision error
              if(sites(s)%oldest_patch%area.gt.(tota-area+nearzero))then 
-               ! remove or add extra area from bare ground patch
+               ! remove or add extra area 
+               ! if the oldest patch has enough area, use that
                 sites(s)%oldest_patch%area = sites(s)%oldest_patch%area - (tota-area)
-                write(*,*) 'fixing patch precision O',s, tota-area
-              else
+                write(*,*) 'fixing patch precision - oldest',s, tota-area
+              else ! or otherwise take the area from the youngest patch. 
                 sites(s)%youngest_patch%area = sites(s)%oldest_patch%area - (tota-area)  
+                write(*,*) 'fixing patch precision -youngest ',s, tota-area
              endif                      
-           else !this is a big error
+           else !this is a big error not just a precision error. 
              write(*,*) 'issue with patch area in EDinit',tota-area,tota
              call endrun(msg=errMsg(sourcefile, __LINE__))
            endif  ! big error

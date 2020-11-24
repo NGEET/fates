@@ -1693,7 +1693,8 @@ contains
 
         end if
 
-        ! check that the host-fates PFT map adds to one in both dimension
+        ! check that the host-fates PFT map adds to one along HLM dimension so that all the HLM area 
+        ! goes to a FATES PFT.  Each FATES PFT can get < or > 1 of an HLM PFT.
         do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
           sumarea = sum(EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_pft))
           if(abs(sumarea-1.0_r8).gt.nearzero)then
