@@ -333,7 +333,7 @@ contains
                    write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
                    sites(s)%area_pft(ft)=0.0_r8 
                    ! remove tiny patches to prevent numerical errors in terminate patches
-                endif
+              endif
                 if(sites(s)%area_pft(ft).lt.0._r8)then
                    write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
                    call endrun(msg=errMsg(sourcefile, __LINE__))
