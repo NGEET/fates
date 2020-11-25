@@ -682,6 +682,7 @@ contains
 
     real(r8) ROS !m/s
     real(r8) W   !kgBiomass/m2
+    real(r8) :: tree_fraction_patch        ! patch level. no units
     real(r8) lb               !length to breadth ratio of fire ellipse (unitless)
     real(r8) df               !distance fire has travelled forward in m
     real(r8) db               !distance fire has travelled backward in m
@@ -692,7 +693,8 @@ contains
     real(r8) anthro_ign_count  ! anthropogenic ignition count/km2/day
     integer :: iofp  ! index of oldest fates patch
     real(r8), parameter :: pot_hmn_ign_counts_alpha = 0.0035_r8  ! Potential human ignition counts (alpha in Li et al. 2012) (#/person/month)
-    real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
+    real(r8), parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
+    real(r8), parameter :: wind_convert = 0.06_r8  ! convert wind speed from m/min to km/hr
 
     !  ---initialize site parameters to zero--- 
     currentSite%frac_burnt = 0.0_r8  
@@ -751,19 +753,25 @@ contains
           !equation 15 in Arora and Boer CTEM model.Average fire is 1 day long.
           !currentPatch%FD = 60.0_r8 * 24.0_r8 !no minutes in a day
 
-           
-       ! The feedback between vegetation structure and ellipse size if turned off for now, 
-       ! to reduce the positive feedback in the syste,
-       ! This will also be investigated by William Hoffmans proposal. 
-          !      if (currentPatch%effect_wspeed < 16.67_r8) then !16.67m/min = 1km/hr 
-          lb = 1.0_r8
-          !     else 
-          !FIX(RF,032414) FOR NO GRASS
-          !        lb = currentPatch%total_canopy_area/currentPatch%area*(1.0_r8)+(8.729_r8 * &
-          ! ((1.0_r8 -(exp(-0.03_r8 * 0.06_r8 * currentPatch%effect_wspeed)))**2.155_r8)) !&
-          !&       +currentPatch%fpc_grass*(1.1_r8+((0.06_r8*currentPatch%effect_wspeed)**0.0464))
-
-          !      endif
+          tree_fraction_patch  = 0.0_r8
+          tree_fraction_patch  = currentPatch%total_tree_area/currentPatch%area
+       
+          if(debug)then
+             write(fates_log(),*) 'SF  currentPatch%area ',currentPatch%area
+             write(fates_log(),*) 'SF  currentPatch%total_area ',currentPatch%total_tree_area
+             write(fates_log(),*) 'SF  patch tree fraction ',tree_fraction_patch
+             write(fates_log(),*) 'SF  AREA ',AREA
+          endif         
+ 
+          if (currentPatch%effect_wspeed < 16.67_r8) then !16.67m/min = 1km/hr 
+             lb = 1.0_r8
+          else
+             if (tree_fraction_patch > 0.55_r8) then      !benchmark for forest cover per Staver 2010
+              lb = (1.0_r8 + (8.729_r8 * &
+                   ((1.0_r8 -(exp(-0.03_r8 * wind_convert * currentPatch%effect_wspeed)))**2.155_r8))
+             else 
+              lb = (1.1_r8+((wind_convert * currentPatch%effect_wspeed)**0.0464))
+          endif
 
           !     if (lb > 8.0_r8)then
           !       lb = 8.0_r8  !Constraint Canadian Fire Behaviour System
