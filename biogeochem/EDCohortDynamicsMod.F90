@@ -188,7 +188,7 @@ contains
                                                   ! leaf biomass that we are targeting?
     real(r8), intent(in)      :: spread           ! The community assembly effects how 
                                                   ! spread crowns are in horizontal space
-    real(r8), intent(in)       ::  carea          ! area of cohort NLY USED IN SP MODE.
+    real(r8), intent(in)       ::  carea          ! area of cohort ONLY USED IN SP MODE.
     type(bc_in_type), intent(in) :: bc_in         ! External boundary conditions
 
      
