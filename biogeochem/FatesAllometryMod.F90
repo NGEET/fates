@@ -762,8 +762,8 @@ contains
   real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, vcmax25top)
  
     ! -----------------------------------------------------------------------------------
-    ! LAI of individual trees is a function of the total leaf area and the total
-    ! canopy area.
+    ! Calculates the amount of leaf carbon which is needed to generate a given treelai. 
+    ! iss the inverse of the 'tree_lai function. 
     ! ----------------------------------------------------------------------------------
  
     ! !ARGUMENTS

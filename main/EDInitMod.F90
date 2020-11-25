@@ -361,6 +361,16 @@ contains
              else ! for sp mode, assert a bare ground patch
                 sumarea = sum(sites(s)%area_pft(1:numpft)) 
 
+               ! In all the other FATES modes, bareground is the area in which plants 
+               ! do not grow of their own accord. In SP mod wweassert that the  canopy is full for 
+               ! each PFT patche. Thus,  we also need to assert a bare ground area in
+               !  order to not have all of the ground filled by leaves.
+
+               ! Further to that, one could calculate bare ground as the remaining area when 
+               ! all fhe canopies are accounted for, but this means we don't pass balance checks
+               !  on canopy are inside FATES, and so in SP mode, we define the bare groud
+               ! patch as having a PFT identifier as zero.  
+
                 if(sumarea.lt.area)then !make some bare ground
                    sites(s)%area_bareground = area - sumarea
                 else
@@ -497,7 +507,10 @@ contains
              if(hlm_use_nocomp.eq.itrue)then 
                 ! In no competition mode, if we are using the fixed_biogeog filter 
                 ! then each PFT has the area dictated  by the surface dataset.
-                ! If not, each PFT gets the same area. 
+
+                ! If we are not using fixed biogeog model, each PFT gets the same area. 
+                ! i.e. each grid cell is divided exactly into the number of FATES PFTs.  
+
                 if(hlm_use_fixed_biogeog.eq.itrue)then
                    newparea = sites(s)%area_pft(nocomp_pft)
                 else
