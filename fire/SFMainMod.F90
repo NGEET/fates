@@ -768,9 +768,10 @@ contains
           else
              if (tree_fraction_patch > 0.55_r8) then      !benchmark for forest cover per Staver 2010
               lb = (1.0_r8 + (8.729_r8 * &
-                   ((1.0_r8 -(exp(-0.03_r8 * wind_convert * currentPatch%effect_wspeed)))**2.155_r8))
+                   ((1.0_r8 -(exp(-0.03_r8 * wind_convert * currentPatch%effect_wspeed)))**2.155_r8)))
              else 
-              lb = (1.1_r8+((wind_convert * currentPatch%effect_wspeed)**0.0464))
+                lb = (1.1_r8+((wind_convert * currentPatch%effect_wspeed)**0.0464))
+             endif
           endif
 
           !     if (lb > 8.0_r8)then
