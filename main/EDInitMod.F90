@@ -1,4 +1,4 @@
-module EDInitMod
+1;95;0cmodule EDInitMod
 
   ! ============================================================================
   ! Contains all modules to set up the ED structure. 
@@ -717,6 +717,9 @@ contains
 
              if(hlm_use_sp.eq.itrue)then
                 init = itrue
+                ! At this point, we do not know the bc_in values of tlai tsai and htop, 
+                ! so this is initializing to an arbitrary value for the very first timestep. 
+                ! Not sure if there's a way around this or not.
                 call assign_cohort_SP_properties(temp_cohort, 0.5_r8,0.2_r8, 0.1_r8,patch_in%area,init,c_leaf)
 
              else
