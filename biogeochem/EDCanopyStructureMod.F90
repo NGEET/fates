@@ -59,18 +59,18 @@ module EDCanopyStructureMod
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
-  
+
   real(r8), parameter :: area_target_precision = 1.0E-11_r8  ! Area conservation
-                                                             ! will attempt to reduce errors
-                                                             ! below this level
-  
+  ! will attempt to reduce errors
+  ! below this level
+
   real(r8), parameter :: area_check_precision  = 1.0E-7_r8     ! Area conservation checks must 
-                                                               ! be within this absolute tolerance
+  ! be within this absolute tolerance
   real(r8), parameter :: area_check_rel_precision = 1.0E-4_r8  ! Area conservation checks must
-                                                               ! be within this relative tolerance
+  ! be within this relative tolerance
 
   real(r8), parameter :: similar_height_tol = 1.0E-3_r8    ! I think trees that differ by 1mm
-                                                           ! can be roughly considered the same right?
+  ! can be roughly considered the same right?
 
 
   ! 10/30/09: Created by Rosie Fisher
@@ -80,1112 +80,1112 @@ module EDCanopyStructureMod
 contains
 
   ! ============================================================================
-   subroutine canopy_structure( currentSite , bc_in )
-      !
-      ! !DESCRIPTION:
-      ! create cohort instance
-      !
-      ! This routine allocates the 'canopy_layer' attribute to each cohort
-      ! All top leaves in the same canopy layer get the same light resources.
-      ! The first canopy layer is the 'canopy' or 'overstorey'. The second is the 'understorey'.
-      ! More than two layers is not permitted at the moment
-      ! Seeds germinating into the 3rd or higher layers are automatically removed. 
-      !
-      ! ------Perfect Plasticity-----
-      ! The idea of these canopy layers derives originally from Purves et al. 2009
-      ! Their concept is that, given enoughplasticity in canopy position, size, shape and depth
-      ! all of the gound area will be filled perfectly by leaves, and additional leaves will have
-      ! to exist in the understorey. 
-      ! Purves et al. use the concept of 'Z*' to assume that the height required to attain a place in the
-      ! canopy is spatially uniform. In this implementation, described in Fisher et al. (2010, New Phyt) we
-      ! extent that concept to assume that position in the canopy has some random element, and that BOTH height
-      ! and chance combine to determine whether trees get into the canopy. 
-      ! Thus, when the canopy is closed and there is excess area, some of it must be demoted
-      ! If we demote -all- the trees less than a given height, there is a massive advantage in being the cohort that is 
-      ! the biggest when the canopy is closed. 
-      ! In this implementation, the amount demoted, ('weight') is a function of the height weighted by the competitive exclusion
-      ! parameter (ED_val_comp_excln). 
+  subroutine canopy_structure( currentSite , bc_in )
+    !
+    ! !DESCRIPTION:
+    ! create cohort instance
+    !
+    ! This routine allocates the 'canopy_layer' attribute to each cohort
+    ! All top leaves in the same canopy layer get the same light resources.
+    ! The first canopy layer is the 'canopy' or 'overstorey'. The second is the 'understorey'.
+    ! More than two layers is not permitted at the moment
+    ! Seeds germinating into the 3rd or higher layers are automatically removed. 
+    !
+    ! ------Perfect Plasticity-----
+    ! The idea of these canopy layers derives originally from Purves et al. 2009
+    ! Their concept is that, given enoughplasticity in canopy position, size, shape and depth
+    ! all of the gound area will be filled perfectly by leaves, and additional leaves will have
+    ! to exist in the understorey. 
+    ! Purves et al. use the concept of 'Z*' to assume that the height required to attain a place in the
+    ! canopy is spatially uniform. In this implementation, described in Fisher et al. (2010, New Phyt) we
+    ! extent that concept to assume that position in the canopy has some random element, and that BOTH height
+    ! and chance combine to determine whether trees get into the canopy. 
+    ! Thus, when the canopy is closed and there is excess area, some of it must be demoted
+    ! If we demote -all- the trees less than a given height, there is a massive advantage in being the cohort that is 
+    ! the biggest when the canopy is closed. 
+    ! In this implementation, the amount demoted, ('weight') is a function of the height weighted by the competitive exclusion
+    ! parameter (ED_val_comp_excln). 
 
-      ! Complexity in this routine results from a few things. 
-      ! Firstly, the complication of the demotion amount sometimes being larger than the cohort area (for a very small, short cohort)
-      ! Second, occasionaly, disturbance (specifically fire) can cause the canopy layer to become less than closed, 
-      ! without changing the area of the patch. If this happens, then some of the plants in the lower layer need to be 'promoted' so 
-      ! all of the routine has to happen in both the downwards and upwards directions. 
-      !
-      ! The order of events here is therefore:
-      ! (The entire subroutine has a single outer 'patch' loop. 
-      ! Section 1: figure out the total area, and whether there are >1 canopy layers at all. 
-      !
-      ! Sorts out cohorts into canopy and understorey layers...                              
-      !
-      ! !USES:
+    ! Complexity in this routine results from a few things. 
+    ! Firstly, the complication of the demotion amount sometimes being larger than the cohort area (for a very small, short cohort)
+    ! Second, occasionaly, disturbance (specifically fire) can cause the canopy layer to become less than closed, 
+    ! without changing the area of the patch. If this happens, then some of the plants in the lower layer need to be 'promoted' so 
+    ! all of the routine has to happen in both the downwards and upwards directions. 
+    !
+    ! The order of events here is therefore:
+    ! (The entire subroutine has a single outer 'patch' loop. 
+    ! Section 1: figure out the total area, and whether there are >1 canopy layers at all. 
+    !
+    ! Sorts out cohorts into canopy and understorey layers...                              
+    !
+    ! !USES:
 
-      use EDParamsMod, only : ED_val_comp_excln
-      use EDTypesMod , only : min_patch_area
-      use FatesInterfaceTypesMod, only : bc_in_type
-      !
-      ! !ARGUMENTS    
-      type(ed_site_type) , intent(inout), target   :: currentSite
-      type(bc_in_type), intent(in)                 :: bc_in
+    use EDParamsMod, only : ED_val_comp_excln
+    use EDTypesMod , only : min_patch_area
+    use FatesInterfaceTypesMod, only : bc_in_type
+    !
+    ! !ARGUMENTS    
+    type(ed_site_type) , intent(inout), target   :: currentSite
+    type(bc_in_type), intent(in)                 :: bc_in
 
-      !
-      ! !LOCAL VARIABLES:
-      type(ed_patch_type) , pointer :: currentPatch
-      type(ed_cohort_type), pointer :: currentCohort
-      integer  :: i_lyr                  ! current layer index
-      integer  :: z                      ! Current number of canopy layers. (1= canopy, 2 = understorey) 
-      integer  :: ipft
-      real(r8) :: arealayer(nclmax+2)    ! Amount of plant area currently in each canopy layer
-      integer  :: patch_area_counter     ! count iterations used to solve canopy areas
-      logical  :: area_not_balanced      ! logical controlling if the patch layer areas
-                                         ! have successfully been redistributed
-      integer  :: return_code            ! math checks on variables will return>0 if problems exist
+    !
+    ! !LOCAL VARIABLES:
+    type(ed_patch_type) , pointer :: currentPatch
+    type(ed_cohort_type), pointer :: currentCohort
+    integer  :: i_lyr                  ! current layer index
+    integer  :: z                      ! Current number of canopy layers. (1= canopy, 2 = understorey) 
+    integer  :: ipft
+    real(r8) :: arealayer(nclmax+2)    ! Amount of plant area currently in each canopy layer
+    integer  :: patch_area_counter     ! count iterations used to solve canopy areas
+    logical  :: area_not_balanced      ! logical controlling if the patch layer areas
+    ! have successfully been redistributed
+    integer  :: return_code            ! math checks on variables will return>0 if problems exist
 
-      ! We only iterate because of possible imprecisions generated by the cohort
-      ! termination process.  These should be super small, so at the most
-      ! try to re-balance 3 times.  If that doesn't give layer areas
-      ! within tolerance of canopy area, there is something wrong
+    ! We only iterate because of possible imprecisions generated by the cohort
+    ! termination process.  These should be super small, so at the most
+    ! try to re-balance 3 times.  If that doesn't give layer areas
+    ! within tolerance of canopy area, there is something wrong
 
-      integer, parameter  :: max_patch_iterations = 10
-      
-
-      !----------------------------------------------------------------------
-      currentPatch => currentSite%oldest_patch    
-      ! 
-      ! zero site-level demotion / promotion tracking info
-      currentSite%demotion_rate(:) = 0._r8
-      currentSite%promotion_rate(:) = 0._r8
-      currentSite%demotion_carbonflux = 0._r8
-      currentSite%promotion_carbonflux = 0._r8
+    integer, parameter  :: max_patch_iterations = 10
 
 
-      !
-      ! Section 1: Check  total canopy area.    
-      !
-      do while (associated(currentPatch)) ! Patch loop    
-
-         ! ------------------------------------------------------------------------------
-         ! Perform numerical checks on some cohort and patch structures
-         ! ------------------------------------------------------------------------------
-
-         ! canopy layer has a special bounds check
-         currentCohort => currentPatch%tallest
-         do while (associated(currentCohort))
-            if( currentCohort%canopy_layer < 1 .or. currentCohort%canopy_layer > nclmax+1 ) then 
-               write(fates_log(),*) 'lat:',currentSite%lat
-               write(fates_log(),*) 'lon:',currentSite%lon
-               write(fates_log(),*) 'BOGUS CANOPY LAYER: ',currentCohort%canopy_layer
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-            currentCohort => currentCohort%shorter
-         enddo
+    !----------------------------------------------------------------------
+    currentPatch => currentSite%oldest_patch    
+    ! 
+    ! zero site-level demotion / promotion tracking info
+    currentSite%demotion_rate(:) = 0._r8
+    currentSite%promotion_rate(:) = 0._r8
+    currentSite%demotion_carbonflux = 0._r8
+    currentSite%promotion_carbonflux = 0._r8
 
 
-         ! Does any layer have excess area in it? Keep going until it does not...
-         patch_area_counter = 0
-         area_not_balanced = .true.
-         
-         do while(area_not_balanced)
-            
-            ! ---------------------------------------------------------------------------
-            ! Demotion Phase: Identify upper layers that are too full, and demote them to
-            ! the layers below.
-            ! ---------------------------------------------------------------------------
-            
-            ! Its possible that before we even enter this scheme
-            ! some cohort numbers are very low.  Terminate them.
-            call terminate_cohorts(currentSite, currentPatch, 1, 12)
+    !
+    ! Section 1: Check  total canopy area.    
+    !
+    do while (associated(currentPatch)) ! Patch loop    
 
-            ! Calculate how many layers we have in this canopy
-            ! This also checks the understory to see if its crown 
-            ! area is large enough to warrant a temporary sub-understory layer
-            z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
-            
-            do i_lyr = 1,z ! Loop around the currently occupied canopy layers. 
-               call DemoteFromLayer(currentSite, currentPatch, i_lyr)
-            end do
-            
-            ! After demotions, we may then again have cohorts that are very very
-            ! very sparse, remove them
-            call terminate_cohorts(currentSite, currentPatch, 1,13)
-            
-            call fuse_cohorts(currentSite, currentPatch, bc_in)
-            
-            ! Remove cohorts for various other reasons
-            call terminate_cohorts(currentSite, currentPatch, 2,13)
+       ! ------------------------------------------------------------------------------
+       ! Perform numerical checks on some cohort and patch structures
+       ! ------------------------------------------------------------------------------
 
-            
-            ! ---------------------------------------------------------------------------------------
-            ! Promotion Phase: Identify if any upper-layers are underful and layers below them
-            ! have cohorts that can be split and promoted to the layer above.
-            ! ---------------------------------------------------------------------------------------
-            
-            ! Re-calculate Number of layers without the false substory
-            z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
-
-            ! We only promote if we have at least two layers
-            if (z>1) then
-               
-               do i_lyr=1,z-1 
-                  call PromoteIntoLayer(currentSite, currentPatch, i_lyr)
-               end do
-               
-               ! Remove cohorts that are incredibly sparse
-               call terminate_cohorts(currentSite, currentPatch, 1,14)
-               
-               call fuse_cohorts(currentSite, currentPatch, bc_in)
-               
-               ! Remove cohorts for various other reasons
-               call terminate_cohorts(currentSite, currentPatch, 2,14)
-               
-            end if
-            
-            ! ---------------------------------------------------------------------------------------
-            ! Check on Layer Area (if the layer differences are not small
-            ! Continue trying to demote/promote. Its possible on the first pass through,
-            ! that cohort fusion has nudged the areas a little bit.
-            ! ---------------------------------------------------------------------------------------
-            
-            z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
-            area_not_balanced = .false.
-            do i_lyr = 1,z
-               call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
-               if( ((arealayer(i_lyr)-currentPatch%area)/currentPatch%area > area_check_rel_precision) .or. &
-                   ((arealayer(i_lyr)-currentPatch%area) > area_check_precision )  ) then
-                  area_not_balanced = .true.
-               endif
-            enddo
-
-            ! ---------------------------------------------------------------------------------------
-            ! Gracefully exit if too many iterations have gone by
-            ! ---------------------------------------------------------------------------------------
-            
-            patch_area_counter = patch_area_counter + 1
-            if(patch_area_counter > max_patch_iterations .and. area_not_balanced) then
-               write(fates_log(),*) 'PATCH AREA CHECK NOT CLOSING'
-               write(fates_log(),*) 'patch area:',currentpatch%area
-               do i_lyr = 1,z
-                  write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer(i_lyr)
-                  write(fates_log(),*) 'rel error: ',(arealayer(i_lyr)-currentPatch%area)/currentPatch%area
-                  write(fates_log(),*) 'abs error: ',arealayer(i_lyr)-currentPatch%area
-               enddo
-               write(fates_log(),*) 'lat:',currentSite%lat
-               write(fates_log(),*) 'lon:',currentSite%lon
-	       write(fates_log(),*) 'spread:',currentSite%spread
-               currentCohort => currentPatch%tallest
-               do while (associated(currentCohort))  
-                  write(fates_log(),*) 'coh ilayer:',currentCohort%canopy_layer
-                  write(fates_log(),*) 'coh dbh:',currentCohort%dbh
-                  write(fates_log(),*) 'coh pft:',currentCohort%pft
-                  write(fates_log(),*) 'coh n:',currentCohort%n
-                  write(fates_log(),*) 'coh carea:',currentCohort%c_area
-		  ipft=currentCohort%pft
-		  write(fates_log(),*) 'maxh:',prt_params%allom_dbh_maxheight(ipft)
-                  write(fates_log(),*) 'lmode: ',prt_params%allom_lmode(ipft)
-		  write(fates_log(),*) 'd2bl2: ',prt_params%allom_d2bl2(ipft)
-		  write(fates_log(),*) 'd2bl_ediff: ',prt_params%allom_blca_expnt_diff(ipft)
-		  write(fates_log(),*) 'd2ca_min: ',prt_params%allom_d2ca_coefficient_min(ipft)
-		  write(fates_log(),*) 'd2ca_max: ',prt_params%allom_d2ca_coefficient_max(ipft)
-                  currentCohort => currentCohort%shorter
-               enddo
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-            
-         enddo ! do while(area_not_balanced)
-            
-            
-         ! Set current canopy layer occupancy indicator. 
-         currentPatch%NCL_p = min(nclmax,z)    
-
-         ! -------------------------------------------------------------------------------------------
-         ! if we are using "strict PPA", then calculate a z_star value as 
-         ! the height of the smallest tree in the canopy 
-         ! loop from top to bottom and locate the shortest cohort in level 1 whose shorter 
-         ! neighbor is in level 2 set zstar as the ehight of that shortest level 1 cohort
-         ! -------------------------------------------------------------------------------------------
-         
-         if ( ED_val_comp_excln .lt. 0.0_r8) then
-            currentPatch%zstar = 0._r8
-            currentCohort => currentPatch%tallest
-            do while (associated(currentCohort))
-               if(currentCohort%canopy_layer .eq. 2)then
-                  if (associated(currentCohort%taller)) then
-                     if (currentCohort%taller%canopy_layer .eq. 1 ) then
-                        currentPatch%zstar = currentCohort%taller%hite
-                     endif
-                  endif
-               endif
-               currentCohort => currentCohort%shorter
-            enddo
-         endif
-         
-         currentPatch => currentPatch%younger
-      enddo !patch
-
-      return
-   end subroutine canopy_structure
-
-   
-   ! ==============================================================================================
-   
-
-   subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr)
-
-      use EDParamsMod, only : ED_val_comp_excln
-      use SFParamsMod, only : SF_val_CWD_frac
-
-      ! !ARGUMENTS
-      type(ed_site_type), intent(inout), target  :: currentSite
-      type(ed_patch_type), intent(inout), target :: currentPatch
-      integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
-
-      ! !LOCAL VARIABLES:
-      type(ed_cohort_type), pointer :: currentCohort
-      type(ed_cohort_type), pointer :: copyc
-      type(ed_cohort_type), pointer :: nextc  ! The next cohort in line
-      integer  :: i_cwd                  ! Index for CWD pool
-      real(r8) :: cc_loss                ! cohort crown area loss in demotion (m2)
-      real(r8) :: leaf_c             ! leaf carbon [kg]
-      real(r8) :: fnrt_c             ! fineroot carbon [kg]
-      real(r8) :: sapw_c             ! sapwood carbon [kg]
-      real(r8) :: store_c            ! storage carbon [kg]
-      real(r8) :: struct_c           ! structure carbon [kg]
-      real(r8) :: scale_factor       ! for prob. exclusion - scales weight to a fraction
-      real(r8) :: scale_factor_min   ! "" minimum before exeedance of 1
-      real(r8) :: scale_factor_res   ! "" applied to residual areas
-      real(r8) :: area_res           ! residual area to demote after weakest cohort hits max
-      real(r8) :: newarea
-      real(r8) :: demote_area
-      real(r8) :: sumweights
-      real(r8) :: sumequal              ! for rank-ordered same-size cohorts
-                                         ! this tallies their excluded area
-      real(r8) :: arealayer              ! the area of the current canopy layer
-      logical  :: tied_size_with_neighbors
-      real(r8) :: total_crownarea_of_tied_cohorts
-
-      ! First, determine how much total canopy area we have in this layer
-      call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
-
-      demote_area = arealayer - currentPatch%area
-
-      if ( demote_area > area_target_precision ) then
-         
-         ! Is this layer currently over-occupied? 
-         ! In that case, we need to work out which cohorts to demote. 
-         ! We go in order from shortest to tallest for ranked demotion
-         
-         sumweights  = 0.0_r8
-         currentCohort => currentPatch%shortest
-         do while (associated(currentCohort))
-            call carea_allom(currentCohort%dbh,currentCohort%n, &
-                 currentSite%spread,currentCohort%pft,currentCohort%c_area)
-             
-            if(debug) then
-               if(currentCohort%c_area<0._r8)then
-                  write(fates_log(),*) 'negative c_area stage 1d: ',currentCohort%dbh,i_lyr,currentCohort%n, &
-                       currentSite%spread,currentCohort%pft,currentCohort%c_area
-                  call endrun(msg=errMsg(sourcefile, __LINE__))
-               end if
-            end if
-            
-            if( currentCohort%canopy_layer == i_lyr)then
-
-               if (ED_val_comp_excln .ge. 0.0_r8 ) then
-                  
-                  ! ----------------------------------------------------------
-                  ! Stochastic method.
-                  ! Weight cohort demotion by inverse size to a constant power.
-                  ! In this hypothesis, it is assumed that even the tallest
-                  ! cohorts have a chance (although smaller) of being forced
-                  ! to the understory.
-                  ! ----------------------------------------------------------
-
-                  currentCohort%excl_weight = 1._r8 / (currentCohort%hite**ED_val_comp_excln)
-                  sumweights = sumweights + currentCohort%excl_weight
-
-               else
-
-                  ! -----------------------------------------------------------
-                  ! Rank ordered deterministic method
-                  ! -----------------------------------------------------------
-                  ! If there are cohorts that have the exact same height (which is possible, really)
-                  ! we don't want to unilaterally promote/demote one before the others. 
-                  ! So we <>mote them as a unit
-                  ! now we need to go through and figure out how many equal-size cohorts there are.
-                  ! then we need to go through, add up the collective crown areas of all equal-sized
-                  ! and equal-canopy-layer cohorts,
-                  ! and then demote from each as if they were a single group
-
-                  total_crownarea_of_tied_cohorts = currentCohort%c_area
-                  
-                  tied_size_with_neighbors = .false.
-                  nextc => currentCohort%taller
-                  do while (associated(nextc))
-                     if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
-                        if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
-                           tied_size_with_neighbors = .true.
-                           total_crownarea_of_tied_cohorts = &
-                                total_crownarea_of_tied_cohorts + nextc%c_area
-                        end if
-                     else
-                        exit
-                     endif
-                     nextc => nextc%taller
-                  end do
-                  
-                  if ( tied_size_with_neighbors ) then
-                     
-                     currentCohort%excl_weight = &
-                          max(0.0_r8,min(currentCohort%c_area, &
-                          (currentCohort%c_area/total_crownarea_of_tied_cohorts) * &
-                          (demote_area - sumweights) ))
-
-                     sumequal = currentCohort%excl_weight
-
-                     nextc => currentCohort%taller
-                     do while (associated(nextc))
-                        if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
-                           if (nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
-                              ! now we know the total crown area of all equal-sized, 
-                              ! equal-canopy-layer cohorts
-                              nextc%excl_weight = &
-                                   max(0.0_r8,min(nextc%c_area, &
-                                                  (nextc%c_area/total_crownarea_of_tied_cohorts) * &
-                                                  (demote_area - sumweights) ))
-                              sumequal = sumequal + nextc%excl_weight
-                           end if
-                        else
-                           exit
-                        endif
-                        nextc => nextc%taller
-                     end do
-                     
-                     ! Update the current cohort pointer to the last similar cohort
-                     ! Its ok if this is not in the right layer
-                     if(associated(nextc))then
-                        currentCohort => nextc%shorter
-                     else
-                        currentCohort => currentPatch%tallest
-                     end if
-                     sumweights = sumweights + sumequal
-
-                  else
-                     currentCohort%excl_weight = &
-                          max(min(currentCohort%c_area, demote_area - sumweights ), 0._r8)
-                     sumweights = sumweights + currentCohort%excl_weight 
-                  end if
-                  
-               endif
-            endif
-            currentCohort => currentCohort%taller
-         enddo
-
-         ! If this is probabalistic demotion, we need to do a round of normalization.
-         ! And then a few rounds where we pre-calculate the demotion areas
-         ! and adjust things if the demoted area wants to be greater than
-         ! what is available. The math is too hard to explain here, see
-         ! the tech note section on promotion/demotion.
-
-         if (ED_val_comp_excln .ge. 0.0_r8 ) then
-            
-            scale_factor_min  = 1.e10_r8
-            scale_factor      = 0._r8
-            currentCohort => currentPatch%tallest
-            do while (associated(currentCohort))
-
-               if(currentCohort%canopy_layer  ==  i_lyr) then 
-
-                  currentCohort%excl_weight = currentCohort%excl_weight/sumweights
-                  if( 1._r8/currentCohort%excl_weight <  scale_factor_min )  &
-                        scale_factor_min = 1._r8/currentCohort%excl_weight
-                  
-                  scale_factor = scale_factor + currentCohort%excl_weight * currentCohort%c_area
-
-               endif
-               currentCohort => currentCohort%shorter      
-            enddo
-
-            ! This is the factor by which we need to multiply
-            ! the demotion probabilities, so the sum result equals
-            ! the total amount to demote
-
-            scale_factor = demote_area/scale_factor
-            
-            if(scale_factor <= scale_factor_min) then
-
-               ! Trivial case, all of the demotion fractions are less than 1.
-
-               currentCohort => currentPatch%tallest
-               do while (associated(currentCohort))
-                  if(currentCohort%canopy_layer  ==  i_lyr) then 
-                     currentCohort%excl_weight = currentCohort%c_area * currentCohort%excl_weight * scale_factor
-                     
-                     if(debug) then
-                        if((currentCohort%excl_weight > (currentCohort%c_area+area_target_precision)) .or. &
-                             (currentCohort%excl_weight < 0._r8)  ) then
-                           write(fates_log(),*) 'exclusion area too big (1)'
-                           write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                           write(fates_log(),*) 'dbh: ',currentCohort%dbh
-                           write(fates_log(),*) 'n: ',currentCohort%n
-                           write(fates_log(),*) 'spread: ',currentSite%spread
-                           write(fates_log(),*) 'pft: ',currentCohort%pft
-                           write(fates_log(),*) 'currentCohort%excl_weight: ',currentCohort%excl_weight
-                           write(fates_log(),*) 'excess: ',currentCohort%excl_weight - currentCohort%c_area
-                           call endrun(msg=errMsg(sourcefile, __LINE__))
-                        end if
-                     end if
-
-                  endif
-                  currentCohort => currentCohort%shorter      
-               enddo
-               
-            else
+       ! canopy layer has a special bounds check
+       currentCohort => currentPatch%tallest
+       do while (associated(currentCohort))
+          if( currentCohort%canopy_layer < 1 .or. currentCohort%canopy_layer > nclmax+1 ) then 
+             write(fates_log(),*) 'lat:',currentSite%lat
+             write(fates_log(),*) 'lon:',currentSite%lon
+             write(fates_log(),*) 'BOGUS CANOPY LAYER: ',currentCohort%canopy_layer
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          currentCohort => currentCohort%shorter
+       enddo
 
 
-               ! Non-trivial case, at least 1 cohort's demotion
-               ! rate would exceed its area, given the trivial scale factor
-               
-               area_res         = 0._r8
-               scale_factor_res = 0._r8
-               currentCohort => currentPatch%tallest
-               do while (associated(currentCohort))  
-                  if(currentCohort%canopy_layer  ==  i_lyr) then 
-                     area_res         = area_res + &
-                                        currentCohort%c_area * currentCohort%excl_weight * &
-                                        scale_factor_min
-                     scale_factor_res = scale_factor_res + &
-                                        currentCohort%c_area * &
-                                        (1._r8 - (currentCohort%excl_weight * scale_factor_min))
-                  endif
-                  currentCohort => currentCohort%shorter      
-               enddo
-               
-               area_res = demote_area - area_res
-               
-               scale_factor_res = area_res / scale_factor_res
+       ! Does any layer have excess area in it? Keep going until it does not...
+       patch_area_counter = 0
+       area_not_balanced = .true.
 
-               currentCohort => currentPatch%tallest
-               do while (associated(currentCohort))  
-                  if(currentCohort%canopy_layer  ==  i_lyr) then 
+       do while(area_not_balanced)
 
-                     currentCohort%excl_weight = currentCohort%c_area * &
-                           (currentCohort%excl_weight * scale_factor_min + &
-                           (1._r8 - (currentCohort%excl_weight*scale_factor_min) ) * scale_factor_res)
-                     
-                     if(debug)then
-                        if((currentCohort%excl_weight > &
-                            (currentCohort%c_area+area_target_precision)) .or. &
-                             (currentCohort%excl_weight < 0._r8)  ) then
-                            write(fates_log(),*) 'exclusion area error (2)'
+          ! ---------------------------------------------------------------------------
+          ! Demotion Phase: Identify upper layers that are too full, and demote them to
+          ! the layers below.
+          ! ---------------------------------------------------------------------------
+
+          ! Its possible that before we even enter this scheme
+          ! some cohort numbers are very low.  Terminate them.
+          call terminate_cohorts(currentSite, currentPatch, 1, 12)
+
+          ! Calculate how many layers we have in this canopy
+          ! This also checks the understory to see if its crown 
+          ! area is large enough to warrant a temporary sub-understory layer
+          z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
+
+          do i_lyr = 1,z ! Loop around the currently occupied canopy layers. 
+             call DemoteFromLayer(currentSite, currentPatch, i_lyr)
+          end do
+
+          ! After demotions, we may then again have cohorts that are very very
+          ! very sparse, remove them
+          call terminate_cohorts(currentSite, currentPatch, 1,13)
+
+          call fuse_cohorts(currentSite, currentPatch, bc_in)
+
+          ! Remove cohorts for various other reasons
+          call terminate_cohorts(currentSite, currentPatch, 2,13)
+
+
+          ! ---------------------------------------------------------------------------------------
+          ! Promotion Phase: Identify if any upper-layers are underful and layers below them
+          ! have cohorts that can be split and promoted to the layer above.
+          ! ---------------------------------------------------------------------------------------
+
+          ! Re-calculate Number of layers without the false substory
+          z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
+
+          ! We only promote if we have at least two layers
+          if (z>1) then
+
+             do i_lyr=1,z-1 
+                call PromoteIntoLayer(currentSite, currentPatch, i_lyr)
+             end do
+
+             ! Remove cohorts that are incredibly sparse
+             call terminate_cohorts(currentSite, currentPatch, 1,14)
+
+             call fuse_cohorts(currentSite, currentPatch, bc_in)
+
+             ! Remove cohorts for various other reasons
+             call terminate_cohorts(currentSite, currentPatch, 2,14)
+
+          end if
+
+          ! ---------------------------------------------------------------------------------------
+          ! Check on Layer Area (if the layer differences are not small
+          ! Continue trying to demote/promote. Its possible on the first pass through,
+          ! that cohort fusion has nudged the areas a little bit.
+          ! ---------------------------------------------------------------------------------------
+
+          z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
+          area_not_balanced = .false.
+          do i_lyr = 1,z
+             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
+             if( ((arealayer(i_lyr)-currentPatch%area)/currentPatch%area > area_check_rel_precision) .or. &
+                  ((arealayer(i_lyr)-currentPatch%area) > area_check_precision )  ) then
+                area_not_balanced = .true.
+             endif
+          enddo
+
+          ! ---------------------------------------------------------------------------------------
+          ! Gracefully exit if too many iterations have gone by
+          ! ---------------------------------------------------------------------------------------
+
+          patch_area_counter = patch_area_counter + 1
+          if(patch_area_counter > max_patch_iterations .and. area_not_balanced) then
+             write(fates_log(),*) 'PATCH AREA CHECK NOT CLOSING'
+             write(fates_log(),*) 'patch area:',currentpatch%area
+             do i_lyr = 1,z
+                write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer(i_lyr)
+                write(fates_log(),*) 'rel error: ',(arealayer(i_lyr)-currentPatch%area)/currentPatch%area
+                write(fates_log(),*) 'abs error: ',arealayer(i_lyr)-currentPatch%area
+             enddo
+             write(fates_log(),*) 'lat:',currentSite%lat
+             write(fates_log(),*) 'lon:',currentSite%lon
+             write(fates_log(),*) 'spread:',currentSite%spread
+             currentCohort => currentPatch%tallest
+             do while (associated(currentCohort))  
+                write(fates_log(),*) 'coh ilayer:',currentCohort%canopy_layer
+                write(fates_log(),*) 'coh dbh:',currentCohort%dbh
+                write(fates_log(),*) 'coh pft:',currentCohort%pft
+                write(fates_log(),*) 'coh n:',currentCohort%n
+                write(fates_log(),*) 'coh carea:',currentCohort%c_area
+                ipft=currentCohort%pft
+                write(fates_log(),*) 'maxh:',prt_params%allom_dbh_maxheight(ipft)
+                write(fates_log(),*) 'lmode: ',prt_params%allom_lmode(ipft)
+                write(fates_log(),*) 'd2bl2: ',prt_params%allom_d2bl2(ipft)
+                write(fates_log(),*) 'd2bl_ediff: ',prt_params%allom_blca_expnt_diff(ipft)
+                write(fates_log(),*) 'd2ca_min: ',prt_params%allom_d2ca_coefficient_min(ipft)
+                write(fates_log(),*) 'd2ca_max: ',prt_params%allom_d2ca_coefficient_max(ipft)
+                currentCohort => currentCohort%shorter
+             enddo
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
+       enddo ! do while(area_not_balanced)
+
+
+       ! Set current canopy layer occupancy indicator. 
+       currentPatch%NCL_p = min(nclmax,z)    
+
+       ! -------------------------------------------------------------------------------------------
+       ! if we are using "strict PPA", then calculate a z_star value as 
+       ! the height of the smallest tree in the canopy 
+       ! loop from top to bottom and locate the shortest cohort in level 1 whose shorter 
+       ! neighbor is in level 2 set zstar as the ehight of that shortest level 1 cohort
+       ! -------------------------------------------------------------------------------------------
+
+       if ( ED_val_comp_excln .lt. 0.0_r8) then
+          currentPatch%zstar = 0._r8
+          currentCohort => currentPatch%tallest
+          do while (associated(currentCohort))
+             if(currentCohort%canopy_layer .eq. 2)then
+                if (associated(currentCohort%taller)) then
+                   if (currentCohort%taller%canopy_layer .eq. 1 ) then
+                      currentPatch%zstar = currentCohort%taller%hite
+                   endif
+                endif
+             endif
+             currentCohort => currentCohort%shorter
+          enddo
+       endif
+
+       currentPatch => currentPatch%younger
+    enddo !patch
+
+    return
+  end subroutine canopy_structure
+
+
+  ! ==============================================================================================
+
+
+  subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr)
+
+    use EDParamsMod, only : ED_val_comp_excln
+    use SFParamsMod, only : SF_val_CWD_frac
+
+    ! !ARGUMENTS
+    type(ed_site_type), intent(inout), target  :: currentSite
+    type(ed_patch_type), intent(inout), target :: currentPatch
+    integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
+
+    ! !LOCAL VARIABLES:
+    type(ed_cohort_type), pointer :: currentCohort
+    type(ed_cohort_type), pointer :: copyc
+    type(ed_cohort_type), pointer :: nextc  ! The next cohort in line
+    integer  :: i_cwd                  ! Index for CWD pool
+    real(r8) :: cc_loss                ! cohort crown area loss in demotion (m2)
+    real(r8) :: leaf_c             ! leaf carbon [kg]
+    real(r8) :: fnrt_c             ! fineroot carbon [kg]
+    real(r8) :: sapw_c             ! sapwood carbon [kg]
+    real(r8) :: store_c            ! storage carbon [kg]
+    real(r8) :: struct_c           ! structure carbon [kg]
+    real(r8) :: scale_factor       ! for prob. exclusion - scales weight to a fraction
+    real(r8) :: scale_factor_min   ! "" minimum before exeedance of 1
+    real(r8) :: scale_factor_res   ! "" applied to residual areas
+    real(r8) :: area_res           ! residual area to demote after weakest cohort hits max
+    real(r8) :: newarea
+    real(r8) :: demote_area
+    real(r8) :: sumweights
+    real(r8) :: sumequal              ! for rank-ordered same-size cohorts
+    ! this tallies their excluded area
+    real(r8) :: arealayer              ! the area of the current canopy layer
+    logical  :: tied_size_with_neighbors
+    real(r8) :: total_crownarea_of_tied_cohorts
+
+    ! First, determine how much total canopy area we have in this layer
+    call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
+
+    demote_area = arealayer - currentPatch%area
+
+    if ( demote_area > area_target_precision ) then
+
+       ! Is this layer currently over-occupied? 
+       ! In that case, we need to work out which cohorts to demote. 
+       ! We go in order from shortest to tallest for ranked demotion
+
+       sumweights  = 0.0_r8
+       currentCohort => currentPatch%shortest
+       do while (associated(currentCohort))
+          call carea_allom(currentCohort%dbh,currentCohort%n, &
+               currentSite%spread,currentCohort%pft,currentCohort%c_area)
+
+          if(debug) then
+             if(currentCohort%c_area<0._r8)then
+                write(fates_log(),*) 'negative c_area stage 1d: ',currentCohort%dbh,i_lyr,currentCohort%n, &
+                     currentSite%spread,currentCohort%pft,currentCohort%c_area
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end if
+          end if
+
+          if( currentCohort%canopy_layer == i_lyr)then
+
+             if (ED_val_comp_excln .ge. 0.0_r8 ) then
+
+                ! ----------------------------------------------------------
+                ! Stochastic method.
+                ! Weight cohort demotion by inverse size to a constant power.
+                ! In this hypothesis, it is assumed that even the tallest
+                ! cohorts have a chance (although smaller) of being forced
+                ! to the understory.
+                ! ----------------------------------------------------------
+
+                currentCohort%excl_weight = 1._r8 / (currentCohort%hite**ED_val_comp_excln)
+                sumweights = sumweights + currentCohort%excl_weight
+
+             else
+
+                ! -----------------------------------------------------------
+                ! Rank ordered deterministic method
+                ! -----------------------------------------------------------
+                ! If there are cohorts that have the exact same height (which is possible, really)
+                ! we don't want to unilaterally promote/demote one before the others. 
+                ! So we <>mote them as a unit
+                ! now we need to go through and figure out how many equal-size cohorts there are.
+                ! then we need to go through, add up the collective crown areas of all equal-sized
+                ! and equal-canopy-layer cohorts,
+                ! and then demote from each as if they were a single group
+
+                total_crownarea_of_tied_cohorts = currentCohort%c_area
+
+                tied_size_with_neighbors = .false.
+                nextc => currentCohort%taller
+                do while (associated(nextc))
+                   if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                      if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
+                         tied_size_with_neighbors = .true.
+                         total_crownarea_of_tied_cohorts = &
+                              total_crownarea_of_tied_cohorts + nextc%c_area
+                      end if
+                   else
+                      exit
+                   endif
+                   nextc => nextc%taller
+                end do
+
+                if ( tied_size_with_neighbors ) then
+
+                   currentCohort%excl_weight = &
+                        max(0.0_r8,min(currentCohort%c_area, &
+                        (currentCohort%c_area/total_crownarea_of_tied_cohorts) * &
+                        (demote_area - sumweights) ))
+
+                   sumequal = currentCohort%excl_weight
+
+                   nextc => currentCohort%taller
+                   do while (associated(nextc))
+                      if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                         if (nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
+                            ! now we know the total crown area of all equal-sized, 
+                            ! equal-canopy-layer cohorts
+                            nextc%excl_weight = &
+                                 max(0.0_r8,min(nextc%c_area, &
+                                 (nextc%c_area/total_crownarea_of_tied_cohorts) * &
+                                 (demote_area - sumweights) ))
+                            sumequal = sumequal + nextc%excl_weight
+                         end if
+                      else
+                         exit
+                      endif
+                      nextc => nextc%taller
+                   end do
+
+                   ! Update the current cohort pointer to the last similar cohort
+                   ! Its ok if this is not in the right layer
+                   if(associated(nextc))then
+                      currentCohort => nextc%shorter
+                   else
+                      currentCohort => currentPatch%tallest
+                   end if
+                   sumweights = sumweights + sumequal
+
+                else
+                   currentCohort%excl_weight = &
+                        max(min(currentCohort%c_area, demote_area - sumweights ), 0._r8)
+                   sumweights = sumweights + currentCohort%excl_weight 
+                end if
+
+             endif
+          endif
+          currentCohort => currentCohort%taller
+       enddo
+
+       ! If this is probabalistic demotion, we need to do a round of normalization.
+       ! And then a few rounds where we pre-calculate the demotion areas
+       ! and adjust things if the demoted area wants to be greater than
+       ! what is available. The math is too hard to explain here, see
+       ! the tech note section on promotion/demotion.
+
+       if (ED_val_comp_excln .ge. 0.0_r8 ) then
+
+          scale_factor_min  = 1.e10_r8
+          scale_factor      = 0._r8
+          currentCohort => currentPatch%tallest
+          do while (associated(currentCohort))
+
+             if(currentCohort%canopy_layer  ==  i_lyr) then 
+
+                currentCohort%excl_weight = currentCohort%excl_weight/sumweights
+                if( 1._r8/currentCohort%excl_weight <  scale_factor_min )  &
+                     scale_factor_min = 1._r8/currentCohort%excl_weight
+
+                scale_factor = scale_factor + currentCohort%excl_weight * currentCohort%c_area
+
+             endif
+             currentCohort => currentCohort%shorter      
+          enddo
+
+          ! This is the factor by which we need to multiply
+          ! the demotion probabilities, so the sum result equals
+          ! the total amount to demote
+
+          scale_factor = demote_area/scale_factor
+
+          if(scale_factor <= scale_factor_min) then
+
+             ! Trivial case, all of the demotion fractions are less than 1.
+
+             currentCohort => currentPatch%tallest
+             do while (associated(currentCohort))
+                if(currentCohort%canopy_layer  ==  i_lyr) then 
+                   currentCohort%excl_weight = currentCohort%c_area * currentCohort%excl_weight * scale_factor
+
+                   if(debug) then
+                      if((currentCohort%excl_weight > (currentCohort%c_area+area_target_precision)) .or. &
+                           (currentCohort%excl_weight < 0._r8)  ) then
+                         write(fates_log(),*) 'exclusion area too big (1)'
+                         write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
+                         write(fates_log(),*) 'dbh: ',currentCohort%dbh
+                         write(fates_log(),*) 'n: ',currentCohort%n
+                         write(fates_log(),*) 'spread: ',currentSite%spread
+                         write(fates_log(),*) 'pft: ',currentCohort%pft
+                         write(fates_log(),*) 'currentCohort%excl_weight: ',currentCohort%excl_weight
+                         write(fates_log(),*) 'excess: ',currentCohort%excl_weight - currentCohort%c_area
+                         call endrun(msg=errMsg(sourcefile, __LINE__))
+                      end if
+                   end if
+
+                endif
+                currentCohort => currentCohort%shorter      
+             enddo
+
+          else
+
+
+             ! Non-trivial case, at least 1 cohort's demotion
+             ! rate would exceed its area, given the trivial scale factor
+
+             area_res         = 0._r8
+             scale_factor_res = 0._r8
+             currentCohort => currentPatch%tallest
+             do while (associated(currentCohort))  
+                if(currentCohort%canopy_layer  ==  i_lyr) then 
+                   area_res         = area_res + &
+                        currentCohort%c_area * currentCohort%excl_weight * &
+                        scale_factor_min
+                   scale_factor_res = scale_factor_res + &
+                        currentCohort%c_area * &
+                        (1._r8 - (currentCohort%excl_weight * scale_factor_min))
+                endif
+                currentCohort => currentCohort%shorter      
+             enddo
+
+             area_res = demote_area - area_res
+
+             scale_factor_res = area_res / scale_factor_res
+
+             currentCohort => currentPatch%tallest
+             do while (associated(currentCohort))  
+                if(currentCohort%canopy_layer  ==  i_lyr) then 
+
+                   currentCohort%excl_weight = currentCohort%c_area * &
+                        (currentCohort%excl_weight * scale_factor_min + &
+                        (1._r8 - (currentCohort%excl_weight*scale_factor_min) ) * scale_factor_res)
+
+                   if(debug)then
+                      if((currentCohort%excl_weight > &
+                           (currentCohort%c_area+area_target_precision)) .or. &
+                           (currentCohort%excl_weight < 0._r8)  ) then
+                         write(fates_log(),*) 'exclusion area error (2)'
+                         write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
+                         write(fates_log(),*) 'currentCohort%excl_weight: ', &
+                              currentCohort%excl_weight
+                         write(fates_log(),*) 'excess: ', &
+                              currentCohort%excl_weight - currentCohort%c_area
+                         call endrun(msg=errMsg(sourcefile, __LINE__))
+                      end if
+                   end if
+
+                endif
+                currentCohort => currentCohort%shorter      
+             enddo
+
+          end if
+
+       end if
+
+
+       ! perform a check and see if the demotions meet the demand
+       sumweights = 0._r8
+       currentCohort => currentPatch%tallest
+       do while (associated(currentCohort))    
+          if(currentCohort%canopy_layer  ==  i_lyr) then
+             sumweights = sumweights + currentCohort%excl_weight
+          end if
+          currentCohort => currentCohort%shorter
+       end do
+
+       if (abs(sumweights - demote_area) > area_check_precision ) then
+          write(fates_log(),*) 'demotions dont add up'
+          write(fates_log(),*) 'sum demotions: ',sumweights
+          write(fates_log(),*) 'area needed to be demoted: ',demote_area
+          write(fates_log(),*) 'excess: ',sumweights - demote_area
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+
+       ! Weights have been calculated. Now move them to the lower layer
+
+       currentCohort => currentPatch%tallest
+       do while (associated(currentCohort))
+
+          if(currentCohort%canopy_layer == i_lyr )then
+
+             cc_loss         = currentCohort%excl_weight
+             leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+             store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+             fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+             sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+             struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
+
+             if ( (cc_loss-currentCohort%c_area) > -nearzero .and. &
+                  (cc_loss-currentCohort%c_area) < area_target_precision ) then
+
+                ! If the whole cohort is being demoted, just change its
+                ! layer index
+
+                currentCohort%canopy_layer = i_lyr+1
+
+                ! keep track of number and biomass of demoted cohort
+                currentSite%demotion_rate(currentCohort%size_class) = &
+                     currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
+                currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
+                     (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * currentCohort%n
+
+             elseif( (cc_loss < currentCohort%c_area) .and. &
+                  (cc_loss > area_target_precision) ) then
+
+                ! If only part of the cohort is demoted
+                ! then it must be split (little more complicated)
+
+                ! Make a copy of the current cohort.  The copy and the original
+                ! conserve total number density of the original.  The copy
+                ! remains in the upper-story.  The original is the one
+                ! demoted to the understory
+
+
+                allocate(copyc)
+
+                ! Initialize the PARTEH object and point to the
+                ! correct boundary condition fields
+                copyc%prt => null()
+                call InitPRTObject(copyc%prt)
+                call InitPRTBoundaryConditions(copyc)
+
+                if( hlm_use_planthydro.eq.itrue ) then
+                   call InitHydrCohort(currentSite,copyc)
+                endif
+
+                call copy_cohort(currentCohort, copyc)
+
+                newarea = currentCohort%c_area - cc_loss
+                copyc%n = currentCohort%n*newarea/currentCohort%c_area 
+                currentCohort%n = currentCohort%n - copyc%n
+
+                copyc%canopy_layer = i_lyr !the taller cohort is the copy
+
+                ! Demote the current cohort to the understory.
+                currentCohort%canopy_layer = i_lyr + 1 
+
+                ! keep track of number and biomass of demoted cohort
+                currentSite%demotion_rate(currentCohort%size_class) = &
+                     currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
+                currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
+                     (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * currentCohort%n
+
+                call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,copyc%c_area)
+                call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                     currentCohort%pft,currentCohort%c_area)
+
+                !----------- Insert copy into linked list ------------------------!                         
+                copyc%shorter => currentCohort
+                if(associated(currentCohort%taller))then
+                   copyc%taller => currentCohort%taller
+                   currentCohort%taller%shorter => copyc
+                else
+                   currentPatch%tallest => copyc
+                   copyc%taller => null()
+                endif
+                currentCohort%taller => copyc
+
+             elseif(cc_loss > currentCohort%c_area)then
+
+                write(fates_log(),*) 'more area than the cohort has is being demoted'
+                write(fates_log(),*) 'loss:',cc_loss
+                write(fates_log(),*) 'existing area:',currentCohort%c_area
+                write(fates_log(),*) 'excess: ',cc_loss - currentCohort%c_area
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+
+             end if
+
+             ! kill the ones which go into canopy layers that are not allowed
+
+             if(currentCohort%canopy_layer>nclmax )then 
+
+                ! put the litter from the terminated cohorts 
+                ! straight into the fragmenting pools
+                call SendCohortToLitter(currentSite,currentPatch, &
+                     currentCohort,currentCohort%n)
+
+                currentCohort%n            = 0.0_r8
+                currentCohort%c_area       = 0.0_r8
+                currentCohort%canopy_layer = i_lyr
+
+             end if
+
+             call carea_allom(currentCohort%dbh,currentCohort%n, &
+                  currentSite%spread,currentCohort%pft,currentCohort%c_area)
+
+          endif !canopy layer = i_ly
+
+          currentCohort => currentCohort%shorter
+       enddo !currentCohort 
+
+
+       ! Update the area calculations of the current layer
+       ! And the layer below that may or may not had recieved
+       ! Demotions
+
+       call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
+
+       if ( (abs(arealayer - currentPatch%area)/arealayer > area_check_rel_precision ) .or. &
+            (abs(arealayer - currentPatch%area) > area_check_precision) ) then
+          write(fates_log(),*) 'demotion did not trim area within tolerance'
+          write(fates_log(),*) 'arealayer:',arealayer
+          write(fates_log(),*) 'patch%area:',currentPatch%area
+          write(fates_log(),*) 'ilayer: ',i_lyr
+          write(fates_log(),*) 'bias:',arealayer - currentPatch%area
+          write(fates_log(),*) 'rel bias:',(arealayer - currentPatch%area)/arealayer
+          write(fates_log(),*) 'demote_area:',demote_area
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+
+    end if
+
+    return
+  end subroutine DemoteFromLayer
+
+  ! ==============================================================================================
+
+  subroutine PromoteIntoLayer(currentSite,currentPatch,i_lyr)
+
+    ! -------------------------------------------------------------------------------------------
+    ! Check whether the intended 'full' layers are actually filling all the space.
+    ! If not, promote some fraction of cohorts upwards.
+    ! THIS SECTION MIGHT BE TRIGGERED BY A FIRE OR MORTALITY EVENT, FOLLOWED BY A PATCH FUSION, 
+    ! SO THE TOP LAYER IS NO LONGER FULL.
+    ! -------------------------------------------------------------------------------------------
+
+    use EDParamsMod, only : ED_val_comp_excln
+
+    ! !ARGUMENTS
+    type(ed_site_type), intent(inout), target  :: currentSite
+    type(ed_patch_type), intent(inout), target :: currentPatch
+    integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
+
+    ! !LOCAL VARIABLES:
+    type(ed_cohort_type), pointer :: currentCohort
+    type(ed_cohort_type), pointer :: copyc
+    type(ed_cohort_type), pointer :: nextc   ! the next cohort, or used for looping
+    ! cohorts against the current
+
+    real(r8) :: scale_factor       ! for prob. exclusion - scales weight to a fraction
+    real(r8) :: scale_factor_min   ! "" minimum before exeedance of 1
+    real(r8) :: scale_factor_res   ! "" applied to residual areas
+    real(r8) :: area_res           ! residual area to demote after weakest cohort hits max
+    real(r8) :: promote_area
+    real(r8) :: newarea
+    real(r8) :: sumweights
+    real(r8) :: sumequal              ! for tied cohorts, the sum of weights in
+    ! their group
+    real(r8) :: cc_gain                ! cohort crown area gain in promotion (m2)
+    real(r8) :: arealayer_current      ! area (m2) of the current canopy layer
+    real(r8) :: arealayer_below        ! area (m2) of the layer below the current layer
+    real(r8) :: leaf_c             ! leaf carbon [kg]
+    real(r8) :: fnrt_c             ! fineroot carbon [kg]
+    real(r8) :: sapw_c             ! sapwood carbon [kg]
+    real(r8) :: store_c            ! storage carbon [kg]
+    real(r8) :: struct_c           ! structure carbon [kg]
+
+    logical  :: tied_size_with_neighbors
+    real(r8) :: total_crownarea_of_tied_cohorts
+
+    call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
+    call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr+1,arealayer_below)
+
+
+    ! how much do we need to gain?
+    promote_area    =  currentPatch%area - arealayer_current 
+
+    if( promote_area > area_target_precision ) then
+
+       if(arealayer_below <= promote_area ) then
+
+          ! ---------------------------------------------------------------------------
+          ! Promote all cohorts from layer below if that whole layer has area smaller
+          ! than the tolerance on the gains needed into current layer
+          ! ---------------------------------------------------------------------------
+
+          currentCohort => currentPatch%tallest 
+          do while (associated(currentCohort))            
+             !look at the cohorts in the canopy layer below... 
+             if(currentCohort%canopy_layer == i_lyr+1)then 
+
+                leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+                store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+                fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+                sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+                struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
+
+                currentCohort%canopy_layer = i_lyr   
+                call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                     currentCohort%pft,currentCohort%c_area)
+                ! keep track of number and biomass of promoted cohort
+                currentSite%promotion_rate(currentCohort%size_class) = &
+                     currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
+                currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                     (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * currentCohort%n
+
+             endif
+             currentCohort => currentCohort%shorter   
+          enddo
+
+       else
+
+          ! ---------------------------------------------------------------------------
+          ! This is the non-trivial case where the lower layer can accomodate
+          ! more than what is necessary.
+          ! ---------------------------------------------------------------------------
+
+
+          ! figure out with what weighting we need to promote cohorts.
+          ! This is the opposite of the demotion weighting... 
+
+          sumweights = 0.0_r8
+          currentCohort => currentPatch%tallest 
+          do while (associated(currentCohort))
+             call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                  currentCohort%pft,currentCohort%c_area)
+             if(currentCohort%canopy_layer == i_lyr+1)then !look at the cohorts in the canopy layer below... 
+
+                if (ED_val_comp_excln .ge. 0.0_r8 ) then
+
+                   ! ------------------------------------------------------------------
+                   ! Stochastic case, as above (in demotion portion of code)
+                   ! ------------------------------------------------------------------
+
+                   currentCohort%prom_weight = currentCohort%hite**ED_val_comp_excln
+                   sumweights = sumweights + currentCohort%prom_weight
+                else
+
+                   ! ------------------------------------------------------------------
+                   ! Rank ordered deterministic method
+                   ! If there are cohorts that have the exact same height (which is possible, really)
+                   ! we don't want to unilaterally promote/demote one before the others. 
+                   ! So we <>mote them as a unit
+                   ! now we need to go through and figure out how many equal-size cohorts there are.
+                   ! then we need to go through, add up the collective crown areas of all equal-sized
+                   ! and equal-canopy-layer cohorts,
+                   ! and then demote from each as if they were a single group
+                   ! ------------------------------------------------------------------
+
+                   total_crownarea_of_tied_cohorts = currentCohort%c_area
+                   tied_size_with_neighbors = .false.
+                   nextc => currentCohort%shorter
+                   do while (associated(nextc))
+                      if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                         if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
+                            tied_size_with_neighbors = .true.
+                            total_crownarea_of_tied_cohorts = &
+                                 total_crownarea_of_tied_cohorts + nextc%c_area
+                         end if
+                      else
+                         exit
+                      endif
+                      nextc => nextc%shorter
+                   end do
+
+                   if ( tied_size_with_neighbors ) then
+
+                      currentCohort%prom_weight = &
+                           max(0.0_r8,min(currentCohort%c_area, &
+                           (currentCohort%c_area/total_crownarea_of_tied_cohorts) * &
+                           (promote_area - sumweights) ))
+                      sumequal = currentCohort%prom_weight
+
+                      nextc => currentCohort%shorter
+                      do while (associated(nextc))
+                         if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                            if (nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
+                               ! now we know the total crown area of all equal-sized, 
+                               ! equal-canopy-layer cohorts
+                               nextc%prom_weight = &
+                                    max(0.0_r8,min(nextc%c_area, &
+                                    (nextc%c_area/total_crownarea_of_tied_cohorts) * &
+                                    (promote_area - sumweights) ))
+                               sumequal = sumequal + nextc%prom_weight
+                            end if
+                         else
+                            exit
+                         endif
+                         nextc => nextc%shorter
+                      end do
+
+                      ! Update the current cohort pointer to the last similar cohort
+                      ! Its ok if this is not in the right layer
+                      if(associated(nextc))then
+                         currentCohort => nextc%taller
+                      else
+                         currentCohort => currentPatch%shortest
+                      end if
+                      sumweights = sumweights + sumequal
+
+                   else
+                      currentCohort%prom_weight = &
+                           max(min(currentCohort%c_area, promote_area - sumweights ), 0._r8)
+                      sumweights = sumweights + currentCohort%prom_weight 
+
+                   end if
+
+                endif
+             endif
+             currentCohort => currentCohort%shorter  
+          enddo !currentCohort
+
+
+          ! If this is probabalistic promotion, we need to do a round of normalization.
+          ! And then a few rounds where we pre-calculate the promotion areas
+          ! and adjust things if the promoted area wants to be greater than
+          ! what is available.
+
+          if (ED_val_comp_excln .ge. 0.0_r8 ) then
+
+             scale_factor_min  = 1.e10_r8
+             scale_factor      = 0._r8
+             currentCohort => currentPatch%tallest
+             do while (associated(currentCohort))
+
+                if(currentCohort%canopy_layer  ==  (i_lyr+1) ) then 
+
+                   currentCohort%prom_weight = currentCohort%prom_weight/sumweights
+                   if( 1._r8/currentCohort%prom_weight <  scale_factor_min )  &
+                        scale_factor_min = 1._r8/currentCohort%prom_weight
+
+                   scale_factor = scale_factor + currentCohort%prom_weight * currentCohort%c_area
+
+                endif
+                currentCohort => currentCohort%shorter      
+             enddo
+
+             ! This is the factor by which we need to multiply
+             ! the demotion probabilities, so the sum result equals
+             ! the total amount to demote
+             scale_factor = promote_area/scale_factor
+
+
+             if(scale_factor <= scale_factor_min) then
+
+                ! Trivial case, all of the demotion fractions
+                ! are less than 1.
+
+                currentCohort => currentPatch%tallest
+                do while (associated(currentCohort))
+                   if(currentCohort%canopy_layer  ==  (i_lyr+1) ) then 
+                      currentCohort%prom_weight = currentCohort%c_area * &
+                           currentCohort%prom_weight * scale_factor
+
+                      if(debug)then
+                         if((currentCohort%prom_weight > &
+                              (currentCohort%c_area+area_target_precision)) .or. &
+                              (currentCohort%prom_weight < 0._r8)  ) then
+                            write(fates_log(),*) 'promotion area too big (1)'
                             write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                            write(fates_log(),*) 'currentCohort%excl_weight: ', &
-                                                  currentCohort%excl_weight
+                            write(fates_log(),*) 'currentCohort%prom_weight: ', &
+                                 currentCohort%prom_weight
                             write(fates_log(),*) 'excess: ', &
-                                                  currentCohort%excl_weight - currentCohort%c_area
+                                 currentCohort%prom_weight - currentCohort%c_area
                             call endrun(msg=errMsg(sourcefile, __LINE__))
-                        end if
-                    end if
+                         end if
+                      end if
 
-                  endif
-                  currentCohort => currentCohort%shorter      
-               enddo
+                   endif
+                   currentCohort => currentCohort%shorter      
+                enddo
 
-            end if
-         
-         end if
+             else
+
+                ! Non-trivial case, at least 1 cohort's promotion
+                ! rate would exceed its area, given the trivial scale factor
+
+                area_res         = 0._r8
+                scale_factor_res = 0._r8
+                currentCohort => currentPatch%tallest
+                do while (associated(currentCohort))  
+                   if(currentCohort%canopy_layer  ==  (i_lyr+1) ) then 
+                      area_res         = area_res + &
+                           currentCohort%c_area*currentCohort%prom_weight*scale_factor_min
+                      scale_factor_res = scale_factor_res + &
+                           currentCohort%c_area * &
+                           (1._r8 - (currentCohort%prom_weight * scale_factor_min))
+                   endif
+                   currentCohort => currentCohort%shorter      
+                enddo
+
+                area_res = promote_area - area_res
+
+                scale_factor_res = area_res / scale_factor_res
+
+                currentCohort => currentPatch%tallest
+                do while (associated(currentCohort))  
+                   if(currentCohort%canopy_layer  ==  (i_lyr+1)) then 
+
+                      currentCohort%prom_weight = currentCohort%c_area * &
+                           (currentCohort%prom_weight * scale_factor_min + &
+                           (1._r8 - (currentCohort%prom_weight*scale_factor_min) ) * &
+                           scale_factor_res)
+
+                      if(debug)then
+                         if((currentCohort%prom_weight > &
+                              (currentCohort%c_area+area_target_precision)) .or. &
+                              (currentCohort%prom_weight < 0._r8)  ) then
+                            write(fates_log(),*) 'promotion area error (2)'
+                            write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
+                            write(fates_log(),*) 'currentCohort%prom_weight: ', &
+                                 currentCohort%prom_weight
+                            write(fates_log(),*) 'excess: ', &
+                                 currentCohort%prom_weight - currentCohort%c_area
+                            call endrun(msg=errMsg(sourcefile, __LINE__))
+                         end if
+                      end if
+
+                   endif
+                   currentCohort => currentCohort%shorter      
+                enddo
+
+             end if
+
+          end if
 
 
-         ! perform a check and see if the demotions meet the demand
-         sumweights = 0._r8
-         currentCohort => currentPatch%tallest
-         do while (associated(currentCohort))    
-            if(currentCohort%canopy_layer  ==  i_lyr) then
-               sumweights = sumweights + currentCohort%excl_weight
-            end if
-            currentCohort => currentCohort%shorter
-         end do
-         
-         if (abs(sumweights - demote_area) > area_check_precision ) then
-            write(fates_log(),*) 'demotions dont add up'
-            write(fates_log(),*) 'sum demotions: ',sumweights
-            write(fates_log(),*) 'area needed to be demoted: ',demote_area
-            write(fates_log(),*) 'excess: ',sumweights - demote_area
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
+          ! lets perform a check and see if the promotions meet the demand
+          sumweights = 0._r8
+          currentCohort => currentPatch%tallest
+          do while (associated(currentCohort))    
+             if(currentCohort%canopy_layer  ==  (i_lyr+1)) then
+                sumweights = sumweights + currentCohort%prom_weight
+             end if
+             currentCohort => currentCohort%shorter
+          end do
+
+          if(debug)then
+             if (abs(sumweights - promote_area) > area_check_precision ) then
+                write(fates_log(),*) 'promotions dont add up'
+                write(fates_log(),*) 'sum promotions: ',sumweights
+                write(fates_log(),*) 'area needed to be promoted: ',promote_area
+                write(fates_log(),*) 'excess: ',sumweights - promote_area
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end if
+          end if
+
+          currentCohort => currentPatch%tallest
+          do while (associated(currentCohort))      
 
 
-         ! Weights have been calculated. Now move them to the lower layer
-         
-         currentCohort => currentPatch%tallest
-         do while (associated(currentCohort))
-            
-            if(currentCohort%canopy_layer == i_lyr )then
+             !All the trees in this layer need to promote some area upwards... 
+             if( (currentCohort%canopy_layer == i_lyr+1) ) then
 
-               cc_loss         = currentCohort%excl_weight
-               leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
-               store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
-               fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
-               sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
-               struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
-               
-               if ( (cc_loss-currentCohort%c_area) > -nearzero .and. &
-                    (cc_loss-currentCohort%c_area) < area_target_precision ) then
-                  
-                  ! If the whole cohort is being demoted, just change its
-                  ! layer index
-                  
-                  currentCohort%canopy_layer = i_lyr+1
-                  
-                  ! keep track of number and biomass of demoted cohort
-                  currentSite%demotion_rate(currentCohort%size_class) = &
-                       currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
-                  currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
-                       (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * currentCohort%n
-                  
-               elseif( (cc_loss < currentCohort%c_area) .and. &
-                       (cc_loss > area_target_precision) ) then
-                  
-                  ! If only part of the cohort is demoted
-                  ! then it must be split (little more complicated)
-                  
-                  ! Make a copy of the current cohort.  The copy and the original
-                  ! conserve total number density of the original.  The copy
-                  ! remains in the upper-story.  The original is the one
-                  ! demoted to the understory
+                cc_gain         = currentCohort%prom_weight
+                leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+                store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
+                fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
+                sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
+                struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
 
-                                    
-                  allocate(copyc)
+                if ( (cc_gain-currentCohort%c_area) > -nearzero .and. &
+                     (cc_gain-currentCohort%c_area) < area_target_precision ) then
 
-                  ! Initialize the PARTEH object and point to the
-                  ! correct boundary condition fields
-                  copyc%prt => null()
-                  call InitPRTObject(copyc%prt)
-                  call InitPRTBoundaryConditions(copyc)
+                   currentCohort%canopy_layer = i_lyr
 
-                  if( hlm_use_planthydro.eq.itrue ) then
-                     call InitHydrCohort(currentSite,copyc)
-                  endif
+                   ! keep track of number and biomass of promoted cohort
+                   currentSite%promotion_rate(currentCohort%size_class) = &
+                        currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
 
-                  call copy_cohort(currentCohort, copyc)
+                   currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                        (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * currentCohort%n
 
-                  newarea = currentCohort%c_area - cc_loss
-                  copyc%n = currentCohort%n*newarea/currentCohort%c_area 
-                  currentCohort%n = currentCohort%n - copyc%n
+                elseif ( (cc_gain < currentCohort%c_area) .and. &
+                     (cc_gain > area_target_precision) ) then
 
-                  copyc%canopy_layer = i_lyr !the taller cohort is the copy
-                  
-                  ! Demote the current cohort to the understory.
-                  currentCohort%canopy_layer = i_lyr + 1 
-                  
-                  ! keep track of number and biomass of demoted cohort
-                  currentSite%demotion_rate(currentCohort%size_class) = &
-                       currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
-                  currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
-                       (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * currentCohort%n
-                  
-                  call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,copyc%c_area)
-                  call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                       currentCohort%pft,currentCohort%c_area)
-                  
-                  !----------- Insert copy into linked list ------------------------!                         
-                  copyc%shorter => currentCohort
-                  if(associated(currentCohort%taller))then
-                     copyc%taller => currentCohort%taller
-                     currentCohort%taller%shorter => copyc
-                  else
-                     currentPatch%tallest => copyc
-                     copyc%taller => null()
-                  endif
-                  currentCohort%taller => copyc
-                  
-               elseif(cc_loss > currentCohort%c_area)then
+                   allocate(copyc)
 
-                  write(fates_log(),*) 'more area than the cohort has is being demoted'
-                  write(fates_log(),*) 'loss:',cc_loss
-                  write(fates_log(),*) 'existing area:',currentCohort%c_area
-                  write(fates_log(),*) 'excess: ',cc_loss - currentCohort%c_area
-                  call endrun(msg=errMsg(sourcefile, __LINE__))
+                   ! Initialize the PARTEH object and point to the
+                   ! correct boundary condition fields
+                   copyc%prt => null()
+                   call InitPRTObject(copyc%prt)
+                   call InitPRTBoundaryConditions(copyc)
 
-               end if
-               
-               ! kill the ones which go into canopy layers that are not allowed
+                   if( hlm_use_planthydro.eq.itrue ) then
+                      call InitHydrCohort(CurrentSite,copyc)
+                   endif
+                   call copy_cohort(currentCohort, copyc) !makes an identical copy...
 
-               if(currentCohort%canopy_layer>nclmax )then 
-                  
-                  ! put the litter from the terminated cohorts 
-                  ! straight into the fragmenting pools
-                  call SendCohortToLitter(currentSite,currentPatch, &
-                       currentCohort,currentCohort%n)
-                  
-                  currentCohort%n            = 0.0_r8
-                  currentCohort%c_area       = 0.0_r8
-                  currentCohort%canopy_layer = i_lyr
-                  
-               end if
-               
-               call carea_allom(currentCohort%dbh,currentCohort%n, &
-                    currentSite%spread,currentCohort%pft,currentCohort%c_area)
-               
-            endif !canopy layer = i_ly
-            
-            currentCohort => currentCohort%shorter
-         enddo !currentCohort 
-         
-         
-         ! Update the area calculations of the current layer
-         ! And the layer below that may or may not had recieved
-         ! Demotions
-         
-         call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
-         
-         if ( (abs(arealayer - currentPatch%area)/arealayer > area_check_rel_precision ) .or. &
-              (abs(arealayer - currentPatch%area) > area_check_precision) ) then
-            write(fates_log(),*) 'demotion did not trim area within tolerance'
-            write(fates_log(),*) 'arealayer:',arealayer
-            write(fates_log(),*) 'patch%area:',currentPatch%area
-            write(fates_log(),*) 'ilayer: ',i_lyr
-            write(fates_log(),*) 'bias:',arealayer - currentPatch%area
-            write(fates_log(),*) 'rel bias:',(arealayer - currentPatch%area)/arealayer
-            write(fates_log(),*) 'demote_area:',demote_area
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
+                   newarea = currentCohort%c_area - cc_gain !new area of existing cohort
 
-         
-      end if
-      
-      return
-   end subroutine DemoteFromLayer
-
-   ! ==============================================================================================
-
-   subroutine PromoteIntoLayer(currentSite,currentPatch,i_lyr)
-      
-      ! -------------------------------------------------------------------------------------------
-      ! Check whether the intended 'full' layers are actually filling all the space.
-      ! If not, promote some fraction of cohorts upwards.
-      ! THIS SECTION MIGHT BE TRIGGERED BY A FIRE OR MORTALITY EVENT, FOLLOWED BY A PATCH FUSION, 
-      ! SO THE TOP LAYER IS NO LONGER FULL.
-      ! -------------------------------------------------------------------------------------------
-      
-      use EDParamsMod, only : ED_val_comp_excln
-
-      ! !ARGUMENTS
-      type(ed_site_type), intent(inout), target  :: currentSite
-      type(ed_patch_type), intent(inout), target :: currentPatch
-      integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
-
-      ! !LOCAL VARIABLES:
-      type(ed_cohort_type), pointer :: currentCohort
-      type(ed_cohort_type), pointer :: copyc
-      type(ed_cohort_type), pointer :: nextc   ! the next cohort, or used for looping
-                                               ! cohorts against the current
-
-      real(r8) :: scale_factor       ! for prob. exclusion - scales weight to a fraction
-      real(r8) :: scale_factor_min   ! "" minimum before exeedance of 1
-      real(r8) :: scale_factor_res   ! "" applied to residual areas
-      real(r8) :: area_res           ! residual area to demote after weakest cohort hits max
-      real(r8) :: promote_area
-      real(r8) :: newarea
-      real(r8) :: sumweights
-      real(r8) :: sumequal              ! for tied cohorts, the sum of weights in
-                                         ! their group
-      real(r8) :: cc_gain                ! cohort crown area gain in promotion (m2)
-      real(r8) :: arealayer_current      ! area (m2) of the current canopy layer
-      real(r8) :: arealayer_below        ! area (m2) of the layer below the current layer
-      real(r8) :: leaf_c             ! leaf carbon [kg]
-      real(r8) :: fnrt_c             ! fineroot carbon [kg]
-      real(r8) :: sapw_c             ! sapwood carbon [kg]
-      real(r8) :: store_c            ! storage carbon [kg]
-      real(r8) :: struct_c           ! structure carbon [kg]
-
-      logical  :: tied_size_with_neighbors
-      real(r8) :: total_crownarea_of_tied_cohorts
-      
-      call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
-      call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr+1,arealayer_below)
-
-      
-      ! how much do we need to gain?
-      promote_area    =  currentPatch%area - arealayer_current 
-
-      if( promote_area > area_target_precision ) then
-         
-         if(arealayer_below <= promote_area ) then
-         
-            ! ---------------------------------------------------------------------------
-            ! Promote all cohorts from layer below if that whole layer has area smaller
-            ! than the tolerance on the gains needed into current layer
-            ! ---------------------------------------------------------------------------
-   
-            currentCohort => currentPatch%tallest 
-            do while (associated(currentCohort))            
-               !look at the cohorts in the canopy layer below... 
-               if(currentCohort%canopy_layer == i_lyr+1)then 
-                  
-                  leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
-                  store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
-                  fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
-                  sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
-                  struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
-                  
-                  currentCohort%canopy_layer = i_lyr   
-                  call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                   call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
                         currentCohort%pft,currentCohort%c_area)
-                  ! keep track of number and biomass of promoted cohort
-                  currentSite%promotion_rate(currentCohort%size_class) = &
-                       currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
-                  currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
-                       (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * currentCohort%n
-                  
-               endif
-               currentCohort => currentCohort%shorter   
-            enddo
-            
-         else
-            
-            ! ---------------------------------------------------------------------------
-            ! This is the non-trivial case where the lower layer can accomodate
-            ! more than what is necessary.
-            ! ---------------------------------------------------------------------------
-            
- 
-            ! figure out with what weighting we need to promote cohorts.
-            ! This is the opposite of the demotion weighting... 
 
-            sumweights = 0.0_r8
-            currentCohort => currentPatch%tallest 
-            do while (associated(currentCohort))
-               call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                    currentCohort%pft,currentCohort%c_area)
-               if(currentCohort%canopy_layer == i_lyr+1)then !look at the cohorts in the canopy layer below... 
+                   ! number of individuals in promoted cohort. 
+                   copyc%n = currentCohort%n*cc_gain/currentCohort%c_area   
 
-                  if (ED_val_comp_excln .ge. 0.0_r8 ) then
+                   ! number of individuals in cohort remaining in understorey    
+                   currentCohort%n = currentCohort%n - copyc%n
 
-                     ! ------------------------------------------------------------------
-                     ! Stochastic case, as above (in demotion portion of code)
-                     ! ------------------------------------------------------------------
+                   currentCohort%canopy_layer = i_lyr + 1 ! keep current cohort in the understory.        
+                   copyc%canopy_layer = i_lyr             ! promote copy to the higher canopy layer. 
 
-                     currentCohort%prom_weight = currentCohort%hite**ED_val_comp_excln
-                     sumweights = sumweights + currentCohort%prom_weight
-                  else
-                     
-                     ! ------------------------------------------------------------------
-                     ! Rank ordered deterministic method
-                     ! If there are cohorts that have the exact same height (which is possible, really)
-                     ! we don't want to unilaterally promote/demote one before the others. 
-                     ! So we <>mote them as a unit
-                     ! now we need to go through and figure out how many equal-size cohorts there are.
-                     ! then we need to go through, add up the collective crown areas of all equal-sized
-                     ! and equal-canopy-layer cohorts,
-                     ! and then demote from each as if they were a single group
-                     ! ------------------------------------------------------------------
+                   ! keep track of number and biomass of promoted cohort
+                   currentSite%promotion_rate(copyc%size_class) = &
+                        currentSite%promotion_rate(copyc%size_class) + copyc%n
 
-                     total_crownarea_of_tied_cohorts = currentCohort%c_area
-                     tied_size_with_neighbors = .false.
-                     nextc => currentCohort%shorter
-                     do while (associated(nextc))
-                        if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
-                           if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
-                              tied_size_with_neighbors = .true.
-                              total_crownarea_of_tied_cohorts = &
-                                   total_crownarea_of_tied_cohorts + nextc%c_area
-                           end if
-                        else
-                           exit
-                        endif
-                        nextc => nextc%shorter
-                     end do
+                   currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                        (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * copyc%n
 
-                     if ( tied_size_with_neighbors ) then
+                   call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                        currentCohort%pft,currentCohort%c_area)
+                   call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,copyc%c_area)
 
-                        currentCohort%prom_weight = &
-                             max(0.0_r8,min(currentCohort%c_area, &
-                             (currentCohort%c_area/total_crownarea_of_tied_cohorts) * &
-                             (promote_area - sumweights) ))
-                        sumequal = currentCohort%prom_weight
+                   !----------- Insert copy into linked list ------------------------!                         
+                   copyc%shorter => currentCohort
+                   if(associated(currentCohort%taller))then
+                      copyc%taller => currentCohort%taller
+                      currentCohort%taller%shorter => copyc
+                   else
+                      currentPatch%tallest => copyc
+                      copyc%taller => null()
+                   endif
+                   currentCohort%taller => copyc                  
 
-                        nextc => currentCohort%shorter
-                        do while (associated(nextc))
-                           if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
-                              if (nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
-                                 ! now we know the total crown area of all equal-sized, 
-                                 ! equal-canopy-layer cohorts
-                                 nextc%prom_weight = &
-                                      max(0.0_r8,min(nextc%c_area, &
-                                                     (nextc%c_area/total_crownarea_of_tied_cohorts) * &
-                                                     (promote_area - sumweights) ))
-                                 sumequal = sumequal + nextc%prom_weight
-                              end if
-                           else
-                              exit
-                           endif
-                           nextc => nextc%shorter
-                        end do
-                        
-                        ! Update the current cohort pointer to the last similar cohort
-                        ! Its ok if this is not in the right layer
-                        if(associated(nextc))then
-                           currentCohort => nextc%taller
-                        else
-                           currentCohort => currentPatch%shortest
-                        end if
-                        sumweights = sumweights + sumequal
-                        
-                     else
-                        currentCohort%prom_weight = &
-                             max(min(currentCohort%c_area, promote_area - sumweights ), 0._r8)
-                        sumweights = sumweights + currentCohort%prom_weight 
-                        
-                     end if
+                elseif(cc_gain > currentCohort%c_area)then
 
-                  endif
-               endif
-               currentCohort => currentCohort%shorter  
-            enddo !currentCohort
-            
+                   write(fates_log(),*) 'more area than the cohort has is being promoted'
+                   write(fates_log(),*) 'loss:',cc_gain
+                   write(fates_log(),*) 'existing area:',currentCohort%c_area
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
 
-            ! If this is probabalistic promotion, we need to do a round of normalization.
-            ! And then a few rounds where we pre-calculate the promotion areas
-            ! and adjust things if the promoted area wants to be greater than
-            ! what is available.
+                endif
 
-            if (ED_val_comp_excln .ge. 0.0_r8 ) then
-               
-               scale_factor_min  = 1.e10_r8
-               scale_factor      = 0._r8
-               currentCohort => currentPatch%tallest
-               do while (associated(currentCohort))
-                  
-                  if(currentCohort%canopy_layer  ==  (i_lyr+1) ) then 
-                     
-                     currentCohort%prom_weight = currentCohort%prom_weight/sumweights
-                     if( 1._r8/currentCohort%prom_weight <  scale_factor_min )  &
-                           scale_factor_min = 1._r8/currentCohort%prom_weight
-                     
-                     scale_factor = scale_factor + currentCohort%prom_weight * currentCohort%c_area
-                     
-                  endif
-                  currentCohort => currentCohort%shorter      
-               enddo
-               
-               ! This is the factor by which we need to multiply
-               ! the demotion probabilities, so the sum result equals
-               ! the total amount to demote
-               scale_factor = promote_area/scale_factor
-               
-               
-               if(scale_factor <= scale_factor_min) then
-                  
-                  ! Trivial case, all of the demotion fractions
-                  ! are less than 1.
-                  
-                  currentCohort => currentPatch%tallest
-                  do while (associated(currentCohort))
-                     if(currentCohort%canopy_layer  ==  (i_lyr+1) ) then 
-                        currentCohort%prom_weight = currentCohort%c_area * &
-                              currentCohort%prom_weight * scale_factor
-                        
-                        if(debug)then
-                           if((currentCohort%prom_weight > &
-                                 (currentCohort%c_area+area_target_precision)) .or. &
-                                 (currentCohort%prom_weight < 0._r8)  ) then
-                               write(fates_log(),*) 'promotion area too big (1)'
-                               write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                               write(fates_log(),*) 'currentCohort%prom_weight: ', &
-                                     currentCohort%prom_weight
-                               write(fates_log(),*) 'excess: ', &
-                                     currentCohort%prom_weight - currentCohort%c_area
-                               call endrun(msg=errMsg(sourcefile, __LINE__))
-                           end if
-                       end if
-                        
-                     endif
-                     currentCohort => currentCohort%shorter      
-                  enddo
-                  
-               else
-                  
-                  ! Non-trivial case, at least 1 cohort's promotion
-                  ! rate would exceed its area, given the trivial scale factor
-                  
-                  area_res         = 0._r8
-                  scale_factor_res = 0._r8
-                  currentCohort => currentPatch%tallest
-                  do while (associated(currentCohort))  
-                     if(currentCohort%canopy_layer  ==  (i_lyr+1) ) then 
-                        area_res         = area_res + &
-                              currentCohort%c_area*currentCohort%prom_weight*scale_factor_min
-                        scale_factor_res = scale_factor_res + &
-                              currentCohort%c_area * &
-                              (1._r8 - (currentCohort%prom_weight * scale_factor_min))
-                     endif
-                     currentCohort => currentCohort%shorter      
-                  enddo
-                  
-                  area_res = promote_area - area_res
-                  
-                  scale_factor_res = area_res / scale_factor_res
-                  
-                  currentCohort => currentPatch%tallest
-                  do while (associated(currentCohort))  
-                     if(currentCohort%canopy_layer  ==  (i_lyr+1)) then 
-                        
-                        currentCohort%prom_weight = currentCohort%c_area * &
-                              (currentCohort%prom_weight * scale_factor_min + &
-                              (1._r8 - (currentCohort%prom_weight*scale_factor_min) ) * &
-                              scale_factor_res)
-                        
-                        if(debug)then
-                           if((currentCohort%prom_weight > &
-                                 (currentCohort%c_area+area_target_precision)) .or. &
-                                 (currentCohort%prom_weight < 0._r8)  ) then
-                               write(fates_log(),*) 'promotion area error (2)'
-                               write(fates_log(),*) 'currentCohort%c_area: ',currentCohort%c_area
-                               write(fates_log(),*) 'currentCohort%prom_weight: ', &
-                                     currentCohort%prom_weight
-                               write(fates_log(),*) 'excess: ', &
-                                     currentCohort%prom_weight - currentCohort%c_area
-                               call endrun(msg=errMsg(sourcefile, __LINE__))
-                           end if
-                        end if
+             endif   ! if(currentCohort%canopy_layer == i_lyr+1) then
+             currentCohort => currentCohort%shorter
+          enddo !currentCohort 
 
-                     endif
-                     currentCohort => currentCohort%shorter      
-                  enddo
-                  
-               end if
-               
-            end if
+          call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
 
+          if ((abs(arealayer_current - currentPatch%area)/arealayer_current > &
+               area_check_rel_precision ) .or. &
+               (abs(arealayer_current - currentPatch%area) > area_check_precision) ) then
+             write(fates_log(),*) 'promotion did not bring area within tolerance'
+             write(fates_log(),*) 'arealayer:',arealayer_current
+             write(fates_log(),*) 'patch%area:',currentPatch%area
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
 
-            ! lets perform a check and see if the promotions meet the demand
-            sumweights = 0._r8
-            currentCohort => currentPatch%tallest
-            do while (associated(currentCohort))    
-               if(currentCohort%canopy_layer  ==  (i_lyr+1)) then
-                  sumweights = sumweights + currentCohort%prom_weight
-               end if
-               currentCohort => currentCohort%shorter
-            end do
+       end if
 
-            if(debug)then
-               if (abs(sumweights - promote_area) > area_check_precision ) then
-                  write(fates_log(),*) 'promotions dont add up'
-                  write(fates_log(),*) 'sum promotions: ',sumweights
-                  write(fates_log(),*) 'area needed to be promoted: ',promote_area
-                  write(fates_log(),*) 'excess: ',sumweights - promote_area
-                  call endrun(msg=errMsg(sourcefile, __LINE__))
-               end if
-            end if
+    end if
 
-            currentCohort => currentPatch%tallest
-            do while (associated(currentCohort))      
-               
-
-               !All the trees in this layer need to promote some area upwards... 
-               if( (currentCohort%canopy_layer == i_lyr+1) ) then
-                  
-                  cc_gain         = currentCohort%prom_weight
-                  leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
-                  store_c         = currentCohort%prt%GetState(store_organ,all_carbon_elements)
-                  fnrt_c          = currentCohort%prt%GetState(fnrt_organ,all_carbon_elements)
-                  sapw_c          = currentCohort%prt%GetState(sapw_organ,all_carbon_elements)
-                  struct_c        = currentCohort%prt%GetState(struct_organ,all_carbon_elements)
-                  
-                  if ( (cc_gain-currentCohort%c_area) > -nearzero .and. &
-                       (cc_gain-currentCohort%c_area) < area_target_precision ) then
-                     
-                     currentCohort%canopy_layer = i_lyr
-                     
-                     ! keep track of number and biomass of promoted cohort
-                     currentSite%promotion_rate(currentCohort%size_class) = &
-                          currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
-
-                     currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
-                          (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * currentCohort%n
-
-                  elseif ( (cc_gain < currentCohort%c_area) .and. &
-                           (cc_gain > area_target_precision) ) then
-                     
-                     allocate(copyc)
-
-                     ! Initialize the PARTEH object and point to the
-                     ! correct boundary condition fields
-                     copyc%prt => null()
-                     call InitPRTObject(copyc%prt)
-                     call InitPRTBoundaryConditions(copyc)
-
-                     if( hlm_use_planthydro.eq.itrue ) then
-                        call InitHydrCohort(CurrentSite,copyc)
-                     endif
-                     call copy_cohort(currentCohort, copyc) !makes an identical copy...
-		                          
-                     newarea = currentCohort%c_area - cc_gain !new area of existing cohort
-
-                     call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                          currentCohort%pft,currentCohort%c_area)
-                     
-                     ! number of individuals in promoted cohort. 
-                     copyc%n = currentCohort%n*cc_gain/currentCohort%c_area   
-                     
-                     ! number of individuals in cohort remaining in understorey    
-                     currentCohort%n = currentCohort%n - copyc%n
-                     
-                     currentCohort%canopy_layer = i_lyr + 1 ! keep current cohort in the understory.        
-                     copyc%canopy_layer = i_lyr             ! promote copy to the higher canopy layer. 
-                     
-                     ! keep track of number and biomass of promoted cohort
-                     currentSite%promotion_rate(copyc%size_class) = &
-                          currentSite%promotion_rate(copyc%size_class) + copyc%n
-
-                     currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
-                          (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * copyc%n
-                     
-                     call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                          currentCohort%pft,currentCohort%c_area)
-                     call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,copyc%c_area)
-
-                     !----------- Insert copy into linked list ------------------------!                         
-                     copyc%shorter => currentCohort
-                     if(associated(currentCohort%taller))then
-                        copyc%taller => currentCohort%taller
-                        currentCohort%taller%shorter => copyc
-                     else
-                        currentPatch%tallest => copyc
-                        copyc%taller => null()
-                     endif
-                     currentCohort%taller => copyc                  
-
-                  elseif(cc_gain > currentCohort%c_area)then
-
-                     write(fates_log(),*) 'more area than the cohort has is being promoted'
-                     write(fates_log(),*) 'loss:',cc_gain
-                     write(fates_log(),*) 'existing area:',currentCohort%c_area
-                     call endrun(msg=errMsg(sourcefile, __LINE__))
-
-                  endif
-               
-               endif   ! if(currentCohort%canopy_layer == i_lyr+1) then
-               currentCohort => currentCohort%shorter
-            enddo !currentCohort 
-
-            call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
-            
-            if ((abs(arealayer_current - currentPatch%area)/arealayer_current > &
-                  area_check_rel_precision ) .or. &
-                (abs(arealayer_current - currentPatch%area) > area_check_precision) ) then
-               write(fates_log(),*) 'promotion did not bring area within tolerance'
-               write(fates_log(),*) 'arealayer:',arealayer_current
-               write(fates_log(),*) 'patch%area:',currentPatch%area
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-            
-         end if
-         
-      end if
-      
-      return
-    end subroutine PromoteIntoLayer
+    return
+  end subroutine PromoteIntoLayer
 
   ! ============================================================================
 
@@ -1220,9 +1220,9 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
           call carea_allom(currentCohort%dbh,currentCohort%n, &
-                currentSite%spread,currentCohort%pft,currentCohort%c_area)
+               currentSite%spread,currentCohort%pft,currentCohort%c_area)
           if( ( int(prt_params%woody(currentCohort%pft)) .eq. itrue ) .and. &
-              (currentCohort%canopy_layer .eq. 1 ) ) then
+               (currentCohort%canopy_layer .eq. 1 ) ) then
              sitelevel_canopyarea = sitelevel_canopyarea + currentCohort%c_area
           endif
           currentCohort => currentCohort%shorter
@@ -1250,9 +1250,9 @@ contains
 
   subroutine canopy_summarization( nsites, sites, bc_in )
 
-     ! ----------------------------------------------------------------------------------
-     ! Much of this routine was once ed_clm_link minus all the IO and history stuff
-     ! ---------------------------------------------------------------------------------
+    ! ----------------------------------------------------------------------------------
+    ! Much of this routine was once ed_clm_link minus all the IO and history stuff
+    ! ---------------------------------------------------------------------------------
 
     use FatesInterfaceTypesMod    , only : bc_in_type
     use FatesInterfaceTypesMod    , only : hlm_use_cohort_age_tracking
@@ -1282,13 +1282,13 @@ contains
     real(r8) :: struct_c         ! structure carbon [kg]
 
     !----------------------------------------------------------------------
-    
+
     if ( debug ) then
        write(fates_log(),*) 'in canopy_summarization'
     endif
 
     do s = 1,nsites
-       
+
        ! --------------------------------------------------------------------------------
        ! Set the patch indices (this is usefull mostly for communicating with a host or 
        ! driving model.  Loops through all patches and sets cpatch%patchno to the integer 
@@ -1299,16 +1299,16 @@ contains
        currentPatch => sites(s)%oldest_patch
 
        do while(associated(currentPatch))
-          
+
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
           canopy_leaf_area = 0.0_r8
-          
+
           !update cohort quantitie s                                  
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))
-             
+
              ft = currentCohort%pft
 
 
@@ -1317,27 +1317,27 @@ contains
              struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
              fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
              store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
-             
+
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
              call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                   currentCohort%size_class,currentCohort%size_by_pft_class)
 
              if (hlm_use_cohort_age_tracking .eq. itrue) then
-             call coagetype_class_index(currentCohort%coage,currentCohort%pft, &
-                  currentCohort%coage_class,currentCohort%coage_by_pft_class)
-          end if
+                call coagetype_class_index(currentCohort%coage,currentCohort%pft, &
+                     currentCohort%coage_class,currentCohort%coage_by_pft_class)
+             end if
 
-          if(hlm_use_sp.eq.ifalse)then
-             call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
-                  currentCohort%pft,currentCohort%c_area)
-          endif
+             if(hlm_use_sp.eq.ifalse)then
+                call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
+                     currentCohort%pft,currentCohort%c_area)
+             endif
              currentCohort%treelai = tree_lai(leaf_c,             &
                   currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                   currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
              canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
-                  
+
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
                 if( int(prt_params%woody(ft))==itrue)then
@@ -1353,40 +1353,40 @@ contains
 
              if(hlm_use_sp.eq.itrue)then
 
-               if(associated(currentPatch%tallest%shorter))then
-                 write(fates_log(),*) 'more than one cohort in SP mode',s,currentPatch%nocomp_pft_label
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-               end if
+                if(associated(currentPatch%tallest%shorter))then
+                   write(fates_log(),*) 'more than one cohort in SP mode',s,currentPatch%nocomp_pft_label
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
 
-               if(currentPatch%total_canopy_area-currentPatch%area.gt.1.0e-16)then
-                 write(fates_log(),*) 'too much canopy in summary',s, &
-		 currentPatch%nocomp_pft_label, currentPatch%total_canopy_area-currentPatch%area
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-               end if
+                if(currentPatch%total_canopy_area-currentPatch%area.gt.1.0e-16)then
+                   write(fates_log(),*) 'too much canopy in summary',s, &
+                        currentPatch%nocomp_pft_label, currentPatch%total_canopy_area-currentPatch%area
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
              end if  !sp mode
 
              ! Check for erroneous zero values. 
              if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
                 write(fates_log(),*) 'FATES: dbh or n is zero in canopy_summarization', &
-                      currentCohort%dbh,currentCohort%n
+                     currentCohort%dbh,currentCohort%n
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
 
              if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
                 write(fates_log(),*) 'FATES: PFT or trim is zero in canopy_summarization', &
-                      currentCohort%pft,currentCohort%canopy_trim
+                     currentCohort%pft,currentCohort%canopy_trim
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
              if( (sapw_c + leaf_c + fnrt_c) <= 0._r8)then
                 write(fates_log(),*) 'FATES: alive biomass is zero in canopy_summarization', &
-                      sapw_c + leaf_c + fnrt_c
+                     sapw_c + leaf_c + fnrt_c
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
 
              currentCohort => currentCohort%taller
-             
+
           enddo ! ends 'do while(associated(currentCohort))
-          
+
           if ( currentPatch%total_canopy_area>currentPatch%area ) then
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
                 write(fates_log(),*) 'FATES: canopy area bigger than area', &
@@ -1400,18 +1400,18 @@ contains
 
           currentPatch => currentPatch%younger
        end do !patch loop
-            
+
        call leaf_area_profile(sites(s),bc_in(s)%snow_depth_si,bc_in(s)%frac_sno_eff_si) 
-       
+
     end do ! site loop
-    
+
     return
   end subroutine canopy_summarization
- 
- ! =====================================================================================
 
- subroutine leaf_area_profile( currentSite , snow_depth_si, frac_sno_eff_si)
-    
+  ! =====================================================================================
+
+  subroutine leaf_area_profile( currentSite , snow_depth_si, frac_sno_eff_si)
+
     ! -----------------------------------------------------------------------------------
     ! This subroutine calculates how leaf and stem areas are distributed 
     ! in vertical and horizontal space.
@@ -1448,7 +1448,7 @@ contains
     ! !USES:
 
     use EDtypesMod           , only : area, dinc_ed, hitemax, n_hite_bins
-  
+
     !
     ! !ARGUMENTS    
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -1478,7 +1478,7 @@ contains
     real(r8) :: lai                      ! summed lai for checking m2 m-2
     real(r8) :: snow_depth_avg           ! avg snow over whole site
     real(r8) :: leaf_c                   ! leaf carbon [kg]
-    
+
     !----------------------------------------------------------------------
 
 
@@ -1489,7 +1489,7 @@ contains
     ! We assume that each point in the canopy recieved the light attenuated by the average
     ! leaf area index above it, irrespective of PFT identity... 
     ! Each leaf is defined by how deep in the canopy it is, in terms of LAI units.  (FIX(RF,032414), GB)
-    
+
     currentPatch => currentSite%oldest_patch   
     do while(associated(currentPatch))
 
@@ -1514,166 +1514,166 @@ contains
        ! It is remotely possible that in deserts we will not have any canopy
        ! area, ie not plants at all...
        ! ------------------------------------------------------------------------------
-       
+
        if (currentPatch%total_canopy_area > nearzero ) then
 
 
-       currentCohort => currentPatch%tallest
-       do while(associated(currentCohort)) 
+          currentCohort => currentPatch%tallest
+          do while(associated(currentCohort)) 
 
-          ft = currentCohort%pft
-          cl = currentCohort%canopy_layer
-
-          ! Calculate LAI of layers above
-          ! Note that the canopy_layer_lai is also calculated in this loop
-          ! but since we go top down in terms of plant size, we should be okay
-
-          leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
-
-          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
-                                           currentCohort%n, currentCohort%canopy_layer,               &
-                                           currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )    
-
-          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                                           currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                                           currentPatch%canopy_layer_tlai, currentCohort%treelai , &
-                                           currentCohort%vcmax25top,4)  
-
-          currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area 
-          currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  
-
-          ! Number of actual vegetation layers in this cohort's crown
-          currentCohort%nv =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)  
-
-          currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
-
-          patch_lai = patch_lai + currentCohort%lai
-
-          currentPatch%canopy_layer_tlai(cl) = currentPatch%canopy_layer_tlai(cl) + currentCohort%lai
-
-          currentCohort => currentCohort%shorter 
-          
-       enddo !currentCohort
-
-       if(smooth_leaf_distribution == 1)then
-
-          ! -----------------------------------------------------------------------------
-          ! we are going to ignore the concept of canopy layers, and put all of the leaf 
-          ! area into height banded bins.  using the same domains as we had before, except 
-          ! that CL always = 1
-          ! -----------------------------------------------------------------------------
-          
-          ! this is a crude way of dividing up the bins. Should it be a function of actual maximum height? 
-          dh = 1.0_r8*(HITEMAX/N_HITE_BINS) 
-          do iv = 1,N_HITE_BINS  
-             if (iv == 1) then
-                minh(iv) = 0.0_r8
-                maxh(iv) = dh
-             else 
-                minh(iv) = (iv-1)*dh
-                maxh(iv) = (iv)*dh
-             endif
-          enddo
-          
-          currentCohort => currentPatch%shortest
-          do while(associated(currentCohort))  
              ft = currentCohort%pft
-             min_chite = currentCohort%hite - currentCohort%hite * EDPftvarcon_inst%crown(ft)
-             max_chite = currentCohort%hite  
+             cl = currentCohort%canopy_layer
+
+             ! Calculate LAI of layers above
+             ! Note that the canopy_layer_lai is also calculated in this loop
+             ! but since we go top down in terms of plant size, we should be okay
+
+             leaf_c          = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+
+             currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
+                  currentCohort%n, currentCohort%canopy_layer,               &
+                  currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )    
+
+             currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+                  currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                  currentPatch%canopy_layer_tlai, currentCohort%treelai , &
+                  currentCohort%vcmax25top,4)  
+
+             currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area 
+             currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  
+
+             ! Number of actual vegetation layers in this cohort's crown
+             currentCohort%nv =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)  
+
+             currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
+
+             patch_lai = patch_lai + currentCohort%lai
+
+             currentPatch%canopy_layer_tlai(cl) = currentPatch%canopy_layer_tlai(cl) + currentCohort%lai
+
+             currentCohort => currentCohort%shorter 
+
+          enddo !currentCohort
+
+          if(smooth_leaf_distribution == 1)then
+
+             ! -----------------------------------------------------------------------------
+             ! we are going to ignore the concept of canopy layers, and put all of the leaf 
+             ! area into height banded bins.  using the same domains as we had before, except 
+             ! that CL always = 1
+             ! -----------------------------------------------------------------------------
+
+             ! this is a crude way of dividing up the bins. Should it be a function of actual maximum height? 
+             dh = 1.0_r8*(HITEMAX/N_HITE_BINS) 
              do iv = 1,N_HITE_BINS  
-                frac_canopy(iv) = 0.0_r8
-                ! this layer is in the middle of the canopy
-                if(max_chite > maxh(iv).and.min_chite < minh(iv))then 
-                   frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*EDPftvarcon_inst%crown(ft)))
-                   ! this is the layer with the bottom of the canopy in it. 
-                elseif(min_chite < maxh(iv).and.min_chite > minh(iv).and.max_chite > maxh(iv))then 
-                   frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
-                   ! this is the layer with the top of the canopy in it. 
-                elseif(max_chite > minh(iv).and.max_chite < maxh(iv).and.min_chite < minh(iv))then 
-                   frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
-                elseif(max_chite < maxh(iv).and.min_chite > minh(iv))then !the whole cohort is within this layer. 
-                   frac_canopy(iv) = 1.0_r8
+                if (iv == 1) then
+                   minh(iv) = 0.0_r8
+                   maxh(iv) = dh
+                else 
+                   minh(iv) = (iv-1)*dh
+                   maxh(iv) = (iv)*dh
                 endif
-                
-                ! no m2 of leaf per m2 of ground in each height class
-                currentPatch%tlai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) + frac_canopy(iv) * &
-                      currentCohort%lai
-                currentPatch%tsai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) + frac_canopy(iv) * &
-                      currentCohort%sai
-                
-                !snow burial
-                !write(fates_log(), *) 'calc snow'
-                snow_depth_avg = snow_depth_si * frac_sno_eff_si
-                if(snow_depth_avg  > maxh(iv))then
-                   fraction_exposed = 0._r8
-                endif
-                if(snow_depth_avg < minh(iv))then
-                   fraction_exposed = 1._r8
-                endif
-                if(snow_depth_avg>= minh(iv).and.snow_depth_avg <= maxh(iv))then !only partly hidden... 
-                   fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-minh(iv))/dh)))
-                endif
-                fraction_exposed = 1.0_r8
-                ! no m2 of leaf per m2 of ground in each height class
-                ! FIX(SPM,032414) these should be uncommented this and double check
-                
-                if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
-                
-                currentPatch%elai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) * fraction_exposed
-                currentPatch%esai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) * fraction_exposed
-                
-                if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
-                
-             enddo ! (iv) hite bins
-             
-             currentCohort => currentCohort%taller
-             
-          enddo !currentCohort 
-          
-          ! -----------------------------------------------------------------------------
-          ! Perform a leaf area conservation check on the LAI profile
-          lai = 0.0_r8
-          do ft = 1,numpft
-             lai = lai+ sum(currentPatch%tlai_profile(1,ft,:))
-          enddo
-          
-          if(lai > patch_lai)then
-             write(fates_log(), *) 'FATES: problem with lai assignments'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          endif
-          
-          
-       else ! smooth leaf distribution  
+             enddo
 
-          ! -----------------------------------------------------------------------------
-          ! Standard canopy layering model.
-          ! Go through all cohorts and add their leaf area 
-          ! and canopy area to the accumulators. 
-          ! -----------------------------------------------------------------------------
+             currentCohort => currentPatch%shortest
+             do while(associated(currentCohort))  
+                ft = currentCohort%pft
+                min_chite = currentCohort%hite - currentCohort%hite * EDPftvarcon_inst%crown(ft)
+                max_chite = currentCohort%hite  
+                do iv = 1,N_HITE_BINS  
+                   frac_canopy(iv) = 0.0_r8
+                   ! this layer is in the middle of the canopy
+                   if(max_chite > maxh(iv).and.min_chite < minh(iv))then 
+                      frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*EDPftvarcon_inst%crown(ft)))
+                      ! this is the layer with the bottom of the canopy in it. 
+                   elseif(min_chite < maxh(iv).and.min_chite > minh(iv).and.max_chite > maxh(iv))then 
+                      frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
+                      ! this is the layer with the top of the canopy in it. 
+                   elseif(max_chite > minh(iv).and.max_chite < maxh(iv).and.min_chite < minh(iv))then 
+                      frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
+                   elseif(max_chite < maxh(iv).and.min_chite > minh(iv))then !the whole cohort is within this layer. 
+                      frac_canopy(iv) = 1.0_r8
+                   endif
 
-             
+                   ! no m2 of leaf per m2 of ground in each height class
+                   currentPatch%tlai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) + frac_canopy(iv) * &
+                        currentCohort%lai
+                   currentPatch%tsai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) + frac_canopy(iv) * &
+                        currentCohort%sai
+
+                   !snow burial
+                   !write(fates_log(), *) 'calc snow'
+                   snow_depth_avg = snow_depth_si * frac_sno_eff_si
+                   if(snow_depth_avg  > maxh(iv))then
+                      fraction_exposed = 0._r8
+                   endif
+                   if(snow_depth_avg < minh(iv))then
+                      fraction_exposed = 1._r8
+                   endif
+                   if(snow_depth_avg>= minh(iv).and.snow_depth_avg <= maxh(iv))then !only partly hidden... 
+                      fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-minh(iv))/dh)))
+                   endif
+                   fraction_exposed = 1.0_r8
+                   ! no m2 of leaf per m2 of ground in each height class
+                   ! FIX(SPM,032414) these should be uncommented this and double check
+
+                   if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
+
+                   currentPatch%elai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) * fraction_exposed
+                   currentPatch%esai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) * fraction_exposed
+
+                   if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
+
+                enddo ! (iv) hite bins
+
+                currentCohort => currentCohort%taller
+
+             enddo !currentCohort 
+
+             ! -----------------------------------------------------------------------------
+             ! Perform a leaf area conservation check on the LAI profile
+             lai = 0.0_r8
+             do ft = 1,numpft
+                lai = lai+ sum(currentPatch%tlai_profile(1,ft,:))
+             enddo
+
+             if(lai > patch_lai)then
+                write(fates_log(), *) 'FATES: problem with lai assignments'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             endif
+
+
+          else ! smooth leaf distribution  
+
+             ! -----------------------------------------------------------------------------
+             ! Standard canopy layering model.
+             ! Go through all cohorts and add their leaf area 
+             ! and canopy area to the accumulators. 
+             ! -----------------------------------------------------------------------------
+
+
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))   
                 ft = currentCohort%pft 
                 cl = currentCohort%canopy_layer
-                
+
                 ! ----------------------------------------------------------------
                 ! How much of each tree is stem area index? Assuming that there is 
                 ! This may indeed be zero if there is a sensecent grass
                 ! ----------------------------------------------------------------
-                
+
                 if( (currentCohort%treelai+currentCohort%treesai) > 0._r8)then    
                    fleaf = currentCohort%lai / (currentCohort%lai + currentCohort%sai) 
                 else
                    fleaf = 0._r8
                 endif
-                
+
                 ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                 ! SNOW BURIAL IS CURRENTLY TURNED OFF
                 ! WHEN IT IS TURNED ON, IT WILL HAVE TO BE COMPARED
                 ! WITH SNOW HEIGHTS CALCULATED BELOW.
                 ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-                
+
                 currentPatch%nrad(cl,ft) = currentPatch%ncan(cl,ft) 
 
                 if (currentPatch%nrad(cl,ft) > nlevleaf ) then
@@ -1691,22 +1691,22 @@ contains
                 ! Whole layers.  Make a weighted average of the leaf area in each layer 
                 ! before dividing it by the total area. Fill up layer for whole layers.  
                 ! --------------------------------------------------------------------------
-                
+
                 do iv = 1,currentCohort%NV
-                   
+
                    ! This loop builds the arrays that define the effective (not snow covered)
                    ! and total (includes snow covered) area indices for leaves and stems
                    ! We calculate the absolute elevation of each layer to help determine if the layer
                    ! is obscured by snow.
-                   
+
                    layer_top_hite = currentCohort%hite - &
-                         ( real(iv-1,r8)/currentCohort%NV * currentCohort%hite *  &
-                         EDPftvarcon_inst%crown(currentCohort%pft) )
-                   
+                        ( real(iv-1,r8)/currentCohort%NV * currentCohort%hite *  &
+                        EDPftvarcon_inst%crown(currentCohort%pft) )
+
                    layer_bottom_hite = currentCohort%hite - &
-                         ( real(iv,r8)/currentCohort%NV * currentCohort%hite * &
-                         EDPftvarcon_inst%crown(currentCohort%pft) )
-                   
+                        ( real(iv,r8)/currentCohort%NV * currentCohort%hite * &
+                        EDPftvarcon_inst%crown(currentCohort%pft) )
+
                    fraction_exposed = 1.0_r8
                    snow_depth_avg = snow_depth_si * frac_sno_eff_si
                    if(snow_depth_avg  > layer_top_hite)then
@@ -1716,61 +1716,61 @@ contains
                       fraction_exposed = 1._r8
                    endif
                    if( snow_depth_avg>= layer_bottom_hite .and. &
-                         snow_depth_avg <= layer_top_hite) then !only partly hidden...
+                        snow_depth_avg <= layer_top_hite) then !only partly hidden...
                       fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-layer_bottom_hite)/ &
-                         (layer_top_hite-layer_bottom_hite ))))
+                           (layer_top_hite-layer_bottom_hite ))))
                    endif
-                   
+
                    ! =========== OVER-WRITE =================
                    fraction_exposed= 1.0_r8
                    ! =========== OVER-WRITE =================
-                   
+
                    if(iv==currentCohort%NV) then
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
-                            (dinc_ed*real(currentCohort%nv-1,r8))
+                           (dinc_ed*real(currentCohort%nv-1,r8))
                       if(remainder > dinc_ed )then
                          write(fates_log(), *)'ED: issue with remainder', &
-                               currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
-                               currentCohort%NV,remainder
+                              currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
+                              currentCohort%NV,remainder
                          call endrun(msg=errMsg(sourcefile, __LINE__))
                       endif
                    else
                       remainder = dinc_ed
                    end if
-                   
+
                    currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
-                         remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area
-                   
+                        remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area
+
                    currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) + &
-                         remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
-                         fraction_exposed
-                   
+                        remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
+                        fraction_exposed
+
                    currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) + &
-                         remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area
-                   
+                        remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area
+
                    currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) + &
-                         remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area * &
-                         fraction_exposed
-                   
+                        remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area * &
+                        fraction_exposed
+
                    currentPatch%canopy_area_profile(cl,ft,iv) = currentPatch%canopy_area_profile(cl,ft,iv) + &
-                         currentCohort%c_area/currentPatch%total_canopy_area
-                   
+                        currentCohort%c_area/currentPatch%total_canopy_area
+
                    currentPatch%layer_height_profile(cl,ft,iv) = currentPatch%layer_height_profile(cl,ft,iv) + &
-                         (remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
-                         (layer_top_hite+layer_bottom_hite)/2.0_r8) !average height of layer. 
-                   
+                        (remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
+                        (layer_top_hite+layer_bottom_hite)/2.0_r8) !average height of layer. 
+
                 end do
-                
+
                 currentCohort => currentCohort%taller
-                
+
              enddo !cohort
-         
+
              ! --------------------------------------------------------------------------
-            
+
              ! If there is an upper-story, the top canopy layer
              ! should have a value of exactly 1.0 in its top leaf layer
              ! --------------------------------------------------------------------------
-             
+
              if ( (currentPatch%NCL_p > 1) .and. &
                   (sum(currentPatch%canopy_area_profile(1,:,1)) < 0.9999 )) then
                 write(fates_log(), *) 'FATES: canopy_area_profile was less than 1 at the canopy top'
@@ -1789,9 +1789,9 @@ contains
                    currentCohort => currentCohort%taller  
                 enddo !currentCohort
                 call endrun(msg=errMsg(sourcefile, __LINE__))
-                
+
              end if
-         
+
 
              ! --------------------------------------------------------------------------
              ! In the following loop we are now normalizing the effective and
@@ -1806,57 +1806,57 @@ contains
 
              do cl = 1,currentPatch%NCL_p
                 do iv = 1,currentPatch%ncan(cl,ft)
-                   
+
                    if( debug .and. sum(currentPatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
-                      
+
                       write(fates_log(), *) 'FATES: A canopy_area_profile exceeded 1.0'
                       write(fates_log(), *) 'cl: ',cl
                       write(fates_log(), *) 'iv: ',iv
                       write(fates_log(), *) 'sum(cpatch%canopy_area_profile(cl,:,iv)): ', &
-                            sum(currentPatch%canopy_area_profile(cl,:,iv))
-                       currentCohort => currentPatch%shortest
-                       do while(associated(currentCohort))
-                          if(currentCohort%canopy_layer==cl)then
-                             write(fates_log(), *) 'FATES: cohorts in layer cl = ',cl, &
-                                  currentCohort%dbh,currentCohort%c_area, &
-                                  currentPatch%total_canopy_area,currentPatch%area
-                             write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
-                                  currentCohort%c_area/currentPatch%total_canopy_area
-                          endif
-                          currentCohort => currentCohort%taller  
-                       enddo !currentCohort
-                       call endrun(msg=errMsg(sourcefile, __LINE__))
-                    end if
-                 end do
-                   
+                           sum(currentPatch%canopy_area_profile(cl,:,iv))
+                      currentCohort => currentPatch%shortest
+                      do while(associated(currentCohort))
+                         if(currentCohort%canopy_layer==cl)then
+                            write(fates_log(), *) 'FATES: cohorts in layer cl = ',cl, &
+                                 currentCohort%dbh,currentCohort%c_area, &
+                                 currentPatch%total_canopy_area,currentPatch%area
+                            write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
+                                 currentCohort%c_area/currentPatch%total_canopy_area
+                         endif
+                         currentCohort => currentCohort%taller  
+                      enddo !currentCohort
+                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                   end if
+                end do
+
                 do ft = 1,numpft
                    do iv = 1,currentPatch%ncan(cl,ft)
 
                       if( currentPatch%canopy_area_profile(cl,ft,iv) > nearzero ) then
-                         
+
                          currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) / &
-                               currentPatch%canopy_area_profile(cl,ft,iv)
-                         
+                              currentPatch%canopy_area_profile(cl,ft,iv)
+
                          currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) / &
-                               currentPatch%canopy_area_profile(cl,ft,iv)
-                         
+                              currentPatch%canopy_area_profile(cl,ft,iv)
+
                          currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) / &
-                               currentPatch%canopy_area_profile(cl,ft,iv)
-                         
+                              currentPatch%canopy_area_profile(cl,ft,iv)
+
                          currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) / &
-                               currentPatch%canopy_area_profile(cl,ft,iv)
+                              currentPatch%canopy_area_profile(cl,ft,iv)
                       end if
-                      
+
                       if(currentPatch%tlai_profile(cl,ft,iv)>nearzero )then
                          currentPatch%layer_height_profile(cl,ft,iv) = currentPatch%layer_height_profile(cl,ft,iv) &
-                               /currentPatch%tlai_profile(cl,ft,iv)
+                              /currentPatch%tlai_profile(cl,ft,iv)
                       end if
-                      
+
                    enddo
-                   
+
                 enddo
              enddo
-             
+
              ! --------------------------------------------------------------------------
              ! Set the mask that identifies which PFT x can-layer combinations have
              ! scattering elements in them.
@@ -1871,183 +1871,183 @@ contains
                    end do !iv
                 enddo !ft
              enddo ! loop over cl
-             
-          endif !leaf distribution
-          
-       end if
-       
-       currentPatch => currentPatch%younger 
-       
-    enddo !patch       
-    
-    return
- end subroutine leaf_area_profile
 
- ! ======================================================================================
+          endif !leaf distribution
+
+       end if
+
+       currentPatch => currentPatch%younger 
+
+    enddo !patch       
+
+    return
+  end subroutine leaf_area_profile
+
+  ! ======================================================================================
 
   subroutine update_hlm_dynamics(nsites,sites,fcolumn,bc_out)
 
-     ! ----------------------------------------------------------------------------------
-     ! The purpose of this routine is to package output boundary conditions related
-     ! to vegetation coverage to the host land model.
-     ! ----------------------------------------------------------------------------------
+    ! ----------------------------------------------------------------------------------
+    ! The purpose of this routine is to package output boundary conditions related
+    ! to vegetation coverage to the host land model.
+    ! ----------------------------------------------------------------------------------
 
-     use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
-                                    ed_site_type, AREA
-     use FatesInterfaceTypesMod , only : bc_out_type
+    use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
+         ed_site_type, AREA
+    use FatesInterfaceTypesMod , only : bc_out_type
 
-     !
-     ! !ARGUMENTS    
-     integer,            intent(in)            :: nsites
-     type(ed_site_type), intent(inout), target :: sites(nsites)
-     integer,            intent(in)            :: fcolumn(nsites)
-     type(bc_out_type),  intent(inout)         :: bc_out(nsites)
+    !
+    ! !ARGUMENTS    
+    integer,            intent(in)            :: nsites
+    type(ed_site_type), intent(inout), target :: sites(nsites)
+    integer,            intent(in)            :: fcolumn(nsites)
+    type(bc_out_type),  intent(inout)         :: bc_out(nsites)
 
-     ! Locals
-     type (ed_cohort_type) , pointer :: currentCohort
-     integer :: s, ifp, c, p
-     type (ed_patch_type)  , pointer :: currentPatch
-     real(r8) :: bare_frac_area
-     real(r8) :: total_patch_area
-     real(r8) :: total_canopy_area
-     real(r8) :: weight  ! Weighting for cohort variables in patch
+    ! Locals
+    type (ed_cohort_type) , pointer :: currentCohort
+    integer :: s, ifp, c, p
+    type (ed_patch_type)  , pointer :: currentPatch
+    real(r8) :: bare_frac_area
+    real(r8) :: total_patch_area
+    real(r8) :: total_canopy_area
+    real(r8) :: weight  ! Weighting for cohort variables in patch
 
 
-     do s = 1,nsites
+    do s = 1,nsites
 
-        ifp = 0
-        total_patch_area = 0._r8 
-        total_canopy_area = 0._r8
-        bc_out(s)%canopy_fraction_pa(:) = 0._r8
-        currentPatch => sites(s)%oldest_patch
-        c = fcolumn(s)
-        do while(associated(currentPatch))
+       ifp = 0
+       total_patch_area = 0._r8 
+       total_canopy_area = 0._r8
+       bc_out(s)%canopy_fraction_pa(:) = 0._r8
+       currentPatch => sites(s)%oldest_patch
+       c = fcolumn(s)
+       do while(associated(currentPatch))
           if(currentPatch%nocomp_pft_label.ne.0)then 
-           ! only increase ifp for veg patches, not bareground (in SP mode)
-           ifp = ifp+1
-         endif ! stay with ifp=0 for bareground patch. 
-           if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
-              write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
-              currentPatch%total_canopy_area = currentPatch%area
-           endif
+             ! only increase ifp for veg patches, not bareground (in SP mode)
+             ifp = ifp+1
+          endif ! stay with ifp=0 for bareground patch. 
+          if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
+             write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
+             currentPatch%total_canopy_area = currentPatch%area
+          endif
 
 
-           if (associated(currentPatch%tallest)) then
-              bc_out(s)%htop_pa(ifp) = currentPatch%tallest%hite
-           else
-              ! FIX(RF,040113) - should this be a parameter for the minimum possible vegetation height?
-              bc_out(s)%htop_pa(ifp) = 0.1_r8
-           endif
-           
-           bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
-           ! Use leaf area weighting for all cohorts in the patch to define the characteristic
-           ! leaf width used by the HLM
-           ! ----------------------------------------------------------------------------
-!           bc_out(s)%dleaf_pa(ifp) = 0.0_r8
-!           if(currentPatch%lai>1.0e-9_r8) then
-!              currentCohort => currentPatch%shortest
-!              do while(associated(currentCohort))
-!                 weight = min(1.0_r8,currentCohort%lai/currentPatch%lai)
-!                 bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
-!                       EDPftvarcon_inst%dleaf(currentCohort%pft)*weight
-!                 currentCohort => currentCohort%taller  
-!              enddo
-!           end if
+          if (associated(currentPatch%tallest)) then
+             bc_out(s)%htop_pa(ifp) = currentPatch%tallest%hite
+          else
+             ! FIX(RF,040113) - should this be a parameter for the minimum possible vegetation height?
+             bc_out(s)%htop_pa(ifp) = 0.1_r8
+          endif
 
-           ! Roughness length and displacement height are not PFT properties, they are
-           ! properties of the canopy assemblage.  Defining this needs an appropriate model.
-           ! Right now z0 and d are pft level parameters.  For the time being we will just
-           ! use the 1st index until a suitable model is defined. (RGK 04-2017)
-           ! -----------------------------------------------------------------------------
-           bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
-           bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
-           bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+          bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
+          ! Use leaf area weighting for all cohorts in the patch to define the characteristic
+          ! leaf width used by the HLM
+          ! ----------------------------------------------------------------------------
+          !           bc_out(s)%dleaf_pa(ifp) = 0.0_r8
+          !           if(currentPatch%lai>1.0e-9_r8) then
+          !              currentCohort => currentPatch%shortest
+          !              do while(associated(currentCohort))
+          !                 weight = min(1.0_r8,currentCohort%lai/currentPatch%lai)
+          !                 bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
+          !                       EDPftvarcon_inst%dleaf(currentCohort%pft)*weight
+          !                 currentCohort => currentCohort%taller  
+          !              enddo
+          !           end if
 
-           ! We are assuming here that grass is all located underneath tree canopies. 
-           ! The alternative is to assume it is all spatial distinct from tree canopies.
-           ! In which case, the bare area would have to be reduced by the grass area...
-           ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
-           ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
-           if(currentPatch%area.gt.0.0_r8)then
-              bc_out(s)%canopy_fraction_pa(ifp) = &
-                min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
-           else
-              bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
-           endif
+          ! Roughness length and displacement height are not PFT properties, they are
+          ! properties of the canopy assemblage.  Defining this needs an appropriate model.
+          ! Right now z0 and d are pft level parameters.  For the time being we will just
+          ! use the 1st index until a suitable model is defined. (RGK 04-2017)
+          ! -----------------------------------------------------------------------------
+          bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
+          bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
+          bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
 
-           bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
-                (currentPatch%area/AREA)
-           
-           total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
-   
-           total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
-      
-           bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
+          ! We are assuming here that grass is all located underneath tree canopies. 
+          ! The alternative is to assume it is all spatial distinct from tree canopies.
+          ! In which case, the bare area would have to be reduced by the grass area...
+          ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
+          ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
+          if(currentPatch%area.gt.0.0_r8)then
+             bc_out(s)%canopy_fraction_pa(ifp) = &
+                  min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
+          else
+             bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
+          endif
 
-           ! Calculate area indices for output boundary to HLM
-           ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
-           ! have been updated (ie ed_leaf_area_profile has been called since dynamics has been called)
+          bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
+               (currentPatch%area/AREA)
 
-           bc_out(s)%elai_pa(ifp) = calc_areaindex(currentPatch,'elai')
-           bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
-           bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
-           bc_out(s)%tsai_pa(ifp) = calc_areaindex(currentPatch,'tsai')
+          total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
 
-           ! Fraction of vegetation free of snow. This is used to flag those
-           ! patches which shall under-go photosynthesis
-           ! INTERF-TODO: we may want to stop using frac_veg_nosno_alb and let
-           ! FATES internal variables decide if photosynthesis is possible
-           ! we are essentially calculating it inside FATES to tell the 
-           ! host to tell itself when to do things (circuitous). Just have
-           ! to determine where else it is used
+          total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
 
-           if ((bc_out(s)%elai_pa(ifp) + bc_out(s)%esai_pa(ifp)) > 0._r8) then
-              bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 1.0_r8
-           else
-              bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
-           end if
-           currentPatch => currentPatch%younger
-        end do
+          bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
+
+          ! Calculate area indices for output boundary to HLM
+          ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
+          ! have been updated (ie ed_leaf_area_profile has been called since dynamics has been called)
+
+          bc_out(s)%elai_pa(ifp) = calc_areaindex(currentPatch,'elai')
+          bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
+          bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
+          bc_out(s)%tsai_pa(ifp) = calc_areaindex(currentPatch,'tsai')
+
+          ! Fraction of vegetation free of snow. This is used to flag those
+          ! patches which shall under-go photosynthesis
+          ! INTERF-TODO: we may want to stop using frac_veg_nosno_alb and let
+          ! FATES internal variables decide if photosynthesis is possible
+          ! we are essentially calculating it inside FATES to tell the 
+          ! host to tell itself when to do things (circuitous). Just have
+          ! to determine where else it is used
+
+          if ((bc_out(s)%elai_pa(ifp) + bc_out(s)%esai_pa(ifp)) > 0._r8) then
+             bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 1.0_r8
+          else
+             bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
+          end if
+          currentPatch => currentPatch%younger
+       end do
 
 
-        ! Apply patch and canopy area corrections
-        ! If the difference is above reasonable math precision, apply a fix
-        ! If the difference is way above reasonable math precision, gracefully exit
-        
-        if(abs(total_patch_area-1.0_r8) > rsnbl_math_prec ) then
+       ! Apply patch and canopy area corrections
+       ! If the difference is above reasonable math precision, apply a fix
+       ! If the difference is way above reasonable math precision, gracefully exit
 
-           if(abs(total_patch_area-1.0_r8) > 1.0e-8_r8 )then
-              write(fates_log(),*) 'total area is wrong in update_hlm_dynamics',total_patch_area
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-           
-           if(debug) then
-              write(fates_log(),*) 'imprecise patch areas in update_hlm_dynamics',total_patch_area
-           end if
-           
-           currentPatch => sites(s)%oldest_patch
-           ifp = 0
-           do while(associated(currentPatch))
-            if(currentPatch%nocomp_pft_label.ne.0)then ! for vegetated patches only
-              ifp = ifp+1
-              bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
+       if(abs(total_patch_area-1.0_r8) > rsnbl_math_prec ) then
+
+          if(abs(total_patch_area-1.0_r8) > 1.0e-8_r8 )then
+             write(fates_log(),*) 'total area is wrong in update_hlm_dynamics',total_patch_area
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
+          if(debug) then
+             write(fates_log(),*) 'imprecise patch areas in update_hlm_dynamics',total_patch_area
+          end if
+
+          currentPatch => sites(s)%oldest_patch
+          ifp = 0
+          do while(associated(currentPatch))
+             if(currentPatch%nocomp_pft_label.ne.0)then ! for vegetated patches only
+                ifp = ifp+1
+                bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
              else ! for the bareground patch (in SP mode). 
-               bc_out(s)%canopy_fraction_pa(ifp) =0.0_r8
+                bc_out(s)%canopy_fraction_pa(ifp) =0.0_r8
              endif ! veg patch
 
 
-              currentPatch => currentPatch%younger
-           end do
-           
-        endif
-        
-     end do
+             currentPatch => currentPatch%younger
+          end do
 
-     ! If hydraulics is turned on, update the amount of water bound in vegetation
-     if (hlm_use_planthydro.eq.itrue) then
-        call RecruitWaterStorage(nsites,sites,bc_out)
-        call UpdateH2OVeg(nsites,sites,bc_out)
-     end if
+       endif
+
+    end do
+
+    ! If hydraulics is turned on, update the amount of water bound in vegetation
+    if (hlm_use_planthydro.eq.itrue) then
+       call RecruitWaterStorage(nsites,sites,bc_out)
+       call UpdateH2OVeg(nsites,sites,bc_out)
+    end if
 
 
   end subroutine update_hlm_dynamics
@@ -2056,151 +2056,151 @@ contains
 
   function calc_areaindex(cpatch,ai_type) result(ai)
 
-     ! ----------------------------------------------------------------------------------
-     ! This subroutine calculates the exposed leaf area index of a patch
-     ! this is the square meters of leaf per square meter of ground area
-     ! It does so by integrating over the depth and functional type profile of leaf area
-     ! which are per area of crown.  This value has to be scaled by crown area to convert
-     ! to ground area.
-     ! ----------------------------------------------------------------------------------
-     
-     ! Arguments
-     type(ed_patch_type),intent(in), target :: cpatch
-     character(len=*),intent(in)            :: ai_type
+    ! ----------------------------------------------------------------------------------
+    ! This subroutine calculates the exposed leaf area index of a patch
+    ! this is the square meters of leaf per square meter of ground area
+    ! It does so by integrating over the depth and functional type profile of leaf area
+    ! which are per area of crown.  This value has to be scaled by crown area to convert
+    ! to ground area.
+    ! ----------------------------------------------------------------------------------
 
-     integer :: cl,ft
-     real(r8) :: ai
-     ! TODO: THIS MIN LAI IS AN ARTIFACT FROM TESTING LONG-AGO AND SHOULD BE REMOVED
-     ! THIS HAS BEEN KEPT THUS FAR TO MAINTAIN B4B IN TESTING OTHER COMMITS
-     real(r8),parameter :: ai_min = 0.1_r8
-     real(r8),pointer   :: ai_profile
+    ! Arguments
+    type(ed_patch_type),intent(in), target :: cpatch
+    character(len=*),intent(in)            :: ai_type
 
-     ai = 0._r8
-     if     (trim(ai_type) == 'elai') then
-        do cl = 1,cpatch%NCL_p
-           do ft = 1,numpft
-              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
-                    cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
-           enddo
-        enddo
-     elseif (trim(ai_type) == 'tlai') then
-        do cl = 1,cpatch%NCL_p
-           do ft = 1,numpft
-              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
-                    cpatch%tlai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
-           enddo
-        enddo
+    integer :: cl,ft
+    real(r8) :: ai
+    ! TODO: THIS MIN LAI IS AN ARTIFACT FROM TESTING LONG-AGO AND SHOULD BE REMOVED
+    ! THIS HAS BEEN KEPT THUS FAR TO MAINTAIN B4B IN TESTING OTHER COMMITS
+    real(r8),parameter :: ai_min = 0.1_r8
+    real(r8),pointer   :: ai_profile
 
-     elseif (trim(ai_type) == 'esai') then
-         do cl = 1,cpatch%NCL_p
-           do ft = 1,numpft
-              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
-                    cpatch%esai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
-           enddo
-        enddo
-     elseif (trim(ai_type) == 'tsai') then
-        do cl = 1,cpatch%NCL_p
-           do ft = 1,numpft
-              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
-                    cpatch%tsai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
-           enddo
-        enddo
-     else
+    ai = 0._r8
+    if     (trim(ai_type) == 'elai') then
+       do cl = 1,cpatch%NCL_p
+          do ft = 1,numpft
+             ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
+                  cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
+          enddo
+       enddo
+    elseif (trim(ai_type) == 'tlai') then
+       do cl = 1,cpatch%NCL_p
+          do ft = 1,numpft
+             ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
+                  cpatch%tlai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
+          enddo
+       enddo
 
-        write(fates_log(),*) 'Unsupported area index sent to calc_areaindex'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
-     
-     ai = max(ai_min,ai)
-          
-     return
+    elseif (trim(ai_type) == 'esai') then
+       do cl = 1,cpatch%NCL_p
+          do ft = 1,numpft
+             ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
+                  cpatch%esai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
+          enddo
+       enddo
+    elseif (trim(ai_type) == 'tsai') then
+       do cl = 1,cpatch%NCL_p
+          do ft = 1,numpft
+             ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
+                  cpatch%tsai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
+          enddo
+       enddo
+    else
+
+       write(fates_log(),*) 'Unsupported area index sent to calc_areaindex'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+    ai = max(ai_min,ai)
+
+    return
 
   end function calc_areaindex
 
   ! ===============================================================================================
-  
-  subroutine CanopyLayerArea(currentPatch,site_spread,layer_index,layer_area)
-     
-     ! --------------------------------------------------------------------------------------------
-     ! This function calculates the total crown area footprint for a desired layer of the canopy
-     ! within a patch.
-     ! The return units are the same as patch%area, which is m2
-     ! ---------------------------------------------------------------------------------------------
-                   
-     ! Arguments
-     type(ed_patch_type),intent(inout), target   :: currentPatch
-     real(r8),intent(in)                         :: site_spread
-     integer,intent(in)                          :: layer_index
-     real(r8),intent(inout)                      :: layer_area
 
-     type(ed_cohort_type), pointer :: currentCohort
-     
-     
-     layer_area = 0.0_r8
-     currentCohort => currentPatch%tallest
-     do while (associated(currentCohort))
-        call carea_allom(currentCohort%dbh,currentCohort%n,site_spread, &
-              currentCohort%pft,currentCohort%c_area)
-        if (currentCohort%canopy_layer .eq. layer_index) then
-           layer_area = layer_area + currentCohort%c_area
-        end if
-        currentCohort => currentCohort%shorter
-     enddo
-     return
+  subroutine CanopyLayerArea(currentPatch,site_spread,layer_index,layer_area)
+
+    ! --------------------------------------------------------------------------------------------
+    ! This function calculates the total crown area footprint for a desired layer of the canopy
+    ! within a patch.
+    ! The return units are the same as patch%area, which is m2
+    ! ---------------------------------------------------------------------------------------------
+
+    ! Arguments
+    type(ed_patch_type),intent(inout), target   :: currentPatch
+    real(r8),intent(in)                         :: site_spread
+    integer,intent(in)                          :: layer_index
+    real(r8),intent(inout)                      :: layer_area
+
+    type(ed_cohort_type), pointer :: currentCohort
+
+
+    layer_area = 0.0_r8
+    currentCohort => currentPatch%tallest
+    do while (associated(currentCohort))
+       call carea_allom(currentCohort%dbh,currentCohort%n,site_spread, &
+            currentCohort%pft,currentCohort%c_area)
+       if (currentCohort%canopy_layer .eq. layer_index) then
+          layer_area = layer_area + currentCohort%c_area
+       end if
+       currentCohort => currentCohort%shorter
+    enddo
+    return
   end subroutine CanopyLayerArea
 
   ! ===============================================================================================
-  
+
   function NumPotentialCanopyLayers(currentPatch,site_spread,include_substory) result(z)
 
-     ! --------------------------------------------------------------------------------------------
-     ! Calculate the number of canopy layers in this patch.
-     ! This simple call only determines total layering by querying the cohorts
-     ! which layer they are in, it doesn't do any size evaluation.
-     ! It may also, optionally, account for the temporary "substory", which is the imaginary
-     ! layer below the understory which will be needed to temporarily accomodate demotions from
-     ! the understory in the event the understory has reached maximum allowable area.
-     ! --------------------------------------------------------------------------------------------
+    ! --------------------------------------------------------------------------------------------
+    ! Calculate the number of canopy layers in this patch.
+    ! This simple call only determines total layering by querying the cohorts
+    ! which layer they are in, it doesn't do any size evaluation.
+    ! It may also, optionally, account for the temporary "substory", which is the imaginary
+    ! layer below the understory which will be needed to temporarily accomodate demotions from
+    ! the understory in the event the understory has reached maximum allowable area.
+    ! --------------------------------------------------------------------------------------------
 
-     type(ed_patch_type),target   :: currentPatch
-     real(r8),intent(in)          :: site_spread
-     logical                      :: include_substory
+    type(ed_patch_type),target   :: currentPatch
+    real(r8),intent(in)          :: site_spread
+    logical                      :: include_substory
 
-     type(ed_cohort_type),pointer :: currentCohort
-     
-     integer :: z
-     real(r8) :: c_area
-     real(r8) :: arealayer
+    type(ed_cohort_type),pointer :: currentCohort
 
-     z = 1
-     currentCohort => currentPatch%tallest
-     do while (associated(currentCohort))  
-        z = max(z,currentCohort%canopy_layer)
-        currentCohort => currentCohort%shorter
-     enddo
+    integer :: z
+    real(r8) :: c_area
+    real(r8) :: arealayer
 
-     if(include_substory)then
-        arealayer = 0.0
-        currentCohort => currentPatch%tallest
-        do while (associated(currentCohort))  
-           if(currentCohort%canopy_layer == z) then
-              call carea_allom(currentCohort%dbh,currentCohort%n,site_spread,currentCohort%pft,c_area)
-              arealayer = arealayer + c_area
-           end if
-           currentCohort => currentCohort%shorter
-        enddo
-        
-        ! Does the bottom layer have more than a full canopy? 
-        ! If so we need to make another layer.
-        if(arealayer > currentPatch%area)then
-           z = z + 1
-           if(hlm_use_sp)then
-              write(fates_log(),*) 'SPmode, canopy_layer full:',arealayer,currentPatch%area
-           end if
-          
-        endif
-     end if
-     
+    z = 1
+    currentCohort => currentPatch%tallest
+    do while (associated(currentCohort))  
+       z = max(z,currentCohort%canopy_layer)
+       currentCohort => currentCohort%shorter
+    enddo
+
+    if(include_substory)then
+       arealayer = 0.0
+       currentCohort => currentPatch%tallest
+       do while (associated(currentCohort))  
+          if(currentCohort%canopy_layer == z) then
+             call carea_allom(currentCohort%dbh,currentCohort%n,site_spread,currentCohort%pft,c_area)
+             arealayer = arealayer + c_area
+          end if
+          currentCohort => currentCohort%shorter
+       enddo
+
+       ! Does the bottom layer have more than a full canopy? 
+       ! If so we need to make another layer.
+       if(arealayer > currentPatch%area)then
+          z = z + 1
+          if(hlm_use_sp)then
+             write(fates_log(),*) 'SPmode, canopy_layer full:',arealayer,currentPatch%area
+          end if
+
+       endif
+    end if
+
   end function NumPotentialCanopyLayers
 
 end module EDCanopyStructureMod
