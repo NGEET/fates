@@ -84,7 +84,7 @@ module EDInitMod
   logical   ::  debug = .false.
 
   character(len=*), parameter, private :: sourcefile = &
-        __FILE__
+       __FILE__
 
   public  :: zero_site
   public  :: init_site_vars
@@ -125,7 +125,7 @@ contains
     allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
     allocate(site_in%mass_balance(1:num_elements))
     allocate(site_in%flux_diags(1:num_elements))
-   
+
     site_in%nlevsoil   = bc_in%nlevsoil
     allocate(site_in%rootfrac_scr(site_in%nlevsoil))
     allocate(site_in%zi_soil(0:site_in%nlevsoil))
@@ -141,25 +141,25 @@ contains
     allocate(site_in%sp_htop(1:numpft))
 
     do el=1,num_elements
-        allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
-        allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
-        allocate(site_in%flux_diags(el)%nutrient_efflux_scpf(nlevsclass*numpft))
-        allocate(site_in%flux_diags(el)%nutrient_uptake_scpf(nlevsclass*numpft))
-        allocate(site_in%flux_diags(el)%nutrient_needgrow_scpf(nlevsclass*numpft))
-        allocate(site_in%flux_diags(el)%nutrient_needmax_scpf(nlevsclass*numpft))
+       allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
+       allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
+       allocate(site_in%flux_diags(el)%nutrient_efflux_scpf(nlevsclass*numpft))
+       allocate(site_in%flux_diags(el)%nutrient_uptake_scpf(nlevsclass*numpft))
+       allocate(site_in%flux_diags(el)%nutrient_needgrow_scpf(nlevsclass*numpft))
+       allocate(site_in%flux_diags(el)%nutrient_needmax_scpf(nlevsclass*numpft))
     end do
 
     ! Initialize the static soil 
     ! arrays from the boundary (initial) condition
 
-   
+
     site_in%zi_soil(:) = bc_in%zi_sisl(:)
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
-    
+
 
     !
-    end subroutine init_site_vars
+  end subroutine init_site_vars
 
   ! ============================================================================
   subroutine zero_site( site_in )
@@ -178,7 +178,7 @@ contains
 
     site_in%oldest_patch     => null() ! pointer to oldest patch at the site
     site_in%youngest_patch   => null() ! pointer to yngest patch at the site
-    
+
 
     ! PHENOLOGY 
 
@@ -206,7 +206,7 @@ contains
        call site_in%mass_balance(el)%ZeroMassBalFlux()
        call site_in%flux_diags(el)%ZeroFluxDiags()
     end do
-       
+
 
     ! termination and recruitment info
     site_in%term_nindivs_canopy(:,:) = 0._r8
@@ -231,7 +231,7 @@ contains
     site_in%demotion_carbonflux = 0._r8
     site_in%promotion_rate(:) = 0._r8
     site_in%promotion_carbonflux = 0._r8
-    
+
     ! Resources management (logging/harvesting, etc)
     site_in%resources_management%trunk_product_site  = 0.0_r8
 
@@ -293,95 +293,94 @@ contains
        do s = 1,nsites
           sites(s)%nchilldays    = 0
           sites(s)%ncolddays     = 0        ! recalculated in phenology
-                                            ! immediately, so yes this
-                                            ! is memory-less, but needed
-                                            ! for first value in history file
+          ! immediately, so yes this
+          ! is memory-less, but needed
+          ! for first value in history file
 
           sites(s)%cleafondate   = cleafon
           sites(s)%cleafoffdate  = cleafoff
           sites(s)%dleafoffdate  = dleafoff
           sites(s)%dleafondate   = dleafon
           sites(s)%grow_deg_days = GDD
-          
+
           sites(s)%water_memory(1:numWaterMem) = watermem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
-          
+
           sites(s)%cstatus = cstat
           sites(s)%dstatus = dstat
-          
+
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8         
           sites(s)%frac_burnt = 0.0_r8
-         
+
 
           if(hlm_use_fixed_biogeog.eq.itrue)then  
-           ! MAPPING OF FATES PFTs on to HLM_PFTs
-            ! add up the area associated with each FATES PFT
-            ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
-            ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
+             ! MAPPING OF FATES PFTs on to HLM_PFTs
+             ! add up the area associated with each FATES PFT
+             ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
+             ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
-            sites(s)%area_pft(1:numpft) = 0._r8
-            do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
-               do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts        
-                 sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
-                     EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft) 
-               end do
-            end do !hlm_pft
+             sites(s)%area_pft(1:numpft) = 0._r8
+             do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
+                do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts        
+                   sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
+                        EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft) 
+                end do
+             end do !hlm_pft
 
-            sumarea = sum(sites(s)%area_pft(1:numpft))
-            do ft =  1,numpft
-              if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
-                write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
-                 sites(s)%area_pft(ft)=0.0_r8 
-                 ! remove tiny patches to prevent numerical errors in terminate patches
+             do ft =  1,numpft
+                if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
+                   write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
+                   sites(s)%area_pft(ft)=0.0_r8 
+                   ! remove tiny patches to prevent numerical errors in terminate patches
                 endif
-             if(sites(s)%area_pft(ft).lt.0._r8)then
-               write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-             end if
-             sites(s)%area_pft(ft)= sites(s)%area_pft(ft) * AREA ! rescale units to m2.      
-           end do
-
-           ! re-normalize PFT area to ensure it sums to one.
-           ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM)
-           ! the bare ground will no longer be proscribed and should emerge from FATES
-           ! this may or may not be the right way to deal with this?
-
-            if(hlm_use_sp.eq.ifalse)then ! when not in SP mode, subsume bare ground evenly into the existing patches. 
-            !n.b. that it might be better if nocomp mode used the same bare groud logic as SP mode. 
-              sumarea = sum(sites(s)%area_pft(1:numpft))
-              do ft =  1,numpft
-                if(sumarea.gt.0._r8)then
-                  sites(s)%area_pft(ft) = area * sites(s)%area_pft(ft)/sumarea
-                else
-                  sites(s)%area_pft(ft) = area/numpft 
-                  ! in nocomp mode where there is only bare ground, we assign equal area to 
-                  ! all pfts and let the model figure out whether land should be bare or not. 
+                if(sites(s)%area_pft(ft).lt.0._r8)then
+                   write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
-               end do !ft
-              else ! for sp mode, assert a bare ground patch
+                sites(s)%area_pft(ft)= sites(s)%area_pft(ft) * AREA ! rescale units to m2.      
+             end do
+
+             ! re-normalize PFT area to ensure it sums to one.
+             ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM)
+             ! the bare ground will no longer be proscribed and should emerge from FATES
+             ! this may or may not be the right way to deal with this?
+
+             if(hlm_use_sp.eq.ifalse)then ! when not in SP mode, subsume bare ground evenly into the existing patches. 
+                !n.b. that it might be better if nocomp mode used the same bare groud logic as SP mode. 
+                sumarea = sum(sites(s)%area_pft(1:numpft))
+                do ft =  1,numpft
+                   if(sumarea.gt.0._r8)then
+                      sites(s)%area_pft(ft) = area * sites(s)%area_pft(ft)/sumarea
+                   else
+                      sites(s)%area_pft(ft) = area/numpft 
+                      ! in nocomp mode where there is only bare ground, we assign equal area to 
+                      ! all pfts and let the model figure out whether land should be bare or not. 
+                   end if
+                end do !ft
+             else ! for sp mode, assert a bare ground patch
                 sumarea = sum(sites(s)%area_pft(1:numpft)) 
 
                 if(sumarea.lt.area)then !make some bare ground
-                 sites(s)%area_bareground = area - sumarea
+                   sites(s)%area_bareground = area - sumarea
                 else
-                 sites(s)%area_bareground = 0.0_r8
+                   sites(s)%area_bareground = 0.0_r8
                 end if
-              end if !sp mode
-         end if !fixed biogeog
+             end if !sp mode
+          end if !fixed biogeog
 
-         do ft = 1,numpft
-           sites(s)%use_this_pft(ft) = itrue
-           if(hlm_use_fixed_biogeog.eq.itrue)then
-             if(sites(s)%area_pft(ft).gt.0.0_r8)then
-                sites(s)%use_this_pft(ft) = itrue
-             else
-                sites(s)%use_this_pft(ft) = ifalse
-             end if !area
-           end if !SBG
-         end do !ft
+          do ft = 1,numpft
+             sites(s)%use_this_pft(ft) = itrue
+             if(hlm_use_fixed_biogeog.eq.itrue)then
+                if(sites(s)%area_pft(ft).gt.0.0_r8)then
+                   sites(s)%use_this_pft(ft) = itrue
+                else
+                   sites(s)%use_this_pft(ft) = ifalse
+                end if !area
+             end if !SBG
+          end do !ft
        end do !site loop
-     end if !restart
+    end if !restart
 
     return
   end subroutine set_site_properties
@@ -389,226 +388,226 @@ contains
 
   ! ============================================================================
   subroutine init_patches( nsites, sites, bc_in)
-     !
-     ! !DESCRIPTION:
-     ! initialize patches
-     ! This may be call a near bare ground initialization, or it may
-     ! load patches from an inventory.
+    !
+    ! !DESCRIPTION:
+    ! initialize patches
+    ! This may be call a near bare ground initialization, or it may
+    ! load patches from an inventory.
 
-     !
-     
+    !
 
-     use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
-     use FatesInventoryInitMod,   only : initialize_sites_by_inventory
 
-     !
-     ! !ARGUMENTS    
-     integer, intent(in)                        :: nsites
-     type(ed_site_type) , intent(inout), target :: sites(nsites)
-     type(bc_in_type), intent(in)               :: bc_in(nsites)
-     !
-     ! !LOCAL VARIABLES:
-     integer  :: s
-     integer  :: el
-     real(r8) :: age !notional age of this patch
+    use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
+    use FatesInventoryInitMod,   only : initialize_sites_by_inventory
 
-     ! dummy locals
-     real(r8) :: biomass_stock
-     real(r8) :: litter_stock
-     real(r8) :: seed_stock
-     integer  :: n
-     integer  :: start_patch
-     integer  :: num_new_patches
-     integer  :: nocomp_pft     
-     real(r8) :: newparea
-     real(r8) :: tota !check on area
-     integer  :: is_first_patch
+    !
+    ! !ARGUMENTS    
+    integer, intent(in)                        :: nsites
+    type(ed_site_type) , intent(inout), target :: sites(nsites)
+    type(bc_in_type), intent(in)               :: bc_in(nsites)
+    !
+    ! !LOCAL VARIABLES:
+    integer  :: s
+    integer  :: el
+    real(r8) :: age !notional age of this patch
 
-     type(ed_site_type),  pointer :: sitep
-     type(ed_patch_type), pointer :: newppft(:)
-     type(ed_patch_type), pointer :: newp
-     type(ed_patch_type), pointer :: recall_older_patch
+    ! dummy locals
+    real(r8) :: biomass_stock
+    real(r8) :: litter_stock
+    real(r8) :: seed_stock
+    integer  :: n
+    integer  :: start_patch
+    integer  :: num_new_patches
+    integer  :: nocomp_pft     
+    real(r8) :: newparea
+    real(r8) :: tota !check on area
+    integer  :: is_first_patch
 
-     ! List out some nominal patch values that are used for Near Bear Ground initializations
-     ! as well as initializing inventory
-     age                  = 0.0_r8
-     ! ---------------------------------------------------------------------------------------------
+    type(ed_site_type),  pointer :: sitep
+    type(ed_patch_type), pointer :: newppft(:)
+    type(ed_patch_type), pointer :: newp
+    type(ed_patch_type), pointer :: recall_older_patch
 
-     ! ---------------------------------------------------------------------------------------------
-     ! Two primary options, either a Near Bear Ground (NBG) or Inventory based cold-start
-     ! ---------------------------------------------------------------------------------------------
+    ! List out some nominal patch values that are used for Near Bear Ground initializations
+    ! as well as initializing inventory
+    age                  = 0.0_r8
+    ! ---------------------------------------------------------------------------------------------
 
-     if ( hlm_use_inventory_init.eq.itrue ) then
+    ! ---------------------------------------------------------------------------------------------
+    ! Two primary options, either a Near Bear Ground (NBG) or Inventory based cold-start
+    ! ---------------------------------------------------------------------------------------------
 
-        ! Initialize the site-level crown area spread factor (0-1)
-        ! It is likely that closed canopy forest inventories
-        ! have smaller spread factors than bare ground (they are crowded)
-        do s = 1, nsites
-           sites(s)%spread     = init_spread_inventory
-        enddo
+    if ( hlm_use_inventory_init.eq.itrue ) then
 
-        call initialize_sites_by_inventory(nsites,sites,bc_in)
+       ! Initialize the site-level crown area spread factor (0-1)
+       ! It is likely that closed canopy forest inventories
+       ! have smaller spread factors than bare ground (they are crowded)
+       do s = 1, nsites
+          sites(s)%spread     = init_spread_inventory
+       enddo
 
-        
-        ! For carbon balance checks, we need to initialize the 
-        ! total carbon stock
-        do s = 1, nsites
-            do el=1,num_elements
-                call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
-                      biomass_stock,litter_stock,seed_stock)
-            end do
-        enddo
+       call initialize_sites_by_inventory(nsites,sites,bc_in)
 
-     else
 
-        allocate(recall_older_patch)
-        do s = 1, nsites
+       ! For carbon balance checks, we need to initialize the 
+       ! total carbon stock
+       do s = 1, nsites
+          do el=1,num_elements
+             call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
+                  biomass_stock,litter_stock,seed_stock)
+          end do
+       enddo
+
+    else
+
+       allocate(recall_older_patch)
+       do s = 1, nsites
           sites(s)%sp_tlai(:) = 0._r8
           sites(s)%sp_tsai(:) = 0._r8
           sites(s)%sp_htop(:) = 0._r8
 
-           ! Initialize the site-level crown area spread factor (0-1)
-           ! It is likely that closed canopy forest inventories
-           ! have smaller spread factors than bare ground (they are crowded)
-           sites(s)%spread     = init_spread_near_bare_ground
+          ! Initialize the site-level crown area spread factor (0-1)
+          ! It is likely that closed canopy forest inventories
+          ! have smaller spread factors than bare ground (they are crowded)
+          sites(s)%spread     = init_spread_near_bare_ground
 
           start_patch = 1   ! start at the first vegetated patch
           if(hlm_use_nocomp.eq.itrue)then
-           num_new_patches = numpft
-           if(hlm_use_sp.eq.itrue)then
-             num_new_patches = numpft + 1 ! bare ground patch in SP mode. 
-             start_patch = 0 ! start at the bare ground patch
-           endif
-!           allocate(newppft(numpft))
+             num_new_patches = numpft
+             if(hlm_use_sp.eq.itrue)then
+                num_new_patches = numpft + 1 ! bare ground patch in SP mode. 
+                start_patch = 0 ! start at the bare ground patch
+             endif
+             !           allocate(newppft(numpft))
           else !default
-           num_new_patches = 1
-           newparea = area
+             num_new_patches = 1
+             newparea = area
           end if !nocomp
 
-         is_first_patch = itrue 
+          is_first_patch = itrue 
           do n = start_patch, num_new_patches
 
-           ! set the PFT index for patches if in nocomp mode. 
-           if(hlm_use_nocomp.eq.itrue)then
-             nocomp_pft = n
-           else
-             nocomp_pft = fates_unset_int
-           end if 
+             ! set the PFT index for patches if in nocomp mode. 
+             if(hlm_use_nocomp.eq.itrue)then
+                nocomp_pft = n
+             else
+                nocomp_pft = fates_unset_int
+             end if
 
-           if(hlm_use_nocomp.eq.itrue)then 
-              ! In no competition mode, if we are using the fixed_biogeog filter 
-              ! then each PFT has the area dictated  by the surface dataset.
-              ! If not, each PFT gets the same area. 
-              if(hlm_use_fixed_biogeog.eq.itrue)then
-                 newparea = sites(s)%area_pft(nocomp_pft)
-              else
-                 newparea = area / numpft
-              end if 
-           else  ! The default case is initialized w/ one patch with the area of the whole site. 
-             newparea = area       
-           end if  !nocomp mode
-
-           if(hlm_use_sp.eq.itrue.and.n.eq.0)then ! bare ground patch
-              newparea = sites(s)%area_bareground 
-              nocomp_pft = 0
-           end if
-
-           if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode 
-              allocate(newp)
-
-              call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
-
-              if(is_first_patch.eq.itrue)then !is this the first patch?
-                ! set poointers for first patch (or only patch, if nocomp is false)
-                newp%patchno = 1
-                newp%younger => null()
-                newp%older   => null()
-                sites(s)%youngest_patch => newp
-                sites(s)%oldest_patch   => newp
-                is_first_patch = ifalse
-              else ! the new patch is the 'oldest' one, arbitrarily. 
-                ! Set pointers for N>1 patches. Note this only happens when nocomp mode s on. 
-                ! The new patch is the 'youngest' one, arbitrarily.
-                newp%patchno = nocomp_pft
-                newp%older => recall_older_patch
-                newp%younger   => null()
-                recall_older_patch%younger => newp
-                sites(s)%youngest_patch   => newp
-              end if
-              recall_older_patch => newp ! remember this patch for the next one to point at. 
-
-              ! Initialize the litter pools to zero, these
-              ! pools will be populated by looping over the existing patches
-              ! and transfering in mass
-              do el=1,num_elements
-                 call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
-                   init_root_fines=0._r8, &
-                   init_ag_cwd=0._r8, &
-                   init_bg_cwd=0._r8, &
-                   init_seed=0._r8,   &
-                   init_seed_germ=0._r8)
-             end do
-
-              sitep => sites(s)
-              if(hlm_use_sp.eq.itrue)then
-                if(nocomp_pft.ne.0)then !don't initialize cohorts for SP bare ground patch
-                  call init_cohorts(sitep, newp, bc_in(s))
+             if(hlm_use_nocomp.eq.itrue)then 
+                ! In no competition mode, if we are using the fixed_biogeog filter 
+                ! then each PFT has the area dictated  by the surface dataset.
+                ! If not, each PFT gets the same area. 
+                if(hlm_use_fixed_biogeog.eq.itrue)then
+                   newparea = sites(s)%area_pft(nocomp_pft)
+                else
+                   newparea = area / numpft
                 end if
-              else ! normal non SP case always call init cohorts
-                 call init_cohorts(sitep, newp, bc_in(s))
-              end if
-            end if 
-         end do !no new patches
-         
-        !check if the total area adds to the same as site area
-         tota = 0.0_r8
-         newp => sites(s)%oldest_patch
-         do while (associated(newp))
-           tota=tota+newp%area
-           newp=>newp%younger
-         end do
+             else  ! The default case is initialized w/ one patch with the area of the whole site. 
+                newparea = area       
+             end if  !nocomp mode
 
-         if(abs(tota-area).gt.nearzero*area)then
-           if(abs(tota-area).lt.1.0e-10_r8)then ! this is a precision error
-             if(sites(s)%oldest_patch%area.gt.(tota-area+nearzero))then 
-               ! remove or add extra area 
-               ! if the oldest patch has enough area, use that
-                sites(s)%oldest_patch%area = sites(s)%oldest_patch%area - (tota-area)
-                write(*,*) 'fixing patch precision - oldest',s, tota-area
-              else ! or otherwise take the area from the youngest patch. 
-                sites(s)%youngest_patch%area = sites(s)%oldest_patch%area - (tota-area)  
-                write(*,*) 'fixing patch precision -youngest ',s, tota-area
-             endif                      
-           else !this is a big error not just a precision error. 
-             write(*,*) 'issue with patch area in EDinit',tota-area,tota
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-           endif  ! big error
-         end if ! too much patch area
+             if(hlm_use_sp.eq.itrue.and.n.eq.0)then ! bare ground patch
+                newparea = sites(s)%area_bareground 
+                nocomp_pft = 0
+             end if
+
+             if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode 
+                allocate(newp)
+
+                call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
+
+                if(is_first_patch.eq.itrue)then !is this the first patch?
+                   ! set poointers for first patch (or only patch, if nocomp is false)
+                   newp%patchno = 1
+                   newp%younger => null()
+                   newp%older   => null()
+                   sites(s)%youngest_patch => newp
+                   sites(s)%oldest_patch   => newp
+                   is_first_patch = ifalse
+                else ! the new patch is the 'oldest' one, arbitrarily. 
+                   ! Set pointers for N>1 patches. Note this only happens when nocomp mode s on. 
+                   ! The new patch is the 'youngest' one, arbitrarily.
+                   newp%patchno = nocomp_pft
+                   newp%older => recall_older_patch
+                   newp%younger   => null()
+                   recall_older_patch%younger => newp
+                   sites(s)%youngest_patch   => newp
+                end if
+                recall_older_patch => newp ! remember this patch for the next one to point at. 
+
+                ! Initialize the litter pools to zero, these
+                ! pools will be populated by looping over the existing patches
+                ! and transfering in mass
+                do el=1,num_elements
+                   call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
+                        init_root_fines=0._r8, &
+                        init_ag_cwd=0._r8, &
+                        init_bg_cwd=0._r8, &
+                        init_seed=0._r8,   &
+                        init_seed_germ=0._r8)
+                end do
+
+                sitep => sites(s)
+                if(hlm_use_sp.eq.itrue)then
+                   if(nocomp_pft.ne.0)then !don't initialize cohorts for SP bare ground patch
+                      call init_cohorts(sitep, newp, bc_in(s))
+                   end if
+                else ! normal non SP case always call init cohorts
+                   call init_cohorts(sitep, newp, bc_in(s))
+                end if
+             end if
+          end do !no new patches
+
+          !check if the total area adds to the same as site area
+          tota = 0.0_r8
+          newp => sites(s)%oldest_patch
+          do while (associated(newp))
+             tota=tota+newp%area
+             newp=>newp%younger
+          end do
+
+          if(abs(tota-area).gt.nearzero*area)then
+             if(abs(tota-area).lt.1.0e-10_r8)then ! this is a precision error
+                if(sites(s)%oldest_patch%area.gt.(tota-area+nearzero))then 
+                   ! remove or add extra area 
+                   ! if the oldest patch has enough area, use that
+                   sites(s)%oldest_patch%area = sites(s)%oldest_patch%area - (tota-area)
+                   write(*,*) 'fixing patch precision - oldest',s, tota-area
+                else ! or otherwise take the area from the youngest patch. 
+                   sites(s)%youngest_patch%area = sites(s)%oldest_patch%area - (tota-area)  
+                   write(*,*) 'fixing patch precision -youngest ',s, tota-area
+                endif
+             else !this is a big error not just a precision error. 
+                write(*,*) 'issue with patch area in EDinit',tota-area,tota
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             endif  ! big error
+          end if ! too much patch area
 
           ! For carbon balance checks, we need to initialize the 
           ! total carbon stock
           do el=1,num_elements
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
-                   biomass_stock,litter_stock,seed_stock)
+                  biomass_stock,litter_stock,seed_stock)
           end do
 
           call set_patchno(sites(s))
 
-        enddo !s
-     end if
+       enddo !s
+    end if
 
-     ! This sets the rhizosphere shells based on the plant initialization
-     ! The initialization of the plant-relevant hydraulics variables
-     ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
-     if (hlm_use_planthydro.eq.itrue) then 
-        do s = 1, nsites
-           sitep => sites(s)
-           call updateSizeDepRhizHydProps(sitep, bc_in(s))
-        end do
-          deallocate(recall_older_patch)
-     end if
+    ! This sets the rhizosphere shells based on the plant initialization
+    ! The initialization of the plant-relevant hydraulics variables
+    ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
+    if (hlm_use_planthydro.eq.itrue) then 
+       do s = 1, nsites
+          sitep => sites(s)
+          call updateSizeDepRhizHydProps(sitep, bc_in(s))
+       end do
+       deallocate(recall_older_patch)
+    end if
 
-     return
+    return
   end subroutine init_patches
 
   ! ============================================================================
@@ -665,186 +664,186 @@ contains
     ! 4. biogeog = true.  nocomp = true : patch and site level filter
     ! in principle this could be a patch level variable. 
     do pft =  1,numpft 
-      ! Turn every PFT ON, unless we are in a special case.
-      use_pft_local(pft) = itrue ! Case 1
-      if(hlm_use_fixed_biogeog.eq.itrue)then !filter geographically
-        use_pft_local(pft) = site_in%use_this_pft(pft) ! Case 2
-        if(hlm_use_nocomp.eq.itrue.and.pft.ne.patch_in%nocomp_pft_label)then
-           ! Having set the biogeog filter as on or off, turn off all PFTs
-           ! whose identiy does not correspond to this patch label. 
-           use_pft_local(pft) = ifalse ! Case 3
-        endif
-      else 
-        if(hlm_use_nocomp.eq.itrue.and.pft.ne.patch_in%nocomp_pft_label)then 
-        ! This case has all PFTs on their own patch everywhere. 
-           use_pft_local(pft) = ifalse ! Case 4 
-        endif
-      endif
+       ! Turn every PFT ON, unless we are in a special case.
+       use_pft_local(pft) = itrue ! Case 1
+       if(hlm_use_fixed_biogeog.eq.itrue)then !filter geographically
+          use_pft_local(pft) = site_in%use_this_pft(pft) ! Case 2
+          if(hlm_use_nocomp.eq.itrue.and.pft.ne.patch_in%nocomp_pft_label)then
+             ! Having set the biogeog filter as on or off, turn off all PFTs
+             ! whose identiy does not correspond to this patch label. 
+             use_pft_local(pft) = ifalse ! Case 3
+          endif
+       else 
+          if(hlm_use_nocomp.eq.itrue.and.pft.ne.patch_in%nocomp_pft_label)then 
+             ! This case has all PFTs on their own patch everywhere. 
+             use_pft_local(pft) = ifalse ! Case 4 
+          endif
+       endif
 
     end do
     do pft =  1,numpft
-     if(use_pft_local(pft).eq.itrue)then
-       if(EDPftvarcon_inst%initd(pft)>nearzero) then
+       if(use_pft_local(pft).eq.itrue)then
+          if(EDPftvarcon_inst%initd(pft)>nearzero) then
 
-       allocate(temp_cohort) ! temporary cohort
+             allocate(temp_cohort) ! temporary cohort
 
-       temp_cohort%pft         = pft
-       temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
-       if(hlm_use_nocomp.eq.itrue)then !in nocomp mode we only have one PFT per patch
-                                      ! as opposed to numpft's. So we should up the initial density
-                                      ! to compensate (otherwise runs are very hard to compare)
-                                      ! this multiplies it by the number of PFTs there would have been in
-                                      ! the single shared patch in competition mode.          
-                                      ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
-          temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
-       endif
+             temp_cohort%pft         = pft
+             temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
+             if(hlm_use_nocomp.eq.itrue)then !in nocomp mode we only have one PFT per patch
+                ! as opposed to numpft's. So we should up the initial density
+                ! to compensate (otherwise runs are very hard to compare)
+                ! this multiplies it by the number of PFTs there would have been in
+                ! the single shared patch in competition mode.          
+                ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
+                temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
+             endif
 
-       temp_cohort%canopy_trim = 1.0_r8
+             temp_cohort%canopy_trim = 1.0_r8
 
-       !  h,dbh,leafc,n from SP values or from small initial size.
+             !  h,dbh,leafc,n from SP values or from small initial size.
 
-       if(hlm_use_sp.eq.itrue)then
-         init = itrue
-         call assign_cohort_SP_properties(temp_cohort, 0.5_r8,0.2_r8, 0.1_r8,patch_in%area,init,c_leaf)
-         
-       else
-         temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
+             if(hlm_use_sp.eq.itrue)then
+                init = itrue
+                call assign_cohort_SP_properties(temp_cohort, 0.5_r8,0.2_r8, 0.1_r8,patch_in%area,init,c_leaf)
 
-         ! Calculate the plant diameter from height
-         call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
+             else
+                temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
 
-         ! Calculate the leaf biomass from allometry                                                        
-         ! (calculates a maximum first, then applies canopy trim)                                   
-          call bleaf(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_leaf)
-       end if  ! sp mode
+                ! Calculate the plant diameter from height
+                call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
 
-       ! Calculate total above-ground biomass from allometry
-       call bagw_allom(temp_cohort%dbh,pft,c_agw)
+                ! Calculate the leaf biomass from allometry                                                        
+                ! (calculates a maximum first, then applies canopy trim)                                   
+                call bleaf(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_leaf)
+             end if  ! sp mode
 
-       ! Calculate coarse root biomass from allometry
-       call bbgw_allom(temp_cohort%dbh,pft,c_bgw)
+             ! Calculate total above-ground biomass from allometry
+             call bagw_allom(temp_cohort%dbh,pft,c_agw)
 
-       ! Calculate fine root biomass from allometry
-       ! (calculates a maximum and then trimming value)
-       call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_fnrt)
+             ! Calculate coarse root biomass from allometry
+             call bbgw_allom(temp_cohort%dbh,pft,c_bgw)
 
-       ! Calculate sapwood biomass
-       call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapw,c_sapw)
-       
-       call bdead_allom( c_agw, c_bgw, c_sapw, pft, c_struct )
+             ! Calculate fine root biomass from allometry
+             ! (calculates a maximum and then trimming value)
+             call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_fnrt)
 
-       call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
+             ! Calculate sapwood biomass
+             call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapw,c_sapw)
 
-       temp_cohort%laimemory = 0._r8
-       temp_cohort%sapwmemory = 0._r8
-       temp_cohort%structmemory = 0._r8
-       cstatus = leaves_on
-       
-       stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
+             call bdead_allom( c_agw, c_bgw, c_sapw, pft, c_struct )
 
-       
-       if(hlm_use_sp.eq.ifalse)then ! do not override SP vales with phenology
-         if ( prt_params%stress_decid(pft) == itrue .and. &
-            any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-           temp_cohort%laimemory = c_leaf
-           temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-           temp_cohort%structmemory = c_struct * stem_drop_fraction
-           c_leaf = 0._r8
-           c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
-           c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
-           cstatus = leaves_off
-         endif
-       end if ! SP mode
+             call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
 
-       if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
+             temp_cohort%laimemory = 0._r8
+             temp_cohort%sapwmemory = 0._r8
+             temp_cohort%structmemory = 0._r8
+             cstatus = leaves_on
 
-       temp_cohort%coage = 0.0_r8
-       
-       
-       ! --------------------------------------------------------------------------------
-       ! Initialize the mass of every element in every organ of the organ
-       ! --------------------------------------------------------------------------------
+             stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
-       prt_obj => null()
-       call InitPRTObject(prt_obj)
 
-       do el = 1,num_elements
+             if(hlm_use_sp.eq.ifalse)then ! do not override SP vales with phenology
+                if ( prt_params%stress_decid(pft) == itrue .and. &
+                     any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
+                   temp_cohort%laimemory = c_leaf
+                   temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
+                   temp_cohort%structmemory = c_struct * stem_drop_fraction
+                   c_leaf = 0._r8
+                   c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+                   c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
+                   cstatus = leaves_off
+                endif
+             end if ! SP mode
 
-          element_id = element_list(el)
-          
-          ! If this is carbon12, then the initialization is straight forward
-          ! otherwise, we use stoichiometric ratios
-          select case(element_id)
-          case(carbon12_element)
-             
-             m_struct = c_struct
-             m_leaf   = c_leaf
-             m_fnrt   = c_fnrt
-             m_sapw   = c_sapw
-             m_store  = c_store
-             m_repro  = 0._r8
-             
-          case(nitrogen_element)
-             
-             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*prt_params%nitr_stoich_p2(pft,store_organ)
-             m_repro  = 0._r8
-             
-          case(phosphorus_element)
+             if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
-             m_struct = c_struct*prt_params%phos_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*prt_params%phos_stoich_p2(pft,store_organ)
-             m_repro  = 0._r8
-          end select
+             temp_cohort%coage = 0.0_r8
 
-          select case(hlm_parteh_mode)
-          case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
 
-             ! Put all of the leaf mass into the first bin
-             call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
-             do iage = 2,nleafage
-                call SetState(prt_obj,leaf_organ, element_id,0._r8,iage)
+             ! --------------------------------------------------------------------------------
+             ! Initialize the mass of every element in every organ of the organ
+             ! --------------------------------------------------------------------------------
+
+             prt_obj => null()
+             call InitPRTObject(prt_obj)
+
+             do el = 1,num_elements
+
+                element_id = element_list(el)
+
+                ! If this is carbon12, then the initialization is straight forward
+                ! otherwise, we use stoichiometric ratios
+                select case(element_id)
+                case(carbon12_element)
+
+                   m_struct = c_struct
+                   m_leaf   = c_leaf
+                   m_fnrt   = c_fnrt
+                   m_sapw   = c_sapw
+                   m_store  = c_store
+                   m_repro  = 0._r8
+
+                case(nitrogen_element)
+
+                   m_struct = c_struct*prt_params%nitr_stoich_p2(pft,struct_organ)
+                   m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,leaf_organ)
+                   m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,fnrt_organ)
+                   m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,sapw_organ)
+                   m_store  = c_store*prt_params%nitr_stoich_p2(pft,store_organ)
+                   m_repro  = 0._r8
+
+                case(phosphorus_element)
+
+                   m_struct = c_struct*prt_params%phos_stoich_p2(pft,struct_organ)
+                   m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,leaf_organ)
+                   m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,fnrt_organ)
+                   m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,sapw_organ)
+                   m_store  = c_store*prt_params%phos_stoich_p2(pft,store_organ)
+                   m_repro  = 0._r8
+                end select
+
+                select case(hlm_parteh_mode)
+                case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+
+                   ! Put all of the leaf mass into the first bin
+                   call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
+                   do iage = 2,nleafage
+                      call SetState(prt_obj,leaf_organ, element_id,0._r8,iage)
+                   end do
+
+                   call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
+                   call SetState(prt_obj,sapw_organ, element_id, m_sapw)
+                   call SetState(prt_obj,store_organ, element_id, m_store)
+                   call SetState(prt_obj,struct_organ, element_id, m_struct)
+                   call SetState(prt_obj,repro_organ, element_id, m_repro)
+
+                case default
+                   write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end select
+
              end do
-             
-             call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
-             call SetState(prt_obj,sapw_organ, element_id, m_sapw)
-             call SetState(prt_obj,store_organ, element_id, m_store)
-             call SetState(prt_obj,struct_organ, element_id, m_struct)
-             call SetState(prt_obj,repro_organ, element_id, m_repro)
-             
-          case default
-             write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end select
-       
-       end do
 
-       call prt_obj%CheckInitialConditions()
+             call prt_obj%CheckInitialConditions()
 
-       call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-            temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%laimemory, &
-            temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
-             temp_cohort%canopy_trim, temp_cohort%c_area,1, site_in%spread, bc_in)
+             call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
+                  temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%laimemory, &
+                  temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
+                  temp_cohort%canopy_trim, temp_cohort%c_area,1, site_in%spread, bc_in)
 
 
-       deallocate(temp_cohort) ! get rid of temporary cohort
+             deallocate(temp_cohort) ! get rid of temporary cohort
 
-       endif
-     endif !use_this_pft
+          endif
+       endif !use_this_pft
     enddo !numpft
 
     ! Zero the mass flux pools of the new cohorts
-!    temp_cohort => patch_in%tallest
-!    do while(associated(temp_cohort)) 
-!       call temp_cohort%prt%ZeroRates()
-!       temp_cohort => temp_cohort%shorter
-!    end do
+    !    temp_cohort => patch_in%tallest
+    !    do while(associated(temp_cohort)) 
+    !       call temp_cohort%prt%ZeroRates()
+    !       temp_cohort => temp_cohort%shorter
+    !    end do
 
     call fuse_cohorts(site_in, patch_in,bc_in)
     call sort_cohorts(patch_in)
