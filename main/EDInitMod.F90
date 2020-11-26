@@ -1,4 +1,4 @@
-1;95;0cmodule EDInitMod
+module EDInitMod
 
   ! ============================================================================
   ! Contains all modules to set up the ED structure. 
