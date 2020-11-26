@@ -1409,6 +1409,7 @@ contains
           end do !hlm_pft
 
           ! weight for total area in each patch/fates_pft
+          ! this is needed because the area of pft_areafrac does not need to sum to 1.0
           if(currentPatch%area.gt.0.0_r8)then 
              currentSite%sp_tlai(fates_pft) = currentSite%sp_tlai(fates_pft) &
                   /(currentPatch%area/area)
