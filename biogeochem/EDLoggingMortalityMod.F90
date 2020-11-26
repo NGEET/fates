@@ -261,7 +261,10 @@ contains
             
             ! direct logging rates, based on dbh min and max criteria
             if (dbh >= logging_dbhmin .and. .not. &
-                 ((logging_dbhmax < fates_check_param_set) .and. (dbh < logging_dbhmax )) ) then
+                 ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
+               ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
+               ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
+               ! the opposite of what would otherwise be expected...
                lmort_direct = harvest_rate * logging_direct_frac
 
             else
