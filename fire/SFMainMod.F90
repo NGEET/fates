@@ -694,7 +694,7 @@ contains
     integer :: iofp  ! index of oldest fates patch
     real(r8), parameter :: pot_hmn_ign_counts_alpha = 0.0035_r8  ! Potential human ignition counts (alpha in Li et al. 2012) (#/person/month)
     real(r8), parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
-    real(r8), parameter :: wind_convert = 0.06_r8  ! convert wind speed from m/min to km/hr
+    real(r8), parameter :: m_per_min__to__km_per_hour = 0.06_r8  ! convert wind speed from m/min to km/hr
 
     !  ---initialize site parameters to zero--- 
     currentSite%frac_burnt(:) = 0.0_r8  
@@ -763,15 +763,15 @@ contains
              write(fates_log(),*) 'SF  AREA ',AREA
           endif         
  
-          if (currentPatch%effect_wspeed < 16.67_r8) then !16.67m/min = 1km/hr 
+          if ((currentPatch%effect_wspeed*m_per_min__to__km_per_hour) < 1._r8) then !16.67m/min = 1km/hr 
              lb = 1.0_r8
           else
              if (tree_fraction_patch > 0.55_r8) then      !benchmark forest cover, Staver 2010
                  ! EQ 79 forest fuels (Canadian Forest Fire Behavior Prediction System Ont.Inf.Rep. ST-X-3, 1992)
                  lb = (1.0_r8 + (8.729_r8 * &
-                      ((1.0_r8 -(exp(-0.03_r8 * wind_convert * currentPatch%effect_wspeed)))**2.155_r8)))
-             else ! EQ 80 grass fuels (CFFBPS Ont.Inf.Rep. ST-X-3, 1992)
-                 lb = (1.1_r8+((wind_convert * currentPatch%effect_wspeed)**0.0464))
+                      ((1.0_r8 -(exp(-0.03_r8 * m_per_min__to__km_per_hour * currentPatch%effect_wspeed)))**2.155_r8)))
+             else ! EQ 80 grass fuels (CFFBPS Ont.Inf.Rep. ST-X-3, 1992, but with a correction in Information Report GLC-X-10 by Bottom et al., 2009)
+                 lb = (1.1_r8*((m_per_min__to__km_per_hour * currentPatch%effect_wspeed)**0.464_r8))
              endif
           endif
 
