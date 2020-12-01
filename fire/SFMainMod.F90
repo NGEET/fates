@@ -7,6 +7,7 @@
 
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : itrue, ifalse
+  use FatesConstantsMod     , only : pi_const
   use FatesInterfaceTypesMod     , only : hlm_masterproc ! 1= master process, 0=not master process
   use EDTypesMod            , only : numWaterMem
   use FatesGlobals          , only : fates_log
@@ -791,7 +792,7 @@ contains
              ! AB = AB *3.0_r8
 
              !size of fire = equation 14 Arora and Boer JGR 2005
-             size_of_fire = ((3.1416_r8/(4.0_r8*lb))*((df+db)**2.0_r8))
+             size_of_fire = ((pi_const/(4.0_r8*lb))*((df+db)**2.0_r8))
 
              !AB = daily area burnt = size fires in m2 * num ignitions per day per km2 * prob ignition starts fire
              !AB = m2 per km2 per day
