@@ -1793,14 +1793,14 @@ contains
           target_c = & 
                leaf_c_target*prt_params%nitr_stoich_p2(ipft,leaf_organ)+ & 
                fnrt_c_target*prt_params%nitr_stoich_p2(ipft,fnrt_organ)+ & 
-               sapw_c_target*prt_params%nitr_stoich_p2(ipft,sapw_organ)+ &
-               struct_c_target*prt_params%nitr_stoich_p2(ipft,struct_organ)
+               sapw_c_target*prt_params%nitr_stoich_p2(ipft,sapw_organ)!+ &
+!               struct_c_target*prt_params%nitr_stoich_p2(ipft,struct_organ)
        else
           target_c = & 
                leaf_c_target*prt_params%phos_stoich_p2(ipft,leaf_organ)+ & 
                fnrt_c_target*prt_params%phos_stoich_p2(ipft,fnrt_organ)+ & 
-               sapw_c_target*prt_params%phos_stoich_p2(ipft,sapw_organ)+ &
-               struct_c_target*prt_params%phos_stoich_p2(ipft,struct_organ)
+               sapw_c_target*prt_params%phos_stoich_p2(ipft,sapw_organ)   !+ &
+!               struct_c_target*prt_params%phos_stoich_p2(ipft,struct_organ)
           
        end if
        

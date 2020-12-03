@@ -1027,7 +1027,9 @@ contains
     real(r8) :: cx_actual                          ! Actual C:X ratio of plant
     real(r8) :: cx_ideal                           ! Ideal C:X ratio of plant
     real(r8) :: c_stoich_var                       ! effective variance of the CN or CP ratio
-
+    real(r8) :: store_frac                         ! Current nutrient storage relative to max
+    real(r8) :: store_max                          ! Maximum nutrient storable by plant
+    
     ! We are still testing different functional relationships for c_scalar, thus
     ! three methods. Methods 1 and 2 are subtly different, but both increase neediness
     ! as a plants NC or PC ratio decreases, and vice versa.  The variance
@@ -1042,13 +1044,17 @@ contains
     integer, parameter :: cnp_scalar_method2 = 2
     integer, parameter :: cnp_scalar_method3 = 3
     integer, parameter :: cnp_scalar_logi_store = 4
-    integer, parameter :: cnp_scalar_method  = cnp_scalar_method3
+    integer, parameter :: cnp_scalar_method  = cnp_scalar_logi_store
     
 
     real(r8), parameter :: cn_stoich_var=0.2    ! variability of CN ratio
     real(r8), parameter :: cp_stoich_var=0.4    ! variability of CP ratio
 
+    real(r8), parameter :: logi_k   = 20.0_r8         ! logistic function k
+    real(r8), parameter :: store_x0 = 0.65  ! storage fraction inflection point
+    real(r8), parameter :: logi_min = 0.1_r8        ! minimum cn_scalar for logistic
 
+    
     ! Target leaf biomass according to allometry and trimming
     call bleaf(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,target_leaf_c)
     call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,target_store_c)
@@ -1123,14 +1129,10 @@ contains
        ! and goes to 0, no demand, as the plant's nutrient
        ! storage approaches it's maximum holding capacity.
 
-       ! nutrient concentration matches 95%tile of scalar
-       ! 0.95 = 1._r8/(1._r8 + exp(-logi_k*(  0.95*(nc_ideal-x0) )))
-       ! logi_k = -log(1._r8-0.95/0.95)/ (  0.95*(nc_ideal-x0) )
-       ! bc_out%cn_scalar(icomp) = 1._r8/(1._r8 + exp(-logi_k*(nc_actual-x0)))
+       store_max = ccohort%prt%GetNutrientTarget(element_id,store_organ,stoich_max)
+       store_frac = ccohort%prt%GetState(store_organ, element_id)/store_max
        
-       print*,"not coded yet"
-       stop
-
+       c_scalar = logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))
        
     end select
 
