@@ -290,7 +290,8 @@ module FatesHistoryInterfaceMod
   ! Indices to (site) variables
 
   integer :: ih_nep_si
-
+  integer :: ih_hr_si
+  
   integer :: ih_c_stomata_si
   integer :: ih_c_lblayer_si
 
@@ -3315,7 +3316,8 @@ end subroutine flush_hvars
                hio_growth_resp_si => this%hvars(ih_growth_resp_si)%r81d, &
                hio_c_stomata_si   => this%hvars(ih_c_stomata_si)%r81d, &
                hio_c_lblayer_si   => this%hvars(ih_c_lblayer_si)%r81d, &
-               hio_nep_si         => this%hvars(ih_nep_si)%r81d, & 
+               hio_nep_si         => this%hvars(ih_nep_si)%r81d, &
+               hio_hr_si          => this%hvars(ih_hr_si)%r81d, &
                hio_ar_si_scpf     => this%hvars(ih_ar_si_scpf)%r82d, &
                hio_ar_grow_si_scpf   => this%hvars(ih_ar_grow_si_scpf)%r82d, &
                hio_ar_maint_si_scpf  => this%hvars(ih_ar_maint_si_scpf)%r82d, &
@@ -3391,6 +3393,7 @@ end subroutine flush_hvars
          io_soipa = io_pa1-1
          
          hio_nep_si(io_si) = -bc_in(s)%tot_het_resp ! (gC/m2/s)
+         hio_hr_si(io_si)  =  bc_in(s)%tot_het_resp
          
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -5793,6 +5796,11 @@ end subroutine update_history_hifrq
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_nep_si )
 
+    call this%set_history_var(vname='FATES_HR', units='gC/m^2/s', &
+         long='heterotrophic respiration', use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+         upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_hr_si )
+    
     call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
           long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &

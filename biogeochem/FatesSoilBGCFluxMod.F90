@@ -919,7 +919,7 @@ contains
           ! patch
           litt       => currentPatch%litter(el)
           area_frac  = currentPatch%area/area
-
+          
           do ic = 1, ncwd
 
              do id = 1,nlev_eff_decomp
@@ -961,7 +961,6 @@ contains
           do j = 1, nlev_eff_soil
 
              id = bc_in%decomp_id(j)
-
              flux_lab_si(id) = flux_lab_si(id) + &
                   litt%root_fines_frag(ilabile,j) * area_frac
              flux_cel_si(id) = flux_cel_si(id) + &
@@ -986,7 +985,6 @@ contains
        end do
 
     end do  ! do elements
-
 
     return
   end subroutine FluxIntoLitterPools
@@ -1043,7 +1041,9 @@ contains
     integer, parameter :: cnp_scalar_method1 = 1
     integer, parameter :: cnp_scalar_method2 = 2
     integer, parameter :: cnp_scalar_method3 = 3
+    integer, parameter :: cnp_scalar_logi_store = 4
     integer, parameter :: cnp_scalar_method  = cnp_scalar_method3
+    
 
     real(r8), parameter :: cn_stoich_var=0.2    ! variability of CN ratio
     real(r8), parameter :: cp_stoich_var=0.4    ! variability of CP ratio
@@ -1115,6 +1115,23 @@ contains
 
        c_scalar = 1
 
+    case(cnp_scalar_logi_store)
+
+       ! In this method, we define the c_scalar term
+       ! with a logistic function that goes to 1 (full need)
+       ! as the plant's nutrien storage hits a low threshold
+       ! and goes to 0, no demand, as the plant's nutrient
+       ! storage approaches it's maximum holding capacity.
+
+       ! nutrient concentration matches 95%tile of scalar
+       ! 0.95 = 1._r8/(1._r8 + exp(-logi_k*(  0.95*(nc_ideal-x0) )))
+       ! logi_k = -log(1._r8-0.95/0.95)/ (  0.95*(nc_ideal-x0) )
+       ! bc_out%cn_scalar(icomp) = 1._r8/(1._r8 + exp(-logi_k*(nc_actual-x0)))
+       
+       print*,"not coded yet"
+       stop
+
+       
     end select
 
   end function ECACScalar
