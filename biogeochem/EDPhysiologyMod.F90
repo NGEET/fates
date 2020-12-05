@@ -2201,19 +2201,20 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  ::  pft
+    integer, parameter :: seedlev = 2
 
-    ! Add decaying seeds to the leaf litter
+    ! Add decaying seeds to a single level of root litter
     ! -----------------------------------------------------------------------------------
 
     do pft = 1,numpft
 
-        litt%leaf_fines_in(ilabile) = litt%leaf_fines_in(ilabile) + & 
+        litt%root_fines_in(ilabile,seedlev) = litt%root_fines_in(ilabile,seedlev) + & 
               (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flab(pft)
         
-        litt%leaf_fines_in(icellulose) = litt%leaf_fines_in(icellulose) + & 
+        litt%root_fines_in(icellulose,seedlev) = litt%root_fines_in(icellulose,seedlev) + & 
               (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_fcel(pft)
         
-        litt%leaf_fines_in(ilignin) = litt%leaf_fines_in(ilignin) + & 
+        litt%root_fines_in(ilignin,seedlev) = litt%root_fines_in(ilignin,seedlev) + & 
               (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flig(pft)
 
     enddo
