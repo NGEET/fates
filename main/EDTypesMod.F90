@@ -556,8 +556,8 @@ module EDTypesMod
      ! FIRE EFFECTS     
      real(r8) ::  scorch_ht(maxpft)                                ! scorch height: m 
      real(r8) ::  frac_burnt                                       ! fraction burnt: frac patch/day  
-     real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
-     real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
+     real(r8) ::  tfc_ros                                          ! total intensity-relevant fuel consumed - no trunks.  KgC/m2 of burned ground/day
+     real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned, conditional on it being burned
 
 
      ! PLANT HYDRAULICS   (not currently used in hydraulics RGK 03-2018)  

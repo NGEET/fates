@@ -451,10 +451,22 @@ contains
 
     do while(associated(currentPatch))
               
-        ! ---initialise parameters to zero.--- 
-       beta_ratio = 0.0_r8; q_ig = 0.0_r8; eps = 0.0_r8;   a = 0.0_r8;   b = 0.0_r8;   c = 0.0_r8;   e = 0.0_r8
-       phi_wind = 0.0_r8;   xi = 0.0_r8;   reaction_v_max = 0.0_r8;  reaction_v_opt = 0.0_r8; mw_weight = 0.0_r8
-       moist_damp = 0.0_r8;   ir = 0.0_r8; a_beta = 0.0_r8;     
+       ! ---initialise parameters to zero.--- 
+       beta_ratio             = 0.0_r8
+       q_ig                   = 0.0_r8
+       eps                    = 0.0_r8
+       a                      = 0.0_r8
+       b                      = 0.0_r8
+       c                      = 0.0_r8
+       e                      = 0.0_r8
+       phi_wind               = 0.0_r8
+       xi                     = 0.0_r8
+       reaction_v_max         = 0.0_r8
+       reaction_v_opt         = 0.0_r8
+       mw_weight              = 0.0_r8
+       moist_damp             = 0.0_r8
+       ir                     = 0.0_r8
+       a_beta                 = 0.0_r8
        currentPatch%ROS_front = 0.0_r8
 
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
@@ -493,11 +505,11 @@ contains
        ! ---effective heating number---
        ! Equation A3 in Thonicke et al. 2010.  
        eps = exp(-4.528_r8 / currentPatch%fuel_sav)     
-       ! Equation A7 in Thonicke et al. 2010
+       ! Equation A7 in Thonicke et al. 2010 / eqn 49 from Rothermel 1972
        b = 0.15988_r8 * (currentPatch%fuel_sav**0.54_r8)
-       ! Equation A8 in Thonicke et al. 2010
+       ! Equation A8 in Thonicke et al. 2010 / eqn 48 from Rothermel 1972 
        c = 7.47_r8 * (exp(-0.8711_r8 * (currentPatch%fuel_sav**0.55_r8)))
-       ! Equation A9 in Thonicke et al. 2010. 
+       ! Equation A9 in Thonicke et al. 2010. (which appears to have a typo, using the coefficient from Rothermel 1972 eqn. 50 instead)
        e = 0.715_r8 * (exp(-0.01094_r8 * currentPatch%fuel_sav))
 
        if (debug) then
@@ -587,7 +599,7 @@ contains
     
     real(r8) :: moist           !effective fuel moisture
     real(r8) :: tau_b(nfsc)     !lethal heating rates for each fuel class (min) 
-    real(r8) :: fc_ground(nfsc) !proportion of fuel consumed
+    real(r8) :: fc_ground(nfsc) !total amount of fuel consumed per area of burned ground (kg C / m2 of burned area)
 
     integer  :: c
 
@@ -668,7 +680,7 @@ contains
     !currentSite%FDI  probability that an ignition will start a fire
     !currentSite%NF   number of lighting strikes per day per km2
     !currentPatch%ROS_front  forward ROS (m/min) 
-    !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
+    !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2 of burned area)
 
     use FatesInterfaceTypesMod, only : hlm_spitfire_mode
     use EDParamsMod,       only : ED_val_nignitions
@@ -791,24 +803,31 @@ contains
              ! Equation 16 in arora and boer model JGR 2005
              ! AB = AB *3.0_r8
 
-             !size of fire = equation 14 Arora and Boer JGR 2005
+             !size of fire = equation 14 Arora and Boer JGR 2005 (area of an ellipse)
              size_of_fire = ((pi_const/(4.0_r8*lb))*((df+db)**2.0_r8))
 
-             !AB = daily area burnt = size fires in m2 * num ignitions per day per km2 * prob ignition starts fire
-             !AB = m2 per km2 per day
+             ! AB = daily area burnt = size fires in m2 * num ignitions per day per km2 * prob ignition starts fire
+             ! AB = m2 per km2 per day
+             ! the denominator in the units of currentSite%NF is total gridcell area, but since we assume that ignitions 
+             ! are equally probable across patches, currentSite%NF is equivalently per area of a given patch
+             ! thus AB has units of m2 burned area per km2 patch area per day
              AB = size_of_fire * currentSite%NF * currentSite%FDI
 
-             !frac_burnt 
+             ! frac_burnt 
+             ! just a unit conversion from AB, to become area burned per area patch per day, 
+             ! or just the fraction of the patch burned on that day
              currentPatch%frac_burnt = (min(0.99_r8, AB / km2_to_m2))
              
              if(write_SF == itrue)then
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
              endif
 
+          else
+             currentPatch%frac_burnt = 0._r8
           endif ! lb
 
          ROS   = currentPatch%ROS_front / 60.0_r8 !m/min to m/sec 
-         W     = currentPatch%TFC_ROS / 0.45_r8 !kgC/m2 to kgbiomass/m2          
+         W     = currentPatch%TFC_ROS / 0.45_r8 !kgC/m2 of burned area to kgbiomass/m2 of burned area
 
          ! EQ 15 Thonicke et al 2010
          !units of fire intensity = (kJ/kg)*(kgBiomass/m2)*(m/min)
@@ -825,7 +844,8 @@ contains
             currentSite%NF_successful = currentSite%NF_successful + &
                  currentSite%NF * currentSite%FDI * currentPatch%area / area
             !
-            ! accumulate frac_burnt % at site level
+            ! accumulate frac_burnt % at site level. this is purely being tracked as a diagnostic 
+            ! since patch%frac_burnt * patch%area changes due to the fire before history output
             currentSite%frac_burnt(currentPatch%age_class) = currentSite%frac_burnt(currentPatch%age_class) + &
                  currentPatch%frac_burnt * currentPatch%area / area
             !
