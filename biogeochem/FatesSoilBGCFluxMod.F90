@@ -772,7 +772,6 @@ contains
                                                ! into the soil/decomposition
                                                ! layers. It exponentially decays
     real(r8) :: surface_prof_tot ! normalizes the surface_prof array
-    integer  :: ft               ! PFT number
     integer  :: nlev_eff_soil    ! number of effective soil layers
     integer  :: nlev_eff_decomp  ! number of effective decomp layers
     real(r8) :: area_frac        ! fraction of site's area of current patch
@@ -782,6 +781,7 @@ contains
     integer  :: j                ! Soil layer index
     integer  :: id               ! Decomposition layer index
     integer  :: ic               ! CWD type index
+    integer  :: ipft             ! PFT index
 
     ! NOTE(rgk, 201705) this parameter was brought over from SoilBiogeochemVerticalProfile
     ! how steep profile is for surface components (1/ e_folding depth) (1/m) 
@@ -929,6 +929,26 @@ contains
                   litt%leaf_fines_frag(ilignin) * area_frac* surface_prof(id)
 
           end do
+
+
+          ! decaying seeds from the litter pool
+          do ipft = 1,numpft
+             do id = 1,nlev_eff_decomp
+
+                flux_lab_si(id) = flux_lab_si(id) + &
+                     (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
+                     EDPftvarcon_inst%lf_flab(ipft) * area_frac* surface_prof(id)
+
+                flux_cel_si(id) = flux_cel_si(id) + &
+                     (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
+                     EDPftvarcon_inst%lf_fcel(ipft) * area_frac* surface_prof(id)
+
+                flux_lig_si(id) = flux_lig_si(id) + &
+                     (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
+                     EDPftvarcon_inst%lf_flig(ipft) * area_frac* surface_prof(id)
+             end do
+          end do
+
 
           do j = 1, nlev_eff_soil
 
