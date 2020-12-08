@@ -205,13 +205,13 @@ module PRTAllometricCNPMod
 
      procedure :: DailyPRT     => DailyPRTAllometricCNP
      procedure :: FastPRT      => FastPRTAllometricCNP
-
+     procedure :: GetNutrientTarget => GetNutrientTargetCNP
+     
      ! Extended functions specific to Allometric CNP
      procedure :: CNPPrioritizedReplacement
      procedure :: CNPStatureGrowth
      procedure :: CNPAllocateRemainder
      procedure :: GetDeficit
-     procedure :: GetNutrientTarget
      procedure :: GrowEquivC
      procedure :: NAndPToMatchC
   end type cnp_allom_prt_vartypes
@@ -1748,7 +1748,7 @@ contains
   
   ! =====================================================================================
 
-  function GetNutrientTarget(this,element_id,organ_id,stoich_mode) result(target_m)
+  function GetNutrientTargetCNP(this,element_id,organ_id,stoich_mode) result(target_m)
     
     class(cnp_allom_prt_vartypes) :: this
     integer, intent(in)           :: element_id
@@ -1831,8 +1831,10 @@ contains
     end if
 
     return
-  end function GetNutrientTarget
+  end function GetNutrientTargetCNP
 
+
+  
   ! =====================================================================================
   
   subroutine ProportionalNutrAllocation(state_m, deficit_m, gain_m, element_id, list)

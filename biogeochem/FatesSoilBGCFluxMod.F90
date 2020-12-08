@@ -31,6 +31,7 @@ module FatesSoilBGCFluxMod
   use PRTGenericMod     , only : repro_organ
   use PRTGenericMod     , only : struct_organ
   use PRTGenericMod     , only : SetState
+  use PRTAllometricCNPMod,only : stoich_max
   use FatesAllometryMod, only : set_root_fraction
   use FatesAllometryMod , only : h_allom
   use FatesAllometryMod , only : h2d_allom
@@ -73,7 +74,7 @@ module FatesSoilBGCFluxMod
   use FatesLitterMod    , only : icellulose
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : EDPftvarcon_inst
-  
+    
   implicit none
   private
   
@@ -440,7 +441,6 @@ contains
     integer                       :: j             ! soil layer index
     integer                       :: id            ! decomp index (might == j)
     integer                       :: pft           ! plant functional type
-    integer                       :: nlev_eff_soil ! number of active soil layers
     type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
     type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
     real(r8) :: fnrt_c                             ! fine-root carbon [kg]
@@ -480,10 +480,6 @@ contains
        end if
     end if
 
-    
-    ! This is the number of effective soil layers to transfer from
-    nlev_eff_soil   = max(bc_in%max_rooting_depth_index_col, 1)
-    
     ! ECA Specific Parameters
     ! --------------------------------------------------------------------------------
     if(trim(hlm_nu_com).eq.'ECA')then
@@ -529,8 +525,8 @@ contains
              ! Map the soil layers to the decomposition layers
              ! (which may be synonomous)
              ! veg_rootc in units:  [g/m3] = [kgC/plant] * [plant/ha] * [ha/ 10k m2] * [1000 g / kg] * [1/m]
-             
-             do j = 1, nlev_eff_soil
+
+             do j = 1, bc_in%nlevdecomp
                 id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer     
                 veg_rootc = fnrt_c * ccohort%n * csite%rootfrac_scr(j) * AREA_INV * g_per_kg / csite%dz_soil(j)
                 bc_out%veg_rootc(icomp,id) = bc_out%veg_rootc(icomp,id) + veg_rootc
@@ -1039,10 +1035,15 @@ contains
     ! method 1: cn_scalar =  (nc_ideal - nc_actual + variance*nc_min)/(nc_ideal - nc_min + variance*nc_min)
     !
     ! method 2: cn_scalar = (1/nc_actual - (1-variance)/nc_ideal)/(variance/nc_ideal)
-
+    !
+    ! method force1: force the cn_scalar = 1 (100% need) for all situations
+    !
+    ! method logi_store: cn_scalar follows a logistic function starting at 1 and dropping to a minimum value
+    !                    as nutrient storage fraction of maximum goes from 0 to 1
+    
     integer, parameter :: cnp_scalar_method1 = 1
     integer, parameter :: cnp_scalar_method2 = 2
-    integer, parameter :: cnp_scalar_method3 = 3
+    integer, parameter :: cnp_scalar_force1  = 3
     integer, parameter :: cnp_scalar_logi_store = 4
     integer, parameter :: cnp_scalar_method  = cnp_scalar_logi_store
     
@@ -1117,7 +1118,7 @@ contains
        c_scalar = min(1._r8,max(0._r8, & 
             (cx_actual - cx_ideal*(1._r8-c_stoich_var))/(cx_ideal*c_stoich_var)))
 
-    case(cnp_scalar_method3)
+    case(cnp_scalar_force1)
 
        c_scalar = 1
 

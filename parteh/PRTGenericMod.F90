@@ -241,7 +241,8 @@ module PRTGenericMod
      
      procedure :: DailyPRT            => DailyPRTBase
      procedure :: FastPRT             => FastPRTBase
-
+     procedure :: GetNutrientTarget   => GetNutrientTargetBase
+     
      ! These are generic functions that should work on all hypotheses
 
      procedure, non_overridable :: InitAllocate
@@ -1384,6 +1385,21 @@ contains
      end do
      
  end subroutine AgeLeaves
-   
+
+
+ function GetNutrientTargetBase(this,element_id,organ_id,stoich_mode) result(target_m)
+    
+    class(prt_vartypes) :: this
+    integer, intent(in)           :: element_id
+    integer, intent(in)           :: organ_id
+    integer, intent(in)           :: stoich_mode
+    real(r8)                      :: target_m    ! Target amount of nutrient for this organ [kg]
+
+    write(fates_log(),*)'GetNutrientTargetBase must be extended by a child class.'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+
+    return
+  end function GetNutrientTargetBase
+ 
 
 end module PRTGenericMod
