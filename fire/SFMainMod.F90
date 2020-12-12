@@ -244,7 +244,15 @@ contains
                   lg_sf,currentPatch%livegrass,currentPatch%sum_fuel
           endif
 
-          currentPatch%fuel_frac(lg_sf)       = currentPatch%livegrass       / currentPatch%sum_fuel   
+          currentPatch%fuel_frac(lg_sf)       = currentPatch%livegrass       / currentPatch%sum_fuel
+          
+          ! MEF (moisure of extinction) depends on compactness of fuel, depth, particle size, wind, slope
+          ! MEF: pine needles=0.30 (text near EQ 28 Rothermal 1972)
+          ! Table II-1 NFFL mixed fuels models from Rothermal 1983 Gen. Tech. Rep. INT-143 
+          ! MEF: short grass=0.12,tall grass=0.25,chaparral=0.20,closed timber litter=0.30,hardwood litter=0.25
+          ! Thonicke 2010 SAV give MEF:tw=0.45, sb=0.4874, lb=0.5245, tr=0.57, dg=0.404, lg=0.404
+          ! no reference for MEF eqn. in Thonicke 2010
+          ! Lasslop 2014 Table 1 MEF PFT level:grass=0.2,shrubs=0.3,TropEverGrnTree=0.2,TropDecid Tree=0.3, Extra-trop Tree=0.3
           MEF(1:nfsc)                         = 0.524_r8 - 0.066_r8 * log10(SF_val_SAV(1:nfsc)) 
 
           !--- weighted average of relative moisture content---
@@ -505,11 +513,11 @@ contains
        ! ---effective heating number---
        ! Equation A3 in Thonicke et al. 2010.  
        eps = exp(-4.528_r8 / currentPatch%fuel_sav)     
-       ! Equation A7 in Thonicke et al. 2010 / eqn 49 from Rothermel 1972
+       ! Equation A7 in Thonicke et al. 2010 per eqn 49 from Rothermel 1972
        b = 0.15988_r8 * (currentPatch%fuel_sav**0.54_r8)
-       ! Equation A8 in Thonicke et al. 2010 / eqn 48 from Rothermel 1972 
+       ! Equation A8 in Thonicke et al. 2010 per eqn 48 from Rothermel 1972 
        c = 7.47_r8 * (exp(-0.8711_r8 * (currentPatch%fuel_sav**0.55_r8)))
-       ! Equation A9 in Thonicke et al. 2010. (which appears to have a typo, using the coefficient from Rothermel 1972 eqn. 50 instead)
+       ! Equation A9 in Thonicke et al. 2010. (appears to have typo, using coefficient eqn.50 Rothermel 1972)
        e = 0.715_r8 * (exp(-0.01094_r8 * currentPatch%fuel_sav))
 
        if (debug) then
