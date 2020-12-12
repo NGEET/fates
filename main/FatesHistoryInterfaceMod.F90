@@ -4472,7 +4472,7 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_area_product_si )
 
-    call this%set_history_var(vname='FIRE_AREA', units='fraction',             &
+    call this%set_history_var(vname='FIRE_AREA', units='fraction/day',             &
          long='spitfire fire area burn fraction', use_default='active',                    &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_si )
@@ -4524,7 +4524,7 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_agefuel_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fuel_amount_age_fuel )
 
-    call this%set_history_var(vname='AREA_BURNT_BY_PATCH_AGE', units='m2/m2', &
+    call this%set_history_var(vname='AREA_BURNT_BY_PATCH_AGE', units='m2/m2/day', &
          long='spitfire area burnt by patch age (divide by patch_area_by_age to get burnt fraction by age)', &
          use_default='active', &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
