@@ -731,7 +731,6 @@ module EDTypesMod
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  NF                                           ! daily ignitions in km2
      real(r8) ::  NF_successful                                ! daily ignitions in km2 that actually lead to fire
-     real(r8), allocatable ::  frac_burnt(:)                   ! fraction of gridcell area burnt in this day. indexed by patch age bins
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
