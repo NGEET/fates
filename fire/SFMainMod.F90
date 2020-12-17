@@ -206,20 +206,11 @@ contains
        ! NCWD =4  NFSC = 6
        ! tw_sf = 1, lb_sf = 3, tr_sf = 4, dl_sf = 5, lg_sf = 6,
      
-       ! zero fire arrays. 
-       currentPatch%fuel_eff_moist = 0.0_r8 
-       currentPatch%fuel_bulkd     = 0.0_r8  !this is kgBiomass/m3 for use in rate of spread equations
-       currentPatch%fuel_sav       = 0.0_r8 
-       currentPatch%fuel_frac(:)   = 0.0_r8 
-       currentPatch%fuel_mef       = 0.0_r8
-       currentPatch%sum_fuel       = 0.0_r8
-       currentPatch%fuel_frac      = 0.0_r8
 
        if(write_sf == itrue)then
           if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter1 ',sum(litt_c%leaf_fines(:))
           if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter2 ',sum(litt_c%ag_cwd(:))
           if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter3 ',currentPatch%livegrass
-          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' sum fuel', currentPatch%sum_fuel
        endif
 
        currentPatch%sum_fuel =  sum(litt_c%leaf_fines(:)) + &
@@ -238,8 +229,6 @@ contains
           currentPatch%fuel_frac(tw_sf:tr_sf) = litt_c%ag_cwd(:) / currentPatch%sum_fuel    
 
           if(write_sf == itrue)then
-             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff1 ',currentPatch%fuel_frac
-             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff2 ',currentPatch%fuel_frac
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff2a ', &
                   lg_sf,currentPatch%livegrass,currentPatch%sum_fuel
           endif
@@ -323,7 +312,6 @@ contains
           currentPatch%fuel_frac(:)   = 0.0000000001_r8 
           currentPatch%fuel_mef       = 0.0000000001_r8
           currentPatch%sum_fuel       = 0.0000000001_r8
-          currentPatch%fuel_frac      = 0.0000000001_r8
 
        endif
        ! check values. 
@@ -460,24 +448,6 @@ contains
 
     do while(associated(currentPatch))
               
-       ! ---initialise parameters to zero.--- 
-       beta_ratio             = 0.0_r8
-       q_ig                   = 0.0_r8
-       eps                    = 0.0_r8
-       a                      = 0.0_r8
-       b                      = 0.0_r8
-       c                      = 0.0_r8
-       e                      = 0.0_r8
-       phi_wind               = 0.0_r8
-       xi                     = 0.0_r8
-       reaction_v_max         = 0.0_r8
-       reaction_v_opt         = 0.0_r8
-       mw_weight              = 0.0_r8
-       moist_damp             = 0.0_r8
-       ir                     = 0.0_r8
-       a_beta                 = 0.0_r8
-       currentPatch%ROS_front = 0.0_r8
-
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%sum_fuel  = currentPatch%sum_fuel * (1.0_r8 - SF_val_miner_total) !net of minerals
 
@@ -563,11 +533,6 @@ contains
        moist_damp = max(0.0_r8,(1.0_r8 - (2.59_r8 * mw_weight) + (5.11_r8 * (mw_weight**2.0_r8)) - &
             (3.52_r8*(mw_weight**3.0_r8))))
 
-       ! FIX(SPM, 040114) ask RF if this should be an endrun
-       ! if(write_SF == itrue)then
-       ! write(fates_log(),*) 'moist_damp' ,moist_damp,mw_weight,currentPatch%fuel_eff_moist,currentPatch%fuel_mef
-       ! endif
-       
        ! ir = reaction intenisty in kJ/m2/min
        ! currentPatch%sum_fuel converted from kgC/m2 to kgBiomass/m2 for ir calculation
        ir = reaction_v_opt*(currentPatch%sum_fuel/0.45_r8)*SF_val_fuel_energy*moist_damp*SF_val_miner_damp 
@@ -615,7 +580,7 @@ contains
     currentPatch => currentSite%oldest_patch;  
 
     do while(associated(currentPatch))
-       currentPatch%burnt_frac_litter = 1.0_r8       
+       currentPatch%burnt_frac_litter(:) = 1.0_r8       
        ! Calculate fraction of litter is burnt for all classes. 
        ! Equation B1 in Thonicke et al. 2010---
        do c = 1, nfsc    !work out the burnt fraction for all pools, even if those pools dont exist.         
@@ -644,8 +609,9 @@ contains
 
        ! we can't ever kill -all- of the grass. 
        currentPatch%burnt_frac_litter(lg_sf) = min(0.8_r8,currentPatch%burnt_frac_litter(lg_sf ))  
+
        ! reduce burnt amount for mineral content. 
-       currentPatch%burnt_frac_litter = currentPatch%burnt_frac_litter * (1.0_r8-SF_val_miner_total) 
+       currentPatch%burnt_frac_litter(:) = currentPatch%burnt_frac_litter(:) * (1.0_r8-SF_val_miner_total) 
 
        !---Calculate amount of fuel burnt.---    
 
@@ -758,11 +724,11 @@ contains
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
        !  ---initialize patch parameters to zero---
+       currentPatch%FI         = 0._r8
        currentPatch%fire       = 0
        currentPatch%FD         = 0.0_r8
        currentPatch%frac_burnt = 0.0_r8
        
-
        if (currentSite%NF > 0.0_r8) then
           
           ! Equation 14 in Thonicke et al. 2010
