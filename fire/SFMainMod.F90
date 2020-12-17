@@ -247,13 +247,14 @@ contains
           currentPatch%fuel_frac(lg_sf)       = currentPatch%livegrass       / currentPatch%sum_fuel
           
           ! MEF (moisure of extinction) depends on compactness of fuel, depth, particle size, wind, slope
+          ! Eqn here is eqn 27 from Peterson and Ryan (1986) "Modeling Postfire Conifer Mortality for Long-Range Planning"
+          ! but lots of other approaches in use out there...
           ! MEF: pine needles=0.30 (text near EQ 28 Rothermal 1972)
           ! Table II-1 NFFL mixed fuels models from Rothermal 1983 Gen. Tech. Rep. INT-143 
           ! MEF: short grass=0.12,tall grass=0.25,chaparral=0.20,closed timber litter=0.30,hardwood litter=0.25
-          ! Thonicke 2010 SAV give MEF:tw=0.45, sb=0.4874, lb=0.5245, tr=0.57, dg=0.404, lg=0.404
-          ! no reference for MEF eqn. in Thonicke 2010
+          ! Thonicke 2010 SAV values propagated thru P&R86 eqn below gives MEF:tw=0.355, sb=0.44, lb=0.525, tr=0.63, dg=0.248, lg=0.248
           ! Lasslop 2014 Table 1 MEF PFT level:grass=0.2,shrubs=0.3,TropEverGrnTree=0.2,TropDecid Tree=0.3, Extra-trop Tree=0.3
-          MEF(1:nfsc)                         = 0.524_r8 - 0.066_r8 * log10(SF_val_SAV(1:nfsc)) 
+          MEF(1:nfsc)                         = 0.524_r8 - 0.066_r8 * log(SF_val_SAV(1:nfsc)) 
 
           !--- weighted average of relative moisture content---
           ! Equation 6 in Thonicke et al. 2010. across twig, small branch, large branch, and dead leaves
