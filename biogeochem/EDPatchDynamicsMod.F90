@@ -2034,6 +2034,23 @@ contains
     new_patch%fabi_sha_z(:,:,:)  = 0._r8  
     new_patch%scorch_ht(:)       = 0._r8  
     new_patch%frac_burnt         = 0._r8  
+    new_patch%litter_moisture(:) = 0._r8
+    new_patch%fuel_eff_moist     = 0._r8
+    new_patch%livegrass          = 0._r8
+    new_patch%sum_fuel           = 0._r8
+    new_patch%fuel_bulkd         = 0._r8
+    new_patch%fuel_sav           = 0._r8
+    new_patch%fuel_mef           = 0._r8
+    new_patch%ros_front          = 0._r8
+    new_patch%effect_wspeed      = 0._r8
+    new_patch%tau_l              = 0._r8
+    new_patch%fuel_frac(:)       = 0._r8
+    new_patch%tfc_ros            = 0._r8
+    new_patch%fi                 = 0._r8
+    new_patch%fd                 = 0._r8
+    new_patch%ros_back           = 0._r8
+    new_patch%scorch_ht(:)       = 0._r8
+    new_patch%burnt_frac_litter(:) = 0._r8
     new_patch%total_tree_area    = 0.0_r8  
     new_patch%NCL_p              = 1
 
