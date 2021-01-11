@@ -4,69 +4,69 @@ module EDInitMod
   ! Contains all modules to set up the ED structure. 
   ! ============================================================================
 
-  use FatesConstantsMod         , only : r8 => fates_r8
-  use FatesConstantsMod         , only : ifalse
-  use FatesConstantsMod         , only : itrue
-  use FatesConstantsMod         , only : fates_unset_int
-  use FatesConstantsMod         , only : primaryforest
-  use FatesGlobals              , only : endrun => fates_endrun
-  use EDTypesMod                , only : nclmax
-  use FatesGlobals              , only : fates_log
-  use FatesInterfaceTypesMod         , only : hlm_is_restart
-  use EDPftvarcon               , only : EDPftvarcon_inst
-  use PRTParametersMod          , only : prt_params
-  use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
-  use EDCohortDynamicsMod       , only : InitPRTObject
-  use EDPatchDynamicsMod        , only : create_patch
-  use ChecksBalancesMod         , only : SiteMassStock
-  use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod                , only : numWaterMem
-  use EDTypesMod                , only : num_vegtemp_mem
-  use EDTypesMod                , only : maxpft
-  use EDTypesMod                , only : AREA
-  use EDTypesMod                , only : init_spread_near_bare_ground
-  use EDTypesMod                , only : init_spread_inventory
-  use EDTypesMod                , only : leaves_on
-  use EDTypesMod                , only : leaves_off
-  use PRTGenericMod             , only : num_elements
-  use PRTGenericMod             , only : element_list
-  use EDTypesMod                , only : phen_cstat_nevercold
-  use EDTypesMod                , only : phen_cstat_iscold
-  use EDTypesMod                , only : phen_dstat_timeoff
-  use EDTypesMod                , only : phen_dstat_moistoff
-  use EDTypesMod                , only : phen_cstat_notcold
-  use EDTypesMod                , only : phen_dstat_moiston
-  use FatesInterfaceTypesMod         , only : bc_in_type
-  use FatesInterfaceTypesMod         , only : hlm_use_planthydro
-  use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
-  use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod         , only : numpft
-  use FatesInterfaceTypesMod         , only : nleafage
-  use FatesInterfaceTypesMod         , only : nlevsclass
-  use FatesInterfaceTypesMod         , only : nlevcoage
-  use FatesAllometryMod         , only : h2d_allom
-  use FatesAllometryMod         , only : bagw_allom
-  use FatesAllometryMod         , only : bbgw_allom
-  use FatesAllometryMod         , only : bleaf
-  use FatesAllometryMod         , only : bfineroot
-  use FatesAllometryMod         , only : bsap_allom
-  use FatesAllometryMod         , only : bdead_allom
-  use FatesAllometryMod         , only : bstore_allom
-
-  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
-  use PRTGenericMod,          only : prt_carbon_allom_hyp
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
-  use PRTGenericMod,          only : prt_vartypes
-  use PRTGenericMod,          only : leaf_organ
-  use PRTGenericMod,          only : fnrt_organ
-  use PRTGenericMod,          only : sapw_organ
-  use PRTGenericMod,          only : store_organ
-  use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : repro_organ
-  use PRTGenericMod,          only : carbon12_element
-  use PRTGenericMod,          only : nitrogen_element
-  use PRTGenericMod,          only : phosphorus_element
-  use PRTGenericMod,          only : SetState
+  use FatesConstantsMod      , only : r8 => fates_r8
+  use FatesConstantsMod      , only : ifalse
+  use FatesConstantsMod      , only : itrue
+  use FatesConstantsMod      , only : fates_unset_int
+  use FatesConstantsMod      , only : primaryforest
+  use FatesGlobals           , only : endrun => fates_endrun
+  use EDTypesMod             , only : nclmax
+  use FatesGlobals           , only : fates_log
+  use FatesInterfaceTypesMod , only : hlm_is_restart
+  use EDPftvarcon            , only : EDPftvarcon_inst
+  use PRTParametersMod       , only : prt_params
+  use EDCohortDynamicsMod    , only : create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod    , only : InitPRTObject
+  use EDPatchDynamicsMod     , only : create_patch
+  use ChecksBalancesMod      , only : SiteMassStock
+  use EDTypesMod             , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod             , only : numWaterMem
+  use EDTypesMod             , only : num_vegtemp_mem
+  use EDTypesMod             , only : maxpft
+  use EDTypesMod             , only : AREA
+  use EDTypesMod             , only : init_spread_near_bare_ground
+  use EDTypesMod             , only : init_spread_inventory
+  use EDTypesMod             , only : leaves_on
+  use EDTypesMod             , only : leaves_off
+  use PRTGenericMod          , only : num_elements
+  use PRTGenericMod          , only : element_list
+  use EDTypesMod             , only : phen_cstat_nevercold
+  use EDTypesMod             , only : phen_cstat_iscold
+  use EDTypesMod             , only : phen_dstat_timeoff
+  use EDTypesMod             , only : phen_dstat_moistoff
+  use EDTypesMod             , only : phen_cstat_notcold
+  use EDTypesMod             , only : phen_dstat_moiston
+  use FatesInterfaceTypesMod , only : hlm_day_of_year
+  use FatesInterfaceTypesMod , only : bc_in_type
+  use FatesInterfaceTypesMod , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod , only : hlm_use_inventory_init
+  use FatesInterfaceTypesMod , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod , only : numpft
+  use FatesInterfaceTypesMod , only : nleafage
+  use FatesInterfaceTypesMod , only : nlevsclass
+  use FatesInterfaceTypesMod , only : nlevcoage
+  use FatesAllometryMod      , only : h2d_allom
+  use FatesAllometryMod      , only : bagw_allom
+  use FatesAllometryMod      , only : bbgw_allom
+  use FatesAllometryMod      , only : bleaf
+  use FatesAllometryMod      , only : bfineroot
+  use FatesAllometryMod      , only : bsap_allom
+  use FatesAllometryMod      , only : bdead_allom
+  use FatesAllometryMod      , only : bstore_allom
+  use FatesInterfaceTypesMod , only : hlm_parteh_mode
+  use PRTGenericMod          , only : prt_carbon_allom_hyp
+  use PRTGenericMod          , only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod          , only : prt_vartypes
+  use PRTGenericMod          , only : leaf_organ
+  use PRTGenericMod          , only : fnrt_organ
+  use PRTGenericMod          , only : sapw_organ
+  use PRTGenericMod          , only : store_organ
+  use PRTGenericMod          , only : struct_organ
+  use PRTGenericMod          , only : repro_organ
+  use PRTGenericMod          , only : carbon12_element
+  use PRTGenericMod          , only : nitrogen_element
+  use PRTGenericMod          , only : phosphorus_element
+  use PRTGenericMod          , only : SetState
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -172,16 +172,16 @@ contains
 
     site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
     site_in%dstatus          = fates_unset_int
-    site_in%grow_deg_days    = nan  ! growing degree days
+    site_in%grow_deg_days    = nan                ! growing degree days
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
-    site_in%cleafondate      = fates_unset_int  ! doy of leaf on
-    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off
-    site_in%dleafondate      = fates_unset_int  ! doy of leaf on drought
-    site_in%dleafoffdate     = fates_unset_int  ! doy of leaf on drought
+    site_in%cleafondate      = fates_unset_int
+    site_in%cleafoffdate     = fates_unset_int
+    site_in%dleafondate      = fates_unset_int
+    site_in%dleafoffdate     = fates_unset_int
     site_in%water_memory(:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
-
+    site_in%phen_model_date  = fates_unset_int
 
     ! FIRE 
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
@@ -281,12 +281,12 @@ contains
                                             ! immediately, so yes this
                                             ! is memory-less, but needed
                                             ! for first value in history file
-
-          sites(s)%cleafondate   = cleafon
-          sites(s)%cleafoffdate  = cleafoff
-          sites(s)%dleafoffdate  = dleafoff
-          sites(s)%dleafondate   = dleafon
-          sites(s)%grow_deg_days = GDD
+          sites(s)%phen_model_date = 0
+          sites(s)%cleafondate     = cleafon  - hlm_day_of_year
+          sites(s)%cleafoffdate    = cleafoff - hlm_day_of_year
+          sites(s)%dleafoffdate    = dleafoff - hlm_day_of_year
+          sites(s)%dleafondate     = dleafon  - hlm_day_of_year
+          sites(s)%grow_deg_days   = GDD
           
           sites(s)%water_memory(1:numWaterMem) = watermem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
