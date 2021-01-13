@@ -823,6 +823,7 @@ contains
          else     
             currentPatch%fire       = 0 ! No fire... :-/
             currentPatch%FD         = 0.0_r8
+            currentPatch%frac_burnt = 0.0_r8
          endif         
           
        endif! NF ignitions check
