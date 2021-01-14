@@ -2034,6 +2034,23 @@ contains
     new_patch%fabi_sha_z(:,:,:)  = 0._r8  
     new_patch%scorch_ht(:)       = 0._r8  
     new_patch%frac_burnt         = 0._r8  
+    new_patch%litter_moisture(:) = 0._r8
+    new_patch%fuel_eff_moist     = 0._r8
+    new_patch%livegrass          = 0._r8
+    new_patch%sum_fuel           = 0._r8
+    new_patch%fuel_bulkd         = 0._r8
+    new_patch%fuel_sav           = 0._r8
+    new_patch%fuel_mef           = 0._r8
+    new_patch%ros_front          = 0._r8
+    new_patch%effect_wspeed      = 0._r8
+    new_patch%tau_l              = 0._r8
+    new_patch%fuel_frac(:)       = 0._r8
+    new_patch%tfc_ros            = 0._r8
+    new_patch%fi                 = 0._r8
+    new_patch%fd                 = 0._r8
+    new_patch%ros_back           = 0._r8
+    new_patch%scorch_ht(:)       = 0._r8
+    new_patch%burnt_frac_litter(:) = 0._r8
     new_patch%total_tree_area    = 0.0_r8  
     new_patch%NCL_p              = 1
 
@@ -2108,31 +2125,31 @@ contains
 
 
     ! FIRE
-   currentPatch%litter_moisture(:)         = 0.0_r8 ! litter moisture
-    currentPatch%fuel_eff_moist             = 0.0_r8 ! average fuel moisture content of the ground fuel 
+    currentPatch%litter_moisture(:)         = nan    ! litter moisture
+    currentPatch%fuel_eff_moist             = nan    ! average fuel moisture content of the ground fuel 
     ! (incl. live grasses. omits 1000hr fuels)
-    currentPatch%livegrass                  = 0.0_r8 ! total ag grass biomass in patch. 1=c3 grass, 2=c4 grass. gc/m2
-    currentPatch%sum_fuel                   = 0.0_r8 ! total ground fuel related to ros (omits 1000hr fuels). gc/m2
-    currentPatch%fuel_bulkd                 = 0.0_r8 ! average fuel bulk density of the ground fuel 
+    currentPatch%livegrass                  = nan    ! total ag grass biomass in patch. 1=c3 grass, 2=c4 grass. gc/m2
+    currentPatch%sum_fuel                   = nan    ! total ground fuel related to ros (omits 1000hr fuels). gc/m2
+    currentPatch%fuel_bulkd                 = nan    ! average fuel bulk density of the ground fuel 
     ! (incl. live grasses. omits 1000hr fuels). kgc/m3
-    currentPatch%fuel_sav                   = 0.0_r8 ! average surface area to volume ratio of the ground fuel 
+    currentPatch%fuel_sav                   = nan    ! average surface area to volume ratio of the ground fuel 
     ! (incl. live grasses. omits 1000hr fuels).
-    currentPatch%fuel_mef                   = 0.0_r8 ! average moisture of extinction factor of the ground fuel
+    currentPatch%fuel_mef                   = nan    ! average moisture of extinction factor of the ground fuel
     ! (incl. live grasses. omits 1000hr fuels).
-    currentPatch%ros_front                  = 0.0_r8 ! average rate of forward spread of each fire in the patch. m/min.
-    currentPatch%effect_wspeed              = 0.0_r8 ! dailywind modified by fraction of relative grass and tree cover. m/min.
-    currentPatch%tau_l                      = 0.0_r8 ! mins p&r(1986)
-    currentPatch%fuel_frac(:)               = 0.0_r8 ! fraction of each litter class in the sum_fuel 
+    currentPatch%ros_front                  = nan    ! average rate of forward spread of each fire in the patch. m/min.
+    currentPatch%effect_wspeed              = nan    ! dailywind modified by fraction of relative grass and tree cover. m/min.
+    currentPatch%tau_l                      = nan    ! mins p&r(1986)
+    currentPatch%fuel_frac(:)               = nan    ! fraction of each litter class in the sum_fuel 
     !- for purposes of calculating weighted averages. 
-    currentPatch%tfc_ros                    = 0.0_r8 ! used in fi calc
-    currentPatch%fi                         = 0._r8  ! average fire intensity of flaming front during day.  
+    currentPatch%tfc_ros                    = nan    ! used in fi calc
+    currentPatch%fi                         = nan    ! average fire intensity of flaming front during day.  
     ! backward ros plays no role. kj/m/s or kw/m.
     currentPatch%fire                       = 999    ! sr decide_fire.1=fire hot enough to proceed. 0=stop everything- no fires today
-    currentPatch%fd                         = 0.0_r8 ! fire duration (mins)
-    currentPatch%ros_back                   = 0.0_r8 ! backward ros (m/min)
-    currentPatch%scorch_ht(:)               = 0.0_r8 ! scorch height of flames on a given PFT
-    currentPatch%frac_burnt                 = 0.0_r8 ! fraction burnt daily  
-    currentPatch%burnt_frac_litter(:)       = 0.0_r8 
+    currentPatch%fd                         = nan    ! fire duration (mins)
+    currentPatch%ros_back                   = nan    ! backward ros (m/min)
+    currentPatch%scorch_ht(:)               = nan    ! scorch height of flames on a given PFT
+    currentPatch%frac_burnt                 = nan    ! fraction burnt daily  
+    currentPatch%burnt_frac_litter(:)       = nan    
     currentPatch%btran_ft(:)                = 0.0_r8
 
     currentPatch%canopy_layer_tlai(:)       = 0.0_r8

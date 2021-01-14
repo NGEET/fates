@@ -506,6 +506,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_mortality_si_pft
   integer :: ih_crownarea_si_pft
   integer :: ih_canopycrownarea_si_pft
+  integer :: ih_gpp_si_pft
+  integer :: ih_npp_si_pft
 
   ! indices to (site x patch-age) variables
   integer :: ih_area_si_age
@@ -1809,6 +1811,8 @@ end subroutine flush_hvars
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
                hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
+               hio_gpp_si_pft  => this%hvars(ih_gpp_si_pft)%r82d, &
+               hio_npp_si_pft  => this%hvars(ih_npp_si_pft)%r82d, &
                hio_nesterov_fire_danger_si => this%hvars(ih_nesterov_fire_danger_si)%r81d, &
                hio_fire_nignitions_si => this%hvars(ih_fire_nignitions_si)%r81d, &
                hio_fire_fdi_si => this%hvars(ih_fire_fdi_si)%r81d, &
@@ -2110,7 +2114,7 @@ end subroutine flush_hvars
          
          ! site-level fire variables
          hio_nesterov_fire_danger_si(io_si) = sites(s)%acc_NI
-         hio_fire_nignitions_si(io_si) = sites(s)%NF
+         hio_fire_nignitions_si(io_si) = sites(s)%NF_successful
          hio_fire_fdi_si(io_si) = sites(s)%FDI
 
          ! If hydraulics are turned on, track the error terms
@@ -2373,14 +2377,20 @@ end subroutine flush_hvars
 
                ! Update PFT crown area
                hio_crownarea_si_pft(io_si, ft) = hio_crownarea_si_pft(io_si, ft) + &
-                    ccohort%c_area 
+                    ccohort%c_area * AREA_INV
 
                if (ccohort%canopy_layer .eq. 1) then
                   ! Update PFT canopy crown area
                   hio_canopycrownarea_si_pft(io_si, ft) = hio_canopycrownarea_si_pft(io_si, ft) + &
-                       ccohort%c_area 
+                       ccohort%c_area * AREA_INV
                end if
 
+               ! update pft-resolved NPP and GPP fluxes
+               hio_gpp_si_pft(io_si, ft) = hio_gpp_si_pft(io_si, ft) + &
+                    ccohort%gpp_acc_hold * n_perm2
+
+               hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
+                    ccohort%npp_acc_hold * n_perm2
                
 
                ! Site by Size-Class x PFT (SCPF) 
@@ -2873,6 +2883,7 @@ end subroutine flush_hvars
                hio_lai_si_age(io_si, ipa2) = 0._r8
                hio_ncl_si_age(io_si, ipa2) = 0._r8
             endif
+
          end do
 
          ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
@@ -4197,12 +4208,12 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_trimming_si)
     
-    call this%set_history_var(vname='AREA_PLANT', units='m2',                   &
+    call this%set_history_var(vname='AREA_PLANT', units='m2/m2',                   &
          long='area occupied by all plants', use_default='active',              &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_area_plant_si)
     
-    call this%set_history_var(vname='AREA_TREES', units='m2',                   &
+    call this%set_history_var(vname='AREA_TREES', units='m2/m2',                   &
          long='area occupied by woody plants', use_default='active',            &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_area_trees_si)
@@ -4288,15 +4299,25 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_storebiomass_si_pft )
 
-    call this%set_history_var(vname='PFTcrownarea',  units='m2/ha',            &
+    call this%set_history_var(vname='PFTcrownarea',  units='m2/m2',            &
          long='total PFT level crown area', use_default='inactive',              &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_crownarea_si_pft )
     
-    call this%set_history_var(vname='PFTcanopycrownarea',  units='m2/ha',            &
+    call this%set_history_var(vname='PFTcanopycrownarea',  units='m2/m2',            &
          long='total PFT-level canopy-layer crown area', use_default='inactive',     &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_canopycrownarea_si_pft )
+    
+    call this%set_history_var(vname='PFTgpp',  units='kg C m-2 y-1',            &
+         long='total PFT-level GPP', use_default='active',     &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_gpp_si_pft )
+    
+    call this%set_history_var(vname='PFTnpp',  units='kg C m-2 y-1',            &
+         long='total PFT-level NPP', use_default='active',     &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_npp_si_pft )
     
     call this%set_history_var(vname='PFTnindivs',  units='indiv / m2',            &
          long='total PFT level number of individuals', use_default='active',       &
@@ -4406,7 +4427,7 @@ end subroutine update_history_hifrq
          ivar=ivar, initialize=initialize_variables, index = ih_nesterov_fire_danger_si)
 
     call this%set_history_var(vname='FIRE_IGNITIONS', units='number/km2/day',       &
-         long='number of ignitions', use_default='active',               &
+         long='number of successful ignitions', use_default='active',               &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_nignitions_si)
 
@@ -4451,7 +4472,7 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_area_product_si )
 
-    call this%set_history_var(vname='FIRE_AREA', units='fraction',             &
+    call this%set_history_var(vname='FIRE_AREA', units='fraction/day',             &
          long='spitfire fire area burn fraction', use_default='active',                    &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_si )
@@ -4503,7 +4524,7 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_agefuel_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fuel_amount_age_fuel )
 
-    call this%set_history_var(vname='AREA_BURNT_BY_PATCH_AGE', units='m2/m2', &
+    call this%set_history_var(vname='AREA_BURNT_BY_PATCH_AGE', units='m2/m2/day', &
          long='spitfire area burnt by patch age (divide by patch_area_by_age to get burnt fraction by age)', &
          use_default='active', &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &

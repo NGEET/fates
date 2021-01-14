@@ -164,7 +164,7 @@ variables:
 		fates_eca_vmax_ptase:units = "gP/m2/s" ;
 		fates_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (per m2) (ECA)" ;
 	double fates_fire_alpha_SH(fates_pft) ;
-		fates_fire_alpha_SH:units = "NA" ;
+		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
 	double fates_fire_bark_scaler(fates_pft) ;
 		fates_fire_bark_scaler:units = "fraction" ;
@@ -501,8 +501,8 @@ variables:
 		fates_z0mr:units = "unitless" ;
 		fates_z0mr:long_name = "Ratio of momentum roughness length to canopy top height" ;
 	double fates_fire_FBD(fates_litterclass) ;
-		fates_fire_FBD:units = "NA" ;
-		fates_fire_FBD:long_name = "spitfire parameter related to fuel bulk density, see SFMain.F90" ;
+		fates_fire_FBD:units = "kg Biomass/m3" ;
+		fates_fire_FBD:long_name = "fuel bulk density" ;
 	double fates_fire_low_moisture_Coeff(fates_litterclass) ;
 		fates_fire_low_moisture_Coeff:units = "NA" ;
 		fates_fire_low_moisture_Coeff:long_name = "spitfire parameter, equation B1 Thonicke et al 2010" ;
@@ -522,8 +522,8 @@ variables:
 		fates_fire_min_moisture:units = "NA" ;
 		fates_fire_min_moisture:long_name = "spitfire litter moisture threshold to be considered very dry" ;
 	double fates_fire_SAV(fates_litterclass) ;
-		fates_fire_SAV:units = "NA" ;
-		fates_fire_SAV:long_name = "spitfire parameter related to surface area to volume ratio, see SFMain.F90" ;
+		fates_fire_SAV:units = "cm-1" ;
+		fates_fire_SAV:long_name = "fuel surface area to volume ratio" ;
 	double fates_max_decomp(fates_litterclass) ;
 		fates_max_decomp:units = "yr-1" ;
 		fates_max_decomp:long_name = "maximum rate of litter & CWD transfer from non-decomposing class into decomposing class" ;

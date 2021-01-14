@@ -227,10 +227,6 @@ contains
        ! Calculate loss rate of viable seeds to litter
        call SeedDecay(litt)
        
-       ! Send those decaying seeds in the previous call 
-       ! to the litter input flux
-       call SeedDecayToFines(litt)
-       
        ! Calculate seed germination rate, the status flags prevent
        ! germination from occuring when the site is in a drought 
        ! (for drought deciduous) or too cold (for cold deciduous)
@@ -254,7 +250,8 @@ contains
        ! Fragmentation flux to soil decomposition model [kg/site/day]
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
-            sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag))
+            sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
+            sum(litt%seed_decay) + sum(litt%seed_germ_decay))
        
     end do
      
@@ -2195,38 +2192,6 @@ contains
 
   ! =====================================================================================
 
-  subroutine SeedDecayToFines(litt)
-
-    type(litter_type) :: litt
-    !
-    ! !LOCAL VARIABLES:
-    integer  ::  pft
-
-    ! Add decaying seeds to the leaf litter
-    ! -----------------------------------------------------------------------------------
-
-    do pft = 1,numpft
-
-        litt%leaf_fines_in(ilabile) = litt%leaf_fines_in(ilabile) + & 
-              (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flab(pft)
-        
-        litt%leaf_fines_in(icellulose) = litt%leaf_fines_in(icellulose) + & 
-              (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_fcel(pft)
-        
-        litt%leaf_fines_in(ilignin) = litt%leaf_fines_in(ilignin) + & 
-              (litt%seed_decay(pft) + litt%seed_germ_decay(pft)) * EDPftvarcon_inst%lf_flig(pft)
-
-    enddo
-    
-    
-    return
-  end subroutine SeedDecayToFines
-  
-  
-
-
-
-  ! =====================================================================================
 
   subroutine fragmentation_scaler( currentPatch, bc_in) 
     !
