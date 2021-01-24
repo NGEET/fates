@@ -94,9 +94,9 @@ module PRTAllometricCNPMod
 
 
   ! Global identifiers for the two stoichiometry values
-  integer, parameter :: stoich_growth_min = 1     ! Flag for stoichiometry associated with
+  integer,public, parameter :: stoich_growth_min = 1     ! Flag for stoichiometry associated with
                                                   ! minimum needed for growth
-  integer, parameter :: stoich_max = 2            ! Flag for stoichiometry associated with 
+  integer,public, parameter :: stoich_max = 2            ! Flag for stoichiometry associated with 
                                                   ! maximum for that organ
 
   

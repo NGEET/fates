@@ -1051,10 +1051,9 @@ contains
     real(r8), parameter :: cn_stoich_var=0.2    ! variability of CN ratio
     real(r8), parameter :: cp_stoich_var=0.4    ! variability of CP ratio
 
-    real(r8), parameter :: logi_k   = 20.0_r8         ! logistic function k
-    real(r8), parameter :: store_x0 = 0.65  ! storage fraction inflection point
-    real(r8), parameter :: logi_min = 0.1_r8        ! minimum cn_scalar for logistic
-
+    real(r8), parameter :: logi_k   = 35.0_r8         ! logistic function k
+    real(r8), parameter :: store_x0 = 0.85            ! storage fraction inflection point
+    real(r8), parameter :: logi_min = 0.001_r8        ! minimum cn_scalar for logistic
     
     ! Target leaf biomass according to allometry and trimming
     call bleaf(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,target_leaf_c)
