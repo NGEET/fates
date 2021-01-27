@@ -63,7 +63,7 @@ module FatesInterfaceMod
    use PRTGenericMod             , only : leaf_organ, fnrt_organ, store_organ
    use PRTGenericMod             , only : sapw_organ, struct_organ, repro_organ
    use PRTParametersMod          , only : prt_params
-   use PRTInitParamsFatesMod     , only : PRTCheckParams
+   use PRTInitParamsFatesMod     , only : PRTCheckParams, PRTDerivedParams
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
 
@@ -1703,9 +1703,12 @@ contains
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
       call FatesCheckParams(masterproc)    ! Check general fates parameters
+      call PRTDerivedParams()              ! Update PARTEH derived constants
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
+      
 
+      
       return
    end subroutine FatesReportParameters
 

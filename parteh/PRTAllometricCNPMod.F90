@@ -784,16 +784,18 @@ contains
     ! If it is, then we track the variable ids associated with that pool for each CNP
     ! species.  It "should" work fine if there are NO priority=1 pools...
     ! -----------------------------------------------------------------------------------
-
     
     curpri_org(:) = fates_unset_int    ! reset "current-priority" organ ids
     i = 0
     do ii = 1, num_organs
 
+       ! The following logic bars any organs that were not given allocation priority
+       if( prt_params%organ_param_id(organ_list(ii)) < 1 ) cycle
+       
        deficit_c(ii) = max(0._r8,this%GetDeficit(carbon12_element,organ_list(ii),target_c(ii)))
        
        ! The priority code associated with this organ
-       priority_code = int(prt_params%alloc_priority(ipft, organ_list(ii)))
+       priority_code = int(prt_params%alloc_priority(ipft, prt_params%organ_param_id(organ_list(ii))))
        
        ! Don't allow allocation to leaves if they are in an "off" status.
        ! Also, dont allocate to replace turnover if this is not evergreen
@@ -939,7 +941,7 @@ contains
     ! Bring all pools, in priority order, up to allometric targets if possible
     ! -----------------------------------------------------------------------------------
     
-    do i_pri = 1, n_max_priority
+    priority_loop: do i_pri = 1, n_max_priority
        
        curpri_org(:) = fates_unset_int    ! "current-priority" organ indices
 
@@ -947,7 +949,13 @@ contains
        do ii = 1, num_organs
           
           ! The priority code associated with this organ
-          priority_code = int(prt_params%alloc_priority(ipft, organ_list(ii)))
+          if ( organ_list(ii).ne.repro_organ ) then
+             if( organ_list(ii).eq.store_organ ) then
+                priority_code = 2
+             else
+                priority_code = int(prt_params%alloc_priority(ipft,  prt_params%organ_param_id(organ_list(ii))))
+             end if
+          end if
           
           ! Don't allow allocation to leaves if they are in an "off" status.
           ! (this prevents accidental re-flushing on the day they drop)
@@ -1067,7 +1075,7 @@ contains
             p_gain, phosphorus_element, curpri_org(1:n_curpri_org))
        
 
-    end do
+    end do priority_loop
     
     return
   end subroutine CNPPrioritizedReplacement
@@ -1553,34 +1561,51 @@ contains
       end do do_solve_check
        
 
+
+      target_n = this%GetNutrientTarget(nitrogen_element,repro_organ,stoich_growth_min)
+      deficit_n(repro_id) = this%GetDeficit(nitrogen_element,repro_organ,target_n)
+
+      target_p = this%GetNutrientTarget(phosphorus_element,repro_organ,stoich_growth_min)
+      deficit_p(repro_id) = this%GetDeficit(phosphorus_element,repro_organ,target_p)
+      
+      ! Nitrogen for
+      call ProportionalNutrAllocation(state_n, deficit_n, n_gain, nitrogen_element,[repro_id])
+      
+      ! Phosphorus
+      call ProportionalNutrAllocation(state_p, deficit_p, p_gain, phosphorus_element,[repro_id])
+
+      
       ! -----------------------------------------------------------------------------------
       ! Nutrient Fluxes proportionally to each pool (these should be fully actualized)
       ! (this also removes from the gain pools)
       ! -----------------------------------------------------------------------------------
 
-       sum_n_demand = 0._r8   ! For error checking
-       sum_p_demand = 0._r8   ! For error checking
-       do ii = 1, n_mask_organs
-          i = mask_organs(ii)
-          if(organ_list(i).ne.store_organ)then
-             ! Update the nitrogen deficits (which are based off of carbon actual..)
-             ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
-             target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i),stoich_growth_min)
-             deficit_n(i) = this%GetDeficit(nitrogen_element,organ_list(i),target_n)
-             sum_n_demand = sum_n_demand+max(0._r8,deficit_n(i))
-             
-             ! Update the nitrogen deficits (which are based off of carbon actual..)
-             ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
-             target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i),stoich_growth_min)
-             deficit_p(i) = this%GetDeficit(phosphorus_element,organ_list(i),target_p)
-             sum_p_demand = sum_p_demand+max(0._r8,deficit_p(i))
-          else
-             deficit_n(i) = 0._r8
-             deficit_p(i) = 0._r8
-          end if
-             
-       end do
+      sum_n_demand = 0._r8   ! For error checking
+      sum_p_demand = 0._r8   ! For error checking
+      do ii = 1, n_mask_organs
+         i = mask_organs(ii)
+         if(organ_list(i).ne.store_organ)then
+            ! Update the nitrogen deficits (which are based off of carbon actual..)
+            ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
+            target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i),stoich_growth_min)
+            deficit_n(i) = this%GetDeficit(nitrogen_element,organ_list(i),target_n)
+            sum_n_demand = sum_n_demand+max(0._r8,deficit_n(i))
+            
+            ! Update the nitrogen deficits (which are based off of carbon actual..)
+            ! Note that the nitrogen target is tied to the stoichiometry of thegrowing pool only
+            target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i),stoich_growth_min)
+            deficit_p(i) = this%GetDeficit(phosphorus_element,organ_list(i),target_p)
+            sum_p_demand = sum_p_demand+max(0._r8,deficit_p(i))
+         else
+            deficit_n(i) = 0._r8
+            deficit_p(i) = 0._r8
+         end if
+         
+      end do
 
+       
+
+       
        
        ! Nitrogen
        call ProportionalNutrAllocation(state_n,deficit_n, & 
@@ -1790,46 +1815,61 @@ contains
        ! non-reproductive organs
 
        if( element_id == nitrogen_element) then
+
           target_c = & 
-               leaf_c_target*prt_params%nitr_stoich_p2(ipft,leaf_organ)+ & 
-               fnrt_c_target*prt_params%nitr_stoich_p2(ipft,fnrt_organ)+ & 
-               sapw_c_target*prt_params%nitr_stoich_p2(ipft,sapw_organ)!+ &
-!               struct_c_target*prt_params%nitr_stoich_p2(ipft,struct_organ)
-       else
-          target_c = & 
-               leaf_c_target*prt_params%phos_stoich_p2(ipft,leaf_organ)+ & 
-               fnrt_c_target*prt_params%phos_stoich_p2(ipft,fnrt_organ)+ & 
-               sapw_c_target*prt_params%phos_stoich_p2(ipft,sapw_organ)   !+ &
-!               struct_c_target*prt_params%phos_stoich_p2(ipft,struct_organ)
+               leaf_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(leaf_organ))+ & 
+               fnrt_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(fnrt_organ))+ & 
+               sapw_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(sapw_organ))
           
+          target_m = target_c * prt_params%nitr_store_ratio(ipft) 
+          
+       else
+          
+          target_c = & 
+               leaf_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(leaf_organ))+ & 
+               fnrt_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(fnrt_organ))+ & 
+               sapw_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(sapw_organ))
+
+          target_m = target_c * prt_params%phos_store_ratio(ipft) 
+          
+       end if
+
+    elseif(organ_id == repro_organ) then
+
+       target_c = this%variables(i_cvar)%val(1)
+       if( element_id == nitrogen_element) then
+          target_m = target_c * prt_params%nitr_recr_stoich(ipft)
+       else
+          target_m = target_c * prt_params%phos_recr_stoich(ipft)
        end if
        
     else
+
        ! In all cases, we want the first index because for non-leaves
        ! that is the only index, and for leaves, that is the newly
        ! growing index.
        target_c = this%variables(i_cvar)%val(1)
+    
+       if( stoich_mode == stoich_growth_min ) then
+          if( element_id == nitrogen_element) then
+             target_m = target_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(organ_id))
+          else
+             target_m = target_c * prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(organ_id))
+          end if
+       elseif( stoich_mode == stoich_max ) then
+          if( element_id == nitrogen_element) then
+             target_m = target_c * prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(organ_id))
+          else
+             target_m = target_c * prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(organ_id))
+          end if
+       else
+          write(fates_log(),*) 'invalid stoichiometry mode specified while getting'
+          write(fates_log(),*) 'nutrient targets'
+          write(fates_log(),*) 'stoich_mode: ',stoich_mode
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
     end if
     
-    if( stoich_mode == stoich_growth_min ) then
-       if( element_id == nitrogen_element) then
-          target_m = target_c * prt_params%nitr_stoich_p1(ipft,organ_id)
-       else
-          target_m = target_c * prt_params%phos_stoich_p1(ipft,organ_id)
-       end if
-    elseif( stoich_mode == stoich_max ) then
-       if( element_id == nitrogen_element) then
-          target_m = target_c * prt_params%nitr_stoich_p2(ipft,organ_id)
-       else
-          target_m = target_c * prt_params%phos_stoich_p2(ipft,organ_id)
-       end if
-    else
-       write(fates_log(),*) 'invalid stoichiometry mode specified while getting'
-       write(fates_log(),*) 'nutrient targets'
-       write(fates_log(),*) 'stoich_mode: ',stoich_mode
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
-
     return
   end function GetNutrientTargetCNP
 
@@ -1851,7 +1891,7 @@ contains
                                            ! over some arbitrary set of organs
     real(r8),intent(inout) :: deficit_m(:) ! Nutrient mass deficit of species
                                            ! over set of organs
-    integer, intent(in)    :: list(:)! List of indices if sparse
+    integer, intent(in)    :: list(:)      ! List of indices if sparse
     real(r8),intent(inout) :: gain_m       ! Total nutrient mass gain to
                                            ! work with
     integer,intent(in) :: element_id       ! Element global index (for debugging)
@@ -2028,10 +2068,10 @@ contains
     ! Calculate gains from Nitrogen
     ! -----------------------------------------------------------------------------------
 
-    if(prt_params%nitr_stoich_p1(ipft,organ_id)>nearzero)then
+    if(prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(organ_id))>nearzero)then
 
        ! The amount of C we could match with N in the aquisition pool
-       c_from_n_gain = nitrogen_gain * alloc_frac / prt_params%nitr_stoich_p1(ipft,organ_id)
+       c_from_n_gain = nitrogen_gain * alloc_frac / prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(organ_id))
 
        ! It is possible that the nutrient pool of interest is already above the minimum 
        ! requirement. In this case, we add that into the amount that the equivalent 
@@ -2041,7 +2081,7 @@ contains
        n_target = this%GetNutrientTarget(nitrogen_element,organ_id,stoich_growth_min)
 
        c_from_n_headstart = max(0.0_r8, sum(this%variables(n_var_id)%val(:),dim=1) - n_target ) / &
-            prt_params%nitr_stoich_p1(ipft,organ_id)
+            prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(organ_id))
 
 
        ! Increment the amount of C that we could match with N, as the minimum
@@ -2057,10 +2097,10 @@ contains
     ! Calculate gains from phosphorus
     ! -----------------------------------------------------------------------------------
     
-    if(prt_params%phos_stoich_p1(ipft,organ_id)>nearzero) then
+    if(prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(organ_id))>nearzero) then
 
 
-       c_from_p_gain = phosphorus_gain * alloc_frac / prt_params%phos_stoich_p1(ipft,organ_id)
+       c_from_p_gain = phosphorus_gain * alloc_frac / prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(organ_id))
        
        ! It is possible that the nutrient pool of interest is already above the minimum 
        ! requirement. In this case, we add that into the amount that the equivalent 
@@ -2070,7 +2110,7 @@ contains
        p_target = this%GetNutrientTarget(phosphorus_element,organ_id,stoich_growth_min)
 
        c_from_p_headstart = max(0.0_r8,sum(this%variables(p_var_id)%val(:),dim=1) - p_target ) / &
-            prt_params%phos_stoich_p1(ipft,organ_id)
+            prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(organ_id))
 
        ! Increment the amount of C that we could match with P, as the minimum
        ! of what C could do itself, and what P could do.  We need this minimum

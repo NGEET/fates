@@ -137,22 +137,21 @@ contains
     if(ccohort%isnew) then
 
        if(element_id.eq.nitrogen_element) then
-          plant_max_x = & 
-               ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,leaf_organ) + & 
-               ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,fnrt_organ) + & 
-               ccohort%prt%GetState(store_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,store_organ) + & 
-               ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,sapw_organ) + & 
-               ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,struct_organ) + &
-               ccohort%prt%GetState(repro_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,repro_organ)
+          plant_max_x = &
+               (1._r8 + prt_params%nitr_store_ratio(pft)) * &
+               (ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ)) + & 
+               ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ)) + & 
+               ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))) + & 
+               ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+
        
        elseif(element_id.eq.phosphorus_element) then
           plant_max_x = &
-               ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,leaf_organ) + & 
-               ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,fnrt_organ) + & 
-               ccohort%prt%GetState(store_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,store_organ) + & 
-               ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,sapw_organ) + & 
-               ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,struct_organ) + &
-               ccohort%prt%GetState(repro_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,repro_organ)
+               (1._r8 + prt_params%phos_store_ratio(pft)) * &
+               (ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ)) + & 
+               ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ)) + & 
+               ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))) + & 
+               ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
           
        end if
 
@@ -1011,130 +1010,25 @@ contains
     real(r8) :: c_scalar
 
     ! Locals
-
-    real(r8) :: target_leaf_c                      ! maximum leaf C for this dbh [kg]
-    real(r8) :: target_store_c                     ! maximum store C for this dbh [kg]
-    !
-    ! Where X is the element of interest:
-    real(r8) :: leaf_store_x       ! Mass of current element in leaf and storage
-    real(r8) :: xc_actual                          ! Actual X:C ratio of plant 
-    real(r8) :: xc_min                             ! Minimum allowable X:C ratio to build tissue
-    real(r8) :: xc_ideal                           ! Plant's ideal X:C ratio
-    real(r8) :: cx_actual                          ! Actual C:X ratio of plant
-    real(r8) :: cx_ideal                           ! Ideal C:X ratio of plant
-    real(r8) :: c_stoich_var                       ! effective variance of the CN or CP ratio
     real(r8) :: store_frac                         ! Current nutrient storage relative to max
     real(r8) :: store_max                          ! Maximum nutrient storable by plant
     
-    ! We are still testing different functional relationships for c_scalar, thus
-    ! three methods. Methods 1 and 2 are subtly different, but both increase neediness
-    ! as a plants NC or PC ratio decreases, and vice versa.  The variance
-    ! parameter acts as a buffer on the steepness of the relationship.
-    ! Method 3 turns off neediness and sets it to 1 (always fully needy)
-    !
-    ! method 1: cn_scalar =  (nc_ideal - nc_actual + variance*nc_min)/(nc_ideal - nc_min + variance*nc_min)
-    !
-    ! method 2: cn_scalar = (1/nc_actual - (1-variance)/nc_ideal)/(variance/nc_ideal)
-    !
-    ! method force1: force the cn_scalar = 1 (100% need) for all situations
-    !
-    ! method logi_store: cn_scalar follows a logistic function starting at 1 and dropping to a minimum value
-    !                    as nutrient storage fraction of maximum goes from 0 to 1
-    
-    integer, parameter :: cnp_scalar_method1 = 1
-    integer, parameter :: cnp_scalar_method2 = 2
-    integer, parameter :: cnp_scalar_force1  = 3
-    integer, parameter :: cnp_scalar_logi_store = 4
-    integer, parameter :: cnp_scalar_method  = cnp_scalar_logi_store
-    
-
-    real(r8), parameter :: cn_stoich_var=0.2    ! variability of CN ratio
-    real(r8), parameter :: cp_stoich_var=0.4    ! variability of CP ratio
-
     real(r8), parameter :: logi_k   = 35.0_r8         ! logistic function k
     real(r8), parameter :: store_x0 = 0.85            ! storage fraction inflection point
     real(r8), parameter :: logi_min = 0.001_r8        ! minimum cn_scalar for logistic
     
-    ! Target leaf biomass according to allometry and trimming
-    call bleaf(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,target_leaf_c)
-    call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,target_store_c)
-
-    leaf_store_x = max(rsnbl_math_prec,ccohort%prt%GetState(leaf_organ, element_id) + & 
-         ccohort%prt%GetState(store_organ, element_id))
-
-    ! Calculate the ideal CN or CP ratio for leaves and storage organs
-
-    if(element_id==nitrogen_element)then
-
-       xc_ideal = ((target_leaf_c*prt_params%nitr_stoich_p2(ccohort%pft,leaf_organ)) + &
-            (target_store_c*prt_params%nitr_stoich_p2(ccohort%pft,store_organ))) / & 
-            (target_leaf_c+target_store_c)
-       xc_min =  ((target_leaf_c*prt_params%nitr_stoich_p1(ccohort%pft,leaf_organ)) + &
-            (target_store_c*prt_params%nitr_stoich_p1(ccohort%pft,store_organ))) / & 
-            (target_leaf_c+target_store_c)
-
-       xc_actual = max(leaf_store_x/(target_leaf_c+target_store_c),rsnbl_math_prec)
-
-       c_stoich_var = cn_stoich_var
-
-    elseif(element_id==phosphorus_element) then
-
-       xc_ideal = ((target_leaf_c*prt_params%phos_stoich_p2(ccohort%pft,leaf_organ)) + &
-            (target_store_c*prt_params%phos_stoich_p2(ccohort%pft,store_organ))) / & 
-            (target_leaf_c+target_store_c)
-       xc_min =  ((target_leaf_c*prt_params%phos_stoich_p1(ccohort%pft,leaf_organ)) + &
-            (target_store_c*prt_params%phos_stoich_p1(ccohort%pft,store_organ))) / & 
-            (target_leaf_c+target_store_c)
-
-       xc_actual = max(leaf_store_x/(target_leaf_c+target_store_c),rsnbl_math_prec)
-
-       c_stoich_var = cp_stoich_var
-
-    else
-       write(fates_log(), *) 'attempted to call ECACScalar() for unknown element',element_id
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
-
-
-    select case(cnp_scalar_method)
-    case(cnp_scalar_method1)
-
-       ! To-do: Add a logistic function here, with a
-       ! shape parameter so that 95%tile of
-       ! nutrient concentration matches 95%tile of scalar
-       ! 0.95 = 1._r8/(1._r8 + exp(-logi_k*(  0.95*(nc_ideal-x0) )))
-       ! logi_k = -log(1._r8-0.95/0.95)/ (  0.95*(nc_ideal-x0) )
-       ! bc_out%cn_scalar(icomp) = 1._r8/(1._r8 + exp(-logi_k*(nc_actual-x0)))
-
-       c_scalar = min(1._r8,max(0._r8, & 
-            (xc_ideal - xc_actual + c_stoich_var*xc_min) / & 
-            (xc_ideal - xc_min + c_stoich_var*xc_min)))
-
-    case(cnp_scalar_method2)
-
-       cx_ideal = 1._r8/xc_ideal
-       cx_actual = 1._r8/xc_actual
-       c_scalar = min(1._r8,max(0._r8, & 
-            (cx_actual - cx_ideal*(1._r8-c_stoich_var))/(cx_ideal*c_stoich_var)))
-
-    case(cnp_scalar_force1)
-
-       c_scalar = 1
-
-    case(cnp_scalar_logi_store)
-
-       ! In this method, we define the c_scalar term
-       ! with a logistic function that goes to 1 (full need)
-       ! as the plant's nutrien storage hits a low threshold
-       ! and goes to 0, no demand, as the plant's nutrient
-       ! storage approaches it's maximum holding capacity.
-
-       store_max = ccohort%prt%GetNutrientTarget(element_id,store_organ,stoich_max)
-       store_frac = ccohort%prt%GetState(store_organ, element_id)/store_max
+    ! In this method, we define the c_scalar term
+    ! with a logistic function that goes to 1 (full need)
+    ! as the plant's nutrien storage hits a low threshold
+    ! and goes to 0, no demand, as the plant's nutrient
+    ! storage approaches it's maximum holding capacity.
+    
+    store_max = ccohort%prt%GetNutrientTarget(element_id,store_organ,stoich_max)
+    store_frac = ccohort%prt%GetState(store_organ, element_id)/store_max
+    
+    c_scalar = logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))
        
-       c_scalar = logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))
-       
-    end select
+    
 
   end function ECACScalar
 

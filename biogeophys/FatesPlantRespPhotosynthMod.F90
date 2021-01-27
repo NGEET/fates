@@ -456,7 +456,7 @@ contains
                               select case(hlm_parteh_mode)
                               case (prt_carbon_allom_hyp)
 
-                                 lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                  
                               case (prt_cnp_flex_allom_hyp)
 
@@ -465,12 +465,12 @@ contains
                                     leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
                                     lnc_top = leaf_n / (slatop(ft) * leaf_c )
                                  else
-                                    lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                    lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                  end if
                                     
                                  ! If one wants to break coupling with dynamic N conentrations,
                                  ! use the stoichiometry parameter
-                                 ! lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 ! lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                  
                               end select
 
@@ -617,12 +617,12 @@ contains
                      case (prt_carbon_allom_hyp)
 
                         live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
-                              sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                              sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
                         
                         live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
-                              sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                              sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
 
-                        fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,fnrt_organ)
+                        fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
                      case(prt_cnp_flex_allom_hyp) 
                      
@@ -638,10 +638,10 @@ contains
                         ! use the stoichiometry parameter
                         !
                         ! live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
-                        !               sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                        !               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
                         ! live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
-                        !               sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
-                        ! fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,fnrt_organ)
+                        !               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+                        ! fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
                         
                      case default

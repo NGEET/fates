@@ -41,7 +41,8 @@ module EDTypesMod
                                                           ! space and output arrays.
                                                   
   
-
+  real(r8), parameter, public :: init_recruit_trim = 0.8_r8    ! This is the initial trimming value that
+                                                               ! new recruits start with
 
   ! -------------------------------------------------------------------------------------
   ! Radiation parameters

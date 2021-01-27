@@ -589,21 +589,24 @@ contains
              
           case(nitrogen_element)
              
-             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*prt_params%nitr_stoich_p2(pft,store_organ)
+             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
+             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
+             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
+             m_store  = prt_params%nitr_store_ratio(pft) * &
+                  (m_leaf+m_fnrt+m_sapw)
              m_repro  = 0._r8
              
           case(phosphorus_element)
 
-             m_struct = c_struct*prt_params%phos_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*prt_params%phos_stoich_p2(pft,store_organ)
+             m_struct = c_struct*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
+             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
+             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
+             m_store  = prt_params%phos_store_ratio(pft) * &
+                  (m_leaf+m_fnrt+m_sapw)
              m_repro  = 0._r8
+             
           end select
 
           select case(hlm_parteh_mode)

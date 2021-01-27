@@ -253,6 +253,21 @@ variables:
 	double fates_leaf_diameter(fates_pft) ;
 		fates_leaf_diameter:units = "m" ;
 		fates_leaf_diameter:long_name = "Characteristic leaf dimension" ;
+	double fates_leaf_flnr(fates_pft) ;
+			 fates_leaf_flnr:units = "gN Rubisco / gN leaf"
+			 fates_leaf_flnr:long_name = "(NOT ACTIVE) when leaf_photo_model = 2, fraction of leaf N in the Rubisco enzyme"
+	double fates_leaf_vcmax_np1(fates_leafage_class,fates_pft) ;
+			 fates_leaf_vcmax_np1:units = ""
+			 fates_leaf_vcmax_np1:long_name = "(NOT ACTIVE) when leaf_photo_model = 2, vcmax~np relationship coefficient"
+	double fates_leaf_vcmax_np2(fates_leafage_class,fates_pft) ;
+			 fates_leaf_vcmax_np2:units = ""
+			 fates_leaf_vcmax_np2:long_name = "(NOT ACTIVE) when leaf_photo_model = 2, vcmax~np relationship coefficient"
+	double fates_leaf_vcmax_np3(fates_leafage_class,fates_pft) ;
+			 fates_leaf_vcmax_np3:units = ""
+			 fates_leaf_vcmax_np3:long_name = "(NOT ACTIVE) when leaf_photo_model = 2, vcmax~np relationship coefficient"
+	double fates_leaf_vcmax_np4(fates_leafage_class,fates_pft) ;
+			 fates_leaf_vcmax_np4:units = ""
+			 fates_leaf_vcmax_np4:long_name = "(NOT ACTIVE) when leaf_photo_model = 2, vcmax~np relationship coefficient"
 	double fates_leaf_jmaxha(fates_pft) ;
 		fates_leaf_jmaxha:units = "J/mol" ;
 		fates_leaf_jmaxha:long_name = "activation energy for jmax" ;
@@ -621,6 +636,9 @@ variables:
 	double fates_init_litter ;
 		fates_init_litter:units = "NA" ;
 		fates_init_litter:long_name = "Initialization value for litter pool in cold-start (NOT USED)" ;
+	double fates_leaf_photo_model ;
+		fates_leaf_photo_model:units = "unitless" ;
+		fates_leaf_photo_model:long_name = "(NOT ACTIVE) switch for choosing photosynthesis model, (1) constant nitrogen and (2) Walker et al. dynamic vcmax" ;
 	double fates_leaf_stomatal_model ;
 		fates_leaf_stomatal_model:units = "unitless" ;
 		fates_leaf_stomatal_model:long_name = "switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model" ;
@@ -1296,6 +1314,8 @@ data:
  fates_hydr_psicap = -0.6 ;
 
  fates_init_litter = 0.05 ;
+
+ fates_leaf_photo_model = 1 ;
 
  fates_leaf_stomatal_model = 1 ;
 
