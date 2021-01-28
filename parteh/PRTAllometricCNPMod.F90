@@ -949,13 +949,16 @@ contains
        do ii = 1, num_organs
           
           ! The priority code associated with this organ
-          if ( organ_list(ii).ne.repro_organ ) then
-             if( organ_list(ii).eq.store_organ ) then
-                priority_code = 2
-             else
-                priority_code = int(prt_params%alloc_priority(ipft,  prt_params%organ_param_id(organ_list(ii))))
-             end if
+          ! Storage has a special hard-coded priority level of 2
+          ! Note that it is also implicitly part of step 1
+
+          if( organ_list(ii).eq.store_organ ) then
+             priority_code = 2
+          else
+             if( prt_params%organ_param_id(organ_list(ii)) <1 ) cycle
+             priority_code = int(prt_params%alloc_priority(ipft,  prt_params%organ_param_id(organ_list(ii))))
           end if
+       
           
           ! Don't allow allocation to leaves if they are in an "off" status.
           ! (this prevents accidental re-flushing on the day they drop)
@@ -1391,7 +1394,11 @@ contains
 
     case(3)
        
-       ! HACK, ALLOW FULL C ALLOCATION AND LET REST OF ALGORITHM LIMIT
+       ! No mathematical co-limitation of growth
+       ! This assumes that limitations will prevent
+       ! organs from allowing the growth step to even occur
+       ! and thus from an algorithmic level limit growth
+       
        c_gstature = c_gain
        
        
@@ -1559,8 +1566,13 @@ contains
          end if if_completed_solve
          
       end do do_solve_check
-       
 
+      ! Prioritize nutrient transfer to the reproductive pool
+      ! Note, that if we do not keep reproductive tissues on stoichiometry, the seed
+      ! pool for that pft will be off stoichiometry, and one of C,N or P will limit
+      ! recruitment. Per the current model formulation, new recruits are forced to
+      ! have their maximum stoichiometry in each organ. The total stoichiometry
+      ! of the recruits should match the stoichiometry of the seeds
 
       target_n = this%GetNutrientTarget(nitrogen_element,repro_organ,stoich_growth_min)
       deficit_n(repro_id) = this%GetDeficit(nitrogen_element,repro_organ,target_n)

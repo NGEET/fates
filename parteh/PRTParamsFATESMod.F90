@@ -128,7 +128,6 @@ contains
     name = 'fates_prt_organ_id'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=tmpreal)
-    print*,'organ_id'
     allocate(prt_params%organ_id(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%organ_id)
     deallocate(tmpreal)
@@ -364,17 +363,8 @@ contains
     character(len=param_string_length) :: name
 
     real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
-                            ! that are converted to ints
-    !X!    name = ''
-    !X!    call fates_params%RetreiveParameter(name=name, &
-    !X!         data=prt_params%)
+                                         ! that are converted to ints
 
-    name = 'fates_leaf_slamax'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%slamax)
-    
-    !allocate(tmpreal(size(prt_params%slamax,dim=1)))
-    
     name = 'fates_phen_stress_decid'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=tmpreal)
@@ -395,6 +385,10 @@ contains
     allocate(prt_params%evergreen(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%evergreen)
     deallocate(tmpreal)
+
+    name = 'fates_leaf_slamax'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%slamax)
     
     name = 'fates_leaf_slatop'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -613,17 +607,9 @@ contains
     integer,intent(out)  :: intarr(:)
     integer  :: i
 
-    !print*,size(realarr,dim=1)
-    !print*,size(intarr)
-    !print*,realarr
-
-    !allocate(intarr(size(realarr,dim=1)))
-    
     do i = 1,size(realarr,dim=1)
        intarr(i) = nint(realarr(i))
     end do
-
-    !deallocate(realarray)
     
     return
   end subroutine ArrayNint
@@ -919,8 +905,6 @@ contains
        
     end do
 
-
-    
     
     return
   end subroutine PRTDerivedParams
