@@ -1024,7 +1024,8 @@ contains
     ! storage approaches it's maximum holding capacity.
     
     store_max = ccohort%prt%GetNutrientTarget(element_id,store_organ,stoich_max)
-    store_frac = ccohort%prt%GetState(store_organ, element_id)/store_max
+
+    store_frac = min(1.0_r8,ccohort%prt%GetState(store_organ, element_id)/store_max)
     
     c_scalar = logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))
        
