@@ -788,15 +788,15 @@ contains
     curpri_org(:) = fates_unset_int    ! reset "current-priority" organ ids
     i = 0
     do ii = 1, num_organs
+       
+       deficit_c(ii) = max(0._r8,this%GetDeficit(carbon12_element,organ_list(ii),target_c(ii)))
 
        ! The following logic bars any organs that were not given allocation priority
        if( prt_params%organ_param_id(organ_list(ii)) < 1 ) cycle
-       
-       deficit_c(ii) = max(0._r8,this%GetDeficit(carbon12_element,organ_list(ii),target_c(ii)))
-       
+
        ! The priority code associated with this organ
        priority_code = int(prt_params%alloc_priority(ipft, prt_params%organ_param_id(organ_list(ii))))
-       
+          
        ! Don't allow allocation to leaves if they are in an "off" status.
        ! Also, dont allocate to replace turnover if this is not evergreen
        ! (this prevents accidental re-flushing on the day they drop)
@@ -955,8 +955,11 @@ contains
           if( organ_list(ii).eq.store_organ ) then
              priority_code = 2
           else
-             if( prt_params%organ_param_id(organ_list(ii)) <1 ) cycle
-             priority_code = int(prt_params%alloc_priority(ipft,  prt_params%organ_param_id(organ_list(ii))))
+             if( prt_params%organ_param_id(organ_list(ii)) <1 ) then
+                priority_code = -1
+             else
+                priority_code = int(prt_params%alloc_priority(ipft,prt_params%organ_param_id(organ_list(ii))))
+             end if
           end if
        
           
@@ -1574,17 +1577,17 @@ contains
       ! have their maximum stoichiometry in each organ. The total stoichiometry
       ! of the recruits should match the stoichiometry of the seeds
 
-      target_n = this%GetNutrientTarget(nitrogen_element,repro_organ,stoich_growth_min)
-      deficit_n(repro_id) = this%GetDeficit(nitrogen_element,repro_organ,target_n)
+      !!target_n = this%GetNutrientTarget(nitrogen_element,repro_organ,stoich_growth_min)
+      !!deficit_n(repro_id) = this%GetDeficit(nitrogen_element,repro_organ,target_n)
 
-      target_p = this%GetNutrientTarget(phosphorus_element,repro_organ,stoich_growth_min)
-      deficit_p(repro_id) = this%GetDeficit(phosphorus_element,repro_organ,target_p)
+      !!target_p = this%GetNutrientTarget(phosphorus_element,repro_organ,stoich_growth_min)
+      !!deficit_p(repro_id) = this%GetDeficit(phosphorus_element,repro_organ,target_p)
       
       ! Nitrogen for
-      call ProportionalNutrAllocation(state_n, deficit_n, n_gain, nitrogen_element,[repro_id])
+      !!call ProportionalNutrAllocation(state_n, deficit_n, n_gain, nitrogen_element,[repro_id])
       
       ! Phosphorus
-      call ProportionalNutrAllocation(state_p, deficit_p, p_gain, phosphorus_element,[repro_id])
+      !!call ProportionalNutrAllocation(state_p, deficit_p, p_gain, phosphorus_element,[repro_id])
 
       
       ! -----------------------------------------------------------------------------------
@@ -1614,10 +1617,6 @@ contains
          end if
          
       end do
-
-       
-
-       
        
        ! Nitrogen
        call ProportionalNutrAllocation(state_n,deficit_n, & 
@@ -1828,21 +1827,21 @@ contains
 
        if( element_id == nitrogen_element) then
 
-          target_c = & 
+          target_m = & 
                leaf_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(leaf_organ))+ & 
                fnrt_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(fnrt_organ))+ & 
                sapw_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(sapw_organ))
           
-          target_m = target_c * prt_params%nitr_store_ratio(ipft) 
+          target_m = target_m * prt_params%nitr_store_ratio(ipft) 
           
        else
           
-          target_c = & 
+          target_m = & 
                leaf_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(leaf_organ))+ & 
                fnrt_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(fnrt_organ))+ & 
                sapw_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(sapw_organ))
 
-          target_m = target_c * prt_params%phos_store_ratio(ipft) 
+          target_m = target_m * prt_params%phos_store_ratio(ipft) 
           
        end if
 
