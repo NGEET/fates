@@ -1013,9 +1013,9 @@ contains
     real(r8) :: store_frac                         ! Current nutrient storage relative to max
     real(r8) :: store_max                          ! Maximum nutrient storable by plant
     
-    real(r8), parameter :: logi_k   = 35.0_r8         ! logistic function k
-    real(r8), parameter :: store_x0 = 0.85            ! storage fraction inflection point
-    real(r8), parameter :: logi_min = 0.001_r8        ! minimum cn_scalar for logistic
+    real(r8), parameter :: logi_k   = 25.0_r8         ! logistic function k
+    real(r8), parameter :: store_x0 = 1.0_r8          ! storage fraction inflection point
+    real(r8), parameter :: logi_min = 0.0_r8          ! minimum cn_scalar for logistic
     
     ! In this method, we define the c_scalar term
     ! with a logistic function that goes to 1 (full need)
@@ -1025,9 +1025,9 @@ contains
     
     store_max = ccohort%prt%GetNutrientTarget(element_id,store_organ,stoich_max)
 
-    store_frac = min(1.0_r8,ccohort%prt%GetState(store_organ, element_id)/store_max)
+    store_frac = min(2.0_r8,ccohort%prt%GetState(store_organ, element_id)/store_max)
     
-    c_scalar = logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))
+    c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
        
     
 
