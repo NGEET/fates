@@ -4,7 +4,7 @@
 # --input or --fin: input filename.
 # --output or --fout: output filename.  If missing, will assume its directly modifying the input file, and will prompt unless -O is specified
 
-from scipy.io import netcdf as nc
+import netCDF4 as nc
 import sys
 import os
 import argparse
@@ -19,11 +19,12 @@ def main():
     parser.add_argument('--fin', '--input', dest='fnamein', type=str, help="Input filename.  Required.", required=True)
     parser.add_argument('--fout','--output', dest='fnameout', type=str, help="Output filename.  Required.", required=True)
     parser.add_argument('--O','--overwrite', dest='overwrite', help="If present, automatically overwrite the output file.", action="store_true")
+    parser.add_argument('--debug', dest='debug', help="If present, output more diagnostics", action="store_true")
     #
     args = parser.parse_args()
     #
     # open the input dataset
-    dsin = nc.netcdf_file(args.fnamein, 'r')
+    dsin = nc.Dataset(args.fnamein, 'r')
     #
     # make empty lists to hold the variable names in. the first of these is a list of sub-lists,
     # one for each type of variable (based on dimensionality).
@@ -32,14 +33,14 @@ def main():
     varnames_list_sorted = []
     #
     # sort the variables by dimensionality, but mix the PFT x other dimension in with the regular PFT-indexed variables
-    dimtype_sortorder_dict = {(u'fates_history_height_bins',):0,
-    (u'fates_history_size_bins',):1,
-    (u'fates_history_age_bins',):2,
-    (u'fates_scalar',):3,
+    dimtype_sortorder_dict = {
+    (u'fates_history_age_bins',):0,
+    (u'fates_history_coage_bins',):1,
+    (u'fates_history_height_bins',):2,
+    (u'fates_history_size_bins',):3,
     (u'fates_pft', u'fates_string_length'):4,
     (u'fates_prt_organs', u'fates_string_length'):5,
     (u'fates_pft',):6,
-    (u'fates_variants', u'fates_pft'):6,
     (u'fates_hydr_organs', u'fates_pft'):6,
     (u'fates_leafage_class', u'fates_pft'):6,
     (u'fates_prt_organs', u'fates_pft'):6,
@@ -48,7 +49,7 @@ def main():
     ():9}
     #
     # go through each of the variables and assign it to one of the sub-lists based on its dimensionality
-    for v_name, varin in dsin.variables.iteritems():
+    for v_name, varin in dsin.variables.items():
         sortorder = dimtype_sortorder_dict[varin.dimensions]
         # if a KeyError, it means that the parameter has a dimension which isn't in dimtype_sortorder_dict. need to add it.
         varnames_list[sortorder].append(v_name)
@@ -58,6 +59,10 @@ def main():
     for i in range(len(varnames_list)):
         varnames_list[i] = sorted(varnames_list[i], key=lambda L: (L.lower(), L))
         varnames_list_sorted.extend(varnames_list[i])
+    #
+    # write list of variables in ourput order
+    if args.debug:
+        print(varnames_list_sorted)
     #
     # open the output filename, deleting it if it exists already.
     if os.path.isfile(args.fnameout):
@@ -69,14 +74,14 @@ def main():
         else:
             raise ValueError('Output file already exists and overwrite flag not specified for filename: '+args.fnameout)
     #
-    dsout = nc.netcdf_file(args.fnameout,  "w")
+    dsout = nc.Dataset(args.fnameout,  "w")
     #
     #Copy dimensions
-    for dname, the_dim in dsin.dimensions.iteritems():
-        print dname, the_dim
-        dsout.createDimension(dname, the_dim )
+    for dname, the_dim in dsin.dimensions.items():
+        print(dname, the_dim.size)
+        dsout.createDimension(dname, the_dim.size )
     #
-    print
+    print()
     #
     try:
         dsout.history = dsin.history
@@ -89,26 +94,14 @@ def main():
     for i in range(len(varnames_list_sorted)):
         v_name = varnames_list_sorted[i]
         varin = dsin.variables[v_name]
-        outVar = dsout.createVariable(v_name, varin.data.dtype, varin.dimensions)
-        print v_name
+        outVar = dsout.createVariable(v_name, varin.datatype, varin.dimensions)
+        print(v_name)
         #
-        try:
-            outVar.units = varin.units
-        except:
-            print('----------no units!-----------')
-        try:
-            outVar.long_name = varin.long_name
-        except:
-            print('----------no long name!---------')
+        outVar.setncatts({k: varin.getncattr(k) for k in varin.ncattrs()})
+        outVar[:] = varin[:]
         #
-        # copy data from input file to output file
-        #
-        try:
-            outVar[:] = varin[:]
-        except:
-            # handle the case where there is a scalar
-            outVar.assignValue(varin.data)
-    #
+        # copy global attributes
+        dsout.setncatts({k: dsin.getncattr(k) for k in dsin.ncattrs()})#
     #
     # close the output file
     dsin.close()

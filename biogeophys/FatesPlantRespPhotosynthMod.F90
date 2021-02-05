@@ -1,3 +1,4 @@
+
 module FATESPlantRespPhotosynthMod
    
    !-------------------------------------------------------------------------------------
@@ -25,15 +26,16 @@ module FATESPlantRespPhotosynthMod
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : itrue
    use FatesConstantsMod, only : nearzero
-   use FatesInterfaceMod, only : hlm_use_planthydro
-   use FatesInterfaceMod, only : hlm_parteh_mode
-   use FatesInterfaceMod, only : numpft
-   use FatesInterfaceMod, only : nleafage
+   use FatesInterfaceTypesMod, only : hlm_use_planthydro
+   use FatesInterfaceTypesMod, only : hlm_parteh_mode
+   use FatesInterfaceTypesMod, only : numpft
+   use FatesInterfaceTypesMod, only : nleafage
    use EDTypesMod,        only : maxpft
    use EDTypesMod,        only : nlevleaf
    use EDTypesMod,        only : nclmax
-   use EDTypesMod,        only : max_nleafage
+   use PRTGenericMod,     only : max_nleafage
    use EDTypesMod,        only : do_fates_salinity 
+   use EDParamsMod,       only : q10_mr
    use PRTGenericMod,     only : prt_carbon_allom_hyp
    use PRTGenericMod,     only : prt_cnp_flex_allom_hyp 
    use PRTGenericMod,     only : all_carbon_elements
@@ -44,6 +46,8 @@ module FATESPlantRespPhotosynthMod
    use PRTGenericMod,     only : store_organ
    use PRTGenericMod,     only : repro_organ
    use PRTGenericMod,     only : struct_organ
+   use EDParamsMod,       only : ED_val_base_mr_20, stomatal_model
+   use PRTParametersMod,  only : prt_params
 
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -58,9 +62,16 @@ module FATESPlantRespPhotosynthMod
    !-------------------------------------------------------------------------------------
    
    ! maximum stomatal resistance [s/m] (used across several procedures)
-   real(r8),parameter :: rsmax0 =  2.e4_r8                    
+   real(r8),parameter :: rsmax0 =  2.e8_r8                    
    
    logical   ::  debug = .false.
+   !-------------------------------------------------------------------------------------
+   
+   ! Ratio of H2O/CO2 gas diffusion in stomatal airspace (approximate)
+   real(r8),parameter :: h2o_co2_stoma_diffuse_ratio = 1.6_r8
+   
+   ! Ratio of H2O/CO2 gass diffusion in the leaf boundary layer (approximate) 
+   real(r8),parameter :: h2o_co2_bl_diffuse_ratio = 1.4_r8
 
 contains
   
@@ -86,8 +97,8 @@ contains
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
     use EDTypesMod        , only : dinc_ed
-    use FatesInterfaceMod , only : bc_in_type
-    use FatesInterfaceMod , only : bc_out_type
+    use FatesInterfaceTypesMod , only : bc_in_type
+    use FatesInterfaceTypesMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
     use FatesConstantsMod, only : umolC_to_kgC
     use FatesConstantsMod, only : g_per_kg
@@ -95,11 +106,10 @@ contains
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
-    use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
-    use FatesAllometryMod, only : bleaf
+    
+    use FatesAllometryMod, only : bleaf, bstore_allom
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
-    use FatesAllometryMod, only : i_hydro_rootprof_context
     use FatesAllometryMod, only : decay_coeff_kn
 
     ! ARGUMENTS:
@@ -156,8 +166,8 @@ contains
     real(r8) :: mm_kco2            ! Michaelis-Menten constant for CO2 (Pa)
     real(r8) :: mm_ko2             ! Michaelis-Menten constant for O2 (Pa)
     real(r8) :: co2_cpoint         ! CO2 compensation point (Pa)
-    real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1) 
-    real(r8) :: bbb                ! Ball-Berry minimum leaf conductance (umol H2O/m**2/s)
+    real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1)
+    real(r8) :: stomatal_intercept_btran   ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
     real(r8) :: kn                 ! leaf nitrogen decay coefficient
     real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
     real(r8) :: gb_mol             ! leaf boundary layer conductance (molar form: [umol /m**2/s])
@@ -173,6 +183,7 @@ contains
     real(r8) :: live_croot_n       ! Live coarse root (below-ground sapwood) 
                                    ! nitrogen content (kgN/plant)
     real(r8) :: sapw_c             ! Sapwood carbon (kgC/plant)
+    real(r8) :: store_c_target     ! Target storage carbon (kgC/plant)
     real(r8) :: fnrt_c             ! Fine root carbon (kgC/plant)
     real(r8) :: fnrt_n             ! Fine root nitrogen content (kgN/plant)
     real(r8) :: leaf_c             ! Leaf carbon (kgC/plant)
@@ -204,6 +215,8 @@ contains
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
 
+    real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
+
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
     !
@@ -233,27 +246,34 @@ contains
     ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
     ! -----------------------------------------------------------------------------------
 
-    ! Ball-Berry minimum leaf conductance, unstressed (umol H2O/m**2/s)
-    ! For C3 and C4 plants
-    ! -----------------------------------------------------------------------------------
-    real(r8), dimension(0:1) :: bbbopt 
-
     associate(  &
          c3psn     => EDPftvarcon_inst%c3psn  , &
-         slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
-                                                  ! projected area basis [m^2/gC]
-         woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
-         q10       => FatesSynchronizedParamsInst%Q10 )
+         slatop    => prt_params%slatop , &  ! specific leaf area at top of canopy, 
+                                             ! projected area basis [m^2/gC]
+         woody     => prt_params%woody,   &  ! Is vegetation woody or not? 
+         stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept ) !Unstressed minimum stomatal conductance
 
-      bbbopt(0) = ED_val_bbopt_c4
-      bbbopt(1) = ED_val_bbopt_c3
-      
+
       do s = 1,nsites
 
          ! Multi-layer parameters scaled by leaf nitrogen profile.
          ! Loop through each canopy layer to calculate nitrogen profile using
          ! cumulative lai at the midpoint of the layer
-         
+ 
+
+
+         ! Pre-process some variables that are PFT dependent
+         ! but not environmentally dependent
+         ! ------------------------------------------------------------------------
+
+         allocate(rootfr_ft(numpft, bc_in(s)%nlevsoil))
+
+         do ft = 1,numpft
+             call set_root_fraction(rootfr_ft(ft,:), ft, &
+                   bc_in(s)%zi_sisl)
+         end do
+          
+
          ifp = 0
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))  
@@ -308,27 +328,8 @@ contains
                                            gb_mol,                   & ! out
                                            ceair)                      ! out
 
-               ! Part V.  Pre-process some variables that are PFT dependent
-               ! but not environmentally dependent
-               ! ------------------------------------------------------------------------
-
-               do ft = 1,numpft
-
-                  
-                  
-
-                  ! This is probably unnecessary and already calculated
-                  ! ALSO, THIS ROOTING PROFILE IS USED TO CALCULATE RESPIRATION
-                  ! YET IT USES THE PROFILE THAT IS CONSISTENT WITH WATER UPTAKE
-                  ! AND NOT THE PROFILE WE USE FOR DECOMPOSITION
-                  ! SEEMS LIKE THE LATTER WOULD BE MORE APPROPRIATE, RIGHT? (RGK 05-2018)
-                  call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
-                       bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
-                       icontext = i_hydro_rootprof_context)
-                  
-               end do !ft 
-
                
+
 
                ! ------------------------------------------------------------------------
                ! Part VI: Loop over all leaf layers.
@@ -361,8 +362,11 @@ contains
                      ft = currentCohort%pft
                      cl = currentCohort%canopy_layer
                      
-                     call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,b_leaf)
-                     call storage_fraction_of_target(b_leaf, &
+                     call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,store_c_target)
+!                     call bstore_allom(currentCohort%dbh,currentCohort%pft, &
+!                                       currentCohort%canopy_trim,store_c_target)
+
+                     call storage_fraction_of_target(store_c_target, & 
                            currentCohort%prt%GetState(store_organ, all_carbon_elements), &
                            frac)
                      call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
@@ -391,11 +395,11 @@ contains
                                  (hlm_use_planthydro.eq.itrue) .or. &
                                  (nleafage > 1) .or. &
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
-                              
-                              if (hlm_use_planthydro.eq.itrue ) then
-
-                                 bbb       = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
-                                 btran_eff = currentCohort%co_hydr%btran(1) 
+                               
+                               if (hlm_use_planthydro.eq.itrue ) then
+                                   
+                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
+                                 btran_eff = currentCohort%co_hydr%btran 
                                  
                                  ! dinc_ed is the total vegetation area index of each "leaf" layer
                                  ! we convert to the leaf only portion of the increment
@@ -411,7 +415,8 @@ contains
 
                               else
                                  
-                                 bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
+                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentPatch%btran_ft(ft) ) 
+
                                  btran_eff = currentPatch%btran_ft(ft)
                                  ! For consistency sake, we use total LAI here, and not exposed
                                  ! if the plant is under-snow, it will be effectively dormant for 
@@ -449,14 +454,22 @@ contains
                               select case(hlm_parteh_mode)
                               case (prt_carbon_allom_hyp)
 
-                                 lnc_top  = EDPftvarcon_inst%prt_nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
                                  
                               case (prt_cnp_flex_allom_hyp)
 
                                  leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                                 leaf_n  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                                 lnc_top = leaf_n / (slatop(ft) * leaf_c )
-
+                                 if( (leaf_c*slatop(ft)) > nearzero) then
+                                    leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
+                                    lnc_top = leaf_n / (slatop(ft) * leaf_c )
+                                 else
+                                    lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 end if
+                                    
+                                 ! If one wants to break coupling with dynamic N conentrations,
+                                 ! use the stoichiometry parameter
+                                 ! lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 
                               end select
 
                               lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
@@ -513,7 +526,7 @@ contains
                                                         bc_in(s)%cair_pa(ifp),              &  ! in
                                                         bc_in(s)%oair_pa(ifp),              &  ! in
                                                         btran_eff,                          &  ! in
-                                                        bbb,                                &  ! in
+                                                        stomatal_intercept_btran,           &  ! in
                                                         cf,                                 &  ! in
                                                         gb_mol,                             &  ! in
                                                         ceair,                              &  ! in
@@ -524,7 +537,7 @@ contains
                                                         currentPatch%psn_z(cl,ft,iv),       &  ! out
                                                         rs_z(iv,ft,cl),                     &  ! out
                                                         anet_av_z(iv,ft,cl),                &  ! out
-							c13disc_z(cl,ft,iv))                   ! out
+                                                        c13disc_z(cl,ft,iv))                   ! out
 
                               rate_mask_z(iv,ft,cl) = .true.
                            end if
@@ -537,7 +550,7 @@ contains
                         currentCohort%rdark      = 0.0_r8
                         currentCohort%resp_m     = 0.0_r8
                         currentCohort%ts_net_uptake = 0.0_r8
-			currentCohort%c13disc_clm = 0.0_r8 
+                        currentCohort%c13disc_clm = 0.0_r8 
 
                         ! ---------------------------------------------------------------
                         ! Part VII: Transfer leaf flux rates (like maintenance respiration,
@@ -552,7 +565,7 @@ contains
                                                         lmr_z(1:nv,ft,cl),                     & !in
                                                         rs_z(1:nv,ft,cl),                      & !in
                                                         currentPatch%elai_profile(cl,ft,1:nv), & !in
-							c13disc_z(cl, ft, 1:nv),               & !in 
+                                                        c13disc_z(cl, ft, 1:nv),               & !in 
                                                         currentCohort%c_area,                  & !in
                                                         currentCohort%n,                       & !in
                                                         bc_in(s)%rb_pa(ifp),                   & !in
@@ -560,7 +573,7 @@ contains
                                                         currentCohort%g_sb_laweight,           & !out
                                                         currentCohort%gpp_tstep,               & !out
                                                         currentCohort%rdark,                   & !out
-							currentCohort%c13disc_clm,             & !out
+                                                        currentCohort%c13disc_clm,             & !out
                                                         cohort_eleaf_area)                       !out
                         
                         ! Net Uptake does not need to be scaled, just transfer directly
@@ -598,24 +611,34 @@ contains
                      select case(hlm_parteh_mode)
                      case (prt_carbon_allom_hyp)
 
-                        live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
-                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
+                        live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
+                              sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
                         
-                        live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
-                              sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,sapw_organ)
+                        live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
+                              sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
 
-                        fnrt_n = fnrt_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ft,fnrt_organ)
+                        fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,fnrt_organ)
 
                      case(prt_cnp_flex_allom_hyp) 
                      
-                        live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
+                        live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
                              currentCohort%prt%GetState(sapw_organ, nitrogen_element)
 
-                        live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
+                        live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
                              currentCohort%prt%GetState(sapw_organ, nitrogen_element)
 
                         fnrt_n = currentCohort%prt%GetState(fnrt_organ, nitrogen_element)
 
+                        ! If one wants to break coupling with dynamic N conentrations,
+                        ! use the stoichiometry parameter
+                        !
+                        ! live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
+                        !               sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                        ! live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
+                        !               sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                        ! fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,fnrt_organ)
+
+                        
                      case default
                         
 
@@ -632,8 +655,8 @@ contains
                      
                      ! Live stem MR (kgC/plant/s) (above ground sapwood)
                      ! ------------------------------------------------------------------
-                     if (woody(ft) == 1) then
-                        tcwood = q10**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
+                     if ( int(woody(ft)) == itrue) then
+                        tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
                         ! kgC/s = kgN * kgC/kgN/s
                         currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood * maintresp_reduction_factor
                      else
@@ -645,21 +668,21 @@ contains
                      ! ------------------------------------------------------------------
                      currentCohort%froot_mr = 0._r8
                      do j = 1,bc_in(s)%nlevsoil
-                        tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
+                        tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
-                              fnrt_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
+                              fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
                      enddo
                      
                      ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
                      ! ------------------------------------------------------------------
-                     if (woody(ft) == 1) then
+                     if ( int(woody(ft)) == itrue) then
                         currentCohort%livecroot_mr = 0._r8
                         do j = 1,bc_in(s)%nlevsoil
                            ! Soil temperature used to adjust base rate of MR
-                           tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
+                           tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
                                  live_croot_n * ED_val_base_mr_20 * tcsoi * &
-                                 currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
+                                 rootfr_ft(ft,j) * maintresp_reduction_factor
                         enddo
                      else
                         currentCohort%livecroot_mr = 0._r8    
@@ -699,11 +722,13 @@ contains
                      if ( debug ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
                      if ( debug ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
                      
-                     currentCohort%resp_g     = EDPftvarcon_inst%grperc(ft) * &
-                                                (max(0._r8,currentCohort%gpp_tstep - &
-                                                currentCohort%resp_m))
+                     
+                     currentCohort%resp_g_tstep     = prt_params%grperc(ft) * &
+                             (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
+                     
+                                                
                      currentCohort%resp_tstep = currentCohort%resp_m + &
-                                                currentCohort%resp_g ! kgC/indiv/ts
+                                                currentCohort%resp_g_tstep ! kgC/indiv/ts
                      currentCohort%npp_tstep  = currentCohort%gpp_tstep - &
                                                 currentCohort%resp_tstep  ! kgC/indiv/ts
                      
@@ -789,9 +814,11 @@ contains
             
             currentPatch => currentPatch%younger
             
-         end do
-         
-      end do !site loop
+        end do
+        
+        deallocate(rootfr_ft)
+ 
+     end do !site loop
       
     end associate
   end subroutine FatesPlantRespPhotosynthDrive
@@ -814,7 +841,7 @@ contains
                                      can_co2_ppress,    &  ! in
                                      can_o2_ppress,     &  ! in
                                      btran,             &  ! in
-                                     bbb,               &  ! in
+                                     stomatal_intercept_btran,  &  ! in
                                      cf,                &  ! in
                                      gb_mol,            &  ! in
                                      ceair,             &  ! in
@@ -825,7 +852,7 @@ contains
                                      psn_out,           &  ! out
                                      rstoma_out,        &  ! out
                                      anet_av_out,       &  ! out
-				     c13disc_z)            ! out
+                                     c13disc_z)            ! out
 
     ! ------------------------------------------------------------------------------------
     ! This subroutine calculates photosynthesis and stomatal conductance within each leaf 
@@ -837,6 +864,7 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use EDPftvarcon       , only : EDPftvarcon_inst
+
     
     ! Arguments
     ! ------------------------------------------------------------------------------------
@@ -867,7 +895,7 @@ contains
    real(r8), intent(in) :: can_co2_ppress  ! Partial pressure of CO2 NEAR the leaf surface (Pa) 
    real(r8), intent(in) :: can_o2_ppress   ! Partial pressure of O2 NEAR the leaf surface (Pa) 
    real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1) 
-   real(r8), intent(in) :: bbb             ! Ball-Berry minimum leaf conductance (umol H2O/m**2/s)
+   real(r8), intent(in) :: stomatal_intercept_btran !water-stressed minimum stomatal conductance (umol H2O/m**2/s)
    real(r8), intent(in) :: cf              ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
    real(r8), intent(in) :: gb_mol          ! leaf boundary layer conductance (umol /m**2/s)
    real(r8), intent(in) :: ceair           ! vapor pressure of air, constrained (Pa)
@@ -909,10 +937,18 @@ contains
    real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
    real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
+   real(r8) :: term                 ! intermediate variable in Medlyn stomatal conductance model
+   real(r8) :: vpd                  ! water vapor deficit in Medlyn stomatal model (KPa)
+
+
    ! Parameters
    ! ------------------------------------------------------------------------
    ! Fraction of light absorbed by non-photosynthetic pigments
    real(r8),parameter :: fnps = 0.15_r8       
+
+   ! For plants with no leaves, a miniscule amount of conductance
+   ! can happen through the stems, at a partial rate of cuticular conductance
+   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
 
    ! empirical curvature parameter for electron transport rate
    real(r8),parameter :: theta_psii = 0.7_r8   
@@ -933,7 +969,9 @@ contains
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
 
-   associate( bb_slope  => EDPftvarcon_inst%BB_slope)    ! slope of BB relationship
+   associate( bb_slope  => EDPftvarcon_inst%bb_slope      ,& ! slope of BB relationship, unitless
+      medlyn_slope=> EDPftvarcon_inst%medlyn_slope          , & ! Slope for Medlyn stomatal conductance model method, the unit is KPa^0.5
+      stomatal_intercept=> EDPftvarcon_inst%stomatal_intercept )  !Unstressed minimum stomatal conductance, the unit is umol/m**2/s
 
      ! photosynthetic pathway: 0. = c4, 1. = c3
      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
@@ -948,22 +986,22 @@ contains
      ! ----------------------------------------------------------------------------------
      
      if ( parsun_lsl <= 0._r8 ) then  ! night time
-
+         
         anet_av_out = -lmr
         psn_out     = 0._r8
-        rstoma_out  = min(rsmax0, 1._r8/bbb * cf)
-	c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
+
+        ! The cuticular conductance already factored in maximum resistance as a bound
+        ! no need to re-bound it
+
+        rstoma_out = cf/stomatal_intercept_btran
+        
+        c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
         
      else ! day time (a little bit more complicated ...)
         
-!        if ( debug ) write(fates_log(),*) 'EDphot 594 ',laisun_lsl
-!        if ( debug ) write(fates_log(),*) 'EDphot 595 ',laisha_lsl
+         !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
+         if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
 
-        !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
-        if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
-
-!           if ( debug ) write(fates_log(),*) '600 in laisun, laisha loop '
-           
            !Loop aroun shaded and unshaded leaves          
            psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves. 
            rstoma_out  = 0._r8    ! 1/rs is accumulated across sun and shaded leaves. 
@@ -1059,21 +1097,37 @@ contains
                  end if
 
                  ! Quadratic gs_mol calculation with an known. Valid for an >= 0.
-                 ! With an <= 0, then gs_mol = bbb
-                 
-                 leaf_co2_ppress = can_co2_ppress- 1.4_r8/gb_mol * anet * can_press 
+                 ! With an <= 0, then gs_mol = stomatal_intercept_btran                 
+                 leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press 
                  leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
-                 aquad = leaf_co2_ppress
-                 bquad = leaf_co2_ppress*(gb_mol - bbb) - bb_slope(ft) * anet * can_press
-                 cquad = -gb_mol*(leaf_co2_ppress*bbb + &
+                 if ( stomatal_model == 2 ) then
+                  !stomatal conductance calculated from Medlyn et al. (2011), the numerical &
+                  !implementation was adapted from the equations in CLM5.0 
+                  vpd =  max((veg_esat - ceair), 50._r8) * 0.001_r8          !addapted from CLM5. Put some constraint on VPD
+                  !when Medlyn stomatal conductance is being used, the unit is KPa. Ignoring the constraint will cause errors when model runs.          
+                  term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
+                  aquad = 1.0_r8
+                  bquad = -(2.0 * (stomatal_intercept_btran+ term) + (medlyn_slope(ft) * term)**2 / &
+                          (gb_mol * vpd ))
+                  cquad = stomatal_intercept_btran*stomatal_intercept_btran + &
+                          (2.0*stomatal_intercept_btran + term * &
+                          (1.0 - medlyn_slope(ft)* medlyn_slope(ft) / vpd)) * term
+           
+                  call quadratic_f (aquad, bquad, cquad, r1, r2)
+                  gs_mol = max(r1,r2)
+
+                else if ( stomatal_model == 1 ) then         !stomatal conductance calculated from Ball et al. (1987)
+                    aquad = leaf_co2_ppress
+                    bquad = leaf_co2_ppress*(gb_mol - stomatal_intercept_btran) - bb_slope(ft) * anet * can_press
+                    cquad = -gb_mol*(leaf_co2_ppress*stomatal_intercept_btran + &
                                   bb_slope(ft)*anet*can_press * ceair/ veg_esat )
 
                  call quadratic_f (aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
-                 
+                 end if 
                  ! Derive new estimate for co2_inter_c
                  co2_inter_c = can_co2_ppress - anet * can_press * &
-                       (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
+                       (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
 
                  ! Check for co2_inter_c convergence. Delta co2_inter_c/pair = mol/mol. 
                  ! Multiply by 10**6 to convert to umol/mol (ppm). Exit iteration if 
@@ -1086,34 +1140,32 @@ contains
                  end if
               end do !iteration loop
               
-              ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol = bbb
+              ! End of co2_inter_c iteration.  Check for an < 0, in which case
+              ! gs_mol =stomatal_intercept_btran 
               if (anet < 0._r8) then
-                 gs_mol = bbb
+                  gs_mol = stomatal_intercept_btran
               end if
               
               ! Final estimates for leaf_co2_ppress and co2_inter_c 
               ! (needed for early exit of co2_inter_c iteration when an < 0)
-              leaf_co2_ppress = can_co2_ppress - 1.4_r8/gb_mol * anet * can_press
+              leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press
               leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
               co2_inter_c = can_co2_ppress - anet * can_press * &
-                            (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
+                            (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
               
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
 	      
-	      ! estimate carbon 13 discrimination in leaf level carbon flux Liang WEI and Hang ZHOU 2018, based on
+              ! estimate carbon 13 discrimination in leaf level carbon 
+              ! flux Liang WEI and Hang ZHOU 2018, based on
               ! Ubierna and Farquhar, 2014 doi:10.1111/pce.12346, using the simplified model:
               ! $\Delta ^{13} C = \alpha_s + (b - \alpha_s) \cdot \frac{C_i}{C_a}$
               ! just hard code b and \alpha_s for now, might move to parameter set in future
               ! b = 27.0 alpha_s = 4.4
               ! TODO, not considering C4 or CAM right now, may need to address this
-	      ! note co2_inter_c is intracelluar CO2, not intercelluar 
-              c13disc_z = 4.4_r8 + (27.0_r8 - 4.4_r8) * min (can_co2_ppress, max (co2_inter_c, 0._r8)) / can_co2_ppress 
-
-	                    
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 737 ', psn_out
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 738 ', agross
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 739 ', f_sun_lsl
+              ! note co2_inter_c is intracelluar CO2, not intercelluar 
+              c13disc_z = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
+                    min (can_co2_ppress, max (co2_inter_c, 0._r8)) / can_co2_ppress 
 
               ! Accumulate total photosynthesis umol/m2 ground/s-1. 
               ! weight per unit sun and sha leaves.
@@ -1127,10 +1179,6 @@ contains
                  gstoma  = gstoma + &
                        1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-f_sun_lsl) 
               end if
-
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 758 ', psn_out
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 759 ', agross
-!              if ( debug ) write(fates_log(),*) 'EDPhoto 760 ', f_sun_lsl
               
               ! Make sure iterative solution is correct
               if (gs_mol < 0._r8) then
@@ -1138,13 +1186,18 @@ contains
                  write (fates_log(),*)'gs_mol= ',gs_mol
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
-              
-              ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress p + b
-              hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
-              gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + bbb
-              
+             
+             ! Compare with Medlyn model: gs_mol = 1.6*(1+m/sqrt(vpd)) * an/leaf_co2_ppress*p + b
+              if ( stomatal_model == 2 ) then
+                 gs_mol_err = h2o_co2_stoma_diffuse_ratio*(1 + medlyn_slope(ft)/sqrt(vpd))*max(anet,0._r8)/leaf_co2_ppress*can_press + stomatal_intercept_btran
+             ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress*p + b             
+              else if ( stomatal_model == 1 ) then 
+                 hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
+                 gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
+              end if
+
               if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
-                 write (fates_log(),*) 'CF: Ball-Berry error check - stomatal conductance error:'
+                 write (fates_log(),*) 'Stomatal model error check - stomatal conductance error:'
                  write (fates_log(),*) gs_mol, gs_mol_err
               end if
               
@@ -1152,19 +1205,26 @@ contains
 
            ! This is the stomatal resistance of the leaf layer
            rstoma_out = 1._r8/gstoma
-           
+	   
         else
-           !No leaf area. This layer is present only because of stems. 
-           ! (leaves are off, or have reduced to 0)
-           psn_out = 0._r8
-           rstoma_out = min(rsmax0, 1._r8/bbb * cf)
 
-	   c13disc_z = 0.0_r8
+           ! No leaf area. This layer is present only because of stems. 
+           ! Net assimilation is zero, not negative because there are 
+           ! no leaves to even respire
+           ! (leaves are off, or have reduced to 0)
+
+           psn_out     = 0._r8
+           anet_av_out = 0._r8
+
+           rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
+           c13disc_z = 0.0_r8
            
-        end if !is there leaf area? 
+       end if !is there leaf area? 
         
         
      end if    ! night or day 
+     
+
    end associate
    return
   end subroutine LeafLayerPhotosynthesis
@@ -1225,7 +1285,7 @@ contains
     real(r8) :: cohort_layer_eleaf_area  ! the effective leaf area of the cohort's current layer [m2]
     
     cohort_eleaf_area = 0.0_r8
-    g_sb_laweight             = 0.0_r8
+    g_sb_laweight     = 0.0_r8
     gpp               = 0.0_r8
     rdark             = 0.0_r8
 

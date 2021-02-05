@@ -13,6 +13,8 @@ module EDAccumulateFluxesMod
   use FatesGlobals, only      : fates_log
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8
+
+
   implicit none
   private
   !
@@ -37,7 +39,7 @@ contains
   
     use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                    ed_site_type, AREA
-    use FatesInterfaceMod , only : bc_in_type,bc_out_type
+    use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
 
     !
     ! !ARGUMENTS    
@@ -54,13 +56,12 @@ contains
     integer :: c  ! clm/alm column
     integer :: s  ! ed site
     integer :: ifp ! index fates patch
-    real(r8):: n_perm2
     !----------------------------------------------------------------------
-    
+
     do s = 1, nsites
        
        ifp = 0
-       sites(s)%npp = 0.0_r8
+
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
           ifp = ifp+1
@@ -84,25 +85,15 @@ contains
                 ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
                 ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
 		
-		! weighted mean of D13C by gpp
-		if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
-                  ccohort%c13disc_acc = 0.0_r8
+                ! weighted mean of D13C by gpp
+                if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
+                    ccohort%c13disc_acc = 0.0_r8
                 else
-                  ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
-                                          (ccohort%gpp_acc + ccohort%gpp_tstep)
-		endif
+                    ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + &
+                          (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
+                          (ccohort%gpp_acc + ccohort%gpp_tstep)
+                endif
                 
-                !----- THE FOLLOWING IS ONLY IMPLEMENTED TEMPORARILY FOR B4B reproducibility
-                !----- ALSO, THERE IS NO REASON TO USE THE ISNEW FLAG HERE
-                if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
-                   n_perm2   = ccohort%n/AREA
-                else
-                   n_perm2   = 0.0_r8
-                endif
-                if ( .not. ccohort%isnew ) then
-                   sites(s)%npp = sites(s)%npp + ccohort%npp_tstep * n_perm2 * 1.e3_r8 / dt_time
-                endif
-
                 do iv=1,ccohort%nv
                    if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
                       ccohort%year_net_uptake(iv) = 0._r8

@@ -12,9 +12,12 @@ module FatesParameterDerivedMod
   use FatesConstantsMod,     only : r8 => fates_r8
   use FatesConstantsMod,     only : umolC_to_kgC
   use FatesConstantsMod,     only : g_per_kg
-  use FatesInterfaceMod,     only : nleafage
+  use FatesInterfaceTypesMod,     only : nleafage
   
-  type param_derived_type
+  implicit none
+  private
+
+  type, public :: param_derived_type
 
      real(r8), allocatable :: jmax25top(:,:)  ! canopy top: maximum electron transport 
                                               ! rate at 25C (umol electrons/m**2/s)
@@ -29,7 +32,7 @@ module FatesParameterDerivedMod
      
   end type param_derived_type
   
-  type(param_derived_type) :: param_derived
+  type(param_derived_type), public :: param_derived
   
 contains
   
@@ -57,7 +60,6 @@ contains
     ! local variables
     integer  :: ft                 ! pft index
     integer  :: iage               ! leaf age class index
-    real(r8) :: lnc                ! leaf N concentration (gN leaf/m^2)
     
     associate( vcmax25top => EDPftvarcon_inst%vcmax25top ) 
     

@@ -7,17 +7,18 @@ module EDBtranMod
    
    use EDPftvarcon       , only : EDPftvarcon_inst
    use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
-   use FatesConstantsMod , only : itrue,ifalse
+   use FatesConstantsMod , only : itrue,ifalse,nearzero
    use EDTypesMod        , only : ed_site_type,       &
                                   ed_patch_type,      &
                                   ed_cohort_type,     &
                                   maxpft
    use shr_kind_mod      , only : r8 => shr_kind_r8
-   use FatesInterfaceMod , only : bc_in_type, &
+   use FatesInterfaceTypesMod , only : bc_in_type, &
                                   bc_out_type, &
                                   numpft
-   use FatesInterfaceMod , only : hlm_use_planthydro
+   use FatesInterfaceTypesMod , only : hlm_use_planthydro
    use FatesGlobals      , only : fates_log
+   use FatesAllometryMod , only : set_root_fraction
 
    !
    implicit none
@@ -115,6 +116,7 @@ contains
       real(r8) :: pftgs(maxpft)     ! pft weighted stomatal conductance m/s
       real(r8) :: temprootr
       real(r8) :: sum_pftgs         ! sum of weighted conductances (for normalization)
+      real(r8), allocatable :: root_resis(:,:)  ! Root resistance in each pft x layer
       !------------------------------------------------------------------------------
       
       associate(                                 &
@@ -124,6 +126,8 @@ contains
         
         do s = 1,nsites
 
+           allocate(root_resis(numpft,bc_in(s)%nlevsoil))
+           
            bc_out(s)%rootr_pasl(:,:) = 0._r8
 
            ifp = 0
@@ -134,6 +138,9 @@ contains
               ! THIS SHOULD REALLY BE A COHORT LOOP ONCE WE HAVE rootfr_ft FOR COHORTS (RGK)
               
               do ft = 1,numpft
+                  
+                  call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil ) 
+
                  cpatch%btran_ft(ft) = 0.0_r8
                  do j = 1,bc_in(s)%nlevsoil
                     
@@ -147,26 +154,25 @@ contains
                        rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*               &
                             (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
                        
-                       cpatch%rootr_ft(ft,j) = cpatch%rootfr_ft(ft,j)*rresis
+                       root_resis(ft,j) = sites(s)%rootfrac_scr(j)*rresis
                        
                        ! root water uptake is not linearly proportional to root density,
                        ! to allow proper deep root funciton. Replace with equations from SPA/Newman. FIX(RF,032414)
-                       ! cpatch%rootr_ft(ft,j) = cpatch%rootfr_ft(ft,j)**0.3*rresis_ft(ft,j)/ &
-                       ! sum(cpatch%rootfr_ft(ft,1:nlevsoil)**0.3)
-                       cpatch%btran_ft(ft) = cpatch%btran_ft(ft) + cpatch%rootr_ft(ft,j)
+
+                       cpatch%btran_ft(ft) = cpatch%btran_ft(ft) + root_resis(ft,j)
                        
                     else
-                       cpatch%rootr_ft(ft,j) = 0._r8
+                       root_resis(ft,j) = 0._r8
                     end if
                     
                  end do !j
                  
                  ! Normalize root resistances to get layer contribution to ET
                  do j = 1,bc_in(s)%nlevsoil  
-                    if (cpatch%btran_ft(ft)  >  0.0_r8) then
-                       cpatch%rootr_ft(ft,j) = cpatch%rootr_ft(ft,j)/cpatch%btran_ft(ft)
+                    if (cpatch%btran_ft(ft)  >  nearzero) then
+                        root_resis(ft,j) = root_resis(ft,j)/cpatch%btran_ft(ft)
                     else
-                       cpatch%rootr_ft(ft,j) = 0._r8
+                        root_resis(ft,j) = 0._r8
                     end if
                  end do
                  
@@ -195,10 +201,10 @@ contains
                     if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
                        !bit-retart test as a result? FIX(RF,032414)  
                        bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
-                            cpatch%rootr_ft(ft,j) * pftgs(ft)/sum_pftgs
+                             root_resis(ft,j) * pftgs(ft)/sum_pftgs
                     else
                        bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
-                            cpatch%rootr_ft(ft,j) * 1._r8/real(numpft,r8)
+                             root_resis(ft,j) * 1._r8/real(numpft,r8)
                     end if
                  enddo
               enddo
@@ -231,7 +237,9 @@ contains
               
               cpatch => cpatch%younger
            end do
-        
+          
+           deallocate(root_resis)
+           
         end do
            
         if(hlm_use_planthydro.eq.itrue) then

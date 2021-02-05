@@ -1,14 +1,29 @@
 module FatesSizeAgeTypeIndicesMod
 
   use FatesConstantsMod,     only : r8 => fates_r8
-  use FatesInterfaceMod,     only : nlevsclass
-  use FatesInterfaceMod,     only : nlevage
-  use FatesInterfaceMod,     only : nlevheight
+  use FatesInterfaceTypesMod,     only : nlevsclass
+  use FatesInterfaceTypesMod,     only : nlevage
+  use FatesInterfaceTypesMod,     only : nlevheight
+  use FatesInterfaceTypesMod,     only : nlevcoage
   use EDParamsMod,           only : ED_val_history_sizeclass_bin_edges
   use EDParamsMod,           only : ED_val_history_ageclass_bin_edges
   use EDParamsMod,           only : ED_val_history_height_bin_edges
+  use EDParamsMod,           only : ED_val_history_coageclass_bin_edges
 
   implicit none
+  private ! Modules are private by default
+
+  ! Make public necessary subroutines and functions
+  public :: get_age_class_index
+  public :: get_sizeage_class_index
+  public :: sizetype_class_index
+  public :: get_size_class_index
+  public :: get_height_index
+  public :: get_sizeagepft_class_index
+  public :: get_agepft_class_index
+  public :: coagetype_class_index
+  public :: get_coage_class_index
+  public :: get_agefuel_class_index
 
 contains
 
@@ -75,6 +90,37 @@ contains
 
   ! =====================================================================================
 
+ subroutine coagetype_class_index(coage,pft,coage_class,coage_by_pft_class)
+
+  ! Arguments
+  real(r8),intent(in) :: coage
+  integer,intent(in)  :: pft
+  integer,intent(out)  :: coage_class
+  integer,intent(out)  :: coage_by_pft_class
+
+  coage_class           = get_coage_class_index(coage)
+
+  coage_by_pft_class    = (pft-1)*nlevcoage+coage_class
+
+  return
+ end subroutine coagetype_class_index
+
+ ! ========================================================================================
+
+ function get_coage_class_index(coage) result(cohort_coage_class)
+
+   real(r8), intent(in) :: coage
+
+   integer :: cohort_coage_class
+
+   cohort_coage_class = count(coage-ED_val_history_coageclass_bin_edges.ge.0.0_r8)
+
+ end function get_coage_class_index
+
+
+
+  ! =====================================================================================
+
   function get_height_index(height) result(cohort_height_index)
 
      real(r8), intent(in) :: height
@@ -124,5 +170,21 @@ contains
 
   end function get_agepft_class_index
 
+  ! =====================================================================================
+
+  function get_agefuel_class_index(age,fuel) result(age_by_fuel_class)
+     
+   ! Arguments
+   real(r8),intent(in) :: age
+   integer,intent(in)  :: fuel
+
+   integer             :: age_class
+   integer             :: age_by_fuel_class
+   
+   age_class         = get_age_class_index(age)
+   
+   age_by_fuel_class = age_class + (fuel-1) * nlevage
+
+end function get_agefuel_class_index
 
 end module FatesSizeAgeTypeIndicesMod

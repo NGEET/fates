@@ -6,6 +6,13 @@ module FatesUtilsMod
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesGlobals, only      : fates_log
 
+  implicit none
+  private ! Modules are private by default
+
+  ! Make public necessary subroutines and functions
+  public :: check_hlm_list
+  public :: check_var_real
+
 contains
   
   
