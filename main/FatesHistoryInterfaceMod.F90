@@ -8,6 +8,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : calloc_abs_error
   use FatesConstantsMod        , only : mg_per_kg
   use FatesConstantsMod        , only : pi_const
+  use FatesConstantsMod        , only : nearzero
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
@@ -153,6 +154,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_totvegc_si
 
   integer :: ih_storen_si
+  integer :: ih_storentfrac_si
   integer :: ih_leafn_si
   integer :: ih_sapwn_si
   integer :: ih_fnrtn_si
@@ -160,6 +162,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_totvegn_si
 
   integer :: ih_storep_si
+  integer :: ih_storeptfrac_si
   integer :: ih_leafp_si
   integer :: ih_sapwp_si
   integer :: ih_fnrtp_si
@@ -212,6 +215,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_leafn_scpf
   integer :: ih_fnrtn_scpf
   integer :: ih_storen_scpf
+  integer :: ih_storentfrac_scpf
   integer :: ih_sapwn_scpf
   integer :: ih_repron_scpf
   integer :: ih_nuptake_scpf
@@ -231,6 +235,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_fnrtp_scpf
   integer :: ih_reprop_scpf
   integer :: ih_storep_scpf
+  integer :: ih_storeptfrac_scpf
   integer :: ih_sapwp_scpf
   integer :: ih_puptake_scpf
   integer :: ih_pefflux_scpf
@@ -1712,7 +1717,7 @@ end subroutine flush_hvars
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
 
-    
+    real(r8) :: store_max   ! The target nutrient mass for storage element of interest [kg]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8) :: dbh         ! diameter ("at breast height")
     real(r8) :: coage       ! cohort age 
@@ -2235,6 +2240,7 @@ end subroutine flush_hvars
                   store_m  = ccohort%prt%GetState(store_organ, element_list(el))
                   repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
                   
+                  
                   alive_m  = leaf_m + fnrt_m + sapw_m
                   total_m  = alive_m + store_m + struct_m
                   
@@ -2293,8 +2299,12 @@ end subroutine flush_hvars
               
                   elseif(element_list(el).eq.nitrogen_element)then
 
+                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+
                      this%hvars(ih_storen_si)%r81d(io_si)  = &
                           this%hvars(ih_storen_si)%r81d(io_si) + ccohort%n * store_m
+                     this%hvars(ih_storentfrac_si)%r81d(io_si)  = &
+                          this%hvars(ih_storentfrac_si)%r81d(io_si) + ccohort%n * store_max
                      this%hvars(ih_leafn_si)%r81d(io_si)   = &
                           this%hvars(ih_leafn_si)%r81d(io_si) + ccohort%n * leaf_m
                      this%hvars(ih_fnrtn_si)%r81d(io_si)   = &
@@ -2308,9 +2318,13 @@ end subroutine flush_hvars
 
                      
                   elseif(element_list(el).eq.phosphorus_element) then
+
+                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
                      
                      this%hvars(ih_storep_si)%r81d(io_si)  = &
                           this%hvars(ih_storep_si)%r81d(io_si) + ccohort%n * store_m
+                     this%hvars(ih_storeptfrac_si)%r81d(io_si)  = &
+                          this%hvars(ih_storeptfrac_si)%r81d(io_si) + ccohort%n * store_max
                      this%hvars(ih_leafp_si)%r81d(io_si)   = &
                           this%hvars(ih_leafp_si)%r81d(io_si) + ccohort%n * leaf_m
                      this%hvars(ih_fnrtp_si)%r81d(io_si)   = &
@@ -2325,7 +2339,7 @@ end subroutine flush_hvars
                   end if
                      
                end do
-
+               
 
 
                ! Update PFT crown area
@@ -2912,6 +2926,11 @@ end subroutine flush_hvars
                ! while in this loop, pass the fusion-induced growth rate flux to history
                hio_growthflux_fusion_si_scpf(io_si,i_scpf) = hio_growthflux_fusion_si_scpf(io_si,i_scpf) + &
                     sites(s)%growthflux_fusion(i_scls, i_pft) * days_per_year
+
+
+               
+
+               
             end do
          end do
          !
@@ -3055,6 +3074,7 @@ end subroutine flush_hvars
                this%hvars(ih_fnrtn_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_sapwn_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_storen_scpf)%r82d(io_si,:)  = 0._r8
+               this%hvars(ih_storentfrac_scpf)%r82d(io_si,:)  = 0._r8
                this%hvars(ih_repron_scpf)%r82d(io_si,:)  = 0._r8
 
                this%hvars(ih_nuptake_scpf)%r82d(io_si,:) = &
@@ -3082,6 +3102,7 @@ end subroutine flush_hvars
                this%hvars(ih_fnrtp_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_sapwp_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_storep_scpf)%r82d(io_si,:)  = 0._r8
+               this%hvars(ih_storeptfrac_scpf)%r82d(io_si,:)  = 0._r8
                this%hvars(ih_reprop_scpf)%r82d(io_si,:)  = 0._r8
 
                this%hvars(ih_puptake_scpf)%r82d(io_si,:) = &
@@ -3166,6 +3187,7 @@ end subroutine flush_hvars
                   repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
                   total_m  = sapw_m+struct_m+leaf_m+fnrt_m+store_m+repro_m
                   
+                  
                   i_scpf = ccohort%size_by_pft_class
 
                   if(element_list(el).eq.carbon12_element)then
@@ -3182,6 +3204,9 @@ end subroutine flush_hvars
                      this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) = & 
                           this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) + repro_m * ccohort%n
                   elseif(element_list(el).eq.nitrogen_element)then
+
+                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+
                      this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) = & 
                           this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) + total_m * ccohort%n
                      this%hvars(ih_leafn_scpf)%r82d(io_si,i_scpf) = & 
@@ -3194,7 +3219,13 @@ end subroutine flush_hvars
                           this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) + store_m * ccohort%n
                      this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) = & 
                           this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) + repro_m * ccohort%n
+                     this%hvars(ih_storentfrac_scpf)%r82d(io_si,i_scpf) = & 
+                          this%hvars(ih_storentfrac_scpf)%r82d(io_si,i_scpf) + store_max * ccohort%n
+                     
                   elseif(element_list(el).eq.phosphorus_element)then
+
+                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+
                      this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) = & 
                           this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) + total_m * ccohort%n
                      this%hvars(ih_leafp_scpf)%r82d(io_si,i_scpf) = & 
@@ -3207,6 +3238,8 @@ end subroutine flush_hvars
                           this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) + store_m * ccohort%n
                      this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) = & 
                           this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) + repro_m * ccohort%n
+                     this%hvars(ih_storeptfrac_scpf)%r82d(io_si,i_scpf) = & 
+                          this%hvars(ih_storeptfrac_scpf)%r82d(io_si,i_scpf) + store_max * ccohort%n
                   end if
                   
                   ccohort => ccohort%shorter
@@ -3216,10 +3249,42 @@ end subroutine flush_hvars
             end do
 
          end do
-         
 
+         ! Normalize nutrient storage fractions
 
-
+         do el = 1, num_elements
+            if(element_list(el).eq.nitrogen_element)then
+               if( this%hvars(ih_storentfrac_si)%r81d(io_si)>nearzero ) then
+                  this%hvars(ih_storentfrac_si)%r81d(io_si)  = this%hvars(ih_storen_si)%r81d(io_si) / &
+                       this%hvars(ih_storentfrac_si)%r81d(io_si)
+               end if
+               do i_pft = 1, numpft
+                  do i_scls = 1,nlevsclass
+                     i_scpf = (i_pft-1)*nlevsclass + i_scls
+                     if( this%hvars(ih_storentfrac_scpf)%r82d(io_si,i_scpf)>nearzero ) then
+                        this%hvars(ih_storentfrac_scpf)%r82d(io_si,i_scpf) = &
+                             this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) / &
+                             this%hvars(ih_storentfrac_scpf)%r82d(io_si,i_scpf)
+                     end if
+                  end do
+               end do
+            elseif(element_list(el).eq.phosphorus_element)then
+               if( this%hvars(ih_storeptfrac_si)%r81d(io_si)>nearzero ) then
+                  this%hvars(ih_storeptfrac_si)%r81d(io_si) = this%hvars(ih_storep_si)%r81d(io_si) / &
+                       this%hvars(ih_storeptfrac_si)%r81d(io_si)
+               end if
+               do i_pft = 1, numpft
+                  do i_scls = 1,nlevsclass
+                     i_scpf = (i_pft-1)*nlevsclass + i_scls
+                     if( this%hvars(ih_storeptfrac_scpf)%r82d(io_si,i_scpf)>nearzero ) then
+                        this%hvars(ih_storeptfrac_scpf)%r82d(io_si,i_scpf) = &
+                             this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) / &
+                             this%hvars(ih_storeptfrac_scpf)%r82d(io_si,i_scpf)
+                     end if
+                  end do
+               end do
+            end if
+         end do
          
          ! pass demotion rates and associated carbon fluxes to history
          do i_scls = 1,nlevsclass
@@ -4562,6 +4627,11 @@ end subroutine update_history_hifrq
             long='Total nitrogen in live plant storage', use_default='active',          &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
             ivar=ivar, initialize=initialize_variables, index = ih_storen_si )
+
+       call this%set_history_var(vname='STOREN_TFRAC', units='-',                      &
+            long='Storage N fraction of target', use_default='active',          &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_storentfrac_si )
        
        call this%set_history_var(vname='TOTVEGN', units='kgN ha-1',                     &
             long='Total nitrogen in live plants', use_default='active',                 &
@@ -4611,6 +4681,11 @@ end subroutine update_history_hifrq
             long='Total phosphorus in live plant storage', use_default='active',          &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
             ivar=ivar, initialize=initialize_variables, index = ih_storep_si )
+
+       call this%set_history_var(vname='STOREP_TFRAC', units='fraction',      &
+            long='Storage P fraction of target', use_default='active',          &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+            ivar=ivar, initialize=initialize_variables, index = ih_storeptfrac_si )
        
        call this%set_history_var(vname='TOTVEGP', units='kgP ha-1',                     &
             long='Total phosphorus in live plants', use_default='active',                 &
@@ -5910,6 +5985,11 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storen_scpf )
 
+       call this%set_history_var(vname='STOREN_TFRAC_SCPF', units='kgN/ha', &
+            long='storage nitrogen fraction of target by size-class x pft', use_default='inactive', &
+            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storentfrac_scpf )
+       
        call this%set_history_var(vname='REPRON_SCPF', units='kgN/ha', &
             long='reproductive nitrogen mass (on plant) by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
@@ -5959,6 +6039,12 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storep_scpf )
 
+       call this%set_history_var(vname='STOREP_TFRAC_SCPF', units='kgN/ha', &
+            long='storage phosphorus fraction of target by size-class x pft', use_default='inactive', &
+            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storeptfrac_scpf )
+
+       
        call this%set_history_var(vname='REPROP_SCPF', units='kgP/ha', &
             long='reproductive phosphorus mass (on plant) by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &

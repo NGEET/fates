@@ -74,7 +74,8 @@ module FatesSoilBGCFluxMod
   use FatesLitterMod    , only : icellulose
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : EDPftvarcon_inst
-    
+  use PRTAllometricCNPMod,    only : StorageNutrientTarget
+  
   implicit none
   private
   
@@ -116,8 +117,9 @@ contains
     real(r8)              :: plant_max_x  ! Maximum mass for element of interest [kg]
     integer               :: pft
     real(r8)              :: dbh
+    real(r8)              :: leafm,fnrtm,sapwm,structm,storem
 
-    real(r8), parameter :: smth_fac = 0.8_r8         ! Smoothing factor for updating
+    real(r8), parameter :: smth_fac = 0.1_r8         ! Smoothing factor for updating
                                                      ! demand.
     real(r8), parameter :: init_demand_frac = 0.1_r8 ! Newly recruited plants
                                                      ! will specify a demand
@@ -137,25 +139,28 @@ contains
     if(ccohort%isnew) then
 
        if(element_id.eq.nitrogen_element) then
-          plant_max_x = &
-               (1._r8 + prt_params%nitr_store_ratio(pft)) * &
-               (ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ)) + & 
-               ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ)) + & 
-               ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))) + & 
-               ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+          
+          leafm = ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
+          fnrtm = ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
+          sapwm = ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
+          structm = ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+          storem = StorageNutrientTarget(pft, element_id, leafm,fnrtm,sapwm,structm)
 
+          plant_max_x = leafm+fnrtm+sapwm+structm+storem
        
        elseif(element_id.eq.phosphorus_element) then
-          plant_max_x = &
-               (1._r8 + prt_params%phos_store_ratio(pft)) * &
-               (ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ)) + & 
-               ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ)) + & 
-               ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))) + & 
-               ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+
+          leafm = ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
+          fnrtm = ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
+          sapwm = ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
+          structm = ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+          storem = StorageNutrientTarget(pft, element_id, leafm,fnrtm,sapwm,structm)
+          
+          plant_max_x = leafm+fnrtm+sapwm+structm+storem
           
        end if
 
-       plant_demand = init_demand_frac*plant_max_x
+       plant_demand = 0._r8     !  (let the storage handle the first day) init_demand_frac*plant_max_x
        return
     end if
        
@@ -1012,23 +1017,57 @@ contains
     ! Locals
     real(r8) :: store_frac                         ! Current nutrient storage relative to max
     real(r8) :: store_max                          ! Maximum nutrient storable by plant
+    real(r8) :: store_c                            ! Current storage carbon
+    real(r8) :: store_c_max                        ! Current maximum storage carbon
+    
+    integer, parameter :: downreg_linear = 1
+    integer, parameter :: downreg_logi   = 2
+    integer, parameter :: downreg_CN_logi = 3
+    
+    integer, parameter :: downreg_type = downreg_linear
+
     
     real(r8), parameter :: logi_k   = 25.0_r8         ! logistic function k
     real(r8), parameter :: store_x0 = 1.0_r8          ! storage fraction inflection point
     real(r8), parameter :: logi_min = 0.0_r8          ! minimum cn_scalar for logistic
-    
-    ! In this method, we define the c_scalar term
-    ! with a logistic function that goes to 1 (full need)
-    ! as the plant's nutrien storage hits a low threshold
-    ! and goes to 0, no demand, as the plant's nutrient
-    ! storage approaches it's maximum holding capacity.
-    
-    store_max = ccohort%prt%GetNutrientTarget(element_id,store_organ,stoich_max)
 
+    ! This is the storage fraction where downregulation starts if using
+    ! a linear function
+    real(r8), parameter :: store_frac0 = 0.5_r8
+
+    store_max = ccohort%prt%GetNutrientTarget(element_id,store_organ,stoich_max)
     store_frac = min(2.0_r8,ccohort%prt%GetState(store_organ, element_id)/store_max)
     
-    c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
+    if(downreg_type == downreg_linear) then
        
+       c_scalar = min(1.0_r8,max(0._r8,1.0 - (store_frac - store_frac0)/(1.0_r8-store_frac0)))
+       
+    elseif(downreg_type == downreg_logi) then
+       
+       ! In this method, we define the c_scalar term
+       ! with a logistic function that goes to 1 (full need)
+       ! as the plant's nutrien storage hits a low threshold
+       ! and goes to 0, no demand, as the plant's nutrient
+       ! storage approaches it's maximum holding capacity
+       
+       c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
+
+    else
+
+       store_c = ccohort%prt%GetState(store_organ, carbon12_element)
+       call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,store_c_max)
+
+       ! Fraction of N per fraction of C
+       ! If this is greater than 1, then we have more N in storage than
+       ! we have C, so we downregulate. If this is less than 1, then
+       ! we have less N in storage than we have C, so up-regulate
+       
+       store_frac = store_frac / (store_c/store_c_max)
+
+       c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
+       
+       
+    end if
     
 
   end function ECACScalar
