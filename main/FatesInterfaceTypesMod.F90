@@ -371,8 +371,12 @@ module FatesInterfaceTypesMod
       ! Note 1: If these are indexed by COHORT, they don't also need to be indexed
       !         by decomposition layer. So it is allocated with 2nd dim=1.
       ! Note 2: Has it's own zero'ing call
-      real(r8), pointer :: plant_n_uptake_flux(:,:)   ! Nitrogen input flux for
+      real(r8), pointer :: plant_nh4_uptake_flux(:,:) ! Ammonium uptake flux for
                                                       ! each competitor [gN/m2/day]
+
+      real(r8), pointer :: plant_no3_uptake_flux(:,:) ! Nitrate uptake flux for
+                                                      ! each competitor [gN/m2/day]
+      
       real(r8), pointer :: plant_p_uptake_flux(:,:)   ! Phosphorus input flux for
                                                       ! each competitor [gP/m2/day]
 

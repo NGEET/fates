@@ -75,6 +75,7 @@ module FatesSoilBGCFluxMod
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTAllometricCNPMod,    only : StorageNutrientTarget
+  use FatesUtilsMod, only : check_var_real
   
   implicit none
   private
@@ -171,11 +172,11 @@ contains
 
     if(element_id.eq.nitrogen_element) then
 
-       plant_demand = smth_fac*ccohort%daily_n_demand + (1._r8-smth_fac)*ccohort%daily_n_need
+       plant_demand = smth_fac*ccohort%daily_n_demand + (1._r8-smth_fac)*max(0._r8,ccohort%daily_n_need)
        
     elseif(element_id.eq.phosphorus_element) then
  
-       plant_demand = smth_fac*ccohort%daily_p_demand + (1._r8-smth_fac)*ccohort%daily_p_need
+       plant_demand = smth_fac*ccohort%daily_p_demand + (1._r8-smth_fac)*max(0._r8,ccohort%daily_p_need)
        
     end if
 
@@ -226,7 +227,8 @@ contains
        do while (associated(cpatch))
           ccohort => cpatch%tallest
           do while (associated(ccohort))
-             ccohort%daily_n_uptake = 0._r8
+             ccohort%daily_nh4_uptake = 0._r8
+             ccohort%daily_no3_uptake = 0._r8
              ccohort%daily_p_uptake = 0._r8
              ccohort => ccohort%shorter
           end do
@@ -239,7 +241,8 @@ contains
     if(hlm_parteh_mode.eq.prt_carbon_allom_hyp) then
        ! These can now be zero'd
        do s = 1, nsites
-          bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
+          bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
+          bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
           bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
        end do
        return
@@ -262,8 +265,9 @@ contains
                 pft = ccohort%pft
 
                 ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
-                ccohort%daily_n_uptake = EDPftvarcon_inst%prescribed_nuptake(pft) * ccohort%daily_n_demand
-
+                ccohort%daily_nh4_uptake = EDPftvarcon_inst%prescribed_nuptake(pft) * ccohort%daily_n_demand
+                ccohort%daily_no3_uptake = 0._r8
+                
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -337,8 +341,10 @@ contains
                    do while (associated(ccohort))
                       icomp = icomp+1
                       ! N Uptake:  Convert g/m2/day -> kg/plant/day
-                      ccohort%daily_n_uptake = ccohort%daily_n_uptake + &
-                           sum(bc_in(s)%plant_n_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                      ccohort%daily_nh4_uptake = ccohort%daily_nh4_uptake + &
+                           sum(bc_in(s)%plant_nh4_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                      ccohort%daily_no3_uptake = ccohort%daily_no3_uptake + &
+                           sum(bc_in(s)%plant_no3_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
                       ccohort => ccohort%shorter
                    end do
                    cpatch => cpatch%younger
@@ -357,8 +363,11 @@ contains
                       
                       ! Loop through soil layers, add up the uptake this cohort gets from each layer
                       do id = 1,bc_in(s)%nlevdecomp
-                         ccohort%daily_n_uptake = ccohort%daily_n_uptake + & 
-                              bc_in(s)%plant_n_uptake_flux(pft,id) * &
+                         ccohort%daily_nh4_uptake = ccohort%daily_nh4_uptake + & 
+                              bc_in(s)%plant_nh4_uptake_flux(pft,id) * &
+                              (fnrt_c/fnrt_c_pft(pft))*kg_per_g*AREA/ccohort%n
+                         ccohort%daily_no3_uptake = ccohort%daily_no3_uptake + & 
+                              bc_in(s)%plant_no3_uptake_flux(pft,id) * &
                               (fnrt_c/fnrt_c_pft(pft))*kg_per_g*AREA/ccohort%n
                       end do
 
@@ -416,7 +425,8 @@ contains
        end if n_or_p_coupled_if
        
        ! These can now be zero'd
-       bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
+       bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
+       bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
        bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
 
     end do
@@ -1019,12 +1029,13 @@ contains
     real(r8) :: store_max                          ! Maximum nutrient storable by plant
     real(r8) :: store_c                            ! Current storage carbon
     real(r8) :: store_c_max                        ! Current maximum storage carbon
+    integer  :: icode                              ! real variable checking code
     
     integer, parameter :: downreg_linear = 1
     integer, parameter :: downreg_logi   = 2
     integer, parameter :: downreg_CN_logi = 3
     
-    integer, parameter :: downreg_type = downreg_linear
+    integer, parameter :: downreg_type = downreg_logi
 
     
     real(r8), parameter :: logi_k   = 25.0_r8         ! logistic function k
@@ -1052,6 +1063,13 @@ contains
        
        c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
 
+       call check_var_real(c_scalar,'c_scalar',icode)
+       if (icode .ne. 0) then
+          write(fates_log(),*) 'c_scalar is invalid, element: ',element_id
+          write(fates_log(),*) 'ending'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       endif
+       
     else
 
        store_c = ccohort%prt%GetState(store_organ, carbon12_element)

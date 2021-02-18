@@ -146,11 +146,12 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_in_id_ctrim   = 2 ! Index for the canopy trim function
   integer, public, parameter :: acnp_bc_in_id_lstat   = 3 ! phenology status logical
   integer, public, parameter :: acnp_bc_in_id_netdc   = 4 ! Index for the net daily C input BC
-  integer, public, parameter :: acnp_bc_in_id_netdn   = 5 ! Index for the net daily N input BC
-  integer, public, parameter :: acnp_bc_in_id_netdp   = 6 ! Index for the net daily P input BC
+  integer, public, parameter :: acnp_bc_in_id_netdnh4 = 5 ! Index for the net daily NH4 input BC
+  integer, public, parameter :: acnp_bc_in_id_netdno3 = 6 ! Index for the net daily NO3 input BC
+  integer, public, parameter :: acnp_bc_in_id_netdp   = 7 ! Index for the net daily P input BC
   
   ! 0=leaf off, 1=leaf on
-  integer, parameter         :: num_bc_in             = 6
+  integer, parameter         :: num_bc_in             = 7
 
   ! -------------------------------------------------------------------------------------
   ! Output Boundary Indices (These are public)
@@ -393,7 +394,9 @@ contains
     ! for checking and resetting if needed
     ! -----------------------------------------------------------------------------------
     c_gain      = this%bc_in(acnp_bc_in_id_netdc)%rval; c_gain0      = c_gain
-    n_gain      = this%bc_in(acnp_bc_in_id_netdn)%rval; n_gain0      = n_gain
+    n_gain      = this%bc_in(acnp_bc_in_id_netdnh4)%rval + &
+                  this%bc_in(acnp_bc_in_id_netdno3)%rval
+    n_gain0      = n_gain
     p_gain      = this%bc_in(acnp_bc_in_id_netdp)%rval; p_gain0      = p_gain
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
@@ -612,8 +615,8 @@ contains
     target_n = this%GetNutrientTarget(nitrogen_element,store_organ)
     target_p = this%GetNutrientTarget(phosphorus_element,store_organ)
     
-    n_need = max(target_n - state_n(store_id)%ptr,0._r8)
-    p_need = max(target_p - state_p(store_id)%ptr,0._r8)
+    n_need = target_n - state_n(store_id)%ptr
+    p_need = target_p - state_p(store_id)%ptr
     
     deallocate(state_c)
     deallocate(state_n)

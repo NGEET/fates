@@ -91,7 +91,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdn, acnp_bc_in_id_netdp
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdnh4, acnp_bc_in_id_netdno3, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_nneed
@@ -400,7 +400,8 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdn, bc_rval = new_cohort%daily_n_uptake)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdnh4, bc_rval = new_cohort%daily_nh4_uptake)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdno3, bc_rval = new_cohort%daily_no3_uptake)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
@@ -557,7 +558,8 @@ contains
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
 
     ! Fluxes from nutrient allocation
-    currentCohort%daily_n_uptake = nan
+    currentCohort%daily_nh4_uptake = nan
+    currentCohort%daily_no3_uptake = nan
     currentCohort%daily_p_uptake = nan
     currentCohort%daily_c_efflux = nan
     currentCohort%daily_n_efflux = nan
@@ -674,7 +676,8 @@ contains
     ! after allocation. These variables exist in
     ! carbon-only mode but are not used.
 
-    currentCohort%daily_n_uptake = 0._r8
+    currentCohort%daily_nh4_uptake = 0._r8
+    currentCohort%daily_no3_uptake = 0._r8
     currentCohort%daily_p_uptake = 0._r8
     
     currentCohort%daily_c_efflux = 0._r8
@@ -1390,8 +1393,10 @@ contains
                                       currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                       ! Nutrient fluxes
-                                      currentCohort%daily_n_uptake = (currentCohort%n*currentCohort%daily_n_uptake + & 
-                                           nextc%n*nextc%daily_n_uptake)/newn
+                                      currentCohort%daily_nh4_uptake = (currentCohort%n*currentCohort%daily_nh4_uptake + & 
+                                           nextc%n*nextc%daily_nh4_uptake)/newn
+                                      currentCohort%daily_no3_uptake = (currentCohort%n*currentCohort%daily_no3_uptake + & 
+                                           nextc%n*nextc%daily_no3_uptake)/newn
                                       currentCohort%daily_p_uptake = (currentCohort%n*currentCohort%daily_p_uptake + & 
                                            nextc%n*nextc%daily_p_uptake)/newn
 
@@ -1806,7 +1811,8 @@ contains
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
 
-    n%daily_n_uptake = o%daily_n_uptake
+    n%daily_nh4_uptake = o%daily_nh4_uptake
+    n%daily_no3_uptake = o%daily_no3_uptake
     n%daily_p_uptake = o%daily_p_uptake
     n%daily_c_efflux = o%daily_c_efflux
     n%daily_n_efflux = o%daily_n_efflux

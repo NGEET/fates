@@ -283,7 +283,8 @@ module EDTypesMod
 
      ! Nutrient Fluxes (if N, P, etc. are turned on)
 
-     real(r8) :: daily_n_uptake   ! integrated daily uptake of mineralized N through competitive acquisition in soil [kg N / plant/ day]
+     real(r8) :: daily_nh4_uptake ! integrated daily uptake of mineralized ammonium through competitive acquisition in soil [kg N / plant/ day]
+     real(r8) :: daily_no3_uptake ! integrated daily uptake of mineralized nitrate through competitive acquisition in soil [kg N / plant/ day]
      real(r8) :: daily_p_uptake   ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
 
      real(r8) :: daily_c_efflux   ! daily mean efflux of excess carbon from roots into labile pool [kg C/plant/day]
@@ -660,11 +661,6 @@ module EDTypesMod
      procedure :: ZeroMassBalFlux
      
   end type site_massbal_type
-
-
-
-
-
   
 
   !************************************
@@ -681,7 +677,15 @@ module EDTypesMod
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
 
 
+     ! If this simulation uses shared memory then the sites need to know what machine
+     ! index they are on. This index is (currently) only used to identify the sites
+     ! position in history output fields
+     !integer :: clump_id 
 
+     ! Global index of this site in the history output file
+     integer :: h_gid
+     
+     
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 

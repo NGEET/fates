@@ -114,7 +114,8 @@ module FatesRestartInterfaceMod
   integer :: ir_smort_co
   integer :: ir_asmort_co
 
-  integer :: ir_daily_n_uptake_co
+  integer :: ir_daily_nh4_uptake_co
+  integer :: ir_daily_no3_uptake_co
   integer :: ir_daily_p_uptake_co
   integer :: ir_daily_c_efflux_co
   integer :: ir_daily_n_efflux_co
@@ -756,10 +757,15 @@ contains
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cmort_co )
 
-    call this%set_restart_var(vname='fates_daily_n_uptake', vtype=cohort_r8, &
-         long_name='fates cohort- daily nitrogen uptake', &
+    call this%set_restart_var(vname='fates_daily_nh4_uptake', vtype=cohort_r8, &
+         long_name='fates cohort- daily ammonium [NH4] uptake', &
          units='kg/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_uptake_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_nh4_uptake_co )
+    
+    call this%set_restart_var(vname='fates_daily_no3_uptake', vtype=cohort_r8, &
+         long_name='fates cohort- daily ammonium [NO3] uptake', &
+         units='kg/plant/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_no3_uptake_co )
 
     call this%set_restart_var(vname='fates_daily_p_uptake', vtype=cohort_r8, &
          long_name='fates cohort- daily phosphorus uptake', &
@@ -1627,7 +1633,8 @@ contains
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-           rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, &
+           rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
+           rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, &
            rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &
            rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, & 
            rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &      
@@ -1872,7 +1879,8 @@ contains
                 rio_frmort_co(io_idx_co)       = ccohort%frmort                
 
                 ! Nutrient uptake/efflux
-                rio_daily_n_uptake_co(io_idx_co) = ccohort%daily_n_uptake
+                rio_daily_no3_uptake_co(io_idx_co) = ccohort%daily_no3_uptake
+                rio_daily_nh4_uptake_co(io_idx_co) = ccohort%daily_nh4_uptake
                 rio_daily_p_uptake_co(io_idx_co) = ccohort%daily_p_uptake
                 
                 rio_daily_c_efflux_co(io_idx_co) = ccohort%daily_c_efflux
@@ -2415,7 +2423,8 @@ contains
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-          rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, & 
+          rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
+          rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, & 
           rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &       
           rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, & 
           rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &      
@@ -2620,7 +2629,8 @@ contains
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
                 
                 ! Nutrient uptake / efflux
-                ccohort%daily_n_uptake = rio_daily_n_uptake_co(io_idx_co)
+                ccohort%daily_nh4_uptake = rio_daily_nh4_uptake_co(io_idx_co)
+                ccohort%daily_no3_uptake = rio_daily_no3_uptake_co(io_idx_co)
                 ccohort%daily_p_uptake = rio_daily_p_uptake_co(io_idx_co)
                 ccohort%daily_c_efflux = rio_daily_c_efflux_co(io_idx_co)
                 ccohort%daily_n_efflux = rio_daily_n_efflux_co(io_idx_co)
