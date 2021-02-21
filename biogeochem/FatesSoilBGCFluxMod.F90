@@ -473,25 +473,26 @@ contains
     real(r8), parameter :: decompmicc_lambda = 2.5_r8  ! Depth attenuation exponent for decomposer biomass
     real(r8), parameter :: decompmicc_zmax   = 7.0e-2_r8  ! Depth of maximum decomposer biomass
 
-
-
     ! Determine the scaling approach
     if((hlm_parteh_mode.eq.prt_cnp_flex_allom_hyp) .and. & 
          ((n_uptake_mode.eq.coupled_n_uptake) .or. &
           (p_uptake_mode.eq.coupled_p_uptake))) then
        comp_scaling = fates_np_comp_scaling
     else
+       
        comp_scaling = trivial_np_comp_scaling
-       bc_out%num_plant_comps  = 1
-       if(trim(hlm_nu_com).eq.'ECA')then
-          bc_out%ft_index(1)    = 1
-          bc_out%cn_scalar(1)   = 0._r8
-          bc_out%cp_scalar(1)   = 0._r8
-       elseif(trim(hlm_nu_com).eq.'RD') then
+       
+       ! Note: With ECA, we still need to update the
+       ! decomp microbe density even if we are not
+       ! fully coupled, so can't exit yet
+       
+       if(trim(hlm_nu_com).eq.'RD') then
+          bc_out%num_plant_comps  = 1
           bc_out%n_demand(1) = 0._r8
           bc_out%p_demand(1) = 0._r8
           return 
        end if
+       
     end if
 
     ! ECA Specific Parameters
@@ -500,13 +501,15 @@ contains
        
          bc_out%veg_rootc(:,:) = 0._r8  ! Zero this, it will be incremented
          bc_out%decompmicc(:)  = 0._r8
+         bc_out%cn_scalar(:)   = 0._r8
+         bc_out%cp_scalar(:)   = 0._r8
          bc_out%ft_index(:)    = -1
          
          ! Loop over all patches and sum up the seed input for each PFT
          icomp = 0
          comp_per_pft(:) = 0     ! This counts how many competitors per
-
-         ! pft, used for averaging
+                                 ! pft, used for averaging
+         
          cpatch => csite%oldest_patch
          do while (associated(cpatch))
             
@@ -519,11 +522,8 @@ contains
              ! with ECA, then we send 1 token
              ! competitor with plant root biomass, but no
              ! uptake affinity
-             
-             if(comp_scaling.eq.trivial_np_comp_scaling) then
-                icomp = 1
-                bc_out%ft_index(icomp) = 1  ! Trivial (not used)
-             elseif(comp_scaling.eq.cohort_np_comp_scaling) then
+
+             if(comp_scaling.eq.cohort_np_comp_scaling) then
                 icomp = icomp+1
                 bc_out%ft_index(icomp) = pft
              else
@@ -534,7 +534,7 @@ contains
              
              call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil)
              
-             fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
+             fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
              
              ! Map the soil layers to the decomposition layers
              ! (which may be synonomous)
@@ -543,6 +543,7 @@ contains
              do j = 1, bc_in%nlevdecomp
                 id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer     
                 veg_rootc = fnrt_c * ccohort%n * csite%rootfrac_scr(j) * AREA_INV * g_per_kg / csite%dz_soil(j)
+                
                 bc_out%veg_rootc(icomp,id) = bc_out%veg_rootc(icomp,id) + veg_rootc
 
                 ! We use a 3 parameter exponential attenuation function to estimate decomposer biomass
@@ -567,16 +568,15 @@ contains
           bc_out%decompmicc(id) = bc_out%decompmicc(id) / &
                max(nearzero,sum(bc_out%veg_rootc(:,id),dim=1))
        end do
-
        
        if(comp_scaling.eq.cohort_np_comp_scaling) then
           bc_out%num_plant_comps = icomp
        elseif(comp_scaling.eq.pft_np_comp_scaling) then
           bc_out%num_plant_comps = numpft
-       else
+       elseif(comp_scaling.eq.trivial_np_comp_scaling) then
           bc_out%num_plant_comps = 1
-          bc_out%cn_scalar(:) = 0._r8
-          bc_out%cp_scalar(:) = 0._r8
+          ! Now that the microbial density is calculated
+          ! we can exit the trivial case
           return
        end if
 
@@ -1062,7 +1062,14 @@ contains
        ! storage approaches it's maximum holding capacity
        
        c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
+       
+!       if(element_id==nitrogen_element) then
+!          print*,"DBH, N STOREFRAC: ",ccohort%dbh,c_scalar,store_frac,ccohort%prt%GetState(store_organ, element_id),store_max
+!       else
+!          print*,"DBH, P STOREFRAC: ",ccohort%dbh,c_scalar,store_frac,ccohort%prt%GetState(store_organ, element_id),store_max
+!       end if
 
+       
        call check_var_real(c_scalar,'c_scalar',icode)
        if (icode .ne. 0) then
           write(fates_log(),*) 'c_scalar is invalid, element: ',element_id
