@@ -453,7 +453,9 @@ module FatesHistoryInterfaceMod
   integer :: ih_tth_scpf               
   integer :: ih_sth_scpf                     
   integer :: ih_lth_scpf                     
-  integer :: ih_awp_scpf                     
+  integer :: ih_awp_scpf
+  integer :: ih_awp_sl2      !marius      
+  integer :: ih_awp_sl4      !marius               
   integer :: ih_twp_scpf  
   integer :: ih_swp_scpf                     
   integer :: ih_lwp_scpf  
@@ -3436,6 +3438,8 @@ end subroutine flush_hvars
     real(r8) :: number_fraction
     real(r8) :: number_fraction_rate
     real(r8) :: mean_aroot
+    real(r8) :: mean_aroot2
+    real(r8) :: mean_aroot4
     integer  :: ipa2     ! patch incrementer
     integer  :: iscpf    ! index of the scpf group
     integer  :: ipft     ! index of the pft loop
@@ -3474,7 +3478,9 @@ end subroutine flush_hvars
           hio_tth_scpf          => this%hvars(ih_tth_scpf)%r82d, &               
           hio_sth_scpf          => this%hvars(ih_sth_scpf)%r82d, &                     
           hio_lth_scpf          => this%hvars(ih_lth_scpf)%r82d, &                     
-          hio_awp_scpf          => this%hvars(ih_awp_scpf)%r82d, &                     
+          hio_awp_scpf          => this%hvars(ih_awp_scpf)%r82d, & 
+	  hio_awp_sl2           => this%hvars(ih_awp_sl2)%r82d, &    !marius       
+	  hio_awp_sl4           => this%hvars(ih_awp_sl4)%r82d, &    !marius                      
           hio_twp_scpf          => this%hvars(ih_twp_scpf)%r82d, &  
           hio_swp_scpf          => this%hvars(ih_swp_scpf)%r82d, &                     
           hio_lwp_scpf          => this%hvars(ih_lwp_scpf)%r82d, &  
@@ -3544,7 +3550,7 @@ end subroutine flush_hvars
             hio_soilmatpot_sl(io_si,jsoil) = psi
             hio_soilvwc_sl(io_si,jsoil)    = vwc
             hio_soilvwcsat_sl(io_si,jsoil) = vwc_sat
-            
+
          end do
          
          hio_rootwgt_soilvwc_si(io_si)    = mean_soil_vwc/areaweight
@@ -3586,6 +3592,8 @@ end subroutine flush_hvars
          do while(associated(cpatch))
             
             ccohort => cpatch%shortest
+	    mean_aroot2=0
+	    mean_aroot4=0
             do while(associated(ccohort))
 
                ccohort_hydr => ccohort%co_hydr
@@ -3637,9 +3645,21 @@ end subroutine flush_hvars
                   hio_lth_scpf(io_si,iscpf)             =  hio_lth_scpf(io_si,iscpf) + &
                         ccohort_hydr%th_ag(1)  * number_fraction        ! [m3 m-3]
 
+                  mean_aroot2 = (ccohort_hydr%psi_aroot(2)*ccohort_hydr%v_aroot_layer(2)*ccohort%nplant) / &
+                       (ccohort_hydr%v_aroot_layer(2)*ccohort%nplant)
+
+                  mean_aroot4 = (ccohort_hydr%psi_aroot(4)*ccohort_hydr%v_aroot_layer(4)*ccohort%nplant) / &
+                       (ccohort_hydr%v_aroot_layer(4)*ccohort%nplant)
+
+                  hio_awp_sl2(io_si,iscpf)             = hio_awp_sl2(io_si,iscpf) + &
+                       mean_aroot2 * number_fraction     ! [MPa]
+                  
+                  hio_awp_sl4(io_si,iscpf)             = hio_awp_sl4(io_si,iscpf) + &
+                       mean_aroot4 * number_fraction     ! [MPa]
+
                   mean_aroot = sum(ccohort_hydr%psi_aroot(:)*ccohort_hydr%v_aroot_layer(:)) / &
                        sum(ccohort_hydr%v_aroot_layer(:))
-                  
+
                   hio_awp_scpf(io_si,iscpf)             = hio_awp_scpf(io_si,iscpf) + &
                        mean_aroot * number_fraction     ! [MPa]
                   
@@ -5346,6 +5366,16 @@ end subroutine flush_hvars
              long='absorbing root water potential', use_default='inactive', &
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_awp_scpf )
+
+       call this%set_history_var(vname='FATES_AWP_SL2', units='MPa', &
+             long='absorbing root water potential soil layer 2', use_default='inactive', &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_awp_sl2 ) !marius
+
+       call this%set_history_var(vname='FATES_AWP_SL4', units='MPa', &
+             long='absorbing root water potential soil layer 4', use_default='inactive', &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_awp_sl4 ) !marius
        
        call this%set_history_var(vname='FATES_TWP_SCPF', units='MPa', &
              long='transporting root water potential', use_default='inactive', &
