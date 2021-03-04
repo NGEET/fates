@@ -268,6 +268,10 @@ module EDTypesMod
      real(r8) ::  gpp_acc
      real(r8) ::  gpp_acc_hold
 
+     real(r8) ::  aj_sum_tstep          ! RuBP-limited gross Primary Production (see above *)
+     real(r8) ::  ac_sum_tstep          ! Rubisco-limited gross Primary Production (see above *)
+     real(r8) ::  ap_sum_tstep          ! Product-limited gross Primary Production (see above *)
+
      real(r8) ::  npp_tstep          ! Net Primary Production (see above *)
      real(r8) ::  npp_acc
      real(r8) ::  npp_acc_hold
@@ -506,6 +510,9 @@ module EDTypesMod
      ! PHOTOSYNTHESIS       
 
      real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
+     real(r8) ::  aj_z(nclmax,maxpft,nlevleaf)                ! RuBP-limited carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
+     real(r8) ::  ac_z(nclmax,maxpft,nlevleaf)                ! Rubisco-limited carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
+     real(r8) ::  ap_z(nclmax,maxpft,nlevleaf)                ! Product-limited carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
 
      ! ROOTS
      real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-

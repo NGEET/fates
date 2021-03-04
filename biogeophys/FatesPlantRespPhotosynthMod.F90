@@ -46,9 +46,11 @@ module FATESPlantRespPhotosynthMod
    use PRTGenericMod,     only : store_organ
    use PRTGenericMod,     only : repro_organ
    use PRTGenericMod,     only : struct_organ
-   use EDParamsMod,       only : ED_val_base_mr_20, stomatal_model
+   use EDParamsMod,       only : ED_val_base_mr_20, stomatal_model, temp_acclim
    use PRTParametersMod,  only : prt_params
 
+   use TemperatureType,   only : temperature_type
+   
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
 
@@ -77,7 +79,7 @@ contains
   
   !--------------------------------------------------------------------------------------
   
-  subroutine FatesPlantRespPhotosynthDrive (nsites, sites,bc_in,bc_out,dtime)
+  subroutine FatesPlantRespPhotosynthDrive (nsites, sites,bc_in,bc_out,dtime, temperature_inst)
 
     ! -----------------------------------------------------------------------------------
     ! !DESCRIPTION:
@@ -119,6 +121,7 @@ contains
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
     real(r8),intent(in)                     :: dtime
+    type(temperature_type) , intent(in) :: temperature_inst
 
 
     ! LOCAL VARIABLES:
@@ -498,6 +501,7 @@ contains
                               
 
                               call LeafLayerBiophysicalRates(currentPatch%ed_parsun_z(cl,ft,iv), &  ! in
+                                                             temperature_inst,                   & !in 
                                                              ft,                                 &  ! in
                                                              currentCohort%vcmax25top,           &  ! in
                                                              currentCohort%jmax25top,            &  ! in
@@ -540,6 +544,9 @@ contains
                                                         co2_cpoint,                         &  ! in
                                                         lmr_z(iv,ft,cl),                    &  ! in
                                                         currentPatch%psn_z(cl,ft,iv),       &  ! out
+                                                        currentPatch%aj_z(cl,ft,iv),        &  ! out
+                                                        currentPatch%ac_z(cl,ft,iv),        &  ! out
+                                                        currentPatch%ap_z(cl,ft,iv),        &  ! out
                                                         rs_z(iv,ft,cl),                     &  ! out
                                                         anet_av_z(iv,ft,cl),                &  ! out
                                                         c13disc_z(cl,ft,iv))                   ! out
@@ -552,6 +559,9 @@ contains
                         currentCohort%npp_tstep  = 0.0_r8
                         currentCohort%resp_tstep = 0.0_r8
                         currentCohort%gpp_tstep  = 0.0_r8
+                        currentCohort%aj_sum_tstep  = 0.0_r8
+                        currentCohort%ac_sum_tstep  = 0.0_r8
+                        currentCohort%ap_sum_tstep  = 0.0_r8
                         currentCohort%rdark      = 0.0_r8
                         currentCohort%resp_m     = 0.0_r8
                         currentCohort%ts_net_uptake = 0.0_r8
@@ -567,6 +577,9 @@ contains
                         nv = currentCohort%nv
                         call ScaleLeafLayerFluxToCohort(nv,                                    & !in
                                                         currentPatch%psn_z(cl,ft,1:nv),        & !in
+                                                        currentPatch%aj_z(cl,ft,1:nv),         & !in
+                                                        currentPatch%ac_z(cl,ft,1:nv),         & !in
+                                                        currentPatch%ap_z(cl,ft,1:nv),         & !in
                                                         lmr_z(1:nv,ft,cl),                     & !in
                                                         rs_z(1:nv,ft,cl),                      & !in
                                                         currentPatch%elai_profile(cl,ft,1:nv), & !in
@@ -577,6 +590,9 @@ contains
                                                         maintresp_reduction_factor,            & !in
                                                         currentCohort%g_sb_laweight,           & !out
                                                         currentCohort%gpp_tstep,               & !out
+                                                        currentCohort%aj_sum_tstep,            & !out
+                                                        currentCohort%ac_sum_tstep,            & !out
+                                                        currentCohort%ap_sum_tstep,            & !out
                                                         currentCohort%rdark,                   & !out
                                                         currentCohort%c13disc_clm,             & !out
                                                         cohort_eleaf_area)                       !out
@@ -591,6 +607,9 @@ contains
                         ! or dark respiration
                         cohort_eleaf_area       = 0.0_r8
                         currentCohort%gpp_tstep = 0.0_r8 
+                        currentCohort%aj_sum_tstep = 0.0_r8
+                        currentCohort%ac_sum_tstep = 0.0_r8
+                        currentCohort%ap_sum_tstep = 0.0_r8
                         currentCohort%rdark = 0.0_r8 
                         currentCohort%g_sb_laweight = 0.0_r8 
                         currentCohort%ts_net_uptake(:) = 0.0_r8
@@ -721,6 +740,9 @@ contains
                      ! convert from kgC/indiv/s to kgC/indiv/timestep       
                      currentCohort%resp_m        = currentCohort%resp_m  * dtime
                      currentCohort%gpp_tstep     = currentCohort%gpp_tstep * dtime
+                     currentCohort%aj_sum_tstep     = currentCohort%aj_sum_tstep * dtime
+                     currentCohort%ac_sum_tstep     = currentCohort%ac_sum_tstep * dtime
+                     currentCohort%ap_sum_tstep     = currentCohort%ap_sum_tstep * dtime
                      currentCohort%ts_net_uptake = currentCohort%ts_net_uptake * dtime
 
                      if ( debug ) write(fates_log(),*) 'EDPhoto 911 ', currentCohort%gpp_tstep
@@ -856,6 +878,9 @@ contains
                                      co2_cpoint,        &  ! in
                                      lmr,               &  ! in
                                      psn_out,           &  ! out
+                                     aj_out,            &  ! out
+                                     ac_out,            &  ! out
+                                     ap_out,            &  ! out
                                      rstoma_out,        &  ! out
                                      anet_av_out,       &  ! out
                                      c13disc_z)            ! out
@@ -912,6 +937,9 @@ contains
    real(r8), intent(in) :: lmr             ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
    
    real(r8), intent(out) :: psn_out        ! carbon assimilated in this leaf layer umolC/m2/s
+   real(r8), intent(out) :: aj_out        ! RuBP-limited gross photosynthesis (umol CO2/m2/s)
+   real(r8), intent(out) :: ac_out        ! Rubisco-limited gross photosynthesis (umol CO2/m2/s)
+   real(r8), intent(out) :: ap_out        ! Product-limited gross photosynthesis (umol CO2/m2/s)
    real(r8), intent(out) :: rstoma_out     ! stomatal resistance (1/gs_lsl) (s/m)
    real(r8), intent(out) :: anet_av_out    ! net leaf photosynthesis (umol CO2/m**2/s) 
                                            ! averaged over sun and shade leaves.
@@ -996,6 +1024,9 @@ contains
          
         anet_av_out = -lmr
         psn_out     = 0._r8
+        aj_out = 0._r8
+        ac_out = 0._r8
+        ap_out = 0._r8
 
         ! The cuticular conductance already factored in maximum resistance as a bound
         ! no need to re-bound it
@@ -1011,6 +1042,9 @@ contains
 
            !Loop aroun shaded and unshaded leaves          
            psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves. 
+           aj_out = 0._r8
+           ac_out = 0._r8
+           ap_out = 0._r8
            rstoma_out  = 0._r8    ! 1/rs is accumulated across sun and shaded leaves. 
            anet_av_out = 0._r8
            gstoma  = 0._r8
@@ -1190,10 +1224,16 @@ contains
               ! weight per unit sun and sha leaves.
               if(sunsha == 1)then !sunlit       
                  psn_out     = psn_out + agross * f_sun_lsl
+                 aj_out = aj_out + aj * f_sun_lsl 
+                 ac_out = ac_out + ac * f_sun_lsl 
+                 ap_out = ap_out + ap * f_sun_lsl 
                  anet_av_out = anet_av_out + anet * f_sun_lsl
                  gstoma  = gstoma + 1._r8/(min(1._r8/gs, rsmax0)) * f_sun_lsl
               else
-                 psn_out = psn_out + agross * (1.0_r8-f_sun_lsl)                 
+                 psn_out = psn_out + agross * (1.0_r8-f_sun_lsl) 
+                 aj_out = aj_out + aj * (1.0_r8-f_sun_lsl)  
+                 ac_out = ac_out + ac * (1.0_r8-f_sun_lsl)  
+                 ap_out = ap_out + ap * (1.0_r8-f_sun_lsl)  
                  anet_av_out = anet_av_out + anet * (1.0_r8-f_sun_lsl) 
                  gstoma  = gstoma + &
                        1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-f_sun_lsl) 
@@ -1233,6 +1273,9 @@ contains
            ! (leaves are off, or have reduced to 0)
 
            psn_out     = 0._r8
+           aj_out      = 0._r8
+           ac_out      = 0._r8
+           ap_out      = 0._r8
            anet_av_out = 0._r8
 
            rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
@@ -1252,6 +1295,9 @@ contains
 
   subroutine ScaleLeafLayerFluxToCohort(nv,          & ! in   currentCohort%nv
                                         psn_llz,     & ! in   %psn_z(1:currentCohort%nv,ft,cl)
+                                        aj_llz,      & ! in   %aj_z(1:currentCohort%nv,ft,cl)
+                                        ac_llz,      & ! in   %ac_z(1:currentCohort%nv,ft,cl)
+                                        ap_llz,      & ! in   %ap_z(1:currentCohort%nv,ft,cl)
                                         lmr_llz,     & ! in   lmr_z(1:currentCohort%nv,ft,cl)
                                         rs_llz,      & ! in   rs_z(1:currentCohort%nv,ft,cl)
                                         elai_llz,    & ! in   %elai_profile(cl,ft,1:currentCohort%nv)
@@ -1262,6 +1308,9 @@ contains
                                         maintresp_reduction_factor, & ! in 
                                         g_sb_laweight, & ! out  currentCohort%g_sb_laweight [m/s] [m2-leaf]
                                         gpp,         &   ! out  currentCohort%gpp_tstep
+                                        aj_sum,         &   ! out  currentCohort%aj_sum_tstep
+                                        ac_sum,         &   ! out  currentCohort%ac_sum_tstep
+                                        ap_sum,         &   ! out  currentCohort%ap_sum_tstep
                                         rdark,       &   ! out  currentCohort%rdark
 					c13disc_clm, &   ! out currentCohort%c13disc_clm
                                         cohort_eleaf_area ) ! out [m2]
@@ -1279,6 +1328,9 @@ contains
     ! Arguments
     integer, intent(in)  :: nv               ! number of active leaf layers
     real(r8), intent(in) :: psn_llz(nv)      ! layer photosynthesis rate (GPP) [umolC/m2leaf/s]
+    real(r8), intent(in) :: aj_llz(nv)       ! layer RuBP-limited photosynthesis rate [umolC/m2leaf/s]
+    real(r8), intent(in) :: ac_llz(nv)       ! layer Rubisco-limited photosynthesis rate [umolC/m2leaf/s]
+    real(r8), intent(in) :: ap_llz(nv)       ! layer Product-limited photosynthesis rate [umolC/m2leaf/s]
     real(r8), intent(in) :: lmr_llz(nv)      ! layer dark respiration rate [umolC/m2leaf/s]
     real(r8), intent(in) :: rs_llz(nv)       ! leaf layer stomatal resistance [s/m]
     real(r8), intent(in) :: elai_llz(nv)     ! exposed LAI per layer [m2 leaf/ m2 pft footprint]
@@ -1290,6 +1342,9 @@ contains
     real(r8), intent(out) :: g_sb_laweight      ! Combined conductance (stomatal + boundary layer) for the cohort 
                                         ! weighted by leaf area [m/s]*[m2]
     real(r8), intent(out) :: gpp        ! GPP (kgC/indiv/s)
+    real(r8), intent(out) :: aj_sum     ! RuBP-limited GPP (kgC/indiv/s)
+    real(r8), intent(out) :: ac_sum     ! Rubisco-limited GPP (kgC/indiv/s)
+    real(r8), intent(out) :: ap_sum     ! Product-limited GPP (kgC/indiv/s)
     real(r8), intent(out) :: rdark      ! Dark Leaf Respiration (kgC/indiv/s)
     real(r8), intent(out) :: cohort_eleaf_area  ! Effective leaf area of the cohort [m2]
     real(r8), intent(out) :: c13disc_clm     ! unpacked Cohort level c13 discrimination
@@ -1306,6 +1361,9 @@ contains
     cohort_eleaf_area = 0.0_r8
     g_sb_laweight     = 0.0_r8
     gpp               = 0.0_r8
+    aj_sum            = 0.0_r8 
+    ac_sum            = 0.0_r8 
+    ap_sum            = 0.0_r8
     rdark             = 0.0_r8
 
     do il = 1, nv        ! Loop over the leaf layers this cohort participates in
@@ -1331,6 +1389,11 @@ contains
        ! GPP    [umolC/m2leaf/s] * [m2 leaf ] -> [umolC/s]   (This is cohort group sum)
        gpp = gpp + psn_llz(il) * cohort_layer_eleaf_area
        
+       !RuBP-, rubisco-, and product-limited GPP
+       aj_sum = aj_sum + aj_llz(il) * cohort_layer_eleaf_area
+       ac_sum = ac_sum + ac_llz(il) * cohort_layer_eleaf_area
+       ap_sum = ap_sum + ap_llz(il) * cohort_layer_eleaf_area
+ 
        ! Dark respiration
        ! [umolC/m2leaf/s] * [m2 leaf]    (This is the cohort group sum)
        rdark = rdark + lmr_llz(il) * cohort_layer_eleaf_area
@@ -1365,6 +1428,9 @@ contains
     
     rdark     = rdark * umolC_to_kgC * maintresp_reduction_factor / nplant
     gpp       = gpp * umolC_to_kgC / nplant
+    aj_sum       = aj_sum * umolC_to_kgC / nplant
+    ac_sum       = ac_sum * umolC_to_kgC / nplant
+    ap_sum       = ap_sum * umolC_to_kgC / nplant
     
     if ( debug ) then
        write(fates_log(),*) 'EDPhoto 816 ', gpp
@@ -1811,6 +1877,7 @@ contains
    ! ====================================================================================
 
    subroutine LeafLayerBiophysicalRates( parsun_lsl, &
+                                         temperature_inst, & 
                                          ft,            &
                                          vcmax25top_ft, &
                                          jmax25top_ft, &
@@ -1843,8 +1910,9 @@ contains
 
       ! Arguments
       ! ------------------------------------------------------------------------------
-      
+     
       real(r8), intent(in) :: parsun_lsl      ! PAR absorbed in sunlit leaves for this layer
+      type(temperature_type) , intent(in) :: temperature_inst 
       integer,  intent(in) :: ft              ! (plant) Functional Type Index
       real(r8), intent(in) :: nscaler         ! Scale for leaf nitrogen profile
       real(r8), intent(in) :: vcmax25top_ft   ! canopy top maximum rate of carboxylation at 25C 
@@ -1864,7 +1932,7 @@ contains
       real(r8), intent(out) :: tpu               ! triose phosphate utilization rate 
                                                  ! (umol CO2/m**2/s)
       real(r8), intent(out) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
-      
+
       ! Locals
       ! -------------------------------------------------------------------------------
       real(r8) :: vcmax25             ! leaf layer: maximum rate of carboxylation at 25C
@@ -1888,26 +1956,55 @@ contains
       real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
       real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
       real(r8) :: tpuse          ! entropy term for tpu (J/mol/K)
+
+      real(r8) :: tgrowth            ! average growing temperature
+      real(r8) :: thome              ! average home temperature
+      real(r8) :: jvr              ! ratio of Jmax25 / Vcmax25
+
       real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
       real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
       real(r8) :: tpuc           ! scaling factor for high temperature inhibition (25 C = 1.0)
 
-      vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
-      jmaxha  = EDPftvarcon_inst%jmaxha(FT)
-      tpuha   = EDPftvarcon_inst%tpuha(FT)
-      
-      vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
-      jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
-      tpuhd   = EDPftvarcon_inst%tpuhd(FT)
-      
-      vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
-      jmaxse  = EDPftvarcon_inst%jmaxse(FT)
-      tpuse   = EDPftvarcon_inst%tpuse(FT)
+      associate( t10 => temperature_inst%t_a10_patch, &     ! Input:  [real(r8) (:)   ]  10-day running mean of the 2 m temperature (K)
+                 t30 => temperature_inst%t_a30_patch)       ! Input:  [real(r8) (:)   ]  30-day running mean of the 2 m temperature (K)
 
+      if (temp_acclim == 0) then !No temperature acclimation
+           vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
+           jmaxha  = EDPftvarcon_inst%jmaxha(FT)
+           vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
+           jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
+           vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
+           jmaxse  = EDPftvarcon_inst%jmaxse(FT)
+      else if (temp_acclim == 1) then !Kumarathunge et al. temperature acclimation, Thome=Tgrowth
+           tgrowth = t30(1)-tfrz
+           thome = t30(1)-tfrz
+           vcmaxha = (42.6 + (1.14*tgrowth))*1000 !J/mol
+           jmaxha = 40.71*1000 !J/mol
+           vcmaxhd = 200*1000 !J/mol
+           jmaxhd = 200*1000 !J/mol
+           vcmaxse = (645.13 - (0.38*tgrowth))
+           jmaxse = 658.77 - (0.84*thome) - 0.52*(tgrowth-thome)
+           jvr = 2.56 - (0.0375*thome)-(0.0202*(tgrowth-thome))
+      else if (temp_acclim == 2) then !Kumarathunge et al. temperature acclimation, Thome=25C
+           tgrowth = t30(1)-tfrz
+           thome = 25 !degrees C
+           vcmaxha = (42.6 + (1.14*tgrowth))*1000 !J/mol
+           jmaxha = 40.71*1000 !J/mol
+           vcmaxhd = 200*1000 !J/mol
+           jmaxhd = 200*1000 !J/mol
+           vcmaxse = (645.13 - (0.38*tgrowth))
+           jmaxse = 658.77 - (0.84*thome) - 0.52*(tgrowth-thome)
+           jvr = 2.56 - (0.0375*thome)-(0.0202*(tgrowth-thome))
+      end if
+
+      tpuha   = EDPftvarcon_inst%tpuha(FT)
+      tpuhd   = EDPftvarcon_inst%tpuhd(FT)
+      tpuse   = EDPftvarcon_inst%tpuse(FT)
+      
       vcmaxc = fth25_f(vcmaxhd, vcmaxse)
       jmaxc  = fth25_f(jmaxhd, jmaxse)
       tpuc   = fth25_f(tpuhd, tpuse)
-
+      
       if ( parsun_lsl <= 0._r8) then           ! night time
          vcmax             = 0._r8
          jmax              = 0._r8
@@ -1917,7 +2014,13 @@ contains
 
          ! Vcmax25top was already calculated to derive the nscaler function
          vcmax25 = vcmax25top_ft * nscaler
-         jmax25  = jmax25top_ft * nscaler
+         if (temp_acclim == 0) then
+             jmax25  = jmax25top_ft * nscaler
+         else if (temp_acclim == 1) then
+             jmax25 = vcmax25*jvr
+         else if (temp_acclim == 2) then
+             jmax25 = vcmax25*jvr
+         end if
          tpu25   = tpu25top_ft * nscaler
          co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
          
@@ -1939,6 +2042,8 @@ contains
       vcmax = vcmax * btran
       
       return
+    end associate
+
     end subroutine LeafLayerBiophysicalRates
 
     subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)
