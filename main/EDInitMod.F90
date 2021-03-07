@@ -44,6 +44,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nleafage
   use FatesInterfaceTypesMod         , only : nlevsclass
   use FatesInterfaceTypesMod         , only : nlevcoage
+  use FatesInterfaceTypesMod         , only : nlevage
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
@@ -186,7 +187,7 @@ contains
     ! FIRE 
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%NF               = 0.0_r8     ! daily lightning strikes per km2 
-    site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
+    site_in%NF_successful    = 0.0_r8     ! daily successful iginitions per km2
 
     do el=1,num_elements
        ! Zero the state variables used for checking mass conservation
@@ -296,7 +297,7 @@ contains
           
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8         
-          sites(s)%frac_burnt = 0.0_r8
+          sites(s)%NF_successful  = 0.0_r8
          
          ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE                                                                                   
           if(hlm_use_fixed_biogeog.eq.itrue)then
@@ -356,6 +357,7 @@ contains
      
      type(ed_site_type),  pointer :: sitep
      type(ed_patch_type), pointer :: newp
+     type(ed_patch_type), pointer :: currentPatch
 
      ! List out some nominal patch values that are used for Near Bear Ground initializations
      ! as well as initializing inventory
@@ -436,6 +438,35 @@ contains
 
      end if
 
+     ! zero all the patch fire variables for the first timestep
+     do s = 1, nsites
+        currentPatch => sites(s)%youngest_patch
+        do while(associated(currentPatch))
+
+           currentPatch%litter_moisture(:)         = 0._r8
+           currentPatch%fuel_eff_moist             = 0._r8
+           currentPatch%livegrass                  = 0._r8
+           currentPatch%sum_fuel                   = 0._r8
+           currentPatch%fuel_bulkd                 = 0._r8
+           currentPatch%fuel_sav                   = 0._r8
+           currentPatch%fuel_mef                   = 0._r8
+           currentPatch%ros_front                  = 0._r8
+           currentPatch%effect_wspeed              = 0._r8
+           currentPatch%tau_l                      = 0._r8
+           currentPatch%fuel_frac(:)               = 0._r8
+           currentPatch%tfc_ros                    = 0._r8
+           currentPatch%fi                         = 0._r8
+           currentPatch%fire                       = 0
+           currentPatch%fd                         = 0._r8
+           currentPatch%ros_back                   = 0._r8
+           currentPatch%scorch_ht(:)               = 0._r8
+           currentPatch%frac_burnt                 = 0._r8
+           currentPatch%burnt_frac_litter(:)       = 0._r8
+
+           currentPatch => currentPatch%older
+        enddo
+     enddo
+     
      ! This sets the rhizosphere shells based on the plant initialization
      ! The initialization of the plant-relevant hydraulics variables
      ! were set from a call inside of the init_cohorts()->create_cohort() subroutine

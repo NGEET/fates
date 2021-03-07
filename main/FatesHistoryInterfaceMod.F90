@@ -124,6 +124,7 @@ module FatesHistoryInterfaceMod
   ! scag = size class bin x age bin
   ! scagpft = size class bin x age bin x PFT
   ! agepft  = age bin x PFT
+  ! agefuel = age bin x fuel size class
  
 
   ! A recipe for adding a new history variable to this module:
@@ -505,6 +506,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_mortality_si_pft
   integer :: ih_crownarea_si_pft
   integer :: ih_canopycrownarea_si_pft
+  integer :: ih_gpp_si_pft
+  integer :: ih_npp_si_pft
 
   ! indices to (site x patch-age) variables
   integer :: ih_area_si_age
@@ -623,6 +626,9 @@ module FatesHistoryInterfaceMod
   integer :: ih_fabi_sha_top_si_can
   integer :: ih_crownarea_si_can
 
+  ! indices to (patch age x fuel size class) variables
+  integer :: ih_fuel_amount_age_fuel
+
   ! The number of variable dim/kind types we have defined (static)
 
   integer, parameter, public :: fates_history_num_dimensions = 50
@@ -664,7 +670,7 @@ module FatesHistoryInterfaceMod
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
      integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
      integer, private :: levscagpft_index_, levagepft_index_
-     integer, private :: levheight_index_
+     integer, private :: levheight_index_, levagefuel_index_
      integer, private :: levelem_index_, levelpft_index_
      integer, private :: levelcwd_index_, levelage_index_
      integer, private :: levcacls_index_, levcapf_index_
@@ -706,6 +712,7 @@ module FatesHistoryInterfaceMod
      procedure :: levelpft_index
      procedure :: levelcwd_index
      procedure :: levelage_index
+     procedure :: levagefuel_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -732,6 +739,7 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levscagpft_index
      procedure, private :: set_levagepft_index
      procedure, private :: set_levheight_index
+     procedure, private :: set_levagefuel_index
      
      procedure, private :: set_levelem_index
      procedure, private :: set_levelpft_index
@@ -757,7 +765,7 @@ contains
     use FatesIODimensionsMod, only : levscagpft, levagepft
     use FatesIODimensionsMod, only : levcan, levcnlf, levcnlfpft
     use FatesIODimensionsMod, only : fates_bounds_type
-    use FatesIODimensionsMod, only : levheight
+    use FatesIODimensionsMod, only : levheight, levagefuel
     use FatesIODimensionsMod, only : levelem, levelpft
     use FatesIODimensionsMod, only : levelcwd, levelage
 
@@ -879,6 +887,11 @@ contains
     call this%dim_bounds(dim_count)%Init(levelage, num_threads, &
           fates_bounds%elage_begin, fates_bounds%elage_end)
     
+    dim_count = dim_count + 1
+    call this%set_levagefuel_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levagefuel, num_threads, &
+         fates_bounds%agefuel_begin, fates_bounds%agefuel_end)
+      
 
     ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
 
@@ -989,7 +1002,10 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%elage_begin, thread_bounds%elage_end)
     
-
+    index = this%levagefuel_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%agefuel_begin, thread_bounds%agefuel_end)
+     
     
 
 
@@ -1006,7 +1022,7 @@ contains
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
-    use FatesIOVariableKindMod, only : site_height_r8
+    use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
 
@@ -1085,6 +1101,9 @@ contains
     
     call this%set_dim_indices(site_elage_r8, 1, this%column_index())
     call this%set_dim_indices(site_elage_r8, 2, this%levelage_index())
+
+    call this%set_dim_indices(site_agefuel_r8, 1, this%column_index())
+    call this%set_dim_indices(site_agefuel_r8, 2, this%levagefuel_index())
     
 
   end subroutine assemble_history_output_types
@@ -1444,6 +1463,21 @@ end function levcapf_index
 
  ! ======================================================================================
 
+ subroutine set_levagefuel_index(this, index)
+     implicit none
+     class(fates_history_interface_type), intent(inout) :: this
+     integer, intent(in) :: index
+     this%levagefuel_index_ = index
+   end subroutine set_levagefuel_index
+  
+   integer function levagefuel_index(this)
+      implicit none
+      class(fates_history_interface_type), intent(in) :: this
+      levagefuel_index = this%levagefuel_index_
+   end function levagefuel_index
+  
+   ! ======================================================================================
+
  subroutine flush_hvars(this,nc,upfreq_in)
  
    class(fates_history_interface_type)        :: this
@@ -1537,7 +1571,7 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
-    use FatesIOVariableKindMod, only : site_height_r8
+    use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
 
@@ -1645,6 +1679,10 @@ end subroutine flush_hvars
     index = index + 1
     call this%dim_kinds(index)%Init(site_elage_r8, 2)
 
+    ! site x age x fuel size class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_agefuel_r8, 2)
+
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -1670,6 +1708,7 @@ end subroutine flush_hvars
     use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
+    use FatesSizeAgeTypeIndicesMod, only : get_agefuel_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_height_index
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
@@ -1707,7 +1746,8 @@ end subroutine flush_hvars
     integer  :: i_cwd,i_fuel            ! iterators for cwd and fuel dims
     integer  :: iscag        ! size-class x age index
     integer  :: iscagpft     ! size-class x age x pft index
-    integer  :: iagepft      ! age x pft index
+    integer  :: iagepft     ! age x pft index
+    integer  :: i_agefuel     ! age x fuel size class index
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
@@ -1771,6 +1811,8 @@ end subroutine flush_hvars
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
                hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
+               hio_gpp_si_pft  => this%hvars(ih_gpp_si_pft)%r82d, &
+               hio_npp_si_pft  => this%hvars(ih_npp_si_pft)%r82d, &
                hio_nesterov_fire_danger_si => this%hvars(ih_nesterov_fire_danger_si)%r81d, &
                hio_fire_nignitions_si => this%hvars(ih_fire_nignitions_si)%r81d, &
                hio_fire_fdi_si => this%hvars(ih_fire_fdi_si)%r81d, &
@@ -1968,6 +2010,7 @@ end subroutine flush_hvars
                hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
                hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
                hio_fuel_amount_si_fuel            => this%hvars(ih_fuel_amount_si_fuel)%r82d, &
+               hio_fuel_amount_age_fuel            => this%hvars(ih_fuel_amount_age_fuel)%r82d, &
                hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
                hio_leaf_height_dist_si_height     => this%hvars(ih_leaf_height_dist_si_height)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
@@ -2071,7 +2114,7 @@ end subroutine flush_hvars
          
          ! site-level fire variables
          hio_nesterov_fire_danger_si(io_si) = sites(s)%acc_NI
-         hio_fire_nignitions_si(io_si) = sites(s)%NF
+         hio_fire_nignitions_si(io_si) = sites(s)%NF_successful
          hio_fire_fdi_si(io_si) = sites(s)%FDI
 
          ! If hydraulics are turned on, track the error terms
@@ -2334,14 +2377,20 @@ end subroutine flush_hvars
 
                ! Update PFT crown area
                hio_crownarea_si_pft(io_si, ft) = hio_crownarea_si_pft(io_si, ft) + &
-                    ccohort%c_area 
+                    ccohort%c_area * AREA_INV
 
                if (ccohort%canopy_layer .eq. 1) then
                   ! Update PFT canopy crown area
                   hio_canopycrownarea_si_pft(io_si, ft) = hio_canopycrownarea_si_pft(io_si, ft) + &
-                       ccohort%c_area 
+                       ccohort%c_area * AREA_INV
                end if
 
+               ! update pft-resolved NPP and GPP fluxes
+               hio_gpp_si_pft(io_si, ft) = hio_gpp_si_pft(io_si, ft) + &
+                    ccohort%gpp_acc_hold * n_perm2
+
+               hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
+                    ccohort%npp_acc_hold * n_perm2
                
 
                ! Site by Size-Class x PFT (SCPF) 
@@ -2777,6 +2826,11 @@ end subroutine flush_hvars
             end do
             
             do i_fuel = 1,nfsc
+
+               i_agefuel = get_agefuel_class_index(cpatch%age,i_fuel)
+               hio_fuel_amount_age_fuel(io_si,i_agefuel) = hio_fuel_amount_age_fuel(io_si,i_agefuel) + &
+                    cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * cpatch%area * AREA_INV
+
                hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
                     cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
 
@@ -2829,6 +2883,7 @@ end subroutine flush_hvars
                hio_lai_si_age(io_si, ipa2) = 0._r8
                hio_ncl_si_age(io_si, ipa2) = 0._r8
             endif
+
          end do
 
          ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
@@ -4115,7 +4170,7 @@ end subroutine update_history_hifrq
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_coage_pft_r8, site_coage_r8
-    use FatesIOVariableKindMod, only : site_height_r8
+    use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
     use FatesInterfaceTypesMod     , only : hlm_use_planthydro
     
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
@@ -4153,12 +4208,12 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_trimming_si)
     
-    call this%set_history_var(vname='AREA_PLANT', units='m2',                   &
+    call this%set_history_var(vname='AREA_PLANT', units='m2/m2',                   &
          long='area occupied by all plants', use_default='active',              &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_area_plant_si)
     
-    call this%set_history_var(vname='AREA_TREES', units='m2',                   &
+    call this%set_history_var(vname='AREA_TREES', units='m2/m2',                   &
          long='area occupied by woody plants', use_default='active',            &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_area_trees_si)
@@ -4244,15 +4299,25 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_storebiomass_si_pft )
 
-    call this%set_history_var(vname='PFTcrownarea',  units='m2/ha',            &
+    call this%set_history_var(vname='PFTcrownarea',  units='m2/m2',            &
          long='total PFT level crown area', use_default='inactive',              &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_crownarea_si_pft )
     
-    call this%set_history_var(vname='PFTcanopycrownarea',  units='m2/ha',            &
+    call this%set_history_var(vname='PFTcanopycrownarea',  units='m2/m2',            &
          long='total PFT-level canopy-layer crown area', use_default='inactive',     &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_canopycrownarea_si_pft )
+    
+    call this%set_history_var(vname='PFTgpp',  units='kg C m-2 y-1',            &
+         long='total PFT-level GPP', use_default='active',     &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_gpp_si_pft )
+    
+    call this%set_history_var(vname='PFTnpp',  units='kg C m-2 y-1',            &
+         long='total PFT-level NPP', use_default='active',     &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_npp_si_pft )
     
     call this%set_history_var(vname='PFTnindivs',  units='indiv / m2',            &
          long='total PFT level number of individuals', use_default='active',       &
@@ -4362,7 +4427,7 @@ end subroutine update_history_hifrq
          ivar=ivar, initialize=initialize_variables, index = ih_nesterov_fire_danger_si)
 
     call this%set_history_var(vname='FIRE_IGNITIONS', units='number/km2/day',       &
-         long='number of ignitions', use_default='active',               &
+         long='number of successful ignitions', use_default='active',               &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_nignitions_si)
 
@@ -4407,7 +4472,7 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_area_product_si )
 
-    call this%set_history_var(vname='FIRE_AREA', units='fraction',             &
+    call this%set_history_var(vname='FIRE_AREA', units='fraction/day',             &
          long='spitfire fire area burn fraction', use_default='active',                    &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fire_area_si )
@@ -4454,7 +4519,12 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_fuel_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fuel_amount_si_fuel )
 
-    call this%set_history_var(vname='AREA_BURNT_BY_PATCH_AGE', units='m2/m2', &
+    call this%set_history_var(vname='FUEL_AMOUNT_AGEFUEL', units='kg C / m2',                &
+         long='spitfire fuel quantity in each age x fuel class ', use_default='active',       &
+         avgflag='A', vtype=site_agefuel_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fuel_amount_age_fuel )
+
+    call this%set_history_var(vname='AREA_BURNT_BY_PATCH_AGE', units='m2/m2/day', &
          long='spitfire area burnt by patch age (divide by patch_area_by_age to get burnt fraction by age)', &
          use_default='active', &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &

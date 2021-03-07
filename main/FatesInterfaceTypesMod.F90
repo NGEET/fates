@@ -226,7 +226,7 @@ module FatesInterfaceTypesMod
    real(r8), public, allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
    real(r8), public, allocatable :: fates_hdim_levheight(:)        ! height lower bound dimension
    integer , public, allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
-   integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel class dimension
+   integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel size class (fsc) dimension
    integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
    integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
    integer , public, allocatable :: fates_hdim_levelem(:)              ! element dimension
@@ -242,6 +242,8 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_pftmap_levscagpft(:)    ! map of pft into size-class x patch age x pft dimension
    integer , public, allocatable :: fates_hdim_agmap_levagepft(:)      ! map of patch-age into patch age x pft dimension
    integer , public, allocatable :: fates_hdim_pftmap_levagepft(:)     ! map of pft into patch age x pft dimension
+   integer , public, allocatable :: fates_hdim_agmap_levagefuel(:)     ! map of patch-age into patch age x fsc dimension
+   integer , public, allocatable :: fates_hdim_fscmap_levagefuel(:)    ! map of fuel size-class into patch age x fsc dimension
    
    integer , public, allocatable :: fates_hdim_elmap_levelpft(:)       ! map of elements in the element x pft dimension
    integer , public, allocatable :: fates_hdim_elmap_levelcwd(:)       ! map of elements in the element x cwd dimension
