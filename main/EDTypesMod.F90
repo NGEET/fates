@@ -18,6 +18,7 @@ module EDTypesMod
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
+  use FatesRunningMeanMod,   only : rmean_type
   
   implicit none
   private               ! By default everything is private
@@ -411,6 +412,12 @@ module EDTypesMod
      integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
 
+
+     ! Running means
+     !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
+     class(rmean_type), pointer :: tveg24                       ! 24-hour mean vegetation temperature (K)
+     
+     
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_tlai(nclmax)                     ! total leaf area index of each canopy layer
@@ -682,7 +689,6 @@ module EDTypesMod
      
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
-
 
 
      ! INDICES 

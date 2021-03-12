@@ -21,6 +21,8 @@ module FatesInterfaceMod
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max
+   use EDTypesMod                , only : ed_site_type
+   use EDTypesMod                , only : ed_patch_type
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
@@ -96,7 +98,8 @@ module FatesInterfaceMod
    public :: set_bcpconst
    public :: zero_bcs
    public :: set_bcs
-
+   public :: UpdateFatesRMeansTStep
+   
 contains
 
   ! ====================================================================================
@@ -196,13 +199,13 @@ contains
     
     ! Input boundaries
     
-    fates%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
-    fates%bc_in(s)%precip24_pa(:) = 0.0_r8
-    fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8
-    fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
-
     fates%bc_in(s)%lightning24(:)      = 0.0_r8
     fates%bc_in(s)%pop_density(:)      = 0.0_r8
+    fates%bc_in(s)%precip24_pa(:)      = 0.0_r8
+    fates%bc_in(s)%relhumid24_pa(:)    = 0.0_r8
+    fates%bc_in(s)%wind24_pa(:)        = 0.0_r8
+    fates%bc_in(s)%tveg_pa(:)          = 0.0_r8
+     
     fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%smp_sl(:)           = 0.0_r8
@@ -403,15 +406,13 @@ contains
       allocate(bc_in%t_scalar_sisl(nlevsoil_in))
 
       ! Lightning (or successful ignitions) and population density
+      ! Fire related variables
       allocate(bc_in%lightning24(maxPatchesPerSite))
       allocate(bc_in%pop_density(maxPatchesPerSite))
-
-      ! Vegetation Dynamics
-      allocate(bc_in%t_veg24_pa(maxPatchesPerSite))
-
       allocate(bc_in%wind24_pa(maxPatchesPerSite))
       allocate(bc_in%relhumid24_pa(maxPatchesPerSite))
       allocate(bc_in%precip24_pa(maxPatchesPerSite))
+      allocate(bc_in%tveg_pa(maxPatchesPerSite))
       
       ! Radiation
       allocate(bc_in%solad_parb(maxPatchesPerSite,hlm_numSWb))
@@ -429,6 +430,8 @@ contains
          allocate(bc_in%salinity_sl(nlevsoil_in))
       endif
 
+      
+      
       ! Photosynthesis
       allocate(bc_in%filter_photo_pa(maxPatchesPerSite))
       allocate(bc_in%dayl_factor_pa(maxPatchesPerSite))
@@ -1153,6 +1156,7 @@ contains
          hlm_numlevgrnd   = unset_int
          hlm_name         = 'unset'
          hlm_hio_ignore_val   = unset_double
+         hlm_stepsize     = unset_double
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
          hlm_nu_com      = 'unset'
@@ -1360,6 +1364,14 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if( abs(hlm_stepsize-unset_double)<nearzero) then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES parameters unset: hlm_stepsize, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
@@ -1661,6 +1673,11 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hio_ignore_val = ',rval,' to FATES'
                end if
+            case('stepsize')
+               hlm_stepsize = rval
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering stepsize = ',rval,' to FATES'
+               end if
             case default
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'tag not recognized:',trim(tag)
@@ -1723,9 +1740,32 @@ contains
       return
    end subroutine FatesReportParameters
 
-  ! =====================================================================================
+   ! =====================================================================================
+
+   subroutine UpdateFatesRMeansTStep(sites,bc_in)
+
+     ! In this routine, we update any FATES buffers where
+     ! we calculate running means. It is assumed that this buffer is updated
+     ! on the model time-step.
+
+     type(ed_site_type), intent(inout) :: sites(:)
+     type(bc_in_type), intent(in)      :: bc_in(:)
+     
+     type(ed_patch_type),  pointer :: cpatch
+     integer :: s, ifp
 
 
+     do s = 1,size(sites,dim=1)
+        ifp=0
+        cpatch => sites(s)%oldest_patch
+        do while(associated(cpatch))
+           ifp=ifp+1
+           call cpatch%tveg24%UpdateRMean(bc_in(s)%tveg_pa(ifp))
+           cpatch => cpatch%younger
+        enddo
+     enddo
 
-
+     return
+   end subroutine UpdateFatesRMeansTStep
+   
 end module FatesInterfaceMod

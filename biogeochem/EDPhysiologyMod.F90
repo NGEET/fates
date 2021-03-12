@@ -748,6 +748,7 @@ contains
     ! Use the following layer index to calculate drought conditions
     ilayer_swater = minloc(abs(bc_in%z_sisl(:)-dphen_soil_depth),dim=1)
 
+    
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
@@ -756,8 +757,8 @@ contains
 
     temp_in_C = 0._r8
     cpatch => CurrentSite%oldest_patch   
-    do while(associated(cpatch))    
-       temp_in_C = temp_in_C + bc_in%t_veg24_pa(cpatch%patchno)*cpatch%area
+    do while(associated(cpatch))
+       temp_in_C = temp_in_C + cpatch%tveg24%get_mean()*cpatch%area
        cpatch => cpatch%younger
     end do
     temp_in_C = temp_in_C * area_inv - tfrz
@@ -2215,7 +2216,6 @@ contains
     logical  :: use_century_tfunc = .false.
     logical  :: use_hlm_soil_scalar = .true. ! Use hlm input decomp fraction scalars
     integer  :: j
-    integer  :: ifp                          ! Index of a FATES Patch "ifp"
     real(r8) :: t_scalar                     ! temperature scalar
     real(r8) :: w_scalar                     ! moisture scalar
     real(r8) :: catanf                       ! hyperbolic temperature function from CENTURY
@@ -2226,8 +2226,6 @@ contains
     catanf(t1) = 11.75_r8 +(29.7_r8 / pi) * atan( pi * 0.031_r8  * ( t1 - 15.4_r8 ))
     catanf_30 = catanf(30._r8)
     
-    ifp = currentPatch%patchno 
-
     ! Use the hlm temp and moisture decomp fractions by default
     if ( use_hlm_soil_scalar ) then
       
@@ -2239,17 +2237,17 @@ contains
       if ( .not. use_century_tfunc ) then
       !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
       !are assigned for non-moisture limiting conditions at 25C.
-         if (bc_in%t_veg24_pa(ifp)  >=  tfrz) then
-         t_scalar = q10_mr**((bc_in%t_veg24_pa(ifp)-(tfrz+25._r8))/10._r8)
+         if (currentPatch%tveg24%get_mean()  >=  tfrz) then
+         t_scalar = q10_mr**((currentPatch%tveg24%get_mean()-(tfrz+25._r8))/10._r8)
                   !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
          else
-         t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((bc_in%t_veg24_pa(ifp)-tfrz)/10._r8))
+         t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((currentPatch%tveg24%get_mean()-tfrz)/10._r8))
                      !Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-tfrz)/10._r8)
          endif
       else
          ! original century uses an arctangent function to calculate the 
          ! temperature dependence of decomposition      
-         t_scalar = max(catanf(bc_in%t_veg24_pa(ifp)-tfrz)/catanf_30,0.01_r8)
+         t_scalar = max(catanf(currentPatch%tveg24%get_mean()-tfrz)/catanf_30,0.01_r8)
       endif    
     
       !Moisture Limitations   

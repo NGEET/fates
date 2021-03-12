@@ -1,50 +1,74 @@
 module FatesRunningMeanMod
 
 
-  use FatesConstantsMod,     only : nearzero
-  use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
-  use shr_log_mod,           only : errMsg => shr_log_errMsg
-  use FatesGlobals,          only : endrun => fates_endrun
+  use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : r8 => fates_r8
+  use shr_infnan_mod,    only : nan => shr_infnan_nan, assignment(=)
+  use shr_log_mod,       only : errMsg => shr_log_errMsg
+  use FatesGlobals,      only : endrun => fates_endrun
+  use FatesGlobals,      only : fates_log
   
+  implicit none
+  private
 
   integer, parameter :: maxlen_varname = 8
   
   type, public :: rmean_type
      
-     real(r8), allocatable(:) :: mem_rmean     ! Array storing the memory of the mean
-     real(r8)                 :: c_rmean       ! The current mean value from the
+     real(r8), allocatable    :: mem(:)        ! Array storing the memory of the mean
+     real(r8)                 :: c_mean        ! The current mean value from the
                                                ! available memory, as of the last update
      integer                  :: c_index       ! The current memory index as per the
                                                ! last update
      integer                  :: n_mem         ! Total number of memory indices
      logical                  :: filled        ! Has enough time elapsed so all memory filled?
-     character(len=maxlen_varname) :: var_name ! A short name for this variable
-                                               ! for diagnostic purposes
+     !character(len=maxlen_varname) :: var_name ! A short name for this variable
+     !                                          ! for diagnostic purposes
      
    contains
-     
+
+     procedure :: get_mean
      procedure :: InitRMean
      procedure :: UpdateRMean
      procedure :: FuseRMean
      
   end type rmean_type
+
+  character(len=*), parameter, private :: sourcefile = &
+         __FILE__
   
 contains
 
 
-  subroutine InitRMean(this,name,mem_period,up_period)
+  function get_mean(this)
 
     class(rmean_type)             :: this
-    character(len=maxlen_varname) :: name       ! The name of the new variable
+    real(r8) :: get_mean
+
+    if(this%c_index == 0) then
+       write(fates_log(), *) 'attempting to get a running mean from a variable'
+       write(fates_log(), *) 'that has not experienced any time to accumluate memory'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    get_mean = this%c_mean
+
+  end function get_mean
+  
+
+  subroutine InitRMean(this,mem_period,up_period) !,init_value)
+
+    class(rmean_type)             :: this
+    !character(len=maxlen_varname) :: name       ! The name of the new variable
     real(r8)                      :: mem_period ! The period length in seconds that must be remembered
     real(r8)                      :: up_period  ! The period length in seconds that memory is updated
-                                                ! (i.e. the resolution of the memory)
-
-    this%name = name
+    ! (i.e. the resolution of the memory)
+    !real(r8)                      :: init_value ! The first value to put in memory
+    
+    !this%name = name
     this%n_mem = nint(mem_period/up_period)
     
     if( abs(real(this%n_mem,r8)-mem_period/up_period) > nearzero ) then
-       write(fates_log(), *) 'While defining a running mean variable: ',this%var_name
+       write(fates_log(), *) 'While defining a running mean variable: '!,this%var_name
        write(fates_log(), *) 'an update and total memory period was specified'
        write(fates_log(), *) 'where the update period is not an exact fraction of the period'
        write(fates_log(), *) 'mem_period: ',mem_period
@@ -54,16 +78,19 @@ contains
     end if
 
     ! Otherwise we allocate
-    allocate(this%mem_rmean(this%n_mem))
+    allocate(this%mem(this%n_mem))
 
     ! Initialize with nonsense numbers
-    this%mem_rmean(:) = nan
+    this%mem(:) = nan
 
     ! There are no memory spots filled with valid datapoints
-    this%filled = .false
+    this%filled = .false.
 
-    ! The current index of the memory is zero
+    ! The current index of the memory is one
     this%c_index = 0
+    
+    !this%mem(1) = init_value
+
     
     return
   end subroutine InitRMean
@@ -76,7 +103,7 @@ contains
     real(r8)          :: new_value   ! The newest value added to the running mean
     
     this%c_index = this%c_index + 1
-
+    
     ! Update the index of the memory array
     ! and, determine if we have filled the memory yet
     ! If this index is greater than our memory slots,
@@ -87,19 +114,18 @@ contains
 
     if(this%c_index>this%n_mem) this%c_index = 1
     
-    this%mem_rmean(this%c_index) = new_value
+    this%mem(this%c_index) = new_value
 
     ! Update the running mean value. It will return a value
     ! if we have not filled in all the memory slots. To do this
     ! it will take a mean over what is available
 
     if(this%filled) then
-       this%c_rmean = sum(this%mem_rmean)/real(this%n_mem,r8)
+       this%c_mean = sum(this%mem)/real(this%n_mem,r8)
     else
-       this%c_rmean = sum(this%mem_rmean(1:this%c_index))/real(this%c_index,r8)
+       this%c_mean = sum(this%mem(1:this%c_index))/real(this%c_index,r8)
     end if
-    
-    
+
     return
   end subroutine UpdateRmean
   
@@ -124,7 +150,7 @@ contains
     
     if(this%n_mem .ne. donor%n_mem) then
        write(fates_log(), *) 'memory size is somehow different during fusion'
-       write(fates_log(), *) 'of two running mean variables: ',this%name,donor%name
+       write(fates_log(), *) 'of two running mean variables: '!,this%name,donor%name
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
@@ -134,9 +160,9 @@ contains
        
        d_id = donor%c_index
        do r_id = 1,this%n_mem
-          this%mem_rmean(r_id) = this%mem_rmean(r_id)*(recip_wgt) + &
-               donor%mem_rmean(d_id)*(1._r8-recip_wgt)
-          d_id = d_id+ipos
+          this%mem(r_id) = this%mem(r_id)*(recip_wgt) + &
+               donor%mem(d_id)*(1._r8-recip_wgt)
+          d_id = d_id+1
           if(d_id>donor%n_mem) d_id = 1
        end do
 
@@ -151,7 +177,7 @@ contains
        
        r_id = this%c_index
        do d_id = donor%c_index,1,-1
-          this%mem_rmean(r_id) = this%mem_rmean(r_id)*(recip_wgt) + donor%mem_rmean(d_id)*(1._r8-recip_wgt)
+          this%mem(r_id) = this%mem(r_id)*(recip_wgt) + donor%mem(d_id)*(1._r8-recip_wgt)
           r_id = r_id - 1
           if(r_id==0) r_id = this%n_mem
        end do
@@ -167,13 +193,13 @@ contains
        
        d_id = donor%c_index
        do r_id = this%c_index,1,-1
-          this%mem_rmean(r_id) = this%mem_rmean(r_id)*(recip_wgt) + donor%mem_rmean(d_id)*(1._r8-recip_wgt)
+          this%mem(r_id) = this%mem(r_id)*(recip_wgt) + donor%mem(d_id)*(1._r8-recip_wgt)
           d_id = d_id - 1
           if(d_id==0) d_id = donor%n_mem
        end do
 
        do r_id = this%n_mem,this%c_index+1,-1
-          this%mem_rmean(r_id) =  donor%mem_rmean(d_id
+          this%mem(r_id) =  donor%mem(d_id)
           d_id = d_id - 1
        end do
        ! Pass the current index of the donor since that was filled
@@ -194,7 +220,7 @@ contains
           
           r_id = this%c_index
           do d_id = donor%c_index,1,-1
-             this%mem_rmean(r_id) = this%mem_rmean(r_id)*(recip_wgt) + donor%mem_rmean(d_id)*(1._r8-recip_wgt)
+             this%mem(r_id) = this%mem(r_id)*(recip_wgt) + donor%mem(d_id)*(1._r8-recip_wgt)
           end do
           
        else
@@ -207,22 +233,21 @@ contains
           
           d_id = donor%c_index
           do r_id = this%c_index,1,-1
-             donor%mem_rmean(r_id) = this%mem_rmean(r_id)*(recip_wgt) + donor%mem_rmean(d_id)*(1._r8-recip_wgt)
+             donor%mem(r_id) = this%mem(r_id)*(recip_wgt) + donor%mem(d_id)*(1._r8-recip_wgt)
           end do
-          this%mem_rmean(:) = donor%mem_reman
+          this%mem(:) = donor%mem
           this%c_index = donor%c_index
        end if
        
-       
-       
     end if
 
-
-    
-    ! take the mean of each
-    
-
-    
+    ! Update the mean based on the fusion
+    if(this%filled) then
+       this%c_mean = sum(this%mem)/real(this%n_mem,r8)
+    else
+       if(this%c_index>0) this%c_mean = &
+            sum(this%mem(1:this%c_index))/real(this%c_index,r8)
+    end if
 
     
     return

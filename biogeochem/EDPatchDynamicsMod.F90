@@ -45,6 +45,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : bc_in_type
   use FatesInterfaceTypesMod    , only : hlm_days_per_year
   use FatesInterfaceTypesMod    , only : numpft
+  use FatesInterfaceTypesMod    , only : hlm_stepsize
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -560,7 +561,7 @@ contains
           allocate(new_patch_primary)
 
           call create_patch(currentSite, new_patch_primary, age, &
-                site_areadis_primary, primaryforest)
+                site_areadis_primary, primaryforest )
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -1977,6 +1978,8 @@ contains
     allocate(new_patch%sabs_dif(hlm_numSWb))
     allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
 
+    allocate(new_patch%tveg24)
+    call new_patch%tveg24%InitRMean(mem_period=86400._r8,up_period=hlm_stepsize)
 
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
@@ -2478,6 +2481,9 @@ contains
        write(fates_log(),*) 'trying to fuse patches with different anthro_disturbance_label values'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
+
+    ! Weighted mean of the running means
+    call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
     
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
@@ -2814,9 +2820,13 @@ contains
        deallocate(cpatch%sabs_dir)
        deallocate(cpatch%sabs_dif)
        deallocate(cpatch%fragmentation_scaler)
-      
     end if
 
+    
+    ! Deallocate any running means
+    deallocate(cpatch%tveg24%mem)
+    deallocate(cpatch%tveg24)
+    
     return
   end subroutine dealloc_patch
 
