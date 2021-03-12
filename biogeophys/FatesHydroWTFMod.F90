@@ -28,7 +28,9 @@ module FatesHydroWTFMod
        __FILE__
 
 
-  real(r8), parameter :: min_ftc = 0.00001_r8   ! Minimum allowed fraction of total conductance
+!  real(r8), parameter :: min_ftc = 0.00001_r8   ! Minimum allowed fraction of total conductance
+!  The above cause negative organ water content
+  real(r8), parameter :: min_ftc = 0.00001e1_r8   ! Minimum allowed fraction of total conductance
                                                
   ! Bounds on saturated fraction, outside of which we use linear PV or stop flow
   ! In this context, the saturated fraction is defined by the volumetric WC "th"
@@ -163,6 +165,36 @@ module FatesHydroWTFMod
      procedure :: dftcdpsi_from_psi => dftcdpsi_from_psi_cch
      procedure :: set_wkf_param     => set_wkf_param_cch
   end type wkf_type_cch
+  ! =====================================================================================
+  ! Type1 Smooth approximation of Clapp-Hornberger and Campbell (CCH) water retention and conductivity functions
+  ! Bisht et al. Geosci. Model Dev., 11, 4085–4102, 2018
+  ! =====================================================================================
+
+  ! Water Retention Function
+  type, public, extends(wrf_type) :: wrf_type_smooth_cch
+     real(r8) :: th_sat   ! Saturation volumetric water content         [m3/m3]
+     real(r8) :: psi_sat  ! Bubbling pressure (potential at saturation) [Mpa]
+     real(r8) :: beta     ! Clapp-Hornberger "beta" parameter           [-]
+     real(r8) :: scch_pu, scch_ps, scch_b2, scch_b3
+   contains
+     procedure :: th_from_psi     => th_from_psi_smooth_cch
+     procedure :: psi_from_th     => psi_from_th_smooth_cch
+     procedure :: dpsidth_from_th => dpsidth_from_th_smooth_cch
+     procedure :: set_wrf_param   => set_wrf_param_smooth_cch
+     procedure :: get_thsat       => get_thsat_smooth_cch
+  end type wrf_type_smooth_cch
+
+  ! Water Conductivity Function
+  type, public, extends(wkf_type) :: wkf_type_smooth_cch
+     real(r8) :: th_sat   ! Saturation volumetric water content         [m3/m3]
+     real(r8) :: psi_sat  ! Bubbling pressure (potential at saturation) [Mpa]
+     real(r8) :: beta     ! Clapp-Hornberger "beta" parameter           [-]
+     real(r8) :: scch_pu, scch_ps, scch_b2, scch_b3
+   contains
+     procedure :: ftc_from_psi      => ftc_from_psi_smooth_cch
+     procedure :: dftcdpsi_from_psi => dftcdpsi_from_psi_smooth_cch
+     procedure :: set_wkf_param     => set_wkf_param_smooth_cch
+  end type wkf_type_smooth_cch
 
   ! =====================================================================================
   ! TFS functions
@@ -450,6 +482,8 @@ contains
 
 
     end if
+    th = max(th,this%th_res)
+    th = min(th,this%th_sat)
 
   end function th_from_psi_vg
 
@@ -461,13 +495,14 @@ contains
     ! volumetric water content (theta).
 
     class(wrf_type_vg)   :: this
-    real(r8),intent(in)  :: th
+    real(r8), intent(in)  :: th
     real(r8)             :: psi            ! matric potential [MPa]
     real(r8)             :: m              ! inverse of psd
     real(r8)             :: satfrac        ! saturated fraction
     real(r8)             :: th_interp      ! theta where we start interpolation
     real(r8)             :: psi_interp     ! psi at interpolation point
     real(r8)             :: dpsidth_interp
+    real(r8)             :: thx
 
     !------------------------------------------------------------------------------------
     ! saturation fraction is the origial equation in vg 1980, we just
@@ -479,20 +514,20 @@ contains
     !
     ! *also modified to accomodate linear pressure regime for super-saturation
     ! -----------------------------------------------------------------------------------
-
+    thx = max(th, this%th_res+1e-6)
     
-    if(th>this%th_max)then
+    if(thx>this%th_max)then
 
-        psi = this%psi_linear_sat(th)
+        psi = this%psi_linear_sat(thx)
         
-    elseif(th<this%th_min)then
+    elseif(thx<this%th_min)then
         
-        psi = this%psi_linear_res(th)
+        psi = this%psi_linear_res(thx)
 
     else
 
         m   = 1._r8/this%psd
-        satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
+        satfrac = (thx-this%th_res)/(this%th_sat-this%th_res)
         psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m
 
 
@@ -632,7 +667,6 @@ contains
     end if
 
   end function dftcdpsi_from_psi_vg
-
   ! =====================================================================================
   ! =====================================================================================
   ! Campbell, Clapp-Hornberger Water Retention Functions
@@ -780,6 +814,603 @@ contains
 
   end function dftcdpsi_from_psi_cch
 
+
+  ! =====================================================================================
+  ! =====================================================================================
+  ! Type1 Smooth approximation Campbell, Clapp-Hornberger Water Retention Functions
+  ! =====================================================================================
+  ! =====================================================================================
+  subroutine set_wrf_param_smooth_cch(this,params_in)
+
+    class(wrf_type_smooth_cch) :: this
+    real(r8), intent(in) :: params_in(:)
+    integer  :: styp
+    real(r8) :: th_max
+    ! !LOCAL VARIABLES:
+    real(r8) :: pu
+    real(r8) :: bcAtPu
+    real(r8) :: lambdaDeltaPuOnPu
+    real(r8) :: oneOnDeltaPu
+    real(r8) :: lambda
+    real(r8) :: alpha
+    real(r8) :: ps
+    
+
+
+    this%th_sat  = params_in(1)
+    this%psi_sat = params_in(2)
+    this%beta    = params_in(3)
+    styp = int(params_in(4))
+
+
+    alpha = -1._r8/this%psi_sat 
+    lambda = 1.0_r8/this%beta
+    ps = -0.9_r8/alpha
+    this%scch_ps     = ps
+    ! Choose `pu` that forces `scch_b2 = 0`.
+    if(styp == 1) then
+      pu               = findGu_SBC_zeroCoeff(lambda, 3, -alpha*ps) / (-alpha)
+      this%scch_pu     = pu
+
+      ! Find helper constants.
+      bcAtPu            = (-alpha*pu)**(-lambda)
+      lambdaDeltaPuOnPu = lambda * (1.d0 - ps/pu)
+      oneOnDeltaPu      = 1.d0 / (pu - ps)
+
+      ! Store coefficients for cubic function.
+      this%scch_b2 = 0.d0
+      this%scch_b3 = (2.d0 - bcAtPu*(2.d0+lambdaDeltaPuOnPu)) * oneOnDeltaPu * oneOnDeltaPu * oneOnDeltaPu
+      if( this%scch_b3 <= 0.d0 ) then
+         write(fates_log(),*) 'set_wrf_param_smooth_cch b3 <=0',pu,ps,alpha,lambda,oneOnDeltaPu,lambdaDeltaPuOnPu,bcAtPu,this%psi_sat
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+    else
+      ! Choose `pu` that forces `sbc_b3 = 0`.
+      pu               = findGu_SBC_zeroCoeff(lambda, 2, -alpha*ps) / (-alpha)
+      this%scch_pu = pu
+
+      ! Find helper constants.
+      bcAtPu            = (-alpha*pu)**(-lambda)
+      lambdaDeltaPuOnPu = lambda * (1.d0 - ps/pu)
+      oneOnDeltaPu      = 1.d0 / (pu - ps)
+
+      ! Store coefficients for cubic function.
+      this%scch_b2 = -(3.d0 - bcAtPu*(3.d0+lambdaDeltaPuOnPu)) * oneOnDeltaPu* oneOnDeltaPu
+      if( this%scch_b2 >= 0.d0 ) then
+         write(fates_log(),*) 'set_wrf_param_smooth_cch b2 <= 0'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+      this%scch_b3 = 0.d0
+     
+    endif
+    ! Set DERIVED constants
+    ! used for interpolating in extreme ranges
+    this%th_max      = max_sf_interp*this%th_sat
+    this%psi_max     = this%psi_from_th(this%th_max-tiny(this%th_max))
+    this%dpsidth_max = this%dpsidth_from_th(this%th_max-tiny(this%th_max))
+    this%th_min      = 1.e-8_r8
+    this%psi_min     = fates_unset_r8
+    this%dpsidth_min = fates_unset_r8
+
+    return
+  end subroutine set_wrf_param_smooth_cch
+
+
+
+  ! =====================================================================================
+
+  subroutine set_wkf_param_smooth_cch(this,params_in)
+
+    class(wkf_type_smooth_cch) :: this
+    real(r8), intent(in) :: params_in(:)
+    integer  :: styp
+    real(r8) :: pu
+    real(r8) :: bcAtPu
+    real(r8) :: lambdaDeltaPuOnPu
+    real(r8) :: oneOnDeltaPu
+    real(r8) :: lambda
+    real(r8) :: alpha
+    real(r8) :: ps
+
+    this%th_sat  = params_in(1)
+    this%psi_sat = params_in(2)
+    this%beta    = params_in(3)
+    styp = int(params_in(4))
+
+
+    alpha = -1._r8/this%psi_sat 
+    lambda = 1.0_r8/this%beta
+    ps = -0.9_r8/alpha
+    this%scch_ps     = ps
+    ! Choose `pu` that forces `scch_b2 = 0`.
+    if(styp == 1) then
+      pu               = findGu_SBC_zeroCoeff(lambda, 3, -alpha*ps) / (-alpha)
+      this%scch_pu     = pu
+
+      ! Find helper constants.
+      bcAtPu            = (-alpha*pu)**(-lambda)
+      lambdaDeltaPuOnPu = lambda * (1.d0 - ps/pu)
+      oneOnDeltaPu      = 1.d0 / (pu - ps)
+
+      ! Store coefficients for cubic function.
+      this%scch_b2 = 0.d0
+      this%scch_b3 = (2.d0 - bcAtPu*(2.d0+lambdaDeltaPuOnPu)) * oneOnDeltaPu * oneOnDeltaPu * oneOnDeltaPu
+      if( this%scch_b3 <= 0.d0 ) then
+         write(fates_log(),*) 'set_wrf_param_smooth_cch b3 <=0',pu,ps,alpha,lambda,oneOnDeltaPu,lambdaDeltaPuOnPu,bcAtPu,this%psi_sat
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+    else
+      ! Choose `pu` that forces `sbc_b3 = 0`.
+      pu               = findGu_SBC_zeroCoeff(lambda, 2, -alpha*ps) / (-alpha)
+      this%scch_pu = pu
+
+      ! Find helper constants.
+      bcAtPu            = (-alpha*pu)**(-lambda)
+      lambdaDeltaPuOnPu = lambda * (1.d0 - ps/pu)
+      oneOnDeltaPu      = 1.d0 / (pu - ps)
+
+      ! Store coefficients for cubic function.
+      this%scch_b2 = -(3.d0 - bcAtPu*(3.d0+lambdaDeltaPuOnPu)) * oneOnDeltaPu* oneOnDeltaPu
+      if( this%scch_b2 >= 0.d0 ) then
+         write(fates_log(),*) 'set_wrf_param_smooth_cch b2 <= 0'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+      this%scch_b3 = 0.d0
+     
+    endif
+    return
+  end subroutine set_wkf_param_smooth_cch
+
+  ! =====================================================================================
+
+  function get_thsat_smooth_cch(this) result(th_sat)
+      class(wrf_type_smooth_cch)   :: this
+      real(r8) :: th_sat
+      
+      th_sat = this%th_sat
+      
+  end function get_thsat_smooth_cch
+  
+  ! =====================================================================================
+  
+  function th_from_psi_smooth_cch(this,psi) result(th)
+
+    class(wrf_type_smooth_cch)  :: this
+    real(r8), intent(in) :: psi
+    real(r8)             :: th
+
+    real(r8)                                  :: alpha
+    real(r8)                                  :: lambda
+    real(r8)                                  :: sat
+    real(r8)                                  :: pc
+    real(r8)                                  :: ps
+    real(r8)                                  :: deltaPc
+    real(r8)                                  :: dSe_dpc
+
+    alpha   = -1._r8/this%psi_sat
+    lambda  = 1._r8/this%beta
+    pc = psi
+
+    if( pc <= this%scch_pu ) then
+       ! Unsaturated full Brooks-Corey regime.
+       ! Here, `pc <= pu < 0`.
+       sat      = (-alpha*pc)**(-lambda)
+    elseif( pc < this%scch_ps ) then
+       ! Cubic smoothing regime.
+       ! Here, `pu < pc < ps <= 0`.
+       deltaPc = pc - this%scch_ps
+       sat      = 1.d0 + deltaPc*deltaPc*(this%scch_b2 + deltaPc*this%scch_b3)
+    else
+       ! Saturated regime.
+       ! Here, `pc >= ps`.
+       sat       = 1.d0
+    endif
+    th = sat * this%th_sat
+
+
+    return
+  end function th_from_psi_smooth_cch
+
+  ! =====================================================================================
+
+  function psi_from_th_smooth_cch(this,th) result(psi)
+
+    class(wrf_type_smooth_cch)  :: this
+    real(r8),intent(in)  :: th
+    real(r8)             :: psi
+
+    real(r8)                                  :: sat_res
+    real(r8)                                  :: alpha
+    real(r8)                                  :: lambda
+    real(r8)                                  :: Se
+    real(r8)                                  :: sat
+    real(r8)                                  :: pc
+    real(r8)                                  :: xL
+    real(r8)                                  :: xc
+    real(r8)                                  :: xR
+    real(r8)                                  :: resid
+    real(r8)                                  :: dx
+    real(r8), parameter                       :: relTol = 1.d-9
+
+    sat_res = 0._r8
+    alpha   = -1._r8/this%psi_sat
+    lambda  = 1._r8/this%beta
+
+    sat = max(1.e-6,th/this%th_sat)
+    if( sat < 1.d0 ) then
+       ! Find the `pc` that satisfies the unmodified Brooks-Corey function.
+       Se = sat
+       pc = -(Se**(-1.d0/lambda)) / alpha
+       if( pc > this%scch_pu ) then
+          ! Here, solution is in the cubic smoothing regime.
+          if( this%scch_b2 == 0.d0 ) then
+             ! Note know `b3 > 0`.
+             pc = this%scch_ps - ((1.d0 - Se) / this%scch_b3)**(1.d0/3.d0)
+          elseif( this%scch_b3 == 0.d0 ) then
+             ! Note know `b2 < 0`.
+             pc = this%scch_ps - sqrt((Se - 1.d0) / this%scch_b2)
+          else
+             ! Here, want to solve general cubic
+             ! `1 + b2*x^2 + b3*x^3 = Se`
+             ! where `x = pc - pu`.
+             ! Write as residual function
+             ! `r = x^2 * (b2 + b3*x) + (1 - Se)`.
+             ! Perform a Newton-Raphson search on `x`.
+             ! Have
+             ! `dr/dx = x*(2*b2 + 3*b3*x)`
+             ! And Newton-Raphson sets
+             ! `x[i+1] = x[i] - r[i]/(dr/dx[i])`.
+             ! Note that r{0} = 1 - Se > 0.
+             ! Therefore maintain the right bracket as having a positive
+             ! residual, and the left bracket as having a negative residual.
+             ! Note that it is possible, due to numerical effects with `pc`
+             ! very close to `pu`, to get an `xL` with a positive residual.
+             ! However, in this case also have `xc` very close to `xL`, and
+             ! the Newton-Raphson search will converge after a single step.
+             ! Therefore do not insert a special test to catch the case here.
+             xL = this%scch_pu - this%scch_ps
+             xR = 0.d0
+             xc = pc - this%scch_ps
+             ! write(unit=*, fmt='("SatFunc_SatToPc_SBC: NR search:",
+             ! 6(a,g15.6))')  &
+             !     ' pu', scch_pu, ' ps', scch_ps,  &
+             !     ' xL', xL, ' xR', xR,  &
+             !     ' r{xL}', xL*xL*(scch_b2 + scch_b3*xL) +
+             !     1.d0 - Se,  &
+             !     ' r{xR}', xR*xR*(scch_b2 + scch_b3*xR) +
+             !     1.d0 - Se
+             do
+                ! Here, assume:
+                ! + Have a bracket on the root, between `xL` and `xR`.
+              ! + The residual `r{xL} < 0` and `r{xR} > 0`.
+                ! + Have a current guess `xc` at the root.  However, that guess
+                !     might not lie in the bracket.
+
+                ! Reset `xc` using bisection if necessary.
+                if( xc<=xL .or. xc>=xR ) then
+                   ! write(unit=*, fmt='("Bisecting")')
+                   xc = xL + 0.5d0*(xR - xL)
+                endif
+
+                ! Find NR step.
+                dx = this%scch_b3 * xc
+                resid = xc*xc*(this%scch_b2 + dx) + 1.d0 - Se
+                dx = resid / (xc*(2.d0*this%scch_b2 + 3.d0*dx))
+
+                ! Update bracket.
+                if( resid > 0.d0 ) then
+                   xR = xc
+                else
+                   xL = xc
+                endif
+
+                ! Take the Newton-Raphson step.
+                xc = xc - dx
+                ! write(unit=*, fmt='(6(a,g15.6))')  &
+                !     ' xL', xL, ' xc', xc, ' xR', xR,  &
+                !     ' r{xL}', xL*xL*(scch_b2 + scch_b3*xL) +
+                !     1.d0 - Se,  &
+                !     ' r{xc}', xc*xc*(scch_b2 + scch_b3*xc) +
+                !     1.d0 - Se,  &
+                !     ' r{xR}', xR*xR*(scch_b2 + scch_b3*xR) +
+                !     1.d0 - Se
+
+                ! Test for convergence.
+                !   Note this test implicitly also tests `resid == 0`.
+                if( abs(dx) < -relTol*this%scch_pu ) then
+                   exit
+                endif
+             enddo
+
+             ! Here, have `xc = pc - ps`.
+             pc = xc + this%scch_ps
+          endif
+       endif
+    else
+       pc = 0.d0
+    endif
+    psi = pc
+
+
+  end function psi_from_th_smooth_cch
+
+  ! =====================================================================================
+
+  function dpsidth_from_th_smooth_cch(this,th) result(dpsidth)
+
+    class(wrf_type_smooth_cch)  :: this
+    real(r8),intent(in) :: th
+    real(r8)            :: dpsidth
+
+
+    real(r8)                      :: pc
+    real(r8)                      :: sat
+    real(r8)                      :: dsat_dP
+    !
+    ! !LOCAL VARIABLES:
+    real(r8)                      :: sat_res
+    real(r8)                      :: alpha
+    real(r8)                      :: lambda
+    real(r8)                      :: Se
+    real(r8)                      :: deltaPc
+    real(r8)                      :: dSe_dpc
+
+    sat_res = 0._r8
+    alpha   = -1._r8/this%psi_sat
+    lambda  = 1._r8/this%beta
+
+    pc = 1._r8 * this%psi_from_th(th)
+    if( pc <= this%scch_pu ) then
+       ! Unsaturated full Brooks-Corey regime.
+       ! Here, `pc <= pu < 0`.
+       Se      = (-alpha*pc)**(-lambda)
+       sat     = sat_res + (1.d0 - sat_res)*Se
+
+       dSe_dpc = -lambda*Se/pc
+       dsat_dp = (1.d0 - sat_res)*dSe_dpc
+       dpsidth = 1._r8/(dsat_dp * this%th_sat)
+    elseif( pc < this%scch_ps ) then
+       ! Cubic smoothing regime.
+       ! Here, `pu < pc < ps <= 0`.
+       deltaPc = pc - this%scch_ps
+       Se      = 1.d0 + deltaPc*deltaPc*(this%scch_b2 + deltaPc*this%scch_b3)
+       sat     = sat_res + (1.d0 - sat_res)*Se
+
+       dSe_dpc = deltaPc*(2*this%scch_b2 + 3*deltaPc*this%scch_b3)
+       dsat_dp = (1.d0 - sat_res)*dSe_dpc
+       dpsidth = 1._r8/(dsat_dp * this%th_sat)
+    else
+       ! Saturated regime.
+       ! Here, `pc >= ps`.
+
+       dpsidth = this%dpsidth_max
+    endif
+
+
+  end function dpsidth_from_th_smooth_cch
+
+  ! =====================================================================================
+
+  function ftc_from_psi_smooth_cch(this,psi) result(ftc)
+
+    class(wkf_type_smooth_cch) :: this
+    real(r8),intent(in) :: psi
+    real(r8)            :: ftc
+
+    real(r8)                     :: pc
+    real(r8)                     :: kr
+    real(r8)                     :: dkr_dP
+    !
+    real(r8)                     :: sat_res
+    real(r8)                     :: alpha
+    real(r8)                     :: lambda
+    real(r8)                     :: Se
+    real(r8)                     :: deltaPc
+    real(r8)                     :: dSe_dpc
+    real(r8)                     :: dkr_dSe
+
+    pc = psi
+    sat_res = 0._r8
+    alpha   = -1._r8/this%psi_sat
+    lambda  = 1._r8/this%beta
+
+    if( pc <= this%scch_pu ) then
+       ! Unsaturated full Brooks-Corey regime.
+       ! Here, `pc <= pu < 0`.
+       Se      = (-alpha*pc)**(-lambda)
+       kr      = Se ** (3._r8+2._r8/lambda)
+
+    elseif( pc < this%scch_ps ) then
+       ! Cubic smoothing regime.
+       ! Here, `pu < pc < ps <= 0`.
+       deltaPc = pc - this%scch_ps
+       Se      = 1.d0 + deltaPc*deltaPc*(this%scch_b2 + deltaPc*this%scch_b3)
+       kr      = Se ** (3._r8+2._r8/lambda)
+
+    else
+       ! Saturated regime.
+       ! Here, `pc >= ps`.
+       kr        = 1.d0
+    endif
+    ftc = max(kr, min_ftc)
+
+
+  end function ftc_from_psi_smooth_cch
+
+  ! ====================================================================================
+
+  function dftcdpsi_from_psi_smooth_cch(this,psi) result(dftcdpsi)
+
+    class(wkf_type_smooth_cch) :: this
+    real(r8),intent(in) :: psi
+    real(r8)            :: dftcdpsi ! change in frac total cond wrt psi
+
+    real(r8)            :: pc
+    real(r8)            :: kr
+    real(r8)            :: dkr_dP
+    !
+    real(r8)            :: sat_res
+    real(r8)            :: alpha
+    real(r8)            :: lambda
+    real(r8)            :: Se
+    real(r8)            :: deltaPc
+    real(r8)            :: dSe_dpc
+    real(r8)            :: dkr_dSe
+
+    pc = psi
+    sat_res = 0._r8
+    alpha   = -1._r8/this%psi_sat
+    lambda  = 1._r8/this%beta
+
+    if( pc <= this%scch_pu ) then
+       ! Unsaturated full Brooks-Corey regime.
+       ! Here, `pc <= pu < 0`.
+       Se      = (-alpha*pc)**(-lambda)
+
+       dSe_dpc = -lambda*Se/pc
+
+       kr      = Se ** (3.d0 + 2.d0/lambda)
+
+       dkr_dSe = (3.d0 + 2.d0/lambda)*kr/Se
+       dkr_dp  = dkr_dSe*dSe_dpc
+    elseif( pc < this%scch_ps ) then
+       ! Cubic smoothing regime.
+       ! Here, `pu < pc < ps <= 0`.
+       deltaPc = pc - this%scch_ps
+       Se      = 1.d0 + deltaPc*deltaPc*(this%scch_b2 + deltaPc*this%scch_b3)
+
+       dSe_dpc = deltaPc*(2*this%scch_b2 + 3*deltaPc*this%scch_b3)
+
+       kr      = Se ** (2.5d0 + 2.d0/lambda)
+
+       dkr_dSe = (2.5d0 + 2.d0/lambda)*kr/Se
+       dkr_dp  = dkr_dSe*dSe_dpc
+    else
+       ! Saturated regime.
+       ! Here, `pc >= ps`.
+       kr        = 1.d0
+       dkr_dP    = 0.d0
+    endif
+    dftcdpsi = dkr_dP
+    if(kr<=min_ftc) then
+          dftcdpsi = 0._r8
+    endif
+
+
+  end function dftcdpsi_from_psi_smooth_cch
+
+
+  !------------------------------------------------------------------------
+  ! Find `pu` that forces a coefficient of the smoothing cubic polynomial to zero.
+  ! Bisht et al. Geosci. Model Dev., 11, 4085–4102, 2018, coded in VSFM
+  !
+  ! Work in terms of multipliers of `pc0`:
+  !
+  ! + Argument `gs` satisfies `ps = gs*pc0`.
+  ! + Return `gu` such that `pu = gu*pc0`.
+  !
+  ! Argument `AA`:
+  !
+  ! + To set `b2 = 0`, let `A = 3`.
+  ! + To set `b3 = 0`, let `A = 2`.
+  !
+  real(r8) function findGu_SBC_zeroCoeff(lambda, AA, gs)
+    !
+    ! !DESCRIPTION:
+    !
+    !
+    implicit none
+    !
+    ! !ARGUMENTS
+    real(r8) , intent(in) :: lambda
+    real(r8) , intent(in) :: gs
+    integer   , intent(in) :: AA
+    !
+    ! !LOCAL VARIABLES:
+    real(r8)              :: guLeft, gu, guRight  ! Bracketed search.
+    real(r8)              :: deltaGu, resid, dr_dGu  ! Newton-Raphson search.
+    real(r8)              :: guInv, guToMinusLam, gsOnGu  ! Helper variables.
+    real(r8), parameter   :: relTol = 1.d-12
+
+    ! Check arguments.
+    !   Note this is more for documentation than anything else-- this
+    ! fcn should only get used internally, by trusted callers.
+    if( lambda<=0.d0 .or. lambda>=2.d0  &
+         .or. (AA/=2 .and. AA/=3)  &
+         .or. gs>=1.d0 .or. gs<0.d0 ) then
+       write(fates_log(),*) 'findGu_SBC_zeroCoeff: bad param'
+       call endrun(msg=errMsg(__FILE__, __LINE__))
+    endif
+
+    ! Approach:
+    ! + Bracketed Newton-Raphson search.
+    ! + Note expect `1 < gu <= gu{gs=0}`.
+    ! + Note if this was a critical inner loop, could try solving for
+    !     `gui == 1/gu`, rather than for `gu`, in order to avoid division.
+    !     Could also try using Ridder's method, since the residual here
+    !     has a strong exponential component.
+
+    ! Initialize.
+    gu = (AA / (AA + lambda))**(-1.d0/lambda)  ! Solution if `gs = 0`.
+
+    ! Search for root, using bracketed Newton-Raphson.
+    !   Not necessary if `gs = 0`.
+    if( gs > 0.d0 ) then
+       guLeft = 1.d0
+       guRight = gu
+       do
+          ! Here, assume:
+          ! + Have an bracket on the root, between `guLeft` and `guRight`.
+          ! + The derivative `dr/d{gu} > 0`.
+          ! + The residual `r{guLeft} < 0`, and `r{guRight} > 0`.
+          ! + Have a current guess `gu` at the root.  However, that guess
+          !     might not lie in the bracket (and does not at first iteration).
+
+          ! Reset `gu` using bisection if necessary.
+          if( gu<=guLeft .or. gu>=guRight ) then
+             gu = guLeft + 0.5d0*(guRight - guLeft)
+          endif
+
+          ! Find residual.
+          guInv = 1.d0 / gu
+          guToMinusLam = gu**(-lambda)  ! Could also do `guInv**lambda`; not sure if any numerical consequences.
+          gsOnGu = gs * guInv
+          resid = AA - guToMinusLam*(AA + lambda - lambda*gsOnGu)
+
+          ! Update bracket.
+          if( resid < 0.d0 ) then
+             guLeft = gu
+          else
+             guRight = gu
+          endif
+
+          ! Find next guess using Newton-Raphson's method.
+          dr_dGu = (1.d0 + lambda) * (1.d0 - gsOnGu) + (AA - 1)
+          dr_dGu = lambda * guToMinusLam * guInv * dr_dGu
+          deltaGu = resid / dr_dGu
+          ! write(unit=*, fmt='("findGu_SBC_zeroCoeff, NR step: ", 6(a,g15.6))')  &
+          !     'guLeft', guLeft, 'gu', gu, 'guRight', guRight,  &
+          !     'deltaGu', deltaGu, 'resid', resid, 'dr_dGu', dr_dGu
+          gu = gu - deltaGu
+
+          ! Test for convergence.
+          !   Note this test implicitly also tests `resid == 0`.
+          if( abs(deltaGu) < relTol*abs(gu) ) then
+             exit
+          endif
+       enddo
+    endif
+
+    ! Finish up.
+    !   Note assuming the last Newton-Raphson step landed in the bracket,
+    ! and had a smaller residual than either of the bracket points.  This
+    ! seems a safe enough assumption, compared to cost of tracking residuals.
+    findGu_SBC_zeroCoeff = gu
+    if(gu /= gu) then
+      print *,AA,gs
+    endif
+
+  end function findGu_SBC_zeroCoeff
 
   ! =====================================================================================
   ! TFS style functions

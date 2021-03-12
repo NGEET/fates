@@ -102,8 +102,10 @@ module FatesPlantHydraulicsMod
 
   use FatesHydroWTFMod, only : wrf_arr_type
   use FatesHydroWTFMod, only : wkf_arr_type
-  use FatesHydroWTFMod, only : wrf_type, wrf_type_vg, wrf_type_cch, wrf_type_tfs
-  use FatesHydroWTFMod, only : wkf_type, wkf_type_vg, wkf_type_cch, wkf_type_tfs
+  use FatesHydroWTFMod, only : wrf_type, wrf_type_vg, wrf_type_cch,wrf_type_tfs, &
+                               wrf_type_smooth_cch 
+  use FatesHydroWTFMod, only : wkf_type, wkf_type_vg, wkf_type_cch,wkf_type_tfs, &
+                               wkf_type_smooth_cch 
 
 
   ! CIME Globals
@@ -190,12 +192,18 @@ module FatesPlantHydraulicsMod
 
   integer, public, parameter :: van_genuchten_type      = 1
   integer, public, parameter :: campbell_type           = 2
+  integer, public, parameter :: smooth1_campbell_type   = 21
+  integer, public, parameter :: smooth2_campbell_type   = 22
   integer, public, parameter :: tfs_type                = 3
   
-  integer, parameter :: plant_wrf_type = tfs_type
-  integer, parameter :: plant_wkf_type = tfs_type
-  integer, parameter :: soil_wrf_type  = campbell_type
-  integer, parameter :: soil_wkf_type  = campbell_type
+  !integer, parameter :: plant_wrf_type = tfs_type
+  !integer, parameter :: plant_wkf_type = tfs_type
+  !integer, parameter :: soil_wrf_type  = campbell_type
+  !integer, parameter :: soil_wkf_type  = campbell_type
+  integer, parameter :: plant_wrf_type = van_genuchten_type
+  integer, parameter :: plant_wkf_type = van_genuchten_type
+  integer, parameter :: soil_wrf_type  = smooth1_campbell_type
+  integer, parameter :: soil_wkf_type  = smooth1_campbell_type
   
   
   ! Define the global object that holds the water retention functions
@@ -325,6 +333,8 @@ contains
     class(wkf_type_vg), pointer                         :: wkf_vg
     class(wrf_type_cch), pointer                        :: wrf_cch
     class(wkf_type_cch), pointer                        :: wkf_cch
+    class(wrf_type_smooth_cch), pointer                :: wrf_smooth_cch
+    class(wkf_type_smooth_cch), pointer                :: wkf_smooth_cch
 
     do s = 1,nsites
        csite_hydr=>sites(s)%si_hydr
@@ -387,6 +397,24 @@ contains
                   (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
                                       bc_in(s)%bsw_sisl(j_bc)])
           end do
+       case(smooth1_campbell_type)
+          do j=1,sites(s)%si_hydr%nlevrhiz
+             j_bc = j+csite_hydr%i_rhiz_t-1
+             allocate(wrf_smooth_cch)
+             sites(s)%si_hydr%wrf_soil(j)%p => wrf_smooth_cch
+             call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
+                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                                      bc_in(s)%bsw_sisl(j_bc),1._r8])
+          end do
+       case(smooth2_campbell_type)
+          do j=1,sites(s)%si_hydr%nlevrhiz
+             j_bc = j+csite_hydr%i_rhiz_t-1
+             allocate(wrf_smooth_cch)
+             sites(s)%si_hydr%wrf_soil(j)%p => wrf_smooth_cch
+             call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
+                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                                      bc_in(s)%bsw_sisl(j_bc),2._r8])
+          end do
        case(tfs_type)
           write(fates_log(),*) 'TFS water retention curves not available for soil'
           call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -412,6 +440,24 @@ contains
              call wkf_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
                   (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
                   bc_in(s)%bsw_sisl(j_bc)])
+          end do
+       case(smooth1_campbell_type)
+          do j=1,sites(s)%si_hydr%nlevrhiz
+             j_bc = j+csite_hydr%i_rhiz_t-1
+             allocate(wkf_smooth_cch)
+             sites(s)%si_hydr%wkf_soil(j)%p => wkf_smooth_cch
+             call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
+                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                  bc_in(s)%bsw_sisl(j_bc),1._r8])
+          end do
+       case(smooth2_campbell_type)
+          do j=1,sites(s)%si_hydr%nlevrhiz
+             j_bc = j+csite_hydr%i_rhiz_t-1
+             allocate(wkf_smooth_cch)
+             sites(s)%si_hydr%wkf_soil(j)%p => wkf_smooth_cch
+             call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
+                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                  bc_in(s)%bsw_sisl(j_bc),2._r8])
           end do
        case(tfs_type)
           write(fates_log(),*) 'TFS conductance not used in soil'
@@ -1290,7 +1336,8 @@ contains
        ! Calculate the number of rhizosphere
        ! layers used
        if(ignore_layer1) then
-          csite_hydr%i_rhiz_t = 2
+          !csite_hydr%i_rhiz_t = 2
+          csite_hydr%i_rhiz_t = 6
           csite_hydr%i_rhiz_b = bc_in(s)%nlevsoil
        else
           csite_hydr%i_rhiz_t = 1
@@ -1331,6 +1378,8 @@ contains
     class(wkf_type_vg), pointer :: wkf_vg
     class(wrf_type_cch), pointer :: wrf_cch
     class(wkf_type_cch), pointer :: wkf_cch
+    class(wrf_type_smooth_cch), pointer                :: wrf_smooth_cch
+    class(wkf_type_smooth_cch), pointer                :: wkf_smooth_cch
 
 
     nsites = ubound(sites,1)
@@ -1379,6 +1428,24 @@ contains
                   (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
                   bc_in(s)%bsw_sisl(j_bc)])
           end do
+       case(smooth1_campbell_type)
+          do j=1,site_hydr%nlevrhiz
+             j_bc=j+site_hydr%i_rhiz_t-1
+             allocate(wrf_smooth_cch)
+             site_hydr%wrf_soil(j)%p => wrf_smooth_cch
+             call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
+                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                  bc_in(s)%bsw_sisl(j_bc),1._r8])
+          end do
+       case(smooth2_campbell_type)
+          do j=1,site_hydr%nlevrhiz
+             j_bc=j+site_hydr%i_rhiz_t-1
+             allocate(wrf_smooth_cch)
+             site_hydr%wrf_soil(j)%p => wrf_smooth_cch
+             call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
+                  (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                  bc_in(s)%bsw_sisl(j_bc),2._r8])
+          end do
        case(tfs_type)
           write(fates_log(),*) 'TFS water retention curves not available for soil'
           call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1403,6 +1470,24 @@ contains
               call wkf_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
                    (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
                    bc_in(s)%bsw_sisl(j_bc)])
+           end do
+        case(smooth1_campbell_type)
+           do j=1,sites(s)%si_hydr%nlevrhiz
+              j_bc=j+site_hydr%i_rhiz_t-1
+              allocate(wkf_smooth_cch)
+              site_hydr%wkf_soil(j)%p => wkf_smooth_cch
+              call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
+                   (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                   bc_in(s)%bsw_sisl(j_bc),1._r8])
+           end do
+        case(smooth2_campbell_type)
+           do j=1,sites(s)%si_hydr%nlevrhiz
+              j_bc=j+site_hydr%i_rhiz_t-1
+              allocate(wkf_smooth_cch)
+              site_hydr%wkf_soil(j)%p => wkf_smooth_cch
+              call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
+                   (-1.0_r8)*bc_in(s)%sucsat_sisl(j_bc)*denh2o*grav_earth*mpa_per_pa*m_per_mm , & 
+                   bc_in(s)%bsw_sisl(j_bc),2._r8])
            end do
        case(tfs_type)
            write(fates_log(),*) 'TFS conductance not used in soil'
@@ -4201,6 +4286,8 @@ contains
     !-----------------------------------------------------------------------
 
        
+    ! for patches with no cohorts
+    if( l_aroot == 0._r8) return
     nshells = size(r_out_shell,dim=1)
     
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
@@ -5117,6 +5204,10 @@ contains
     ! Sum all fully encased layers
     if(i_rhiz_b>=i_rhiz_t)then
        depth_sum = depth_sum + sum(array_in(i_rhiz_t:i_rhiz_b)) 
+    end if
+    ! The bottom depth is deeper than depth_b
+    if(i_rhiz_b == 0) then
+       return
     end if
     
     ! Find fraction contribution from top partial layer (if any)
