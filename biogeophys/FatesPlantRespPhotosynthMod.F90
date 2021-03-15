@@ -1060,7 +1060,14 @@ contains
                     ! C3: RuBP-limited photosynthesis
                     aj = je * max(co2_inter_c-co2_cpoint, 0._r8) / &
                           (4._r8*co2_inter_c+8._r8*co2_cpoint)
-                 
+
+                    ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.                                                                                             
+                    aquad = theta_cj(c3c4_path_index)
+                    bquad = -(ac + aj)
+                    cquad = ac * aj
+                    call quadratic_f (aquad, bquad, cquad, r1, r2)
+                    agross = min(r1,r2)
+
                  else
                     
                     ! C4: Rubisco-limited photosynthesis
@@ -1081,14 +1088,24 @@ contains
                        aj = aj / (laisha_lsl * canopy_area_lsl)
                     end if
 
-                 end if
+                    ! C4: PEP carboxylase-limited (CO2-limited)                                                                                                                    
+                    ap = co2_rcurve_islope * max(co2_inter_c, 0._r8) / can_press
 
-                 ! Gross photosynthesis smoothing calculations. 
-                 aquad = theta_cj(c3c4_path_index)
-                 bquad = -(ac + aj)
-                 cquad = ac * aj
-                 call quadratic_f (aquad, bquad, cquad, r1, r2)
-                 agross = min(r1,r2)
+                    ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap                                                                     
+
+                    aquad = theta_cj(c3c4_path_index)
+                    bquad = -(ac + aj)
+                    cquad = ac * aj
+                    call quadratic_f (aquad, bquad, cquad, r1, r2)
+                    ai = min(r1,r2)
+
+                    aquad = theta_ip
+                    bquad = -(ai + ap)
+                    cquad = ai * ap
+                    call quadratic_f (aquad, bquad, cquad, r1, r2)
+                    agross = min(r1,r2)
+
+                 end if
 
                  ! Net carbon assimilation. Exit iteration if an < 0
                  anet = agross  - lmr
