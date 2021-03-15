@@ -90,10 +90,12 @@ module FatesPlantHydraulicsMod
   use FatesHydraulicsMemMod, only: rwccap, rwcft
   use FatesHydraulicsMemMod, only: ignore_layer1
   
-  use PRTGenericMod,          only : all_carbon_elements
+  use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
-
+  use PRTGenericMod,          only : num_elements
+  use PRTGenericMod,          only : element_list
+  
   use clm_time_manager  , only : get_step_size, get_nstep
 
   use EDPftvarcon, only : EDPftvarcon_inst
@@ -832,10 +834,10 @@ contains
     ccohort_hydr => ccohort%co_hydr
     ft           = ccohort%pft
     nlevrhiz = site_hydr%nlevrhiz
-    leaf_c   = ccohort%prt%GetState(leaf_organ, all_carbon_elements)
-    sapw_c   = ccohort%prt%GetState(sapw_organ, all_carbon_elements)
-    fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
-    struct_c = ccohort%prt%GetState(struct_organ, all_carbon_elements)
+    leaf_c   = ccohort%prt%GetState(leaf_organ, carbon12_element)
+    sapw_c   = ccohort%prt%GetState(sapw_organ, carbon12_element)
+    fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+    struct_c = ccohort%prt%GetState(struct_organ, carbon12_element)
 
     roota    = prt_params%fnrt_prof_a(ft)
     rootb    = prt_params%fnrt_prof_b(ft)
@@ -1612,16 +1614,24 @@ contains
     ! Locals
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     type(ed_site_hydr_type), pointer :: csite_hydr
+    type(ed_patch_type), pointer :: cpatch
     real(r8) :: tmp1
-    real(r8) :: watres_local   !minum water content [m3/m3]
-    real(r8) :: total_water !total water in rhizosphere at a specific layer (m^3 ha-1)
-    real(r8) :: total_water_min !total minimum water in rhizosphere at a specific layer (m^3)
-    real(r8) :: rootfr !fraction of root in different soil layer
-    real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/individual)   
-    real(r8) :: n, nmin !number of individuals in cohorts
+    real(r8) :: watres_local              ! minum water content [m3/m3]
+    real(r8) :: total_water               ! total water in rhizosphere at a specific layer (m^3 ha-1)
+    real(r8) :: total_water_min           ! total minimum water in rhizosphere at a specific layer (m^3)
+    real(r8) :: rootfr                    ! fraction of root in different soil layer
+    real(r8) :: recruitw                  ! water for newly recruited cohorts (kg water/m2/individual)   
+    real(r8) :: n, nmin                   ! number of individuals in cohorts
     real(r8) :: sum_l_aroot
     integer :: s, j, ft
 
+    integer :: el                         ! element loop index
+    integer :: element_id                 ! global element identifier index
+    real(r8) :: leaf_m, store_m, sapw_m   ! Element mass in organ tissues
+    real(r8) :: fnrt_m, struct_m, repro_m ! Element mass in organ tissues
+
+    
+    cpatch => ccohort%patchptr
     csite_hydr => csite%si_hydr
     ccohort_hydr =>ccohort%co_hydr
     recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
@@ -1651,8 +1661,33 @@ contains
           nmin = min(n, nmin) 
        endif
     end do
-    ccohort%n = min (ccohort%n, nmin) 
 
+    ! If the minimum number of plants is less than what was dictated by the
+    ! carbon-nitrogen-phosphorus availability, then we appy a reduction.
+    ! We also have to add back in what had been taken, to the germination seed pool
+
+    if(nmin < ccohort%n) then
+
+       do el = 1,num_elements
+
+          element_id = element_list(el)
+          
+          leaf_m  = ccohort%prt%GetState(leaf_organ, element_id)
+          store_m = ccohort%prt%GetState(store_organ, element_id)
+          sapw_m  = ccohort%prt%GetState(sapw_organ, element_id)
+          fnrt_m  = ccohort%prt%GetState(fnrt_organ, element_id)
+          struct_m = ccohort%prt%GetState(struct_organ, element_id)
+          repro_m  = ccohort%prt%GetState(repro_organ, element_id)
+          
+          cpatch%litter(el)%seed_germ(ccohort%pft) = cpatch%litter(el)%seed_germ(ccohort%pft) + & 
+               (ccohort%n-nmin)/cpatch%area * & 
+               (leaf_m+store_m+sapw_m+fnrt_m+struct_m+repro_m)
+          
+       end do
+       ccohort%n = nmin
+    end if
+    
+    return
   end subroutine ConstrainRecruitNumber
 
 
@@ -2028,9 +2063,9 @@ contains
           ccohort=>cpatch%tallest
           do while(associated(ccohort))
              balive_patch = balive_patch +  &
-                  (cCohort%prt%GetState(fnrt_organ, all_carbon_elements) + &
-                  cCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
-                  cCohort%prt%GetState(leaf_organ, all_carbon_elements))* ccohort%n
+                  (cCohort%prt%GetState(fnrt_organ, carbon12_element) + &
+                  cCohort%prt%GetState(sapw_organ, carbon12_element) + &
+                  cCohort%prt%GetState(leaf_organ, carbon12_element))* ccohort%n
              ccohort => ccohort%shorter
           enddo !cohort
 
@@ -2039,9 +2074,9 @@ contains
           do while(associated(ccohort))
              bc_out(s)%btran_pa(ifp) =  bc_out(s)%btran_pa(ifp) + &
                   ccohort%co_hydr%btran * &
-                  (cCohort%prt%GetState(fnrt_organ, all_carbon_elements) + &
-                  cCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
-                  cCohort%prt%GetState(leaf_organ, all_carbon_elements)) * &
+                  (cCohort%prt%GetState(fnrt_organ, carbon12_element) + &
+                  cCohort%prt%GetState(sapw_organ, carbon12_element) + &
+                  cCohort%prt%GetState(leaf_organ, carbon12_element)) * &
                   ccohort%n / balive_patch
              ccohort => ccohort%shorter
           enddo !cohort
