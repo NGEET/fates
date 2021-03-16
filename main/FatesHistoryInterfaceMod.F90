@@ -3916,26 +3916,40 @@ end subroutine update_history_hifrq
             vwc     = bc_in(s)%h2o_liqvol_sl(jsoil)
             psi     = site_hydr%wrf_soil(jrhiz)%p%psi_from_th(vwc)
             vwc_sat = bc_in(s)%watsat_sl(jsoil)
-            layer_areaweight = site_hydr%l_aroot_layer(jrhiz)*pi_const*site_hydr%rs1(jrhiz)**2.0
-            mean_soil_vwc    = mean_soil_vwc + vwc*layer_areaweight
-            mean_soil_vwcsat = mean_soil_vwcsat + vwc_sat*layer_areaweight
-            mean_soil_matpot = mean_soil_matpot + psi*layer_areaweight
-            areaweight       = areaweight + layer_areaweight
+            !patch with cohorts
+            if(site_hydr%l_aroot_layer(jrhiz) > 0._r8) then
+              layer_areaweight = site_hydr%l_aroot_layer(jrhiz)*pi_const*site_hydr%rs1(jrhiz)**2.0
+              mean_soil_vwc    = mean_soil_vwc + vwc*layer_areaweight
+              mean_soil_vwcsat = mean_soil_vwcsat + vwc_sat*layer_areaweight
+              mean_soil_matpot = mean_soil_matpot + psi*layer_areaweight
+              areaweight       = areaweight + layer_areaweight
+            endif
 
             hio_soilmatpot_sl(io_si,jsoil) = psi
             hio_soilvwc_sl(io_si,jsoil)    = vwc
             hio_soilvwcsat_sl(io_si,jsoil) = vwc_sat
             
          end do
+         if(sum(site_hydr%l_aroot_layer) == 0._r8) then
+         !to avoid nan for patch without cohorts
+           hio_rootwgt_soilvwc_si(io_si)    = 0._r8
+           hio_rootwgt_soilvwcsat_si(io_si) = 0._r8
+           hio_rootwgt_soilmatpot_si(io_si) = 0._r8
          
-         hio_rootwgt_soilvwc_si(io_si)    = mean_soil_vwc/areaweight
-         hio_rootwgt_soilvwcsat_si(io_si) = mean_soil_vwcsat/areaweight
-         hio_rootwgt_soilmatpot_si(io_si) = mean_soil_matpot/areaweight
+           hio_rootuptake_si(io_si) = 0._r8
+           hio_rootuptake_sl(io_si,:) = 0._r8
+           hio_rootuptake_sl(io_si,jr1:jr2) = 0._r8
+           hio_rootuptake_si(io_si) = 0._r8
+         else
+           hio_rootwgt_soilvwc_si(io_si)    = mean_soil_vwc/areaweight
+           hio_rootwgt_soilvwcsat_si(io_si) = mean_soil_vwcsat/areaweight
+           hio_rootwgt_soilmatpot_si(io_si) = mean_soil_matpot/areaweight
          
-         hio_rootuptake_si(io_si) = sum(site_hydr%rootuptake_sl,dim=1)
-         hio_rootuptake_sl(io_si,:) = 0._r8
-         hio_rootuptake_sl(io_si,jr1:jr2) = site_hydr%rootuptake_sl(1:nlevrhiz)
-         hio_rootuptake_si(io_si) = sum(site_hydr%sapflow_scpf)
+           hio_rootuptake_si(io_si) = sum(site_hydr%rootuptake_sl,dim=1)
+           hio_rootuptake_sl(io_si,:) = 0._r8
+           hio_rootuptake_sl(io_si,jr1:jr2) = site_hydr%rootuptake_sl(1:nlevrhiz)
+           hio_rootuptake_si(io_si) = sum(site_hydr%sapflow_scpf)
+         endif
 
          ! Normalization counters
          nplant_scpf(:) = 0._r8

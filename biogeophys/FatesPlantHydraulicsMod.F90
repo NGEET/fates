@@ -1807,6 +1807,8 @@ contains
        enddo !cohort
        cPatch => cPatch%older
     enddo !patch
+    !patch without cohorts
+    if(sum(csite_hydr%l_aroot_layer) == 0._r8) return
 
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
     do j = 1,nlevrhiz
@@ -2198,7 +2200,8 @@ contains
        ! BOC: This was previously in HydrologyDrainage:
 
        csite_hydr => sites(s)%si_hydr
-
+       ! patch without cohorts
+       if( sum(csite_hydr%l_aroot_layer) == 0._r8 ) cycle
        do j = 1,csite_hydr%nlevrhiz
           j_bc = j+csite_hydr%i_rhiz_t-1
 
@@ -2381,6 +2384,7 @@ contains
     do s = 1, nsites
 
        site_hydr => sites(s)%si_hydr
+       if( sum(site_hydr%l_aroot_layer) == 0._r8 ) cycle
 
        nlevrhiz = site_hydr%nlevrhiz
        
@@ -4287,7 +4291,12 @@ contains
 
        
     ! for patches with no cohorts
-    if( l_aroot == 0._r8) return
+    if( l_aroot == 0._r8) then
+      r_out_shell = 0._r8
+      r_node_shell = 0._r8
+      v_shell = 0._r8
+      return
+    endif 
     nshells = size(r_out_shell,dim=1)
     
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
