@@ -94,6 +94,9 @@ module FatesPlantHydraulicsMod
   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
 
+  use PRTGenericMod,          only : num_elements
+  use PRTGenericMod,          only : element_list
+
   use clm_time_manager  , only : get_step_size, get_nstep
 
   use EDPftvarcon, only : EDPftvarcon_inst
@@ -1681,6 +1684,7 @@ contains
 
   end subroutine RecruitWUptake
 
+#if 0
   !=====================================================================================
   subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
 
@@ -1738,6 +1742,101 @@ contains
     end do
     ccohort%n = min (ccohort%n, nmin) 
 
+  end subroutine ConstrainRecruitNumber
+#endif
+
+  !=====================================================================================
+  subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
+
+    ! ---------------------------------------------------------------------------
+    ! This subroutine constrains the number of plants so that there is enought
+    ! water
+    !  for newly recruited individuals from the soil
+    ! ---------------------------------------------------------------------------
+
+    ! Arguments
+    type(ed_site_type), intent(inout), target     :: csite
+    type(ed_cohort_type) , intent(inout), target  :: ccohort
+    type(bc_in_type)    , intent(in)              :: bc_in
+
+    ! Locals
+    type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+    type(ed_site_hydr_type), pointer :: csite_hydr
+    type(ed_patch_type), pointer :: cpatch
+    real(r8) :: tmp1
+    real(r8) :: watres_local              ! minum water content [m3/m3]
+    real(r8) :: total_water               ! total water in rhizosphere at a specific layer (m^3 ha-1)
+    real(r8) :: total_water_min           ! total minimum water in rhizosphere at a specific layer (m^3)
+    real(r8) :: rootfr                    ! fraction of root in different soil layer
+    real(r8) :: recruitw                  ! water for newly recruited cohorts (kg water/m2/individual)
+    real(r8) :: n, nmin                   ! number of individuals in cohorts
+    real(r8) :: sum_l_aroot
+    integer :: s, j, ft
+
+    integer :: el                         ! element loop index
+    integer :: element_id                 ! global element identifier index
+    real(r8) :: leaf_m, store_m, sapw_m   ! Element mass in organ tissues
+    real(r8) :: fnrt_m, struct_m, repro_m ! Element mass in organ tissues
+
+
+    cpatch => ccohort%patchptr
+    csite_hydr => csite%si_hydr
+    ccohort_hydr =>ccohort%co_hydr
+    recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
+         ccohort_hydr%th_troot*ccohort_hydr%v_troot  + &
+         sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
+         denh2o
+    sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
+    do j=1,csite_hydr%nlevrhiz
+       cohort_recruit_water_layer(j) = recruitw*ccohort_hydr%l_aroot_layer(j)/sum_l_aroot
+    end do
+
+    do j=1,csite_hydr%nlevrhiz
+       watres_local = csite_hydr%wrf_soil(j)%p%th_from_psi(bc_in%smpmin_si*denh2o*grav_earth*m_per_mm*mpa_per_pa)
+
+       total_water = sum(csite_hydr%v_shell(j,:)*csite_hydr%h2osoi_liqvol_shell(j,:))
+       total_water_min = sum(csite_hydr%v_shell(j,:)*watres_local)
+
+       !assumes that only 50% is available for recruit water....
+       recruit_water_avail_layer(j)=0.5_r8*max(0.0_r8,total_water-total_water_min)
+
+    end do
+
+    nmin  = 1.0e+36
+    do j=1,csite_hydr%nlevrhiz
+       if(cohort_recruit_water_layer(j)>0.0_r8) then
+          n = recruit_water_avail_layer(j)/cohort_recruit_water_layer(j)
+          nmin = min(n, nmin)
+       endif
+    end do
+
+    ! If the minimum number of plants is less than what was dictated by the
+    ! carbon-nitrogen-phosphorus availability, then we appy a reduction.
+    ! We also have to add back in what had been taken, to the germination seed
+    ! pool
+
+    if(nmin < ccohort%n) then
+
+       do el = 1,num_elements
+
+          element_id = element_list(el)
+
+          leaf_m  = ccohort%prt%GetState(leaf_organ, element_id)
+          store_m = ccohort%prt%GetState(store_organ, element_id)
+          sapw_m  = ccohort%prt%GetState(sapw_organ, element_id)
+          fnrt_m  = ccohort%prt%GetState(fnrt_organ, element_id)
+          struct_m = ccohort%prt%GetState(struct_organ, element_id)
+          repro_m  = ccohort%prt%GetState(repro_organ, element_id)
+
+          cpatch%litter(el)%seed_germ(ccohort%pft) = cpatch%litter(el)%seed_germ(ccohort%pft) + &
+               (ccohort%n-nmin)/cpatch%area * &
+               (leaf_m+store_m+sapw_m+fnrt_m+struct_m+repro_m)
+
+       end do
+       ccohort%n = nmin
+    end if
+
+    return
   end subroutine ConstrainRecruitNumber
 
 
