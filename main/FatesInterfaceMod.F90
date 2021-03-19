@@ -26,6 +26,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
+   use FatesConstantsMod         , only : sec_per_day
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -68,8 +69,11 @@ module FatesInterfaceMod
    use PRTInitParamsFatesMod     , only : PRTCheckParams
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
-
-
+   use FatesRunningMeanMod       , only : ema_24hr
+   use FatesRunningMeanMod       , only : fixed_24hr
+   use FatesRunningMeanMod       , only : moving_ema_window
+   use FatesRunningMeanMod       , only : fixed_window
+   
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -797,6 +801,14 @@ contains
          ! These will not be used if use_ed or use_fates is false
          call fates_history_maps()
 
+         
+         ! Instantiate the time-averaging method globals
+         allocate(ema_24hr)
+         call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
+         allocate(fixed_24hr)
+         call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
+
+         
 
       else
          ! If we are not using FATES, the cohort dimension is still

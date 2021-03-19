@@ -85,7 +85,8 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-
+  use FatesRunningMeanMod,    only : ema_24hr
+  
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod          , only : errMsg => shr_log_errMsg
@@ -1979,7 +1980,7 @@ contains
     allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
 
     allocate(new_patch%tveg24)
-    call new_patch%tveg24%InitRMean(mem_period=86400._r8,up_period=hlm_stepsize)
+    call new_patch%tveg24%InitRMean(ema_24hr) ! No initial value
 
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
@@ -2824,7 +2825,6 @@ contains
 
     
     ! Deallocate any running means
-    deallocate(cpatch%tveg24%mem)
     deallocate(cpatch%tveg24)
     
     return

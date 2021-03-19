@@ -12,18 +12,64 @@ module FatesRunningMeanMod
   private
 
   integer, parameter :: maxlen_varname = 8
+
+  ! These are flags that specify how the averaging window works.
+  ! Moving windows (default) can have an arbitrary size and update frequency)
+  ! and it is technically never reset, it just averages indefinitely.
+  ! But hourly, six-hourly, daily, monthly and yearly windows have pre-set
+  ! window sizes associated with their namesake, and more importantly, they
+  ! are zero'd at the beginning of the interval, and get equal average weighting
+  ! over their construction period.
+
+  
+  integer, public, parameter :: moving_ema_window = 0
+  integer, public, parameter :: fixed_window = 1
+  
+  ! This type defines a type of mean. It does not
+  ! define the variable, but it defines how
+  ! often it is updated, how long its
+  ! memory period is, and if it should be zero'd
+  ! These are globally defined on the proc.
+  
+  type, public :: rmean_def_type
+
+     real(r8) :: mem_period   ! The total integration period (s)
+     real(r8) :: up_period    ! The period between updates (s)
+     integer  :: n_mem        ! How many updates per integration period?
+     integer  :: method       ! Is this a fixed or moving window?
+
+   contains
+     
+     procedure :: define
+     
+  end type rmean_def_type
+
+  
+  ! This holds the time varying information for the mean
+  ! which is instantiated on sites, patches, and cohorts
   
   type, public :: rmean_type
      
-     real(r8), allocatable    :: mem(:)        ! Array storing the memory of the mean
-     real(r8)                 :: c_mean        ! The current mean value from the
-                                               ! available memory, as of the last update
-     integer                  :: c_index       ! The current memory index as per the
-                                               ! last update
-     integer                  :: n_mem         ! Total number of memory indices
-     logical                  :: filled        ! Has enough time elapsed so all memory filled?
-     !character(len=maxlen_varname) :: var_name ! A short name for this variable
-     !                                          ! for diagnostic purposes
+     real(r8) :: c_mean  ! The current mean value, if this
+                         ! is a moving window, its is the mean.
+                         ! If this is a fixed window, it is only a partial mean
+                         ! as the value uses equal update weights and is not
+                         ! necessarily fully constructed.
+
+     real(r8) :: l_mean  ! The latest reportable mean value
+                         ! this value is actually the same
+                         ! as c_mean for moving windows, and for fixed windows
+                         ! it is the mean value when the time integratino window
+                         ! last completed.
+
+     integer  :: c_index ! The number of values that have
+                         ! been added to the mean so far
+                         ! once this is >= n_mem then
+                         ! the ema weight hits its cap
+
+     ! This points to the global structure that
+     ! defines the nature of this mean/avg
+     type(rmean_def_type), pointer :: def_type
      
    contains
 
@@ -34,42 +80,31 @@ module FatesRunningMeanMod
      
   end type rmean_type
 
+  
   character(len=*), parameter, private :: sourcefile = &
          __FILE__
+
+
+  ! Define the time methods that we want to have available to us
+  
+  class(rmean_def_type), public, pointer :: ema_24hr
+  class(rmean_def_type), public, pointer :: fixed_24hr
   
 contains
 
 
-  function get_mean(this)
+  subroutine define(this,mem_period,up_period,method)
 
-    class(rmean_type)             :: this
-    real(r8) :: get_mean
+    class(rmean_def_type) :: this
 
-    if(this%c_index == 0) then
-       write(fates_log(), *) 'attempting to get a running mean from a variable'
-       write(fates_log(), *) 'that has not experienced any time to accumluate memory'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
-    get_mean = this%c_mean
+    real(r8),intent(in) :: mem_period
+    real(r8),intent(in) :: up_period
+    integer,intent(in)  :: method
 
-  end function get_mean
-  
-
-  subroutine InitRMean(this,mem_period,up_period) !,init_value)
-
-    class(rmean_type)             :: this
-    !character(len=maxlen_varname) :: name       ! The name of the new variable
-    real(r8)                      :: mem_period ! The period length in seconds that must be remembered
-    real(r8)                      :: up_period  ! The period length in seconds that memory is updated
-    ! (i.e. the resolution of the memory)
-    !real(r8)                      :: init_value ! The first value to put in memory
-    
-    !this%name = name
-    this%n_mem = nint(mem_period/up_period)
-    
-    if( abs(real(this%n_mem,r8)-mem_period/up_period) > nearzero ) then
-       write(fates_log(), *) 'While defining a running mean variable: '!,this%var_name
-       write(fates_log(), *) 'an update and total memory period was specified'
+    ! Check the memory and update periods
+    if( abs(nint(mem_period/up_period)-mem_period/up_period) > nearzero ) then
+       write(fates_log(), *) 'While defining a running mean definition'
+       write(fates_log(), *) 'an update and memory period was specified'
        write(fates_log(), *) 'where the update period is not an exact fraction of the period'
        write(fates_log(), *) 'mem_period: ',mem_period
        write(fates_log(), *) 'up_period: ',up_period
@@ -77,20 +112,85 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    ! Otherwise we allocate
-    allocate(this%mem(this%n_mem))
+    this%mem_period = mem_period
+    this%up_period  = up_period
+    this%method     = method
+    this%n_mem      = nint(mem_period/up_period)
 
-    ! Initialize with nonsense numbers
-    this%mem(:) = nan
+    return
+  end subroutine define
 
-    ! There are no memory spots filled with valid datapoints
-    this%filled = .false.
+  ! =====================================================================================
+  
+  function get_mean(this)
 
-    ! The current index of the memory is one
-    this%c_index = 0
+    class(rmean_type) :: this
+    real(r8)          :: get_mean
+
+    if(this%def_type%method .eq. moving_ema_window) then
+       if(this%c_index == 0) then
+          write(fates_log(), *) 'attempting to get a running mean from a variable'
+          write(fates_log(), *) 'that has been given a value yet'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    else
+       if(this%c_index .ne. this%def_type%n_mem)then
+          write(fates_log(), *) 'attempting to get a mean over a fixed window'
+          write(fates_log(), *) 'at a time where the window has not completed'
+          write(fates_log(), *) 'its cycle yet'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+    get_mean = this%l_mean
+
+  end function get_mean
+  
+  ! =====================================================================================
+  
+  subroutine InitRMean(this,rmean_def,init_value,init_offset)
+
+    class(rmean_type)             :: this
+    type(rmean_def_type), target  :: rmean_def
+    real(r8),intent(in),optional  :: init_value
+    real(r8),intent(in),optional  :: init_offset
+
+    ! If the initialization happens part-way through a fixed averaging window
+    ! we need to account for this.  The current method moves the position
+    ! index to match the offset, and then assumes that the init_value provided
+    ! was a constant over the offset period.
+
+    ! If the first value is offset, such that the we are a portion of the
+    ! way through the window, we need to account for this. 
     
-    !this%mem(1) = init_value
+    ! Point to the averaging type
+    this%def_type => rmean_def
 
+    if(this%def_type%method .eq. fixed_window) then
+       
+       if(.not.(present(init_offset).and.present(init_value)) )then
+          write(fates_log(), *) 'when initializing a temporal mean on a fixed window'
+          write(fates_log(), *) 'there must be an initial value and a time offset'
+          write(fates_log(), *) 'specified.'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       
+       this%c_index = modulo(nint(init_offset/rmean_def%up_period)+1,rmean_def%n_mem)
+       this%c_mean = real(this%c_index,r8)/real(rmean_def%n_mem,r8)*init_value
+       this%l_mean = init_value
+       
+    elseif(this%def_type%method .eq. moving_ema_window) then
+       
+       if(present(init_value))then
+          this%c_mean  = init_value
+          this%l_mean  = init_value
+          this%c_index = 1
+       else
+          this%c_mean  = nan
+          this%l_mean  = nan
+          this%c_index = 0
+       end if
+       
+    end if
     
     return
   end subroutine InitRMean
@@ -101,29 +201,41 @@ contains
 
     class(rmean_type) :: this
     real(r8)          :: new_value   ! The newest value added to the running mean
+    real(r8)          :: wgt
     
-    this%c_index = this%c_index + 1
-    
-    ! Update the index of the memory array
-    ! and, determine if we have filled the memory yet
-    ! If this index is greater than our memory slots,
-    ! go back to the first
-    if(this%c_index==this%n_mem) then
-       this%filled  = .true.
-    end if
+    if(this%def_type%method.eq.moving_ema_window) then
 
-    if(this%c_index>this%n_mem) this%c_index = 1
-    
-    this%mem(this%c_index) = new_value
-
-    ! Update the running mean value. It will return a value
-    ! if we have not filled in all the memory slots. To do this
-    ! it will take a mean over what is available
-
-    if(this%filled) then
-       this%c_mean = sum(this%mem)/real(this%n_mem,r8)
+       this%c_index = min(this%def_type%n_mem,this%c_index + 1)
+       
+       if(this%c_index==1) then
+          this%c_mean = new_value
+       else
+          wgt = 1._r8/real(this%c_index,r8)
+          this%c_mean = this%c_mean*(1._r8-wgt) + wgt*new_value
+       end if
+       
+       this%l_mean = this%c_mean
+       
     else
-       this%c_mean = sum(this%mem(1:this%c_index))/real(this%c_index,r8)
+
+       ! If the last time we updated we had hit the
+       ! end of the averaging memory period, and
+       ! we are not using an indefinite running
+       ! average, then zero things out
+
+       if(this%c_index == this%def_type%n_mem) then
+          this%c_mean = 0._r8
+          this%c_index = 0
+       end if
+       
+       this%c_index = this%c_index + 1
+       wgt = this%def_type%up_period/this%def_type%mem_period
+       this%c_mean = this%c_mean + new_value*wgt
+       
+       if(this%c_index == this%def_type%n_mem) then
+          this%l_mean = this%c_mean
+       end if
+       
     end if
 
     return
@@ -133,123 +245,52 @@ contains
   
   subroutine FuseRMean(this,donor,recip_wgt)
 
-    ! When fusing the running mean of two entities, it is possible that they
-    ! may have a different amount of memory spaces filled (at least in FATES). This
-    ! is typical for newly created patches or cohorts, that litteraly just spawned
-    ! So what generally happens is we walk backwards from the current memory index
-    ! of both and take means where we can.  In places where one entity has more
-    ! memory than the other, than we just use the value from the one that is there
+    ! Rules for fusion:
+    ! If both entities have valid means already, then you simply use the
+    ! weight provided to combine them.
+    ! If this is a moving average, then update the index to be the larger of
+    ! the two.
+    ! if this is a fixed window, check that the index is the same between
+    ! both.
 
+    
     class(rmean_type)          :: this
     class(rmean_type), pointer :: donor
     real(r8),intent(in)        :: recip_wgt  ! Weighting factor for recipient (0-1)
     
-    integer :: r_id   ! Loop index counter for the recipient (this)
-    integer :: d_id   ! Loop index counter for the donor
-
-    
-    if(this%n_mem .ne. donor%n_mem) then
+    if(this%def_type%n_mem .ne. donor%def_type%n_mem) then
        write(fates_log(), *) 'memory size is somehow different during fusion'
        write(fates_log(), *) 'of two running mean variables: '!,this%name,donor%name
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    if(this%filled .and. donor%filled) then
-
-       ! Both are filled, take averages of each and be sure to use relative positions
-       
-       d_id = donor%c_index
-       do r_id = 1,this%n_mem
-          this%mem(r_id) = this%mem(r_id)*(recip_wgt) + &
-               donor%mem(d_id)*(1._r8-recip_wgt)
-          d_id = d_id+1
-          if(d_id>donor%n_mem) d_id = 1
-       end do
-
-    elseif(this%filled .and. .not.donor%filled) then
-
-       ! Here, we have only partial memory from the donor
-       ! we we iterate through the donor's memory
-       ! and average between the two in those spaces. Then
-       ! we leave the rest untouched because we accept
-       ! the values from the recipient. Also, keep the
-       ! recipient's index.
-       
-       r_id = this%c_index
-       do d_id = donor%c_index,1,-1
-          this%mem(r_id) = this%mem(r_id)*(recip_wgt) + donor%mem(d_id)*(1._r8-recip_wgt)
-          r_id = r_id - 1
-          if(r_id==0) r_id = this%n_mem
-       end do
-
-
-    elseif(.not.this%filled .and. donor%filled) then
-
-       ! Here we only have partial memory from the recipient
-       ! so we iterate through the recipient's memory
-       ! and average between the two.  Then we copy
-       ! over the values from the donor for the indices that we
-       ! didn't average because the donor has valid values
-       
-       d_id = donor%c_index
-       do r_id = this%c_index,1,-1
-          this%mem(r_id) = this%mem(r_id)*(recip_wgt) + donor%mem(d_id)*(1._r8-recip_wgt)
-          d_id = d_id - 1
-          if(d_id==0) d_id = donor%n_mem
-       end do
-
-       do r_id = this%n_mem,this%c_index+1,-1
-          this%mem(r_id) =  donor%mem(d_id)
-          d_id = d_id - 1
-       end do
-       ! Pass the current index of the donor since that was filled
-       ! And also update the status to filled since it now
-       ! has all memory filled from the donor
-       this%c_index = donor%c_index
-       this%filled  = .true.
-       
-    elseif(.not.this%filled .and. .not.donor%filled) then
-
-       ! Here, neither is completely filled
-       
-       if( this%c_index>donor%c_index ) then
-
-          ! In this case, leave all data as the recipient
-          ! except for where there is donor. Keep the recipient's
-          ! index and status, since it is larger and should remain unchanged
-          
-          r_id = this%c_index
-          do d_id = donor%c_index,1,-1
-             this%mem(r_id) = this%mem(r_id)*(recip_wgt) + donor%mem(d_id)*(1._r8-recip_wgt)
-          end do
-          
-       else
-
-          ! In this case, we do the same thing as the previous
-          ! clause, but just switch the roles, then
-          ! copy the donor to the recipient
-          ! Also transfer the index from the donor, since that was
-          ! higher and now reflects the filled memory
-          
-          d_id = donor%c_index
-          do r_id = this%c_index,1,-1
-             donor%mem(r_id) = this%mem(r_id)*(recip_wgt) + donor%mem(d_id)*(1._r8-recip_wgt)
-          end do
-          this%mem(:) = donor%mem
-          this%c_index = donor%c_index
+    if(this%def_type%method .eq. fixed_window ) then
+       if (this%c_index .ne. donor%c_index) then
+          write(fates_log(), *) 'trying to fuse two fixed-window averages'
+          write(fates_log(), *) 'that are at different points in the window?'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
+    end if
+
+    ! This last logic clause just simply prevents us from doing math
+    ! on uninitialized values. If both are unintiailized, then
+    ! leave the result as uninitialized
+    if( .not. (donor%c_index==0) ) then
+
+       if(this%c_index==0) then
+          this%c_mean = donor%c_mean
+          this%l_mean = donor%l_mean 
+          this%c_index = donor%c_index
+       else
+          ! Take the weighted mean between the two
+          this%c_mean = this%c_mean*recip_wgt + donor%c_mean*(1._r8-recip_wgt)
+          this%l_mean = this%l_mean*recip_wgt + donor%l_mean*(1._r8-recip_wgt)
+          ! Update the index to the larger of the two
+          this%c_index = max(this%c_index,donor%c_index)
+       end if
+
+    end if
        
-    end if
-
-    ! Update the mean based on the fusion
-    if(this%filled) then
-       this%c_mean = sum(this%mem)/real(this%n_mem,r8)
-    else
-       if(this%c_index>0) this%c_mean = &
-            sum(this%mem(1:this%c_index))/real(this%c_index,r8)
-    end if
-
-    
     return
   end subroutine FuseRMean
 
