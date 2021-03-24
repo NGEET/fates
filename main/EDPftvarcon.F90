@@ -199,6 +199,16 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_avuln_gs(:)      ! shape parameter for stomatal control of water vapor exiting leaf 
      real(r8), allocatable :: hydr_p50_gs(:)        ! water potential at 50% loss of stomatal conductance
 
+ ! Junyan added the PFT specific parameters for hydru, though some of them are more like allometry parameters
+     real(r8), allocatable :: allom_dbh_max(:)  
+     real(r8), allocatable :: allom_dbh_0(:)
+     real(r8), allocatable :: allom_zfr_max(:)
+     real(r8), allocatable :: allom_zfr_0(:)
+     real(r8), allocatable :: allom_frk(:)
+
+! end of Junyan's addition   
+
+ 
      ! PFT x Organ Dimension  (organs are: 1=leaf, 2=stem, 3=transporting root, 4=absorbing root)
      real(r8), allocatable :: hydr_avuln_node(:,:)  ! xylem vulernability curve shape parameter 
      real(r8), allocatable :: hydr_p50_node(:,:)    ! xylem water potential at 50% conductivity loss (MPa)
@@ -423,6 +433,37 @@ contains
     name = 'fates_allom_frbstor_repro'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+! Junyan added to register following parameters,  May 29, 2020 
+!     real(r8), allocatable :: allom_dbh_max(:)  
+!     real(r8), allocatable :: allom_dbh_0(:)
+!     real(r8), allocatable :: allom_zfr_max(:)
+!     real(r8), allocatable :: allom_zfr_0(:)
+!     real(r8), allocatable :: allom_frk(:)
+
+    name = 'fates_allom_dbh_max'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_dbh_0'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_zfr_max'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_zfr_0'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_frk'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+
+! end of Junyan's addition
+
 
     name = 'fates_hydr_p_taper'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -756,6 +797,31 @@ contains
     name = 'fates_allom_frbstor_repro'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_frbstor_repro) 
+
+! Junyan added below May 29, 2020
+    name = 'fates_allom_dbh_max'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_dbh_max) 
+
+    name = 'fates_allom_dbh_0'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_dbh_0)
+
+    name = 'fates_allom_zfr_max'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_zfr_max)
+
+    name = 'fates_allom_zfr_0'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_zfr_0)
+
+    name = 'fates_allom_frk'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_frk)
+
+
+! end of Junyan's addition
+
 
     name = 'fates_hydr_p_taper'
     call fates_params%RetreiveParameterAllocate(name=name, &
