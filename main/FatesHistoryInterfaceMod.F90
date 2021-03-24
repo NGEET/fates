@@ -329,7 +329,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_h2oveg_dead_si
   integer :: ih_h2oveg_recruit_si
   integer :: ih_h2oveg_growturn_err_si
-  integer :: ih_h2oveg_pheno_err_si
   integer :: ih_h2oveg_hydro_err_si
   
   integer :: ih_site_cstatus_si
@@ -2124,7 +2123,6 @@ end subroutine flush_hvars
             this%hvars(ih_h2oveg_dead_si)%r81d(io_si)         = sites(s)%si_hydr%h2oveg_dead
             this%hvars(ih_h2oveg_recruit_si)%r81d(io_si)      = sites(s)%si_hydr%h2oveg_recruit
             this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
-            this%hvars(ih_h2oveg_pheno_err_si)%r81d(io_si)    = sites(s)%si_hydr%h2oveg_pheno_err
          end if
 
          ! error in primary lands from patch fusion
@@ -6298,11 +6296,6 @@ end subroutine update_history_hifrq
              long='cumulative net borrowed (+) or lost (-) from plant_stored_h2o due to combined growth & turnover', use_default='inactive',   &
              avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_growturn_err_si )
-    
-       call this%set_history_var(vname='H2OVEG_PHENO_ERR', units = 'kg/m2',               &
-             long='cumulative net borrowed (+) from plant_stored_h2o due to leaf emergence', use_default='inactive',   &
-             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_h2oveg_pheno_err_si )
      
        call this%set_history_var(vname='H2OVEG_HYDRO_ERR', units = 'kg/m2',               &
              long='cumulative net borrowed (+) from plant_stored_h2o due to plant hydrodynamics', use_default='inactive',   &

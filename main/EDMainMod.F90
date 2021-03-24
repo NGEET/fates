@@ -157,13 +157,6 @@ contains
     ! This is limited to a global event until more structured event handling is enabled
     call IsItLoggingTime(hlm_masterproc,currentSite)
 
-    ! -----------------------------------------------------------------------------------
-    ! Parse nutrient flux rates 
-    ! The input boundary conditions from the HLM should now have a daily integrated
-    ! flux.  But, that flux still needs to be parsed out to the existing cohorts.
-    ! -----------------------------------------------------------------------------------
-
-
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
     !**************************************************************************
