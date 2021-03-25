@@ -794,7 +794,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_frbstor_repro) 
 
-! Junyan added below May 29, 2020
     name = 'fates_allom_dbh_max'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_dbh_max) 
