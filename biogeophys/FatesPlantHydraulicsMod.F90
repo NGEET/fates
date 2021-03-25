@@ -490,7 +490,7 @@ contains
 !       h_aroot_mean = 0._r8
 
        do j=1, site_hydr%nlevrhiz
-        ! Junyan added the if statement 
+        ! Checking apperance of roots. Only proceed if there is roots in that layer 
          if(cohort_hydr%l_aroot_layer(j) > 0) then  
              ! Match the potential of the absorbing root to the inner rhizosphere shell
              cohort_hydr%psi_aroot(j) = site_hydr%wrf_soil(j)%p%psi_from_th(site_hydr%h2osoi_liqvol_shell(j,1))
@@ -503,7 +503,7 @@ contains
          else
              cohort_hydr%psi_aroot(j) = psi_aroot_init  
              cohort_hydr%th_aroot(j) = 0      
-         end if  ! end Junyan addition July 24th. 2020         
+         end if  ! checking having roots         
        end do
        
     else
@@ -532,8 +532,8 @@ contains
     cohort_hydr%psi_troot = h_aroot_mean - &
          mpa_per_pa*denh2o*grav_earth*cohort_hydr%z_node_troot - dh_dz
 
-    cohort_hydr%th_troot = wrfa%p%th_from_psi(cohort_hydr%psi_troot)
-    cohort_hydr%ftc_troot = wkfa%p%ftc_from_psi(cohort_hydr%psi_troot)
+    cohort_hydr%th_troot = wrft%p%th_from_psi(cohort_hydr%psi_troot)
+    cohort_hydr%ftc_troot = wkft%p%ftc_from_psi(cohort_hydr%psi_troot)
 
 
     ! working our way up a tree, assigning water potentials that are in
@@ -931,7 +931,7 @@ contains
     ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%hite ) * 1.e-4_r8
 
     crown_depth = prt_params%crown(ft) * ccohort%hite
-    z_stem       = ccohort%hite - crown_depth * 0.2_r8
+    z_stem       = ccohort%hite - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
     ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
@@ -984,7 +984,7 @@ contains
               zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j)-site_hydr%dz_rhiz(j),z_fr))
         
         if(JD_debug)then
-            write(fates_log(),*) 'check rooting depth of cohort - Junyan, line 972'
+            write(fates_log(),*) 'check rooting depth of cohort - Junyan, line 987'
             write(fates_log(),*) 'dbh: ',ccohort%dbh,' sice class: ',ccohort%size_class
             write(fates_log(),*) 'site_hydr%dz_rhiz(j) is: ', site_hydr%dz_rhiz(j)
             write(fates_log(),*) 'z_max cohort: ',z_fr
@@ -997,7 +997,7 @@ contains
         ccohort_hydr%v_aroot_layer(j) = rootfr*(v_aroot_tot + t2aroot_vol_donate_frac*v_troot)
 
     end do
- ! end of Junyan's modification
+
       
     return
   end subroutine UpdatePlantHydrLenVol
@@ -1062,7 +1062,7 @@ contains
 
     ccohort_hydr%errh2o_growturn_aroot = 0._r8
     do j=1,currentSite%si_hydr%nlevrhiz
-      ! check v_aroot >0, Junyan addition
+      ! check v_aroot >0
       if (ccohort_hydr%v_aroot_layer(j) > 0) then 
         th_aroot_uncorr(j) = ccohort_hydr%th_aroot(j) * &
              ccohort_hydr%v_aroot_layer_init(j)/ccohort_hydr%v_aroot_layer(j)
@@ -1071,7 +1071,7 @@ contains
              denh2o*cCohort%n*AREA_INV*(ccohort_hydr%th_aroot(j)-th_aroot_uncorr(j))*ccohort_hydr%v_aroot_layer(j)
       else
 
-      endif ! end Junyan addition
+      endif ! end checking v_arrot 
     enddo
 
     ! Storing mass balance error
@@ -1402,12 +1402,14 @@ contains
           j_bc=j+site_hydr%i_rhiz_t-1
           h2osoi_liqvol = min(bc_in(s)%eff_porosity_sl(j_bc), &
                bc_in(s)%h2o_liq_sisl(j_bc)/(site_hydr%dz_rhiz(j)*denh2o))
-          ! Junyan added log
+
+          site_hydr%h2osoi_liqvol_shell(j,1:nshell) = h2osoi_liqvol
+          site_hydr%h2osoi_liq_prev(j)              = bc_in(s)%h2o_liq_sisl(j_bc)
+
           if (JD_debug) then
-            write(fates_log(),*) 'line 1368, initial shell water content'
+            write(fates_log(),*) 'line 1410, initial shell water content'
             write(fates_log(),*) 'water content:', h2osoi_liqvol
-            site_hydr%h2osoi_liqvol_shell(j,1:nshell) = h2osoi_liqvol
-            site_hydr%h2osoi_liq_prev(j)              = bc_in(s)%h2o_liq_sisl(j_bc)
+
           endif
        end do
     
@@ -1546,12 +1548,12 @@ contains
              ccohort_hydr => currentCohort%co_hydr
              !only account for the water for not newly recruit for mass balance
              if(.not.ccohort_hydr%is_newly_recruited) then
-               ! Junyan added check for nan value
+               ! check for nan value
                do ily = 1,csite_hydr%nlevrhiz
                   if(ccohort_hydr%th_aroot(ily)/=ccohort_hydr%th_aroot(ily)) then
                     ccohort_hydr%th_aroot(ily) = 0         
                   endif                 
-               end do  ! end Junyan addition Mar - 12 2021
+               end do  ! end checking nan
 
 
                 csite_hydr%h2oveg = csite_hydr%h2oveg + &
@@ -1560,7 +1562,7 @@ contains
                      sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
                      denh2o*currentCohort%n
                 if (JD_debug) then 
-                  write(fates_log(),*) 'Junyan added log info, line 1532'
+                  write(fates_log(),*) 'Junyan added log info, line 1565'
                   write(fates_log(),*) 'ccohort_hydr%th_aroot(:):', ccohort_hydr%th_aroot(:)
                   write(fates_log(),*) 'ccohort_hydr%v_aroot_layer(:):', ccohort_hydr%v_aroot_layer(:)
                   write(fates_log(),*)      
@@ -1608,7 +1610,7 @@ contains
     ! going forward, this routine accounts for the water that needs to be accounted for
     ! as the plants pop into existance.  
     ! Notes by Junyan,  July 16. 2020
-    !   need to modify the accessable soil layer equal to z_fr_0
+    !   modify the accessable soil layer equal to z_fr_0
     ! 
     ! ----------------------------------------------------------------------------------
 
@@ -1734,7 +1736,7 @@ contains
     end do
 
     do j=1,csite_hydr%nlevrhiz
-     ! Junyan add the if statement
+     ! check there is roots in the layer, only proceed when there is roots 
      if (ccohort_hydr%l_aroot_layer(j)>0.0_r8) then
        watres_local = csite_hydr%wrf_soil(j)%p%th_from_psi(bc_in%smpmin_si*denh2o*grav_earth*m_per_mm*mpa_per_pa)
 
@@ -1743,7 +1745,7 @@ contains
 
        !assumes that only 50% is available for recruit water....
        recruit_water_avail_layer(j)=0.5_r8*max(0.0_r8,total_water-total_water_min)
-     endif ! end of Junyan addition
+     endif ! end checking
     end do
 
     nmin  = 1.0e+36 
@@ -1811,7 +1813,7 @@ contains
 
     csite_hydr => currentSite%si_hydr
     nlevrhiz = csite_hydr%nlevrhiz
-    ! Notes by Junyan, here is where the site level  
+    ! Note, here is where the site level soil depth/layer is set
     ! update cohort-level root length density and accumulate it across cohorts and patches to the column level
     csite_hydr%l_aroot_layer(:)  = 0._r8
     cPatch => currentSite%youngest_patch
@@ -1833,7 +1835,7 @@ contains
           call shellGeom( csite_hydr%l_aroot_layer(j), csite_hydr%rs1(j), AREA, csite_hydr%dz_rhiz(j), &
                csite_hydr%r_out_shell(j,:), csite_hydr%r_node_shell(j,:),csite_hydr%v_shell(j,:))
         else
-          ! Junyan added Mar 11 2021
+          ! Handling zero root shell geometry, Mar 11 2021
           ! set the shell geometry to be the same as the upalyer 
           ! soil layer if there is no root in that layer
           csite_hydr%r_out_shell(j,:) = csite_hydr%r_out_shell(j-1,:) 
@@ -1845,9 +1847,8 @@ contains
 
 
     do j = 1,nlevrhiz
-      ! Junyan added logs
       if (JD_debug) then 
-         write(fates_log(),*) 'code line 1793, check shellGeom '   
+         write(fates_log(),*) 'code line 1851, check shellGeom '   
          write(fates_log(),*) ' uncommented line 1786 and 1789 to only get'
          write(fates_log(),*) ' shell geometry if there is root in the layer'   
          write(fates_log(),*)  'j:', j
@@ -2669,13 +2670,13 @@ contains
               write(fates_log(),*) 'site_hydr%l_aroot_layer(j): ' ,   site_hydr%l_aroot_layer(j)        
            endif
 
-         ! Junyan added if statement
+         ! Adjust NaN and Infinity values for no root layers to avoid 
+         ! NaN in bc_out 
          if (site_hydr%l_aroot_layer(j) > 0) then
 
            site_hydr%h2osoi_liqvol_shell(j,:) =  site_hydr%h2osoi_liqvol_shell(j,:) + &
                  dth_layershell_col(j,:)
-          ! Junyan added notes, need to adjust NaN and Infinity values for no root layers to avoid 
-          ! NaN in bc_out 
+
 
            bc_out(s)%qflx_soil2root_sisl(j_bc) = &
                  -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:))*denh2o*AREA_INV/dtime) + &
@@ -2714,7 +2715,7 @@ contains
              
              bc_out(s)%qflx_ro_sisl(j_bc) = site_runoff/dtime
           end if
-         end if ! line 2604 Junyan addition 
+         end if ! adjust for Nan 
       enddo
 
        
@@ -2729,8 +2730,6 @@ contains
        
       delta_soil_storage  = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
             site_hydr%v_shell(:,:)) * denh2o * AREA_INV - prev_h2osoil
-
-      write(fates_log(),*) 'Junyan uncommented all the if and call endrun to degut, line 2684'
 
       if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-6_r8 ) then
           write(fates_log(),*) 'Site plant water balance does not close'
@@ -2766,18 +2765,19 @@ contains
 
        wb_check_site = delta_plant_storage+delta_soil_storage+site_runoff+transp_flux
 
-       if( abs(wb_check_site - site_hydr%errh2o_hyd) > 1.e-10_r8 ) then
-           write(fates_log(),*) 'FATES hydro water ERROR balance does not add up [kg/m2]'
-           write(fates_log(),*) 'wb_error_site: ',site_hydr%errh2o_hyd
-           write(fates_log(),*) 'wb_check_site: ',wb_check_site
-           write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
-           write(fates_log(),*) 'delta_soil_storage: ',delta_soil_storage
-           write(fates_log(),*) 'site_runoff: ',site_runoff
-           write(fates_log(),*) 'transp_flux: ',transp_flux
-       end if
+!       if( abs(wb_check_site - site_hydr%errh2o_hyd) > 1.e-5_r8 ) then
+!           write(fates_log(),*) 'FATES hydro water ERROR balance does not add up [kg/m2]:',wb_check_site - site_hydr%errh2o_hyd
+!           write(fates_log(),*) 'wb_error_site: ',site_hydr%errh2o_hyd
+!           write(fates_log(),*) 'wb_check_site: ',wb_check_site
+!           write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
+!           write(fates_log(),*) 'delta_soil_storage: ',delta_soil_storage
+!           write(fates_log(),*) 'site_runoff: ',site_runoff
+!           write(fates_log(),*) 'transp_flux: ',transp_flux
+!           call endrun(msg=errMsg(sourcefile, __LINE__))
+!       end if
 
        ! Now check on total error
-       if( abs(wb_check_site) > 1.e-6_r8 ) then
+       if( abs(wb_check_site) > 1.e-4_r8 ) then
            write(fates_log(),*) 'FATES hydro water balance does not add up [kg/m2]'
            write(fates_log(),*) 'site_hydr%errh2o_hyd: ',wb_check_site
            write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
@@ -2794,7 +2794,7 @@ contains
             site_hydr%h2oveg_pheno_err-&
             site_hydr%h2oveg_hydro_err
        if (JD_debug) then
-         write(fates_log(),*) 'line 2759, check bc_out' 
+         write(fates_log(),*) 'line 2797, check bc_out' 
          write(fates_log(),*) 'wb_check_site:', wb_check_site
        
          write(fates_log(),*) 'bc_out(s)%site plant_stored_h2o:', bc_out(s)%plant_stored_h2o_si 
@@ -3127,8 +3127,9 @@ contains
        ! on each side of the nodes. Since there is no flow across the outer
        ! node to the edge, we ignore that last half compartment
        aroot_frac_plant = cohort_hydr%l_aroot_layer(j)/site_hydr%l_aroot_layer(j)
-
-       if(aroot_frac_plant == 0) then  ! Junyan addition of if statement, 
+       
+       ! Set shell conductance to be 0 when there is no roots in the layer Mar. 25th. 2021
+       if(aroot_frac_plant == 0) then   
           kbg_layer(j) = 0._r8
        else
     
@@ -3415,7 +3416,8 @@ contains
 
             end if
         end do
-       if (aroot_frac_plant > 0) then ! Junyan addition Aug 2, to start the interation loop if the aroot_frac_plant of that layer > 0      
+     ! Start the interation loop if the aroot_frac_plant of that layer > 0, Mar. 25th. 2021 
+     if (aroot_frac_plant > 0) then      
         ! Outer iteration loop
         ! This cuts timestep in half and resolve the solution with smaller substeps
         ! This loop is cleared when the model has found a solution
@@ -3633,9 +3635,7 @@ contains
                       k_eff(j),                         &
                       A_term(j),                        & 
                       B_term(j))
-                write(fates_log(),*) 'k_eff of', j, 'is : ', k_eff(j)
-                write(fates_log(),*) 'A_term of', j, 'is : ', A_term(j)
-                write(fates_log(),*) ' B_term of', j, 'is : ', B_term(j)
+
 
                 ! Path is between rhizosphere shells
 
@@ -3726,11 +3726,13 @@ contains
                 end if
 
                 ! Extra checks
-                if( any(th_node(:)<0._r8) ) then
-                    solution_found = .false.
-                    error_code = 3
-                    error_arr(:) = th_node(:)
-                    exit
+                if(trap_neg_wc) then
+                    if( any(th_node(:)<0._r8) ) then
+                        solution_found = .false.
+                        error_code = 3
+                        error_arr(:) = th_node(:)
+                        exit
+                    end if
                 end if
 
                 ! Calculate new psi for checks
@@ -3740,6 +3742,25 @@ contains
                 do i = n_hypool_plant+1,n_hypool_tot
                     psi_node(i) = site_hydr%wrf_soil(ilayer)%p%psi_from_th(th_node(i))
                 end do
+
+                ! If desired, check and trap pressures that are supersaturated
+                if(trap_supersat_psi) then
+                    do i = 1,n_hypool_plant
+                        if(psi_node(i)>wrf_plant(pm_node(i),ft)%p%get_thsat()) then
+                            solution_found = .false.
+                            error_code = 4
+                        end if
+                    end do
+                    do i = n_hypool_plant+1,n_hypool_tot
+                        if(psi_node(i)>site_hydr%wrf_soil(ilayer)%p%get_thsat()) then
+                            solution_found = .false.
+                            error_code = 4
+                        end if
+                    end do
+                    if(error_code==4) then
+                        error_arr(:) = th_node(:)
+                    end if
+                end if
 
                 ! Accumulate the water balance error of the layer over the sub-steps
                 ! for diagnostic purposes
@@ -3834,9 +3855,9 @@ contains
         end if
         
         ! Save the number of times we refined our sub-step counts (iterh1)
-        cohort_hydr%iterh1 = max(cohort_hydr%iterh1,real(iter))
+        cohort_hydr%iterh1 = max(cohort_hydr%iterh1,real(iter,r8))
         ! Save the number of sub-steps we ultimately used
-        cohort_hydr%iterh2 = max(cohort_hydr%iterh2,real(nsteps))
+        cohort_hydr%iterh2 = max(cohort_hydr%iterh2,real(nsteps,r8))
         
         ! Update water contents in the relevant plant compartments [m3/m3]
         ! -------------------------------------------------------------------------------
@@ -3876,7 +3897,7 @@ contains
               cohort_hydr%l_aroot_layer(ilayer) * &
               cohort%n / l_aroot_layer
 
-     end if ! Junyan addition    
+     end if ! Mar. 25th. 2021    
      enddo !soil layer (jj -> ilayer)
 
     end associate
@@ -4116,28 +4137,42 @@ contains
     ! direction from "up"per (closer to atm) and "lo"wer (further from atm).
     ! -----------------------------------------------------------------------------
 
-    real(r8),intent(in)    :: kmax_dn        ! max conductance (downstream) [kg s-1 Mpa-1]
-    real(r8),intent(in)    :: kmax_up        ! max conductance (upstream)   [kg s-1 Mpa-1]
-    real(r8),intent(in)    :: h_dn           ! total potential (downstream) [MPa]
-    real(r8),intent(in)    :: h_up           ! total potential (upstream)   [Mpa]
-    real(r8),intent(inout) :: ftc_dn         ! frac total cond (downstream) [-]
-    real(r8),intent(inout) :: ftc_up         ! frac total cond (upstream)   [-]
-    real(r8),intent(inout) :: dftc_dpsi_dn   ! derivative ftc / theta (downstream)
-    real(r8),intent(inout) :: dftc_dpsi_up   ! derivative ftc / theta (upstream)
-    
-                                             ! of FTC wrt relative water content
-    real(r8),intent(out)   :: dk_dpsi_dn     ! change in effective conductance from the
-                                             ! downstream pressure node
-    real(r8),intent(out)   :: dk_dpsi_up     ! change in effective conductance from the
-                                             ! upstream pressure node
-    real(r8),intent(out)   :: k_eff          ! effective conductance over path [kg s-1 Mpa-1]
+    real(r8),intent(in)  :: kmax_dn      ! max conductance (downstream) [kg s-1 Mpa-1]
+    real(r8),intent(in)  :: kmax_up      ! max conductance (upstream)   [kg s-1 Mpa-1]
+    real(r8),intent(in)  :: h_dn         ! total potential (downstream) [MPa]
+    real(r8),intent(in)  :: h_up         ! total potential (upstream)   [Mpa]
+    real(r8),intent(in)  :: ftc_dn       ! frac total cond (downstream) [-]
+    real(r8),intent(in)  :: ftc_up       ! frac total cond (upstream)   [-]
+    real(r8),intent(in)  :: dftc_dpsi_dn ! derivative ftc / theta (downstream)
+    real(r8),intent(in)  :: dftc_dpsi_up ! derivative ftc / theta (upstream)
+                                         ! of FTC wrt relative water content
+    real(r8),intent(out) :: dk_dpsi_dn   ! change in effective conductance from the
+                                         ! downstream pressure node
+    real(r8),intent(out) :: dk_dpsi_up   ! change in effective conductance from the
+                                         ! upstream pressure node
+    real(r8),intent(out) :: k_eff        ! effective conductance over path [kg s-1 Mpa-1]
 
     ! Locals
-    real(r8)               :: h_diff                         ! Total potential difference [MPa]
-                 ! the effective fraction of total 
-                                                             ! conductivity is either governed
-                                                             ! by the upstream node, or by both
-                                                             ! with a harmonic average
+    real(r8)               :: h_diff     ! Total potential difference [MPa]
+                                         ! the effective fraction of total 
+                                         ! conductivity is either governed
+                                         ! by the upstream node, or by both
+                                         ! with a harmonic average
+    real(r8) :: ftc_dnx                  ! frac total cond (downstream) [-]  (local copy)
+    real(r8) :: ftc_upx                  ! frac total cond (upstream)   [-]  (local copy)
+    real(r8) :: dftc_dpsi_dnx            ! derivative ftc / theta (downstream) (local copy)
+    real(r8) :: dftc_dpsi_upx            ! derivative ftc / theta (upstream)   (local copy)
+
+
+
+    ! We use the local copies of the FTC in our calculations
+    ! because we don't want to over-write the global values.  This prevents
+    ! us from overwriting FTC on nodes that have more than one connection
+
+    ftc_dnx = ftc_dn
+    ftc_upx = ftc_up
+    dftc_dpsi_dnx = dftc_dpsi_dn
+    dftc_dpsi_upx = dftc_dpsi_up
     ! Calculate difference in total potential over the path [MPa]
     h_diff  = h_up - h_dn
 
@@ -4150,22 +4185,22 @@ contains
     if(do_upstream_k) then
 
        if (h_diff>0._r8) then
-          ftc_dn         = ftc_up
-          dftc_dpsi_dn = 0._r8
+          ftc_dnx         = ftc_up
+          dftc_dpsi_dnx = 0._r8
        else
-          ftc_up         = ftc_dn
-          dftc_dpsi_up = 0._r8
+          ftc_upx         = ftc_dn
+          dftc_dpsi_upx = 0._r8
        end if
 
     end if
 
     ! Calculate total effective conductance over path  [kg s-1 MPa-1]
-    k_eff = 1._r8/(1._r8/(ftc_up*kmax_up)+1._r8/(ftc_dn*kmax_dn))
+    k_eff = 1._r8/(1._r8/(ftc_upx*kmax_up)+1._r8/(ftc_dnx*kmax_dn))
 
     
-    dk_dpsi_dn = k_eff**2._r8  * kmax_dn**(-1._r8) * ftc_dn**(-2._r8) * dftc_dpsi_dn
+    dk_dpsi_dn = k_eff**2._r8  * kmax_dn**(-1._r8) * ftc_dnx**(-2._r8) * dftc_dpsi_dnx
 
-    dk_dpsi_up = k_eff**2._r8  * kmax_up**(-1._r8) * ftc_up**(-2._r8) * dftc_dpsi_up
+    dk_dpsi_up = k_eff**2._r8  * kmax_up**(-1._r8) * ftc_upx**(-2._r8) * dftc_dpsi_upx
 
     
 
@@ -4342,7 +4377,7 @@ contains
     ! root fraction.
 
     if(present(z_max))then
-       ! Junyan added so if the soil depth is larger than the maximum rooting depth of the cohort, 
+       ! If the soil depth is larger than the maximum rooting depth of the cohort, 
        ! then the cumulative root frection of that layer equals that of the maximum rooting depth  
        crootfr      = 1._r8 - .5_r8*(exp(-a*min(z,z_max)) + exp(-b*min(z,z_max)))     
        ! end of Junyan addition
@@ -4400,7 +4435,7 @@ contains
     nshells = size(r_out_shell,dim=1)
     
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
-    ! Junyan added if statement
+    ! Only update when there is root in that layer
     if(l_aroot > 0) then 
         r_out_shell(nshells) = (pi_const*l_aroot/(area_site*dz))**(-0.5_r8)    ! eqn(8) S98
 
@@ -4434,7 +4469,7 @@ contains
      ! r_node_shell(1:nshells) = 0
      ! v_shell(1:k) = 0 
 
-    end if ! Junyan addition
+    end if ! end line 4439
 
     return
   end subroutine shellGeom
