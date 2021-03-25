@@ -4796,6 +4796,7 @@ subroutine MatSolve2D(bc_in,site_hydr,cohort,cohort_hydr, &
       ! Chnage in water content, over all substeps [m3/m3]
       dth_node(:) = 0._r8
       
+      
       ! Transfer node heights, volumes and initial water contents for
       ! the transporting root and above ground compartments to the
       ! complete node vector
