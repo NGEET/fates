@@ -1581,7 +1581,6 @@ contains
                       currentCohort%sai
                 
                 !snow burial
-                !write(fates_log(), *) 'calc snow'
                 snow_depth_avg = snow_depth_si * frac_sno_eff_si
                 if(snow_depth_avg  > maxh(iv))then
                    fraction_exposed = 0._r8
@@ -1592,9 +1591,6 @@ contains
                 if(snow_depth_avg>= minh(iv).and.snow_depth_avg <= maxh(iv))then !only partly hidden... 
                    fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-minh(iv))/dh)))
                 endif
-                fraction_exposed = 1.0_r8
-                ! no m2 of leaf per m2 of ground in each height class
-                ! FIX(SPM,032414) these should be uncommented this and double check
                 
                 if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
                 
@@ -1648,12 +1644,6 @@ contains
                    fleaf = 0._r8
                 endif
                 
-                ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-                ! SNOW BURIAL IS CURRENTLY TURNED OFF
-                ! WHEN IT IS TURNED ON, IT WILL HAVE TO BE COMPARED
-                ! WITH SNOW HEIGHTS CALCULATED BELOW.
-                ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-                
                 currentPatch%nrad(cl,ft) = currentPatch%ncan(cl,ft) 
 
                 if (currentPatch%nrad(cl,ft) > nlevleaf ) then
@@ -1700,10 +1690,6 @@ contains
                       fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-layer_bottom_hite)/ &
                          (layer_top_hite-layer_bottom_hite ))))
                    endif
-                   
-                   ! =========== OVER-WRITE =================
-                   fraction_exposed= 1.0_r8
-                   ! =========== OVER-WRITE =================
                    
                    if(iv==currentCohort%NV) then
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
