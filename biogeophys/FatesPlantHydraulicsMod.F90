@@ -1508,7 +1508,8 @@ contains
     
     ! Note that h2oveg_dead is incremented wherever we have litter fluxes
     ! and it will be reduced via an evaporation term
-    ! growturn_err is a term to accomodate error in growth or turnover. need to be improved for future(CX) 
+    ! growturn_err is a term to accomodate error in growth or
+    ! turnover. need to be improved for future(CX) 
     bc_out%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
          csite_hydr%h2oveg_growturn_err - &
          csite_hydr%h2oveg_hydro_err

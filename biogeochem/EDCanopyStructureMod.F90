@@ -2010,8 +2010,8 @@ contains
 
         ! If running hydro, perform a final check to make sure that we
         ! have conserved water. Since this is the very end of the dynamics
-        ! cycle, no water should had been added or lost to the site, however
-        ! with growth and death, we may had shuffled it around.
+        ! cycle. No water should had been added or lost to the site during dynamics.
+        ! With growth and death, we may have shuffled it around.
         ! For recruitment, we initialized their water, but flagged them
         ! to not be included in the site level balance yet, for they
         ! will demand the water for their initialization on the first hydraulics time-step
@@ -2022,8 +2022,7 @@ contains
         
      end do
 
-     ! If hydraulics is turned on, update the amount of water bound in vegetation
-     ! And also perform a check to see if we have conserved total water (we should have)
+     ! This call is purely for diagnostics and history variables
      if (hlm_use_planthydro.eq.itrue) then
         call RecruitWaterStorage(nsites,sites,bc_out)
      end if
