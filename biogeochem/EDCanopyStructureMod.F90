@@ -1589,7 +1589,7 @@ contains
                    fraction_exposed = 1._r8
                 endif
                 if(snow_depth_avg>= minh(iv).and.snow_depth_avg <= maxh(iv))then !only partly hidden... 
-                   fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-minh(iv))/dh)))
+                   fraction_exposed = 1._r8 - max(0._r8,(min(1.0_r8,(snow_depth_avg-minh(iv))/dh)))
                 endif
                 
                 if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
@@ -1687,7 +1687,7 @@ contains
                    endif
                    if( snow_depth_avg>= layer_bottom_hite .and. &
                          snow_depth_avg <= layer_top_hite) then !only partly hidden...
-                      fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-layer_bottom_hite)/ &
+                      fraction_exposed =  1._r8 - max(0._r8,(min(1.0_r8,(snow_depth_avg-layer_bottom_hite)/ &
                          (layer_top_hite-layer_bottom_hite ))))
                    endif
                    
