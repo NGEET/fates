@@ -196,6 +196,18 @@ variables:
 	double fates_grperc(fates_pft) ;
 		fates_grperc:units = "unitless" ;
 		fates_grperc:long_name = "Growth respiration factor" ;
+	double fates_hydr_alpha_vg(fates_pft) ;
+		fates_hydr_alpha_vg:units = "MPa-1" ;
+		fates_hydr_alpha_vg:long_name = "capalary length parameter in van Genuchten model" ;
+	double fates_hydr_m_vg(fates_pft) ;
+		fates_hydr_m_vg:units = "unitless" ;
+		fates_hydr_m_vg:long_name = "m in van Genuchten 1980 model, 2nd pore size distribution parameter" ;
+	double fates_hydr_n_vg(fates_pft) ;
+		fates_hydr_n_vg:units = "unitless" ;
+		fates_hydr_n_vg:long_name = "n in van Genuchten 1980 model, pore size distribution parameter" ;
+	double fates_hydr_k_lwp(fates_pft) ;
+		fates_hydr_k_lwp:units = "unitless" ;
+		fates_hydr_k_lwp:long_name = "inner leaf humidity scale coefficient, between 1 to 10, set to 0 to disable this function" ;
 	double fates_hydr_avuln_gs(fates_pft) ;
 		fates_hydr_avuln_gs:units = "unitless" ;
 		fates_hydr_avuln_gs:long_name = "shape parameter for stomatal control of water vapor exiting leaf" ;
@@ -864,6 +876,14 @@ data:
 
  fates_hydr_avuln_gs = 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 
     2.5 ;
+
+ fates_hydr_k_lwp = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+ fates_hydr_alpha_vg = 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005;
+
+ fates_hydr_m_vg = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5;
+
+ fates_hydr_n_vg = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2;
 
  fates_hydr_avuln_node =
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
