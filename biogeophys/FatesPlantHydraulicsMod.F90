@@ -862,7 +862,6 @@ contains
     roota    = prt_params%fnrt_prof_a(ft)
     rootb    = prt_params%fnrt_prof_b(ft)
 
-    ! added by Junyan May 29, 2020
     dbh_max = EDPftvarcon_inst%allom_dbh_max(ft)
     dbh_0   = EDPftvarcon_inst%allom_dbh_0(ft)
     z_fr_max = EDPftvarcon_inst%allom_zfr_max(ft)
@@ -872,7 +871,6 @@ contains
     dbh      =  ccohort%dbh
     dbh_rev  = (dbh - dbh_0)/(dbh_max - dbh_0)
 
-    ! end of Junyan's addition
 
     ! Leaf Volumes
     ! -----------------------------------------------------------------------------------
