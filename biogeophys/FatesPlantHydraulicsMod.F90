@@ -2729,7 +2729,7 @@ contains
       delta_soil_storage  = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
             site_hydr%v_shell(:,:)) * denh2o * AREA_INV - prev_h2osoil
 
-      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-6_r8 ) then
+      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-3_r8 ) then
           write(fates_log(),*) 'Site plant water balance does not close'
           write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
           write(fates_log(),*) 'integrated root flux: ',root_flux,' [kg/m2]'
@@ -2739,7 +2739,7 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
       
-       if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-6_r8 ) then
+       if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-3_r8 ) then
           write(fates_log(),*) 'Site soil water balance does not close'
           write(fates_log(),*) 'delta soil storage: ',delta_soil_storage,' [kg/m2]'
           write(fates_log(),*) 'integrated root flux (pos into root): ',root_flux,' [kg/m2]'
