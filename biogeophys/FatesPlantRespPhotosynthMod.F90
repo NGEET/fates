@@ -1132,8 +1132,7 @@ contains
                  agross = min(r1,r2)
 
 
-                !!! Calculate anet, only exit iteration with negative anet when using anet in 
-		! gs 
+                !!! Calculate anet, only exit iteration with negative anet when using anet in calculating gs
                 ! this is version B  
                  anet = agross - lmr
                  if (use_agross == 1) then
