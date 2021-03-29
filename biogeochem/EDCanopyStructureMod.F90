@@ -1919,28 +1919,31 @@ contains
            
            bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
 
-           ! Use leaf area weighting for all cohorts in the patch to define the characteristic
-           ! leaf width used by the HLM
+           ! Use canopy-only crown area weighting for all cohorts in the patch to define the characteristic
+           ! leaf width Roughness length and displacement height used by the HLM
            ! ----------------------------------------------------------------------------
-!           bc_out(s)%dleaf_pa(ifp) = 0.0_r8
-!           if(currentPatch%lai>1.0e-9_r8) then
-!              currentCohort => currentPatch%shortest
-!              do while(associated(currentCohort))
-!                 weight = min(1.0_r8,currentCohort%lai/currentPatch%lai)
-!                 bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
-!                       EDPftvarcon_inst%dleaf(currentCohort%pft)*weight
-!                 currentCohort => currentCohort%taller  
-!              enddo
-!           end if
-
-           ! Roughness length and displacement height are not PFT properties, they are
-           ! properties of the canopy assemblage.  Defining this needs an appropriate model.
-           ! Right now z0 and d are pft level parameters.  For the time being we will just
-           ! use the 1st index until a suitable model is defined. (RGK 04-2017)
+           
+           if (currentPatch%total_canopy_area > nearzero) then
+                 currentCohort => currentPatch%shortest
+              do while(associated(currentCohort))
+                 if (currentCohort%canopy_layer .eq. 1) then
+                    weight = min(1.0_r8,currentCohort%c_area/currentPatch%total_canopy_area)
+                    bc_out(s)%z0m_pa(ifp) = bc_out(s)%z0m_pa(ifp) + &
+                         EDPftvarcon_inst%z0mr(currentCohort%pft) * weight
+                    bc_out(s)%displa_pa(ifp) = bc_out(s)%displa_pa(ifp) + &
+                         EDPftvarcon_inst%displar(currentCohort%pft) * weight
+                    bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
+                         EDPftvarcon_inst%dleaf(currentCohort%pft) * weight
+                    currentCohort => currentCohort%taller
+                 endif
+              end do
+           else
+              ! if no canopy, then use dummy values (first PFT) of aerodynamic properties
+              bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
+              bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
+              bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+           endif
            ! -----------------------------------------------------------------------------
-           bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
-           bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
-           bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
 
 
            ! We are assuming here that grass is all located underneath tree canopies. 
