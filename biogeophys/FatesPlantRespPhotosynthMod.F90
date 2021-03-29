@@ -1136,16 +1136,19 @@ contains
                 ! this is version B  
                  anet = agross - lmr
                  if (use_agross == 1) then
+                   leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * agross * can_press 
                  else
                    if (anet < 0._r8) then
                      loop_continue = .false.
                    end if
+                   ! With an <= 0, then gs_mol = stomatal_intercept_btran, adjusted on L1214               
+                   leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press 		   
                  end if 
 
                  ! Quadratic gs_mol calculation with an known. Valid for an >= 0.
                  ! With an <= 0, then gs_mol = bbb
                  
-                 leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * agross * can_press 
+
                  leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
 
                  if ( stomatal_model == 2 ) then
