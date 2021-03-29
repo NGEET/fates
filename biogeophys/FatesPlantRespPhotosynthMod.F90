@@ -1205,24 +1205,27 @@ contains
               end do !iteration loop
               
               ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol = bbb
+              ! And Final estimates for leaf_co2_ppress and co2_inter_c 
+              ! (needed for early exit of co2_inter_c iteration when an < 0)	      
 	      if (use_agross == 1) then
                 if (agross < 0._r8) then
                    gs_mol = stomatal_intercept_btran
                 end if
-		
+	        leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb_mol * agross * can_press
+                leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
+                co2_inter_c = can_co2_ppress - agross * can_press * &
+                            (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)		
               else
                 if (anet < 0._r8) then
                     gs_mol = stomatal_intercept_btran	      
 	        end if
+		leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press
+                leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
+                co2_inter_c = can_co2_ppress - anet * can_press * &
+                            (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)		
               end if
 	      
-              ! Final estimates for leaf_co2_ppress and co2_inter_c 
-              ! (needed for early exit of co2_inter_c iteration when an < 0)
-              leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb_mol * agross * can_press
-              leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
-              co2_inter_c = can_co2_ppress - agross * can_press * &
-                            (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
-              
+             
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
 	      
