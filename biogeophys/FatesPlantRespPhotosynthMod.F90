@@ -400,7 +400,7 @@ contains
                                
                                if (hlm_use_planthydro.eq.itrue ) then
                                  psi_leaf = currentCohort%co_hydr%psi_ag(1) 
-                                 bbb = max( cf/rsmax0, bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran ) 
+                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran ) 
                                  btran_eff = currentCohort%co_hydr%btran
                                  
                                  ! dinc_ed is the total vegetation area index of each "leaf" layer
@@ -533,7 +533,7 @@ contains
                                                         bc_in(s)%rb_pa(ifp),                &  ! in                                                        
                                                         btran_eff,                          &  ! in
                                                         psi_leaf,                           &  ! in                                                        
-                                                        bbb,                                &  ! in
+                                                        stomatal_intercept_btran,           &  ! in
                                                         cf,                                 &  ! in
                                                         gb_mol,                             &  ! in
                                                         ceair,                              &  ! in
@@ -851,7 +851,7 @@ contains
                                      rb,                &  ! in
                                      btran,             &  ! in
                                      psi,               &  ! in                                     
-                                     bbb,               &  ! in
+                                     stomatal_intercept_btran,   &  ! in
                                      cf,                &  ! in
                                      gb_mol,            &  ! in
                                      ceair,             &  ! in
@@ -948,7 +948,9 @@ contains
    real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
    real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
-
+   real(r8) :: term                 ! intermediate variable in Medlyn stomatal conductance model
+   real(r8) :: vpd                  ! water vapor deficit in Medlyn stomatal model (KPa)
+   
    real(r8), dimension(0:1) :: bbbopt ! Cuticular conductance at full water potential (umol H2O /m2/s)
 
    real(r8) :: psi               ! Xylem Water potential of leaf                 
@@ -1130,8 +1132,9 @@ contains
                  agross = min(r1,r2)
 
 
-                !!! Junyan replace anet in the belowing code to agross for gs calculation
-                !!! this is version B  
+                !!! Calculate anet, only exit iteration with negative anet when using anet in 
+		! gs 
+                ! this is version B  
                  anet = agross - lmr
                  if (use_agross == 1) then
                  else
@@ -1143,7 +1146,7 @@ contains
                  ! Quadratic gs_mol calculation with an known. Valid for an >= 0.
                  ! With an <= 0, then gs_mol = bbb
                  
-                 leaf_co2_ppress = can_co2_ppress- 1.4_r8/gb_mol * agross * can_press 
+                 leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * agross * can_press 
                  leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
 
                  if ( stomatal_model == 2 ) then
@@ -1200,16 +1203,23 @@ contains
               end do !iteration loop
               
               ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol = bbb
-              if (agross < 0._r8) then
-                 gs_mol = bbb
+	      if (use_agross == 1) then
+                if (agross < 0._r8) then
+                   gs_mol = stomatal_intercept_btran
+                end if
+		
+              else
+                if (anet < 0._r8) then
+                    gs_mol = stomatal_intercept_btran	      
+	        end if
               end if
-              
+	      
               ! Final estimates for leaf_co2_ppress and co2_inter_c 
               ! (needed for early exit of co2_inter_c iteration when an < 0)
-              leaf_co2_ppress = can_co2_ppress - 1.4_r8/gb_mol * agross * can_press
+              leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb_mol * agross * can_press
               leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
               co2_inter_c = can_co2_ppress - agross * can_press * &
-                            (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
+                            (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
               
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
@@ -1258,7 +1268,7 @@ contains
 
             ! This is the stomatal resistance of the leaf layer of a given cohort
 
-            ! Junyan addition to correct the gs
+            ! Adjusting gs (compute a virtual gs) that will be passed to host model
             ! compute specific humidity from vapor pressure
             ! q = 0.622*e/(can_press - 0.378*e) 
             ! source https://cran.r-project.org/web/packages/humidity/vignettes/humidity-measures.html
