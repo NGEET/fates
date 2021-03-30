@@ -668,6 +668,14 @@ contains
                 call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
              endif
 
+
+             ! Copy any means or timers from the original patch to the new patch
+             ! These values will inherit all info from the original patch
+             ! --------------------------------------------------------------------------
+             call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
+
+             
+             
              ! --------------------------------------------------------------------------
              ! The newly formed patch from disturbance (new_patch), has now been given 
              ! some litter from dead plants and pre-existing litter from the donor patches.

@@ -142,7 +142,7 @@ contains
     
     iofp = currentSite%oldest_patch%patchno
     
-    temp_in_C  = currentSite%oldest_patch%tveg24%get_mean() - tfrz
+    temp_in_C  = currentSite%oldest_patch%tveg24%GetMean() - tfrz
     rainfall   = bc_in%precip24_pa(iofp)*sec_per_day
     rh         = bc_in%relhumid24_pa(iofp)
     

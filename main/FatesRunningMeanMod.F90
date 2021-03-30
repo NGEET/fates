@@ -73,10 +73,11 @@ module FatesRunningMeanMod
      
    contains
 
-     procedure :: get_mean
+     procedure :: GetMean
      procedure :: InitRMean
      procedure :: UpdateRMean
      procedure :: FuseRMean
+     procedure :: CopyFromDonor
      
   end type rmean_type
 
@@ -122,10 +123,10 @@ contains
 
   ! =====================================================================================
   
-  function get_mean(this)
+  function GetMean(this)
 
     class(rmean_type) :: this
-    real(r8)          :: get_mean
+    real(r8)          :: GetMean
 
     if(this%def_type%method .eq. moving_ema_window) then
        if(this%c_index == 0) then
@@ -141,9 +142,9 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
-    get_mean = this%l_mean
+    GetMean = this%l_mean
 
-  end function get_mean
+  end function GetMean
   
   ! =====================================================================================
   
@@ -195,6 +196,33 @@ contains
     return
   end subroutine InitRMean
 
+
+  ! =====================================================================================
+
+  
+  subroutine CopyFromDonor(this, donor)
+
+    class(rmean_type) :: this
+    class(rmean_type),intent(in) :: donor
+
+    if( .not.associated(this%def_type)) then
+       write(fates_log(), *) 'Attempted to copy over running mean'
+       write(fates_log(), *) 'info from a donor into a new structure'
+       write(fates_log(), *) 'but the new structure did not have its'
+       write(fates_log(), *) 'def_type pointer associated'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    
+    this%c_mean  = donor%c_mean
+    this%l_mean  = donor%l_mean
+    this%c_index = donor%c_index
+
+    
+    return
+  end subroutine CopyFromDonor
+
+
+  
   ! =====================================================================================
   
   subroutine UpdateRMean(this, new_value)

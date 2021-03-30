@@ -758,7 +758,7 @@ contains
     temp_in_C = 0._r8
     cpatch => CurrentSite%oldest_patch   
     do while(associated(cpatch))
-       temp_in_C = temp_in_C + cpatch%tveg24%get_mean()*cpatch%area
+       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%area
        cpatch => cpatch%younger
     end do
     temp_in_C = temp_in_C * area_inv - tfrz
@@ -2237,17 +2237,17 @@ contains
       if ( .not. use_century_tfunc ) then
       !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
       !are assigned for non-moisture limiting conditions at 25C.
-         if (currentPatch%tveg24%get_mean()  >=  tfrz) then
-         t_scalar = q10_mr**((currentPatch%tveg24%get_mean()-(tfrz+25._r8))/10._r8)
+         if (currentPatch%tveg24%GetMean()  >=  tfrz) then
+         t_scalar = q10_mr**((currentPatch%tveg24%GetMean()-(tfrz+25._r8))/10._r8)
                   !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
          else
-         t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((currentPatch%tveg24%get_mean()-tfrz)/10._r8))
+         t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((currentPatch%tveg24%GetMean()-tfrz)/10._r8))
                      !Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-tfrz)/10._r8)
          endif
       else
          ! original century uses an arctangent function to calculate the 
          ! temperature dependence of decomposition      
-         t_scalar = max(catanf(currentPatch%tveg24%get_mean()-tfrz)/catanf_30,0.01_r8)
+         t_scalar = max(catanf(currentPatch%tveg24%GetMean()-tfrz)/catanf_30,0.01_r8)
       endif    
     
       !Moisture Limitations   
