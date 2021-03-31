@@ -89,6 +89,7 @@ module FatesPlantHydraulicsMod
   use FatesHydraulicsMemMod, only: recruit_water_avail_layer  
   use FatesHydraulicsMemMod, only: rwccap, rwcft
   use FatesHydraulicsMemMod, only: ignore_layer1
+  use FatesHydraulicsMemMod, only: aggregate_layers
   
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
@@ -386,14 +387,22 @@ contains
        select case(soil_wrf_type)
        case(van_genuchten_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             j_bc = j+csite_hydr%i_rhiz_t-1
+             if(.not. aggregate_layers) then
+                j_bc=j+csite_hydr%i_rhiz_t-1
+             else
+                j_bc = csite_hydr%map_r2s(j,2) !assign bottom soil layer parameters to rhizosphere, not accurate, but ok for larger fraction
+             end if
              allocate(wrf_vg)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_vg
              call wrf_vg%set_wrf_param([alpha_vg, psd_vg, bc_in(s)%watsat_sisl(j_bc), th_res_vg])
           end do
        case(campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             j_bc = j+csite_hydr%i_rhiz_t-1
+             if(.not. aggregate_layers) then
+                j_bc=j+csite_hydr%i_rhiz_t-1
+             else
+                j_bc = csite_hydr%map_r2s(j,2)
+             end if
              allocate(wrf_cch)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_cch
              call wrf_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -402,7 +411,11 @@ contains
           end do
        case(smooth1_campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             j_bc = j+csite_hydr%i_rhiz_t-1
+             if(.not. aggregate_layers) then
+                j_bc=j+csite_hydr%i_rhiz_t-1
+             else
+                j_bc = csite_hydr%map_r2s(j,2)
+             end if
              allocate(wrf_smooth_cch)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_smooth_cch
              call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -411,7 +424,11 @@ contains
           end do
        case(smooth2_campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             j_bc = j+csite_hydr%i_rhiz_t-1
+             if(.not. aggregate_layers) then
+                j_bc=j+csite_hydr%i_rhiz_t-1
+             else
+                j_bc = csite_hydr%map_r2s(j,2)
+             end if
              allocate(wrf_smooth_cch)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_smooth_cch
              call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -437,7 +454,11 @@ contains
           end do
        case(campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             j_bc = j+csite_hydr%i_rhiz_t-1
+             if(.not. aggregate_layers) then
+                j_bc=j+csite_hydr%i_rhiz_t-1
+             else
+                j_bc = csite_hydr%map_r2s(j,2)
+             end if
              allocate(wkf_cch)
              sites(s)%si_hydr%wkf_soil(j)%p => wkf_cch
              call wkf_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -446,7 +467,11 @@ contains
           end do
        case(smooth1_campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             j_bc = j+csite_hydr%i_rhiz_t-1
+             if(.not. aggregate_layers) then
+                j_bc=j+csite_hydr%i_rhiz_t-1
+             else
+                j_bc = csite_hydr%map_r2s(j,2)
+             end if
              allocate(wkf_smooth_cch)
              sites(s)%si_hydr%wkf_soil(j)%p => wkf_smooth_cch
              call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -455,7 +480,11 @@ contains
           end do
        case(smooth2_campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             j_bc = j+csite_hydr%i_rhiz_t-1
+             if(.not. aggregate_layers) then
+                j_bc=j+csite_hydr%i_rhiz_t-1
+             else
+                j_bc = csite_hydr%map_r2s(j,2)
+             end if
              allocate(wkf_smooth_cch)
              sites(s)%si_hydr%wkf_soil(j)%p => wkf_smooth_cch
              call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -1338,7 +1367,12 @@ contains
 
        ! Calculate the number of rhizosphere
        ! layers used
-       if(ignore_layer1) then
+       if(aggregate_layers) then
+          csite_hydr%i_rhiz_t = 7
+          csite_hydr%i_rhiz_b = bc_in(s)%nlevsoil
+          csite_hydr%nlevrhiz = csite_hydr%i_rhiz_b - csite_hydr%i_rhiz_t + 2 !ideally to be read in from the parameter file
+
+       elseif(ignore_layer1) then
           !csite_hydr%i_rhiz_t = 2
           csite_hydr%i_rhiz_t = 6
           csite_hydr%i_rhiz_b = bc_in(s)%nlevsoil
@@ -1346,16 +1380,31 @@ contains
           csite_hydr%i_rhiz_t = 1
           csite_hydr%i_rhiz_b = bc_in(s)%nlevsoil
        end if
-       
-       csite_hydr%nlevrhiz = csite_hydr%i_rhiz_b-csite_hydr%i_rhiz_t+1
+
+       if(.not. aggregate_layers) &             
+          csite_hydr%nlevrhiz = csite_hydr%i_rhiz_b-csite_hydr%i_rhiz_t+1
        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass)
 
-       jj=1
-       do j=csite_hydr%i_rhiz_t,csite_hydr%i_rhiz_b
-          csite_hydr%zi_rhiz(jj)  = bc_in(s)%zi_sisl(j)
-          csite_hydr%dz_rhiz(jj) = bc_in(s)%dz_sisl(j) 
-          jj=jj+1
-       end do
+       if(.not. aggregate_layers) then    
+          jj=1
+          do j=csite_hydr%i_rhiz_t,csite_hydr%i_rhiz_b
+             csite_hydr%zi_rhiz(jj)  = bc_in(s)%zi_sisl(j)
+             csite_hydr%dz_rhiz(jj) = bc_in(s)%dz_sisl(j) 
+             jj=jj+1
+          end do
+       else
+          csite_hydr%map_r2s(1,1) = 1
+          csite_hydr%map_r2s(1,2) = csite_hydr%i_rhiz_t - 1
+          jj = 2 
+          do j = csite_hydr%i_rhiz_t,csite_hydr%i_rhiz_b
+             csite_hydr%map_r2s(jj,1:2) = j
+             jj = jj + 1
+          end do    
+          do j=1,csite_hydr%nlevrhiz
+             csite_hydr%zi_rhiz(j) = 0.5_r8*(bc_in(s)%z_sisl(csite_hydr%map_r2s(j,1)) + bc_in(s)%z_sisl(csite_hydr%map_r2s(j,2)))
+             csite_hydr%dz_rhiz(j) = sum( bc_in(s)%dz_sisl(csite_hydr%map_r2s(j,1):csite_hydr%map_r2s(j,2)) )
+          end do
+       end if
        
    end do
 
@@ -1373,10 +1422,12 @@ contains
     type(ed_site_hydr_type), pointer :: site_hydr
     real(r8) :: smp  ! matric potential temp
     real(r8) :: h2osoi_liqvol ! liquid water content (m3/m3)
+    real(r8) :: eff_por 
     integer :: s
     integer :: j,j_bc
     integer :: nsites
     integer :: nlevrhiz
+    integer :: r_t,r_b
     class(wrf_type_vg), pointer :: wrf_vg
     class(wkf_type_vg), pointer :: wkf_vg
     class(wrf_type_cch), pointer :: wrf_cch
@@ -1393,12 +1444,22 @@ contains
        nlevrhiz  =  site_hydr%nlevrhiz
        
        do j = 1,nlevrhiz
-          j_bc=j+site_hydr%i_rhiz_t-1
-          h2osoi_liqvol = min(bc_in(s)%eff_porosity_sl(j_bc), &
-               bc_in(s)%h2o_liq_sisl(j_bc)/(site_hydr%dz_rhiz(j)*denh2o))
+          if(.not. aggregate_layers) then
+             j_bc=j+site_hydr%i_rhiz_t-1
+             h2osoi_liqvol = min(bc_in(s)%eff_porosity_sl(j_bc), &
+                  bc_in(s)%h2o_liq_sisl(j_bc)/(site_hydr%dz_rhiz(j)*denh2o))
+          else
+             r_t = site_hydr%map_r2s(j,1) 
+             r_b = site_hydr%map_r2s(j,2)
+             eff_por = sum(bc_in(s)%eff_porosity_sl(r_t:r_b)*bc_in(s)%dz_sisl(r_t:r_b))/site_hydr%dz_rhiz(j)
+             h2osoi_liqvol = min(eff_por, sum(bc_in(s)%h2o_liq_sisl(r_t:r_b)) &
+                 /(site_hydr%dz_rhiz(j)*denh2o))
+             site_hydr%h2osoi_liq_prev(j)              = sum( bc_in(s)%h2o_liq_sisl(r_t:r_b) )
+          end if
           
           site_hydr%h2osoi_liqvol_shell(j,1:nshell) = h2osoi_liqvol
-          site_hydr%h2osoi_liq_prev(j)              = bc_in(s)%h2o_liq_sisl(j_bc)
+          if(.not. aggregate_layers) &
+             site_hydr%h2osoi_liq_prev(j)              = bc_in(s)%h2o_liq_sisl(j_bc)
        end do
     
 
@@ -1424,7 +1485,11 @@ contains
           end do
        case(campbell_type)
           do j=1,site_hydr%nlevrhiz
-             j_bc=j+site_hydr%i_rhiz_t-1
+             if(.not. aggregate_layers) then
+                j_bc=j+site_hydr%i_rhiz_t-1
+             else
+                j_bc = site_hydr%map_r2s(j,2) !assign bottom soil layer parameters to rhizosphere, not accurate, but ok for larger fraction
+             end if
              allocate(wrf_cch)
              site_hydr%wrf_soil(j)%p => wrf_cch
              call wrf_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -1433,7 +1498,11 @@ contains
           end do
        case(smooth1_campbell_type)
           do j=1,site_hydr%nlevrhiz
-             j_bc=j+site_hydr%i_rhiz_t-1
+             if(.not. aggregate_layers) then
+                j_bc=j+site_hydr%i_rhiz_t-1
+             else
+                j_bc = site_hydr%map_r2s(j,2)
+             end if
              allocate(wrf_smooth_cch)
              site_hydr%wrf_soil(j)%p => wrf_smooth_cch
              call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -1442,7 +1511,11 @@ contains
           end do
        case(smooth2_campbell_type)
           do j=1,site_hydr%nlevrhiz
-             j_bc=j+site_hydr%i_rhiz_t-1
+             if(.not. aggregate_layers) then
+                j_bc=j+site_hydr%i_rhiz_t-1
+             else
+                j_bc = site_hydr%map_r2s(j,2)
+             end if
              allocate(wrf_smooth_cch)
              site_hydr%wrf_soil(j)%p => wrf_smooth_cch
              call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -1467,7 +1540,11 @@ contains
            end do
         case(campbell_type)
            do j=1,sites(s)%si_hydr%nlevrhiz
-              j_bc=j+site_hydr%i_rhiz_t-1
+              if(.not. aggregate_layers) then
+                 j_bc=j+site_hydr%i_rhiz_t-1
+              else
+                 j_bc = site_hydr%map_r2s(j,2)
+              end if
               allocate(wkf_cch)
               site_hydr%wkf_soil(j)%p => wkf_cch
               call wkf_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -1476,7 +1553,11 @@ contains
            end do
         case(smooth1_campbell_type)
            do j=1,sites(s)%si_hydr%nlevrhiz
-              j_bc=j+site_hydr%i_rhiz_t-1
+              if(.not. aggregate_layers) then
+                 j_bc=j+site_hydr%i_rhiz_t-1
+              else
+                 j_bc = site_hydr%map_r2s(j,2)
+              end if
               allocate(wkf_smooth_cch)
               site_hydr%wkf_soil(j)%p => wkf_smooth_cch
               call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -1485,7 +1566,11 @@ contains
            end do
         case(smooth2_campbell_type)
            do j=1,sites(s)%si_hydr%nlevrhiz
-              j_bc=j+site_hydr%i_rhiz_t-1
+              if(.not. aggregate_layers) then
+                 j_bc=j+site_hydr%i_rhiz_t-1
+              else
+                 j_bc = site_hydr%map_r2s(j,2)
+              end if
               allocate(wkf_smooth_cch)
               site_hydr%wkf_soil(j)%p => wkf_smooth_cch
               call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -1920,7 +2005,11 @@ contains
 
 
     do j = 1,nlevrhiz
-       j_bc = j+csite_hydr%i_rhiz_t-1
+       if(.not. aggregate_layers) then
+          j_bc=j+csite_hydr%i_rhiz_t-1
+       else
+          j_bc = csite_hydr%map_r2s(j,2)
+       end if
 
        ! bc_in%hksat_sisl(j): hydraulic conductivity at saturation (mm H2O /s)
        !
@@ -2112,7 +2201,11 @@ contains
 
        ! 1st guess at new s based on interpolated psi
        do j = 1,csite_hydr%nlevrhiz
-          j_bc = j+csite_hydr%i_rhiz_t-1
+          if(.not. aggregate_layers) then
+             j_bc=j+csite_hydr%i_rhiz_t-1
+          else
+             j_bc = csite_hydr%map_r2s(j,2)
+          end if
                  
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
@@ -2125,7 +2218,11 @@ contains
 
        ! accumlate water across shells for each layer (initial and interpolated)
        do j = 1,csite_hydr%nlevrhiz
-          j_bc = j+csite_hydr%i_rhiz_t-1
+          if(.not. aggregate_layers) then
+             j_bc=j+csite_hydr%i_rhiz_t-1
+          else
+             j_bc = csite_hydr%map_r2s(j,2)
+          end if
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
              w_layer_init(j)      = 0._r8
@@ -2145,7 +2242,11 @@ contains
        ! estimate delta_s across all shells needed to ensure total water in each layer doesn't change
        ! BOC...FIX: need to handle special cases where delta_s causes s_shell to go above or below 1 or 0, respectively.
        do j = 1,csite_hydr%nlevrhiz
-          j_bc = j+csite_hydr%i_rhiz_t-1
+          if(.not. aggregate_layers) then
+             j_bc=j+csite_hydr%i_rhiz_t-1
+          else
+             j_bc = csite_hydr%map_r2s(j,2)
+          end if
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
              delta_s(j) = (( w_layer_init(j) - w_layer_interp(j) )/( v_rhiz(j) * denh2o ) - bc_in%watres_sisl(j_bc)) / &
@@ -2155,7 +2256,11 @@ contains
 
        ! update h2osoi_liqvol_shell and h2osoi_liq_shell
        do j = 1,csite_hydr%nlevrhiz
-          j_bc = j+csite_hydr%i_rhiz_t-1
+          if(.not. aggregate_layers) then
+             j_bc=j+csite_hydr%i_rhiz_t-1
+          else
+             j_bc = csite_hydr%map_r2s(j,2)
+          end if
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
              w_layer_new(j)                = 0._r8
@@ -2173,8 +2278,13 @@ contains
 
        ! balance check
        do j = 1,csite_hydr%nlevrhiz
-          j_bc = j+csite_hydr%i_rhiz_t-1
-          errh2o(j) = h2osoi_liq_col_new(j) - bc_in%h2o_liq_sisl(j_bc)
+          if(.not. aggregate_layers) then
+             j_bc=j+csite_hydr%i_rhiz_t-1
+             errh2o(j) = h2osoi_liq_col_new(j) - bc_in%h2o_liq_sisl(j_bc)
+          else
+             j_bc = csite_hydr%map_r2s(j,2)
+             errh2o(j) = h2osoi_liq_col_new(j) - sum(bc_in%h2o_liq_sisl(csite_hydr%map_r2s(j,1):csite_hydr%map_r2s(j,2)))
+          end if
           if (abs(errh2o(j)) > 1.e-4_r8) then
              write(fates_log(),*)'WARNING:  water balance error ',&
                   ' updating rhizosphere shells: ',j,errh2o(j)
@@ -2302,11 +2412,19 @@ contains
        ! patch without cohorts
        if( sum(csite_hydr%l_aroot_layer) == 0._r8 ) cycle
        do j = 1,csite_hydr%nlevrhiz
-          j_bc = j+csite_hydr%i_rhiz_t-1
+          if(.not. aggregate_layers) then
+             j_bc=j+csite_hydr%i_rhiz_t-1
+          else
+             j_bc = csite_hydr%map_r2s(j,2)
+          end if
 
           cumShellH2O=sum(csite_hydr%h2osoi_liqvol_shell(j,:) *csite_hydr%v_shell(j,:)) * denh2o*AREA_INV
+          if(.not. aggregate_layers) then
+             dwat_kgm2 = bc_in(s)%h2o_liq_sisl(j_bc) - cumShellH2O
+          else
+             dwat_kgm2 = sum( bc_in(s)%h2o_liq_sisl(csite_hydr%map_r2s(j,1):j_bc) ) - cumShellH2O
+          end if
           
-          dwat_kgm2 = bc_in(s)%h2o_liq_sisl(j_bc) - cumShellH2O
              
           dwat_kg = dwat_kgm2 * AREA
           
@@ -2367,8 +2485,11 @@ contains
           h2osoi_liq_shell(j,:) = csite_hydr%h2osoi_liqvol_shell(j,:) * &
                csite_hydr%v_shell(j,:) * denh2o
           
-          
-          errh2o(j) = sum(h2osoi_liq_shell(j,:))*AREA_INV - bc_in(s)%h2o_liq_sisl(j_bc)
+          if(aggregate_layers) then 
+             errh2o(j) = sum(h2osoi_liq_shell(j,:))*AREA_INV - sum(bc_in(s)%h2o_liq_sisl(csite_hydr%map_r2s(j,1):csite_hydr%map_r2s(j,2)) )
+          else
+             errh2o(j) = sum(h2osoi_liq_shell(j,:))*AREA_INV - bc_in(s)%h2o_liq_sisl(j_bc)
+          end if
           
           if (abs(errh2o(j)) > 1.e-9_r8) then
              write(fates_log(),*)'WARNING:  water balance error in FillDrainRhizShells'
@@ -2463,8 +2584,10 @@ contains
     real(r8) :: delta_plant_storage ! change in plant water storage over the step [kg/m2]
     real(r8) :: delta_soil_storage  ! change in soil water storage over the step [kg/m2]
     real(r8) :: sumcheck            ! used to debug mass balance in soil horizon diagnostics
+    real(r8) :: qflx_soil2root_tmp 
     integer  :: nlevrhiz            ! local for number of rhizosphere levels
     integer  :: sc                  ! size class index
+    integer  :: jl
     
     ! ----------------------------------------------------------------------------------
     ! Important note: We are interested in calculating the total fluxes in and out of the
@@ -2701,23 +2824,36 @@ contains
 
        
        do j=1,site_hydr%nlevrhiz
-           j_bc = j+site_hydr%i_rhiz_t-1
+           if(.not. aggregate_layers) then
+              j_bc = j+site_hydr%i_rhiz_t-1
+           else
+              j_bc = site_hydr%map_r2s(j,2)
+           end if
           
            ! Update the site-level state variable 
            ! rhizosphere shell water content [m3/m3]
            site_hydr%h2osoi_liqvol_shell(j,:) =  site_hydr%h2osoi_liqvol_shell(j,:) + &
                  dth_layershell_col(j,:)
-
-
-           bc_out(s)%qflx_soil2root_sisl(j_bc) = &
+           qflx_soil2root_tmp = &
                  -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:))*denh2o*AREA_INV/dtime) + &
                  site_hydr%recruit_w_uptake(j)
+           if(aggregate_layers) then
+              do jl = site_hydr%map_r2s(j,1), site_hydr%map_r2s(j,2)
+                 bc_out(s)%qflx_soil2root_sisl(jl) = qflx_soil2root_tmp * &
+                    bc_in(s)%hksat_sisl(jl)*bc_in(s)%dz_sisl(jl)/sum(bc_in(s)%hksat_sisl(site_hydr%map_r2s(j,1):site_hydr%map_r2s(j,2)) * &
+                    bc_in(s)%dz_sisl(site_hydr%map_r2s(j,1):site_hydr%map_r2s(j,2)))
+              end do
+           else   
+              bc_out(s)%qflx_soil2root_sisl(j_bc) = &
+                    -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:))*denh2o*AREA_INV/dtime) + &
+                    site_hydr%recruit_w_uptake(j)
+           end if
            
            
           ! Save the amount of liquid soil water known to the model after root uptake
           ! This calculation also assumes that 1mm of water is 1kg
           site_hydr%h2osoi_liq_prev(j) = bc_in(s)%h2o_liq_sisl(j_bc) - &
-               dtime*bc_out(s)%qflx_soil2root_sisl(j_bc)
+               dtime*qflx_soil2root_tmp
 
 
           ! We accept that it is possible for gravity to push

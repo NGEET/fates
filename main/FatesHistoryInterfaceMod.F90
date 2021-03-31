@@ -3781,6 +3781,7 @@ end subroutine update_history_hifrq
     
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type, nshell
     use FatesHydraulicsMemMod, only : ed_site_hydr_type
+    use FatesHydraulicsMemMod, only : aggregate_layers
     use EDTypesMod           , only : maxpft
 
     
@@ -3892,6 +3893,7 @@ end subroutine update_history_hifrq
          site_hydr => sites(s)%si_hydr
          nlevrhiz = site_hydr%nlevrhiz
          jr1 = site_hydr%i_rhiz_t
+         if(aggregate_layers) jr1 = jr1 -1
          jr2 = site_hydr%i_rhiz_b
 
          io_si  = this%iovar_map(nc)%site_index(s)
@@ -3911,8 +3913,11 @@ end subroutine update_history_hifrq
          areaweight       = 0._r8
          
          do jrhiz=1,nlevrhiz
-            
-            jsoil = jrhiz + jr1-1
+            if(.not. aggregate_layers) then 
+               jsoil = jrhiz + jr1-1
+            else
+               jsoil = site_hydr%map_r2s(jrhiz,2)
+            end if
             vwc     = bc_in(s)%h2o_liqvol_sl(jsoil)
             psi     = site_hydr%wrf_soil(jrhiz)%p%psi_from_th(vwc)
             vwc_sat = bc_in(s)%watsat_sl(jsoil)

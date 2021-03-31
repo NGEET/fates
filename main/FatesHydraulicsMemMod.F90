@@ -63,7 +63,8 @@ module FatesHydraulicsMemMod
    real(r8), parameter, public                         :: fine_root_radius_const = 0.0001_r8
 
    ! Should we ignore the first soil layer and have root layers start on the second?
-   logical, parameter, public :: ignore_layer1=.true.
+   logical, parameter, public :: ignore_layer1=.false.
+   logical, parameter, public :: aggregate_layers=.true.
    
    
    ! Derived parameters
@@ -80,6 +81,8 @@ module FatesHydraulicsMemMod
      integer :: i_rhiz_t                            ! Soil layer index of top rhizosphere
      integer :: i_rhiz_b                            ! Soil layer index of bottom rhizospher layer
      integer               :: nlevrhiz              ! Number of rhizosphere levels (vertical layers)
+     integer, allocatable :: map_s2r(:)              ! soil to rhizoshpere level mapping
+     integer, allocatable :: map_r2s(:,:)            ! rhizoshpere to soil level mapping, 1 -top soil layer, 2- bottom soil layer
      real(r8), allocatable :: zi_rhiz(:)            ! Depth of the bottom edge of each rhizosphere level [m]
      real(r8), allocatable :: dz_rhiz(:)            ! Width of each rhizosphere level [m]
 
@@ -399,6 +402,8 @@ module FatesHydraulicsMemMod
 
          allocate(this%zi_rhiz(1:nlevrhiz));  this%zi_rhiz(:)  = nan
          allocate(this%dz_rhiz(1:nlevrhiz)); this%dz_rhiz(:) = nan
+         allocate(this%map_s2r(1:nlevrhiz)); this%map_s2r(:) = -999
+         allocate(this%map_r2s(1:nlevrhiz,1:2)); this%map_r2s(:,:) = -999
          allocate(this%v_shell(1:nlevrhiz,1:nshell))         ; this%v_shell = nan
          allocate(this%v_shell_init(1:nlevrhiz,1:nshell))    ; this%v_shell_init = nan
          allocate(this%r_node_shell(1:nlevrhiz,1:nshell))    ; this%r_node_shell = nan
