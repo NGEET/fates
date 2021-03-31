@@ -1008,14 +1008,28 @@ contains
     ! Partition the total absorbing root lengths and volumes into the active soil layers
     ! We have a condition, where we may ignore the first layer
     ! ------------------------------------------------------------------------------
-    
-    norm = 1._r8 - &
+    if(aggregate_layers) then
+       norm = 1._r8 - &
+          zeng2001_crootfr(roota, rootb,0._r8, sum(site_hydr%dz_rhiz(1:nlevrhiz)) )
+    else
+       norm = 1._r8 - &
           zeng2001_crootfr(roota, rootb,site_hydr%zi_rhiz(1)-site_hydr%dz_rhiz(1), site_hydr%zi_rhiz(nlevrhiz))
-    
+    end if
+
     do j=1,nlevrhiz
         
-        rootfr = norm*(zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j),site_hydr%zi_rhiz(nlevrhiz)) - &
+        if(aggregate_layers) then
+           if(j==1) then
+              rootfr = norm*(zeng2001_crootfr(roota, rootb,sum(site_hydr%dz_rhiz(1:j)),sum(site_hydr%dz_rhiz(1:nlevrhiz))) - &
+                 zeng2001_crootfr(roota, rootb, 0._r8,sum(site_hydr%dz_rhiz(1:nlevrhiz))))
+           else
+              rootfr = norm*(zeng2001_crootfr(roota, rootb,sum(site_hydr%dz_rhiz(1:j)),sum(site_hydr%dz_rhiz(1:nlevrhiz))) - &
+                 zeng2001_crootfr(roota, rootb, sum(site_hydr%dz_rhiz(1:j-1)),sum(site_hydr%dz_rhiz(1:nlevrhiz))))
+           endif
+        else
+           rootfr = norm*(zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j),site_hydr%zi_rhiz(nlevrhiz)) - &
               zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j)-site_hydr%dz_rhiz(j),site_hydr%zi_rhiz(nlevrhiz)))
+        endif
         
         ccohort_hydr%l_aroot_layer(j) = rootfr*l_aroot_tot
         
