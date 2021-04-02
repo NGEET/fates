@@ -220,6 +220,8 @@ contains
     fates%bc_in(s)%tot_litc            = 0.0_r8
     fates%bc_in(s)%snow_depth_si       = 0.0_r8
     fates%bc_in(s)%frac_sno_eff_si     = 0.0_r8
+    fates%bc_in(s)%w_scalar_sisl(:)    = 0.0_r8
+    fates%bc_in(s)%t_scalar_sisl(:)    = 0.0_r8
     
     if(do_fates_salinity)then
        fates%bc_in(s)%salinity_sl(:)   = 0.0_r8
@@ -397,6 +399,8 @@ contains
       allocate(bc_in%z_sisl(nlevsoil_in))
       allocate(bc_in%decomp_id(nlevsoil_in))
       allocate(bc_in%dz_decomp_sisl(nlevdecomp_in))
+      allocate(bc_in%w_scalar_sisl(nlevsoil_in))
+      allocate(bc_in%t_scalar_sisl(nlevsoil_in))
 
       ! Lightning (or successful ignitions) and population density
       allocate(bc_in%lightning24(maxPatchesPerSite))
@@ -911,6 +915,8 @@ contains
        allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
        allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
        allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
+       allocate( fates_hdim_agmap_levagefuel(nlevage * nfsc))
+       allocate( fates_hdim_fscmap_levagefuel(nlevage * nfsc))
 
        allocate( fates_hdim_elmap_levelpft(num_elements*numpft))
        allocate( fates_hdim_elmap_levelcwd(num_elements*ncwd))
@@ -1049,6 +1055,14 @@ contains
           end do
        end do
 
+       i=0
+       do iage=1,nlevage
+          do ifuel=1,NFSC
+             i=i+1
+             fates_hdim_agmap_levagefuel(i) = iage
+             fates_hdim_fscmap_levagefuel(i) = ifuel
+          end do
+       end do
 
     end subroutine fates_history_maps
 
