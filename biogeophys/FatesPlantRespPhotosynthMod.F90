@@ -1175,8 +1175,8 @@ contains
                                   bb_slope(ft)*agross*can_press * ceair/ veg_esat )
                   else
                     aquad = leaf_co2_ppress
-                    bquad = leaf_co2_ppress*(gb_mol - bbb) - bb_slope(ft) * anet * can_press
-                    cquad = -gb_mol*(leaf_co2_ppress*bbb + &
+                    bquad = leaf_co2_ppress*(gb_mol - stomatal_intercept_btran) - bb_slope(ft) * anet * can_press
+                    cquad = -gb_mol*(leaf_co2_ppress*stomatal_intercept_btran + &
                                   bb_slope(ft)*anet*can_press * ceair/ veg_esat )
                   end if   
                     call quadratic_f (aquad, bquad, cquad, r1, r2)
