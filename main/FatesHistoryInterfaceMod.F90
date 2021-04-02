@@ -528,6 +528,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_fire_intensity_si_age
   integer :: ih_fire_sum_fuel_si_age
   integer :: ih_tveg24_si_age
+  integer :: ih_tveg24_si
   
   ! indices to (site x height) variables
   integer :: ih_canopy_height_dist_si_height
@@ -2009,6 +2010,7 @@ end subroutine flush_hvars
                hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
                hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
                hio_tveg24_si_age                  => this%hvars(ih_tveg24_si_age)%r82d, &
+               hio_tveg24_si                      => this%hvars(ih_tveg24_si)%r81d, &
                hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
                hio_fuel_amount_si_fuel            => this%hvars(ih_fuel_amount_si_fuel)%r82d, &
                hio_fuel_amount_age_fuel            => this%hvars(ih_fuel_amount_age_fuel)%r82d, &
@@ -2152,6 +2154,9 @@ end subroutine flush_hvars
 
          hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
 
+         hio_tveg24_si_age(io_si, :) = 0._r8
+         hio_tveg24_si(io_si) = 0._r8
+         
          ipa = 0
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -2220,6 +2225,8 @@ end subroutine flush_hvars
                hio_tveg24_si_age(io_si, cpatch%age_class) = &
                     hio_tveg24_si_age(io_si, cpatch%age_class) + &
                     cpatch%tveg24%GetMean()*cpatch%area
+               hio_tveg24_si(io_si) = hio_tveg24_si(io_si) + &
+                    cpatch%tveg24%GetMean()*cpatch%area*area_inv
             end if
             
             if(associated(cpatch%tallest))then
@@ -4564,11 +4571,16 @@ end subroutine update_history_hifrq
     ! Running means
     
     call this%set_history_var(vname='TVEG24_AGE', units='Kelvin', &
-         long='24-hr running mean vegetation temperature by patch age', &
+         long='fates 24-hr running mean vegetation temperature by patch age', &
          use_default='active', &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si_age )
 
+    call this%set_history_var(vname='TVEG24_SI', units='Kelvin', &
+         long='fates 24-hr running mean vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
     
     ! Litter Variables
 
