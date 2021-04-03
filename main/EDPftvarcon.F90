@@ -796,6 +796,18 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_rfrac_stem)
 
+    name = 'fates_hydr_alpha_vg'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_alpha_vg)
+
+    name = 'fates_hydr_m_vg'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_m_vg)
+
+    name = 'fates_hydr_n_vg'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_n_vg)
+
     name = 'fates_hydr_avuln_gs'
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_avuln_gs)
@@ -820,111 +832,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_scalar_hydrfailure)
 
-
-    name = 'fates_mort_ip_size_senescence'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%mort_ip_size_senescence)
-
-    name = 'fates_mort_r_size_senescence'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%mort_r_size_senescence)
-
-    name = 'fates_mort_ip_age_senescence'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%mort_ip_age_senescence)
-
-    name = 'fates_allom_d2bl1'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_d2bl1)
-
-    name = 'fates_allom_d2bl2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_d2bl2)
-
-    name = 'fates_allom_d2bl3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_d2bl3)
-
-    name = 'fates_allom_blca_expnt_diff'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_blca_expnt_diff)
-
-    name = 'fates_allom_d2ca_coefficient_max'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_d2ca_coefficient_max)
-
-    name = 'fates_allom_d2ca_coefficient_min'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_d2ca_coefficient_min)
-
-    name = 'fates_allom_sai_scaler'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_sai_scaler)
-
-    name = 'fates_allom_agb1'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_agb1)
-
-    name = 'fates_allom_agb2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_agb2)
-
-    name = 'fates_allom_agb3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_agb3)
-
-    name = 'fates_allom_agb4'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_agb4)
-	 
-    name = 'fates_allom_frbstor_repro'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_frbstor_repro) 
-
-    name = 'fates_hydr_p_taper'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_p_taper)
-
-    name = 'fates_hydr_rs2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_rs2)
-    
-    name = 'fates_hydr_srl'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_srl)
-    
-    name = 'fates_hydr_rfrac_stem'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_rfrac_stem)
-
-    name = 'fates_hydr_alpha_vg'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_alpha_vg)
-
-    name = 'fates_hydr_m_vg'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_m_vg)
-
-    name = 'fates_hydr_n_vg'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_n_vg)
-
-    name = 'fates_hydr_k_lwp'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_k_lwp)
-
-    name = 'fates_hydr_avuln_gs'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_avuln_gs)
-    
-    name = 'fates_hydr_p50_gs'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_p50_gs)
-
-    name = 'fates_mort_bmort'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%bmort)
-
     name = 'fates_mort_ip_size_senescence'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_ip_size_senescence)
@@ -948,8 +855,7 @@ contains
     name = 'fates_mort_scalar_cstarvation'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_scalar_cstarvation)
-
-         
+        
     name = 'fates_mort_hf_sm_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hf_sm_threshold)
@@ -1497,32 +1403,7 @@ contains
         write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
         write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
-        write(fates_log(),fmt0) 'allom_hmode = ',EDPftvarcon_inst%allom_hmode
-        write(fates_log(),fmt0) 'allom_lmode = ',EDPftvarcon_inst%allom_lmode
-        write(fates_log(),fmt0) 'allom_fmode = ',EDPftvarcon_inst%allom_fmode
-        write(fates_log(),fmt0) 'allom_amode = ',EDPftvarcon_inst%allom_amode
-        write(fates_log(),fmt0) 'allom_cmode = ',EDPftvarcon_inst%allom_cmode
-        write(fates_log(),fmt0) 'allom_smode = ',EDPftvarcon_inst%allom_smode
-        write(fates_log(),fmt0) 'allom_la_per_sa_int = ',EDPftvarcon_inst%allom_la_per_sa_int
-        write(fates_log(),fmt0) 'allom_la_per_sa_slp = ',EDPftvarcon_inst%allom_la_per_sa_slp
-        write(fates_log(),fmt0) 'allom_l2fr = ',EDPftvarcon_inst%allom_l2fr
-        write(fates_log(),fmt0) 'allom_agb_frac = ',EDPftvarcon_inst%allom_agb_frac
-        write(fates_log(),fmt0) 'allom_d2h1 = ',EDPftvarcon_inst%allom_d2h1
-        write(fates_log(),fmt0) 'allom_d2h2 = ',EDPftvarcon_inst%allom_d2h2
-        write(fates_log(),fmt0) 'allom_d2h3 = ',EDPftvarcon_inst%allom_d2h3
-        write(fates_log(),fmt0) 'allom_d2bl1 = ',EDPftvarcon_inst%allom_d2bl1
-        write(fates_log(),fmt0) 'allom_d2bl2 = ',EDPftvarcon_inst%allom_d2bl2
-        write(fates_log(),fmt0) 'allom_d2bl3 = ',EDPftvarcon_inst%allom_d2bl3
-        write(fates_log(),fmt0) 'allom_sai_scaler = ',EDPftvarcon_inst%allom_sai_scaler
-        write(fates_log(),fmt0) 'allom_blca_expnt_diff = ',EDPftvarcon_inst%allom_blca_expnt_diff
-        write(fates_log(),fmt0) 'allom_d2ca_coefficient_max = ',EDPftvarcon_inst%allom_d2ca_coefficient_max
-        write(fates_log(),fmt0) 'allom_d2ca_coefficient_min = ',EDPftvarcon_inst%allom_d2ca_coefficient_min        
-        write(fates_log(),fmt0) 'allom_agb1 = ',EDPftvarcon_inst%allom_agb1
-        write(fates_log(),fmt0) 'allom_agb2 = ',EDPftvarcon_inst%allom_agb2
-        write(fates_log(),fmt0) 'allom_agb3 = ',EDPftvarcon_inst%allom_agb3
-        write(fates_log(),fmt0) 'allom_agb4 = ',EDPftvarcon_inst%allom_agb4
-	   write(fates_log(),fmt0) 'allom_frbstor_repro = ',EDPftvarcon_inst%allom_frbstor_repro
-	write(fates_log(),fmt0) 'allom_frbstor_repro = ',EDPftvarcon_inst%allom_frbstor_repro
+    	   write(fates_log(),fmt0) 'allom_frbstor_repro = ',EDPftvarcon_inst%allom_frbstor_repro
         write(fates_log(),fmt0) 'hydr_p_taper = ',EDPftvarcon_inst%hydr_p_taper
         write(fates_log(),fmt0) 'hydr_rs2 = ',EDPftvarcon_inst%hydr_rs2
         write(fates_log(),fmt0) 'hydr_srl = ',EDPftvarcon_inst%hydr_srl

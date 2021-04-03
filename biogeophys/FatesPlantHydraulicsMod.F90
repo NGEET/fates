@@ -5305,12 +5305,13 @@ contains
     select case(plant_wrf_type)
     case(van_genuchten_type)
        write(fates_log(),*) 'Using van Genuchten model of plants'    
+
        do ft = 1,numpft
            do pm = 1, n_plant_media
-                allocate(wrf_vg)
-                wrf_plant(pm,ft)%p => wrf_vg
+               allocate(wrf_vg)
+               wrf_plant(pm,ft)%p => wrf_vg
               
-                call wrf_vg%set_wrf_param([EDPftvarcon_inst%hydr_alpha_vg(ft), &
+               call wrf_vg%set_wrf_param([EDPftvarcon_inst%hydr_alpha_vg(ft), &
                                            EDPftvarcon_inst%hydr_n_vg(ft), &
                                            EDPftvarcon_inst%hydr_m_vg(ft), &
                                            EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
