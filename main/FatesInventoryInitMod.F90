@@ -62,7 +62,8 @@ module FatesInventoryInitMod
    use PRTGenericMod,          only : phosphorus_element
    use PRTGenericMod,          only : SetState
    use FatesConstantsMod, only : primaryforest
-
+   use PRTAllometricCNPMod,    only : StorageNutrientTarget
+   
    implicit none
    private
 
@@ -1103,8 +1104,9 @@ contains
                     (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)) + &
                     prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)))
 
-               m_store  = prt_params%nitr_store_ratio(temp_cohort%pft) * (m_leaf+m_fnrt+m_sapw)
                m_repro  = 0._r8
+
+               m_store = StorageNutrientTarget(temp_cohort%pft, element_id, m_leaf, m_fnrt, m_sapw, m_struct)
 
             case(phosphorus_element)
                
@@ -1124,9 +1126,10 @@ contains
                     (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)) + &
                     prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)))
 
-               m_store  = prt_params%phos_store_ratio(temp_cohort%pft) * (m_leaf+m_fnrt+m_sapw)
                m_repro  = 0._r8
-               
+
+               m_store = StorageNutrientTarget(temp_cohort%pft, element_id, m_leaf, m_fnrt, m_sapw, m_struct)
+             
             end select
 
             select case(hlm_parteh_mode)

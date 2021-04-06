@@ -256,7 +256,8 @@ contains
        fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
     case(prt_cnp_flex_allom_hyp) 
        
-       fates%bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
+       fates%bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
+       fates%bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
        fates%bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
        fates%bc_out(s)%source_p(:)           = 0._r8
        fates%bc_out(s)%source_nh4(:)         = 0._r8
@@ -383,14 +384,17 @@ contains
 
       if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
          if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-            allocate(bc_in%plant_n_uptake_flux(max_comp_per_site,1))
+            allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
+            allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
             allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
          else
-            allocate(bc_in%plant_n_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
+            allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
+            allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
             allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
          end if
       else
-         allocate(bc_in%plant_n_uptake_flux(1,1))
+         allocate(bc_in%plant_nh4_uptake_flux(1,1))
+         allocate(bc_in%plant_no3_uptake_flux(1,1))
          allocate(bc_in%plant_p_uptake_flux(1,1))
       end if
 

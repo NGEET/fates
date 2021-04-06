@@ -1392,7 +1392,7 @@ contains
     class(prt_vartypes) :: this
     integer, intent(in)           :: element_id
     integer, intent(in)           :: organ_id
-    integer, intent(in)           :: stoich_mode
+    integer, intent(in),optional  :: stoich_mode
     real(r8)                      :: target_m    ! Target amount of nutrient for this organ [kg]
 
     write(fates_log(),*)'GetNutrientTargetBase must be extended by a child class.'

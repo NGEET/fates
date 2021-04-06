@@ -102,8 +102,10 @@ module EDPhysiologyMod
   use PRTLossFluxesMod, only : PRTPhenologyFlush
   use PRTLossFluxesMod, only : PRTDeciduousTurnover
   use PRTLossFluxesMod, only : PRTReproRelease
+  use PRTAllometricCNPMod, only : StorageNutrientTarget
 
-  
+  implicit none
+  private
 
   public :: trim_canopy
   public :: phenology
@@ -1697,22 +1699,30 @@ contains
                
                case(nitrogen_element)
 
-                  mass_demand = &
-                       c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
-                       (1._r8 + prt_params%nitr_store_ratio(ft)) * &
-                       (c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
-                       c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
-                       c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) )
+                     mass_demand = &
+                          c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
+                          c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
+                          c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
+                          c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) + &
+                          StorageNutrientTarget(ft, element_id, &
+                          c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)), &
+                          c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)), &
+                          c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)), &
+                          c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)))
                   
                case(phosphorus_element)
                   
                   mass_demand = &
                        c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
-                       (1._r8 + prt_params%phos_store_ratio(ft)) * &
-                       (c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
+                       c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
                        c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
-                       c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) )    
-               
+                       c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) + &
+                       StorageNutrientTarget(ft, element_id, &
+                       c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)), &
+                       c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)), &
+                       c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)), &
+                       c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ)))
+                  
                case default
                    write(fates_log(),*) 'Undefined element type in recruitment'
                    call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1769,8 +1779,7 @@ contains
                  m_leaf   = c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ))
                  m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ))
                  m_sapw   = c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ))
-                 m_store  = prt_params%nitr_store_ratio(ft) * &
-                      (m_leaf+m_fnrt+m_sapw)
+                 m_store  = StorageNutrientTarget(ft, element_id, m_leaf, m_fnrt, m_sapw, m_struct )
                  m_repro  = 0._r8
 
               case(phosphorus_element)
@@ -1779,8 +1788,7 @@ contains
                  m_leaf   = c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ))
                  m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ))
                  m_sapw   = c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ))
-                 m_store  = prt_params%phos_store_ratio(ft) * &
-                      (m_leaf+m_fnrt+m_sapw)
+                 m_store  = StorageNutrientTarget(ft, element_id, m_leaf, m_fnrt, m_sapw, m_struct )
                  m_repro  = 0._r8
 
               end select
