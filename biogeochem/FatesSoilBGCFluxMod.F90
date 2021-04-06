@@ -135,33 +135,10 @@ contains
 
 
     ! If the cohort has not experienced a day of integration
-    ! (and thus any allocation yet), we specify demand
-    ! based purely on a fraction of its starting nutrient content
+    ! (and thus any allocation yet), it has no deficit
+    ! in its storage to drive any need, so it thus has no demand
     if(ccohort%isnew) then
-
-       if(element_id.eq.nitrogen_element) then
-          
-          leafm = ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
-          fnrtm = ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
-          sapwm = ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
-          structm = ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
-          storem = StorageNutrientTarget(pft, element_id, leafm,fnrtm,sapwm,structm)
-
-          plant_max_x = leafm+fnrtm+sapwm+structm+storem
-       
-       elseif(element_id.eq.phosphorus_element) then
-
-          leafm = ccohort%prt%GetState(leaf_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
-          fnrtm = ccohort%prt%GetState(fnrt_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
-          sapwm = ccohort%prt%GetState(sapw_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
-          structm = ccohort%prt%GetState(struct_organ, carbon12_element)*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
-          storem = StorageNutrientTarget(pft, element_id, leafm,fnrtm,sapwm,structm)
-          
-          plant_max_x = leafm+fnrtm+sapwm+structm+storem
-          
-       end if
-
-       plant_demand = 0._r8     !  (let the storage handle the first day) init_demand_frac*plant_max_x
+       plant_demand = 0._r8
        return
     end if
        
