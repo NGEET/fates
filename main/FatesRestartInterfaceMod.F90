@@ -624,7 +624,7 @@ contains
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gdd_si )
 
     call this%set_restart_var(vname='fates_snow_depth_site', vtype=site_r8, &
-         long_name='growing degree days at each site', units='degC days', flushval = flushzero, &
+         long_name='average snow depth', units='m', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snow_depth_si )
 
     call this%set_restart_var(vname='fates_trunk_product_site', vtype=site_r8, &
