@@ -1251,7 +1251,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine canopy_summarization( nsites, sites, bc_in )
+  subroutine canopy_summarization( nsites, sites, bc_in, is_called_at_restart )
 
      ! ----------------------------------------------------------------------------------
      ! Much of this routine was once ed_clm_link minus all the IO and history stuff
@@ -1269,6 +1269,7 @@ contains
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
+    integer                 , intent(in)            :: is_called_at_restart  ! ifalse = daily timestep, itrue = restart
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type)  , pointer :: currentPatch
@@ -1380,7 +1381,7 @@ contains
           currentPatch => currentPatch%younger
        end do !patch loop
             
-       call leaf_area_profile(sites(s),bc_in(s)%snow_depth_si,bc_in(s)%frac_sno_eff_si) 
+       call leaf_area_profile(sites(s),bc_in(s)%snow_depth_si,bc_in(s)%frac_sno_eff_si, is_called_at_restart)
        
     end do ! site loop
     
@@ -1389,7 +1390,7 @@ contains
  
  ! =====================================================================================
 
- subroutine leaf_area_profile( currentSite , snow_depth_si, frac_sno_eff_si)
+ subroutine leaf_area_profile( currentSite , snow_depth_si, frac_sno_eff_si, is_called_at_restart)
     
     ! -----------------------------------------------------------------------------------
     ! This subroutine calculates how leaf and stem areas are distributed 
@@ -1433,6 +1434,7 @@ contains
     type(ed_site_type)     , intent(inout) :: currentSite
     real(r8)               , intent(in)    :: snow_depth_si
     real(r8)               , intent(in)    :: frac_sno_eff_si
+    integer                , intent(in)    :: is_called_at_restart  ! ifalse = daily timestep, itrue = restart
 
     !
     ! !LOCAL VARIABLES:
@@ -1534,6 +1536,15 @@ contains
           
        enddo !currentCohort
 
+       ! calculate average snow depth.
+       snow_depth_avg = snow_depth_si * frac_sno_eff_si
+
+       if ( is_called_at_restart .eq. ifalse ) then  ! normal timestepping
+          currentSite%snow_depth = snow_depth_avg
+       else                             ! restart step
+          snow_depth_avg = currentSite%snow_depth
+       endif
+
        if(smooth_leaf_distribution == 1)then
 
           ! -----------------------------------------------------------------------------
@@ -1581,7 +1592,6 @@ contains
                       currentCohort%sai
                 
                 !snow burial
-                snow_depth_avg = snow_depth_si * frac_sno_eff_si
                 if(snow_depth_avg  > maxh(iv))then
                    fraction_exposed = 0._r8
                 endif
@@ -1678,7 +1688,6 @@ contains
                          EDPftvarcon_inst%crown(currentCohort%pft) )
                    
                    fraction_exposed = 1.0_r8
-                   snow_depth_avg = snow_depth_si * frac_sno_eff_si
                    if(snow_depth_avg  > layer_top_hite)then
                       fraction_exposed = 0._r8
                    endif
