@@ -66,7 +66,7 @@ module FatesPlantHydraulicsMod
   use FatesAllometryMod, only    : bsap_allom
   use FatesAllometryMod, only    : CrownDepth
   use FatesAllometryMod , only   : set_root_fraction
-  use FatesAllometryMod , only   : i_hydro_rootprof_context
+  ! use FatesAllometryMod , only   : i_hydro_rootprof_context
   use FatesHydraulicsMemMod, only: use_2d_hydrosolve
   use FatesHydraulicsMemMod, only: ed_site_hydr_type
   use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
@@ -179,7 +179,7 @@ module FatesPlantHydraulicsMod
                                                ! (if we are going to help purge super-saturation)
                                              
   logical,parameter :: debug = .false.          ! flag to report warning in hydro
-  logical,public, parameter :: JD_debug = .false.       ! Junyan added to debug my modifications 
+  logical,public, parameter :: JD_debug = .true.       ! Junyan added to debug my modifications 
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -928,7 +928,7 @@ contains
     ! alternative cross section calculation
     ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%hite ) * 1.e-4_r8
 
-    crown_depth = prt_params%crown(ft) * ccohort%hite
+    crown_depth = EDPftvarcon_inst%crown(ft) * ccohort%hite
     z_stem       = ccohort%hite - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
     ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
@@ -1368,7 +1368,7 @@ contains
   end subroutine InitHydrSites
 
   ! ===================================================================================
-  subroutine HydrSiteColdStart(sites, bc_in )! , bc_out)
+  subroutine HydrSiteColdStart(sites, bc_in ) ! , bc_out)
 
 
     ! Arguments
@@ -1546,7 +1546,7 @@ contains
              ccohort_hydr => currentCohort%co_hydr
              !only account for the water for not newly recruit for mass balance
              if(.not.ccohort_hydr%is_newly_recruited) then
-               ! check for nan value
+               ! check for nan value , Junyan
                do ily = 1,csite_hydr%nlevrhiz
                   if(ccohort_hydr%th_aroot(ily)/=ccohort_hydr%th_aroot(ily)) then
                     ccohort_hydr%th_aroot(ily) = 0         
@@ -1578,7 +1578,7 @@ contains
        ! and it will be reduced via an evaporation term
        ! growturn_err is a term to accomodate error in growth or turnover. need to be improved for future(CX) 
        if (JD_debug) then 
-          write(fates_log(),*) 'check NaN, line 1561'
+          write(fates_log(),*) 'check NaN in , line 1561'
           write(fates_log(),*) 'csite_hydr%h2oveg:',csite_hydr%h2oveg
           write(fates_log(),*) 'csite_hydr%h2oveg_dead:',csite_hydr%h2oveg_dead
           write(fates_log(),*) 'csite_hydr%h2oveg_growturn_err:', csite_hydr%h2oveg_growturn_err
@@ -1681,9 +1681,10 @@ contains
        endif
     end do ! site loop
     
-    !write(fates_log(),*) 'Calculating recruit water'
-    !write(fates_log(),*) csite_hydr%recruit_w_uptake
-
+   if (JD_debug) then
+     write(fates_log(),*) 'Calculating recruit  uptake'
+     write(fates_log(),*) csite_hydr%recruit_w_uptake(:)
+   endif 
 
   end subroutine RecruitWUptake
 
@@ -2429,6 +2430,15 @@ contains
        prev_h2oveg    = site_hydr%h2oveg
        prev_h2osoil   = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
                         site_hydr%v_shell(:,:)) * denh2o * AREA_INV
+       
+       ! 2433
+       if (JD_debug) then 
+           write(fates_log(),*) ' line 2434'
+           write(fates_log(),*) 'prev_h2oveg', prev_h2oveg
+           write(fates_log(),*) 'prev_h2osoil',prev_h2osoil
+           write(fates_log(),*) 'site_hydr%h2osoi_liqvol_shell(:,:)',site_hydr%h2osoi_liqvol_shell(:,:)
+           write(fates_log(),*) 'site_hydr%v_shell(:,:)',site_hydr%v_shell(:,:)
+       endif
 
        bc_out(s)%qflx_ro_sisl(:) = 0._r8
 
@@ -2649,8 +2659,10 @@ contains
        ! Junyan added loginfo
        write(fates_log(),*) 'root_flux: ', root_flux
 
+       ! Junyan added, to set bc_out of every soil layer to be 0, then only update the layers that having roots
        bc_out(s)%qflx_soil2root_sisl(:) = 0    
        bc_out(s)%qflx_ro_sisl(:) = 0         
+
        do j=1,site_hydr%nlevrhiz
 
            j_bc = j+site_hydr%i_rhiz_t-1
@@ -2712,9 +2724,9 @@ contains
              end do
              
              bc_out(s)%qflx_ro_sisl(j_bc) = site_runoff/dtime
-          end if
+          end if ! purge_supersaturation
          end if ! adjust for Nan 
-      enddo
+      enddo  ! update bc_out
 
        
       ! Note that the cohort-level solvers are expected to update
