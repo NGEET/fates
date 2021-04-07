@@ -681,7 +681,6 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 pft   = ccohort%pft
-                dbh   = ccohort%dbh
                 if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
                    icomp = icomp+1
                 else
@@ -703,7 +702,6 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 pft   = ccohort%pft
-                dbh   = ccohort%dbh
                 if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
                    icomp = icomp+1
                 else
@@ -1059,13 +1057,6 @@ contains
        ! storage approaches it's maximum holding capacity
        
        c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
-       
-!       if(element_id==nitrogen_element) then
-!          print*,"DBH, N STOREFRAC: ",ccohort%dbh,c_scalar,store_frac,ccohort%prt%GetState(store_organ, element_id),store_max
-!       else
-!          print*,"DBH, P STOREFRAC: ",ccohort%dbh,c_scalar,store_frac,ccohort%prt%GetState(store_organ, element_id),store_max
-!       end if
-
        
        call check_var_real(c_scalar,'c_scalar',icode)
        if (icode .ne. 0) then
