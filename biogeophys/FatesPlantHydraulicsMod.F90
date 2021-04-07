@@ -179,7 +179,7 @@ module FatesPlantHydraulicsMod
                                                ! (if we are going to help purge super-saturation)
                                              
   logical,parameter :: debug = .false.          ! flag to report warning in hydro
-  logical,public, parameter :: JD_debug = .true.       ! Junyan added to debug my modifications 
+  logical,public, parameter :: JD_debug = .false.       ! Junyan added to debug my modifications 
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
