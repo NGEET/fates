@@ -2194,7 +2194,7 @@ contains
        ! If so we need to make another layer.
        if(arealayer > currentPatch%area)then
           z = z + 1
-          if(hlm_use_sp)then
+          if(hlm_use_sp.eq.itrue)then
              write(fates_log(),*) 'SPmode, canopy_layer full:',arealayer,currentPatch%area
           end if
 

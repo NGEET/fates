@@ -1276,7 +1276,7 @@ contains
        currentPatch => currentPatch%younger
     enddo
 
-    if(hlm_use_sp)then
+    if(hlm_use_sp.eq.itrue)then
       patchno = 1
       currentPatch => currentSite%oldest_patch
       do while(associated(currentPatch))
