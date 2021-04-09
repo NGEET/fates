@@ -14,7 +14,7 @@ module FatesHistoryVariableType
   use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8 
   use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
   use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
-  use FatesIOVariableKindMod, only : iotype_index
+  use FatesIOVariableKindMod, only : iotype_index, site_agefuel_r8
 
   implicit none
   private        ! By default everything is private
@@ -201,6 +201,10 @@ contains
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
+   case(site_agefuel_r8)
+      allocate(this%r82d(lb1:ub1, lb2:ub2))
+      this%r82d(:,:) = flushval
+
     case default
        write(fates_log(),*) 'Incompatible vtype passed to set_history_var'
        write(fates_log(),*) 'vtype = ',trim(vtype),' ?'
@@ -327,6 +331,8 @@ contains
     case(site_elcwd_r8)
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_elage_r8)
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+    case(site_agefuel_r8)
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case default
        write(fates_log(),*) 'fates history variable type undefined while flushing history variables'
