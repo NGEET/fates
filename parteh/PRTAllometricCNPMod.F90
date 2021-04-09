@@ -27,7 +27,8 @@ module PRTAllometricCNPMod
   use PRTGenericMod , only  : struct_organ
   use PRTGenericMod , only  : all_organs
   use PRTGenericMod , only  : prt_cnp_flex_allom_hyp
-
+  use PRTGenericMod , only  : StorageNutrientTarget
+  
   use FatesAllometryMod   , only : bleaf
   use FatesAllometryMod   , only : bsap_allom
   use FatesAllometryMod   , only : bfineroot
@@ -187,7 +188,7 @@ module PRTAllometricCNPMod
   ! phase, to give first dibs to leaves, even though they are
   ! in the same priority group as fineroots.
 
-  logical, parameter :: reproduce_conly = .false.
+  logical, parameter :: reproduce_conly = .true.
   
 
   ! Array of pointers are difficult in F90
@@ -235,7 +236,7 @@ module PRTAllometricCNPMod
    logical, parameter :: debug = .false.
    
    public :: InitPRTGlobalAllometricCNP
-   public :: StorageNutrientTarget
+   
 
 contains
 
@@ -2305,74 +2306,7 @@ contains
      end if
    end subroutine TargetAllometryCheck
 
-   ! ====================================================================================
    
-   function StorageNutrientTarget(pft, element_id, leaf_target, fnrt_target, sapw_target, struct_target) result(store_target)
-
-     integer :: pft
-     integer :: element_id
-     real(r8) :: leaf_target    ! Target leaf nutrient mass [kg]
-     real(r8) :: fnrt_target    ! Target fineroot nutrient mass [kg]
-     real(r8) :: sapw_target    ! Target sapwood nutrient mass [kg]
-     real(r8) :: struct_target  ! Target structural nutrient mass [kg]
-
-     real(r8) :: store_target   ! Output: Target storage nutrient mass [kg]
-     
-     
-     ! -------------------------------------------------------------------------------------
-     ! Choice of how nutrient storage target is proportioned to
-     !   Each choice makes the nutrient storage proportional the the "in-tissue"
-     !   total nitrogen content of 1 or more sets of organs
-     ! -------------------------------------------------------------------------------------
-     
-     integer, parameter :: lfs_store_prop = 1  ! leaf-fnrt-sapw proportional storage
-     integer, parameter :: lfss_store_prop = 2 ! leaf-fnrt-sapw-struct proportional storage
-     integer, parameter :: fnrt_store_prop = 3 ! fineroot proportional storage
-     integer, parameter :: store_prop = fnrt_store_prop
-
-     
-     select case(element_id)
-     case(carbon12_element)
-        write(fates_log(),*) 'Cannot call StorageNutrientTarget() for carbon'
-        write(fates_log(),*) 'exiting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-        
-     case(nitrogen_element)
-        
-        if (store_prop == lfs_store_prop) then
-
-           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target)
-
-        elseif(store_prop==lfss_store_prop) then
-           
-           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target + struct_target)
-           
-        elseif(store_prop==fnrt_store_prop) then
-
-           store_target  = prt_params%nitr_store_ratio(pft) * fnrt_target
-
-        end if
-        
-             
-     case(phosphorus_element)
-
-        if (store_prop == lfs_store_prop) then
-           
-           store_target  = prt_params%phos_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target)
-
-        elseif(store_prop==lfss_store_prop) then
-           
-           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target + struct_target)
-    
-        elseif(store_prop==fnrt_store_prop) then
-           
-           store_target  = prt_params%phos_store_ratio(pft) * fnrt_target
-           
-        end if
-     end select
-     
-     
-   end function StorageNutrientTarget
 
    
    

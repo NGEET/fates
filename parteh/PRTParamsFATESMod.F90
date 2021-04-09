@@ -30,6 +30,7 @@ module PRTInitParamsFatesMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod, only : set_root_fraction
+  use PRTGenericMod, only : StorageNutrientTarget
   use EDTypesMod,          only : init_recruit_trim
   
   !
@@ -1417,22 +1418,31 @@ contains
      ! Total nutrient in a newly recruited plant
      select case(element_id)
      case(nitrogen_element)
-        
+
         nutr_total = &
              c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
-             (1._r8 + prt_params%nitr_store_ratio(ft)) * &
-             (c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
+             c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
              c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
-             c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) )
+             c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) + &
+             StorageNutrientTarget(ft, element_id, &
+             c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)), &
+             c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)), &
+             c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)), &
+             c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)))
 
      case(phosphorus_element)
 
         nutr_total = &
              c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
-             (1._r8 + prt_params%phos_store_ratio(ft)) * &
-             (c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
+             c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
              c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
-             c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) )
+             c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) + &
+             StorageNutrientTarget(ft, element_id, &
+             c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)), &
+             c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)), &
+             c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)), &
+             c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ)))
+
 
      end select
 

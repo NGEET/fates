@@ -74,7 +74,6 @@ module FatesSoilBGCFluxMod
   use FatesLitterMod    , only : icellulose
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : EDPftvarcon_inst
-  use PRTAllometricCNPMod,    only : StorageNutrientTarget
   use FatesUtilsMod, only : check_var_real
   
   implicit none
@@ -509,7 +508,8 @@ contains
                 bc_out%ft_index(icomp) = pft
              end if
              
-             call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil)
+             call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
+                  bc_in%max_rooting_depth_index_col )
              
              fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
              

@@ -102,7 +102,7 @@ module EDPhysiologyMod
   use PRTLossFluxesMod, only : PRTPhenologyFlush
   use PRTLossFluxesMod, only : PRTDeciduousTurnover
   use PRTLossFluxesMod, only : PRTReproRelease
-  use PRTAllometricCNPMod, only : StorageNutrientTarget
+  use PRTGenericMod, only : StorageNutrientTarget
 
   implicit none
   private

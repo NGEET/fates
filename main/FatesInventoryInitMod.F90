@@ -62,7 +62,7 @@ module FatesInventoryInitMod
    use PRTGenericMod,          only : phosphorus_element
    use PRTGenericMod,          only : SetState
    use FatesConstantsMod, only : primaryforest
-   use PRTAllometricCNPMod,    only : StorageNutrientTarget
+   use PRTGenericMod,    only : StorageNutrientTarget
    
    implicit none
    private
