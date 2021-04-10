@@ -394,7 +394,7 @@ contains
 
    ! ============================================================================
 
-   subroutine logging_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis, bc_in)
+   subroutine logging_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
 
       ! -------------------------------------------------------------------------------------------
       !
@@ -440,7 +440,7 @@ contains
       type(ed_patch_type) , intent(inout), target  :: currentPatch
       type(ed_patch_type) , intent(inout), target  :: newPatch
       real(r8)            , intent(in)             :: patch_site_areadis
-      type(bc_in_type)    , intent(in)             :: bc_in
+
 
       !LOCAL VARIABLES:
       type(ed_cohort_type), pointer      :: currentCohort
@@ -569,7 +569,8 @@ contains
             ! ----------------------------------------------------------------------------------------
 
             call set_root_fraction(currentSite%rootfrac_scr, pft, &
-                 currentSite%zi_soil, bc_in%max_rooting_depth_index_col)
+                 currentSite%zi_soil, &
+                 currentSite%bc_in_ptr%max_rooting_depth_index_col)
          
             ag_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
                   prt_params%allom_agb_frac(currentCohort%pft)

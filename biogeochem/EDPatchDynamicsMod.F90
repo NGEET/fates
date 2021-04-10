@@ -660,13 +660,13 @@ contains
 
              if(currentPatch%disturbance_mode .eq. dtype_ilog) then
                 call logging_litter_fluxes(currentSite, currentPatch, &
-                     new_patch, patch_site_areadis,bc_in)
+                     new_patch, patch_site_areadis)
              elseif(currentPatch%disturbance_mode .eq. dtype_ifire) then
                 call fire_litter_fluxes(currentSite, currentPatch, &
-                     new_patch, patch_site_areadis,bc_in)  
+                     new_patch, patch_site_areadis)  
              else
                 call mortality_litter_fluxes(currentSite, currentPatch, &
-                     new_patch, patch_site_areadis,bc_in)
+                     new_patch, patch_site_areadis)
              endif
 
              ! --------------------------------------------------------------------------
@@ -1514,7 +1514,7 @@ contains
   ! ============================================================================
 
   subroutine fire_litter_fluxes(currentSite, currentPatch, &
-       newPatch, patch_site_areadis, bc_in)
+       newPatch, patch_site_areadis)
     !
     ! !DESCRIPTION:
     !  CWD pool burned by a fire. 
@@ -1533,8 +1533,6 @@ contains
     type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
     type(ed_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
-                                                                      ! by current patch
-    type(bc_in_type)    , intent(in)            :: bc_in
     !
     ! !LOCAL VARIABLES:
 
@@ -1664,7 +1662,7 @@ contains
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
-                  bc_in%max_rooting_depth_index_col)
+                  currentSite%bc_in_ptr%max_rooting_depth_index_col)
 
              ! Contribution of dead trees to root litter (no root burn flux to atm)
              do dcmpy=1,ndcmpy
@@ -1737,7 +1735,7 @@ contains
   ! ============================================================================
 
   subroutine mortality_litter_fluxes(currentSite, currentPatch, &
-       newPatch, patch_site_areadis, bc_in)
+       newPatch, patch_site_areadis)
     !
     ! !DESCRIPTION:
     ! Carbon going from mortality associated with disturbance into CWD pools. 
@@ -1759,8 +1757,6 @@ contains
     type(ed_patch_type) , intent(inout), target :: currentPatch
     type(ed_patch_type) , intent(inout), target :: newPatch
     real(r8)            , intent(in)            :: patch_site_areadis
-
-    type(bc_in_type)    , intent(in)            :: bc_in
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer      :: currentCohort
@@ -1876,7 +1872,7 @@ contains
           bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-prt_params%allom_agb_frac(pft))
           
           call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
-               bc_in%max_rooting_depth_index_col)
+               currentSite%bc_in_ptr%max_rooting_depth_index_col)
 
 
           do c=1,ncwd

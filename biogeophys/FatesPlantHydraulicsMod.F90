@@ -65,7 +65,6 @@ module FatesPlantHydraulicsMod
   use FatesAllometryMod, only    : bleaf
   use FatesAllometryMod, only    : bsap_allom
   use FatesAllometryMod, only    : CrownDepth
-  use FatesAllometryMod , only   : set_root_fraction
   use FatesHydraulicsMemMod, only: use_2d_hydrosolve
   use FatesHydraulicsMemMod, only: ed_site_hydr_type
   use FatesHydraulicsMemMod, only: ed_cohort_hydr_type

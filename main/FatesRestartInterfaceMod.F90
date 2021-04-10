@@ -2115,7 +2115,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine create_patchcohort_structure(this, nc, nsites, sites, bc_in) 
+   subroutine create_patchcohort_structure(this, nc, nsites, sites, bc_in, bc_out) 
 
      ! ----------------------------------------------------------------------------------
      ! This subroutine takes a peak at the restart file to determine how to allocate
@@ -2145,7 +2145,8 @@ contains
      integer                     , intent(in)            :: nc
      integer                     , intent(in)            :: nsites
      type(ed_site_type)          , intent(inout), target :: sites(nsites)
-     type(bc_in_type)            , intent(in)            :: bc_in(nsites)
+     type(bc_in_type)                                    :: bc_in(nsites)
+     type(bc_out_type)                                   :: bc_out(nsites)
 
      ! local variables
      
@@ -2177,7 +2178,7 @@ contains
           io_idx_si  = this%restart_map(nc)%site_index(s)
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
 
-          call init_site_vars( sites(s), bc_in(s) )
+          call init_site_vars( sites(s), bc_in(s), bc_out(s) )
           call zero_site( sites(s) )
 
           if ( rio_npatch_si(io_idx_si)<0 .or. rio_npatch_si(io_idx_si) > 10000 ) then

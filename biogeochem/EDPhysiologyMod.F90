@@ -1953,7 +1953,8 @@ contains
     do while(associated(currentCohort))
       pft = currentCohort%pft        
 
-      call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
+      call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
+           currentSite%bc_in_ptr%max_rooting_depth_index_col)
 
       leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id)
       store_m_turnover  = currentCohort%prt%GetTurnover(store_organ,element_id)

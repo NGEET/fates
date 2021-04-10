@@ -7,7 +7,6 @@ module FatesInterfaceTypesMod
   use FatesGlobals        , only : endrun => fates_endrun
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
-  use EDTypesMod          , only : ed_site_type
   
   implicit none
 
@@ -711,43 +710,7 @@ module FatesInterfaceTypesMod
                                                 ! increasing, or all 1s)
 
    end type bc_pconst_type
-   
-
-   type, public :: fates_interface_type
-      
-      ! This is the root of the ED/FATES hierarchy of instantaneous state variables
-      ! ie the root of the linked lists. Each path list is currently associated with a 
-      ! grid-cell, this is intended to be migrated to columns 
-
-      integer                         :: nsites
-
-      type(ed_site_type), pointer :: sites(:)
-
-      ! These are boundary conditions that the FATES models are required to be filled.  
-      ! These values are filled by the driver or HLM.  Once filled, these have an 
-      ! intent(in) status.  Each site has a derived type structure, which may include 
-      ! a scalar for site level data, a patch vector, potentially cohort vectors (but 
-      ! not yet atm) and other dimensions such as soil-depth or pft.  These vectors 
-      ! are initialized by maximums, and the allocations are static in time to avoid
-      ! having to allocate/de-allocate memory
-
-      type(bc_in_type), allocatable   :: bc_in(:)
-
-      ! These are the boundary conditions that the FATES model returns to its HLM or 
-      ! driver. It has the same allocation strategy and similar vector types.
-      
-      type(bc_out_type), allocatable  :: bc_out(:)
-
-
-      ! These are parameter constants that FATES may need to provide a host model
-      ! We have other methods of reading in input parameters. Since these
-      ! are parameter constants, we don't need them allocated over every site,one
-      ! instance is fine.
-      
-      type(bc_pconst_type) :: bc_pconst
-      
-
-   end type fates_interface_type
+  
 
 
  contains

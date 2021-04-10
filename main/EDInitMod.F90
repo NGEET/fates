@@ -36,7 +36,7 @@ module EDInitMod
   use EDTypesMod                , only : phen_dstat_moistoff
   use EDTypesMod                , only : phen_cstat_notcold
   use EDTypesMod                , only : phen_dstat_moiston
-  use FatesInterfaceTypesMod         , only : bc_in_type
+  use FatesInterfaceTypesMod         , only : bc_in_type,bc_out_type
   use FatesInterfaceTypesMod         , only : hlm_use_planthydro
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
   use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
@@ -93,14 +93,15 @@ contains
 
   ! ============================================================================
 
-  subroutine init_site_vars( site_in, bc_in )
+  subroutine init_site_vars( site_in, bc_in, bc_out )
     !
     ! !DESCRIPTION:
     !
     !
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout) :: site_in
-    type(bc_in_type),intent(in)       :: bc_in
+    type(ed_site_type), intent(inout)    :: site_in
+    type(bc_in_type),intent(in),target   :: bc_in
+    type(bc_out_type),intent(in),target  :: bc_out
     !
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
@@ -139,13 +140,14 @@ contains
 
     ! Initialize the static soil 
     ! arrays from the boundary (initial) condition
-
-   
+    
     site_in%zi_soil(:) = bc_in%zi_sisl(:)
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
     
-
+    site_in%bc_in_ptr => bc_in
+    site_in%bc_out_ptr => bc_out
+    
     !
     end subroutine init_site_vars
 

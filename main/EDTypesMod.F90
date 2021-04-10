@@ -18,6 +18,8 @@ module EDTypesMod
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
+  use FatesInterfaceTypesMod,only : bc_in_type
+  use FatesInterfaceTypesMod,only : bc_out_type
   
   implicit none
   private               ! By default everything is private
@@ -682,6 +684,15 @@ module EDTypesMod
      ! position in history output fields
      !integer :: clump_id 
 
+     ! This is the pointer to the input boundary condition structure, ie information that is
+     ! derived purerly from the HLM
+     type(bc_in_type), pointer :: bc_in_ptr
+
+     ! This is the pointer to the output boundary condition structure, ie information that is
+     ! derived purerly from the HLM
+     type(bc_out_type), pointer :: bc_out_ptr
+
+     
      ! Global index of this site in the history output file
      integer :: h_gid
      

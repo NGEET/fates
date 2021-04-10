@@ -695,7 +695,7 @@ contains
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( currentSite, currentPatch, level , call_index, bc_in)
+  subroutine terminate_cohorts( currentSite, currentPatch, level , call_index)
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -708,7 +708,6 @@ contains
     type (ed_patch_type), intent(inout), target :: currentPatch
     integer             , intent(in)            :: level
     integer                                     :: call_index
-    type(bc_in_type), intent(in)    :: bc_in
     
     ! Important point regarding termination levels.  Termination is typically
     ! called after fusion.  We do this so that we can re-capture the biomass that would
@@ -825,7 +824,7 @@ contains
 
           if (currentCohort%n.gt.0.0_r8) then
              call SendCohortToLitter(currentSite,currentPatch, &
-                  currentCohort,currentCohort%n, bc_in)
+                  currentCohort,currentCohort%n)
           end if
           
           ! Set pointers and remove the current cohort from the list
@@ -859,7 +858,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine SendCohortToLitter(csite,cpatch,ccohort,nplant,bc_in)
+  subroutine SendCohortToLitter(csite,cpatch,ccohort,nplant)
     
     ! -----------------------------------------------------------------------------------
     ! This routine transfers the existing mass in all pools and all elements
@@ -883,9 +882,6 @@ contains
     type (ed_cohort_type) , target  :: ccohort
     real(r8)                        :: nplant     ! Number (absolute)
                                                   ! of plants to transfer
-    type(bc_in_type), intent(in)    :: bc_in
-    
-    !
     type(litter_type), pointer        :: litt       ! Litter object for each element
     type(site_fluxdiags_type),pointer :: flux_diags
 
@@ -910,7 +906,7 @@ contains
     plant_dens = nplant/cpatch%area
 
     call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
-                  bc_in%max_rooting_depth_index_col)
+         csite%bc_in_ptr%max_rooting_depth_index_col)
 
     do el=1,num_elements
        

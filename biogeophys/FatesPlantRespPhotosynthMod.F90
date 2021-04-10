@@ -272,7 +272,8 @@ contains
 
          do ft = 1,numpft
              call set_root_fraction(rootfr_ft(ft,:), ft, &
-                   bc_in(s)%zi_sisl)
+                   bc_in(s)%zi_sisl, &
+                   bc_in(s)%max_rooting_depth_index_col)
          end do
           
 
