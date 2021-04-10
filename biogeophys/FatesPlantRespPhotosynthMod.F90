@@ -957,8 +957,7 @@ contains
    real(r8) :: gstoma_out        ! Adjusted stoma conductance that incorporates the leaf water status
    real(r8) :: qs                ! specific humidity at leaf surface
    real(r8) :: qsat              ! saturated specific humidity 
-   real(r8) :: qsat_adj          ! specific humidity adjusted by leaf water potential    (g/kg)
-   real(r8) :: veg_esat_adj      ! vapor pressure adjusted by leaf water potential       ()         
+   real(r8) :: qsat_adj          ! specific humidity adjusted by leaf water potential    (g/kg)     
    real(r8) :: LWP_star          ! leaf water potential scaling coefficient for inner leaf humidity
    real(r8) :: k_lwp = 8.0_r8    ! an sclaing coefficient for the ratio of leaf xylem water potential to mesophyll water potential                     
    real(r8) :: th_sat            ! saturated water content of leaf m3/m3
@@ -1293,29 +1292,24 @@ contains
              ! th_sat = EDPftvarcon_inst%hydr_thetas_node(ft,1)
              ! th_rs = EDPftvarcon_inst%hydr_resid_node(ft,1)
              
+	     ! Note: to disable this control, set k_lwp to zero, LWP_star will be 1, see code (line 1308) below 
              k_lwp = EDPftvarcon_inst%hydr_k_lwp(ft)
              if (psi<0) then
                LWP_star = exp(((k_lwp) * psi)*18.0_r8/(8.314_r8*veg_tempk))
-               ! k_lwp**btran
              else 
                LWP_star = 1
              end if
-             ! now adjust veg_esat by LWP_star
-             veg_esat_adj = veg_esat*LWP_star
-
+             ! now adjust inner leaf humidity by LWP_star
              ! note: q is the specific humidity
              qs = 0.622 * ceair / (can_press - 0.378 * ceair)
              qsat = 0.622 * veg_esat / (can_press - 0.378 * veg_esat)
-             ! qsat_adj = 0.622 * veg_esat_adj / (can_press - 0.378 * veg_esat_adj)
              qsat_adj = qsat*LWP_star
              
-             !  write (fates_log(),*) 'qsat:', qsat, 'RHleaf:', qsat_adj/qsat, 'RHs:', qs/qsat
              if (k_lwp == 0 ) then 
                rstoma_out = 1._r8/gstoma
              else 
                if ((qsat_adj - qs) <= 0) then
-               !  write (fates_log(),*) 'LWP_star:', LWP_star
-               !  write (fates_log(),*) 'qleaf:', qsat * LWP_star, 'qs',qs               
+          
                  ! if inner leaf vapor pressure is less then or equal to that at leaf surface
                  ! then set stomata resistance to be very large to stop the transpiration or back flow of vapor
                   rstoma_out = rsmax0*100
@@ -1324,13 +1318,13 @@ contains
                 
                end if
                if (rstoma_out <=0 ) then
-               !  write (fates_log(),*) 'code line 1244'
-               !  write (fates_log(),*) 'qsat:', qsat, 'qs:', qs
-               !  write (fates_log(),*) 'LWP :', psi, 'BTRAN:', th_rs, 'th:', th
-               !  write (fates_log(),*)  'ceair:', ceair, 'veg_esat:', veg_esat            
-               !  write (fates_log(),*) 'rstoma_out:', rstoma_out, 'rb:', rb  
-               !  write (fates_log(),*)  'LWP_star', LWP_star 
-               !  call endrun(msg=errMsg(sourcefile, __LINE__))                  
+
+                 write (fates_log(),*) 'qsat:', qsat, 'qs:', qs
+                 write (fates_log(),*) 'LWP :', psi, 'BTRAN:', th_rs, 'th:', th
+                 write (fates_log(),*)  'ceair:', ceair, 'veg_esat:', veg_esat            
+                 write (fates_log(),*) 'rstoma_out:', rstoma_out, 'rb:', rb  
+                 write (fates_log(),*)  'LWP_star', LWP_star 
+                 call endrun(msg=errMsg(sourcefile, __LINE__))                  
                end if      
              end if  ! k_lwp == 0
             else 
