@@ -447,7 +447,8 @@ contains
     ! !USES:
     
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
-    use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts 
+    use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts
+    use FatesConstantsMod   , only : rsnbl_math_prec
 
     !
     ! !ARGUMENTS:
@@ -500,7 +501,7 @@ contains
     do while(associated(currentPatch))
 
     
-       if(currentPatch%disturbance_rate>1.0_r8) then
+       if(currentPatch%disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
           write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
           call dump_patch(currentPatch)
           call endrun(msg=errMsg(sourcefile, __LINE__))          
