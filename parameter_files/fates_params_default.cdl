@@ -280,15 +280,6 @@ variables:
 	double fates_leaf_stor_priority(fates_pft) ;
 		fates_leaf_stor_priority:units = "unitless" ;
 		fates_leaf_stor_priority:long_name = "factor governing priority of replacing storage with NPP" ;
-	double fates_leaf_tpuha(fates_pft) ;
-		fates_leaf_tpuha:units = "J/mol" ;
-		fates_leaf_tpuha:long_name = "activation energy for tpu" ;
-	double fates_leaf_tpuhd(fates_pft) ;
-		fates_leaf_tpuhd:units = "J/mol" ;
-		fates_leaf_tpuhd:long_name = "deactivation energy for tpu" ;
-	double fates_leaf_tpuse(fates_pft) ;
-		fates_leaf_tpuse:units = "J/mol/K" ;
-		fates_leaf_tpuse:long_name = "entropy term for tpu" ;
 	double fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
@@ -978,14 +969,6 @@ data:
 
  fates_leaf_stor_priority = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
     0.8, 0.8 ;
-
- fates_leaf_tpuha = 53100, 53100, 53100, 53100, 53100, 53100, 53100, 53100, 
-    53100, 53100, 53100, 53100 ;
-
- fates_leaf_tpuhd = 150650, 150650, 150650, 150650, 150650, 150650, 150650, 
-    150650, 150650, 150650, 150650, 150650 ;
-
- fates_leaf_tpuse = 490, 490, 490, 490, 490, 490, 490, 490, 490, 490, 490, 490 ;
 
  fates_leaf_vcmax25top =
   50, 65, 39, 62, 41, 58, 62, 54, 54, 78, 78, 78 ;
