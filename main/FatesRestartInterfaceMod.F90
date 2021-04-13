@@ -209,6 +209,7 @@ module FatesRestartInterfaceMod
   integer :: ir_hydro_dead_si
   integer :: ir_hydro_growturn_err_si
   integer :: ir_hydro_hydro_err_si
+  integer :: ir_hydro_errh2o
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter, public :: fates_restart_num_dimensions = 2   !(cohort,column)
@@ -1060,6 +1061,12 @@ contains
             long_name='Site level error for hydrodynamics', &
             units='kg', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_hydro_err_si )
+
+       call this%set_restart_var(vname='fates_errh2o', vtype=cohort_r8, &
+            long_name='ed cohort - running plant h2o error for hydro', &
+            units='kg/indiv', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_errh2o )
+
        
     end if
 
@@ -1801,6 +1808,8 @@ contains
                                                  ir_hydro_th_aroot_covec,io_idx_co)
 
                    this%rvars(ir_hydro_th_troot)%r81d(io_idx_co) = ccohort%co_hydr%th_troot
+
+                   this%rvars(ir_hydro_errh2o)%r81d(io_idx_co) = ccohort%co_hydr%errh2o
 
                 end if
 
@@ -2618,7 +2627,8 @@ contains
                                                  ir_hydro_th_aroot_covec,io_idx_co)
                    
                    ccohort%co_hydr%th_troot = this%rvars(ir_hydro_th_troot)%r81d(io_idx_co)
-                   
+                   ccohort%co_hydr%errh2o = this%rvars(ir_hydro_errh2o)%r81d(io_idx_co)
+
                    call UpdatePlantPsiFTCFromTheta(ccohort,sites(s)%si_hydr)
 
                 end if
