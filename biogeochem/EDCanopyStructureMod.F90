@@ -2040,9 +2040,6 @@ contains
 
      integer :: cl,ft
      real(r8) :: ai
-     ! TODO: THIS MIN LAI IS AN ARTIFACT FROM TESTING LONG-AGO AND SHOULD BE REMOVED
-     ! THIS HAS BEEN KEPT THUS FAR TO MAINTAIN B4B IN TESTING OTHER COMMITS
-     real(r8),parameter :: ai_min = 0.1_r8
      real(r8),pointer   :: ai_profile
 
      ai = 0._r8
@@ -2080,8 +2077,6 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
      
-     ai = max(ai_min,ai)
-          
      return
 
   end function calc_areaindex
