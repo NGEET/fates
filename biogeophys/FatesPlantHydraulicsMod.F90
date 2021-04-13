@@ -1682,9 +1682,11 @@ contains
        endif
     end do
 
-    ! If the minimum number of plants is less than what was dictated by the
-    ! carbon-nitrogen-phosphorus availability, then we appy a reduction.
-    ! We also have to add back in what had been taken, to the germination seed pool
+    ! If the minimum number of plants that are recruitable due to water
+    ! limitations, is less than what is currently recruitable (due to
+    ! carbon-nitrogen-phosphorus availability), then we apply a reduction.
+    ! We also have to add back in what had been taken, to the germination
+    ! seed pool
     if(nmin < ccohort%n) then
 
        do el = 1,num_elements
