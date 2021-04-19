@@ -3645,11 +3645,11 @@ end subroutine flush_hvars
                   hio_lth_scpf(io_si,iscpf)             =  hio_lth_scpf(io_si,iscpf) + &
                         ccohort_hydr%th_ag(1)  * number_fraction        ! [m3 m-3]
 
-                  mean_aroot2 = (ccohort_hydr%psi_aroot(2)*ccohort_hydr%v_aroot_layer(2)*ccohort%nplant) / &
-                       (ccohort_hydr%v_aroot_layer(2)*ccohort%nplant)
+                  mean_aroot2 = (ccohort_hydr%psi_aroot(2)*ccohort_hydr%v_aroot_layer(2)) / &
+                       (ccohort_hydr%v_aroot_layer(2))
 
-                  mean_aroot4 = (ccohort_hydr%psi_aroot(4)*ccohort_hydr%v_aroot_layer(4)*ccohort%nplant) / &
-                       (ccohort_hydr%v_aroot_layer(4)*ccohort%nplant)
+                  mean_aroot4 = (ccohort_hydr%psi_aroot(4)*ccohort_hydr%v_aroot_layer(4)) / &
+                       (ccohort_hydr%v_aroot_layer(4))
 
                   hio_awp_sl2(io_si,iscpf)             = hio_awp_sl2(io_si,iscpf) + &
                        mean_aroot2 * number_fraction     ! [MPa]
