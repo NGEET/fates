@@ -2047,11 +2047,12 @@ contains
      ! TODO: THIS MIN LAI IS AN ARTIFACT FROM TESTING LONG-AGO AND SHOULD BE REMOVED
      ! THIS HAS BEEN KEPT THUS FAR TO MAINTAIN B4B IN TESTING OTHER COMMITS
      real(r8),parameter :: ai_min = 0.1_r8
+
      real(r8),pointer   :: ai_profile
 
      ai = 0._r8
      if     (trim(ai_type) == 'elai') then
-        do cl = 1,cpatch%NCL_p
+        do cl = 1,cpatch%NCL_p 
            do ft = 1,numpft
               ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                     cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
@@ -2083,9 +2084,9 @@ contains
         write(fates_log(),*) 'Unsupported area index sent to calc_areaindex'
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
-     
+
      ai = max(ai_min,ai)
-          
+     
      return
 
   end function calc_areaindex
