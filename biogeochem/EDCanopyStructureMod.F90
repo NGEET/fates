@@ -29,6 +29,7 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod     , only : numpft
+  use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
   
@@ -54,7 +55,8 @@ module EDCanopyStructureMod
   public :: calc_areaindex
   public :: canopy_summarization
   public :: update_hlm_dynamics
-
+  public :: UpdateFatesAvgSnowDepth
+  
   logical, parameter :: debug=.false.
 
   character(len=*), parameter, private :: sourcefile = &
@@ -122,7 +124,7 @@ contains
 
       use EDParamsMod, only : ED_val_comp_excln
       use EDTypesMod , only : min_patch_area
-      use FatesInterfaceTypesMod, only : bc_in_type
+      
       !
       ! !ARGUMENTS    
       type(ed_site_type) , intent(inout), target   :: currentSite
@@ -1257,7 +1259,6 @@ contains
      ! Much of this routine was once ed_clm_link minus all the IO and history stuff
      ! ---------------------------------------------------------------------------------
 
-    use FatesInterfaceTypesMod    , only : bc_in_type
     use FatesInterfaceTypesMod    , only : hlm_use_cohort_age_tracking
     use EDPatchDynamicsMod   , only : set_patchno
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
@@ -1380,16 +1381,37 @@ contains
           currentPatch => currentPatch%younger
        end do !patch loop
             
-       call leaf_area_profile(sites(s),bc_in(s)%snow_depth_si,bc_in(s)%frac_sno_eff_si) 
+       call leaf_area_profile(sites(s)) 
        
     end do ! site loop
     
     return
   end subroutine canopy_summarization
- 
- ! =====================================================================================
 
- subroutine leaf_area_profile( currentSite , snow_depth_si, frac_sno_eff_si)
+  ! ====================================================================================
+
+  subroutine UpdateFatesAvgSnowDepth(sites,bc_in)
+    
+    ! This routine updates the snow depth used in FATES to occlude vegetation
+    ! Currently this average takes into account the depth of snow and the
+    ! areal coverage fraction
+    
+    type(ed_site_type)      , intent(inout), target :: sites(:)
+    type(bc_in_type)        , intent(in)            :: bc_in(:)
+    
+    integer  :: s
+    
+    do s = 1, size(sites,dim=1)
+       sites(s)%snow_depth = bc_in(s)%snow_depth_si * bc_in(s)%frac_sno_eff_si
+    end do
+    
+    return
+  end subroutine UpdateFatesAvgSnowDepth
+  
+  
+  ! =====================================================================================
+
+ subroutine leaf_area_profile( currentSite )
     
     ! -----------------------------------------------------------------------------------
     ! This subroutine calculates how leaf and stem areas are distributed 
@@ -1431,8 +1453,7 @@ contains
     !
     ! !ARGUMENTS    
     type(ed_site_type)     , intent(inout) :: currentSite
-    real(r8)               , intent(in)    :: snow_depth_si
-    real(r8)               , intent(in)    :: frac_sno_eff_si
+
 
     !
     ! !LOCAL VARIABLES:
@@ -1455,7 +1476,6 @@ contains
     real(r8) :: min_chite                ! bottom of cohort canopy  (m)
     real(r8) :: max_chite                ! top of cohort canopy      (m)
     real(r8) :: lai                      ! summed lai for checking m2 m-2
-    real(r8) :: snow_depth_avg           ! avg snow over whole site
     real(r8) :: leaf_c                   ! leaf carbon [kg]
     
     !----------------------------------------------------------------------
@@ -1581,20 +1601,15 @@ contains
                       currentCohort%sai
                 
                 !snow burial
-                !write(fates_log(), *) 'calc snow'
-                snow_depth_avg = snow_depth_si * frac_sno_eff_si
-                if(snow_depth_avg  > maxh(iv))then
+                if(currentSite%snow_depth  > maxh(iv))then
                    fraction_exposed = 0._r8
                 endif
-                if(snow_depth_avg < minh(iv))then
+                if(currentSite%snow_depth < minh(iv))then
                    fraction_exposed = 1._r8
                 endif
-                if(snow_depth_avg>= minh(iv).and.snow_depth_avg <= maxh(iv))then !only partly hidden... 
-                   fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-minh(iv))/dh)))
+                if(currentSite%snow_depth >= minh(iv) .and. currentSite%snow_depth <= maxh(iv)) then !only partly hidden... 
+                   fraction_exposed = 1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth-minh(iv))/dh)))
                 endif
-                fraction_exposed = 1.0_r8
-                ! no m2 of leaf per m2 of ground in each height class
-                ! FIX(SPM,032414) these should be uncommented this and double check
                 
                 if ( debug ) write(fates_log(), *) 'leaf_area_profile()', currentPatch%elai_profile(1,ft,iv)
                 
@@ -1648,12 +1663,6 @@ contains
                    fleaf = 0._r8
                 endif
                 
-                ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-                ! SNOW BURIAL IS CURRENTLY TURNED OFF
-                ! WHEN IT IS TURNED ON, IT WILL HAVE TO BE COMPARED
-                ! WITH SNOW HEIGHTS CALCULATED BELOW.
-                ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-                
                 currentPatch%nrad(cl,ft) = currentPatch%ncan(cl,ft) 
 
                 if (currentPatch%nrad(cl,ft) > nlevleaf ) then
@@ -1688,22 +1697,17 @@ contains
                          EDPftvarcon_inst%crown(currentCohort%pft) )
                    
                    fraction_exposed = 1.0_r8
-                   snow_depth_avg = snow_depth_si * frac_sno_eff_si
-                   if(snow_depth_avg  > layer_top_hite)then
+                   if(currentSite%snow_depth  > layer_top_hite)then
                       fraction_exposed = 0._r8
                    endif
-                   if(snow_depth_avg < layer_bottom_hite)then
+                   if(currentSite%snow_depth < layer_bottom_hite)then
                       fraction_exposed = 1._r8
                    endif
-                   if( snow_depth_avg>= layer_bottom_hite .and. &
-                         snow_depth_avg <= layer_top_hite) then !only partly hidden...
-                      fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-layer_bottom_hite)/ &
+                   if(currentSite%snow_depth >= layer_bottom_hite .and. &
+                        currentSite%snow_depth <= layer_top_hite) then !only partly hidden...
+                      fraction_exposed =  1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth -layer_bottom_hite)/ &
                          (layer_top_hite-layer_bottom_hite ))))
                    endif
-                   
-                   ! =========== OVER-WRITE =================
-                   fraction_exposed= 1.0_r8
-                   ! =========== OVER-WRITE =================
                    
                    if(iv==currentCohort%NV) then
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
