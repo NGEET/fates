@@ -133,7 +133,7 @@ contains
     allocate(site_in%dz_soil(site_in%nlevsoil))
     allocate(site_in%z_soil(site_in%nlevsoil))
 
-    allocate(site_in%area_pft(1:numpft))
+    allocate(site_in%area_pft(0:numpft))      ! Changing to zero indexing
     allocate(site_in%use_this_pft(1:numpft))
 
     ! SP mode
@@ -486,7 +486,7 @@ contains
           if(hlm_use_nocomp.eq.itrue)then
              num_new_patches = numpft
              if(hlm_use_sp.eq.itrue)then
-                num_new_patches = numpft + 1 ! bare ground patch in SP mode. 
+                !num_new_patches = numpft + 1 ! bare ground patch in SP mode. 
                 start_patch = 0 ! start at the bare ground patch
              endif
              !           allocate(newppft(numpft))

@@ -1922,10 +1922,10 @@ contains
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
        do while(associated(currentPatch))
-          if(currentPatch%nocomp_pft_label.ne.0)then 
+          !if(currentPatch%nocomp_pft_label.ne.0)then 
              ! only increase ifp for veg patches, not bareground (in SP mode)
              ifp = ifp+1
-          endif ! stay with ifp=0 for bareground patch. 
+          !endif ! stay with ifp=0 for bareground patch. 
           if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
              write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
              currentPatch%total_canopy_area = currentPatch%area
