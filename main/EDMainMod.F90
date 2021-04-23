@@ -430,6 +430,8 @@ contains
           
           call currentCohort%prt%DailyPRT()
 
+
+          print*,"N NEED2: ",currentCohort%daily_n_need,currentCohort%dbh
           
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used

@@ -317,10 +317,13 @@ contains
                    do while (associated(ccohort))
                       icomp = icomp+1
                       ! N Uptake:  Convert g/m2/day -> kg/plant/day
-                      ccohort%daily_nh4_uptake = ccohort%daily_nh4_uptake + &
-                           sum(bc_in(s)%plant_nh4_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
-                      ccohort%daily_no3_uptake = ccohort%daily_no3_uptake + &
-                           sum(bc_in(s)%plant_no3_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                      print*,"NEED:",ccohort%daily_n_need,ccohort%dbh
+                      !print*,"uptake: ",sum(bc_in(s)%plant_nh4_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n + &
+                      !                  sum(bc_in(s)%plant_no3_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+
+
+                      ccohort%daily_nh4_uptake = sum(bc_in(s)%plant_nh4_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+                      ccohort%daily_no3_uptake = sum(bc_in(s)%plant_no3_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
                       ccohort => ccohort%shorter
                    end do
                    cpatch => cpatch%younger
@@ -454,6 +457,7 @@ contains
          ((n_uptake_mode.eq.coupled_n_uptake) .or. &
           (p_uptake_mode.eq.coupled_p_uptake))) then
        comp_scaling = fates_np_comp_scaling
+       
     else
        
        comp_scaling = trivial_np_comp_scaling
@@ -485,7 +489,7 @@ contains
          icomp = 0
          comp_per_pft(:) = 0     ! This counts how many competitors per
                                  ! pft, used for averaging
-         
+
          cpatch => csite%oldest_patch
          do while (associated(cpatch))
             
@@ -545,7 +549,7 @@ contains
           bc_out%decompmicc(id) = bc_out%decompmicc(id) / &
                max(nearzero,sum(bc_out%veg_rootc(:,id),dim=1))
        end do
-       
+
        if(comp_scaling.eq.cohort_np_comp_scaling) then
           bc_out%num_plant_comps = icomp
        elseif(comp_scaling.eq.pft_np_comp_scaling) then
@@ -556,6 +560,7 @@ contains
           ! we can exit the trivial case
           return
        end if
+
 
        coupled_n_if: if(n_uptake_mode.eq.coupled_n_uptake) then
           icomp = 0
@@ -595,7 +600,6 @@ contains
           
        end if coupled_n_if
 
-       
        coupled_p_if: if(p_uptake_mode.eq.coupled_p_uptake) then
 
           icomp = 0
@@ -1055,8 +1059,12 @@ contains
        ! as the plant's nutrien storage hits a low threshold
        ! and goes to 0, no demand, as the plant's nutrient
        ! storage approaches it's maximum holding capacity
+
+       
        
        c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
+
+       print*,"store_frac: ",store_frac,c_scalar
        
        call check_var_real(c_scalar,'c_scalar',icode)
        if (icode .ne. 0) then
@@ -1064,7 +1072,7 @@ contains
           write(fates_log(),*) 'ending'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
-       
+
     else
 
        store_c = ccohort%prt%GetState(store_organ, carbon12_element)
@@ -1078,6 +1086,8 @@ contains
        store_frac = store_frac / (store_c/store_c_max)
 
        c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
+
+       
        
        
     end if

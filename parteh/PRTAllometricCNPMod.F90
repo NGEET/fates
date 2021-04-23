@@ -188,7 +188,7 @@ module PRTAllometricCNPMod
   ! phase, to give first dibs to leaves, even though they are
   ! in the same priority group as fineroots.
 
-  logical, parameter :: reproduce_conly = .true.
+  logical, parameter :: reproduce_conly = .false.
   
 
   ! Array of pointers are difficult in F90
@@ -374,11 +374,6 @@ contains
     real(r8) :: p_gain0
     real(r8) :: maint_r_def0
 
-    ! These are mass gains and fluxes used for the N&P non-limiting case
-    real(r8) :: c_gain_unl
-    real(r8) :: n_gain_unl,n_gain_unl0
-    real(r8) :: p_gain_unl,p_gain_unl0
-
     ! Used for mass checking, total mass allocated based
     ! on change in the states, should match gain0's
     real(r8) :: allocated_c
@@ -415,17 +410,6 @@ contains
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval;        dbh0         = dbh
     
     
-    ! Initialize fields used for assessing N/P needs
-    ! (these run the allocation scheme with ample
-    !  N+P,  to determine how much 
-    !  availability was needed (in hindsight) drive
-    !  non-limited C allocaiton.
-    
-    c_gain_unl      = c_gain
-    n_gain_unl      = abs(10._r8*c_gain)
-    n_gain_unl0     = n_gain_unl
-    p_gain_unl      = abs(10._r8*c_gain)
-    p_gain_unl0     = p_gain_unl
     
     ! If more than 1 leaf age bin is present, this
     ! call advances leaves in their age, but does
