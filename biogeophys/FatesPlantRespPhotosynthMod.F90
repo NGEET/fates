@@ -965,9 +965,6 @@ contains
    real(r8) :: rb                ! leaf boundary layer ressistance  
    ! Parameters
    ! ------------------------------------------------------------------------
-   ! selection to use agross or anet in stomatal models, 1 - use agross, other values - use anet
-   integer,parameter :: use_agross = 1      
-
    ! Fraction of light absorbed by non-photosynthetic pigments
   
    real(r8),parameter :: fnps = 0.15_r8       
@@ -1182,14 +1179,8 @@ contains
                     gs_mol = max(r1,r2)
                 end if 
                  ! Derive new estimate for co2_inter_c
-               if (use_agross == 1) then  
-                 co2_inter_c = can_co2_ppress - agross * can_press * &
-                       (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
-               else
                  co2_inter_c = can_co2_ppress - anet * can_press * &
                        (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
-               end if
-                ! end of Junyan's change for gs calculation
 
 
                  ! Check for co2_inter_c convergence. Delta co2_inter_c/pair = mol/mol. 
@@ -1206,15 +1197,6 @@ contains
               ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol = bbb
               ! And Final estimates for leaf_co2_ppress and co2_inter_c 
               ! (needed for early exit of co2_inter_c iteration when an < 0)	      
-	      if (use_agross == 1) then
-                if (agross < 0._r8) then
-                   gs_mol = stomatal_intercept_btran
-                end if
-	        leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb_mol * agross * can_press
-                leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
-                co2_inter_c = can_co2_ppress - agross * can_press * &
-                            (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)		
-              else
                 if (anet < 0._r8) then
                     gs_mol = stomatal_intercept_btran	      
 	        end if
@@ -1222,8 +1204,7 @@ contains
                 leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
                 co2_inter_c = can_co2_ppress - anet * can_press * &
                             (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)		
-              end if
-	      
+    
              
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
