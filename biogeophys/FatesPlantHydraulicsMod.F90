@@ -123,8 +123,7 @@ module FatesPlantHydraulicsMod
 
   ! use a control to prevent model from quiting when encounter the water balance error
   ! instead put it into an endless loop   (JD)
-  integer, public :: debug_JD = 1                        ! set to 0 to disable the 
-  integer, public :: RP = 1                              ! 
+  integer, public :: debug_JD = 0                        ! set to 0 to disable it, not used currently
 
   ! The following options are temporarily unavailable (RGK 09-06-19)
   ! ----------------------------------------------------------------------------------
@@ -197,8 +196,8 @@ module FatesPlantHydraulicsMod
   integer, public, parameter :: campbell_type           = 2
   integer, public, parameter :: tfs_type                = 3
   
-  integer, parameter :: plant_wrf_type = van_genuchten_type
-  integer, parameter :: plant_wkf_type = van_genuchten_type
+  integer, parameter :: plant_wrf_type = tfs_type
+  integer, parameter :: plant_wkf_type = tfs_type
   integer, parameter :: soil_wrf_type  = campbell_type
   integer, parameter :: soil_wkf_type  = campbell_type
   
@@ -3247,15 +3246,15 @@ contains
                 call Report1DError(cohort,site_hydr,ilayer,z_node,v_node, & 
                       th_node_init,q_top_eff,dt_step,w_tot_beg,w_tot_end,& 
                       rootfr_scaler,aroot_frac_plant,error_code,error_arr,slat,slon,recruitflag)
-                if (debug_JD>0) then
-                  write(fates_log(),*) 'WARNING, WARNING, WARNING! Hydro encounter water balance error, and will be put into an eneless loop.'
-                  write(fates_log(),*) 'To disable this and end the run, change debug_JD to -1 on line 125'
-                  do while ( debug_JD > 0)
-                     debug_JD = 1
-                  end do
-                else
+              !  if (debug_JD>0) then
+              !    write(fates_log(),*) 'WARNING, WARNING, WARNING! Hydro encounter water balance error, and will be put into an eneless loop.'
+              !    write(fates_log(),*) 'To disable this and end the run, change debug_JD to -1 on line 125'
+              !    do while ( debug_JD > 0)
+              !       debug_JD = 1
+              !    end do
+              !  else
                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                end if
+              !  end if
             end if
 
             ! If debugging, then lets re-initialize our diagnostics of
