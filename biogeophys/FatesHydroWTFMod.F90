@@ -43,7 +43,8 @@ module FatesHydroWTFMod
   real(r8), parameter :: quad_a2 = 0.99_r8  ! Smoothing factor or "A" term in
                                             ! elastic-caviation region
 
-
+  logical   ::  use_linear_interp = .false.  ! parameter used to control whether to use 
+                                            ! linear interprotation in vg water retention function
   ! Generic class that can be extended to describe
   ! specific water retention functions
 
@@ -436,12 +437,15 @@ contains
     m = this%m_vg
     n = this%n_vg
 
-    ! pressure above which we use a linear function, 
-    ! psi_interp = -(1._r8/this%alpha)*(max_sf_interp**(1._r8/(-m)) - 1._r8 )**(1/n)
-
-    ! Junyan modified to get rid of the linear interperation
-      psi_interp = 0
-
+    if (use_linear_interp) then
+       pressure above which we use a linear function, 
+       psi_interp = -(1._r8/this%alpha)*(max_sf_interp**(1._r8/(-m)) - 1._r8 )**(1/n)
+    else
+     ! Junyan modified to get rid of the linear interperation
+       psi_interp = 0
+    end if 
+    
+    
     if(psi<psi_interp) then
 
        ! Saturation fraction
@@ -451,13 +455,17 @@ contains
        th = satfrac*(this%th_sat-this%th_res) + this%th_res
 
     else
-       !th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
-       ! dpsidth_interp = this%dpsidth_from_th(th_interp)
-
-       !th = th_interp + (psi-psi_interp)/dpsidth_interp
-       th = this%th_sat
+      if (use_linear_interp) then
+         th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
+         dpsidth_interp = this%dpsidth_from_th(th_interp)
+  
+         th = th_interp + (psi-psi_interp)/dpsidth_interp
        !write(fates_log(),*) 'linear interpreation ', 'th_interp: ', th_interp   
        !write(fates_log(),*) 'linear interpreation ', 'psi_interp: ', psi_interp            
+       else
+          th = this%th_sat
+
+       end if
     end if
 
     !write(fates_log(),*) 'm:',m, 'n: ',n 
@@ -498,13 +506,15 @@ contains
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
     
     ! Junyan disable the linear interperation below
-    if (satfrac>1) then                        !(satfrac>=max_sf_interp) then
-
-       !th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
-       !dpsidth_interp = this%dpsidth_from_th(th_interp)
-       ! psi_interp = -(1._r8/this%alpha)*(max_sf_interp**(1._r8/(-m)) - 1._r8 )**(1/n)
-       ! psi = psi_interp + dpsidth_interp*(th-th_interp)
-       psi = 0
+    if (satfrac>1) then                        
+      if (use_linear_interp) then       
+          th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
+          dpsidth_interp = this%dpsidth_from_th(th_interp)
+          psi_interp = -(1._r8/this%alpha)*(max_sf_interp**(1._r8/(-m)) - 1._r8 )**(1/n)
+          psi = psi_interp + dpsidth_interp*(th-th_interp)
+      else  
+         psi = 0
+      end if
        !write(fates_log(),*) 'cap psi, th: ', th, 'th_sat: ',this%th_sat 
     else
        
