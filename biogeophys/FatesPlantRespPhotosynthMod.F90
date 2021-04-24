@@ -216,7 +216,7 @@ contains
                                    ! above the leaf layer of interest
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
-    real(r8) :: psi_leaf           ! xylem water potential of leaf
+    real(r8) :: psi_leaf           ! water potential of leaf
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
     ! -----------------------------------------------------------------------------------
@@ -953,13 +953,13 @@ contains
    
    real(r8), dimension(0:1) :: bbbopt ! Cuticular conductance at full water potential (umol H2O /m2/s)
 
-   real(r8) :: psi               ! Xylem Water potential of leaf                 
+   real(r8) :: psi               ! Water potential of leaf                 
    real(r8) :: gstoma_out        ! Adjusted stoma conductance that incorporates the leaf water status
    real(r8) :: qs                ! specific humidity at leaf surface
    real(r8) :: qsat              ! saturated specific humidity 
    real(r8) :: qsat_adj          ! specific humidity adjusted by leaf water potential    (g/kg)     
-   real(r8) :: LWP_star          ! leaf water potential scaling coefficient for inner leaf humidity
-   real(r8) :: k_lwp = 8.0_r8    ! an sclaing coefficient for the ratio of leaf xylem water potential to mesophyll water potential                     
+   real(r8) :: LWP_star          ! leaf water potential scaling coefficient for inner leaf humidity, 0 means total dehydroted leaf, 1 means total saturated leaf
+   integer  :: k_lwp             ! an sclaing coefficient for the ratio of leaf xylem water potential to mesophyll water potential                     
    real(r8) :: th_sat            ! saturated water content of leaf m3/m3
    real(r8) :: th_rs             ! residual waater content of leaf m3/m3
    real(r8) :: rb                ! leaf boundary layer ressistance  
