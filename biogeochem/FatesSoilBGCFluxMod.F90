@@ -193,7 +193,6 @@ contains
     real(r8) :: fnrt_c                             ! fine-root carbon [kg]
     real(r8) :: fnrt_c_pft(numpft)                ! total mass of root for each PFT [kgC]
 
-
     nsites = size(sites,dim=1)
 
     
@@ -316,14 +315,12 @@ contains
                    ccohort => cpatch%tallest
                    do while (associated(ccohort))
                       icomp = icomp+1
-                      ! N Uptake:  Convert g/m2/day -> kg/plant/day
-                      print*,"NEED:",ccohort%daily_n_need,ccohort%dbh
-                      !print*,"uptake: ",sum(bc_in(s)%plant_nh4_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n + &
-                      !                  sum(bc_in(s)%plant_no3_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
 
+                      ! N Uptake:  Convert g/m2/day -> kg/plant/day
 
                       ccohort%daily_nh4_uptake = sum(bc_in(s)%plant_nh4_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
                       ccohort%daily_no3_uptake = sum(bc_in(s)%plant_no3_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
+
                       ccohort => ccohort%shorter
                    end do
                    cpatch => cpatch%younger
@@ -452,6 +449,8 @@ contains
     real(r8), parameter :: decompmicc_lambda = 2.5_r8  ! Depth attenuation exponent for decomposer biomass
     real(r8), parameter :: decompmicc_zmax   = 7.0e-2_r8  ! Depth of maximum decomposer biomass
 
+
+    
     ! Determine the scaling approach
     if((hlm_parteh_mode.eq.prt_cnp_flex_allom_hyp) .and. & 
          ((n_uptake_mode.eq.coupled_n_uptake) .or. &
@@ -474,7 +473,7 @@ contains
        end if
        
     end if
-
+    
     ! ECA Specific Parameters
     ! --------------------------------------------------------------------------------
     if(trim(hlm_nu_com).eq.'ECA')then
@@ -536,7 +535,6 @@ contains
                 
                 bc_out%decompmicc(id) = bc_out%decompmicc(id) + decompmicc_layer * veg_rootc
              end do
-
              ccohort => ccohort%shorter
           end do
           
@@ -560,7 +558,6 @@ contains
           ! we can exit the trivial case
           return
        end if
-
 
        coupled_n_if: if(n_uptake_mode.eq.coupled_n_uptake) then
           icomp = 0
@@ -599,7 +596,7 @@ contains
           bc_out%cn_scalar(:) = 0._r8
           
        end if coupled_n_if
-
+       
        coupled_p_if: if(p_uptake_mode.eq.coupled_p_uptake) then
 
           icomp = 0
@@ -1034,7 +1031,7 @@ contains
     integer, parameter :: downreg_logi   = 2
     integer, parameter :: downreg_CN_logi = 3
     
-    integer, parameter :: downreg_type = downreg_logi
+    integer, parameter :: downreg_type = downreg_linear
 
     
     real(r8), parameter :: logi_k   = 25.0_r8         ! logistic function k
@@ -1045,12 +1042,16 @@ contains
     ! a linear function
     real(r8), parameter :: store_frac0 = 0.5_r8
 
+    real(r8), parameter :: c_max = 1.0_r8
+    real(r8), parameter :: c_min = 1.e-3_r8
+    
+    
     store_max = ccohort%prt%GetNutrientTarget(element_id,store_organ,stoich_max)
     store_frac = min(2.0_r8,ccohort%prt%GetState(store_organ, element_id)/store_max)
     
     if(downreg_type == downreg_linear) then
-       
-       c_scalar = min(1.0_r8,max(0._r8,1.0 - (store_frac - store_frac0)/(1.0_r8-store_frac0)))
+
+       c_scalar = min(c_max,max(c_min,1.0 - (store_frac - store_frac0)/(1.0_r8-store_frac0)))
        
     elseif(downreg_type == downreg_logi) then
        
@@ -1062,10 +1063,8 @@ contains
 
        
        
-       c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
+       c_scalar = max(c_min,min(c_max,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
 
-       print*,"store_frac: ",store_frac,c_scalar
-       
        call check_var_real(c_scalar,'c_scalar',icode)
        if (icode .ne. 0) then
           write(fates_log(),*) 'c_scalar is invalid, element: ',element_id
@@ -1085,7 +1084,7 @@ contains
        
        store_frac = store_frac / (store_c/store_c_max)
 
-       c_scalar = max(0._r8,min(1._r8,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
+       c_scalar = max(c_min,min(c_max,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
 
        
        

@@ -3156,12 +3156,16 @@ end subroutine flush_hvars
 
                area_frac = cpatch%area * AREA_INV
 
+               
+               
                ! Sum up all output fluxes (fragmentation)
                hio_litter_out_elem(io_si,el) = hio_litter_out_elem(io_si,el) + &
                     (sum(litt%leaf_fines_frag(:)) + &
                      sum(litt%root_fines_frag(:,:)) + &
                      sum(litt%ag_cwd_frag(:)) + & 
-                     sum(litt%bg_cwd_frag(:,:))) * cpatch%area
+                     sum(litt%bg_cwd_frag(:,:)) + &
+                     sum(litt%seed_decay(:)) + &
+                     sum(litt%seed_germ_decay(:))) * cpatch%area
 
                hio_seed_bank_elem(io_si,el) = hio_seed_bank_elem(io_si,el) + & 
                     sum(litt%seed(:)) * cpatch%area
@@ -3170,7 +3174,7 @@ end subroutine flush_hvars
                     sum(litt%seed_germ(:)) *  cpatch%area
                     
                hio_seed_decay_elem(io_si,el) = hio_seed_decay_elem(io_si,el) + & 
-                    sum(litt%seed_decay(:)) * cpatch%area
+                    sum(litt%seed_decay(:) + litt%seed_germ_decay(:) ) * cpatch%area
 
                hio_seeds_in_local_elem(io_si,el) = hio_seeds_in_local_elem(io_si,el) + & 
                     sum(litt%seed_in_local(:)) *  cpatch%area
@@ -4611,7 +4615,7 @@ end subroutine update_history_hifrq
          ivar=ivar, initialize=initialize_variables, index = ih_seed_germ_elem )
 
     call this%set_history_var(vname='SEED_DECAY_ELEM', units='kg ha-1 d-1',           &
-         long='Seed mass decay', use_default='active',                          &
+         long='Seed mass decay (germinated and un-germinated)', use_default='active',                          &
          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_seed_decay_elem )
 
