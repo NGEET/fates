@@ -48,6 +48,7 @@ module EDMainMod
   use FatesSoilBGCFluxMod      , only : FluxIntoLitterPools
   use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
+  use FatesSoilBGCFluxMod      , only : PrepCH4BCs
   use SFMainMod                , only : fire_model 
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
@@ -676,16 +677,14 @@ contains
         currentPatch => currentPatch%younger    
     enddo
 
-    ! Aggregate FATES litter output fluxes and
-    ! package them into boundary conditions
-    ! Note: The FATES state variables that generate these
-    ! boundary conditions are read in on the restart,
-    ! and, they are zero'd only at the start of ecosystem
-    ! dynamics
-
-    ! Based on current status of the
+    ! The HLMs need to know about nutrient demand, and/or
+    ! root mass and affinities
     call PrepNutrientAquisitionBCs(currentSite,bc_in,bc_out)
 
+    ! The HLM methane module needs information about
+    ! rooting mass, distributions, respiration rates and NPP
+    call PrepCH4BCs(currentSite)
+    
 
     ! FIX(RF,032414). This needs to be monthly, not annual
     ! If this is the second to last day of the year, then perform trimming

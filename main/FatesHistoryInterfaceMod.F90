@@ -217,7 +217,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_leafn_scpf
   integer :: ih_fnrtn_scpf
   integer :: ih_storen_scpf
-  integer :: ih_storentfrac_scpf
+  integer :: ih_storentfrac_canopy_scpf
+  integer :: ih_storentfrac_understory_scpf
   integer :: ih_sapwn_scpf
   integer :: ih_repron_scpf
   integer,public :: ih_nh4uptake_scpf
@@ -238,7 +239,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_fnrtp_scpf
   integer :: ih_reprop_scpf
   integer :: ih_storep_scpf
-  integer :: ih_storeptfrac_scpf
+  integer :: ih_storeptfrac_canopy_scpf
+  integer :: ih_storeptfrac_understory_scpf
   integer :: ih_sapwp_scpf
   integer,public :: ih_puptake_scpf
   integer :: ih_pefflux_scpf
@@ -3109,7 +3111,8 @@ end subroutine flush_hvars
                this%hvars(ih_fnrtn_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_sapwn_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_storen_scpf)%r82d(io_si,:)  = 0._r8
-               this%hvars(ih_storentfrac_scpf)%r82d(io_si,:)  = 0._r8
+               this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,:)  = 0._r8
+               this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,:)  = 0._r8
                this%hvars(ih_repron_scpf)%r82d(io_si,:)  = 0._r8
 
                this%hvars(ih_nefflux_scpf)%r82d(io_si,:) = &
@@ -3131,9 +3134,9 @@ end subroutine flush_hvars
                this%hvars(ih_fnrtp_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_sapwp_scpf)%r82d(io_si,:)   = 0._r8
                this%hvars(ih_storep_scpf)%r82d(io_si,:)  = 0._r8
-               this%hvars(ih_storeptfrac_scpf)%r82d(io_si,:)  = 0._r8
+               this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,:)     = 0._r8
+               this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,:) = 0._r8
                this%hvars(ih_reprop_scpf)%r82d(io_si,:)  = 0._r8
-
                this%hvars(ih_pefflux_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_efflux_scpf(:)
                
@@ -3246,9 +3249,15 @@ end subroutine flush_hvars
                           this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) + store_m * ccohort%n
                      this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) = & 
                           this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) + repro_m * ccohort%n
-                     this%hvars(ih_storentfrac_scpf)%r82d(io_si,i_scpf) = & 
-                          this%hvars(ih_storentfrac_scpf)%r82d(io_si,i_scpf) + store_max * ccohort%n
                      
+                     if (ccohort%canopy_layer .eq. 1) then
+                        this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = & 
+                             this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
+                     else
+                        this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) = & 
+                             this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
+                     end if
+                        
                   elseif(element_list(el).eq.phosphorus_element)then
 
                      store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
@@ -3265,8 +3274,15 @@ end subroutine flush_hvars
                           this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) + store_m * ccohort%n
                      this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) = & 
                           this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) + repro_m * ccohort%n
-                     this%hvars(ih_storeptfrac_scpf)%r82d(io_si,i_scpf) = & 
-                          this%hvars(ih_storeptfrac_scpf)%r82d(io_si,i_scpf) + store_max * ccohort%n
+
+                     if (ccohort%canopy_layer .eq. 1) then
+                        this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = & 
+                             this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
+                     else
+                        this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) = & 
+                             this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
+                     end if
+                     
                   end if
                   
                   ccohort => ccohort%shorter
@@ -3288,11 +3304,19 @@ end subroutine flush_hvars
                do i_pft = 1, numpft
                   do i_scls = 1,nlevsclass
                      i_scpf = (i_pft-1)*nlevsclass + i_scls
-                     if( this%hvars(ih_storentfrac_scpf)%r82d(io_si,i_scpf)>nearzero ) then
-                        this%hvars(ih_storentfrac_scpf)%r82d(io_si,i_scpf) = &
-                             this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) / &
-                             this%hvars(ih_storentfrac_scpf)%r82d(io_si,i_scpf)
+                     
+                     if(  hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
+                        this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
+                             this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) / &
+                             hio_nplant_canopy_si_scpf(io_si,i_scpf)
                      end if
+                     
+                     if( hio_nplant_understory_si_scpf(io_si,i_scpf)>nearzero ) then
+                        this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) = &
+                             this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) / &
+                             hio_nplant_understory_si_scpf(io_si,i_scpf)
+                     end if
+                     
                   end do
                end do
             elseif(element_list(el).eq.phosphorus_element)then
@@ -3303,11 +3327,19 @@ end subroutine flush_hvars
                do i_pft = 1, numpft
                   do i_scls = 1,nlevsclass
                      i_scpf = (i_pft-1)*nlevsclass + i_scls
-                     if( this%hvars(ih_storeptfrac_scpf)%r82d(io_si,i_scpf)>nearzero ) then
-                        this%hvars(ih_storeptfrac_scpf)%r82d(io_si,i_scpf) = &
-                             this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) / &
-                             this%hvars(ih_storeptfrac_scpf)%r82d(io_si,i_scpf)
+
+                     if( hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
+                        this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
+                             this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) /&
+                             hio_nplant_canopy_si_scpf(io_si,i_scpf)
+                        
                      end if
+                     if( hio_nplant_understory_si_scpf(io_si,i_scpf)>nearzero ) then
+                        this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) = &
+                             this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) /&
+                             hio_nplant_understory_si_scpf(io_si,i_scpf)
+                     end if
+                     
                   end do
                end do
             end if
@@ -6025,10 +6057,15 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storen_scpf )
 
-       call this%set_history_var(vname='STOREN_TFRAC_SCPF', units='kgN/ha', &
-            long='storage nitrogen fraction of target by size-class x pft', use_default='inactive', &
+       call this%set_history_var(vname='STOREN_TFRAC_CANOPY_SCPF', units='kgN/ha', &
+            long='storage nitrogen fraction of target,in canopy, by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storentfrac_scpf )
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storentfrac_canopy_scpf )
+
+       call this%set_history_var(vname='STOREN_TFRAC_UNDERSTORY_SCPF', units='kgN/ha', &
+            long='storage nitrogen fraction of target,in understory, by size-class x pft', use_default='inactive', &
+            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storentfrac_understory_scpf )
        
        call this%set_history_var(vname='REPRON_SCPF', units='kgN/ha', &
             long='reproductive nitrogen mass (on plant) by size-class x pft', use_default='inactive', &
@@ -6084,11 +6121,15 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storep_scpf )
 
-       call this%set_history_var(vname='STOREP_TFRAC_SCPF', units='kgN/ha', &
-            long='storage phosphorus fraction of target by size-class x pft', use_default='inactive', &
+       call this%set_history_var(vname='STOREP_TFRAC_CANOPY_SCPF', units='kgN/ha', &
+            long='storage phosphorus fraction of target,in canopy, by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storeptfrac_scpf )
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storeptfrac_canopy_scpf )
 
+       call this%set_history_var(vname='STOREP_TFRAC_UNDERSTORY_SCPF', units='kgN/ha', &
+            long='storage phosphorus fraction of target,in understory, by size-class x pft', use_default='inactive', &
+            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storeptfrac_understory_scpf )
        
        call this%set_history_var(vname='REPROP_SCPF', units='kgP/ha', &
             long='reproductive phosphorus mass (on plant) by size-class x pft', use_default='inactive', &

@@ -621,7 +621,7 @@ module FatesInterfaceTypesMod
 
 
 
-      ! CTC/RD Nutrient Boundary Conditions
+      ! RD Nutrient Boundary Conditions
       ! ---------------------------------------------------------------------------------
 
       real(r8), pointer :: n_demand(:)       ! Nitrogen demand from each competitor
@@ -630,8 +630,14 @@ module FatesInterfaceTypesMod
                                              ! for use in ELMs CTC/RD [g/m2/s] 
 
 
-      
-
+      ! CH4 Boundary Conditions
+      ! -----------------------------------------------------------------------------------
+      real(r8), pointer :: annavg_agnpp_pa(:)   ! annual average patch npp above ground (gC/m2/s)
+      real(r8), pointer :: annavg_bgnpp_pa(:)   ! annual average patch npp below ground (gC/m2/s)
+      real(r8), pointer :: annsum_npp_pa(:)     ! annual sum patch npp (gC/m2/yr)
+      real(r8), pointer :: frootc_pa(:)         ! Carbon in fine roots (gC/m2)
+      real(r8), pointer :: root_resp(:)         ! (gC/m2/s) root respiration (fine root MR + total root GR)
+      real(r8), pointer :: rootfr_pa(:,:)       ! Rooting fraction with depth
       
       ! Canopy Structure
 

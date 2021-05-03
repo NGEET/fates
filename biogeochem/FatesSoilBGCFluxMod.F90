@@ -66,6 +66,9 @@ module FatesSoilBGCFluxMod
   use FatesConstantsMod, only    : pft_np_comp_scaling
   use FatesConstantsMod, only    : trivial_np_comp_scaling
   use FatesConstantsMod, only    : rsnbl_math_prec
+  use FatesConstantsMod, only    : days_per_year
+  use FatesConstantsMod, only    : sec_per_day
+  use FatesConstantsMod, only    : years_per_day
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod    , only : ncwd
   use FatesLitterMod    , only : ndcmpy
@@ -78,7 +81,8 @@ module FatesSoilBGCFluxMod
   
   implicit none
   private
-  
+
+  public :: PrepCH4Bcs
   public :: PrepNutrientAquisitionBCs
   public :: UnPackNutrientAquisitionBCs
   public :: FluxIntoLitterPools
@@ -411,6 +415,139 @@ contains
 
   ! =====================================================================================
 
+  subroutine PrepCH4BCs(csite)
+    
+    !
+    ! This routine prepares the output boundary conditions for methane calculations
+    ! in ELM/CLM.
+    ! -----------------------------------------------------------------------------------
+    
+    
+    ! !ARGUMENTS    
+    type(ed_site_type), intent(inout) :: csite
+    
+    type(bc_out_type), pointer    :: bc_out
+    type(bc_in_type), pointer     :: bc_in
+    type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
+    type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
+    integer                       :: pft           ! plant functional type
+    integer                       :: fp            ! patch index of the site
+    real(r8) :: agnpp   ! Above ground daily npp
+    real(r8) :: bgnpp   ! Below ground daily npp
+    real(r8) :: fnrt_c  ! Fine root carbon [kg/plant]
+    real(r8) :: sapw_net_alloc
+    real(r8) :: store_net_alloc
+    real(r8) :: fnrt_net_alloc
+    real(r8) :: leaf_net_alloc
+    real(r8) :: struct_net_alloc
+    real(r8) :: repro_net_alloc
+    
+    bc_out => csite%bc_out_ptr
+    bc_in  => csite%bc_in_ptr
+
+    ! Initialize to zero
+    bc_out%annavg_agnpp_pa(:) = 0._r8
+    bc_out%annavg_bgnpp_pa(:) = 0._r8
+    bc_out%annsum_npp_pa(:)   = 0._r8
+    bc_out%rootfr_pa(:,:)  = 0._r8
+    bc_out%frootc_pa(:)    = 0._r8
+    bc_out%root_resp(:)  = 0._r8
+
+    fp = 0
+    cpatch => csite%oldest_patch
+    do while (associated(cpatch))
+
+       ! Patch ordering when passing boundary conditions
+       ! always goes from oldest to youngest, following
+       ! the convention of EDPatchDynamics::set_patchno()
+       
+       fp    = fp + 1
+       
+       agnpp = 0._r8
+       bgnpp = 0._r8
+       
+       ccohort => cpatch%tallest
+       do while (associated(ccohort))
+
+          ! For consistency, only apply calculations to non-new
+          ! cohorts. New cohorts will not have respiration rates
+          ! at this point in the call sequence.
+          
+          if(.not.ccohort%isnew) then
+             
+             pft   = ccohort%pft
+
+             call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
+                  bc_in%max_rooting_depth_index_col )
+
+             fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+
+             ! Fine root fraction over depth
+
+             bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
+                  bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) + &
+                  csite%rootfrac_scr(1:bc_in%nlevsoil)
+
+             ! Fine root carbon, convert [kg/plant] -> [g/m2]
+             bc_out%frootc_pa(fp) = &
+                  bc_out%frootc_pa(fp) + &
+                  fnrt_c*ccohort%n/cpatch%area * g_per_kg
+
+             ! [kgC/day]
+             sapw_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, carbon12_element) * days_per_sec
+             store_net_alloc  = ccohort%prt%GetNetAlloc(store_organ, carbon12_element) * days_per_sec
+             leaf_net_alloc   = ccohort%prt%GetNetAlloc(leaf_organ, carbon12_element) * days_per_sec
+             fnrt_net_alloc   = ccohort%prt%GetNetAlloc(fnrt_organ, carbon12_element) * days_per_sec
+             struct_net_alloc = ccohort%prt%GetNetAlloc(struct_organ, carbon12_element) * days_per_sec
+             repro_net_alloc  = ccohort%prt%GetNetAlloc(repro_organ, carbon12_element) * days_per_sec
+
+             ! [kgC/plant/day] -> [gC/m2/s]
+             agnpp = agnpp + ccohort%n/cpatch%area * (leaf_net_alloc + repro_net_alloc + &
+                  prt_params%allom_agb_frac(ccohort%pft)*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
+
+             ! [kgC/plant/day] -> [gC/m2/s]
+             bgnpp = bgnpp + ccohort%n/cpatch%area * (fnrt_net_alloc  + &
+                  (1._r8-prt_params%allom_agb_frac(ccohort%pft))*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
+
+             ! (gC/m2/s) root respiration (fine root MR + total root GR)
+             ! RGK: We do not save root respiration and average over the day. Until we do
+             !      this is a best (bad) guess at fine root MR + total root GR
+             !      (kgC/indiv/yr) -> gC/m2/s
+             bc_out%root_resp(1:bc_in%nlevsoil) = bc_out%root_resp(1:bc_in%nlevsoil) + &
+                  ccohort%resp_acc_hold*years_per_day*g_per_kg*days_per_sec* &
+                  ccohort%n*area_inv*(1._r8-prt_params%allom_agb_frac(ccohort%pft)) * csite%rootfrac_scr(1:bc_in%nlevsoil)
+             
+          end if
+          
+          ccohort => ccohort%shorter
+       end do
+
+       if( sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) > nearzero) then
+          bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
+               bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) / &
+               sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) 
+       end if
+          
+       ! RGK: These averages should switch to the new patch averaging methods
+       !      when available.  Right now we are not doing any time averaging
+       !      because it would be mixing the memory of patches, which
+       !      would be arguably worse than just using the instantaneous value
+       
+       ! gC/m2/s
+       bc_out%annavg_agnpp_pa(fp) = agnpp
+       bc_out%annavg_bgnpp_pa(fp) = bgnpp
+       ! gc/m2/yr
+       bc_out%annsum_npp_pa(fp) = (bgnpp+agnpp)*days_per_year*sec_per_day
+       
+       
+       cpatch => cpatch%younger
+    end do
+
+    return
+  end subroutine PrepCH4BCs
+  
+  ! =====================================================================================
+
   subroutine PrepNutrientAquisitionBCs(csite, bc_in, bc_out)
 
     ! -----------------------------------------------------------------------------------
@@ -449,8 +586,6 @@ contains
     real(r8), parameter :: decompmicc_lambda = 2.5_r8  ! Depth attenuation exponent for decomposer biomass
     real(r8), parameter :: decompmicc_zmax   = 7.0e-2_r8  ! Depth of maximum decomposer biomass
 
-
-    
     ! Determine the scaling approach
     if((hlm_parteh_mode.eq.prt_cnp_flex_allom_hyp) .and. & 
          ((n_uptake_mode.eq.coupled_n_uptake) .or. &

@@ -345,7 +345,7 @@ contains
        fates%bc_out(s)%qflx_ro_sisl(:)        = 0.0_r8
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
-    
+
     return
   end subroutine zero_bcs
 
@@ -582,6 +582,18 @@ contains
          allocate(bc_out%cp_scalar(max_comp_per_site))
       end if
 
+      ! Include the bare-ground patch for these patch-level boundary conditions
+      ! (it will always be zero for all of these)
+      allocate(bc_out%annavg_agnpp_pa(0:maxPatchesPerSite));bc_out%annavg_agnpp_pa(:)=nan
+      allocate(bc_out%annavg_bgnpp_pa(0:maxPatchesPerSite));bc_out%annavg_bgnpp_pa(:)=nan
+      allocate(bc_out%annsum_npp_pa(0:maxPatchesPerSite));bc_out%annsum_npp_pa(:)=nan
+      allocate(bc_out%frootc_pa(0:maxPatchesPerSite));bc_out%frootc_pa(:)=nan
+      allocate(bc_out%root_resp(nlevsoil_in));bc_out%root_resp(:)=nan
+      allocate(bc_out%rootfr_pa(0:maxPatchesPerSite,nlevsoil_in))
+      bc_out%rootfr_pa(:,:)=nan
+
+      ! Give the bare-ground root fractions a nominal fraction of unity over depth
+      bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
