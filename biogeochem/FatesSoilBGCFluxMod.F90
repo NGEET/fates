@@ -54,6 +54,7 @@ module FatesSoilBGCFluxMod
   use FatesInterfaceTypesMod, only    : numpft
   use FatesInterfaceTypesMod, only    : hlm_nu_com
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
+  use FatesInterfaceTypesMod, only    : hlm_use_ch4
   use FatesConstantsMod , only : prescribed_p_uptake
   use FatesConstantsMod , only : prescribed_n_uptake
   use FatesConstantsMod , only : coupled_p_uptake
@@ -444,6 +445,9 @@ contains
     real(r8) :: leaf_net_alloc
     real(r8) :: struct_net_alloc
     real(r8) :: repro_net_alloc
+
+    ! Exit if we need not communicate with the hlm's ch4 module
+    if(.not.(hlm_use_ch4==itrue)) return
     
     bc_out => csite%bc_out_ptr
     bc_in  => csite%bc_in_ptr

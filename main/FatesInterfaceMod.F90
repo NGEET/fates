@@ -584,18 +584,21 @@ contains
 
       ! Include the bare-ground patch for these patch-level boundary conditions
       ! (it will always be zero for all of these)
-      allocate(bc_out%annavg_agnpp_pa(0:maxPatchesPerSite));bc_out%annavg_agnpp_pa(:)=nan
-      allocate(bc_out%annavg_bgnpp_pa(0:maxPatchesPerSite));bc_out%annavg_bgnpp_pa(:)=nan
-      allocate(bc_out%annsum_npp_pa(0:maxPatchesPerSite));bc_out%annsum_npp_pa(:)=nan
-      allocate(bc_out%frootc_pa(0:maxPatchesPerSite));bc_out%frootc_pa(:)=nan
-      allocate(bc_out%root_resp(nlevsoil_in));bc_out%root_resp(:)=nan
-      allocate(bc_out%woody_frac_aere_pa(0:maxPatchesPerSite));bc_out%woody_frac_aere_pa(:)=nan
-      allocate(bc_out%rootfr_pa(0:maxPatchesPerSite,nlevsoil_in))
-      bc_out%rootfr_pa(:,:)=nan
+      if(hlm_use_ch4.eq.itrue) then
+         allocate(bc_out%annavg_agnpp_pa(0:maxPatchesPerSite));bc_out%annavg_agnpp_pa(:)=nan
+         allocate(bc_out%annavg_bgnpp_pa(0:maxPatchesPerSite));bc_out%annavg_bgnpp_pa(:)=nan
+         allocate(bc_out%annsum_npp_pa(0:maxPatchesPerSite));bc_out%annsum_npp_pa(:)=nan
+         allocate(bc_out%frootc_pa(0:maxPatchesPerSite));bc_out%frootc_pa(:)=nan
+         allocate(bc_out%root_resp(nlevsoil_in));bc_out%root_resp(:)=nan
+         allocate(bc_out%woody_frac_aere_pa(0:maxPatchesPerSite));bc_out%woody_frac_aere_pa(:)=nan
+         allocate(bc_out%rootfr_pa(0:maxPatchesPerSite,nlevsoil_in))
+         bc_out%rootfr_pa(:,:)=nan
 
-      ! Give the bare-ground root fractions a nominal fraction of unity over depth
-      bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
-      
+         ! Give the bare-ground root fractions a nominal fraction of unity over depth
+         bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
+      end if
+
+         
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
       case(prt_carbon_allom_hyp)
@@ -1214,6 +1217,7 @@ contains
          hlm_nitrogen_spec = unset_int
          hlm_phosphorus_spec = unset_int
          hlm_max_patch_per_site = unset_int
+         hlm_use_ch4       = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
          hlm_spitfire_mode = unset_int
@@ -1452,6 +1456,13 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_ch4 .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
          if(hlm_use_vertsoilc .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc, exiting'
@@ -1594,6 +1605,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_max_patch_per_site = ',ival,' to FATES'
                end if
 
+            case('use_ch4')
+               hlm_use_ch4 = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_ch4 = ',ival,' to FATES'
+               end if
+               
             case('use_vertsoilc')
                hlm_use_vertsoilc = ival
                if (fates_global_verbose()) then

@@ -100,6 +100,10 @@ module FatesInterfaceTypesMod
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
 
+   integer, public :: hlm_use_ch4       ! This flag signals whether the methane model in ELM/CLM is
+                                        ! active, and therefore whether or not boundary conditions
+                                        ! need to be prepped
+   
    integer, public :: hlm_use_vertsoilc ! This flag signals whether or not the 
                                                    ! host model is using vertically discretized
                                                    ! soil carbon
