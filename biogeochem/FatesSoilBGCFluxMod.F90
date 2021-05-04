@@ -69,6 +69,7 @@ module FatesSoilBGCFluxMod
   use FatesConstantsMod, only    : days_per_year
   use FatesConstantsMod, only    : sec_per_day
   use FatesConstantsMod, only    : years_per_day
+  use FatesConstantsMod, only    : itrue
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod    , only : ncwd
   use FatesLitterMod    , only : ndcmpy
@@ -434,6 +435,8 @@ contains
     integer                       :: fp            ! patch index of the site
     real(r8) :: agnpp   ! Above ground daily npp
     real(r8) :: bgnpp   ! Below ground daily npp
+    real(r8) :: plant_area ! crown area (m2) of all plants in patch
+    real(r8) :: woody_area ! corwn area (m2) of woody plants in patch
     real(r8) :: fnrt_c  ! Fine root carbon [kg/plant]
     real(r8) :: sapw_net_alloc
     real(r8) :: store_net_alloc
@@ -452,7 +455,8 @@ contains
     bc_out%rootfr_pa(:,:)  = 0._r8
     bc_out%frootc_pa(:)    = 0._r8
     bc_out%root_resp(:)  = 0._r8
-
+    bc_out%woody_frac_aere_pa(:) = 0._r8
+    
     fp = 0
     cpatch => csite%oldest_patch
     do while (associated(cpatch))
@@ -465,6 +469,8 @@ contains
        
        agnpp = 0._r8
        bgnpp = 0._r8
+       woody_area = 0._r8
+       plant_area = 0._r8
        
        ccohort => cpatch%tallest
        do while (associated(ccohort))
@@ -503,11 +509,11 @@ contains
 
              ! [kgC/plant/day] -> [gC/m2/s]
              agnpp = agnpp + ccohort%n/cpatch%area * (leaf_net_alloc + repro_net_alloc + &
-                  prt_params%allom_agb_frac(ccohort%pft)*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
+                  prt_params%allom_agb_frac(pft)*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
 
              ! [kgC/plant/day] -> [gC/m2/s]
              bgnpp = bgnpp + ccohort%n/cpatch%area * (fnrt_net_alloc  + &
-                  (1._r8-prt_params%allom_agb_frac(ccohort%pft))*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
+                  (1._r8-prt_params%allom_agb_frac(pft))*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
 
              ! (gC/m2/s) root respiration (fine root MR + total root GR)
              ! RGK: We do not save root respiration and average over the day. Until we do
@@ -515,7 +521,13 @@ contains
              !      (kgC/indiv/yr) -> gC/m2/s
              bc_out%root_resp(1:bc_in%nlevsoil) = bc_out%root_resp(1:bc_in%nlevsoil) + &
                   ccohort%resp_acc_hold*years_per_day*g_per_kg*days_per_sec* &
-                  ccohort%n*area_inv*(1._r8-prt_params%allom_agb_frac(ccohort%pft)) * csite%rootfrac_scr(1:bc_in%nlevsoil)
+                  ccohort%n*area_inv*(1._r8-prt_params%allom_agb_frac(pft)) * csite%rootfrac_scr(1:bc_in%nlevsoil)
+
+             if( prt_params%woody(pft)==itrue ) then
+                woody_area = woody_area + ccohort%c_area
+             end if
+             plant_area = plant_area + ccohort%c_area
+             
              
           end if
           
@@ -538,7 +550,10 @@ contains
        bc_out%annavg_bgnpp_pa(fp) = bgnpp
        ! gc/m2/yr
        bc_out%annsum_npp_pa(fp) = (bgnpp+agnpp)*days_per_year*sec_per_day
-       
+
+       if(plant_area>nearzero) then
+          bc_out%woody_frac_aere_pa(fp) = woody_area/plant_area
+       end if
        
        cpatch => cpatch%younger
     end do

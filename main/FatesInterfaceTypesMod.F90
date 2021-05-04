@@ -632,12 +632,14 @@ module FatesInterfaceTypesMod
 
       ! CH4 Boundary Conditions
       ! -----------------------------------------------------------------------------------
-      real(r8), pointer :: annavg_agnpp_pa(:)   ! annual average patch npp above ground (gC/m2/s)
-      real(r8), pointer :: annavg_bgnpp_pa(:)   ! annual average patch npp below ground (gC/m2/s)
-      real(r8), pointer :: annsum_npp_pa(:)     ! annual sum patch npp (gC/m2/yr)
-      real(r8), pointer :: frootc_pa(:)         ! Carbon in fine roots (gC/m2)
-      real(r8), pointer :: root_resp(:)         ! (gC/m2/s) root respiration (fine root MR + total root GR)
-      real(r8), pointer :: rootfr_pa(:,:)       ! Rooting fraction with depth
+      real(r8), pointer :: annavg_agnpp_pa(:)    ! annual average patch npp above ground (gC/m2/s)
+      real(r8), pointer :: annavg_bgnpp_pa(:)    ! annual average patch npp below ground (gC/m2/s)
+      real(r8), pointer :: annsum_npp_pa(:)      ! annual sum patch npp (gC/m2/yr)
+      real(r8), pointer :: frootc_pa(:)          ! Carbon in fine roots (gC/m2)
+      real(r8), pointer :: root_resp(:)          ! (gC/m2/s) root respiration (fine root MR + total root GR)
+      real(r8), pointer :: rootfr_pa(:,:)        ! Rooting fraction with depth
+      real(r8), pointer :: woody_frac_aere_pa(:) ! Woody plant fraction (by crown area) of all plants
+                                                 ! used for calculating patch-level aerenchyma porosity
       
       ! Canopy Structure
 

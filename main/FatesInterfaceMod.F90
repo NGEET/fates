@@ -589,6 +589,7 @@ contains
       allocate(bc_out%annsum_npp_pa(0:maxPatchesPerSite));bc_out%annsum_npp_pa(:)=nan
       allocate(bc_out%frootc_pa(0:maxPatchesPerSite));bc_out%frootc_pa(:)=nan
       allocate(bc_out%root_resp(nlevsoil_in));bc_out%root_resp(:)=nan
+      allocate(bc_out%woody_frac_aere_pa(0:maxPatchesPerSite));bc_out%woody_frac_aere_pa(:)=nan
       allocate(bc_out%rootfr_pa(0:maxPatchesPerSite,nlevsoil_in))
       bc_out%rootfr_pa(:,:)=nan
 
