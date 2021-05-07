@@ -11,5 +11,5 @@ ncdump $2 >> ${tempfile2}
 
 diff  ${tempfile1} ${tempfile2}
 
-rm ${temp_file1}
-rm ${temp_file2}
+rm ${tempfile1}
+rm ${tempfile2}
