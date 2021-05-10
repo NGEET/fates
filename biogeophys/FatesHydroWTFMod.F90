@@ -360,11 +360,11 @@ contains
        th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
        dpsidth_interp = this%dpsidth_from_th(th_interp)
        psi_interp = -(1._r8/this%alpha)*(max_sf_interp**(1._r8/(m-1._r8)) - 1._r8 )**m
-       psi = (psi_interp + dpsidth_interp*(th-th_interp))*0.0000978
+       psi = psi_interp + dpsidth_interp*(th-th_interp)
 
     else
        
-       psi = -(1._r8/this%alpha)*((satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m)*0.0000978
+       psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(m-1._r8)) - 1._r8 )**m
 
 
     end if
