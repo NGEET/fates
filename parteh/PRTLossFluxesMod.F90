@@ -513,23 +513,25 @@ contains
           i_var = organ_map(organ_id)%var_id(i_var_of_organ)
           
           element_id = prt_global%state_descriptor(i_var)%element_id
-
          
-         
-          if ( any(element_id == carbon_elements_list) ) then
-             retrans = prt_params%turnover_carb_retrans(ipft,prt_params%organ_param_id(organ_id))
-          else if( element_id == nitrogen_element ) then
-             retrans = prt_params%turnover_nitr_retrans(ipft,prt_params%organ_param_id(organ_id))
-          else if( element_id == phosphorus_element ) then
-             retrans = prt_params%turnover_phos_retrans(ipft,prt_params%organ_param_id(organ_id))
+          if( prt_params%organ_param_id(organ_id) < 1 ) then
+             retrans = 0._r8
           else
-             write(fates_log(),*) 'Please add a new re-translocation clause to your '
-             write(fates_log(),*) ' organ x element combination'
-             write(fates_log(),*) ' organ: ',leaf_organ,' element: ',element_id
-             write(fates_log(),*) 'Exiting'
-             call endrun(msg=errMsg(__FILE__, __LINE__))
+             if ( any(element_id == carbon_elements_list) ) then
+                retrans = prt_params%turnover_carb_retrans(ipft,prt_params%organ_param_id(organ_id))
+             else if( element_id == nitrogen_element ) then
+                retrans = prt_params%turnover_nitr_retrans(ipft,prt_params%organ_param_id(organ_id))
+             else if( element_id == phosphorus_element ) then
+                retrans = prt_params%turnover_phos_retrans(ipft,prt_params%organ_param_id(organ_id))
+             else
+                write(fates_log(),*) 'Please add a new re-translocation clause to your '
+                write(fates_log(),*) ' organ x element combination'
+                write(fates_log(),*) ' organ: ',leaf_organ,' element: ',element_id
+                write(fates_log(),*) 'Exiting'
+                call endrun(msg=errMsg(__FILE__, __LINE__))
+             end if
           end if
-          
+
           ! Get the variable id of the storage pool for this element
           store_var_id = prt_global%sp_organ_map(store_organ,element_id)
           
@@ -723,20 +725,22 @@ contains
 
          ! If this organ does not have a retranslocation rate
          ! then it is not valid for turnover
-         if( prt_params%organ_param_id(organ_id) < 1 ) cycle
-         
-         if ( any(element_id == carbon_elements_list) ) then
-            retrans_frac = prt_params%turnover_carb_retrans(ipft,prt_params%organ_param_id(organ_id))
-         else if( element_id == nitrogen_element ) then
-            retrans_frac = prt_params%turnover_nitr_retrans(ipft,prt_params%organ_param_id(organ_id))
-         else if( element_id == phosphorus_element ) then
-            retrans_frac = prt_params%turnover_phos_retrans(ipft,prt_params%organ_param_id(organ_id))
+         if( prt_params%organ_param_id(organ_id) < 1 ) then
+            retrans_frac = 0._r8
          else
-            write(fates_log(),*) 'Please add a new re-translocation clause to your '
-            write(fates_log(),*) ' organ x element combination'
-            write(fates_log(),*) ' organ: ',organ_id,' element: ',element_id
-            write(fates_log(),*) 'Exiting'
-            call endrun(msg=errMsg(__FILE__, __LINE__))
+            if ( any(element_id == carbon_elements_list) ) then
+               retrans_frac = prt_params%turnover_carb_retrans(ipft,prt_params%organ_param_id(organ_id))
+            else if( element_id == nitrogen_element ) then
+               retrans_frac = prt_params%turnover_nitr_retrans(ipft,prt_params%organ_param_id(organ_id))
+            else if( element_id == phosphorus_element ) then
+               retrans_frac = prt_params%turnover_phos_retrans(ipft,prt_params%organ_param_id(organ_id))
+            else
+               write(fates_log(),*) 'Please add a new re-translocation clause to your '
+               write(fates_log(),*) ' organ x element combination'
+               write(fates_log(),*) ' organ: ',organ_id,' element: ',element_id
+               write(fates_log(),*) 'Exiting'
+               call endrun(msg=errMsg(__FILE__, __LINE__))
+            end if
          end if
 
          if(base_turnover(organ_id) < check_initialized) then
