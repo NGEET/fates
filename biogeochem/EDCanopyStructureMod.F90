@@ -55,7 +55,7 @@ module EDCanopyStructureMod
   public :: canopy_summarization
   public :: update_hlm_dynamics
 
-  logical, parameter :: debug=.false.
+  logical, parameter :: debug=.true.
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -1478,6 +1478,7 @@ contains
     real(r8) :: lai                      ! summed lai for checking m2 m-2
     real(r8) :: snow_depth_avg           ! avg snow over whole site
     real(r8) :: leaf_c                   ! leaf carbon [kg]
+    real(r8) :: saicheck                 ! diagnostic check for Satellite phenology mode
 
     !----------------------------------------------------------------------
 
@@ -1534,10 +1535,24 @@ contains
                   currentCohort%n, currentCohort%canopy_layer,               &
                   currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )    
 
+            if (hlm_use_sp .eq. ifalse) then
              currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
                   currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
                   currentPatch%canopy_layer_tlai, currentCohort%treelai , &
                   currentCohort%vcmax25top,4)  
+            else
+               ! If we are using satellite phenology, conduct a check against the calculated sai
+               saicheck = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%treelai , &
+               currentCohort%vcmax25top,4)
+
+               if ( debug ) write(fates_log(), *) 'SP mode: sai check: ', saicheck - currentCohort%treesai
+
+            end if
+
+            if ( debug ) write(fates_log(), *) 'currentCohort%treesai: ', currentCohort%treesai
+            if ( debug ) write(fates_log(), *) 'currentCohort%treelai: ', currentCohort%treelai
 
              currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area 
              currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  
