@@ -2022,7 +2022,13 @@ contains
         
      end do
 
-     ! This call is purely for diagnostics and history variables
+     ! This call to RecruitWaterStorage() makes an accounting of
+     ! how much water is used to intialize newly recruited plants.
+     ! However, it does not actually move water from the soil or create
+     ! a flux, it is just accounting for diagnostics purposes.  The water
+     ! will not actually be moved until the beginning of the first hydraulics
+     ! call during the fast timestep sequence
+     
      if (hlm_use_planthydro.eq.itrue) then
         call RecruitWaterStorage(nsites,sites,bc_out)
      end if

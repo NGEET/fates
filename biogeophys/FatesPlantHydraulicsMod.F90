@@ -4079,11 +4079,10 @@ contains
     ! This subroutine accounts for the water bound in plants that have
     ! just recruited. This water is accumulated at the site level for all plants
     ! that recruit.
-    ! Because this water is taken from the soil in hydraulics_bc, which will not 
-    ! be called until the next timestep, this water is subtracted out of
-    ! plant_stored_h2o_si to ensure HLM water balance at the beg_curr_day timestep.
-    ! plant_stored_h2o_si will include this water when calculated in hydraulics_bc
-    ! at the next timestep, when it gets pulled from the soil water.
+    ! *Note that no mass is moved in this call, this routine is only for
+    ! generating diagnostics.  Water fluxes will be calculated during
+    ! again during RecruitWUptake() the next time the hydraulics routine is run,
+    ! and water will be removed from the soil to accomodate.
     ! ---------------------------------------------------------------------------
 
     ! Arguments
