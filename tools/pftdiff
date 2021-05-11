@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 
-## script to compare two PFTs in a FATES parameter file.  takes three arguments: 
-## first argument is the parameter file name
-## second argument is the first pft
-## third argument is the second pft
+while getopts ":h" option; do
+   case $option in
+      h) # display Help
+	   echo "script to compare two PFTs in a FATES parameter file.  takes three arguments: "
+	   echo "first argument is the parameter file name"
+	   echo "second argument is the first pft number (PFT numbering starts with 1)"
+	   echo "third argument is the second pft number (PFT numbering starts with 1)"
+         exit;;
+   esac
+done
+
 
 tempfile1=$(mktemp)
 tempfile2=$(mktemp)
