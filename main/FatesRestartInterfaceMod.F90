@@ -206,14 +206,11 @@ module FatesRestartInterfaceMod
   integer :: ir_hydro_th_troot
   integer :: ir_hydro_th_aroot_covec 
   integer :: ir_hydro_liqvol_shell_si
-  integer :: ir_hydro_err_growturn_aroot
-  integer :: ir_hydro_err_growturn_ag_covec
-  integer :: ir_hydro_err_growturn_troot
   integer :: ir_hydro_recruit_si
   integer :: ir_hydro_dead_si
   integer :: ir_hydro_growturn_err_si
-  integer :: ir_hydro_pheno_err_si
   integer :: ir_hydro_hydro_err_si
+  integer :: ir_hydro_errh2o
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter, public :: fates_restart_num_dimensions = 2   !(cohort,column)
@@ -1040,21 +1037,6 @@ contains
             units='kg/plant', veclength=nlevsoi_hyd_max, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_th_aroot_covec) 
 
-       call this%RegisterCohortVector(symbol_base='fates_hydro_err_aroot', vtype=cohort_r8, &
-            long_name_base='error in plant-hydro balance in absorbing roots',  &
-            units='kg/plant', veclength=nlevsoi_hyd_max, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_aroot) 
-
-       call this%RegisterCohortVector(symbol_base='fates_hydro_err_ag', vtype=cohort_r8, &
-            long_name_base='error in plant-hydro balance above ground',  &
-            units='kg/plant', veclength=n_hypool_ag, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_ag_covec) 
-
-       call this%RegisterCohortVector(symbol_base='fates_hydro_err_troot', vtype=cohort_r8, &
-            long_name_base='error in plant-hydro balance above ground',  &
-            units='kg/plant', veclength=n_hypool_troot, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_troot) 
-
        ! Site-level volumentric liquid water content (shell x layer)
        call this%set_restart_var(vname='fates_hydro_liqvol_shell', vtype=cohort_r8, &
             long_name='Volumetric water content of rhizosphere compartments (layerxshell)', &
@@ -1079,17 +1061,17 @@ contains
             units='kg', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_growturn_err_si )
 
-       ! Site-level water balance error due to phenology?
-       call this%set_restart_var(vname='fates_hydro_pheno_err', vtype=site_r8, &
-            long_name='Site level error for hydraulics due to phenology', &
-            units='kg', flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_pheno_err_si )
-
        ! Site-level water balance error in vegetation
        call this%set_restart_var(vname='fates_hydro_hydro_err', vtype=site_r8, &
             long_name='Site level error for hydrodynamics', &
             units='kg', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_hydro_err_si )
+
+       call this%set_restart_var(vname='fates_errh2o', vtype=cohort_r8, &
+            long_name='ed cohort - running plant h2o error for hydro', &
+            units='kg/indiv', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_errh2o )
+
        
     end if
 
@@ -1833,17 +1815,7 @@ contains
 
                    this%rvars(ir_hydro_th_troot)%r81d(io_idx_co) = ccohort%co_hydr%th_troot
 
-                   ! Load the error terms
-                   call this%setCohortRealVector(ccohort%co_hydr%errh2o_growturn_ag, &
-                                                 n_hypool_ag, &
-                                                 ir_hydro_err_growturn_ag_covec,io_idx_co)
-                   
-                   this%rvars(ir_hydro_err_growturn_aroot)%r81d(io_idx_co) = &
-                        ccohort%co_hydr%errh2o_growturn_aroot
-                        
-                   this%rvars(ir_hydro_err_growturn_troot)%r81d(io_idx_co) = &
-                        ccohort%co_hydr%errh2o_growturn_troot
-                        
+                   this%rvars(ir_hydro_errh2o)%r81d(io_idx_co) = ccohort%co_hydr%errh2o
 
                 end if
 
@@ -2088,7 +2060,6 @@ contains
              this%rvars(ir_hydro_recruit_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_recruit
              this%rvars(ir_hydro_dead_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_dead
              this%rvars(ir_hydro_growturn_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_growturn_err
-             this%rvars(ir_hydro_pheno_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_pheno_err
              this%rvars(ir_hydro_hydro_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_hydro_err
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
@@ -2664,18 +2635,10 @@ contains
                                                  ir_hydro_th_aroot_covec,io_idx_co)
                    
                    ccohort%co_hydr%th_troot = this%rvars(ir_hydro_th_troot)%r81d(io_idx_co)
-                   
+                   ccohort%co_hydr%errh2o = this%rvars(ir_hydro_errh2o)%r81d(io_idx_co)
+
                    call UpdatePlantPsiFTCFromTheta(ccohort,sites(s)%si_hydr)
 
-                   
-                   ccohort%co_hydr%errh2o_growturn_aroot = &
-                        this%rvars(ir_hydro_err_growturn_aroot)%r81d(io_idx_co)
-                   ccohort%co_hydr%errh2o_growturn_troot = &
-                        this%rvars(ir_hydro_err_growturn_troot)%r81d(io_idx_co)
-
-                   call this%GetCohortRealVector(ccohort%co_hydr%errh2o_growturn_ag, &
-                                                 n_hypool_ag, &
-                                                 ir_hydro_err_growturn_ag_covec,io_idx_co)
                 end if
                 
                 io_idx_co = io_idx_co + 1
@@ -2815,7 +2778,6 @@ contains
              sites(s)%si_hydr%h2oveg_recruit      = this%rvars(ir_hydro_recruit_si)%r81d(io_idx_si)
              sites(s)%si_hydr%h2oveg_dead         = this%rvars(ir_hydro_dead_si)%r81d(io_idx_si)
              sites(s)%si_hydr%h2oveg_growturn_err = this%rvars(ir_hydro_growturn_err_si)%r81d(io_idx_si)
-             sites(s)%si_hydr%h2oveg_pheno_err    = this%rvars(ir_hydro_pheno_err_si)%r81d(io_idx_si)
              sites(s)%si_hydr%h2oveg_hydro_err    = this%rvars(ir_hydro_hydro_err_si)%r81d(io_idx_si)
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell

@@ -90,10 +90,12 @@ module FatesPlantHydraulicsMod
   use FatesHydraulicsMemMod, only: rwccap, rwcft
   use FatesHydraulicsMemMod, only: ignore_layer1
   
-  use PRTGenericMod,          only : all_carbon_elements
+  use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
-
+  use PRTGenericMod,          only : num_elements
+  use PRTGenericMod,          only : element_list
+  
   use clm_time_manager  , only : get_step_size, get_nstep
 
   use EDPftvarcon, only : EDPftvarcon_inst
@@ -175,7 +177,8 @@ module FatesPlantHydraulicsMod
   logical, parameter :: trap_neg_wc = .false.
   logical, parameter :: trap_supersat_psi = .false.
 
-  
+  real(r8), parameter :: error_thresh = 1.e-5_r8  ! site level conservation error threshold in CLM
+                                                  ! (mm = kg/m2)
 
   real(r8), parameter :: thsat_buff = 0.001_r8 ! Ensure that this amount of buffer
                                                ! is left between soil moisture and saturation [m3/m3]
@@ -430,9 +433,11 @@ contains
        ! are not perturbed
        call SavePreviousRhizVolumes(sites(s))
 
-    end do
 
-    call UpdateH2OVeg(nsites,sites,bc_out)
+       call UpdateH2OVeg(sites(s),bc_out(s))
+       
+    end do
+    
 
     return
   end subroutine RestartHydrStates
@@ -553,13 +558,6 @@ contains
        cohort_hydr%th_ag(k) = wrf_plant(site_hydr%pm_node(k),ft)%p%th_from_psi(cohort_hydr%psi_ag(k))
        cohort_hydr%ftc_ag(k) = wkf_plant(site_hydr%pm_node(k),ft)%p%ftc_from_psi(cohort_hydr%psi_ag(k))
     end do
-
-    cohort_hydr%errh2o_growturn_ag(:)    = 0.0_r8
-    cohort_hydr%errh2o_growturn_troot    = 0.0_r8
-    cohort_hydr%errh2o_growturn_aroot    = 0.0_r8
-    cohort_hydr%errh2o_pheno_ag(:)       = 0.0_r8
-    cohort_hydr%errh2o_pheno_troot       = 0.0_r8
-    cohort_hydr%errh2o_pheno_aroot       = 0.0_r8
 
     !initialize cohort-level btran
 
@@ -832,10 +830,10 @@ contains
     ccohort_hydr => ccohort%co_hydr
     ft           = ccohort%pft
     nlevrhiz = site_hydr%nlevrhiz
-    leaf_c   = ccohort%prt%GetState(leaf_organ, all_carbon_elements)
-    sapw_c   = ccohort%prt%GetState(sapw_organ, all_carbon_elements)
-    fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)
-    struct_c = ccohort%prt%GetState(struct_organ, all_carbon_elements)
+    leaf_c   = ccohort%prt%GetState(leaf_organ, carbon12_element)
+    sapw_c   = ccohort%prt%GetState(sapw_organ, carbon12_element)
+    fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+    struct_c = ccohort%prt%GetState(struct_organ, carbon12_element)
 
     roota    = prt_params%fnrt_prof_a(ft)
     rootb    = prt_params%fnrt_prof_b(ft)
@@ -967,9 +965,7 @@ contains
     type(ed_site_hydr_type),pointer :: csite_hydr
     integer  :: j,k,FT                       ! indices
     integer  :: err_code = 0
-    real(r8) :: th_ag_uncorr(      n_hypool_ag) ! uncorrected aboveground water content[m3 m-3]
-    real(r8) :: th_troot_uncorr                 ! uncorrected transporting root water content[m3 m-3]
-    real(r8) :: th_aroot_uncorr(currentSite%si_hydr%nlevrhiz)    ! uncorrected absorbing root water content[m3 m-3] 
+    real(r8) :: th_uncorr                    ! Uncorrected water content
     real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
 
     integer :: nstep !number of time steps
@@ -977,6 +973,7 @@ contains
 
     ccohort_hydr => ccohort%co_hydr
     FT      =  cCohort%pft
+    csite_hydr =>currentSite%si_hydr
     
     associate(pm_node => currentSite%si_hydr%pm_node)
     
@@ -989,48 +986,44 @@ contains
 
     do k=1,n_hypool_leaf
        if( ccohort_hydr%v_ag(k) > nearzero ) then
-          th_ag_uncorr(k)    = ccohort_hydr%th_ag(k)   * &
+          th_uncorr    = ccohort_hydr%th_ag(k)   * &
                ccohort_hydr%v_ag_init(k) /ccohort_hydr%v_ag(k)
-          ccohort_hydr%th_ag(k) = constrain_water_contents(th_ag_uncorr(k), small_theta_num, ft, pm_node(k))
+          ccohort_hydr%th_ag(k) = constrain_water_contents(th_uncorr, small_theta_num, ft, leaf_p_media)
        else
-          th_ag_uncorr(k)    = ccohort_hydr%th_ag(k) 
+          th_uncorr    = ccohort_hydr%th_ag(k) 
        end if
+       
+       csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
+            denh2o*cCohort%n*AREA_INV*(ccohort_hydr%th_ag(k)-th_uncorr)*ccohort_hydr%v_ag(k)
     end do
 
     do k=n_hypool_leaf+1,n_hypool_ag
-       th_ag_uncorr(k)    = ccohort_hydr%th_ag(k)   * &
+       th_uncorr    = ccohort_hydr%th_ag(k)   * &
             ccohort_hydr%v_ag_init(k) /ccohort_hydr%v_ag(k)
-       ccohort_hydr%th_ag(k) = constrain_water_contents(th_ag_uncorr(k), small_theta_num, ft, pm_node(k))
+       ccohort_hydr%th_ag(k) = constrain_water_contents(th_uncorr, small_theta_num, ft, stem_p_media)
+
+       csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
+            denh2o*cCohort%n*AREA_INV*(ccohort_hydr%th_ag(k)-th_uncorr)*ccohort_hydr%v_ag(k)
     enddo
 
-    th_troot_uncorr = ccohort_hydr%th_troot * ccohort_hydr%v_troot_init /ccohort_hydr%v_troot
-    ccohort_hydr%th_troot = constrain_water_contents(th_troot_uncorr, small_theta_num, ft, pm_node(3))
+    th_uncorr = ccohort_hydr%th_troot * ccohort_hydr%v_troot_init /ccohort_hydr%v_troot
+    ccohort_hydr%th_troot =  constrain_water_contents(th_uncorr, small_theta_num, ft, troot_p_media )
 
-
-    ccohort_hydr%errh2o_growturn_aroot = 0._r8
-    do j=1,currentSite%si_hydr%nlevrhiz
-       th_aroot_uncorr(j) = ccohort_hydr%th_aroot(j) * &
-            ccohort_hydr%v_aroot_layer_init(j)/ccohort_hydr%v_aroot_layer(j)
-       ccohort_hydr%th_aroot(j) = constrain_water_contents(th_aroot_uncorr(j), small_theta_num, ft, pm_node(4))
-       ccohort_hydr%errh2o_growturn_aroot = ccohort_hydr%errh2o_growturn_aroot + & 
-            denh2o*cCohort%n*AREA_INV*(ccohort_hydr%th_aroot(j)-th_aroot_uncorr(j))*ccohort_hydr%v_aroot_layer(j)
-    enddo
-
-    ! Storing mass balance error
-    ! + means water created; - means water destroyed
-    ccohort_hydr%errh2o_growturn_ag(:) = denh2o*cCohort%n*AREA_INV*ccohort_hydr%v_ag(:) * & 
-         (ccohort_hydr%th_ag(:)-th_ag_uncorr(:))
-    ccohort_hydr%errh2o_growturn_troot = denh2o*cCohort%n*AREA_INV*ccohort_hydr%v_troot * &
-         (ccohort_hydr%th_troot-th_troot_uncorr)
-
-    csite_hydr =>currentSite%si_hydr
     csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
-         sum(ccohort_hydr%errh2o_growturn_ag(:)) + & 
-         ccohort_hydr%errh2o_growturn_troot      + &
-         ccohort_hydr%errh2o_growturn_aroot
+            denh2o*cCohort%n*AREA_INV*(ccohort_hydr%th_troot-th_uncorr)*ccohort_hydr%v_troot
+    
+
+    do j=1,currentSite%si_hydr%nlevrhiz
+       th_uncorr = ccohort_hydr%th_aroot(j) * &
+            ccohort_hydr%v_aroot_layer_init(j)/ccohort_hydr%v_aroot_layer(j)
+       ccohort_hydr%th_aroot(j) = constrain_water_contents(th_uncorr, small_theta_num, ft, aroot_p_media)
+       
+       csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
+            denh2o*cCohort%n*AREA_INV*(ccohort_hydr%th_aroot(j)-th_uncorr)*ccohort_hydr%v_aroot_layer(j)
+       
+    enddo
 
 
-    ! UPDATES OF WATER POTENTIALS ARE DONE PRIOR TO RICHARDS' SOLUTION WITHIN FATESPLANTHYDRAULICSMOD.F90
     end associate
 
   end subroutine UpdateSizeDepPlantHydStates
@@ -1121,12 +1114,7 @@ contains
     ncohort_hydr%iterh2                = ocohort_hydr%iterh2
     ncohort_hydr%iterlayer             = ocohort_hydr%iterlayer
     ncohort_hydr%errh2o                = ocohort_hydr%errh2o
-    ncohort_hydr%errh2o_growturn_ag    = ocohort_hydr%errh2o_growturn_ag
-    ncohort_hydr%errh2o_pheno_ag       = ocohort_hydr%errh2o_pheno_ag
-    ncohort_hydr%errh2o_growturn_troot = ocohort_hydr%errh2o_growturn_troot
-    ncohort_hydr%errh2o_pheno_troot    = ocohort_hydr%errh2o_pheno_troot
-    ncohort_hydr%errh2o_growturn_aroot = ocohort_hydr%errh2o_growturn_aroot
-    ncohort_hydr%errh2o_pheno_aroot    = ocohort_hydr%errh2o_pheno_aroot
+    
 
     ! BC PLANT HYDRAULICS - flux terms
     ncohort_hydr%qtop                  = ocohort_hydr%qtop
@@ -1150,6 +1138,7 @@ contains
     type(ed_site_hydr_type), pointer :: site_hydr
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr  ! current cohort hydraulics derived type
     type(ed_cohort_hydr_type), pointer :: ncohort_hydr  ! donor (next) cohort hydraulics d type
+    real(r8) :: vol_c1,vol_c2  ! Total water volume in the each cohort
     integer  :: j,k                                     ! indices
     integer  :: ft
 
@@ -1158,12 +1147,44 @@ contains
     ccohort_hydr => currentCohort%co_hydr
     ncohort_hydr => nextCohort%co_hydr
 
-    ccohort_hydr%th_ag(:)    = (currentCohort%n*ccohort_hydr%th_ag(:)    + &
-         nextCohort%n*ncohort_hydr%th_ag(:))/newn
-    ccohort_hydr%th_troot    = (currentCohort%n*ccohort_hydr%th_troot    + &
-         nextCohort%n*ncohort_hydr%th_troot)/newn
-    ccohort_hydr%th_aroot(:) = (currentCohort%n*ccohort_hydr%th_aroot(:) + &
-         nextCohort%n*ncohort_hydr%th_aroot(:))/newn
+    ft = currentCohort%pft
+    
+    ! At this point in the call sequence, we can assume the fused cohort (currentCohort) has
+    ! and updated size, shape and biomass, make sure this is called after parteh, and the
+    ! dbh and height are uppdated
+
+    ! Save the old volumes because we need the old volume to calculate the pre-fusion water
+    ! volume of each cohort
+    call SavePreviousCompartmentVolumes(ccohort_hydr)
+
+    ! This updates all of the z_node positions
+    call UpdatePlantHydrNodes(ccohort_hydr,ft,currentCohort%hite,site_hydr)
+
+    ! This updates plant compartment volumes, lengths and 
+    ! maximum conductances. Make sure for already
+    ! initialized vegetation, that SavePreviousCompartment
+    ! volumes, and UpdatePlantHydrNodes is called prior to this.
+    call UpdatePlantHydrLenVol(currentCohort,site_hydr)
+    
+    
+    ! Conserve the total water volume
+
+    do k=1,n_hypool_ag
+       vol_c1 = currentCohort%n*ccohort_hydr%th_ag(k)*ccohort_hydr%v_ag_init(k)
+       vol_c2 = nextCohort%n*ncohort_hydr%th_ag(k)*ncohort_hydr%v_ag(k)
+       ccohort_hydr%th_ag(k) = (vol_c1+vol_c2)/(ccohort_hydr%v_ag(k)*newn)
+    end do
+
+    vol_c1 = currentCohort%n*ccohort_hydr%th_troot*ccohort_hydr%v_troot_init
+    vol_c2 = nextCohort%n*ncohort_hydr%th_troot*ncohort_hydr%v_troot
+    ccohort_hydr%th_troot = (vol_c1+vol_c2)/(ccohort_hydr%v_troot*newn)
+
+    do j=1,site_hydr%nlevrhiz
+       vol_c1 = currentCohort%n*ccohort_hydr%th_aroot(j)*ccohort_hydr%v_aroot_layer_init(j)
+       vol_c2 = nextCohort%n*ncohort_hydr%th_aroot(j)*ncohort_hydr%v_aroot_layer(j)
+       ccohort_hydr%th_aroot(j) = (vol_c1+vol_c2)/(ccohort_hydr%v_aroot_layer(j)*newn)
+    end do
+    
     ccohort_hydr%supsub_flag = 0
 
     ! Only save the iteration counters for the worse of the two cohorts
@@ -1173,7 +1194,7 @@ contains
        ccohort_hydr%iterlayer   = ncohort_hydr%iterlayer
     end if
 
-    ft = currentCohort%pft
+    
     do k=1,n_hypool_leaf
        ccohort_hydr%psi_ag(k) = wrf_plant(leaf_p_media,ft)%p%psi_from_th(ccohort_hydr%th_ag(k)) 
        ccohort_hydr%ftc_ag(k) = wkf_plant(leaf_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(k)) 
@@ -1200,21 +1221,8 @@ contains
 
     ccohort_hydr%errh2o                   = (currentCohort%n*ccohort_hydr%errh2o                   + &
          nextCohort%n*ncohort_hydr%errh2o)/newn
-    ccohort_hydr%errh2o_growturn_ag(:)    = (currentCohort%n*ccohort_hydr%errh2o_growturn_ag(:)    + &
-         nextCohort%n*ncohort_hydr%errh2o_growturn_ag(:))/newn
-    ccohort_hydr%errh2o_pheno_ag(:)       = (currentCohort%n*ccohort_hydr%errh2o_pheno_ag(:)       + &
-         nextCohort%n*ncohort_hydr%errh2o_pheno_ag(:))/newn
-    ccohort_hydr%errh2o_growturn_troot    = (currentCohort%n*ccohort_hydr%errh2o_growturn_troot    + &
-         nextCohort%n*ncohort_hydr%errh2o_growturn_troot)/newn
-    ccohort_hydr%errh2o_pheno_troot       = (currentCohort%n*ccohort_hydr%errh2o_pheno_troot       + &
-         nextCohort%n*ncohort_hydr%errh2o_pheno_troot)/newn
-    ccohort_hydr%errh2o_growturn_aroot    = (currentCohort%n*ccohort_hydr%errh2o_growturn_aroot + &
-         nextCohort%n*ncohort_hydr%errh2o_growturn_aroot)/newn
-    ccohort_hydr%errh2o_pheno_aroot       = (currentCohort%n*ccohort_hydr%errh2o_pheno_aroot    + &
-         nextCohort%n*ncohort_hydr%errh2o_pheno_aroot)/newn
 
-    ccohort_hydr%is_newly_recruited        = .false.
-
+    return
   end subroutine FuseCohortHydraulics
 
   ! =====================================================================================
@@ -1411,9 +1419,6 @@ contains
 
     end do
 
-    ! 
-    !!     call UpdateH2OVeg(nsites,sites,bc_out)
-
     ! --------------------------------------------------------------------------------
     ! All other ed_Hydr_site_type variables are initialized elsewhere:
     !
@@ -1442,7 +1447,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine UpdateH2OVeg(nsites,sites,bc_out)
+  subroutine UpdateH2OVeg(csite,bc_out,prev_site_h2o,icall)
 
     ! ----------------------------------------------------------------------------------
     ! This subroutine is called following dynamics. After growth has been updated
@@ -1451,10 +1456,17 @@ contains
     ! ----------------------------------------------------------------------------------
 
     ! Arguments
-    integer, intent(in)                       :: nsites
-    type(ed_site_type), intent(inout), target :: sites(nsites)
-    type(bc_out_type), intent(inout)          :: bc_out(nsites)
+    type(ed_site_type), intent(inout), target :: csite
+    type(bc_out_type), intent(inout)          :: bc_out
 
+    ! The total site water balance at a previous point in time.
+    ! In some cases, like during dynamics
+    ! we want to conserve total site water, so we check
+    
+    real(r8), intent(in),optional             :: prev_site_h2o 
+    integer, intent(in), optional             :: icall
+
+    
     ! Locals
     type(ed_cohort_type), pointer :: currentCohort
     type(ed_patch_type), pointer :: currentPatch
@@ -1467,47 +1479,57 @@ contains
     !for debug only
     nstep = get_nstep()
 
-    do s = 1,nsites
-       bc_out(s)%plant_stored_h2o_si = 0.0_r8
-    end do
+    bc_out%plant_stored_h2o_si = 0.0_r8
 
     if( hlm_use_planthydro.eq.ifalse ) return
 
-    do s = 1,nsites
+    csite_hydr => csite%si_hydr
+    csite_hydr%h2oveg = 0.0_r8
+    currentPatch => csite%oldest_patch
+    do while(associated(currentPatch))         
+       currentCohort=>currentPatch%tallest
+       do while(associated(currentCohort))
+          ccohort_hydr => currentCohort%co_hydr
+          !only account for the water for not newly recruit for mass balance
+          if(.not.ccohort_hydr%is_newly_recruited) then 
+             csite_hydr%h2oveg = csite_hydr%h2oveg + &
+                  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:)) + &
+                  ccohort_hydr%th_troot*ccohort_hydr%v_troot + &
+                  sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
+                  denh2o*currentCohort%n
+          endif
+          
+          currentCohort => currentCohort%shorter
+       enddo !cohort
+       currentPatch => currentPatch%younger
+    enddo !end patch loop
+    
+    csite_hydr%h2oveg              = csite_hydr%h2oveg*AREA_INV
+    
+    ! Note that h2oveg_dead is incremented wherever we have litter fluxes
+    ! and it will be reduced via an evaporation term
+    ! growturn_err is a term to accomodate error in growth or
+    ! turnover. need to be improved for future(CX) 
+    bc_out%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
+         csite_hydr%h2oveg_growturn_err - &
+         csite_hydr%h2oveg_hydro_err
 
-       csite_hydr => sites(s)%si_hydr
-       csite_hydr%h2oveg = 0.0_r8
-       currentPatch => sites(s)%oldest_patch
-       do while(associated(currentPatch))         
-          currentCohort=>currentPatch%tallest
-          do while(associated(currentCohort))
-             ccohort_hydr => currentCohort%co_hydr
-             !only account for the water for not newly recruit for mass balance
-             if(.not.ccohort_hydr%is_newly_recruited) then 
-                csite_hydr%h2oveg = csite_hydr%h2oveg + &
-                     (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:)) + &
-                     ccohort_hydr%th_troot*ccohort_hydr%v_troot + &
-                     sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
-                     denh2o*currentCohort%n
-             endif
 
-             currentCohort => currentCohort%shorter
-          enddo !cohort
-          currentPatch => currentPatch%younger
-       enddo !end patch loop
-
-       csite_hydr%h2oveg              = csite_hydr%h2oveg*AREA_INV
-
-       ! Note that h2oveg_dead is incremented wherever we have litter fluxes
-       ! and it will be reduced via an evaporation term
-       ! growturn_err is a term to accomodate error in growth or turnover. need to be improved for future(CX) 
-       bc_out(s)%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
-            csite_hydr%h2oveg_growturn_err - &
-            csite_hydr%h2oveg_pheno_err-&
-            csite_hydr%h2oveg_hydro_err
-
-    end do
-
+    ! Perform a conservation check if desired
+    if(present(prev_site_h2o)) then
+       
+       if(abs(bc_out%plant_stored_h2o_si-prev_site_h2o)>error_thresh ) then
+          write(fates_log(),*) 'Total FATES site level water was not conserved during'
+          write(fates_log(),*) 'a check where it was supposed to be conserved.'
+          write(fates_log(),*) 'Most likely during daily dynamics.'
+          write(fates_log(),*) 'Call index: ',icall
+          write(fates_log(),*) 'Old mass: ',prev_site_h2o,' [mm/m2]'
+          write(fates_log(),*) 'New mass: ',bc_out%plant_stored_h2o_si,' [mm/m2]'
+          write(fates_log(),*) 'diff: ',bc_out%plant_stored_h2o_si-prev_site_h2o
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       
+    end if
 
     return
   end subroutine UpdateH2OVeg
@@ -1612,16 +1634,24 @@ contains
     ! Locals
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     type(ed_site_hydr_type), pointer :: csite_hydr
+    type(ed_patch_type), pointer :: cpatch
     real(r8) :: tmp1
-    real(r8) :: watres_local   !minum water content [m3/m3]
-    real(r8) :: total_water !total water in rhizosphere at a specific layer (m^3 ha-1)
-    real(r8) :: total_water_min !total minimum water in rhizosphere at a specific layer (m^3)
-    real(r8) :: rootfr !fraction of root in different soil layer
-    real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/individual)   
-    real(r8) :: n, nmin !number of individuals in cohorts
+    real(r8) :: watres_local              ! minum water content [m3/m3]
+    real(r8) :: total_water               ! total water in rhizosphere at a specific layer (m^3 ha-1)
+    real(r8) :: total_water_min           ! total minimum water in rhizosphere at a specific layer (m^3)
+    real(r8) :: rootfr                    ! fraction of root in different soil layer
+    real(r8) :: recruitw                  ! water for newly recruited cohorts (kg water/m2/individual)   
+    real(r8) :: n, nmin                   ! number of individuals in cohorts
     real(r8) :: sum_l_aroot
     integer :: s, j, ft
 
+    integer :: el                         ! element loop index
+    integer :: element_id                 ! global element identifier index
+    real(r8) :: leaf_m, store_m, sapw_m   ! Element mass in organ tissues
+    real(r8) :: fnrt_m, struct_m, repro_m ! Element mass in organ tissues
+
+    
+    cpatch => ccohort%patchptr
     csite_hydr => csite%si_hydr
     ccohort_hydr =>ccohort%co_hydr
     recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
@@ -1651,8 +1681,34 @@ contains
           nmin = min(n, nmin) 
        endif
     end do
-    ccohort%n = min (ccohort%n, nmin) 
 
+    ! If the minimum number of plants that are recruitable due to water
+    ! limitations, is less than what is currently recruitable (due to
+    ! carbon-nitrogen-phosphorus availability), then we apply a reduction.
+    ! We also have to add back in what had been taken, to the germination
+    ! seed pool
+    if(nmin < ccohort%n) then
+
+       do el = 1,num_elements
+
+          element_id = element_list(el)
+          
+          leaf_m  = ccohort%prt%GetState(leaf_organ, element_id)
+          store_m = ccohort%prt%GetState(store_organ, element_id)
+          sapw_m  = ccohort%prt%GetState(sapw_organ, element_id)
+          fnrt_m  = ccohort%prt%GetState(fnrt_organ, element_id)
+          struct_m = ccohort%prt%GetState(struct_organ, element_id)
+          repro_m  = ccohort%prt%GetState(repro_organ, element_id)
+          
+          cpatch%litter(el)%seed_germ(ccohort%pft) = cpatch%litter(el)%seed_germ(ccohort%pft) + & 
+               (ccohort%n-nmin)/cpatch%area * & 
+               (leaf_m+store_m+sapw_m+fnrt_m+struct_m+repro_m)
+          
+       end do
+       ccohort%n = nmin
+    end if
+    
+    return
   end subroutine ConstrainRecruitNumber
 
 
@@ -2028,9 +2084,9 @@ contains
           ccohort=>cpatch%tallest
           do while(associated(ccohort))
              balive_patch = balive_patch +  &
-                  (cCohort%prt%GetState(fnrt_organ, all_carbon_elements) + &
-                  cCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
-                  cCohort%prt%GetState(leaf_organ, all_carbon_elements))* ccohort%n
+                  (cCohort%prt%GetState(fnrt_organ, carbon12_element) + &
+                  cCohort%prt%GetState(sapw_organ, carbon12_element) + &
+                  cCohort%prt%GetState(leaf_organ, carbon12_element))* ccohort%n
              ccohort => ccohort%shorter
           enddo !cohort
 
@@ -2039,9 +2095,9 @@ contains
           do while(associated(ccohort))
              bc_out(s)%btran_pa(ifp) =  bc_out(s)%btran_pa(ifp) + &
                   ccohort%co_hydr%btran * &
-                  (cCohort%prt%GetState(fnrt_organ, all_carbon_elements) + &
-                  cCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
-                  cCohort%prt%GetState(leaf_organ, all_carbon_elements)) * &
+                  (cCohort%prt%GetState(fnrt_organ, carbon12_element) + &
+                  cCohort%prt%GetState(sapw_organ, carbon12_element) + &
+                  cCohort%prt%GetState(leaf_organ, carbon12_element)) * &
                   ccohort%n / balive_patch
              ccohort => ccohort%shorter
           enddo !cohort
@@ -2278,6 +2334,8 @@ contains
     real(r8) :: sumcheck            ! used to debug mass balance in soil horizon diagnostics
     integer  :: nlevrhiz            ! local for number of rhizosphere levels
     integer  :: sc                  ! size class index
+
+   
     
     ! ----------------------------------------------------------------------------------
     ! Important note: We are interested in calculating the total fluxes in and out of the
@@ -2291,8 +2349,12 @@ contains
     call RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
 
     !update water storage in veg after incorporating newly recuited cohorts
-    if(recruitflag) call UpdateH2OVeg(nsites,sites,bc_out)
-
+    if(recruitflag)then
+       do s = 1, nsites
+          call UpdateH2OVeg(sites(s),bc_out(s))
+       end do
+    end if
+    
     do s = 1, nsites
 
        site_hydr => sites(s)%si_hydr
@@ -2572,7 +2634,8 @@ contains
       delta_soil_storage  = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
             site_hydr%v_shell(:,:)) * denh2o * AREA_INV - prev_h2osoil
 
-      if(abs(delta_plant_storage - (root_flux - transp_flux)) > 1.e-3_r8 ) then
+      if(abs(delta_plant_storage - (root_flux - transp_flux)) > error_thresh ) then
+         
           write(fates_log(),*) 'Site plant water balance does not close'
           write(fates_log(),*) 'balance error: ',abs(delta_plant_storage - (root_flux - transp_flux))
           write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
@@ -2606,17 +2669,6 @@ contains
 
        wb_check_site = delta_plant_storage+delta_soil_storage+site_runoff+transp_flux
 
-!       if( abs(wb_check_site - site_hydr%errh2o_hyd) > 1.e-5_r8 ) then
-!           write(fates_log(),*) 'FATES hydro water ERROR balance does not add up [kg/m2]:',wb_check_site - site_hydr%errh2o_hyd
-!           write(fates_log(),*) 'wb_error_site: ',site_hydr%errh2o_hyd
-!           write(fates_log(),*) 'wb_check_site: ',wb_check_site
-!           write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
-!           write(fates_log(),*) 'delta_soil_storage: ',delta_soil_storage
-!           write(fates_log(),*) 'site_runoff: ',site_runoff
-!           write(fates_log(),*) 'transp_flux: ',transp_flux
-!           call endrun(msg=errMsg(sourcefile, __LINE__))
-!       end if
-
        ! Now check on total error
        if( abs(wb_check_site) > 1.e-4_r8 ) then
            write(fates_log(),*) 'FATES hydro water balance is not so great [kg/m2]'
@@ -2630,13 +2682,11 @@ contains
 
        site_hydr%h2oveg_hydro_err = site_hydr%h2oveg_hydro_err + site_hydr%errh2o_hyd
 
-       bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead - &
-            site_hydr%h2oveg_growturn_err - &
-            site_hydr%h2oveg_pheno_err-&
-            site_hydr%h2oveg_hydro_err
-
+       
+       call UpdateH2OVeg(sites(s),bc_out(s))
+       
     enddo !site
-
+    
     return
   end subroutine Hydraulics_BC
 
@@ -4029,11 +4079,10 @@ contains
     ! This subroutine accounts for the water bound in plants that have
     ! just recruited. This water is accumulated at the site level for all plants
     ! that recruit.
-    ! Because this water is taken from the soil in hydraulics_bc, which will not 
-    ! be called until the next timestep, this water is subtracted out of
-    ! plant_stored_h2o_si to ensure HLM water balance at the beg_curr_day timestep.
-    ! plant_stored_h2o_si will include this water when calculated in hydraulics_bc
-    ! at the next timestep, when it gets pulled from the soil water.
+    ! *Note that no mass is moved in this call, this routine is only for
+    ! generating diagnostics.  Water fluxes will be calculated during
+    ! again during RecruitWUptake() the next time the hydraulics routine is run,
+    ! and water will be removed from the soil to accomodate.
     ! ---------------------------------------------------------------------------
 
     ! Arguments
