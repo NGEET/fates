@@ -131,7 +131,7 @@ contains
     if(this%def_type%method .eq. moving_ema_window) then
        if(this%c_index == 0) then
           write(fates_log(), *) 'attempting to get a running mean from a variable'
-          write(fates_log(), *) 'that has been given a value yet'
+          write(fates_log(), *) 'that has not been given a value yet'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     else
