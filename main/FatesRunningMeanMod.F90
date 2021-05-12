@@ -51,7 +51,7 @@ module FatesRunningMeanMod
   type, public :: rmean_type
      
      real(r8) :: c_mean  ! The current mean value, if this
-                         ! is a moving window, its is the mean.
+                         ! is a moving window, it is the mean.
                          ! If this is a fixed window, it is only a partial mean
                          ! as the value uses equal update weights and is not
                          ! necessarily fully constructed.
