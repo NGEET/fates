@@ -85,7 +85,7 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-  use FatesRunningMeanMod,    only : ema_24hr
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr
   
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -1959,6 +1959,8 @@ contains
 
   subroutine create_patch(currentSite, new_patch, age, areap, label)
 
+    use FatesInterfaceTypesMod, only : hlm_current_tod,hlm_current_date,hlm_reference_date
+    
     !
     ! !DESCRIPTION:
     !  Set default values for creating a new patch
@@ -1988,8 +1990,13 @@ contains
     allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
 
     allocate(new_patch%tveg24)
-    call new_patch%tveg24%InitRMean(ema_24hr) ! No initial value
+    !call new_patch%tveg24%InitRMean(ema_24hr) ! No initial value
 
+    print*,hlm_current_tod,hlm_current_date,hlm_reference_date
+    stop
+    
+    call new_patch%tveg24%InitRMean(fixed_24hr )
+    
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
 

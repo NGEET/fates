@@ -415,7 +415,7 @@ module EDTypesMod
 
      ! Running means
      !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
-     class(rmean_type), pointer :: tveg24                       ! 24-hour mean vegetation temperature (K)
+     class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      
      
      ! LEAF ORGANIZATION

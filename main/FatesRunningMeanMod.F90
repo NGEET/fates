@@ -11,18 +11,16 @@ module FatesRunningMeanMod
   implicit none
   private
 
-  integer, parameter :: maxlen_varname = 8
-
   ! These are flags that specify how the averaging window works.
-  ! Moving windows (default) can have an arbitrary size and update frequency)
+  ! Exponential moving average (EMA) windows have an arbitrary size and update frequency)
   ! and it is technically never reset, it just averages indefinitely.
-  ! But hourly, six-hourly, daily, monthly and yearly windows have pre-set
+  ! But hourly, six-hourly, daily, monthly and yearly fixed windows have pre-set
   ! window sizes associated with their namesake, and more importantly, they
   ! are zero'd at the beginning of the interval, and get equal average weighting
   ! over their construction period.
 
   
-  integer, public, parameter :: moving_ema_window = 0
+  integer, public, parameter :: moving_ema_window = 0   ! (exponential moving average)
   integer, public, parameter :: fixed_window = 1
   
   ! This type defines a type of mean. It does not
