@@ -59,7 +59,7 @@ module FatesRunningMeanMod
      real(r8) :: l_mean  ! The latest reportable mean value
                          ! this value is actually the same
                          ! as c_mean for moving windows, and for fixed windows
-                         ! it is the mean value when the time integratino window
+                         ! it is the mean value when the time integration window
                          ! last completed.
 
      integer  :: c_index ! The number of values that have
