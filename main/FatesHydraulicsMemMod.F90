@@ -131,10 +131,6 @@ module FatesHydraulicsMemMod
                                                     !  tissue volume or too much water is
                                                     !  available when tissue volume decreases,
                                                     !  respectively.
-     real(r8) :: h2oveg_pheno_err                   ! error water pool (kg/m2) for leaf-on
-                                                    !  Draw from or add to this pool when
-                                                    !  insufficient plant water available to 
-                                                    !  support production of new leaves.
      real(r8) :: h2oveg_hydro_err                   ! error water pool (kg/m2) for hydrodynamics
                                                     !  Draw from or add to this pool when
                                                     !  insufficient plant water available to 
@@ -294,24 +290,6 @@ module FatesHydraulicsMemMod
      real(r8) ::  iterlayer                       ! layer index associated with the highest iterations
 
      real(r8) ::  errh2o                          ! total water balance error per unit crown area                     [kgh2o/m2]
-     real(r8) ::  errh2o_growturn_ag(n_hypool_ag) ! error water pool for increase (growth) or
-                                                  !  contraction (turnover) of tissue volumes.
-                                                  !  Draw from or add to this pool when
-                                                  !  insufficient water available to increase
-                                                  !  tissue volume or too much water is
-                                                  !  available when tissue volume decreases,
-                                                  !  respectively.
-     real(r8) ::  errh2o_pheno_ag(n_hypool_ag)    ! error water pool for for leaf-on
-                                                  !  Draw from or add to this pool when
-                                                  !  insufficient plant water available to 
-                                                  !  support production of new leaves.
-     real(r8) ::  errh2o_growturn_troot           ! same as errh2o_growturn_ag but for troot pool
-     real(r8) ::  errh2o_pheno_troot              ! same as errh2o_pheno_ag but for troot pool
-     real(r8) ::  errh2o_growturn_aroot           ! same as errh2o_growturn_ag but for aroot pools
-     real(r8) ::  errh2o_pheno_aroot              ! same as errh2o_pheno_ag but for aroot pools
-
-
-     
 
     
      ! Other
@@ -426,8 +404,8 @@ module FatesHydraulicsMemMod
          this%h2oveg         = 0.0_r8
          this%h2oveg_recruit = 0.0_r8
          this%h2oveg_dead    = 0.0_r8
+
          this%h2oveg_growturn_err = 0.0_r8
-         this%h2oveg_pheno_err    = 0.0_r8
          this%h2oveg_hydro_err    = 0.0_r8
          
          ! We have separate water transfer functions and parameters

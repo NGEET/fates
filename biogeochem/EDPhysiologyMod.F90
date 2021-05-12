@@ -1736,7 +1736,7 @@ contains
        endif
 
        ! Only bother allocating a new cohort if there is a reasonable amount of it
-       if (temp_cohort%n > min_n_safemath )then
+       any_recruits: if (temp_cohort%n > min_n_safemath )then
 
           ! -----------------------------------------------------------------------------
           ! PART II.
@@ -1855,7 +1855,7 @@ contains
            currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
           
 
-       endif
+        endif any_recruits
       endif !use_this_pft
      enddo  !pft loop
      

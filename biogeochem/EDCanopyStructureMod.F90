@@ -32,7 +32,6 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
-  
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -274,7 +273,7 @@ contains
                enddo
                write(fates_log(),*) 'lat:',currentSite%lat
                write(fates_log(),*) 'lon:',currentSite%lon
-	       write(fates_log(),*) 'spread:',currentSite%spread
+               write(fates_log(),*) 'spread:',currentSite%spread
                currentCohort => currentPatch%tallest
                do while (associated(currentCohort))  
                   write(fates_log(),*) 'coh ilayer:',currentCohort%canopy_layer
@@ -282,18 +281,18 @@ contains
                   write(fates_log(),*) 'coh pft:',currentCohort%pft
                   write(fates_log(),*) 'coh n:',currentCohort%n
                   write(fates_log(),*) 'coh carea:',currentCohort%c_area
-		  ipft=currentCohort%pft
-		  write(fates_log(),*) 'maxh:',prt_params%allom_dbh_maxheight(ipft)
+                  ipft=currentCohort%pft
+                  write(fates_log(),*) 'maxh:',prt_params%allom_dbh_maxheight(ipft)
                   write(fates_log(),*) 'lmode: ',prt_params%allom_lmode(ipft)
-		  write(fates_log(),*) 'd2bl2: ',prt_params%allom_d2bl2(ipft)
-		  write(fates_log(),*) 'd2bl_ediff: ',prt_params%allom_blca_expnt_diff(ipft)
-		  write(fates_log(),*) 'd2ca_min: ',prt_params%allom_d2ca_coefficient_min(ipft)
-		  write(fates_log(),*) 'd2ca_max: ',prt_params%allom_d2ca_coefficient_max(ipft)
+                  write(fates_log(),*) 'd2bl2: ',prt_params%allom_d2bl2(ipft)
+                  write(fates_log(),*) 'd2bl_ediff: ',prt_params%allom_blca_expnt_diff(ipft)
+                  write(fates_log(),*) 'd2ca_min: ',prt_params%allom_d2ca_coefficient_min(ipft)
+                  write(fates_log(),*) 'd2ca_max: ',prt_params%allom_d2ca_coefficient_max(ipft)
                   currentCohort => currentCohort%shorter
                enddo
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
-            
+
          enddo ! do while(area_not_balanced)
             
             
@@ -1895,8 +1894,7 @@ contains
      real(r8) :: total_patch_area
      real(r8) :: total_canopy_area
      real(r8) :: weight  ! Weighting for cohort variables in patch
-
-
+     
      do s = 1,nsites
 
         ifp = 0
@@ -1985,11 +1983,10 @@ contains
            else
               bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
            end if
-           
+
            currentPatch => currentPatch%younger
         end do
-
-
+        
         ! Apply patch and canopy area corrections
         ! If the difference is above reasonable math precision, apply a fix
         ! If the difference is way above reasonable math precision, gracefully exit
@@ -2014,15 +2011,32 @@ contains
            end do
            
         endif
+
+        ! If running hydro, perform a final check to make sure that we
+        ! have conserved water. Since this is the very end of the dynamics
+        ! cycle. No water should had been added or lost to the site during dynamics.
+        ! With growth and death, we may have shuffled it around.
+        ! For recruitment, we initialized their water, but flagged them
+        ! to not be included in the site level balance yet, for they
+        ! will demand the water for their initialization on the first hydraulics time-step
+        
+        if (hlm_use_planthydro.eq.itrue) then
+           call UpdateH2OVeg(sites(s),bc_out(s),bc_out(s)%plant_stored_h2o_si,1)
+        end if
         
      end do
 
-     ! If hydraulics is turned on, update the amount of water bound in vegetation
+     ! This call to RecruitWaterStorage() makes an accounting of
+     ! how much water is used to intialize newly recruited plants.
+     ! However, it does not actually move water from the soil or create
+     ! a flux, it is just accounting for diagnostics purposes.  The water
+     ! will not actually be moved until the beginning of the first hydraulics
+     ! call during the fast timestep sequence
+     
      if (hlm_use_planthydro.eq.itrue) then
         call RecruitWaterStorage(nsites,sites,bc_out)
-        call UpdateH2OVeg(nsites,sites,bc_out)
      end if
-
+     
 
   end subroutine update_hlm_dynamics
 
