@@ -79,6 +79,8 @@ module FatesRunningMeanMod
      
   end type rmean_type
 
+
+  logical, parameter :: debug = .true.
   
   character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -86,8 +88,8 @@ module FatesRunningMeanMod
 
   ! Define the time methods that we want to have available to us
   
-  class(rmean_def_type), public, pointer :: ema_24hr
-  class(rmean_def_type), public, pointer :: fixed_24hr
+  class(rmean_def_type), public, pointer :: ema_24hr   ! Exponential moving average - 24hr window
+  class(rmean_def_type), public, pointer :: fixed_24hr ! Fixed, 24-hour window
   
 contains
 
@@ -101,16 +103,18 @@ contains
     integer,intent(in)  :: method
 
     ! Check the memory and update periods
-    if( abs(nint(mem_period/up_period)-mem_period/up_period) > nearzero ) then
-       write(fates_log(), *) 'While defining a running mean definition'
-       write(fates_log(), *) 'an update and memory period was specified'
-       write(fates_log(), *) 'where the update period is not an exact fraction of the period'
-       write(fates_log(), *) 'mem_period: ',mem_period
-       write(fates_log(), *) 'up_period: ',up_period
-       write(fates_log(), *) 'exiting'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
+    if(debug) then
+       if( abs(nint(mem_period/up_period)-mem_period/up_period) > nearzero ) then
+          write(fates_log(), *) 'While defining a running mean definition'
+          write(fates_log(), *) 'an update and memory period was specified'
+          write(fates_log(), *) 'where the update period is not an exact fraction of the period'
+          write(fates_log(), *) 'mem_period: ',mem_period
+          write(fates_log(), *) 'up_period: ',up_period
+          write(fates_log(), *) 'exiting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
     end if
-
+       
     this%mem_period = mem_period
     this%up_period  = up_period
     this%method     = method
@@ -127,16 +131,9 @@ contains
     real(r8)          :: GetMean
 
     if(this%def_type%method .eq. moving_ema_window) then
-       if(this%c_index == 0) then
+       if(this%c_index == 0 .and. debug) then
           write(fates_log(), *) 'attempting to get a running mean from a variable'
           write(fates_log(), *) 'that has not been given a value yet'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-    else
-       if(this%c_index .ne. this%def_type%n_mem)then
-          write(fates_log(), *) 'attempting to get a mean over a fixed window'
-          write(fates_log(), *) 'at a time where the window has not completed'
-          write(fates_log(), *) 'its cycle yet'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
@@ -165,18 +162,35 @@ contains
     this%def_type => rmean_def
 
     if(this%def_type%method .eq. fixed_window) then
-       
-       if(.not.(present(init_offset).and.present(init_value)) )then
-          write(fates_log(), *) 'when initializing a temporal mean on a fixed window'
-          write(fates_log(), *) 'there must be an initial value and a time offset'
-          write(fates_log(), *) 'specified.'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug) then
+          if(.not.(present(init_offset).and.present(init_value)) )then
+             write(fates_log(), *) 'when initializing a temporal mean on a fixed window'
+             write(fates_log(), *) 'there must be an initial value and a time offset'
+             write(fates_log(), *) 'specified.'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          
+          ! Check to see if the offset is an even increment of the update frequency
+          if( abs(real(nint(init_offset/rmean_def%up_period),r8)-(init_offset/rmean_def%up_period)) > nearzero ) then
+             write(fates_log(), *) 'when initializing a temporal mean on a fixed window'
+             write(fates_log(), *) 'the time offset must be an inrement of the update frequency'
+             write(fates_log(), *) 'offset: ',init_offset
+             write(fates_log(), *) 'up freq: ',rmean_def%up_period 
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
+          if(init_offset<-nearzero) then
+             write(fates_log(), *) 'offset must be positive: ',init_offset
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          
        end if
-       
-       this%c_index = modulo(nint(init_offset/rmean_def%up_period)+1,rmean_def%n_mem)
+
+       this%c_index = modulo(nint(init_offset/rmean_def%up_period),rmean_def%n_mem)
        this%c_mean = real(this%c_index,r8)/real(rmean_def%n_mem,r8)*init_value
        this%l_mean = init_value
-       
+
     elseif(this%def_type%method .eq. moving_ema_window) then
        
        if(present(init_value))then
@@ -250,17 +264,15 @@ contains
        ! average, then zero things out
 
        if(this%c_index == this%def_type%n_mem) then
-          this%c_mean = 0._r8
+          this%l_mean  = this%c_mean
+          this%c_mean  = 0._r8
           this%c_index = 0
+
        end if
        
        this%c_index = this%c_index + 1
        wgt = this%def_type%up_period/this%def_type%mem_period
        this%c_mean = this%c_mean + new_value*wgt
-       
-       if(this%c_index == this%def_type%n_mem) then
-          this%l_mean = this%c_mean
-       end if
        
     end if
 

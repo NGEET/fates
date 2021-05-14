@@ -580,7 +580,6 @@ contains
 
        endif
 
-
        ! next create patch to receive secondary forest area
        if ( site_areadis_secondary .gt. nearzero) then
           allocate(new_patch_secondary)
@@ -1974,6 +1973,9 @@ contains
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
 
+    real(r8), parameter :: temp_init_vegc = 15._r8 ! Until bc's are pointed to by sites
+                                                   ! give veg temp a default temp.
+    
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
     integer :: el                                ! element loop index
@@ -1990,12 +1992,7 @@ contains
     allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
 
     allocate(new_patch%tveg24)
-    !call new_patch%tveg24%InitRMean(ema_24hr) ! No initial value
-
-    print*,hlm_current_tod,hlm_current_date,hlm_reference_date
-    stop
-    
-    call new_patch%tveg24%InitRMean(fixed_24hr )
+    call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_vegc,init_offset=real(hlm_current_tod,r8) )
     
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
