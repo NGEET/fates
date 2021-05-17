@@ -1547,10 +1547,12 @@ contains
                currentPatch%canopy_layer_tlai, currentCohort%treelai , &
                currentCohort%vcmax25top,4)
 
-               if ( debug ) write(fates_log(), *) 'SP mode: sai check: ', saicheck - currentCohort%treesai
+               if ( debug ) write(fates_log(), *) 'SP mode: sai check: ', saicheck 
 
             end if
 
+            if ( debug ) write(fates_log(), *) 'currentCohort%canopy_layer: ', cl
+            if ( debug ) write(fates_log(), *) 'currentCohort%pft: ', ft
             if ( debug ) write(fates_log(), *) 'currentCohort%treesai: ', currentCohort%treesai
             if ( debug ) write(fates_log(), *) 'currentCohort%treelai: ', currentCohort%treelai
 
@@ -1615,6 +1617,9 @@ contains
                         currentCohort%lai
                    currentPatch%tsai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) + frac_canopy(iv) * &
                         currentCohort%sai
+                   if ( debug ) write(fates_log(), *) 'currentCohort%pft,iv: ', ft,iv
+                   if ( debug ) write(fates_log(), *) 'currentPatch%tlai_profile(1,ft,iv): ', currentPatch%tlai_profile(1,ft,iv)
+                   if ( debug ) write(fates_log(), *) 'currentPatch%tsai_profile(1,ft,iv): ', currentPatch%tsai_profile(1,ft,iv)
 
                    !snow burial
                    !write(fates_log(), *) 'calc snow'
@@ -2007,6 +2012,14 @@ contains
           bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
           bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
           bc_out(s)%tsai_pa(ifp) = calc_areaindex(currentPatch,'tsai')
+
+          !if(debug) then
+          !   write(fates_log(),*) 'ifp: ', ifp
+          !   write(fates_log(),*) 'bc_out(s)%elai_pa(ifp): ', bc_out(s)%elai_pa(ifp)
+          !   write(fates_log(),*) 'bc_out(s)%tlai_pa(ifp): ', bc_out(s)%tlai_pa(ifp)
+          !   write(fates_log(),*) 'bc_out(s)%esai_pa(ifp): ', bc_out(s)%esai_pa(ifp)
+          !   write(fates_log(),*) 'bc_out(s)%tsai_pa(ifp): ', bc_out(s)%tsai_pa(ifp)
+          !end if
 
           ! Fraction of vegetation free of snow. This is used to flag those
           ! patches which shall under-go photosynthesis
