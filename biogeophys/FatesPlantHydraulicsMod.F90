@@ -200,12 +200,12 @@ module FatesPlantHydraulicsMod
   integer, public, parameter :: smooth2_campbell_type   = 22
   integer, public, parameter :: tfs_type                = 3
   
-  !integer, parameter :: plant_wrf_type = tfs_type
-  !integer, parameter :: plant_wkf_type = tfs_type
+  integer, parameter :: plant_wrf_type = tfs_type
+  integer, parameter :: plant_wkf_type = tfs_type
   !integer, parameter :: soil_wrf_type  = campbell_type
   !integer, parameter :: soil_wkf_type  = campbell_type
-  integer, parameter :: plant_wrf_type = van_genuchten_type
-  integer, parameter :: plant_wkf_type = van_genuchten_type
+  !integer, parameter :: plant_wrf_type = van_genuchten_type
+  !integer, parameter :: plant_wkf_type = van_genuchten_type
   integer, parameter :: soil_wrf_type  = smooth1_campbell_type
   integer, parameter :: soil_wkf_type  = smooth1_campbell_type
   
@@ -232,7 +232,8 @@ module FatesPlantHydraulicsMod
 
   ! The maximum allowable water balance error over a plant-soil continuum
   ! for a given step [kgs] (0.1 mg)
-  real(r8), parameter :: max_wb_step_err = 1.e-7_r8 
+  !real(r8), parameter :: max_wb_step_err = 1.e-7_r8 
+  real(r8), parameter :: max_wb_step_err = 1.e-6_r8 
 
   !
   ! !PUBLIC MEMBER FUNCTIONS:
@@ -1070,6 +1071,8 @@ contains
     ccohort_hydr => ccohort%co_hydr
     FT      =  cCohort%pft
     
+    csite_hydr =>currentSite%si_hydr
+    !csite_hydr%h2oveg_growturn_err = 0.0_r8
     associate(pm_node => currentSite%si_hydr%pm_node)
     
     ! MAYBE ADD A NAN CATCH?  If UpdateSizeDepPlantHydProps() was not called twice prior to the first
@@ -1115,7 +1118,6 @@ contains
     ccohort_hydr%errh2o_growturn_troot = denh2o*cCohort%n*AREA_INV*ccohort_hydr%v_troot * &
          (ccohort_hydr%th_troot-th_troot_uncorr)
 
-    csite_hydr =>currentSite%si_hydr
     csite_hydr%h2oveg_growturn_err = csite_hydr%h2oveg_growturn_err + &
          sum(ccohort_hydr%errh2o_growturn_ag(:)) + & 
          ccohort_hydr%errh2o_growturn_troot      + &
@@ -1382,7 +1384,7 @@ contains
        ! Calculate the number of rhizosphere
        ! layers used
        if(aggregate_layers) then
-          csite_hydr%i_rhiz_t = 7
+          csite_hydr%i_rhiz_t = 11 
           csite_hydr%i_rhiz_b = bc_in(s)%nlevsoil
           csite_hydr%nlevrhiz = csite_hydr%i_rhiz_b - csite_hydr%i_rhiz_t + 2 !ideally to be read in from the parameter file
 
@@ -1638,6 +1640,7 @@ contains
     ! ----------------------------------------------------------------------------------
 
     ! Arguments
+    use clm_time_manager  , only : is_beg_curr_day
     integer, intent(in)                       :: nsites
     type(ed_site_type), intent(inout), target :: sites(nsites)
     type(bc_out_type), intent(inout)          :: bc_out(nsites)
@@ -1664,6 +1667,12 @@ contains
 
        csite_hydr => sites(s)%si_hydr
        csite_hydr%h2oveg = 0.0_r8
+       if(is_beg_curr_day() ) then
+         csite_hydr%h2oveg_dead = 0.0_r8
+         csite_hydr%h2oveg_growturn_err = 0._r8
+         csite_hydr%h2oveg_pheno_err = 0._r8
+         csite_hydr%h2oveg_hydro_err = 0._r8 
+       endif
        currentPatch => sites(s)%oldest_patch
        do while(associated(currentPatch))         
           currentCohort=>currentPatch%tallest
@@ -1692,6 +1701,10 @@ contains
             csite_hydr%h2oveg_growturn_err - &
             csite_hydr%h2oveg_pheno_err-&
             csite_hydr%h2oveg_hydro_err
+       print *,'bc_out',s,bc_out(s)%plant_stored_h2o_si
+!       if(abs(bc_out(s)%plant_stored_h2o_si) > 1e3) &
+!          print *,'problem grid',csite_hydr%h2oveg,csite_hydr%h2oveg_dead, &
+!          csite_hydr%h2oveg_growturn_err,csite_hydr%h2oveg_pheno_err,csite_hydr%h2oveg_hydro_err
 
     end do
 
@@ -2632,6 +2645,12 @@ contains
        prev_h2osoil   = sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
                         site_hydr%v_shell(:,:)) * denh2o * AREA_INV
 
+       !site_hydr%h2oveg = 0._r8
+       !site_hydr%h2oveg_dead = 0._r8
+       !site_hydr%h2oveg_growturn_err = 0._r8
+       !site_hydr%h2oveg_pheno_err = 0._r8
+       !site_hydr%h2oveg_hydro_err = 0._r8
+
        bc_out(s)%qflx_ro_sisl(:) = 0._r8
 
        ! Zero out diagnotsics that rely on accumulation
@@ -2759,12 +2778,12 @@ contains
                 ! -----------------------------------------------------------------------------------
                 
                 call OrderLayersForSolve1D(site_hydr, ccohort, ccohort_hydr, ordered, kbg_layer)
-                
+
                 call ImTaylorSolve1D(site_hydr,ccohort,ccohort_hydr, &
                                      dtime,qflx_tran_veg_indiv,ordered, kbg_layer, & 
                                      sapflow,rootuptake(1:nlevrhiz), & 
                                      wb_err_plant,dwat_plant, &
-                                     dth_layershell_col)
+                                     dth_layershell_col,sites(s)%lat,sites(s)%lon)
 
              end if
 
@@ -2917,7 +2936,7 @@ contains
           write(fates_log(),*) 'integrated root flux: ',root_flux,' [kg/m2]'
           write(fates_log(),*) 'transpiration flux: ',transp_flux,' [kg/m2]'
           write(fates_log(),*) 'end storage: ',site_hydr%h2oveg
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+!          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
       
        if(abs(delta_soil_storage + root_flux + site_runoff) > 1.e-3_r8 ) then
@@ -2928,7 +2947,7 @@ contains
           write(fates_log(),*) 'end storage: ',sum(site_hydr%h2osoi_liqvol_shell(:,:) * & 
                site_hydr%v_shell(:,:)) * denh2o * AREA_INV, & 
                ' [kg/m2]'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+!          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
 
@@ -2972,7 +2991,9 @@ contains
             site_hydr%h2oveg_growturn_err - &
             site_hydr%h2oveg_pheno_err-&
             site_hydr%h2oveg_hydro_err
-
+       if(transp_flux > 0 .and. bc_out(s)%plant_stored_h2o_si == 0._r8) then
+         print *,'zero error-',transp_flux,site_hydr%h2oveg,site_hydr%h2oveg_dead,site_hydr%h2oveg_hydro_err,site_hydr%h2oveg_growturn_err
+       endif
     enddo !site
 
     return
@@ -3328,7 +3349,7 @@ contains
 
   subroutine ImTaylorSolve1D(site_hydr,cohort,cohort_hydr,dtime,q_top, &
        ordered,kbg_layer, sapflow,rootuptake,&
-       wb_err_plant,dwat_plant,dth_layershell_col)
+       wb_err_plant,dwat_plant,dth_layershell_col,lat_tmp,lon_tmp)
 
     ! -------------------------------------------------------------------------------
     ! Calculate the hydraulic conductances across a list of paths.  The list is a 1D vector, and
@@ -3426,12 +3447,13 @@ contains
     integer  :: ft                              ! plant functional type
     real(r8) :: q_flow                          ! flow diagnostic [kg]
     real(r8) :: rootfr                          ! rooting fraction of this layer (used for diagnostics)
+    real(r8) :: lat_tmp, lon_tmp                !for debugging
     ! out of the total absorbing roots from the whole community of plants
     integer  :: iter                      ! iteration count for sub-step loops
 
     integer, parameter  :: imult    = 3                ! With each iteration, increase the number of substeps
                                                        ! by this much
-    integer, parameter  :: max_iter = 20               ! Maximum number of iterations with which we reduce timestep
+    integer, parameter  :: max_iter = 30               ! Maximum number of iterations with which we reduce timestep
    
     real(r8), parameter :: max_wb_err      = 1.e-5_r8  ! threshold for water balance error (stop model)   [kg h2o]
 
@@ -3440,6 +3462,8 @@ contains
     logical, parameter :: weight_serial_dt = .true. ! if this is true, and we are not doing spatial parallelism
                                                     ! then we give the fraction of time as a function of how
                                                     ! much conductance the layer has
+    real(r8) :: ajac(n_hypool_tot,n_hypool_tot)
+    integer :: info,ipiv(n_hypool_tot)
 
     associate(pm_node => site_hydr%pm_node)
 
@@ -3560,8 +3584,9 @@ contains
                 call Report1DError(cohort,site_hydr,ilayer,z_node,v_node, & 
                       th_node_init,q_top_eff,dt_step,w_tot_beg,w_tot_end,& 
                       rootfr_scaler,aroot_frac_plant,error_code,error_arr)
+                write(fates_log(),*) 'hydro stability lat/lon: ',lat_tmp,lon_tmp
 
-                call endrun(msg=errMsg(sourcefile, __LINE__))
+!                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
 
             ! If debugging, then lets re-initialize our diagnostics of
@@ -3582,7 +3607,7 @@ contains
             nsteps = max(imult*iter,1)   ! Factor by which we divide through the timestep
                                          ! start with full step (ie dt_fac = 1)
                                          ! Then increase per the "imult" value.
-            
+!            nsteps = 1 
             dt_substep = dt_step/real(nsteps,r8) ! This is the sub-stem length in seconds
             
             ! Walk through sub-steps
@@ -3597,6 +3622,8 @@ contains
                     ! Get matric potential [Mpa]
                     psi_node(i) = wrf_plant(pm_node(i),ft)%p%psi_from_th(th_node(i))
 
+                    !cap capillary pressure
+                    psi_node(i) = max(-1e5_r8,psi_node(i))
                     ! Get total potential [Mpa]
                     h_node(i) =  mpa_per_pa*denh2o*grav_earth*z_node(i) + psi_node(i)
 
@@ -3630,6 +3657,8 @@ contains
                 
                 do i = n_hypool_plant+1,n_hypool_tot
                     psi_node(i)         = site_hydr%wrf_soil(ilayer)%p%psi_from_th(th_node(i))
+                    !cap capillary pressure
+                    psi_node(i) = max(-1e5_r8,psi_node(i))
                     h_node(i)           = mpa_per_pa*denh2o*grav_earth*z_node(i) + psi_node(i)
                     ftc_node(i)         = site_hydr%wkf_soil(ilayer)%p%ftc_from_psi(psi_node(i))
                     dpsi_dtheta_node(i) = site_hydr%wrf_soil(ilayer)%p%dpsidth_from_th(th_node(i))
@@ -3811,8 +3840,27 @@ contains
                 ! Calculate the change in theta
 
                 call Hydraulics_Tridiagonal(tris_a, tris_b, tris_c, tris_r, dth_node, tri_ierr)
-
+#if 0 
+                ajac(:,:) = 0._r8
+                do i=1,n_hypool_tot
+                  if(i==1) then
+                    ajac(i,i) = tris_b(i)
+                    ajac(i,i+1) = tris_c(i)
+                  elseif(i==n_hypool_tot) then
+                    ajac(i,i-1)= tris_a(i)
+                    ajac(i,i) = tris_b(i)
+                  else
+                    ajac(i,i-1)= tris_a(i)
+                    ajac(i,i) = tris_b(i)
+                    ajac(i,i+1) = tris_c(i)
+                  endif 
+                enddo
+                ipiv = 0
+                call DGESV(n_hypool_tot,1,ajac(1:n_hypool_tot,1:n_hypool_tot),n_hypool_tot,ipiv,tris_r,n_hypool_tot,info)
+                dth_node(1:n_hypool_tot) = tris_r(1:n_hypool_tot)
+#endif
                 if(tri_ierr == 1) then
+!                if(info > 0) then
                     solution_found = .false.
                     error_code = 2
                     error_arr(:) = 0._r8
@@ -3828,10 +3876,26 @@ contains
                 ! Mass error (flux - change)
                 ! Total water mass in the plant at the beginning of this solve [kg h2o]
                 w_tot_end = sum(th_node(:)*v_node(:))*denh2o
+#if 0
+if( q_top_eff > 0.0 .and. (w_tot_beg-w_tot_end) == 0._r8) then
+   print *,'zero dth--',dth_node,'th-',th_node,'wb-',w_tot_beg,w_tot_end
+   print *,'tris_a',tris_a
+   print *,'tris_b',tris_b
+   print *,'tris_c',tris_c
+   print *,'tris_r',tris_r
+   stop 
+endif
+#endif
                 
                 wb_step_err = (q_top_eff*dt_substep) - (w_tot_beg-w_tot_end)
-                
-                if(abs(wb_step_err)>max_wb_step_err .or. any(dth_node(:).ne.dth_node(:)) )then
+                !if(lon_tmp == 120._r8 .and. lat_tmp == -34._r8) then
+                !  write(fates_log(),*)'Grid with problem -',wb_step_err,q_top_eff,'th-',dth_node(1:5),'w_totb',w_tot_beg,w_tot_end
+                !endif 
+                !linear solver error cannot be avoided
+                !if(abs(wb_step_err)>1*max_wb_step_err .or. any(dth_node(:).ne.dth_node(:)) )then
+                if( any(dth_node(:).ne.dth_node(:)) )then
+                !if(abs(wb_step_err)>1*max_wb_step_err .or. any(dth_node(:).ne.dth_node(:)) )then
+                    !solution_found = .false.
                     solution_found = .false.
                     error_code = 1
                     error_arr(:) = 0._r8
@@ -3858,9 +3922,13 @@ contains
                 ! Calculate new psi for checks
                 do i = 1,n_hypool_plant
                     psi_node(i) = wrf_plant(pm_node(i),ft)%p%psi_from_th(th_node(i))
+                    !cap capillary pressure
+                    psi_node(i) = max(-1e5_r8,psi_node(i))
                 end do
                 do i = n_hypool_plant+1,n_hypool_tot
                     psi_node(i) = site_hydr%wrf_soil(ilayer)%p%psi_from_th(th_node(i))
+                    !cap capillary pressure
+                    psi_node(i) = max(-1e5_r8,psi_node(i))
                 end do
 
                 ! If desired, check and trap pressures that are supersaturated
@@ -3933,8 +4001,8 @@ contains
         ! ------------------------------------------------------------
         if ( abs(wb_err_layer) > max_wb_err ) then
             
-            write(fates_log(),*)'EDPlantHydraulics water balance error exceeds threshold of = ', max_wb_err
-            write(fates_log(),*)'transpiration demand: ', dt_step*q_top_eff,' kg/step/plant'
+            write(fates_log(),*)'EDPlantHydraulics water balance error exceeds threshold of = ', max_wb_err,wb_err_layer
+            write(fates_log(),*)'transpiration demand: ', dt_step*q_top_eff,' kg/step/plant','dt',dt_step,'iter',iter
             
             leaf_water = cohort_hydr%th_ag(1)*cohort_hydr%v_ag(1)*denh2o
             stem_water = sum(cohort_hydr%th_ag(2:n_hypool_ag) * &
@@ -3945,11 +4013,11 @@ contains
             write(fates_log(),*) 'leaf water: ',leaf_water,' kg/plant'
             write(fates_log(),*) 'stem_water: ',stem_water,' kg/plant'
             write(fates_log(),*) 'root_water: ',root_water,' kg/plant'
-            write(fates_log(),*) 'LWP: ',cohort_hydr%psi_ag(1)
+            write(fates_log(),*) 'LWP: ',cohort_hydr%psi_ag(1), psi_node(1:)
             write(fates_log(),*) 'dbh: ',cohort%dbh
             write(fates_log(),*) 'pft: ',cohort%pft
             write(fates_log(),*) 'tree lai: ',cohort%treelai,' m2/m2 crown'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+!            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
 
@@ -4086,7 +4154,7 @@ contains
     troot_water = (cohort_hydr%th_troot*cohort_hydr%v_troot) * denh2o
     aroot_water = sum(cohort_hydr%th_aroot(:)*cohort_hydr%v_aroot_layer(:)) * denh2o
     
-    write(fates_log(),*) 'layer: ',ilayer
+    write(fates_log(),*) 'layer: ',ilayer, 'dt_step',dt_step
     write(fates_log(),*) 'wb_step_err = ',(q_top_eff*dt_step) - (w_tot_beg-w_tot_end)
     write(fates_log(),*) 'leaf water: ',leaf_water,' kg/plant'
     write(fates_log(),*) 'stem_water: ',stem_water,' kg/plant'
@@ -4869,9 +4937,9 @@ contains
                                                   ! reduction factor for soil compartments
     real(r8), parameter :: rlfx_plnt_init = 1.0   ! Initial Pressure update
                                                   ! reduction factor for plant comparmtents
-    real(r8), parameter :: dpsi_scap = 0.2        ! Changes in psi (for soil) larger than this
+    real(r8), parameter :: dpsi_scap = 0.1        ! Changes in psi (for soil) larger than this
                                                   ! will be subject to a capping routine
-    real(r8), parameter :: dpsi_pcap = 0.3        ! Change sin psi (for plants) larger than this
+    real(r8), parameter :: dpsi_pcap = 0.1        ! Change sin psi (for plants) larger than this
                                                   ! will be subject to a capping routine
     real(r8), parameter :: rlfx_plnt_shrink = 1.0 ! Shrink the starting plant relaxtion factor
                                                   ! by this multipliler each round

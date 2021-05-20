@@ -3920,6 +3920,8 @@ end subroutine update_history_hifrq
             end if
             vwc     = bc_in(s)%h2o_liqvol_sl(jsoil)
             psi     = site_hydr%wrf_soil(jrhiz)%p%psi_from_th(vwc)
+            !cap capillary pressure
+            psi = max(-1e5_r8,psi)
             vwc_sat = bc_in(s)%watsat_sl(jsoil)
             !patch with cohorts
             if(site_hydr%l_aroot_layer(jrhiz) > 0._r8) then

@@ -30,7 +30,7 @@ module FatesHydroWTFMod
 
 !  real(r8), parameter :: min_ftc = 0.00001_r8   ! Minimum allowed fraction of total conductance
 !  The above cause negative organ water content
-  real(r8), parameter :: min_ftc = 0.00001e1_r8   ! Minimum allowed fraction of total conductance
+  real(r8), parameter :: min_ftc = 0.00001e2_r8   ! Minimum allowed fraction of total conductance
                                                
   ! Bounds on saturated fraction, outside of which we use linear PV or stop flow
   ! In this context, the saturated fraction is defined by the volumetric WC "th"
@@ -604,7 +604,7 @@ contains
        den = (1._r8 + (this%alpha*psi_eff)**this%psd)**(this%tort*(1._r8-m))
 
        ! Make sure this is well behaved
-       ftc = min(1._r8,max(min_ftc,num/den))
+       ftc = min(1._r8,max(min_ftc*10.,num/den))
 
     else
        ftc = 1._r8
@@ -643,7 +643,7 @@ contains
 
        ftc = this%ftc_from_psi(psi)
 
-       if(ftc<=min_ftc) then
+       if(ftc<=min_ftc*10.) then
           dftcdpsi = 0._r8   ! We cap ftc, so derivative is zero
        else
 
@@ -1687,7 +1687,7 @@ contains
 
     psi_eff = min(0._r8,psi)
 
-    ftc = max(min_ftc,1._r8/(1._r8 + (psi_eff/this%p50)**this%avuln))
+    ftc = max(min_ftc*10,1._r8/(1._r8 + (psi_eff/this%p50)**this%avuln))
 
   end function ftc_from_psi_tfs
 
@@ -1709,7 +1709,7 @@ contains
        dftcdpsi = 0._r8
     else
        ftc = 1._r8/(1._r8 + (psi/this%p50)**this%avuln)
-       if(ftc<min_ftc) then
+       if(ftc<min_ftc*10) then
           dftcdpsi = 0._r8
        else
           fx  = 1._r8 + (psi/this%p50)**this%avuln
