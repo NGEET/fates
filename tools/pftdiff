@@ -19,8 +19,8 @@ tempfile4=$(mktemp)
 
 toolsdir=$(dirname "$0")
 
-$toolsdir/FatesPFTIndexSwapper.py --pft-indices=$2 --fin=$1 --fout=${tempfile1} &>/dev/null
-$toolsdir/FatesPFTIndexSwapper.py --pft-indices=$3 --fin=$1 --fout=${tempfile2} &>/dev/null
+$toolsdir/FatesPFTIndexSwapper.py --pft-indices=$2 --fin=$1 --fout=${tempfile1} 1>/dev/null
+$toolsdir/FatesPFTIndexSwapper.py --pft-indices=$3 --fin=$1 --fout=${tempfile2} 1>/dev/null
 
 ncdump ${tempfile1} >> ${tempfile3}
 ncdump ${tempfile2} >> ${tempfile4}
