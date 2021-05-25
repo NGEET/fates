@@ -1371,11 +1371,22 @@ contains
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
-    !------------------------------------------------------------------------------------
+
+
+    !YL--------- 
+    real(r8) :: site_seed_out(maxpft)  ! The sum of seed-rain leaving the site [kg/site/day]
+    real(r8) :: disp_frac(maxpft)      ! fraction of seed-rain among the site_seed_rain that's leaving the site [unitless]
+    real(r8) :: seed_in_supply         !
+    !-----------
 
     do el = 1, num_elements
        
        site_seed_rain(:) = 0._r8
+
+       !YL-------
+       site_seed_out(:) = 0._r8 ! seed-rain leaving the site, 05/21
+       disp_frac(:) = 0.4       ! to be specified in the parameter file or calculated using dispersal kernel 
+       !---------
 
        element_id = element_list(el)
 
@@ -1412,9 +1423,21 @@ contains
                  currentcohort%seed_prod = seed_prod
              end if
 
+             !YL----------
+
+             !site_seed_rain(pft) = site_seed_rain(pft) +  &
+             !      (seed_prod * currentCohort%n + store_m_to_repro)
+
              site_seed_rain(pft) = site_seed_rain(pft) +  &
-                   (seed_prod * currentCohort%n + store_m_to_repro)
+                   (seed_prod * currentCohort%n + store_m_to_repro)*(1-disp_frac(pft))
+             site_seed_out(pft) = site_seed_out(pft) + &
+                   (seed_prod * currentCohort%n + store_m_to_repro)*disp_frac(pft)
              
+             write(fates_log(),*) 'pft, site_seed_rain(pft), site_seed_out(pft):', pft, site_seed_rain(pft), site_seed_out(pft)
+             print *, pft, site_seed_rain(pft), site_seed_out(pft)
+
+             !-----------
+
              currentCohort => currentCohort%shorter
           enddo !cohort loop
           
@@ -1465,6 +1488,11 @@ contains
 
              ! Seeds entering externally [kg/site/day]
              site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
+
+             !YL-------
+             site_mass%seed_out = site_mass%seed_out + site_seed_out(pft)
+             !----------
+
             end if !use this pft  
           enddo
           
@@ -1550,6 +1578,9 @@ contains
 
        if ((prt_params%season_decid(pft) == itrue ) .and. &
              (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
+
+       ! no germination for all PFTs when cold. YL 03/22/2018
+!       if (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold])) then
            litt%seed_germ_in(pft) = 0.0_r8
        endif
        if ((prt_params%stress_decid(pft) == itrue ) .and. &
