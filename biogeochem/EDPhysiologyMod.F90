@@ -236,7 +236,7 @@ contains
        ! Send fluxes from newly created litter into the litter pools
        ! This litter flux is from non-disturbance inducing mortality, as well
        ! as litter fluxes from live trees
-       call CWDInput(currentSite, currentPatch, litt)
+       call CWDInput(currentSite, currentPatch, litt,bc_in)
 
 
        ! Only calculate fragmentation flux over layers that are active
@@ -1876,7 +1876,7 @@ contains
 
   ! ============================================================================
 
-  subroutine CWDInput( currentSite, currentPatch, litt)
+  subroutine CWDInput( currentSite, currentPatch, litt, bc_in)
 
     !
     ! !DESCRIPTION:
@@ -1894,7 +1894,7 @@ contains
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type),intent(inout), target :: currentPatch
     type(litter_type),intent(inout),target    :: litt
-
+    type(bc_in_type),intent(in)               :: bc_in
 
     !
     ! !LOCAL VARIABLES:
@@ -1954,7 +1954,7 @@ contains
       pft = currentCohort%pft        
 
       call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
-           currentSite%bc_in_ptr%max_rooting_depth_index_col)
+           bc_in%max_rooting_depth_index_col)
 
       leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id)
       store_m_turnover  = currentCohort%prt%GetTurnover(store_organ,element_id)

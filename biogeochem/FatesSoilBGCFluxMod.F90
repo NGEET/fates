@@ -417,7 +417,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine PrepCH4BCs(csite)
+  subroutine PrepCH4BCs(csite,bc_in,bc_out)
     
     !
     ! This routine prepares the output boundary conditions for methane calculations
@@ -428,8 +428,8 @@ contains
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout) :: csite
     
-    type(bc_out_type), pointer    :: bc_out
-    type(bc_in_type), pointer     :: bc_in
+    type(bc_out_type), intent(inout)  :: bc_out
+    type(bc_in_type), intent(in)  :: bc_in
     type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
     type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
     integer                       :: pft           ! plant functional type
@@ -449,9 +449,6 @@ contains
     ! Exit if we need not communicate with the hlm's ch4 module
     if(.not.(hlm_use_ch4==itrue)) return
     
-    bc_out => csite%bc_out_ptr
-    bc_in  => csite%bc_in_ptr
-
     ! Initialize to zero
     bc_out%annavg_agnpp_pa(:) = 0._r8
     bc_out%annavg_bgnpp_pa(:) = 0._r8

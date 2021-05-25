@@ -238,13 +238,13 @@ contains
           call sort_cohorts(currentPatch)            
 
           ! kills cohorts that are too few
-          call terminate_cohorts(currentSite, currentPatch, 1, 10 )
+          call terminate_cohorts(currentSite, currentPatch, 1, 10, bc_in  )
 
           ! fuses similar cohorts
           call fuse_cohorts(currentSite,currentPatch, bc_in )
           
           ! kills cohorts for various other reasons
-          call terminate_cohorts(currentSite, currentPatch, 2, 10 )
+          call terminate_cohorts(currentSite, currentPatch, 2, 10, bc_in )
           
           
           currentPatch => currentPatch%younger
@@ -667,8 +667,8 @@ contains
         
         ! Is termination really needed here? 
         ! Canopy_structure just called it several times! (rgk)
-        call terminate_cohorts(currentSite, currentPatch, 1, 11) 
-        call terminate_cohorts(currentSite, currentPatch, 2, 11)
+        call terminate_cohorts(currentSite, currentPatch, 1, 11, bc_in) 
+        call terminate_cohorts(currentSite, currentPatch, 2, 11, bc_in)
 
         ! This cohort count is used in the photosynthesis loop
         call count_cohorts(currentPatch)
@@ -683,7 +683,7 @@ contains
 
     ! The HLM methane module needs information about
     ! rooting mass, distributions, respiration rates and NPP
-    call PrepCH4BCs(currentSite)
+    call PrepCH4BCs(currentSite,bc_in,bc_out)
     
 
     ! FIX(RF,032414). This needs to be monthly, not annual

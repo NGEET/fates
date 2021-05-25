@@ -197,7 +197,7 @@ contains
             
             ! Its possible that before we even enter this scheme
             ! some cohort numbers are very low.  Terminate them.
-            call terminate_cohorts(currentSite, currentPatch, 1, 12)
+            call terminate_cohorts(currentSite, currentPatch, 1, 12, bc_in)
 
             ! Calculate how many layers we have in this canopy
             ! This also checks the understory to see if its crown 
@@ -205,17 +205,17 @@ contains
             z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
             
             do i_lyr = 1,z ! Loop around the currently occupied canopy layers. 
-               call DemoteFromLayer(currentSite, currentPatch, i_lyr)
+               call DemoteFromLayer(currentSite, currentPatch, i_lyr, bc_in)
             end do
             
             ! After demotions, we may then again have cohorts that are very very
             ! very sparse, remove them
-            call terminate_cohorts(currentSite, currentPatch, 1,13)
+            call terminate_cohorts(currentSite, currentPatch, 1,13,bc_in)
             
             call fuse_cohorts(currentSite, currentPatch, bc_in)
             
             ! Remove cohorts for various other reasons
-            call terminate_cohorts(currentSite, currentPatch, 2,13)
+            call terminate_cohorts(currentSite, currentPatch, 2,13,bc_in)
 
             
             ! ---------------------------------------------------------------------------------------
@@ -234,12 +234,12 @@ contains
                end do
                
                ! Remove cohorts that are incredibly sparse
-               call terminate_cohorts(currentSite, currentPatch, 1,14)
+               call terminate_cohorts(currentSite, currentPatch, 1,14,bc_in)
                
                call fuse_cohorts(currentSite, currentPatch, bc_in)
                
                ! Remove cohorts for various other reasons
-               call terminate_cohorts(currentSite, currentPatch, 2,14)
+               call terminate_cohorts(currentSite, currentPatch, 2,14,bc_in)
                
             end if
             
@@ -332,7 +332,7 @@ contains
    ! ==============================================================================================
    
 
-   subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr)
+   subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr,bc_in)
 
       use EDParamsMod, only : ED_val_comp_excln
       use SFParamsMod, only : SF_val_CWD_frac
@@ -341,7 +341,8 @@ contains
       type(ed_site_type), intent(inout), target  :: currentSite
       type(ed_patch_type), intent(inout), target :: currentPatch
       integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
-
+      type(bc_in_type), intent(in)               :: bc_in
+      
       ! !LOCAL VARIABLES:
       type(ed_cohort_type), pointer :: currentCohort
       type(ed_cohort_type), pointer :: copyc
@@ -720,7 +721,7 @@ contains
                   ! put the litter from the terminated cohorts 
                   ! straight into the fragmenting pools
                   call SendCohortToLitter(currentSite,currentPatch, &
-                       currentCohort,currentCohort%n)
+                       currentCohort,currentCohort%n,bc_in)
                   
                   currentCohort%n            = 0.0_r8
                   currentCohort%c_area       = 0.0_r8

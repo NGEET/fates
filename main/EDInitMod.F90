@@ -145,9 +145,6 @@ contains
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
     
-    site_in%bc_in_ptr => bc_in
-    site_in%bc_out_ptr => bc_out
-    
     !
     end subroutine init_site_vars
 
