@@ -139,7 +139,8 @@ contains
               
               do ft = 1,numpft
                   
-                  call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil ) 
+                  call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
+                       bc_in(s)%max_rooting_depth_index_col ) 
 
                  cpatch%btran_ft(ft) = 0.0_r8
                  do j = 1,bc_in(s)%nlevsoil

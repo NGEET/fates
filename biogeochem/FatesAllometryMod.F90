@@ -127,6 +127,8 @@ module FatesAllometryMod
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
 
+
+  logical, parameter :: debug = .false.
   
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
@@ -1968,7 +1970,7 @@ contains
   
   ! =========================================================================
 
-  subroutine set_root_fraction(root_fraction, ft, zi)
+  subroutine set_root_fraction(root_fraction, ft, zi, max_nlevroot)
 
     !
     ! !DESCRIPTION:
@@ -1983,8 +1985,13 @@ contains
     ! !ARGUMENTS
     real(r8),intent(inout) :: root_fraction(:) ! Normalized profile
     integer, intent(in)    :: ft               ! functional typpe
-    real(r8),intent(in)    :: zi(0:)            ! Center of depth [m]
+    real(r8),intent(in)    :: zi(0:)           ! Center of depth [m]
+    
+    ! The soil may not be active over the soil whole column due to things
+    ! like permafrost. If so, compress profile over the maximum depth
+    integer,optional, intent(in)   :: max_nlevroot  
 
+    
     ! locals
     real(r8) :: a_par  ! local temporary for "a" parameter
     real(r8) :: b_par  ! ""  "b" parameter
@@ -2010,7 +2017,8 @@ contains
 
     integer :: root_profile_type
     integer :: corr_id(1)        ! This is the bin with largest fraction
-                                 ! add/subtract any corrections there
+    ! add/subtract any corrections there
+    integer :: nlevroot
     real(r8) :: correction       ! This correction ensures that root fractions
                                  ! sum to 1.0
 
@@ -2022,13 +2030,27 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
+    nlevroot = ubound(zi,1)
+    
+    ! Set root fraction to zero in all layers, as some may be inactive
+    ! and we will only calculate the profiles over those 
+    root_fraction(:) = 0._r8
+
+    if(present(max_nlevroot))then
+       if(debug .and. max_nlevroot<0)then
+          write(fates_log(),*) 'A maximum rooting layer depth <0 was specified'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       nlevroot = min(max_nlevroot,nlevroot)
+    end if
+    
     select case(nint(prt_params%fnrt_prof_mode(ft)))
     case ( exponential_1p_profile_type ) 
-       call exponential_1p_root_profile(root_fraction, zi, prt_params%fnrt_prof_a(ft)) 
+       call exponential_1p_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), prt_params%fnrt_prof_a(ft)) 
     case ( jackson_beta_profile_type )
-       call jackson_beta_root_profile(root_fraction, zi, prt_params%fnrt_prof_a(ft))
+       call jackson_beta_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), prt_params%fnrt_prof_a(ft))
     case ( exponential_2p_profile_type ) 
-       call exponential_2p_root_profile(root_fraction, zi, & 
+       call exponential_2p_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), & 
              prt_params%fnrt_prof_a(ft),prt_params%fnrt_prof_b(ft))
 
     case default

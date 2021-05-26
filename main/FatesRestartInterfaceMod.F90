@@ -115,7 +115,8 @@ module FatesRestartInterfaceMod
   integer :: ir_smort_co
   integer :: ir_asmort_co
 
-  integer :: ir_daily_n_uptake_co
+  integer :: ir_daily_nh4_uptake_co
+  integer :: ir_daily_no3_uptake_co
   integer :: ir_daily_p_uptake_co
   integer :: ir_daily_c_efflux_co
   integer :: ir_daily_n_efflux_co
@@ -758,10 +759,15 @@ contains
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cmort_co )
 
-    call this%set_restart_var(vname='fates_daily_n_uptake', vtype=cohort_r8, &
-         long_name='fates cohort- daily nitrogen uptake', &
+    call this%set_restart_var(vname='fates_daily_nh4_uptake', vtype=cohort_r8, &
+         long_name='fates cohort- daily ammonium [NH4] uptake', &
          units='kg/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_uptake_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_nh4_uptake_co )
+    
+    call this%set_restart_var(vname='fates_daily_no3_uptake', vtype=cohort_r8, &
+         long_name='fates cohort- daily ammonium [NO3] uptake', &
+         units='kg/plant/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_no3_uptake_co )
 
     call this%set_restart_var(vname='fates_daily_p_uptake', vtype=cohort_r8, &
          long_name='fates cohort- daily phosphorus uptake', &
@@ -1615,7 +1621,8 @@ contains
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-           rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, &
+           rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
+           rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, &
            rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &
            rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, & 
            rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &      
@@ -1850,7 +1857,8 @@ contains
                 rio_frmort_co(io_idx_co)       = ccohort%frmort                
 
                 ! Nutrient uptake/efflux
-                rio_daily_n_uptake_co(io_idx_co) = ccohort%daily_n_uptake
+                rio_daily_no3_uptake_co(io_idx_co) = ccohort%daily_no3_uptake
+                rio_daily_nh4_uptake_co(io_idx_co) = ccohort%daily_nh4_uptake
                 rio_daily_p_uptake_co(io_idx_co) = ccohort%daily_p_uptake
                 
                 rio_daily_c_efflux_co(io_idx_co) = ccohort%daily_c_efflux
@@ -1859,8 +1867,8 @@ contains
 
                 rio_daily_n_demand_co(io_idx_co) = ccohort%daily_n_demand
                 rio_daily_p_demand_co(io_idx_co) = ccohort%daily_p_demand
-                rio_daily_n_need_co(io_idx_co)   = ccohort%daily_n_need2
-                rio_daily_p_need_co(io_idx_co)   = ccohort%daily_p_need2
+                rio_daily_n_need_co(io_idx_co)   = ccohort%daily_n_need
+                rio_daily_p_need_co(io_idx_co)   = ccohort%daily_p_need
                  
                 !Logging
                 rio_lmort_direct_co(io_idx_co)       = ccohort%lmort_direct
@@ -2085,7 +2093,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine create_patchcohort_structure(this, nc, nsites, sites, bc_in) 
+   subroutine create_patchcohort_structure(this, nc, nsites, sites, bc_in, bc_out) 
 
      ! ----------------------------------------------------------------------------------
      ! This subroutine takes a peak at the restart file to determine how to allocate
@@ -2115,7 +2123,8 @@ contains
      integer                     , intent(in)            :: nc
      integer                     , intent(in)            :: nsites
      type(ed_site_type)          , intent(inout), target :: sites(nsites)
-     type(bc_in_type)            , intent(in)            :: bc_in(nsites)
+     type(bc_in_type)                                    :: bc_in(nsites)
+     type(bc_out_type)                                   :: bc_out(nsites)
 
      ! local variables
      
@@ -2147,7 +2156,7 @@ contains
           io_idx_si  = this%restart_map(nc)%site_index(s)
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
 
-          call init_site_vars( sites(s), bc_in(s) )
+          call init_site_vars( sites(s), bc_in(s), bc_out(s) )
           call zero_site( sites(s) )
 
           if ( rio_npatch_si(io_idx_si)<0 .or. rio_npatch_si(io_idx_si) > 10000 ) then
@@ -2394,7 +2403,8 @@ contains
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-          rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, & 
+          rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
+          rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, & 
           rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &       
           rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, & 
           rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &      
@@ -2599,7 +2609,8 @@ contains
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
                 
                 ! Nutrient uptake / efflux
-                ccohort%daily_n_uptake = rio_daily_n_uptake_co(io_idx_co)
+                ccohort%daily_nh4_uptake = rio_daily_nh4_uptake_co(io_idx_co)
+                ccohort%daily_no3_uptake = rio_daily_no3_uptake_co(io_idx_co)
                 ccohort%daily_p_uptake = rio_daily_p_uptake_co(io_idx_co)
                 ccohort%daily_c_efflux = rio_daily_c_efflux_co(io_idx_co)
                 ccohort%daily_n_efflux = rio_daily_n_efflux_co(io_idx_co)
@@ -2607,8 +2618,8 @@ contains
                 
                 ccohort%daily_n_demand = rio_daily_n_demand_co(io_idx_co) 
                 ccohort%daily_p_demand = rio_daily_p_demand_co(io_idx_co)
-                ccohort%daily_n_need2  = rio_daily_n_need_co(io_idx_co)
-                ccohort%daily_p_need2  = rio_daily_p_need_co(io_idx_co)
+                ccohort%daily_n_need   = rio_daily_n_need_co(io_idx_co)
+                ccohort%daily_p_need   = rio_daily_p_need_co(io_idx_co)
 
                 !Logging
                 ccohort%lmort_direct       = rio_lmort_direct_co(io_idx_co)
