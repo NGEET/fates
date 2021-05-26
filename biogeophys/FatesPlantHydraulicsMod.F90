@@ -2633,7 +2633,10 @@ contains
     do s = 1, nsites
 
        site_hydr => sites(s)%si_hydr
-       if( sum(site_hydr%l_aroot_layer) == 0._r8 ) cycle
+       if( sum(site_hydr%l_aroot_layer) == 0._r8 ) then
+          bc_out(s)%qflx_soil2root_sisl(:) = 0._r8
+          cycle
+       end if
 
        nlevrhiz = site_hydr%nlevrhiz
        
