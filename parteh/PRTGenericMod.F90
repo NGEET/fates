@@ -241,7 +241,8 @@ module PRTGenericMod
      
      procedure :: DailyPRT            => DailyPRTBase
      procedure :: FastPRT             => FastPRTBase
-
+     procedure :: GetNutrientTarget   => GetNutrientTargetBase
+     
      ! These are generic functions that should work on all hypotheses
 
      procedure, non_overridable :: InitAllocate
@@ -385,12 +386,13 @@ module PRTGenericMod
   end type prt_global_type
 
   
-  type(prt_global_type),pointer,public :: prt_global
+  class(prt_global_type),pointer,public :: prt_global
 
   ! Make necessary procedures public
   public :: GetCoordVal
   public :: SetState
-
+  public :: StorageNutrientTarget
+  
 contains
 
   ! =====================================================================================
@@ -1384,6 +1386,92 @@ contains
      end do
      
  end subroutine AgeLeaves
+
+
+ function GetNutrientTargetBase(this,element_id,organ_id,stoich_mode) result(target_m)
+    
+    class(prt_vartypes) :: this
+    integer, intent(in)           :: element_id
+    integer, intent(in)           :: organ_id
+    integer, intent(in),optional  :: stoich_mode
+    real(r8)                      :: target_m    ! Target amount of nutrient for this organ [kg]
+
+    write(fates_log(),*)'GetNutrientTargetBase must be extended by a child class.'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+
+    return
+  end function GetNutrientTargetBase
+
+
+  ! ====================================================================================
    
+  function StorageNutrientTarget(pft, element_id, leaf_target, fnrt_target, sapw_target, struct_target) result(store_target)
+
+     integer :: pft
+     integer :: element_id
+     real(r8) :: leaf_target    ! Target leaf nutrient mass [kg]
+     real(r8) :: fnrt_target    ! Target fineroot nutrient mass [kg]
+     real(r8) :: sapw_target    ! Target sapwood nutrient mass [kg]
+     real(r8) :: struct_target  ! Target structural nutrient mass [kg]
+
+     real(r8) :: store_target   ! Output: Target storage nutrient mass [kg]
+     
+     
+     ! -------------------------------------------------------------------------------------
+     ! Choice of how nutrient storage target is proportioned to
+     !   Each choice makes the nutrient storage proportional the the "in-tissue"
+     !   total nitrogen content of 1 or more sets of organs
+     ! -------------------------------------------------------------------------------------
+     
+     integer, parameter :: lfs_store_prop = 1  ! leaf-fnrt-sapw proportional storage
+     integer, parameter :: lfss_store_prop = 2 ! leaf-fnrt-sapw-struct proportional storage
+     integer, parameter :: fnrt_store_prop = 3 ! fineroot proportional storage
+     integer, parameter :: store_prop = fnrt_store_prop
+
+     
+     select case(element_id)
+     case(carbon12_element)
+        write(fates_log(),*) 'Cannot call StorageNutrientTarget() for carbon'
+        write(fates_log(),*) 'exiting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        
+     case(nitrogen_element)
+        
+        if (store_prop == lfs_store_prop) then
+
+           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target)
+
+        elseif(store_prop==lfss_store_prop) then
+           
+           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target + struct_target)
+           
+        elseif(store_prop==fnrt_store_prop) then
+
+           store_target  = prt_params%nitr_store_ratio(pft) * fnrt_target
+
+        end if
+        
+             
+     case(phosphorus_element)
+
+        if (store_prop == lfs_store_prop) then
+           
+           store_target  = prt_params%phos_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target)
+
+        elseif(store_prop==lfss_store_prop) then
+           
+           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target + struct_target)
+    
+        elseif(store_prop==fnrt_store_prop) then
+           
+           store_target  = prt_params%phos_store_ratio(pft) * fnrt_target
+           
+        end if
+     end select
+     
+     
+   end function StorageNutrientTarget
+
+  
 
 end module PRTGenericMod

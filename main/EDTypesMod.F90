@@ -19,6 +19,9 @@ module EDTypesMod
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
   use FatesRunningMeanMod,   only : rmean_type
+  use FatesInterfaceTypesMod,only : bc_in_type
+  use FatesInterfaceTypesMod,only : bc_out_type
+
   
   implicit none
   private               ! By default everything is private
@@ -42,7 +45,8 @@ module EDTypesMod
                                                           ! space and output arrays.
                                                   
   
-
+  real(r8), parameter, public :: init_recruit_trim = 0.8_r8    ! This is the initial trimming value that
+                                                               ! new recruits start with
 
   ! -------------------------------------------------------------------------------------
   ! Radiation parameters
@@ -283,21 +287,19 @@ module EDTypesMod
 
      ! Nutrient Fluxes (if N, P, etc. are turned on)
 
-     real(r8) :: daily_n_uptake   ! integrated daily uptake of mineralized N through competitive acquisition in soil [kg N / plant/ day]
+     real(r8) :: daily_nh4_uptake ! integrated daily uptake of mineralized ammonium through competitive acquisition in soil [kg N / plant/ day]
+     real(r8) :: daily_no3_uptake ! integrated daily uptake of mineralized nitrate through competitive acquisition in soil [kg N / plant/ day]
      real(r8) :: daily_p_uptake   ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
 
      real(r8) :: daily_c_efflux   ! daily mean efflux of excess carbon from roots into labile pool [kg C/plant/day]
      real(r8) :: daily_n_efflux   ! daily mean efflux of excess nitrogen from roots into labile pool [kg N/plant/day]
      real(r8) :: daily_p_efflux   ! daily mean efflux of excess phophorus from roots into labile pool [kg P/plant/day]
 
-     real(r8) :: daily_n_need1  ! Nitrogen needed to enable non-limited C growth (AllometricCNP hypothesis)
-     real(r8) :: daily_n_need2  ! Nitrogen needed to bring N concentrations up to optimal
-     real(r8) :: daily_p_need1  ! Phosphorus needed to enable non-limited C growth (AllometricCNP hypothesis)
-     real(r8) :: daily_p_need2  ! Phosphorus needed to bring P concentrations up to optimal
+     real(r8) :: daily_n_need     ! Generic Nitrogen need of the plant, (hypothesis dependent) [kgN/plant/day]
+     real(r8) :: daily_p_need     ! Generic Phosphorus need of the plant, (hypothesis dependent) [kgN/plant/day]
+
 
      ! These two variables may use the previous "need" variables, by applying a smoothing function.
-     ! Or, its possible that the plant will use another method to calculate this, perhaps based
-     ! on storage.
      ! These variables are used in two scenarios. 1) They work with the prescribed uptake fraction
      ! in un-coupled mode, and 2) They are the plant's demand subbmitted to the Relative-Demand
      ! type soil BGC scheme.
@@ -609,8 +611,7 @@ module EDTypesMod
 
      real(r8),allocatable :: nutrient_uptake_scpf(:)
      real(r8),allocatable :: nutrient_efflux_scpf(:)
-     real(r8),allocatable :: nutrient_needgrow_scpf(:)
-     real(r8),allocatable :: nutrient_needmax_scpf(:)
+     real(r8),allocatable :: nutrient_need_scpf(:)
      
    contains
 
@@ -670,11 +671,6 @@ module EDTypesMod
      procedure :: ZeroMassBalFlux
      
   end type site_massbal_type
-
-
-
-
-
   
 
   !************************************
@@ -690,7 +686,14 @@ module EDTypesMod
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
 
+     ! If this simulation uses shared memory then the sites need to know what machine
+     ! index they are on. This index is (currently) only used to identify the sites
+     ! position in history output fields
+     !integer :: clump_id 
 
+     ! Global index of this site in the history output file
+     integer :: h_gid
+     
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
@@ -709,6 +712,7 @@ module EDTypesMod
 
      ! PHENOLOGY 
      real(r8) ::  grow_deg_days                                ! Phenology growing degree days
+     real(r8) ::  snow_depth                                   ! site-level snow depth (used for ELAI/TLAI calcs)
 
      integer  ::  cstatus                                      ! are leaves in this pixel on or off for cold decid
                                                                ! 0 = this site has not experienced a cold period over at least
@@ -749,7 +753,7 @@ module EDTypesMod
      real(r8), allocatable :: dz_soil(:)      ! layer thickness (m)
      real(r8), allocatable :: z_soil(:)       ! layer depth (m)
      real(r8), allocatable :: rootfrac_scr(:) ! This is just allocated scratch space to hold
-                                              ! root fractions. Since root fractions may be dependant
+                                              ! root fractions. Since root fractions may be dependent
                                               ! on cohort properties, and we do not want to store this infromation
                                               ! on each cohort, we do not keep root fractions in
                                               ! memory, and instead calculate them on demand.
@@ -841,8 +845,7 @@ module EDTypesMod
       this%root_litter_input(:) = 0._r8
       this%nutrient_uptake_scpf(:) = 0._r8
       this%nutrient_efflux_scpf(:) = 0._r8
-      this%nutrient_needgrow_scpf(:) = 0._r8
-      this%nutrient_needmax_scpf(:)  = 0._r8
+      this%nutrient_need_scpf(:)  = 0._r8
       
       return
     end subroutine ZeroFluxDiags

@@ -36,7 +36,7 @@ module EDInitMod
   use EDTypesMod                , only : phen_dstat_moistoff
   use EDTypesMod                , only : phen_cstat_notcold
   use EDTypesMod                , only : phen_dstat_moiston
-  use FatesInterfaceTypesMod         , only : bc_in_type
+  use FatesInterfaceTypesMod         , only : bc_in_type,bc_out_type
   use FatesInterfaceTypesMod         , only : hlm_use_planthydro
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
   use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
@@ -53,7 +53,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bsap_allom
   use FatesAllometryMod         , only : bdead_allom
   use FatesAllometryMod         , only : bstore_allom
-
+  use PRTGenericMod             , only : StorageNutrientTarget
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
@@ -93,14 +93,15 @@ contains
 
   ! ============================================================================
 
-  subroutine init_site_vars( site_in, bc_in )
+  subroutine init_site_vars( site_in, bc_in, bc_out )
     !
     ! !DESCRIPTION:
     !
     !
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout) :: site_in
-    type(bc_in_type),intent(in)       :: bc_in
+    type(ed_site_type), intent(inout)    :: site_in
+    type(bc_in_type),intent(in),target   :: bc_in
+    type(bc_out_type),intent(in),target  :: bc_out
     !
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
@@ -134,19 +135,16 @@ contains
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%nutrient_efflux_scpf(nlevsclass*numpft))
         allocate(site_in%flux_diags(el)%nutrient_uptake_scpf(nlevsclass*numpft))
-        allocate(site_in%flux_diags(el)%nutrient_needgrow_scpf(nlevsclass*numpft))
-        allocate(site_in%flux_diags(el)%nutrient_needmax_scpf(nlevsclass*numpft))
+        allocate(site_in%flux_diags(el)%nutrient_need_scpf(nlevsclass*numpft))
     end do
 
     ! Initialize the static soil 
     ! arrays from the boundary (initial) condition
-
-   
+    
     site_in%zi_soil(:) = bc_in%zi_sisl(:)
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
     
-
     !
     end subroutine init_site_vars
 
@@ -174,6 +172,7 @@ contains
     site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
     site_in%dstatus          = fates_unset_int
     site_in%grow_deg_days    = nan  ! growing degree days
+    site_in%snow_depth       = nan
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
     site_in%cleafondate      = fates_unset_int  ! doy of leaf on
@@ -620,21 +619,22 @@ contains
              
           case(nitrogen_element)
              
-             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*prt_params%nitr_stoich_p2(pft,store_organ)
+             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
+             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
+             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
              m_repro  = 0._r8
+             m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
              
           case(phosphorus_element)
 
-             m_struct = c_struct*prt_params%phos_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*prt_params%phos_stoich_p2(pft,store_organ)
+             m_struct = c_struct*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
+             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
+             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
              m_repro  = 0._r8
+             m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
+             
           end select
 
           select case(hlm_parteh_mode)
