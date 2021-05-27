@@ -23,6 +23,7 @@ module FatesSizeAgeTypeIndicesMod
   public :: get_agepft_class_index
   public :: coagetype_class_index
   public :: get_coage_class_index
+  public :: get_agefuel_class_index
 
 contains
 
@@ -169,5 +170,21 @@ contains
 
   end function get_agepft_class_index
 
+  ! =====================================================================================
+
+  function get_agefuel_class_index(age,fuel) result(age_by_fuel_class)
+     
+   ! Arguments
+   real(r8),intent(in) :: age
+   integer,intent(in)  :: fuel
+
+   integer             :: age_class
+   integer             :: age_by_fuel_class
+   
+   age_class         = get_age_class_index(age)
+   
+   age_by_fuel_class = age_class + (fuel-1) * nlevage
+
+end function get_agefuel_class_index
 
 end module FatesSizeAgeTypeIndicesMod

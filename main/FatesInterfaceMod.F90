@@ -476,13 +476,13 @@ contains
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
-      allocate(bc_in%pft_areafrac(maxpft))
+      allocate(bc_in%pft_areafrac(0:maxpft))
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
-        allocate(bc_in%hlm_sp_tlai(maxpft))
-        allocate(bc_in%hlm_sp_tsai(maxpft))     
-        allocate(bc_in%hlm_sp_htop(maxpft))
+        allocate(bc_in%hlm_sp_tlai(0:maxpft))
+        allocate(bc_in%hlm_sp_tsai(0:maxpft))     
+        allocate(bc_in%hlm_sp_htop(0:maxpft))
       end if 
       return
    end subroutine allocate_bcin
@@ -925,6 +925,8 @@ contains
        allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
        allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
        allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
+       allocate( fates_hdim_agmap_levagefuel(nlevage * nfsc))
+       allocate( fates_hdim_fscmap_levagefuel(nlevage * nfsc))
 
        allocate( fates_hdim_elmap_levelpft(num_elements*numpft))
        allocate( fates_hdim_elmap_levelcwd(num_elements*ncwd))
@@ -1063,6 +1065,14 @@ contains
           end do
        end do
 
+       i=0
+       do iage=1,nlevage
+          do ifuel=1,NFSC
+             i=i+1
+             fates_hdim_agmap_levagefuel(i) = iage
+             fates_hdim_fscmap_levagefuel(i) = ifuel
+          end do
+       end do
 
     end subroutine fates_history_maps
 

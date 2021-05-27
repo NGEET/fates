@@ -55,7 +55,7 @@ module EDCanopyStructureMod
   public :: canopy_summarization
   public :: update_hlm_dynamics
 
-  logical, parameter :: debug=.false.
+  logical, parameter :: debug=.true.
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -1478,6 +1478,7 @@ contains
     real(r8) :: lai                      ! summed lai for checking m2 m-2
     real(r8) :: snow_depth_avg           ! avg snow over whole site
     real(r8) :: leaf_c                   ! leaf carbon [kg]
+    real(r8) :: saicheck                 ! diagnostic check for Satellite phenology mode
 
     !----------------------------------------------------------------------
 
@@ -1534,10 +1535,26 @@ contains
                   currentCohort%n, currentCohort%canopy_layer,               &
                   currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )    
 
+            if (hlm_use_sp .eq. ifalse) then
              currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
                   currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
                   currentPatch%canopy_layer_tlai, currentCohort%treelai , &
                   currentCohort%vcmax25top,4)  
+            else
+               ! If we are using satellite phenology, conduct a check against the calculated sai
+               saicheck = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%treelai , &
+               currentCohort%vcmax25top,4)
+
+               if ( debug ) write(fates_log(), *) 'SP mode: sai check: ', saicheck 
+
+            end if
+
+            if ( debug ) write(fates_log(), *) 'currentCohort%canopy_layer: ', cl
+            if ( debug ) write(fates_log(), *) 'currentCohort%pft: ', ft
+            if ( debug ) write(fates_log(), *) 'currentCohort%treesai: ', currentCohort%treesai
+            if ( debug ) write(fates_log(), *) 'currentCohort%treelai: ', currentCohort%treelai
 
              currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area 
              currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  
@@ -1600,6 +1617,9 @@ contains
                         currentCohort%lai
                    currentPatch%tsai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) + frac_canopy(iv) * &
                         currentCohort%sai
+                   if ( debug ) write(fates_log(), *) 'currentCohort%pft,iv: ', ft,iv
+                   if ( debug ) write(fates_log(), *) 'currentPatch%tlai_profile(1,ft,iv): ', currentPatch%tlai_profile(1,ft,iv)
+                   if ( debug ) write(fates_log(), *) 'currentPatch%tsai_profile(1,ft,iv): ', currentPatch%tsai_profile(1,ft,iv)
 
                    !snow burial
                    !write(fates_log(), *) 'calc snow'
@@ -1922,10 +1942,10 @@ contains
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
        do while(associated(currentPatch))
-          if(currentPatch%nocomp_pft_label.ne.0)then 
+          !if(currentPatch%nocomp_pft_label.ne.0)then 
              ! only increase ifp for veg patches, not bareground (in SP mode)
              ifp = ifp+1
-          endif ! stay with ifp=0 for bareground patch. 
+          !endif ! stay with ifp=0 for bareground patch. 
           if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
              write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
              currentPatch%total_canopy_area = currentPatch%area
@@ -1992,6 +2012,14 @@ contains
           bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
           bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
           bc_out(s)%tsai_pa(ifp) = calc_areaindex(currentPatch,'tsai')
+
+          !if(debug) then
+          !   write(fates_log(),*) 'ifp: ', ifp
+          !   write(fates_log(),*) 'bc_out(s)%elai_pa(ifp): ', bc_out(s)%elai_pa(ifp)
+          !   write(fates_log(),*) 'bc_out(s)%tlai_pa(ifp): ', bc_out(s)%tlai_pa(ifp)
+          !   write(fates_log(),*) 'bc_out(s)%esai_pa(ifp): ', bc_out(s)%esai_pa(ifp)
+          !   write(fates_log(),*) 'bc_out(s)%tsai_pa(ifp): ', bc_out(s)%tsai_pa(ifp)
+          !end if
 
           ! Fraction of vegetation free of snow. This is used to flag those
           ! patches which shall under-go photosynthesis
@@ -2194,7 +2222,7 @@ contains
        ! If so we need to make another layer.
        if(arealayer > currentPatch%area)then
           z = z + 1
-          if(hlm_use_sp)then
+          if(hlm_use_sp.eq.itrue)then
              write(fates_log(),*) 'SPmode, canopy_layer full:',arealayer,currentPatch%area
           end if
 
