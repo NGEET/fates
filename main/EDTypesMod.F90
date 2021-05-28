@@ -58,14 +58,14 @@ module EDTypesMod
   integer, parameter, public :: idiffuse  = 2             ! This is the array index for diffuse radiation
 
   ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
-  integer, parameter, public :: nlevleaf = 30             ! number of leaf+stem layers in canopy layer
-  real(r8), parameter, public :: top_vai_bin_width = 0.25 ! width in VAI units of uppermost canopy scattering element
-  real(r8), parameter, public :: vai_width_increase_factor = 1.3 ! factor by which each bin increases in VAI binning
+  integer, parameter, public :: nlevleaf = 15             ! number of leaf+stem layers in canopy layer
+  real(r8), parameter, public :: top_vai_bin_width = 0.25_r8 ! width in VAI units of uppermost canopy scattering element
+  real(r8), parameter, public :: vai_width_increase_factor = 1.3_r8 ! factor by which each bin increases in VAI binning
   integer :: i                                            ! iterator used to define bin widths
   real(r8), parameter, public :: dinc_vai(nlevleaf) = &
-       top_vai_bin_width * vai_width_increase_factor ** (/(i, i=0,nlevleaf-1,1)/)  ! VAI bin widths array
+       top_vai_bin_width * vai_width_increase_factor ** (/(real(i,r8), i=0,nlevleaf-1,1)/)  ! VAI bin widths array
   real(r8), parameter, public :: dlower_vai(nlevleaf) = &
-       (/(sum(dinc_vai(1:i)), i=1,nlevleaf,1)/)           ! lower edge of VAI bins
+       (/(sum(dinc_vai(1:i)), i=1,nlevleaf,1)/)           ! lower edges of VAI bins
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
