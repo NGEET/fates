@@ -32,7 +32,6 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use EDTypesMod            , only : maxCohortsPerPatch
-  
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -197,7 +196,7 @@ contains
             
             ! Its possible that before we even enter this scheme
             ! some cohort numbers are very low.  Terminate them.
-            call terminate_cohorts(currentSite, currentPatch, 1, 12)
+            call terminate_cohorts(currentSite, currentPatch, 1, 12, bc_in)
 
             ! Calculate how many layers we have in this canopy
             ! This also checks the understory to see if its crown 
@@ -205,17 +204,17 @@ contains
             z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
             
             do i_lyr = 1,z ! Loop around the currently occupied canopy layers. 
-               call DemoteFromLayer(currentSite, currentPatch, i_lyr)
+               call DemoteFromLayer(currentSite, currentPatch, i_lyr, bc_in)
             end do
             
             ! After demotions, we may then again have cohorts that are very very
             ! very sparse, remove them
-            call terminate_cohorts(currentSite, currentPatch, 1,13)
+            call terminate_cohorts(currentSite, currentPatch, 1,13,bc_in)
             
             call fuse_cohorts(currentSite, currentPatch, bc_in)
             
             ! Remove cohorts for various other reasons
-            call terminate_cohorts(currentSite, currentPatch, 2,13)
+            call terminate_cohorts(currentSite, currentPatch, 2,13,bc_in)
 
             
             ! ---------------------------------------------------------------------------------------
@@ -234,12 +233,12 @@ contains
                end do
                
                ! Remove cohorts that are incredibly sparse
-               call terminate_cohorts(currentSite, currentPatch, 1,14)
+               call terminate_cohorts(currentSite, currentPatch, 1,14,bc_in)
                
                call fuse_cohorts(currentSite, currentPatch, bc_in)
                
                ! Remove cohorts for various other reasons
-               call terminate_cohorts(currentSite, currentPatch, 2,14)
+               call terminate_cohorts(currentSite, currentPatch, 2,14,bc_in)
                
             end if
             
@@ -274,7 +273,7 @@ contains
                enddo
                write(fates_log(),*) 'lat:',currentSite%lat
                write(fates_log(),*) 'lon:',currentSite%lon
-	       write(fates_log(),*) 'spread:',currentSite%spread
+               write(fates_log(),*) 'spread:',currentSite%spread
                currentCohort => currentPatch%tallest
                do while (associated(currentCohort))  
                   write(fates_log(),*) 'coh ilayer:',currentCohort%canopy_layer
@@ -282,18 +281,18 @@ contains
                   write(fates_log(),*) 'coh pft:',currentCohort%pft
                   write(fates_log(),*) 'coh n:',currentCohort%n
                   write(fates_log(),*) 'coh carea:',currentCohort%c_area
-		  ipft=currentCohort%pft
-		  write(fates_log(),*) 'maxh:',prt_params%allom_dbh_maxheight(ipft)
+                  ipft=currentCohort%pft
+                  write(fates_log(),*) 'maxh:',prt_params%allom_dbh_maxheight(ipft)
                   write(fates_log(),*) 'lmode: ',prt_params%allom_lmode(ipft)
-		  write(fates_log(),*) 'd2bl2: ',prt_params%allom_d2bl2(ipft)
-		  write(fates_log(),*) 'd2bl_ediff: ',prt_params%allom_blca_expnt_diff(ipft)
-		  write(fates_log(),*) 'd2ca_min: ',prt_params%allom_d2ca_coefficient_min(ipft)
-		  write(fates_log(),*) 'd2ca_max: ',prt_params%allom_d2ca_coefficient_max(ipft)
+                  write(fates_log(),*) 'd2bl2: ',prt_params%allom_d2bl2(ipft)
+                  write(fates_log(),*) 'd2bl_ediff: ',prt_params%allom_blca_expnt_diff(ipft)
+                  write(fates_log(),*) 'd2ca_min: ',prt_params%allom_d2ca_coefficient_min(ipft)
+                  write(fates_log(),*) 'd2ca_max: ',prt_params%allom_d2ca_coefficient_max(ipft)
                   currentCohort => currentCohort%shorter
                enddo
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
-            
+
          enddo ! do while(area_not_balanced)
             
             
@@ -332,7 +331,7 @@ contains
    ! ==============================================================================================
    
 
-   subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr)
+   subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr,bc_in)
 
       use EDParamsMod, only : ED_val_comp_excln
       use SFParamsMod, only : SF_val_CWD_frac
@@ -341,7 +340,8 @@ contains
       type(ed_site_type), intent(inout), target  :: currentSite
       type(ed_patch_type), intent(inout), target :: currentPatch
       integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
-
+      type(bc_in_type), intent(in)               :: bc_in
+      
       ! !LOCAL VARIABLES:
       type(ed_cohort_type), pointer :: currentCohort
       type(ed_cohort_type), pointer :: copyc
@@ -720,7 +720,7 @@ contains
                   ! put the litter from the terminated cohorts 
                   ! straight into the fragmenting pools
                   call SendCohortToLitter(currentSite,currentPatch, &
-                       currentCohort,currentCohort%n)
+                       currentCohort,currentCohort%n,bc_in)
                   
                   currentCohort%n            = 0.0_r8
                   currentCohort%c_area       = 0.0_r8
@@ -1895,8 +1895,7 @@ contains
      real(r8) :: total_patch_area
      real(r8) :: total_canopy_area
      real(r8) :: weight  ! Weighting for cohort variables in patch
-
-
+     
      do s = 1,nsites
 
         ifp = 0
@@ -1985,11 +1984,10 @@ contains
            else
               bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
            end if
-           
+
            currentPatch => currentPatch%younger
         end do
-
-
+        
         ! Apply patch and canopy area corrections
         ! If the difference is above reasonable math precision, apply a fix
         ! If the difference is way above reasonable math precision, gracefully exit
@@ -2014,15 +2012,32 @@ contains
            end do
            
         endif
+
+        ! If running hydro, perform a final check to make sure that we
+        ! have conserved water. Since this is the very end of the dynamics
+        ! cycle. No water should had been added or lost to the site during dynamics.
+        ! With growth and death, we may have shuffled it around.
+        ! For recruitment, we initialized their water, but flagged them
+        ! to not be included in the site level balance yet, for they
+        ! will demand the water for their initialization on the first hydraulics time-step
+        
+        if (hlm_use_planthydro.eq.itrue) then
+           call UpdateH2OVeg(sites(s),bc_out(s),bc_out(s)%plant_stored_h2o_si,1)
+        end if
         
      end do
 
-     ! If hydraulics is turned on, update the amount of water bound in vegetation
+     ! This call to RecruitWaterStorage() makes an accounting of
+     ! how much water is used to intialize newly recruited plants.
+     ! However, it does not actually move water from the soil or create
+     ! a flux, it is just accounting for diagnostics purposes.  The water
+     ! will not actually be moved until the beginning of the first hydraulics
+     ! call during the fast timestep sequence
+     
      if (hlm_use_planthydro.eq.itrue) then
         call RecruitWaterStorage(nsites,sites,bc_out)
-        call UpdateH2OVeg(nsites,sites,bc_out)
      end if
-
+     
 
   end subroutine update_hlm_dynamics
 

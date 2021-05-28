@@ -91,11 +91,11 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdn, acnp_bc_in_id_netdp
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdnh4, acnp_bc_in_id_netdno3, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_ngrow,acnp_bc_out_id_nmax
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pgrow,acnp_bc_out_id_pmax
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_nneed
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pneed
  
   
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
@@ -400,7 +400,8 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdn, bc_rval = new_cohort%daily_n_uptake)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdnh4, bc_rval = new_cohort%daily_nh4_uptake)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdno3, bc_rval = new_cohort%daily_no3_uptake)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
@@ -409,10 +410,8 @@ contains
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_ngrow, bc_rval = new_cohort%daily_n_need1)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nmax, bc_rval = new_cohort%daily_n_need2)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pgrow, bc_rval = new_cohort%daily_p_need1)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pmax, bc_rval = new_cohort%daily_p_need2)
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nneed, bc_rval = new_cohort%daily_n_need)
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pneed, bc_rval = new_cohort%daily_p_need)
        
        
     case DEFAULT
@@ -559,15 +558,14 @@ contains
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
 
     ! Fluxes from nutrient allocation
-    currentCohort%daily_n_uptake = nan
+    currentCohort%daily_nh4_uptake = nan
+    currentCohort%daily_no3_uptake = nan
     currentCohort%daily_p_uptake = nan
     currentCohort%daily_c_efflux = nan
     currentCohort%daily_n_efflux = nan
     currentCohort%daily_p_efflux = nan
-    currentCohort%daily_n_need1 = nan
-    currentCohort%daily_n_need2 = nan
-    currentCohort%daily_p_need1 = nan
-    currentCohort%daily_p_need2 = nan
+    currentCohort%daily_n_need   = nan
+    currentCohort%daily_p_need   = nan
     currentCohort%daily_n_demand = nan
     currentCohort%daily_p_demand = nan
     
@@ -678,17 +676,16 @@ contains
     ! after allocation. These variables exist in
     ! carbon-only mode but are not used.
 
-    currentCohort%daily_n_uptake = 0._r8
+    currentCohort%daily_nh4_uptake = 0._r8
+    currentCohort%daily_no3_uptake = 0._r8
     currentCohort%daily_p_uptake = 0._r8
     
     currentCohort%daily_c_efflux = 0._r8
     currentCohort%daily_n_efflux = 0._r8
     currentCohort%daily_p_efflux = 0._r8
     
-    currentCohort%daily_n_need1 = 0._r8
-    currentCohort%daily_n_need2 = 0._r8
-    currentCohort%daily_p_need1 = 0._r8
-    currentCohort%daily_p_need2 = 0._r8
+    currentCohort%daily_n_need = 0._r8
+    currentCohort%daily_p_need = 0._r8
 
     ! Initialize these as negative
     currentCohort%daily_p_demand = -9._r8
@@ -698,7 +695,7 @@ contains
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( currentSite, currentPatch, level , call_index)
+  subroutine terminate_cohorts( currentSite, currentPatch, level , call_index, bc_in)
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -711,7 +708,8 @@ contains
     type (ed_patch_type), intent(inout), target :: currentPatch
     integer             , intent(in)            :: level
     integer                                     :: call_index
-
+    type(bc_in_type), intent(in)                :: bc_in
+    
     ! Important point regarding termination levels.  Termination is typically
     ! called after fusion.  We do this so that we can re-capture the biomass that would
     ! otherwise be lost from termination.  The biomass of a fused plant remains in the
@@ -827,7 +825,7 @@ contains
 
           if (currentCohort%n.gt.0.0_r8) then
              call SendCohortToLitter(currentSite,currentPatch, &
-                  currentCohort,currentCohort%n)
+                  currentCohort,currentCohort%n,bc_in)
           end if
           
           ! Set pointers and remove the current cohort from the list
@@ -861,7 +859,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine SendCohortToLitter(csite,cpatch,ccohort,nplant)
+  subroutine SendCohortToLitter(csite,cpatch,ccohort,nplant,bc_in)
     
     ! -----------------------------------------------------------------------------------
     ! This routine transfers the existing mass in all pools and all elements
@@ -884,9 +882,9 @@ contains
     type (ed_patch_type)  , target  :: cpatch
     type (ed_cohort_type) , target  :: ccohort
     real(r8)                        :: nplant     ! Number (absolute)
-                                                  ! of plants to transfer
+    ! of plants to transfer
+    type(bc_in_type), intent(in)    :: bc_in
     
-    !
     type(litter_type), pointer        :: litt       ! Litter object for each element
     type(site_fluxdiags_type),pointer :: flux_diags
 
@@ -910,7 +908,8 @@ contains
 
     plant_dens = nplant/cpatch%area
 
-    call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil)
+    call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
+         bc_in%max_rooting_depth_index_col)
 
     do el=1,num_elements
        
@@ -1396,8 +1395,10 @@ contains
                                       currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                       ! Nutrient fluxes
-                                      currentCohort%daily_n_uptake = (currentCohort%n*currentCohort%daily_n_uptake + & 
-                                           nextc%n*nextc%daily_n_uptake)/newn
+                                      currentCohort%daily_nh4_uptake = (currentCohort%n*currentCohort%daily_nh4_uptake + & 
+                                           nextc%n*nextc%daily_nh4_uptake)/newn
+                                      currentCohort%daily_no3_uptake = (currentCohort%n*currentCohort%daily_no3_uptake + & 
+                                           nextc%n*nextc%daily_no3_uptake)/newn
                                       currentCohort%daily_p_uptake = (currentCohort%n*currentCohort%daily_p_uptake + & 
                                            nextc%n*nextc%daily_p_uptake)/newn
 
@@ -1413,15 +1414,10 @@ contains
                                       currentCohort%daily_p_efflux = (currentCohort%n*currentCohort%daily_p_efflux + & 
                                            nextc%n*nextc%daily_p_efflux)/newn
                                       
-                                      currentCohort%daily_n_need1 = (currentCohort%n*currentCohort%daily_n_need1 + & 
-                                           nextc%n*nextc%daily_n_need1)/newn
-                                      currentCohort%daily_n_need2 = (currentCohort%n*currentCohort%daily_n_need2 + & 
-                                           nextc%n*nextc%daily_n_need2)/newn
-                                      currentCohort%daily_p_need1 = (currentCohort%n*currentCohort%daily_p_need1 + & 
-                                           nextc%n*nextc%daily_p_need1)/newn
-                                      currentCohort%daily_p_need2 = (currentCohort%n*currentCohort%daily_p_need2 + & 
-                                           nextc%n*nextc%daily_p_need2)/newn
-
+                                      currentCohort%daily_n_need = (currentCohort%n*currentCohort%daily_n_need + & 
+                                           nextc%n*nextc%daily_n_need)/newn
+                                      currentCohort%daily_p_need = (currentCohort%n*currentCohort%daily_p_need + & 
+                                           nextc%n*nextc%daily_p_need)/newn
                                       
                                       
                                       ! logging mortality, Yi Xu
@@ -1817,15 +1813,14 @@ contains
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
 
-    n%daily_n_uptake = o%daily_n_uptake
+    n%daily_nh4_uptake = o%daily_nh4_uptake
+    n%daily_no3_uptake = o%daily_no3_uptake
     n%daily_p_uptake = o%daily_p_uptake
     n%daily_c_efflux = o%daily_c_efflux
     n%daily_n_efflux = o%daily_n_efflux
     n%daily_p_efflux = o%daily_p_efflux
-    n%daily_n_need1 = o%daily_n_need1
-    n%daily_n_need2 = o%daily_n_need2
-    n%daily_p_need1 = o%daily_p_need1
-    n%daily_p_need2 = o%daily_p_need2
+    n%daily_n_need   = o%daily_n_need
+    n%daily_p_need   = o%daily_p_need
     n%daily_n_demand = o%daily_n_demand
     n%daily_p_demand = o%daily_p_demand
     

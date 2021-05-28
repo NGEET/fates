@@ -660,11 +660,14 @@ contains
              ! Transfer in litter fluxes from plants in various contexts of death and destruction
 
              if(currentPatch%disturbance_mode .eq. dtype_ilog) then
-                call logging_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
+                call logging_litter_fluxes(currentSite, currentPatch, &
+                     new_patch, patch_site_areadis,bc_in)
              elseif(currentPatch%disturbance_mode .eq. dtype_ifire) then
-                call fire_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)  
+                call fire_litter_fluxes(currentSite, currentPatch, &
+                     new_patch, patch_site_areadis,bc_in)  
              else
-                call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
+                call mortality_litter_fluxes(currentSite, currentPatch, &
+                     new_patch, patch_site_areadis,bc_in)
              endif
 
              ! --------------------------------------------------------------------------
@@ -1080,9 +1083,9 @@ contains
              ! the first call to terminate cohorts removes sparse number densities,
              ! the second call removes for all other reasons (sparse culling must happen
              ! before fusion)
-             call terminate_cohorts(currentSite, currentPatch, 1,16)
+             call terminate_cohorts(currentSite, currentPatch, 1,16,bc_in)
              call fuse_cohorts(currentSite,currentPatch, bc_in)
-             call terminate_cohorts(currentSite, currentPatch, 2,16)
+             call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
              call sort_cohorts(currentPatch)
 
           end if    ! if ( new_patch%area > nearzero ) then 
@@ -1154,16 +1157,16 @@ contains
        ! before fusion)
 
        if ( site_areadis_primary .gt. nearzero) then
-          call terminate_cohorts(currentSite, new_patch_primary, 1,17)
+          call terminate_cohorts(currentSite, new_patch_primary, 1,17, bc_in)
           call fuse_cohorts(currentSite,new_patch_primary, bc_in)
-          call terminate_cohorts(currentSite, new_patch_primary, 2,17)
+          call terminate_cohorts(currentSite, new_patch_primary, 2,17, bc_in)
           call sort_cohorts(new_patch_primary)
        endif
        
        if ( site_areadis_secondary .gt. nearzero) then
-          call terminate_cohorts(currentSite, new_patch_secondary, 1,18)
+          call terminate_cohorts(currentSite, new_patch_secondary, 1,18,bc_in)
           call fuse_cohorts(currentSite,new_patch_secondary, bc_in)
-          call terminate_cohorts(currentSite, new_patch_secondary, 2,18)
+          call terminate_cohorts(currentSite, new_patch_secondary, 2,18,bc_in)
           call sort_cohorts(new_patch_secondary)
        endif
        
@@ -1384,6 +1387,17 @@ contains
           
        enddo
 
+       do pft = 1,numpft
+          
+          new_litt%seed_decay(pft) = new_litt%seed_decay(pft) + &
+               curr_litt%seed_decay(pft)*patch_site_areadis/newPatch%area
+
+          new_litt%seed_germ_decay(pft) = new_litt%seed_germ_decay(pft) + &
+               curr_litt%seed_germ_decay(pft)*patch_site_areadis/newPatch%area
+          
+       end do
+
+       
        ! -----------------------------------------------------------------------------
        ! Distribute the existing litter that was already in place on the donor
        ! patch.  Some of this burns and is sent to the atmosphere, and some goes to the 
@@ -1511,7 +1525,8 @@ contains
 
   ! ============================================================================
 
-  subroutine fire_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
+  subroutine fire_litter_fluxes(currentSite, currentPatch, &
+       newPatch, patch_site_areadis, bc_in)
     !
     ! !DESCRIPTION:
     !  CWD pool burned by a fire. 
@@ -1530,7 +1545,8 @@ contains
     type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
     type(ed_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
-                                                                      ! by current patch
+    type(bc_in_type)    , intent(in)            :: bc_in
+    
     !
     ! !LOCAL VARIABLES:
 
@@ -1659,7 +1675,8 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
+             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
+                  bc_in%max_rooting_depth_index_col)
 
              ! Contribution of dead trees to root litter (no root burn flux to atm)
              do dcmpy=1,ndcmpy
@@ -1731,7 +1748,8 @@ contains
 
   ! ============================================================================
 
-  subroutine mortality_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
+  subroutine mortality_litter_fluxes(currentSite, currentPatch, &
+       newPatch, patch_site_areadis,bc_in)
     !
     ! !DESCRIPTION:
     ! Carbon going from mortality associated with disturbance into CWD pools. 
@@ -1753,7 +1771,7 @@ contains
     type(ed_patch_type) , intent(inout), target :: currentPatch
     type(ed_patch_type) , intent(inout), target :: newPatch
     real(r8)            , intent(in)            :: patch_site_areadis
-
+    type(bc_in_type)    , intent(in)            :: bc_in
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer      :: currentCohort
@@ -1868,7 +1886,8 @@ contains
           ag_wood = num_dead * (struct_m + sapw_m) * prt_params%allom_agb_frac(pft)
           bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-prt_params%allom_agb_frac(pft))
           
-          call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
+          call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
+               bc_in%max_rooting_depth_index_col)
 
 
           do c=1,ncwd

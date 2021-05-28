@@ -59,6 +59,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : phen_dstat_moistoff
   use EDTypesMod          , only : phen_dstat_moiston
   use EDTypesMod          , only : phen_dstat_timeon
+  use EDTypesMod          , only : init_recruit_trim
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
@@ -101,8 +102,10 @@ module EDPhysiologyMod
   use PRTLossFluxesMod, only : PRTPhenologyFlush
   use PRTLossFluxesMod, only : PRTDeciduousTurnover
   use PRTLossFluxesMod, only : PRTReproRelease
+  use PRTGenericMod, only : StorageNutrientTarget
 
-  
+  implicit none
+  private
 
   public :: trim_canopy
   public :: phenology
@@ -119,8 +122,6 @@ module EDPhysiologyMod
         __FILE__
 
   integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter 
-
-
 
   
   ! ============================================================================
@@ -235,7 +236,7 @@ contains
        ! Send fluxes from newly created litter into the litter pools
        ! This litter flux is from non-disturbance inducing mortality, as well
        ! as litter fluxes from live trees
-       call CWDInput(currentSite, currentPatch, litt)
+       call CWDInput(currentSite, currentPatch, litt,bc_in)
 
 
        ! Only calculate fragmentation flux over layers that are active
@@ -1447,9 +1448,9 @@ contains
              case(carbon12_element)
                  seed_stoich = 1._r8
              case(nitrogen_element)
-                 seed_stoich = prt_params%nitr_stoich_p2(pft,repro_organ)
+                 seed_stoich = prt_params%nitr_recr_stoich(pft) 
              case(phosphorus_element)
-                 seed_stoich = prt_params%phos_stoich_p2(pft,repro_organ)
+                 seed_stoich = prt_params%phos_recr_stoich(pft) 
              case default
                  write(fates_log(), *) 'undefined element specified'
                  write(fates_log(), *) 'while defining forced external seed mass flux'
@@ -1563,7 +1564,7 @@ contains
 
 
 
-
+  
 
   ! =====================================================================================
 
@@ -1620,7 +1621,7 @@ contains
 
     do ft = 1,numpft
       if(currentSite%use_this_pft(ft).eq.itrue)then
-       temp_cohort%canopy_trim = 0.8_r8  !starting with the canopy not fully expanded 
+       temp_cohort%canopy_trim = init_recruit_trim
        temp_cohort%pft         = ft
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
        temp_cohort%coage       = 0.0_r8
@@ -1686,7 +1687,7 @@ contains
        if ( (hlm_use_ed_prescribed_phys .eq. ifalse) .or. &
             (EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0._r8) ) then
 
-           temp_cohort%n = 1.e10_r8
+           temp_cohort%n = 1.e20_r8
 
            do el = 1,num_elements
                
@@ -1694,24 +1695,34 @@ contains
                select case(element_id)
                case(carbon12_element)
                
-                  mass_demand = (c_struct+c_leaf+c_fnrt+c_sapw+c_store)
+                  mass_demand = c_struct+c_leaf+c_fnrt+c_sapw+c_store
                
                case(nitrogen_element)
-               
-                  mass_demand = c_struct*prt_params%nitr_stoich_p1(ft,struct_organ) + &
-                                 c_leaf*prt_params%nitr_stoich_p1(ft,leaf_organ) + &
-                                 c_fnrt*prt_params%nitr_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapw*prt_params%nitr_stoich_p1(ft,sapw_organ) + & 
-                                 c_store*prt_params%nitr_stoich_p1(ft,store_organ)
-               
+
+                     mass_demand = &
+                          c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
+                          c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
+                          c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
+                          c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) + &
+                          StorageNutrientTarget(ft, element_id, &
+                          c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)), &
+                          c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)), &
+                          c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)), &
+                          c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)))
+                  
                case(phosphorus_element)
-               
-                  mass_demand = c_struct*prt_params%phos_stoich_p1(ft,struct_organ) + &
-                                 c_leaf*prt_params%phos_stoich_p1(ft,leaf_organ) + &
-                                 c_fnrt*prt_params%phos_stoich_p1(ft,fnrt_organ) + & 
-                                 c_sapw*prt_params%phos_stoich_p1(ft,sapw_organ)  + & 
-                                 c_store*prt_params%phos_stoich_p1(ft,store_organ)
-               
+                  
+                  mass_demand = &
+                       c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
+                       c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
+                       c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
+                       c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) + &
+                       StorageNutrientTarget(ft, element_id, &
+                       c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)), &
+                       c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)), &
+                       c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)), &
+                       c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ)))
+                  
                case default
                    write(fates_log(),*) 'Undefined element type in recruitment'
                    call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1736,7 +1747,7 @@ contains
        endif
 
        ! Only bother allocating a new cohort if there is a reasonable amount of it
-       if (temp_cohort%n > min_n_safemath )then
+       any_recruits: if (temp_cohort%n > min_n_safemath )then
 
           ! -----------------------------------------------------------------------------
           ! PART II.
@@ -1764,20 +1775,20 @@ contains
 
               case(nitrogen_element)
 
-                 m_struct = c_struct*prt_params%nitr_stoich_p1(ft,struct_organ)
-                 m_leaf   = c_leaf*prt_params%nitr_stoich_p1(ft,leaf_organ)
-                 m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(ft,fnrt_organ)
-                 m_sapw   = c_sapw*prt_params%nitr_stoich_p1(ft,sapw_organ)
-                 m_store  = c_store*prt_params%nitr_stoich_p1(ft,store_organ)
+                 m_struct = c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ))
+                 m_leaf   = c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ))
+                 m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ))
+                 m_sapw   = c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ))
+                 m_store  = StorageNutrientTarget(ft, element_id, m_leaf, m_fnrt, m_sapw, m_struct )
                  m_repro  = 0._r8
 
               case(phosphorus_element)
 
-                 m_struct = c_struct*prt_params%phos_stoich_p1(ft,struct_organ)
-                 m_leaf   = c_leaf*prt_params%phos_stoich_p1(ft,leaf_organ)
-                 m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(ft,fnrt_organ)
-                 m_sapw   = c_sapw*prt_params%phos_stoich_p1(ft,sapw_organ)
-                 m_store  = c_store*prt_params%phos_stoich_p1(ft,store_organ)
+                 m_struct = c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ))
+                 m_leaf   = c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ))
+                 m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ))
+                 m_sapw   = c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ))
+                 m_store  = StorageNutrientTarget(ft, element_id, m_leaf, m_fnrt, m_sapw, m_struct )
                  m_repro  = 0._r8
 
               end select
@@ -1855,7 +1866,7 @@ contains
            currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
           
 
-       endif
+        endif any_recruits
       endif !use_this_pft
      enddo  !pft loop
      
@@ -1865,7 +1876,7 @@ contains
 
   ! ============================================================================
 
-  subroutine CWDInput( currentSite, currentPatch, litt)
+  subroutine CWDInput( currentSite, currentPatch, litt, bc_in)
 
     !
     ! !DESCRIPTION:
@@ -1883,7 +1894,7 @@ contains
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type),intent(inout), target :: currentPatch
     type(litter_type),intent(inout),target    :: litt
-
+    type(bc_in_type),intent(in)               :: bc_in
 
     !
     ! !LOCAL VARIABLES:
@@ -1942,7 +1953,8 @@ contains
     do while(associated(currentCohort))
       pft = currentCohort%pft        
 
-      call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
+      call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
+           bc_in%max_rooting_depth_index_col)
 
       leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id)
       store_m_turnover  = currentCohort%prt%GetTurnover(store_organ,element_id)

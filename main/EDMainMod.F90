@@ -48,6 +48,7 @@ module EDMainMod
   use FatesSoilBGCFluxMod      , only : FluxIntoLitterPools
   use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
+  use FatesSoilBGCFluxMod      , only : PrepCH4BCs
   use SFMainMod                , only : fire_model 
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
@@ -88,12 +89,13 @@ module EDMainMod
   use PRTGenericMod,          only : store_organ
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-
   use PRTLossFluxesMod,       only : PRTMaintTurnover
   use PRTLossFluxesMod,       only : PRTReproRelease
-
   use EDPftvarcon,            only : EDPftvarcon_inst
-
+  use FatesHistoryInterfaceMod, only : ih_nh4uptake_si, ih_no3uptake_si, ih_puptake_si
+  use FatesHistoryInterfaceMod, only : ih_nh4uptake_scpf, ih_no3uptake_scpf, ih_puptake_scpf
+  use FatesHistoryInterfaceMod, only : fates_hist
+  
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
@@ -156,13 +158,6 @@ contains
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
     call IsItLoggingTime(hlm_masterproc,currentSite)
-
-    ! -----------------------------------------------------------------------------------
-    ! Parse nutrient flux rates 
-    ! The input boundary conditions from the HLM should now have a daily integrated
-    ! flux.  But, that flux still needs to be parsed out to the existing cohorts.
-    ! -----------------------------------------------------------------------------------
-
 
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
@@ -236,13 +231,13 @@ contains
           call sort_cohorts(currentPatch)            
 
           ! kills cohorts that are too few
-          call terminate_cohorts(currentSite, currentPatch, 1, 10 )
+          call terminate_cohorts(currentSite, currentPatch, 1, 10, bc_in  )
 
           ! fuses similar cohorts
           call fuse_cohorts(currentSite,currentPatch, bc_in )
           
           ! kills cohorts for various other reasons
-          call terminate_cohorts(currentSite, currentPatch, 2, 10 )
+          call terminate_cohorts(currentSite, currentPatch, 2, 10, bc_in )
           
           
           currentPatch => currentPatch%younger
@@ -311,6 +306,7 @@ contains
 
     integer  :: c                     ! Counter for litter size class 
     integer  :: ft                    ! Counter for PFT
+    integer  :: io_si                 ! global site index for history writing
     integer  :: iscpf                 ! index for the size-class x pft multiplexed bins
     integer  :: el                    ! Counter for element type (c,n,p,etc)
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
@@ -438,7 +434,8 @@ contains
              ! Mass balance for N uptake
              currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = & 
                   currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + &
-                  (currentCohort%daily_n_uptake-currentCohort%daily_n_efflux)*currentCohort%n
+                  (currentCohort%daily_nh4_uptake+currentCohort%daily_no3_uptake- &
+                  currentCohort%daily_n_efflux)*currentCohort%n
                   
              ! Mass balance for P uptake
              currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = & 
@@ -454,13 +451,33 @@ contains
              iscpf = currentCohort%size_by_pft_class
              
              ! Diagnostics for uptake, by size and pft, [kgX/ha/day]
-             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_uptake_scpf(iscpf) = & 
-                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_uptake_scpf(iscpf) + & 
-                  currentCohort%daily_n_uptake*currentCohort%n
+
+             io_si  = currentSite%h_gid
              
-             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_uptake_scpf(iscpf) = & 
-                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_uptake_scpf(iscpf) + & 
+             fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) = &
+                  fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) + &
+                  currentCohort%daily_nh4_uptake*currentCohort%n
+
+             fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) = &
+                  fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) + & 
+                  currentCohort%daily_no3_uptake*currentCohort%n
+
+             fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) = &
+                  fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) + & 
                   currentCohort%daily_p_uptake*currentCohort%n
+             
+             fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si) = &
+                  fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si)  + & 
+                  currentCohort%daily_nh4_uptake*currentCohort%n
+
+             fates_hist%hvars(ih_no3uptake_si)%r81d(io_si) = &
+                  fates_hist%hvars(ih_no3uptake_si)%r81d(io_si)  + & 
+                  currentCohort%daily_no3_uptake*currentCohort%n
+
+             fates_hist%hvars(ih_puptake_si)%r81d(io_si) = &
+                  fates_hist%hvars(ih_puptake_si)%r81d(io_si)  + & 
+                  currentCohort%daily_p_uptake*currentCohort%n
+
              
              ! Diagnostics on efflux, size and pft [kgX/ha/day]
              currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_efflux_scpf(iscpf) = & 
@@ -476,21 +493,13 @@ contains
                   currentCohort%daily_c_efflux*currentCohort%n
 
              ! Diagnostics on plant nutrient need
-             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needgrow_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needgrow_scpf(iscpf) + &
-                  currentCohort%daily_n_need1*currentCohort%n
+             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_need_scpf(iscpf) = &
+                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_need_scpf(iscpf) + &
+                  currentCohort%daily_n_need*currentCohort%n
 
-             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needmax_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_needmax_scpf(iscpf) + &
-                  currentCohort%daily_n_need2*currentCohort%n
-
-             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needgrow_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needgrow_scpf(iscpf) + &
-                  currentCohort%daily_p_need1*currentCohort%n
-
-             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needmax_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_needmax_scpf(iscpf) + &
-                  currentCohort%daily_p_need2*currentCohort%n
+             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_need_scpf(iscpf) = &
+                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_need_scpf(iscpf) + &
+                  currentCohort%daily_p_need*currentCohort%n
 
           end if
 
@@ -651,8 +660,8 @@ contains
         
         ! Is termination really needed here? 
         ! Canopy_structure just called it several times! (rgk)
-        call terminate_cohorts(currentSite, currentPatch, 1, 11) 
-        call terminate_cohorts(currentSite, currentPatch, 2, 11)
+        call terminate_cohorts(currentSite, currentPatch, 1, 11, bc_in) 
+        call terminate_cohorts(currentSite, currentPatch, 2, 11, bc_in)
 
         ! This cohort count is used in the photosynthesis loop
         call count_cohorts(currentPatch)
@@ -661,16 +670,14 @@ contains
         currentPatch => currentPatch%younger    
     enddo
 
-    ! Aggregate FATES litter output fluxes and
-    ! package them into boundary conditions
-    ! Note: The FATES state variables that generate these
-    ! boundary conditions are read in on the restart,
-    ! and, they are zero'd only at the start of ecosystem
-    ! dynamics
-
-    ! Based on current status of the
+    ! The HLMs need to know about nutrient demand, and/or
+    ! root mass and affinities
     call PrepNutrientAquisitionBCs(currentSite,bc_in,bc_out)
 
+    ! The HLM methane module needs information about
+    ! rooting mass, distributions, respiration rates and NPP
+    call PrepCH4BCs(currentSite,bc_in,bc_out)
+    
 
     ! FIX(RF,032414). This needs to be monthly, not annual
     ! If this is the second to last day of the year, then perform trimming
@@ -828,7 +835,8 @@ contains
                         write(fates_log(),*) 'resp m def: ',currentCohort%resp_m_def*currentCohort%n
 
                         if(element_list(el).eq.nitrogen_element) then
-                           write(fates_log(),*) 'N uptake: ',currentCohort%daily_n_uptake*currentCohort%n
+                           write(fates_log(),*) 'NH4 uptake: ',currentCohort%daily_nh4_uptake*currentCohort%n
+                           write(fates_log(),*) 'NO3 uptake: ',currentCohort%daily_no3_uptake*currentCohort%n
                            write(fates_log(),*) 'N efflux: ',currentCohort%daily_n_efflux*currentCohort%n
                         elseif(element_list(el).eq.phosphorus_element) then
                            write(fates_log(),*) 'P uptake: ',currentCohort%daily_p_uptake*currentCohort%n
