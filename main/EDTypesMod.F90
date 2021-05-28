@@ -61,9 +61,11 @@ module EDTypesMod
   integer, parameter, public :: nlevleaf = 30             ! number of leaf+stem layers in canopy layer
   real(r8), parameter, public :: top_vai_bin_width = 0.25 ! width in VAI units of uppermost canopy scattering element
   real(r8), parameter, public :: vai_width_increase_factor = 1.3 ! factor by which each bin increases in VAI binning
-  real(r8), public :: dinc_vai(nlevleaf)                  ! width of VAI bins
-  real(r8), public :: dlevedges_vai(0:nlevleaf)           ! edges of VAI bins, element 0 is the top edge of the canopy
-
+  integer :: i                                            ! iterator used to define bin widths
+  real(r8), parameter, public :: dinc_vai(nlevleaf) = &
+       top_vai_bin_width * vai_width_increase_factor ** (/(i, i=0,nlevleaf-1,1)/)  ! VAI bin widths array
+  real(r8), parameter, public :: dlower_vai(nlevleaf) = &
+       (/(sum(dinc_vai(1:i)), i=1,nlevleaf,1)/)           ! lower edge of VAI bins
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would

@@ -96,7 +96,8 @@ contains
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
-    use EDTypesMod        , only : dinc_ed
+    use EDTypesMod        , only : dinc_vai
+    use EDTypesMod        , only : dlower_vai
     use FatesInterfaceTypesMod , only : bc_in_type
     use FatesInterfaceTypesMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
@@ -208,7 +209,7 @@ contains
     real(r8) :: lnc_top            ! Leaf nitrogen content per unit area at canopy top [gN/m2]
     real(r8) :: lmr25top           ! canopy top leaf maint resp rate at 25C 
                                    ! for this plant or pft (umol CO2/m**2/s)
-    real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_ed
+    real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_vai
     real(r8) :: lai_canopy_above   ! the LAI in the canopy layers above the layer of interest
     real(r8) :: lai_layers_above   ! the LAI in the leaf layers, within the current canopy, 
                                    ! above the leaf layer of interest
@@ -402,15 +403,17 @@ contains
                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
                                  btran_eff = currentCohort%co_hydr%btran 
                                  
-                                 ! dinc_ed is the total vegetation area index of each "leaf" layer
+                                 ! dinc_vai(:) is the total vegetation area index of each "leaf" layer
                                  ! we convert to the leaf only portion of the increment
                                  ! ------------------------------------------------------
-                                 leaf_inc    = dinc_ed * &
+                                 leaf_inc    = dinc_vai(iv) * &
                                                currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
                                  
                                  ! Now calculate the cumulative top-down lai of the current layer's midpoint
                                  lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
-                                 lai_layers_above  = leaf_inc * (iv-1)
+
+                                 lai_layers_above  = (dlower_vai(iv) - dinc_vai(iv)) * &
+                                      currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
                                  lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
                                  cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current 
 

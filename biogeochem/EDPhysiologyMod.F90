@@ -34,7 +34,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
-  use EDTypesMod          , only : dl_sf, dinc_ed, area_inv
+  use EDTypesMod          , only : dl_sf, dinc_vai, dlower_vai, area_inv
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
   use FatesLitterMod      , only : ilabile
@@ -385,7 +385,7 @@ contains
     real(r8) :: sapw_c                ! sapwood carbon [kg]
     real(r8) :: store_c               ! storage carbon [kg]
     real(r8) :: struct_c              ! structure carbon [kg]
-    real(r8) :: leaf_inc              ! LAI-only portion of the vegetation increment of dinc_ed
+    real(r8) :: leaf_inc              ! LAI-only portion of the vegetation increment of dinc_vai
     real(r8) :: lai_canopy_above      ! the LAI in the canopy layers above the layer of interest
     real(r8) :: lai_layers_above      ! the LAI in the leaf layers, within the current canopy, 
                                       ! above the leaf layer of interest
@@ -469,7 +469,7 @@ contains
                                            currentPatch%canopy_layer_tlai, currentCohort%treelai, &
                                            currentCohort%vcmax25top,0 )  
 
-          currentCohort%nv      = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
+          currentCohort%nv      = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
           if (currentCohort%nv > nlevleaf)then
              write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv, &
@@ -501,11 +501,12 @@ contains
 
              ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
 
-             leaf_inc    = dinc_ed * &
+             leaf_inc    = dinc_vai(z) * &
                    currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
              
              ! Now calculate the cumulative top-down lai of the current layer's midpoint within the current cohort
-             lai_layers_above      = leaf_inc * (z-1)
+             lai_layers_above      = (dlower_vai(z) - dinc_vai(z)) * &
+                  currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
              lai_current           = min(leaf_inc, currentCohort%treelai - lai_layers_above)
              cumulative_lai_cohort = lai_layers_above + 0.5*lai_current
 
