@@ -36,7 +36,6 @@ module EDTypesMod
                                                           ! to understory layers (all layers that
                                                           ! are not the top canopy layer)
 
-  integer, parameter, public :: nlevleaf = 30             ! number of leaf layers in canopy layer
   integer, parameter, public :: maxpft = 16               ! maximum number of PFTs allowed
                                                           ! the parameter file may determine that fewer
                                                           ! are used, but this helps allocate scratch
@@ -57,6 +56,13 @@ module EDTypesMod
  
   integer, parameter, public :: idirect   = 1             ! This is the array index for direct radiation
   integer, parameter, public :: idiffuse  = 2             ! This is the array index for diffuse radiation
+
+  ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
+  integer, parameter, public :: nlevleaf = 30             ! number of leaf+stem layers in canopy layer
+  real(r8), parameter, public :: top_vai_bin_width = 0.25 ! width in VAI units of uppermost canopy scattering element
+  real(r8), parameter, public :: vai_width_increase_factor = 1.3 ! factor by which each bin increases in VAI binning
+  real(r8), public :: dinc_vai(nlevleaf)                  ! width of VAI bins
+  real(r8), public :: dlevedges_vai(0:nlevleaf)           ! edges of VAI bins, element 0 is the top edge of the canopy
 
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
@@ -123,8 +129,6 @@ module EDTypesMod
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
-  real(r8), parameter, public :: dinc_ed              = 1.0_r8     ! size of VAI bins (LAI+SAI)  [CHANGE THIS NAME WITH NEXT INTERFACE
-                                                           ! UPDATE]
   integer , parameter, public :: N_DIST_TYPES         = 3          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
   integer , parameter, public :: dtype_ifall          = 1          ! index for naturally occuring tree-fall generated event
   integer , parameter, public :: dtype_ifire          = 2          ! index for fire generated disturbance event
