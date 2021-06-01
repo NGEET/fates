@@ -62,10 +62,18 @@ module EDTypesMod
   real(r8), parameter, public :: top_vai_bin_width = 0.25_r8 ! width in VAI units of uppermost canopy scattering element
   real(r8), parameter, public :: vai_width_increase_factor = 1.3_r8 ! factor by which each bin increases in VAI binning
   integer :: i                                            ! iterator used to define bin widths
-  real(r8), parameter, public :: dinc_vai(nlevleaf) = &
-       top_vai_bin_width * vai_width_increase_factor ** (/(real(i,r8), i=0,nlevleaf-1,1)/)  ! VAI bin widths array
-  real(r8), parameter, public :: dlower_vai(nlevleaf) = &
-       (/(sum(dinc_vai(1:i)), i=1,nlevleaf,1)/)           ! lower edges of VAI bins
+  ! real(r8), protected, public :: dinc_vai(nlevleaf) = &
+  !      top_vai_bin_width * vai_width_increase_factor ** (/i, i=0,nlevleaf-1,1)/)  ! VAI bin widths array
+  real(r8), parameter, public :: dinc_vai(nlevleaf) = (/0.25_r8,0.325_r8,0.4225_r8,0.54925_r8,0.714025_r8, &
+       0.9282325_r8,1.20670225_r8,1.56871293_r8,2.0393268_r8,2.65112484_r8, &
+       3.4464623_r8,4.48040099_r8,5.82452128_r8,7.57187766_r8,9.84344096_r8/)
+
+  ! real(r8), protected, public :: dlower_vai(nlevleaf) = &
+  !      (/(sum(dinc_vai(1:i)), i=1,nlevleaf,1)/)           ! lower edges of VAI bins
+
+  real(r8), parameter, public :: dlower_vai(nlevleaf) = (/0.25_r8,0.575_r8,0.9975_r8,1.54675_r8,2.260775_r8,&
+       3.1890075_r8,4.39570975_r8,5.96442268_r8,8.00374948_r8,10.65487432_r8, &
+       14.10133662_r8,18.5817376_r8,24.40625888_r8,31.97813655_r8,41.82157751_r8/)
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
