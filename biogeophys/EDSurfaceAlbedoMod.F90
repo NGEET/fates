@@ -199,6 +199,7 @@ contains
     integer  :: irep                                          ! Flag to exit iteration loop
     real(r8) :: sb
     real(r8) :: error                                         ! Error check
+    real(r8) :: lgerror 
     real(r8) :: down_rad, up_rad                              ! Iterative solution do Dif_dn and Dif_up
     real(r8) :: ftweight(nclmax,maxpft,nlevleaf)
     real(r8) :: k_dir(maxpft)                              ! Direct beam extinction coefficient
@@ -217,8 +218,8 @@ contains
     real(r8) :: lai_change(nclmax,maxpft,nlevleaf)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
 
      real(r8) :: total_lai_sai(nclmax,maxpft,nlevleaf)  ! Total intercepting surfaces in canopy layer. m2
-    real(r8) :: frac_lai(nclmax,maxpft,nlevleaf)        ! Fraction of lai in each layer
-    real(r8) :: frac_sai(nclmax,maxpft,nlevleaf)        ! Fraction of sai in each layer
+    real(r8) :: frac_lai                                ! Fraction of lai in each layer
+    real(r8) :: frac_sai                                ! Fraction of sai in each layer
     real(r8) :: f_abs(nclmax,maxpft,nlevleaf,maxSWb)    ! Fraction of light absorbed by surfaces.
     real(r8) :: rho_layer(nclmax,maxpft,nlevleaf,maxSWb)! Weighted verage reflectance of layer
     real(r8) :: tau_layer(nclmax,maxpft,nlevleaf,maxSWb)! Weighted average transmittance of layer
@@ -263,6 +264,8 @@ contains
          clumping_index  => EDPftvarcon_inst%clumping_index) 
 
 
+      lgerror = 0.03_r8
+
       ! Initialize local arrays
 
       weighted_dir_tr(:)   = 0._r8
@@ -297,18 +300,23 @@ contains
             do  iv = 1, currentPatch%nrad(L,ft)
                total_lai_sai(L,ft,iv) = currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L\
 ,ft,iv)
-               if (currentPatch%canopy_area_profile(L,ft,iv) > 0._r8.and.total_lai_sai(l,ft,iv) > 0._r8)then
+               if (currentPatch%canopy_area_profile(L,ft,iv) > 0._r8)then
                   currentPatch%canopy_mask(L,ft) = 1
-                  frac_lai(L,ft,iv) =  currentPatch%elai_profile(L,ft,iv)/total_lai_sai(L,ft,iv)
-                  frac_sai(L,ft,iv) =  currentPatch%esai_profile(L,ft,iv)/total_lai_sai(L,ft,iv)
- 
                   ! layer level reflectance qualities
                   do ib = 1,hlm_numSWb !vis, nir
-                    f_abs(L,ft,iv,ib) = 1.0_r8 - (frac_lai(L,ft,iv)*(rhol(ft,ib) + taul(ft,ib))+&
-                                      frac_sai(L,ft,iv)*(rhos(ft,ib) + taus(ft,ib)))
-                    rho_layer(L,ft,iv,ib)=frac_lai(L,ft,iv)*rhol(ft,ib)+frac_sai(L,ft,iv)*rhos(ft,ib)
-                    tau_layer(L,ft,iv,ib)=frac_lai(L,ft,iv)*taul(ft,ib)+frac_sai(L,ft,iv)*taus(ft,ib)
-
+                    if(total_lai_sai(L,ft,iv).gt.0._r8)then
+                      frac_lai = currentPatch%elai_profile(L,ft,iv)/total_lai_sai(L,ft,iv)
+                      frac_sai = 1.0_r8 - frac_lai
+                      f_abs(L,ft,iv,ib) = 1.0_r8 - (frac_lai*(rhol(ft,ib) + taul(ft,ib))+&
+                                      frac_sai*(rhos(ft,ib) + taus(ft,ib)))
+                      rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
+                      tau_layer(L,ft,iv,ib)=frac_lai*taul(ft,ib)+frac_sai*taus(ft,ib)
+               
+                    else ! this is an empty layer, so all the light goes through. 
+                      rho_layer(L,ft,iv,ib)=0.0_r8
+                      tau_layer(L,ft,iv,ib)=1.0_r8
+                    end if
+               
                   end do !ib
                endif
             end do !iv
@@ -982,7 +990,7 @@ contains
             if (radtype == idirect)then
                !here we are adding a within-ED radiation scheme tolerance, and then adding the diffrence onto the albedo
                !it is important that the lower boundary for this is ~1000 times smaller than the tolerance in surface albedo. 
-               if (abs(error)  >  1.e-9_r8 .and. abs(error) < 0.15_r8)then
+               if (abs(error)  >  1.e-9_r8 .and. abs(error) < lgerror)then
                   albd_parb_out(ib) = albd_parb_out(ib) + error
                   !this terms adds the error back on to the albedo. While this is partly inexcusable, it is 
                   ! in the medium term a solution that
@@ -991,40 +999,40 @@ contains
                   ! to the complexity of this code, but where the system generates occasional errors, we
                   ! will deal with them for now.
                end if
-               if (abs(error)  >  0.15_r8)then
+               if (abs(error)  >  lgerror)then
                   write(fates_log(),*) 'Large Dir Radn consvn error',error ,ib
                   write(fates_log(),*) 'diags', albd_parb_out(ib), ftdd_parb_out(ib), &
                        ftid_parb_out(ib), fabd_parb_out(ib)
-                  write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                  write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                  write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:diag_nlevleaf)
+                  !write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                  !write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                  !write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:diag_nlevleaf)
                   write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
                   write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
                   
-                  albd_parb_out(ib) = albd_parb_out(ib) + error
+                  !albd_parb_out(ib) = albd_parb_out(ib) + error
                end if
             else
                
-               if (abs(error)  >  1.e-9_r8 .and. abs(error) < 0.15_r8)then
+               if (abs(error)  >  1.e-9_r8 .and. abs(error) < lgerror)then
                   albi_parb_out(ib) = albi_parb_out(ib) + error
                end if
                
-               if (abs(error)  >  0.15_r8)then
-                  write(fates_log(),*)  '>5% Dif Radn consvn error',error ,ib
+               if (abs(error)  >  lgerror)then
+                  write(fates_log(),*)  'lg Dif Radn consvn error',error ,ib
                   write(fates_log(),*) 'diags', albi_parb_out(ib), ftii_parb_out(ib), &
                        fabi_parb_out(ib)
-                  write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                  write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                  write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                  write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                  !write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                  !write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                  !write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                  !write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
                   write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
                   write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
-                  write(fates_log(),*) 'rhol',rhol(1:numpft,:)
-                  write(fates_log(),*) 'ftw',sum(ftweight(1,1:numpft,1)),ftweight(1,1:numpft,1)
-                  write(fates_log(),*) 'present',currentPatch%canopy_mask(1,1:numpft)
-                  write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft,1)
+                  !write(fates_log(),*) 'rhol',rhol(1:numpft,:)
+                  !write(fates_log(),*) 'ftw',sum(ftweight(1,1:numpft,1)),ftweight(1,1:numpft,1)
+                  !write(fates_log(),*) 'present',currentPatch%canopy_mask(1,1:numpft)
+                  !write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft,1)
                   
-                  albi_parb_out(ib) = albi_parb_out(ib) + error
+                 ! albi_parb_out(ib) = albi_parb_out(ib) + error
                end if
                
                if (radtype == idirect)then
