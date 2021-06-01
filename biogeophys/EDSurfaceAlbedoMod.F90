@@ -295,17 +295,20 @@ contains
          do ft = 1,numpft
             currentPatch%canopy_mask(L,ft) = 0
             do  iv = 1, currentPatch%nrad(L,ft)
-               if (currentPatch%canopy_area_profile(L,ft,iv) > 0._r8)then
+               total_lai_sai(L,ft,iv) = currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L\
+,ft,iv)
+               if (currentPatch%canopy_area_profile(L,ft,iv) > 0._r8.and.total_lai_sai(l,ft,iv) > 0._r8)then
                   currentPatch%canopy_mask(L,ft) = 1
-                  total_lai_sai(L,ft,iv) = currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv)
                   frac_lai(L,ft,iv) =  currentPatch%elai_profile(L,ft,iv)/total_lai_sai(L,ft,iv)
                   frac_sai(L,ft,iv) =  currentPatch%esai_profile(L,ft,iv)/total_lai_sai(L,ft,iv)
+ 
                   ! layer level reflectance qualities
                   do ib = 1,hlm_numSWb !vis, nir
                     f_abs(L,ft,iv,ib) = 1.0_r8 - (frac_lai(L,ft,iv)*(rhol(ft,ib) + taul(ft,ib))+&
                                       frac_sai(L,ft,iv)*(rhos(ft,ib) + taus(ft,ib)))
                     rho_layer(L,ft,iv,ib)=frac_lai(L,ft,iv)*rhol(ft,ib)+frac_sai(L,ft,iv)*rhos(ft,ib)
                     tau_layer(L,ft,iv,ib)=frac_lai(L,ft,iv)*taul(ft,ib)+frac_sai(L,ft,iv)*taus(ft,ib)
+
                   end do !ib
                endif
             end do !iv
@@ -694,6 +697,7 @@ contains
                           down_rad = down_rad + forc_dir(radtype) * tr_dir_z(L,ft,iv) * (1.00_r8 - &
                               exp(-k_dir(ft) * total_lai_sai(L,ft,iv))) * tau_layer(L,ft,iv,ib)
 
+
                         !... plus the direct beam intercepted and intransmitted by this layer. 
                         ! modified to spread it out over the whole of incomplete layers. 
 
@@ -1036,7 +1040,6 @@ contains
                end if
                
             end if
-            
          end do !hlm_numSWb
          
       enddo ! rad-type
