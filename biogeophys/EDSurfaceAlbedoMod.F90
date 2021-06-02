@@ -264,7 +264,7 @@ contains
          clumping_index  => EDPftvarcon_inst%clumping_index) 
 
 
-      lgerror = 0.03_r8
+      lgerror = 0.05_r8
 
       ! Initialize local arrays
 
@@ -307,6 +307,8 @@ contains
                     if(total_lai_sai(L,ft,iv).gt.0._r8)then
                       frac_lai = currentPatch%elai_profile(L,ft,iv)/total_lai_sai(L,ft,iv)
                       frac_sai = 1.0_r8 - frac_lai
+!                      frac_lai = 1.0_r8
+!                      frac_sai = 0.0_r8
                       f_abs(L,ft,iv,ib) = 1.0_r8 - (frac_lai*(rhol(ft,ib) + taul(ft,ib))+&
                                       frac_sai*(rhos(ft,ib) + taus(ft,ib)))
                       rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
@@ -565,7 +567,7 @@ contains
             end do!ft
          end do!L
                        
-         
+         currentPatch%radiation_error = 0.0_r8    
          do ib = 1,hlm_numSWb
             Dif_dn(:,:,:) = 0.00_r8
             Dif_up(:,:,:) = 0.00_r8
@@ -970,9 +972,11 @@ contains
             if (radtype == idirect)then
                error = (forc_dir(radtype) + forc_dif(radtype)) - &
                     (fabd_parb_out(ib)  + albd_parb_out(ib) + currentPatch%sabs_dir(ib))
+               currentPatch%radiation_error = currentPatch%radiation_error + error               
             else
                error = (forc_dir(radtype) + forc_dif(radtype)) - &
                     (fabi_parb_out(ib)  + albi_parb_out(ib) + currentPatch%sabs_dif(ib))
+               currentPatch%radiation_error = currentPatch%radiation_error + error
             endif
             lai_reduction(:) = 0.0_r8
             do L = 1, currentPatch%NCL_p
@@ -1003,13 +1007,13 @@ contains
                   write(fates_log(),*) 'Large Dir Radn consvn error',error ,ib
                   write(fates_log(),*) 'diags', albd_parb_out(ib), ftdd_parb_out(ib), &
                        ftid_parb_out(ib), fabd_parb_out(ib)
-                  !write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                  !write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                  !write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:diag_nlevleaf)
+                  write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                  write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                  write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:diag_nlevleaf)
                   write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
                   write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
                   
-                  !albd_parb_out(ib) = albd_parb_out(ib) + error
+                  albd_parb_out(ib) = albd_parb_out(ib) + error
                end if
             else
                
@@ -1032,7 +1036,7 @@ contains
                   !write(fates_log(),*) 'present',currentPatch%canopy_mask(1,1:numpft)
                   !write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft,1)
                   
-                 ! albi_parb_out(ib) = albi_parb_out(ib) + error
+                  albi_parb_out(ib) = albi_parb_out(ib) + error
                end if
                
                if (radtype == idirect)then
