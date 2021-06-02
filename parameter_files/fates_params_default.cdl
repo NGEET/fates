@@ -687,6 +687,12 @@ variables:
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
+	double fates_vai_top_bin_width ;
+		fates_vai_top_bin_width:units = "unitless" ;
+		fates_vai_top_bin_width:long_name = "width in VAI units of uppermost leaf+stem layer scattering element in each canopy layer" ;
+	double fates_vai_width_increase_factor ;
+		fates_vai_width_increase_factor:units = "unitless" ;
+		fates_vai_width_increase_factor:long_name = "factor by which each leaf+stem scattering element increases in VAI width (1 = uniform spacing)" ;
 
 // global attributes:
 		:history = "This parameter file is maintained in version control\nSee https://github.com/NGEET/fates/blob/master/parameter_files/fates_params_default.cdl \nFor changes, use git blame \n" ;
@@ -1329,4 +1335,8 @@ data:
  fates_q10_mr = 1.5 ;
 
  fates_soil_salinity = 0.4 ;
+
+ fates_vai_top_bin_width = 0.25 ;
+
+ fates_vai_width_increase_factor = 1.3 ;
 }
