@@ -2922,7 +2922,6 @@ contains
         ifp = 0
         currentpatch => sites(s)%oldest_patch
         do while (associated(currentpatch))  
-          if(currentpatch%nocomp_pft_label.gt.0)then
            ifp = ifp+1
            
            currentPatch%f_sun      (:,:,:) = 0._r8
@@ -2986,8 +2985,6 @@ contains
               endif ! is there vegetation? 
               
            end if    ! if the vegetation and zenith filter is active
-     
-         end if ! not bare ground
            currentPatch => currentPatch%younger
         end do       ! Loop linked-list patches
      enddo           ! Loop Sites
