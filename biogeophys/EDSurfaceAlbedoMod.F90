@@ -307,8 +307,6 @@ contains
                     if(total_lai_sai(L,ft,iv).gt.0._r8)then
                       frac_lai = currentPatch%elai_profile(L,ft,iv)/total_lai_sai(L,ft,iv)
                       frac_sai = 1.0_r8 - frac_lai
-!                      frac_lai = 1.0_r8
-!                      frac_sai = 0.0_r8
                       f_abs(L,ft,iv,ib) = 1.0_r8 - (frac_lai*(rhol(ft,ib) + taul(ft,ib))+&
                                       frac_sai*(rhos(ft,ib) + taus(ft,ib)))
                       rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
