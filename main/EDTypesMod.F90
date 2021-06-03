@@ -59,7 +59,7 @@ module EDTypesMod
   integer, parameter, public :: idiffuse  = 2             ! This is the array index for diffuse radiation
 
   ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
-  integer, parameter, public :: nlevleaf = 15             ! number of leaf+stem layers in canopy layer
+  integer, parameter, public :: nlevleaf = 30             ! number of leaf+stem layers in canopy layer
   real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
   real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins
 

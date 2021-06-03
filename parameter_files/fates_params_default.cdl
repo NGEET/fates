@@ -1336,7 +1336,7 @@ data:
 
  fates_soil_salinity = 0.4 ;
 
- fates_vai_top_bin_width = 0.25 ;
+ fates_vai_top_bin_width = 1.0 ;
 
- fates_vai_width_increase_factor = 1.3 ;
+ fates_vai_width_increase_factor = 1.0 ;
 }
