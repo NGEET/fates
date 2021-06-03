@@ -264,7 +264,7 @@ contains
     !*********************************************************************************
 
     do_patch_dynamics = itrue
-    if(hlm_use_ed_st3.eq.ifalse)then
+    if(hlm_use_ed_st3.eq.itrue)then
       do_patch_dynamics = ifalse
     end if
   
